@@ -287,6 +287,15 @@ a.tbtn { text-decoration: none; display: inline-flex; align-items: center; }
 
 @media (max-width: 700px) {
   .fontctl { display: none; }
+
+  .subtitle {
+    white-space: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .subtitle::-webkit-scrollbar { display: none; }
 }
 
 .empty-state {
