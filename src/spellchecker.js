@@ -171,13 +171,3 @@ export function* tokenize(text) {
     yield { word: m[0], index: m.index };
   }
 }
-
-const ABBR_HEAD_RE = /^[\p{Lu}\p{N}]+$/u;
-const SUFFIX_TAIL_RE = /^[\u0400-\u04FF]{1,6}$/u;
-export function isHyphenAttachedSuffix(word) {
-  const i = word.lastIndexOf('-');
-  if (i <= 0 || i === word.length - 1) return false;
-  const head = word.slice(0, i);
-  const tail = word.slice(i + 1);
-  return ABBR_HEAD_RE.test(head) && SUFFIX_TAIL_RE.test(tail);
-}
