@@ -1,15 +1,10 @@
 # Монгол үгийн алдаа шалгагч (bundled hunspell)
 
-Engine: эхлээд **hunspell-wasm** (жинхэнэ Hunspell, Монгол нийлмэл үг бүрэн)-ийг
-оролдоод, амжилтгүй бол **nspell** (цэвэр JS) руу автоматаар шилжинэ — апп
-гарцаагүй ажиллана. Хоёулаа bundler-ээр (CDN биш) орох тул найдвартай. Гаралт нь
-статик тул GitHub Pages дээр ажиллана; Service Worker-ээр офлайн.
+Engine: Ап эхлээд **hunspell-wasm**-ийг ажиллуулж үзээд, амжилтгүй бол
+**nspell** (JS) уруу шилжинэ. Гаралт нь статик тул GitHub Pages дээр
+Service Worker-ээр офлайн ажиллана.
 
-Статус мөрөнд аль engine идэвхтэйг харуулна:
-- `· hunspell-wasm` -> жинхэнэ Hunspell амжилттай.
-- `· nspell ...` -> нөөц engine (Монгол нийлмэл үгийн нарийвчлал бага).
-
-## 1. Толиудаа нэмэх
+## 1. Толинуудаа нэмэх
 
 `public/dict/` дотор (UTF-8):
 
@@ -25,12 +20,11 @@ public/dict/en_US.aff   public/dict/en_US.dic
 ./pack-dict.sh        # public/dict/dictionaries.zip үүсгэнэ
 ```
 
-Толь авах:
+Толь татах:
 - Монгол — https://github.com/bataak/dict-mn
-- Англи — https://github.com/wooorm/dictionaries (`en-GB`/`en-US` доторх
-  `index.aff`/`index.dic`-ийг `en_GB.*`/`en_US.*` болгож нэрлэнэ)
+- Англи — https://github.com/LibreOffice/dictionaries
 
-## 2. Локалд ажиллуулах
+## 2. Локалоор ажиллуулах
 
 ```bash
 npm install
@@ -41,18 +35,18 @@ npm run preview   # build-ийг шалгах
 
 ## 3. GitHub Pages
 
-**Автомат:** `main` руу push → `Settings → Pages → Source = GitHub Actions`.
+**Автомат тохиргоо:** `main` уруу push → `Settings → Pages → Source = GitHub Actions`.
 `base`-ийг repo нэрээр автоматаар тааруулна.
 
-**Гар:** `npm run build` → `dist/`-ийг `gh-pages` салбарт тавина. Энэ тохиолдолд
-`vite.config.js` доторх `base`-ийг repo нэрээрээ солино (`/REPO/`).
+**Гар тохиргоо:** `npm run build` → `dist/`-ийг `gh-pages` салбарт тавина. Энэ тохиолдолд
+`vite.config.js` доторх `base`-ийг repo нэрээр солино (`/REPO/`).
 
 base: project page → `/REPO/`; user/org page эсвэл custom domain → `/`.
 
 ## Ажиллагаа
 
-- Үг бичих явцад шалгахгүй — **зай/таслал/Enter** дарж үг дуусгахад л шалгана (хурдан).
-- Алдаатай үгийн доор улаан долгионт зураас (CSS Highlight API; DOM-д юу ч нэмэхгүй).
-- Улаан үг рүү курсор аваачихад засах санал гарч, дарахад орлуулна.
-- hunspell-asm-ийн wasm нь JS дотроо шигтгээстэй (SINGLE_FILE) тул нэмэлт тохиргоо
+- Үг бичих явцад шалгахгүй — **зай/таслал/Enter** дарж үг дуусгахад л шалгана.
+- Алдаатай үгийн доор улаан долгионт зураас тэмдэглэнэ (CSS Highlight API; DOM-д юу ч нэмэхгүй).
+- Улаанаар зурсан үгэн дээр курсор аваачиж дарахад үгийн зөв бичлэг харагдана.
+- hunspell-asm-ийн wasm нь JS дотроо суусан (SINGLE_FILE) тул нэмэлт тохиргоо
   шаардлагагүй.
