@@ -8,6 +8,7 @@ const els = {
   editor: document.querySelector('#editor'),
   backdrop: document.querySelector('#backdrop'),
   popover: document.querySelector('#popover'),
+  emptyState: document.querySelector('#emptyState'),
 };
 
 const checker = new MultiSpellChecker();
@@ -98,8 +99,13 @@ function wordAtCaret(text, pos) {
   return null;
 }
 
+function updateEmptyState() {
+  if (els.emptyState) els.emptyState.style.display = els.editor.value.length ? 'none' : '';
+}
+
 function render() {
   const text = els.editor.value;
+  updateEmptyState();
   const { bad, total } = computeBad(text);
   badTokens = bad;
 
@@ -326,6 +332,7 @@ els.editor.addEventListener('beforeinput', () => {
 });
 
 els.editor.addEventListener('input', (e) => {
+  updateEmptyState();
   if (isSeparatorInput(e)) recheck();
   else deferredCheck();
 });
