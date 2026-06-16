@@ -450,6 +450,9 @@ applyScale();
 document.querySelector('#fontIncBtn').addEventListener('click', () => { fontScale += FONT_STEP; applyScale(); });
 document.querySelector('#fontDecBtn').addEventListener('click', () => { fontScale -= FONT_STEP; applyScale(); });
 document.querySelector('#fontResetBtn').addEventListener('click', () => { fontScale = 1; applyScale(); });
+
+const verEl = document.querySelector('#appVersion');
+if (verEl) verEl.textContent = 'v' + (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '');
 document.querySelector('#clearBtn').addEventListener('click', () => {
   els.editor.value = '';
   hidePopover();
