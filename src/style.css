@@ -298,6 +298,11 @@ a.tbtn { text-decoration: none; display: inline-flex; align-items: center; }
   pointer-events: none;
   overflow: hidden;
   color: var(--muted);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.editor:placeholder-shown + .empty-state {
+  opacity: 1;
 }
 .empty-state .empty-title {
   margin: 0;
@@ -317,7 +322,6 @@ a.tbtn { text-decoration: none; display: inline-flex; align-items: center; }
   max-width: 60ch;
   font-family: var(--serif);
   font-size: 1.05rem;
-  #font-style: italic;
   line-height: 1.7;
   text-wrap: pretty;
 }

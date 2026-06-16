@@ -8,7 +8,6 @@ const els = {
   editor: document.querySelector('#editor'),
   backdrop: document.querySelector('#backdrop'),
   popover: document.querySelector('#popover'),
-  emptyState: document.querySelector('#emptyState'),
 };
 
 const checker = new MultiSpellChecker();
@@ -73,13 +72,14 @@ function applyCase(pattern, word) {
 }
 
 function replaceAllWord(text, originalLower, baseRepl, caretOffset) {
+  const intentionalCase = baseRepl !== baseRepl.toLowerCase();
   let result = '';
   let cursor = 0;
   let caret = caretOffset;
   for (const { word, index } of tokenize(text)) {
     if (word.toLowerCase() === originalLower) {
       result += text.slice(cursor, index);
-      const rep = applyCase(casePattern(word), baseRepl);
+      const rep = intentionalCase ? baseRepl : applyCase(casePattern(word), baseRepl);
       if (caretOffset != null && index + word.length <= caretOffset) {
         caret += rep.length - word.length;
       }
@@ -99,13 +99,8 @@ function wordAtCaret(text, pos) {
   return null;
 }
 
-function updateEmptyState() {
-  if (els.emptyState) els.emptyState.style.display = els.editor.value.length ? 'none' : '';
-}
-
 function render() {
   const text = els.editor.value;
-  updateEmptyState();
   const { bad, total } = computeBad(text);
   badTokens = bad;
 
@@ -153,12 +148,9 @@ function hidePopover() {
 
 const isTouch = () => window.matchMedia('(pointer: coarse)').matches;
 
-// Хүрэлцэхүйц төхөөрөмж дээр алдаатай үг доод хэсэгт (гарны ард) үлдэхээс
-// сэргийлж, бичвэрийг дээш гүйлгэн үгийг харагдах хэсгийн дээд хэсэгт авчирна.
-// scroll-ыг үнэмлэхүй (absolute) тооцдог тул дахин дуудахад тогтворждог.
 function bringWordIntoView() {
   if (els.popover.hidden || activeStart == null) return;
-  if (!isTouch()) return; // зөвхөн гар утас/таблет дээр
+  if (!isTouch()) return;
   const mark = els.backdrop.querySelector('mark[data-start="' + activeStart + '"]');
   if (!mark) return;
 
@@ -171,9 +163,10 @@ function bringWordIntoView() {
   const visH = visBottom - visTop;
   if (visH <= 60) return;
 
-  // зорилтот дэлгэцийн Y: харагдах хэсгийн дээрээс (дунднаас дээгүүр)
-  const targetY = visTop + Math.max(60, Math.min(visH * 0.3, 150));
   const r = mark.getBoundingClientRect();
+  if (r.top >= visTop + 8 && r.bottom <= visBottom - 8) return;
+
+  const targetY = visTop + Math.max(60, Math.min(visH * 0.3, 150));
   const maxScroll = els.editor.scrollHeight - els.editor.clientHeight;
   const next = Math.max(0, Math.min(els.editor.scrollTop + (r.top - targetY), maxScroll));
   if (Math.abs(next - els.editor.scrollTop) > 2) {
@@ -182,10 +175,9 @@ function bringWordIntoView() {
   }
 }
 
-// Гар нээгдэх анимаци + iOS-ийн өөрийн auto-scroll дуустал хэд хэдэн удаа дахин тааруулна
 function scheduleKbAdjust() {
   clearTimeout(kbAdjustTimer);
-  const delays = [100, 250, 450, 650]; // tap-аас хойших мс
+  const delays = [100, 250, 450, 650];
   let i = 0;
   const run = () => {
     if (els.popover.hidden) return;
@@ -197,9 +189,6 @@ function scheduleKbAdjust() {
   kbAdjustTimer = setTimeout(run, delays[0]);
 }
 
-// Popover-ийг алдаатай үгийн дэргэд байрлуулна. Доош зай хүрэлцэхгүй
-// (ялангуяа гар утасны гар гарч ирэхэд) бол үгийн ДЭЭР талд гаргаж,
-// харагдах хэсэгт багтаахаар хязгаарлана.
 function placePopover() {
   if (els.popover.hidden || activeStart == null) return;
   const mark = els.backdrop.querySelector('mark[data-start="' + activeStart + '"]');
@@ -210,7 +199,6 @@ function placePopover() {
   const r = mark.getBoundingClientRect();
   const margin = 6;
 
-  // visualViewport нь гар гарч ирэхэд бодит харагдах талбайг өгнө
   const vv = window.visualViewport;
   const viewTop = vv ? vv.offsetTop : 0;
   const viewLeft = vv ? vv.offsetLeft : 0;
@@ -224,7 +212,6 @@ function placePopover() {
   const spaceBelow = viewBottom - r.bottom;
   const spaceAbove = r.top - viewTop;
 
-  // Доош багтвал доош, эс бол илүү зайтай тал руу (ихэвчлэн дээш)
   let top;
   if (spaceBelow >= popH + margin || spaceBelow >= spaceAbove) {
     top = r.bottom + margin;
@@ -232,7 +219,6 @@ function placePopover() {
     top = r.top - popH - margin;
   }
 
-  // Харагдах хэсэгт багтаахаар босоо/хэвтээ хязгаарлалт
   top = Math.max(viewTop + margin, Math.min(top, viewBottom - popH - margin));
   const left = Math.max(viewLeft + margin, Math.min(r.left, viewLeft + viewW - popW - margin));
 
@@ -257,10 +243,10 @@ function showPopoverFor(t) {
     : '<div class="muted pop-empty">санал алга</div>';
 
   activeStart = t.start;
-  els.popover.hidden = false; // эхлээд харуулж өндрийг нь хэмжинэ
-  bringWordIntoView(); // үгийг гарнаас дээш гаргана
+  els.popover.hidden = false;
+  bringWordIntoView();
   placePopover();
-  scheduleKbAdjust(); // гар нээгдэх анимаци дуустал дахин тааруулна
+  scheduleKbAdjust();
 
   els.popover.querySelectorAll('.sg').forEach((btn) => {
     btn.addEventListener('click', () => applySuggestion(t, btn.textContent));
@@ -284,7 +270,7 @@ function maybePropagateManual() {
   if (!isCorrect(w.word)) return;
   const original = pendingFix.original;
   pendingFix = null;
-  const { text: nt, caret } = replaceAllWord(text, original, lower, pos);
+  const { text: nt, caret } = replaceAllWord(text, original, w.word, pos);
   if (nt === text) return;
   const pageY = window.scrollY;
   const top = els.editor.scrollTop;
@@ -307,7 +293,7 @@ function applySuggestion(t, replacement) {
   const pageY = window.scrollY;
   const top = els.editor.scrollTop;
 
-  const { text: nt, caret } = replaceAllWord(v, t.word.toLowerCase(), replacement.toLowerCase(), t.end);
+  const { text: nt, caret } = replaceAllWord(v, t.word.toLowerCase(), replacement, t.end);
   els.editor.value = nt;
   els.editor.focus({ preventScroll: true });
   els.editor.setSelectionRange(caret, caret);
@@ -332,7 +318,6 @@ els.editor.addEventListener('beforeinput', () => {
 });
 
 els.editor.addEventListener('input', (e) => {
-  updateEmptyState();
   if (isSeparatorInput(e)) recheck();
   else deferredCheck();
 });
@@ -340,10 +325,43 @@ els.editor.addEventListener('scroll', () => {
   syncScroll();
   placePopover();
 });
-els.editor.addEventListener('click', suggestAtCaret);
+els.editor.addEventListener('click', () => {
+  if (suppressNextClick) {
+    suppressNextClick = false;
+    return;
+  }
+  suggestAtCaret();
+});
 els.editor.addEventListener('keyup', (e) => {
   const nav = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
   if (nav.indexOf(e.key) !== -1) suggestAtCaret();
+});
+
+let suppressNextClick = false;
+
+function markAtPoint(x, y) {
+  const marks = els.backdrop.querySelectorAll('mark[data-start]');
+  for (const m of marks) {
+    const rects = m.getClientRects();
+    for (const r of rects) {
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return m;
+    }
+  }
+  return null;
+}
+function tokenForMark(mark) {
+  const start = Number(mark.getAttribute('data-start'));
+  for (const t of badTokens) if (t.start === start) return t;
+  return null;
+}
+els.editor.addEventListener('pointerdown', (e) => {
+  const mark = markAtPoint(e.clientX, e.clientY);
+  if (!mark) return;
+  const t = tokenForMark(mark);
+  if (!t) return;
+  e.preventDefault();
+  suppressNextClick = true;
+  showPopoverFor(t);
 });
 
 els.editor.addEventListener('contextmenu', (e) => {
@@ -357,10 +375,9 @@ document.addEventListener('mousedown', (e) => {
   if (!e.target.closest('#popover') && e.target !== els.editor) hidePopover();
 });
 
-// Гар гарч ирэх/хаагдах, дэлгэц эргэх үед нээлттэй popover-ийг дахин байрлуулна
 if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', () => {
-    bringWordIntoView(); // гар нээгдмэгц үгийг дээш гаргана
+    bringWordIntoView();
     placePopover();
   });
   window.visualViewport.addEventListener('scroll', placePopover);
