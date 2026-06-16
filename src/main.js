@@ -1,5 +1,5 @@
 import './style.css';
-import { MultiSpellChecker, tokenize, DICTIONARIES, isHyphenAttachedSuffix } from './spellchecker.js';
+import { MultiSpellChecker, tokenize, DICTIONARIES } from './spellchecker.js';
 
 document.body.classList.add('ready');
 
@@ -41,13 +41,7 @@ function computeBad(text) {
   let total = 0;
   for (const { word, index } of tokenize(text)) {
     total++;
-    if (
-      word.length < 2 ||
-      /^\d+$/.test(word) ||
-      isHyphenAttachedSuffix(word) ||
-      isCorrect(word)
-    )
-      continue;
+    if (word.length < 2 || /^\p{N}+(-|$)/u.test(word) || isCorrect(word)) continue;
     bad.push({ word, start: index, end: index + word.length });
   }
   return { bad, total };
@@ -119,7 +113,7 @@ function render() {
     if (text.trim() === '') {
       setStatus(baseStatus);
     } else {
-      setStatus('Нийт үгийн тоо: <b>' + total + '</b>, алдаатай үгийн тоо: <b>' + bad.length + '</b>');
+      setStatus('Нийт тэмдэгт: <b>' + text.length + '</b>, үгийн тоо: <b>' + total + '</b>, алдаатай үг: <b>' + bad.length + '</b>');
     }
   }
 }
@@ -285,6 +279,7 @@ function maybePropagateManual() {
 function recheck() {
   render();
   maybePropagateManual();
+  saveText();
 }
 
 function applySuggestion(t, replacement) {
@@ -300,6 +295,7 @@ function applySuggestion(t, replacement) {
   els.editor.scrollTop = top;
   hidePopover();
   render();
+  saveText();
   window.scrollTo(0, pageY);
 }
 
@@ -317,7 +313,30 @@ els.editor.addEventListener('beforeinput', () => {
   pendingFix = t ? { original: t.word.toLowerCase() } : null;
 });
 
+const STORAGE_KEY = 'mn-spell:text';
+function saveText() {
+  try {
+    localStorage.setItem(STORAGE_KEY, els.editor.value);
+  } catch (_) {}
+}
+function loadText() {
+  try {
+    const t = localStorage.getItem(STORAGE_KEY);
+    if (t != null) els.editor.value = t;
+  } catch (_) {}
+}
+let saveTimer = null;
+function saveTextSoon() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveText, 400);
+}
+window.addEventListener('pagehide', saveText);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') saveText();
+});
+
 els.editor.addEventListener('input', (e) => {
+  saveTextSoon();
   if (isSeparatorInput(e)) recheck();
   else deferredCheck();
 });
@@ -416,6 +435,7 @@ document.querySelector('#clearBtn').addEventListener('click', () => {
   hidePopover();
   els.editor.focus();
   render();
+  saveText();
 });
 function insertAtCaret(text) {
   const v = els.editor.value;
@@ -427,6 +447,7 @@ function insertAtCaret(text) {
   els.editor.focus({ preventScroll: true });
   els.editor.setSelectionRange(pos, pos);
   render();
+  saveText();
 }
 
 document.querySelector('#pasteBtn').addEventListener('click', async () => {
@@ -481,6 +502,7 @@ async function boot() {
     } else {
       setStatus('Нэг ч толь алга — <code>public/dict/</code> дотор .aff/.dic эсвэл dictionaries.zip хийнэ үү.');
     }
+    loadText();
     render();
     els.editor.focus();
   } catch (e) {
