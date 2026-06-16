@@ -330,3 +330,13 @@ a.tbtn { text-decoration: none; display: inline-flex; align-items: center; }
   line-height: 1.7;
   text-wrap: pretty;
 }
+
+.tver {
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 0 4px 0 8px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  white-space: nowrap;
+  user-select: none;
+}

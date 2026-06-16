@@ -1,10 +1,13 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { readFileSync } from 'fs';
 
+const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
 const base = process.env.VITE_BASE || '/hunspell-mn/';
 
 export default defineConfig({
   base,
+  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   optimizeDeps: { exclude: ['hunspell-wasm'] },
   plugins: [
     VitePWA({
