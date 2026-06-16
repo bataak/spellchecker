@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="mn">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Монгол үгийн алдаа шалгагч</title>
+    <meta
+      name="description"
+      content="Монгол болон англи үгийн алдааг хөтөч дотор, офлайн шалгана."
+    />
+    <style>
+
+      html { background: #f7f4ee; }
+      html[data-theme="dark"] { background: #17150f; }
+
+      body { opacity: 0; }
+      body.ready { opacity: 1; transition: opacity 0.2s ease; }
+    </style>
+    <script>
+
+      (function () {
+        try {
+          var t = localStorage.getItem('theme');
+          if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          document.documentElement.setAttribute('data-theme', t);
+        } catch (e) {}
+      })();
+
+      window.addEventListener('load', function () {
+        document.body && document.body.classList.add('ready');
+      });
+</script>
+  </head>
+  <body>
+    <main>
+      <header class="topbar">
+        <h1>Монгол үгийн алдаа шалгагч</h1>
+        <p id="statusText" class="subtitle">Ачаалж байна…</p>
+      </header>
+
+      <div class="editor-wrap">
+        <div id="backdrop" class="backdrop" aria-hidden="true"></div>
+        <textarea
+          id="editor"
+          class="editor"
+          spellcheck="false"
+          autocorrect="off"
+          autocapitalize="off"
+          autocomplete="off"
+          placeholder="Энд бичвэрээ оруулна уу…"
+        ></textarea>
+      </div>
+
+      <nav class="toolbar">
+        <a class="tbtn tlink" href="https://zuv.bichig.dev/" target="_blank" rel="noopener noreferrer">zuv.bichig.dev</a>
+        <a class="tbtn tlink" href="https://github.com/bataak/dict-mn" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <button id="themeBtn" class="tbtn tbtn-icon" type="button" title="Гэрэл / харанхуй">🌙</button>
+        <button id="clearBtn" class="tbtn" type="button" title="Текстийг цэвэрлэх">Цэвэрлэх</button>
+        <button id="pasteBtn" class="tbtn" type="button" title="Санах ойноос буулгах">Буулгах</button>
+        <button id="copyBtn" class="tbtn" type="button" title="Бүх текстийг хуулах">Хуулах</button>
+      </nav>
+
+      <div id="popover" class="popover" hidden></div>
+    </main>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
