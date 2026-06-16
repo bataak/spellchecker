@@ -136,8 +136,102 @@ function tokenAtCaret() {
   return null;
 }
 
+let activeStart = null;
+let kbAdjustTimer = null;
+
 function hidePopover() {
   els.popover.hidden = true;
+  activeStart = null;
+  clearTimeout(kbAdjustTimer);
+}
+
+const isTouch = () => window.matchMedia('(pointer: coarse)').matches;
+
+// Хүрэлцэхүйц төхөөрөмж дээр алдаатай үг доод хэсэгт (гарны ард) үлдэхээс
+// сэргийлж, бичвэрийг дээш гүйлгэн үгийг харагдах хэсгийн дээд хэсэгт авчирна.
+// scroll-ыг үнэмлэхүй (absolute) тооцдог тул дахин дуудахад тогтворждог.
+function bringWordIntoView() {
+  if (els.popover.hidden || activeStart == null) return;
+  if (!isTouch()) return; // зөвхөн гар утас/таблет дээр
+  const mark = els.backdrop.querySelector('mark[data-start="' + activeStart + '"]');
+  if (!mark) return;
+
+  const vv = window.visualViewport;
+  const editorRect = els.editor.getBoundingClientRect();
+  const vTop = vv ? vv.offsetTop : 0;
+  const vBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+  const visTop = Math.max(editorRect.top, vTop);
+  const visBottom = Math.min(editorRect.bottom, vBottom);
+  const visH = visBottom - visTop;
+  if (visH <= 60) return;
+
+  // зорилтот дэлгэцийн Y: харагдах хэсгийн дээрээс (дунднаас дээгүүр)
+  const targetY = visTop + Math.max(60, Math.min(visH * 0.3, 150));
+  const r = mark.getBoundingClientRect();
+  const maxScroll = els.editor.scrollHeight - els.editor.clientHeight;
+  const next = Math.max(0, Math.min(els.editor.scrollTop + (r.top - targetY), maxScroll));
+  if (Math.abs(next - els.editor.scrollTop) > 2) {
+    els.editor.scrollTop = next;
+    syncScroll();
+  }
+}
+
+// Гар нээгдэх анимаци + iOS-ийн өөрийн auto-scroll дуустал хэд хэдэн удаа дахин тааруулна
+function scheduleKbAdjust() {
+  clearTimeout(kbAdjustTimer);
+  const delays = [100, 250, 450, 650]; // tap-аас хойших мс
+  let i = 0;
+  const run = () => {
+    if (els.popover.hidden) return;
+    bringWordIntoView();
+    placePopover();
+    i++;
+    if (i < delays.length) kbAdjustTimer = setTimeout(run, delays[i] - delays[i - 1]);
+  };
+  kbAdjustTimer = setTimeout(run, delays[0]);
+}
+
+// Popover-ийг алдаатай үгийн дэргэд байрлуулна. Доош зай хүрэлцэхгүй
+// (ялангуяа гар утасны гар гарч ирэхэд) бол үгийн ДЭЭР талд гаргаж,
+// харагдах хэсэгт багтаахаар хязгаарлана.
+function placePopover() {
+  if (els.popover.hidden || activeStart == null) return;
+  const mark = els.backdrop.querySelector('mark[data-start="' + activeStart + '"]');
+  if (!mark) {
+    hidePopover();
+    return;
+  }
+  const r = mark.getBoundingClientRect();
+  const margin = 6;
+
+  // visualViewport нь гар гарч ирэхэд бодит харагдах талбайг өгнө
+  const vv = window.visualViewport;
+  const viewTop = vv ? vv.offsetTop : 0;
+  const viewLeft = vv ? vv.offsetLeft : 0;
+  const viewW = vv ? vv.width : window.innerWidth;
+  const viewH = vv ? vv.height : window.innerHeight;
+  const viewBottom = viewTop + viewH;
+
+  const popH = els.popover.offsetHeight;
+  const popW = els.popover.offsetWidth;
+
+  const spaceBelow = viewBottom - r.bottom;
+  const spaceAbove = r.top - viewTop;
+
+  // Доош багтвал доош, эс бол илүү зайтай тал руу (ихэвчлэн дээш)
+  let top;
+  if (spaceBelow >= popH + margin || spaceBelow >= spaceAbove) {
+    top = r.bottom + margin;
+  } else {
+    top = r.top - popH - margin;
+  }
+
+  // Харагдах хэсэгт багтаахаар босоо/хэвтээ хязгаарлалт
+  top = Math.max(viewTop + margin, Math.min(top, viewBottom - popH - margin));
+  const left = Math.max(viewLeft + margin, Math.min(r.left, viewLeft + viewW - popW - margin));
+
+  els.popover.style.top = window.scrollY + top + 'px';
+  els.popover.style.left = window.scrollX + left + 'px';
 }
 
 function showPopoverFor(t) {
@@ -156,10 +250,11 @@ function showPopoverFor(t) {
     ? suggestions.map((s) => '<button class="sg" type="button">' + escapeHtml(s) + '</button>').join('')
     : '<div class="muted pop-empty">санал алга</div>';
 
-  const r = mark.getBoundingClientRect();
-  els.popover.style.left = window.scrollX + r.left + 'px';
-  els.popover.style.top = window.scrollY + r.bottom + 6 + 'px';
-  els.popover.hidden = false;
+  activeStart = t.start;
+  els.popover.hidden = false; // эхлээд харуулж өндрийг нь хэмжинэ
+  bringWordIntoView(); // үгийг гарнаас дээш гаргана
+  placePopover();
+  scheduleKbAdjust(); // гар нээгдэх анимаци дуустал дахин тааруулна
 
   els.popover.querySelectorAll('.sg').forEach((btn) => {
     btn.addEventListener('click', () => applySuggestion(t, btn.textContent));
@@ -234,7 +329,10 @@ els.editor.addEventListener('input', (e) => {
   if (isSeparatorInput(e)) recheck();
   else deferredCheck();
 });
-els.editor.addEventListener('scroll', syncScroll);
+els.editor.addEventListener('scroll', () => {
+  syncScroll();
+  placePopover();
+});
 els.editor.addEventListener('click', suggestAtCaret);
 els.editor.addEventListener('keyup', (e) => {
   const nav = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
@@ -251,6 +349,16 @@ els.editor.addEventListener('contextmenu', (e) => {
 document.addEventListener('mousedown', (e) => {
   if (!e.target.closest('#popover') && e.target !== els.editor) hidePopover();
 });
+
+// Гар гарч ирэх/хаагдах, дэлгэц эргэх үед нээлттэй popover-ийг дахин байрлуулна
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', () => {
+    bringWordIntoView(); // гар нээгдмэгц үгийг дээш гаргана
+    placePopover();
+  });
+  window.visualViewport.addEventListener('scroll', placePopover);
+}
+window.addEventListener('resize', placePopover);
 
 const rootEl = document.documentElement;
 function applyTheme(theme) {
