@@ -316,7 +316,7 @@ a.tbtn { text-decoration: none; display: inline-flex; align-items: center; }
   margin: 0;
   max-width: 60ch;
   font-family: var(--serif);
-  font-size: 1.25rem;
+  font-size: 1.05rem;
   #font-style: italic;
   line-height: 1.7;
   text-wrap: pretty;
