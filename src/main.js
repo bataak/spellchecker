@@ -1,5 +1,5 @@
 import './style.css';
-import { MultiSpellChecker, tokenize, DICTIONARIES } from './spellchecker.js';
+import { MultiSpellChecker, tokenize, DICTIONARIES, isHyphenAttachedSuffix } from './spellchecker.js';
 
 document.body.classList.add('ready');
 
@@ -41,7 +41,13 @@ function computeBad(text) {
   let total = 0;
   for (const { word, index } of tokenize(text)) {
     total++;
-    if (word.length < 2 || /^\d+$/.test(word) || isCorrect(word)) continue;
+    if (
+      word.length < 2 ||
+      /^\d+$/.test(word) ||
+      isHyphenAttachedSuffix(word) ||
+      isCorrect(word)
+    )
+      continue;
     bad.push({ word, start: index, end: index + word.length });
   }
   return { bad, total };
