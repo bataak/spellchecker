@@ -17,7 +17,7 @@ public/dict/en_US.aff   public/dict/en_US.dic
 эсвэл ZIP-ээр (татах хэмжээ бага):
 
 ```bash
-./pack-dict.sh        # public/dict/dictionaries.zip үүсгэнэ
+./pack-dict.sh
 ```
 
 Толь татах:
@@ -28,9 +28,9 @@ public/dict/en_US.aff   public/dict/en_US.dic
 
 ```bash
 npm install
-npm run dev       # хөгжүүлэлт
-npm run build     # -> dist/ (статик)
-npm run preview   # build-ийг шалгах
+npm run dev
+npm run build
+npm run preview
 ```
 
 ## 3. GitHub Pages
