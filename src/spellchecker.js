@@ -163,9 +163,6 @@ export class MultiSpellChecker {
   }
 }
 
-// A token may now START with a digit (\p{N}) as well as a letter/mark, so that
-// number + grammatical-suffix forms such as "2012-ны" or "25-аас" stay together
-// as one token instead of degrading to the bare suffix "ны" / "аас".
 const WORD_RE = /[\p{L}\p{M}\p{N}][\p{L}\p{M}\p{N}'\u2019-]*/gu;
 export function* tokenize(text) {
   WORD_RE.lastIndex = 0;
@@ -175,14 +172,8 @@ export function* tokenize(text) {
   }
 }
 
-// Mongolian attaches case/number suffixes to abbreviations and numerals with a
-// hyphen: АНУ-ын, НҮБ-ын, ХХК-ийн, 2012-ны, 25-аас. The part before the hyphen
-// is an all-caps abbreviation or a numeral, and the part after is a grammatical
-// suffix that is never a standalone dictionary word. Such tokens must not be
-// flagged as misspellings. Genuine compounds (сайн-сайхан, хар-цагаан) are NOT
-// matched here, so they keep going through the normal spell check.
-const ABBR_HEAD_RE = /^[\p{Lu}\p{N}]+$/u; // АНУ, НҮБ, ХХК, COVID, 2012, 25
-const SUFFIX_TAIL_RE = /^[\u0400-\u04FF]{1,6}$/u; // ын, ийн, ны, ний, аас, ийнхээ…
+const ABBR_HEAD_RE = /^[\p{Lu}\p{N}]+$/u;
+const SUFFIX_TAIL_RE = /^[\u0400-\u04FF]{1,6}$/u;
 export function isHyphenAttachedSuffix(word) {
   const i = word.lastIndexOf('-');
   if (i <= 0 || i === word.length - 1) return false;

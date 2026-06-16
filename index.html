@@ -40,12 +40,6 @@
 
       <div class="editor-wrap">
         <div id="backdrop" class="backdrop" aria-hidden="true"></div>
-        <div id="emptyState" class="empty-state" aria-hidden="true">
-          <p class="empty-title">Энд бичвэрээ оруулна уу…</p>
-          <span class="empty-divider"></span>
-          <p class="empty-note">Улаанаар зурагдсан үг бүрийг алдаанд тооцож болохгүй, энэ нь үгийн алдаа шалгах толинд хараахан бүртгэгдээгүй үг байж болохыг анхаарна уу!</p>
-          <p class="empty-note">Алдсан үгэн дээр заагчаар дарахад гарах үгийн зөв бичлэг нь оновчгүй байж болохыг мөн анхаарна уу!</p>
-        </div>
         <textarea
           id="editor"
           class="editor"
@@ -53,8 +47,15 @@
           autocorrect="off"
           autocapitalize="off"
           autocomplete="off"
+          placeholder=" "
           aria-label="Шалгах бичвэр"
         ></textarea>
+        <div id="emptyState" class="empty-state" aria-hidden="true">
+          <p class="empty-title">Энд бичвэрээ оруулна уу…</p>
+          <span class="empty-divider"></span>
+          <p class="empty-note">Улаанаар зурагдсан үг бүрийг алдаанд тооцож болохгүй, энэ нь үгийн алдаа шалгах толинд хараахан бүртгэгдээгүй үг байж болохыг анхаарна уу!</p>
+          <p class="empty-note">Алдсан үгэн дээр заагчаар дарахад гарах үгийн зөв бичлэг нь оновчгүй байж болохыг мөн анхаарна уу!</p>
+        </div>
       </div>
 
       <nav class="toolbar">
