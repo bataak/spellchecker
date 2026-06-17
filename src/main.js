@@ -64,16 +64,34 @@ function applyCase(pattern, word) {
   if (pattern === 'capital') return lo.charAt(0).toUpperCase() + lo.slice(1);
   return lo;
 }
+function irregularCase(s) {
+  return applyCase(casePattern(s), s.toLowerCase()) !== s;
+}
+function caseRank(pattern) {
+  return pattern === 'upper' ? 2 : pattern === 'capital' ? 1 : 0;
+}
+function rankToPattern(rank) {
+  return rank === 2 ? 'upper' : rank === 1 ? 'capital' : 'lower';
+}
 
-function replaceAllWord(text, originalLower, baseRepl, caretOffset) {
-  const intentionalCase = baseRepl !== baseRepl.toLowerCase();
+function replaceAllWord(text, originalLower, baseRepl, caretOffset, primaryPattern) {
+  const verbatim = irregularCase(baseRepl);
+  const corrRank = caseRank(casePattern(baseRepl));
+  const primRank = caseRank(primaryPattern || 'lower');
+  const floor = corrRank > primRank ? corrRank : 0;
   let result = '';
   let cursor = 0;
   let caret = caretOffset;
   for (const { word, index } of tokenize(text)) {
     if (word.toLowerCase() === originalLower) {
       result += text.slice(cursor, index);
-      const rep = intentionalCase ? baseRepl : applyCase(casePattern(word), baseRepl);
+      let rep;
+      if (verbatim) {
+        rep = baseRepl;
+      } else {
+        const r = Math.max(caseRank(casePattern(word)), floor);
+        rep = applyCase(rankToPattern(r), baseRepl);
+      }
       if (caretOffset != null && index + word.length <= caretOffset) {
         caret += rep.length - word.length;
       }
@@ -263,8 +281,9 @@ function maybePropagateManual() {
   if (lower === pendingFix.original) return;
   if (!isCorrect(w.word)) return;
   const original = pendingFix.original;
+  const primaryPattern = pendingFix.originalPattern || 'lower';
   pendingFix = null;
-  const { text: nt, caret } = replaceAllWord(text, original, w.word, pos);
+  const { text: nt, caret } = replaceAllWord(text, original, w.word, pos, primaryPattern);
   if (nt === text) return;
   const pageY = window.scrollY;
   const top = els.editor.scrollTop;
@@ -288,7 +307,7 @@ function applySuggestion(t, replacement) {
   const pageY = window.scrollY;
   const top = els.editor.scrollTop;
 
-  const { text: nt, caret } = replaceAllWord(v, t.word.toLowerCase(), replacement, t.end);
+  const { text: nt, caret } = replaceAllWord(v, t.word.toLowerCase(), replacement, t.end, casePattern(t.word));
   els.editor.value = nt;
   els.editor.focus({ preventScroll: true });
   els.editor.setSelectionRange(caret, caret);
@@ -310,7 +329,7 @@ const deferredCheck = debounce(() => recheck(), 1500);
 
 els.editor.addEventListener('beforeinput', () => {
   const t = tokenAtCaret();
-  pendingFix = t ? { original: t.word.toLowerCase() } : null;
+  pendingFix = t ? { original: t.word.toLowerCase(), originalPattern: casePattern(t.word) } : null;
 });
 
 const STORAGE_KEY = 'mn-spell:text';
