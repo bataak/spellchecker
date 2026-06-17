@@ -3,11 +3,20 @@ import { VitePWA } from 'vite-plugin-pwa';
 import { readFileSync } from 'fs';
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
+
+let hunspellVersion = 'unknown';
+try {
+  hunspellVersion = readFileSync('./vendor/hunspell-wasm/HUNSPELL_VERSION', 'utf-8').trim();
+} catch {}
+
 const base = process.env.VITE_BASE || '/hunspell-mn/';
 
 export default defineConfig({
   base,
-  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
+  define: {
+      __APP_VERSION__: JSON.stringify(pkg.version),
+      __HUNSPELL_VERSION__: JSON.stringify(hunspellVersion),
+  },
   optimizeDeps: { exclude: ['hunspell-wasm'] },
   server: { fs: { allow: ['.', '../hunspell-wasm'] } },
   plugins: [
