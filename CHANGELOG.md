@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/bataak/spellchecker/compare/v1.0.0...v1.1.0) (2026-06-17)
+
+
+### Features
+
+* show hunspell version in app footer ([56963f1](https://github.com/bataak/spellchecker/commit/56963f182d5e0c6dc780f31b5a04a144f079a874))
+
 ## 1.0.0 (2026-06-16)
 
 
