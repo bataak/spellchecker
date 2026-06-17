@@ -572,6 +572,34 @@ document.querySelector('#saveBtn').addEventListener('click', () => {
   }
 });
 
+const openFileEl = document.querySelector('#openFile');
+const openBtn = document.querySelector('#openBtn');
+if (openBtn && openFileEl) {
+  openBtn.addEventListener('click', () => openFileEl.click());
+  openFileEl.addEventListener('change', async () => {
+    const f = openFileEl.files && openFileEl.files[0];
+    if (!f) return;
+    try {
+      const content = f.text
+        ? await f.text()
+        : await new Promise((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(String(r.result));
+            r.onerror = rej;
+            r.readAsText(f);
+          });
+      setEditorText(content, content.length);
+      hidePopover();
+      render();
+      saveText();
+      flash('#openBtn', 'Нээлээ');
+    } catch (_) {
+      flash('#openBtn', 'Боломжгүй');
+    }
+    openFileEl.value = '';
+  });
+}
+
 async function boot() {
   setStatus('Hunspell ачаалж байна…');
   try {

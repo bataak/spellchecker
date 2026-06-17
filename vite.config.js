@@ -22,14 +22,28 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['dict*'],
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,wasm,aff,dic,zip}'],
-        maximumFileSizeToCacheInBytes: 60 * 1024 * 1024,
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,wasm}'],
+        navigateFallback: base + 'index.html',
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        runtimeCaching: [
+          {
+            urlPattern: /\/dict\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'dict-cache',
+              cacheableResponse: { statuses: [0, 200] },
+              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
+            },
+          },
+        ],
       },
       manifest: {
         name: 'Монгол үгийн алдаа шалгагч',
-        short_name: 'Зөв бичиг',
+        short_name: 'Алдаа шалгагч',
         description: 'Монгол болон англи үгийн алдааг хөтөч дотор, офлайн шалгана.',
         lang: 'mn',
         start_url: base,
