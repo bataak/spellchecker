@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "fflate": "^0.8.2",
-    "hunspell-wasm": "latest",
+    "hunspell-wasm": "file:vendor/hunspell-wasm",
     "nspell": "^2.1.5"
   },
   "devDependencies": {

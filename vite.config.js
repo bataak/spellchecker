@@ -9,6 +9,7 @@ export default defineConfig({
   base,
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   optimizeDeps: { exclude: ['hunspell-wasm'] },
+  server: { fs: { allow: ['.', '../hunspell-wasm'] } },
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
