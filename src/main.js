@@ -559,8 +559,9 @@ document.querySelector('#saveBtn').addEventListener('click', () => {
     const d = new Date(Date.now() + 8 * 60 * 60 * 1000);
     const p = (n) => String(n).padStart(2, '0');
     const ts = d.getUTCFullYear() + '-' + p(d.getUTCMonth() + 1) + '-' + p(d.getUTCDate()) + '-' + p(d.getUTCHours()) + p(d.getUTCMinutes());
+    const isMobile = window.matchMedia && window.matchMedia('(max-width: 700px)').matches;
     a.href = url;
-    a.download = 'бичвэр-' + ts + '.txt';
+    a.download = (isMobile ? '' : 'бичвэр-') + ts + '.txt';
     document.body.appendChild(a);
     a.click();
     a.remove();
