@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/bataak/spellchecker/compare/v1.3.0...v1.4.0) (2026-06-17)
+
+
+### Features
+
+* remember opened file name for save, add drag-and-drop open ([428943a](https://github.com/bataak/spellchecker/commit/428943ad2e07ddace0b08d5eecb292aaf6527c63))
+
 ## [1.3.0](https://github.com/bataak/spellchecker/compare/v1.2.1...v1.3.0) (2026-06-17)
 
 
