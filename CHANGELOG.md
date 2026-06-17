@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/bataak/spellchecker/compare/v1.1.0...v1.1.1) (2026-06-17)
+
+
+### Bug Fixes
+
+* preserve each occurrence's own case when replacing words ([a4cb5b6](https://github.com/bataak/spellchecker/commit/a4cb5b67caea29918dd04cf3522b868893675dfd))
+
 ## [1.1.0](https://github.com/bataak/spellchecker/compare/v1.0.0...v1.1.0) (2026-06-17)
 
 
