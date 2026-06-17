@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/bataak/spellchecker/compare/v1.1.1...v1.2.0) (2026-06-17)
+
+
+### Features
+
+* native undo/redo for programmatic edits ([d6b9621](https://github.com/bataak/spellchecker/commit/d6b96219d46e5884ae41f6f82c127fa9bd863462))
+
 ## [1.1.1](https://github.com/bataak/spellchecker/compare/v1.1.0...v1.1.1) (2026-06-17)
 
 
