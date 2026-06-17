@@ -49,13 +49,17 @@ function computeBad(text) {
 
 function casePattern(src) {
   if (!src) return 'lower';
-  const up = src.toUpperCase();
-  const lo = src.toLowerCase();
-  if (src === up && src !== lo) return 'upper';
-  if (src[0] === up[0] && src[0] !== lo[0]) {
-    const rest = src.slice(1);
-    if (rest === rest.toLowerCase()) return 'capital';
+  let upper = 0, lower = 0, firstCased = null;
+  for (const ch of src) {
+    const u = ch.toUpperCase(), l = ch.toLowerCase();
+    if (u === l) continue;
+    if (firstCased === null) firstCased = ch;
+    if (ch === u) upper++; else lower++;
   }
+  if (upper === 0) return 'lower';
+  if (lower === 0) return 'upper';
+  if (upper > lower) return 'upper';
+  if (firstCased && firstCased === firstCased.toUpperCase()) return 'capital';
   return 'lower';
 }
 function applyCase(pattern, word) {
@@ -285,14 +289,10 @@ function maybePropagateManual() {
   pendingFix = null;
   const { text: nt, caret } = replaceAllWord(text, original, w.word, pos, primaryPattern);
   if (nt === text) return;
-  const pageY = window.scrollY;
   const top = els.editor.scrollTop;
-  els.editor.value = nt;
-  els.editor.focus({ preventScroll: true });
-  els.editor.setSelectionRange(caret, caret);
+  setEditorText(nt, caret);
   els.editor.scrollTop = top;
   render();
-  window.scrollTo(0, pageY);
 }
 
 function recheck() {
@@ -304,18 +304,14 @@ function recheck() {
 function applySuggestion(t, replacement) {
   pendingFix = null;
   const v = els.editor.value;
-  const pageY = window.scrollY;
-  const top = els.editor.scrollTop;
-
   const { text: nt, caret } = replaceAllWord(v, t.word.toLowerCase(), replacement, t.end, casePattern(t.word));
-  els.editor.value = nt;
-  els.editor.focus({ preventScroll: true });
-  els.editor.setSelectionRange(caret, caret);
+  if (nt === v) { hidePopover(); return; }
+  const top = els.editor.scrollTop;
+  setEditorText(nt, caret);
   els.editor.scrollTop = top;
   hidePopover();
   render();
   saveText();
-  window.scrollTo(0, pageY);
 }
 
 function isSeparatorInput(e) {
@@ -354,7 +350,49 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') saveText();
 });
 
+let programmaticEdit = false;
+function setEditorText(newText, caret) {
+  const old = els.editor.value;
+  els.editor.focus({ preventScroll: true });
+  if (old === newText) {
+    if (caret != null) { try { els.editor.setSelectionRange(caret, caret); } catch (_) {} }
+    return;
+  }
+  let p = 0;
+  const minLen = Math.min(old.length, newText.length);
+  while (p < minLen && old[p] === newText[p]) p++;
+  let s = 0;
+  while (s < minLen - p && old[old.length - 1 - s] === newText[newText.length - 1 - s]) s++;
+  const oldEnd = old.length - s;
+  const slice = newText.slice(p, newText.length - s);
+  try { els.editor.setSelectionRange(p, oldEnd); } catch (_) {}
+  let ok = false;
+  programmaticEdit = true;
+  try {
+    ok = slice === ''
+      ? document.execCommand('delete', false)
+      : document.execCommand('insertText', false, slice);
+  } catch (_) { ok = false; }
+  programmaticEdit = false;
+  if (!ok) els.editor.value = newText;
+  if (caret != null) { try { els.editor.setSelectionRange(caret, caret); } catch (_) {} }
+}
+function insertEditorText(text, start, end) {
+  els.editor.focus({ preventScroll: true });
+  try { els.editor.setSelectionRange(start, end); } catch (_) {}
+  let ok = false;
+  programmaticEdit = true;
+  try { ok = document.execCommand('insertText', false, text); } catch (_) { ok = false; }
+  programmaticEdit = false;
+  if (!ok) {
+    const v = els.editor.value;
+    els.editor.value = v.slice(0, start) + text + v.slice(end);
+    const pos = start + text.length;
+    try { els.editor.setSelectionRange(pos, pos); } catch (_) {}
+  }
+}
 els.editor.addEventListener('input', (e) => {
+  if (programmaticEdit) return;
   saveTextSoon();
   if (isSeparatorInput(e)) recheck();
   else deferredCheck();
@@ -473,21 +511,17 @@ document.querySelector('#fontResetBtn').addEventListener('click', () => { fontSc
 const verEl = document.querySelector('#appVersion');
 if (verEl) verEl.textContent = 'v' + (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '') + (typeof __HUNSPELL_VERSION__ !== 'undefined' ? ' · hunspell ' + __HUNSPELL_VERSION__ : '');
 document.querySelector('#clearBtn').addEventListener('click', () => {
-  els.editor.value = '';
+  if (!els.editor.value) { els.editor.focus(); return; }
+  setEditorText('', 0);
   hidePopover();
-  els.editor.focus();
   render();
   saveText();
 });
 function insertAtCaret(text) {
-  const v = els.editor.value;
   let start = els.editor.selectionStart;
   let end = els.editor.selectionEnd;
-  if (start == null) { start = v.length; end = v.length; }
-  els.editor.value = v.slice(0, start) + text + v.slice(end);
-  const pos = start + text.length;
-  els.editor.focus({ preventScroll: true });
-  els.editor.setSelectionRange(pos, pos);
+  if (start == null) { start = els.editor.value.length; end = start; }
+  insertEditorText(text, start, end);
   render();
   saveText();
 }
@@ -513,6 +547,27 @@ document.querySelector('#copyBtn').addEventListener('click', async () => {
     flash('#copyBtn', 'Хууллаа');
   } catch (_) {
     flash('#copyBtn', 'Боломжгүй');
+  }
+});
+document.querySelector('#saveBtn').addEventListener('click', () => {
+  const text = els.editor.value || '';
+  if (!text.trim()) { flash('#saveBtn', 'Хоосон байна'); return; }
+  try {
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const d = new Date(Date.now() + 8 * 60 * 60 * 1000);
+    const p = (n) => String(n).padStart(2, '0');
+    const ts = d.getUTCFullYear() + '-' + p(d.getUTCMonth() + 1) + '-' + p(d.getUTCDate()) + '-' + p(d.getUTCHours()) + p(d.getUTCMinutes());
+    a.href = url;
+    a.download = 'бичвэр-' + ts + '.txt';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    flash('#saveBtn', 'Хадгаллаа');
+  } catch (_) {
+    flash('#saveBtn', 'Боломжгүй');
   }
 });
 
