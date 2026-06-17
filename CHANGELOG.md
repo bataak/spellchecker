@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/bataak/spellchecker/compare/v1.2.1...v1.3.0) (2026-06-17)
+
+
+### Features
+
+* offline support, iOS safe-area, Open button, renamed home label ([4b44a9f](https://github.com/bataak/spellchecker/commit/4b44a9f395910e54b2cc5d73cbb2555ab7b845a4))
+
 ## [1.2.1](https://github.com/bataak/spellchecker/compare/v1.2.0...v1.2.1) (2026-06-17)
 
 
