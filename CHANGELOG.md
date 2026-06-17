@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/bataak/spellchecker/compare/v1.2.0...v1.2.1) (2026-06-17)
+
+
+### Bug Fixes
+
+* swap copy/save buttons and shorten saved filename on mobile ([af9c89c](https://github.com/bataak/spellchecker/commit/af9c89cd11bd28e85ca8ca56ee70ccee5167a730))
+
 ## [1.2.0](https://github.com/bataak/spellchecker/compare/v1.1.1...v1.2.0) (2026-06-17)
 
 
