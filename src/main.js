@@ -452,7 +452,7 @@ document.querySelector('#fontDecBtn').addEventListener('click', () => { fontScal
 document.querySelector('#fontResetBtn').addEventListener('click', () => { fontScale = 1; applyScale(); });
 
 const verEl = document.querySelector('#appVersion');
-if (verEl) verEl.textContent = 'v' + (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '');
+if (verEl) verEl.textContent = 'v' + (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '') + (typeof __HUNSPELL_VERSION__ !== 'undefined' ? ' · hunspell ' + __HUNSPELL_VERSION__ : '');
 document.querySelector('#clearBtn').addEventListener('click', () => {
   els.editor.value = '';
   hidePopover();
