@@ -206,6 +206,10 @@ a.tbtn { text-decoration: none; display: inline-flex; align-items: center; }
   outline: none;
   border-color: var(--line);
 }
+.editor.drag-over {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
 
 .popover[hidden] { display: none; }
 .popover {
