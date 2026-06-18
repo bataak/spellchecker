@@ -135,10 +135,7 @@ h1 {
 a.tbtn { text-decoration: none; display: inline-flex; align-items: center; }
 .tbtn:hover { border-color: var(--accent); }
 .tbtn:active { transform: translateY(1px); }
-.openctl { display: none; }
-@media (display-mode: standalone) and (pointer: fine) {
-  .openctl { display: inline-flex; align-items: center; }
-}
+.openctl { display: inline-flex; align-items: center; }
 .tbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .tbtn-icon { padding: 5px 8px; font-size: 0.95rem; }
 
