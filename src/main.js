@@ -706,6 +706,69 @@ els.editor.addEventListener('drop', async (e) => {
   try { await loadFileContent(await readAsText(f), f.name, handle); } catch (_) {}
 });
 
+(function setupShortcuts() {
+  const isDesktop = window.matchMedia && window.matchMedia('(pointer: fine)').matches;
+  if (!isDesktop) return;
+
+  const uaData = navigator.userAgentData;
+  const uaPlat = (uaData && uaData.platform) || '';
+  const isMac =
+    /mac/i.test(uaPlat) ||
+    /Mac|iPhone|iPad|iPod/i.test(navigator.platform || '') ||
+    (/Mac OS X/i.test(navigator.userAgent || '') && !/Windows|Android/i.test(navigator.userAgent || ''));
+  const mod = isMac ? '⌘' : 'Ctrl+';
+  const shiftSym = isMac ? '⇧' : 'Shift+';
+
+  [
+    ['#clearBtn', mod + 'D'],
+    ['#pasteBtn', mod + 'V'],
+    ['#copyBtn', mod + 'C'],
+    ['#openBtn', mod + 'O'],
+    ['#saveBtn', mod + 'S'],
+    ['#fontDecBtn', mod + '-'],
+    ['#fontIncBtn', mod + '+'],
+    ['#fontResetBtn', mod + '0'],
+    ['#themeBtn', mod + shiftSym + 'D'],
+  ].forEach(([sel, combo]) => {
+    const b = document.querySelector(sel);
+    if (!b) return;
+    const base = b.getAttribute('title') || '';
+    b.setAttribute('title', base ? base + ' · ' + combo : combo);
+  });
+
+  function trigger(sel) {
+    const b = document.querySelector(sel);
+    if (b) b.click();
+  }
+
+  window.addEventListener('keydown', (e) => {
+    const m = isMac ? (e.metaKey && !e.ctrlKey) : (e.ctrlKey && !e.metaKey);
+    if (!m || e.altKey) return;
+    const k = e.key;
+    const kl = k.toLowerCase();
+
+    if (e.shiftKey) {
+      if (kl === 'd') { e.preventDefault(); trigger('#themeBtn'); return; }
+      if (k === '+') { e.preventDefault(); trigger('#fontIncBtn'); return; }
+      return;
+    }
+
+    if (k === '-' || k === 'Subtract') { e.preventDefault(); trigger('#fontDecBtn'); return; }
+    if (k === '+' || k === '=' || k === 'Add') { e.preventDefault(); trigger('#fontIncBtn'); return; }
+    if (k === '0' || k === 'Numpad0') { e.preventDefault(); trigger('#fontResetBtn'); return; }
+
+    if (kl === 's') { e.preventDefault(); trigger('#saveBtn'); }
+    else if (kl === 'o') { e.preventDefault(); trigger('#openBtn'); }
+    else if (kl === 'd') { e.preventDefault(); trigger('#clearBtn'); }
+    else if (kl === 'c') {
+      if (els.editor.selectionStart === els.editor.selectionEnd) {
+        e.preventDefault();
+        trigger('#copyBtn');
+      }
+    }
+  });
+})();
+
 async function boot() {
   setStatus('Hunspell ачаалж байна…');
   try {
