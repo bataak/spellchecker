@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.2](https://github.com/bataak/spellchecker/compare/v1.6.1...v1.6.2) (2026-06-18)
+
+
+### Bug Fixes
+
+* use a dark theme-color so iOS safe areas aren't red ([be2d6f0](https://github.com/bataak/spellchecker/commit/be2d6f0b8f140e2e9ce4913ff08ffb58dda715e0))
+
 ## [1.6.1](https://github.com/bataak/spellchecker/compare/v1.6.0...v1.6.1) (2026-06-18)
 
 
