@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.3](https://github.com/bataak/spellchecker/compare/v1.6.2...v1.6.3) (2026-06-18)
+
+
+### Bug Fixes
+
+* **config:** resolve offline white-screen crash in PWA ([afd7007](https://github.com/bataak/spellchecker/commit/afd7007e0751f17afb090f4f33ccf28ad099fdea))
+
 ## [1.6.2](https://github.com/bataak/spellchecker/compare/v1.6.1...v1.6.2) (2026-06-18)
 
 
