@@ -50,7 +50,7 @@ export default defineConfig({
         scope: base,
         display: 'standalone',
         background_color: '#f7f4ee',
-        theme_color: '#b3261e',
+        theme_color: '#17150f',
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
