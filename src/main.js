@@ -549,7 +549,8 @@ document.querySelector('#copyBtn').addEventListener('click', async () => {
     flash('#copyBtn', 'Боломжгүй');
   }
 });
-const hasFSAccess = 'showSaveFilePicker' in window;
+const hasFSSave = 'showSaveFilePicker' in window;
+const hasFSOpen = 'showOpenFilePicker' in window;
 let currentFileHandle = null;
 let currentFileName = null;
 
@@ -612,7 +613,7 @@ document.querySelector('#saveBtn').addEventListener('click', async () => {
     return;
   }
 
-  if (isDesktopApp() && hasFSAccess) {
+  if (isDesktopApp() && hasFSSave) {
     try {
       const handle = await window.showSaveFilePicker({ suggestedName: stampName(), types: TXT_TYPES });
       const w = await handle.createWritable();
@@ -641,9 +642,9 @@ function readAsText(file) {
       });
 }
 
-async function loadFileContent(content, name) {
-  currentFileName = name || null;
-  currentFileHandle = null;
+async function loadFileContent(content, name, handle) {
+  currentFileHandle = handle || null;
+  currentFileName = name || (handle && handle.name) || null;
   setEditorText(content, content.length);
   hidePopover();
   render();
@@ -654,11 +655,23 @@ async function loadFileContent(content, name) {
 const openFileEl = document.querySelector('#openFile');
 const openBtn = document.querySelector('#openBtn');
 if (openBtn && openFileEl) {
-  openBtn.addEventListener('click', () => openFileEl.click());
+  openBtn.addEventListener('click', async () => {
+    if (hasFSOpen) {
+      try {
+        const [handle] = await window.showOpenFilePicker({ types: TXT_TYPES, multiple: false });
+        const file = await handle.getFile();
+        await loadFileContent(await file.text(), file.name, handle);
+      } catch (e) {
+        if (e && e.name !== 'AbortError') flash('#openBtn', 'Боломжгүй');
+      }
+    } else {
+      openFileEl.click();
+    }
+  });
   openFileEl.addEventListener('change', async () => {
     const f = openFileEl.files && openFileEl.files[0];
     if (!f) return;
-    try { await loadFileContent(await readAsText(f), f.name); }
+    try { await loadFileContent(await readAsText(f), f.name, null); }
     catch (_) { flash('#openBtn', 'Боломжгүй'); }
     openFileEl.value = '';
   });
@@ -682,9 +695,15 @@ els.editor.addEventListener('drop', async (e) => {
   if (!dragHasFiles(e)) return;
   e.preventDefault();
   els.editor.classList.remove('drag-over');
-  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  const dt = e.dataTransfer;
+  let handle = null;
+  const item = dt && dt.items && dt.items[0];
+  if (item && item.kind === 'file' && item.getAsFileSystemHandle) {
+    try { const h = await item.getAsFileSystemHandle(); if (h && h.kind === 'file') handle = h; } catch (_) {}
+  }
+  const f = handle ? await handle.getFile() : (dt && dt.files && dt.files[0]);
   if (!isTextFile(f)) return;
-  try { await loadFileContent(await readAsText(f), f.name); } catch (_) {}
+  try { await loadFileContent(await readAsText(f), f.name, handle); } catch (_) {}
 });
 
 async function boot() {
