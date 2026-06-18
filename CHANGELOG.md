@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.2](https://github.com/bataak/spellchecker/compare/v1.7.1...v1.7.2) (2026-06-18)
+
+
+### Bug Fixes
+
+* drop offline network requests and reword readiness status ([a8f1d83](https://github.com/bataak/spellchecker/commit/a8f1d83261fcd60fe1b9a361d0f32d5908faabf6))
+
 ## [1.7.1](https://github.com/bataak/spellchecker/compare/v1.7.0...v1.7.1) (2026-06-18)
 
 
