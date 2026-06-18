@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.1](https://github.com/bataak/spellchecker/compare/v1.7.0...v1.7.1) (2026-06-18)
+
+
+### Bug Fixes
+
+* prevent blank offline launch and make readiness check accurate ([4c1f8cb](https://github.com/bataak/spellchecker/commit/4c1f8cb8d15c7096ed087e93b8dea8a3c4931a9f))
+
 ## [1.7.0](https://github.com/bataak/spellchecker/compare/v1.6.4...v1.7.0) (2026-06-18)
 
 
