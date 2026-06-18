@@ -431,7 +431,7 @@ function tokenForMark(mark) {
   return null;
 }
 els.editor.addEventListener('pointerdown', (e) => {
-  if (e.pointerType === 'mouse') return; // десктоп: курсор тавих + click→suggest ердийнхөөрөө
+  if (e.pointerType === 'mouse') return;
   const mark = markAtPoint(e.clientX, e.clientY);
   if (!mark) return;
   const t = tokenForMark(mark);
@@ -800,9 +800,6 @@ async function isOfflineReady() {
   }
 }
 
-// Офлайнд бэлэн болохыг хүлээж, статусыг үе шаттай харуулна:
-// "бэлтгэж байна…" → "бэлэн ✓" (5 сек) → үндсэн мессеж.
-// Редактор хоосон үед л дэлгэцэд харуулна (хэрэглэгчийн тоологчийг дарахгүй).
 async function runOfflineReadyIndicator(mainMsg) {
   const idle = () => els.editor.value.trim() === '';
   const show = (msg) => { baseStatus = msg; if (idle()) setStatus(msg); };
@@ -819,7 +816,7 @@ async function runOfflineReadyIndicator(mainMsg) {
   }
 
   if (isReady) {
-    show('Офлайн горимд ашиглахад бэлэн болов');
+    show('Офлайн горимд ашиглахад бэлэн');
     await new Promise((r) => setTimeout(r, 2000));
   }
 
