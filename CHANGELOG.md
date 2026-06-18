@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.4](https://github.com/bataak/spellchecker/compare/v1.6.3...v1.6.4) (2026-06-18)
+
+
+### Bug Fixes
+
+* **pwa:** optimize precaching for reliable first-time offline boot ([4e4df96](https://github.com/bataak/spellchecker/commit/4e4df96eaceae8afd75e222b984251ecedf0c6f3))
+
 ## [1.6.3](https://github.com/bataak/spellchecker/compare/v1.6.2...v1.6.3) (2026-06-18)
 
 
