@@ -819,7 +819,7 @@ async function runOfflineReadyIndicator(mainMsg) {
   }
 
   if (isReady) {
-    show('Офлайн горимд ашиглахад бэлэн ✓');
+    show('Офлайн горимд ашиглахад бэлэн болов');
     await new Promise((r) => setTimeout(r, 2000));
   }
 
