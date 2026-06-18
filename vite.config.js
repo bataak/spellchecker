@@ -22,16 +22,18 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: 'inline',
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,wasm}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,json,webmanifest,wasm,zip}'],
         navigateFallback: base + 'index.html',
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        maximumFileSizeToCacheInBytes: 20 * 1024 * 1024, 
+        
         runtimeCaching: [
           {
-            urlPattern: /\/dict\//,
+            urlPattern: new RegExp(`${base}dict/`),
             handler: 'CacheFirst',
             options: {
               cacheName: 'dict-cache',
