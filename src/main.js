@@ -806,7 +806,7 @@ async function runOfflineReadyIndicator(mainMsg) {
 
   if (!offlineCapable()) { show(mainMsg); return; }
 
-  show('Офлайн горимд бэлтгэж байна…');
+  show('Офлайн горимд ажиллахад бэлтгэж байна…');
 
   const deadline = Date.now() + 20000;
   let isReady = await isOfflineReady();
@@ -816,7 +816,7 @@ async function runOfflineReadyIndicator(mainMsg) {
   }
 
   if (isReady) {
-    show('Офлайн горимд ашиглахад бэлэн');
+    show('Офлайн горимд ажиллахад бэлэн');
     await new Promise((r) => setTimeout(r, 2000));
   }
 
