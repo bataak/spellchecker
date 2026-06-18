@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/bataak/spellchecker/compare/v1.4.0...v1.5.0) (2026-06-18)
+
+
+### Features
+
+* in-place save on Chrome, Open button everywhere, faster CI ([e1bbec0](https://github.com/bataak/spellchecker/commit/e1bbec0a72a10b94702b6086e6494afb94916c13))
+
 ## [1.4.0](https://github.com/bataak/spellchecker/compare/v1.3.0...v1.4.0) (2026-06-17)
 
 
