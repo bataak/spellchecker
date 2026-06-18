@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.1](https://github.com/bataak/spellchecker/compare/v1.6.0...v1.6.1) (2026-06-18)
+
+
+### Bug Fixes
+
+* guarantee the app renders offline regardless of the module script ([8d3845b](https://github.com/bataak/spellchecker/commit/8d3845ba9b3740273714231b65752a2bd28dda92))
+
 ## [1.6.0](https://github.com/bataak/spellchecker/compare/v1.5.1...v1.6.0) (2026-06-18)
 
 
