@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.1](https://github.com/bataak/spellchecker/compare/v1.5.0...v1.5.1) (2026-06-18)
+
+
+### Bug Fixes
+
+* prevent blank screen on offline launch ([3c571e9](https://github.com/bataak/spellchecker/commit/3c571e9ad587619cc7746cae6a33204dc9412b3d))
+
 ## [1.5.0](https://github.com/bataak/spellchecker/compare/v1.4.0...v1.5.0) (2026-06-18)
 
 
