@@ -18,16 +18,20 @@ let baseStatus = '';
 let pendingFix = null;
 
 const labelOf = (id) => (DICTIONARIES.find((d) => d.id === id) || {}).label || id;
-const setStatus = (html) => (els.status.innerHTML = html);
+const setStatus = (html) => {
+  if (els.status) els.status.innerHTML = html;
+};
 const escapeHtml = (s) =>
   s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 
 function isCorrect(word) {
+  if (!ready) return true;
   if (cache.has(word)) return cache.get(word);
   const ok = checker.isCorrect(word);
   cache.set(word, ok);
   return ok;
 }
+
 function debounce(fn, ms) {
   let t;
   return (...a) => {
@@ -38,729 +42,200 @@ function debounce(fn, ms) {
 
 function computeBad(text) {
   const bad = [];
-  let total = 0;
   for (const { word, index } of tokenize(text)) {
-    total++;
-    if (word.length < 2 || /^\p{N}+(-|$)/u.test(word) || isCorrect(word)) continue;
-    bad.push({ word, start: index, end: index + word.length });
-  }
-  return { bad, total };
-}
-
-function casePattern(src) {
-  if (!src) return 'lower';
-  let upper = 0, lower = 0, firstCased = null;
-  for (const ch of src) {
-    const u = ch.toUpperCase(), l = ch.toLowerCase();
-    if (u === l) continue;
-    if (firstCased === null) firstCased = ch;
-    if (ch === u) upper++; else lower++;
-  }
-  if (upper === 0) return 'lower';
-  if (lower === 0) return 'upper';
-  if (upper > lower) return 'upper';
-  if (firstCased && firstCased === firstCased.toUpperCase()) return 'capital';
-  return 'lower';
-}
-function applyCase(pattern, word) {
-  const lo = word.toLowerCase();
-  if (pattern === 'upper') return word.toUpperCase();
-  if (pattern === 'capital') return lo.charAt(0).toUpperCase() + lo.slice(1);
-  return lo;
-}
-function irregularCase(s) {
-  return applyCase(casePattern(s), s.toLowerCase()) !== s;
-}
-function caseRank(pattern) {
-  return pattern === 'upper' ? 2 : pattern === 'capital' ? 1 : 0;
-}
-function rankToPattern(rank) {
-  return rank === 2 ? 'upper' : rank === 1 ? 'capital' : 'lower';
-}
-
-function replaceAllWord(text, originalLower, baseRepl, caretOffset, primaryPattern) {
-  const verbatim = irregularCase(baseRepl);
-  const corrRank = caseRank(casePattern(baseRepl));
-  const primRank = caseRank(primaryPattern || 'lower');
-  const floor = corrRank > primRank ? corrRank : 0;
-  let result = '';
-  let cursor = 0;
-  let caret = caretOffset;
-  for (const { word, index } of tokenize(text)) {
-    if (word.toLowerCase() === originalLower) {
-      result += text.slice(cursor, index);
-      let rep;
-      if (verbatim) {
-        rep = baseRepl;
-      } else {
-        const r = Math.max(caseRank(casePattern(word)), floor);
-        rep = applyCase(rankToPattern(r), baseRepl);
-      }
-      if (caretOffset != null && index + word.length <= caretOffset) {
-        caret += rep.length - word.length;
-      }
-      result += rep;
-      cursor = index + word.length;
+    if (word.length < 2 || /^\p{N}+(-|$)/u.test(word)) continue;
+    if (!isCorrect(word)) {
+      bad.push({ word, index });
     }
   }
-  result += text.slice(cursor);
-  return { text: result, caret };
-}
-function wordAtCaret(text, pos) {
-  for (const { word, index } of tokenize(text)) {
-    if (pos >= index && pos <= index + word.length) {
-      return { word, start: index, end: index + word.length };
-    }
-  }
-  return null;
+  return bad;
 }
 
-function render() {
+function renderBackdrop() {
   const text = els.editor.value;
-  const { bad, total } = computeBad(text);
-  badTokens = bad;
-
+  badTokens = computeBad(text);
   let html = '';
-  let cursor = 0;
-  for (const t of bad) {
-    html += escapeHtml(text.slice(cursor, t.start));
-    html += '<mark data-start="' + t.start + '">' + escapeHtml(text.slice(t.start, t.end)) + '</mark>';
-    cursor = t.end;
+  let last = 0;
+  for (const { word, index } of badTokens) {
+    html += escapeHtml(text.slice(last, index));
+    html += `<mark class="proof" data-index="${index}">${escapeHtml(word)}</mark>`;
+    last = index + word.length;
   }
-  html += escapeHtml(text.slice(cursor)) + '\n';
+  html += escapeHtml(text.slice(last));
+  html += '\n';
   els.backdrop.innerHTML = html;
-  syncScroll();
-
-  if (ready) {
-    if (text.trim() === '') {
-      setStatus(baseStatus);
-    } else {
-      setStatus('Нийт тэмдэгт: <b>' + text.length + '</b>, үгийн тоо: <b>' + total + '</b>, алдаатай үг: <b>' + bad.length + '</b>');
-    }
-  }
 }
+
+const update = debounce(renderBackdrop, 150);
 
 function syncScroll() {
   els.backdrop.scrollTop = els.editor.scrollTop;
   els.backdrop.scrollLeft = els.editor.scrollLeft;
 }
 
-function tokenAtCaret() {
-  const pos = els.editor.selectionStart;
-  for (const t of badTokens) {
-    if (pos >= t.start && pos <= t.end) return t;
-  }
-  return null;
-}
-
-let activeStart = null;
-let kbAdjustTimer = null;
-
 function hidePopover() {
   els.popover.hidden = true;
-  activeStart = null;
-  clearTimeout(kbAdjustTimer);
+  pendingFix = null;
 }
 
-const isTouch = () => window.matchMedia('(pointer: coarse)').matches;
-
-function bringWordIntoView() {
-  if (els.popover.hidden || activeStart == null) return;
-  if (!isTouch()) return;
-  const mark = els.backdrop.querySelector('mark[data-start="' + activeStart + '"]');
-  if (!mark) return;
-
-  const vv = window.visualViewport;
-  const editorRect = els.editor.getBoundingClientRect();
-  const vTop = vv ? vv.offsetTop : 0;
-  const vBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
-  const visTop = Math.max(editorRect.top, vTop);
-  const visBottom = Math.min(editorRect.bottom, vBottom);
-  const visH = visBottom - visTop;
-  if (visH <= 60) return;
-
-  const r = mark.getBoundingClientRect();
-  if (r.top >= visTop + 8 && r.bottom <= visBottom - 8) return;
-
-  const targetY = visTop + Math.max(60, Math.min(visH * 0.3, 150));
-  const maxScroll = els.editor.scrollHeight - els.editor.clientHeight;
-  const next = Math.max(0, Math.min(els.editor.scrollTop + (r.top - targetY), maxScroll));
-  if (Math.abs(next - els.editor.scrollTop) > 2) {
-    els.editor.scrollTop = next;
-    syncScroll();
-  }
-}
-
-function scheduleKbAdjust() {
-  clearTimeout(kbAdjustTimer);
-  const delays = [100, 250, 450, 650];
-  let i = 0;
-  const run = () => {
-    if (els.popover.hidden) return;
-    bringWordIntoView();
-    placePopover();
-    i++;
-    if (i < delays.length) kbAdjustTimer = setTimeout(run, delays[i] - delays[i - 1]);
-  };
-  kbAdjustTimer = setTimeout(run, delays[0]);
-}
-
-function placePopover() {
-  if (els.popover.hidden || activeStart == null) return;
-  const mark = els.backdrop.querySelector('mark[data-start="' + activeStart + '"]');
-  if (!mark) {
-    hidePopover();
-    return;
-  }
-  const r = mark.getBoundingClientRect();
-  const margin = 6;
-
-  const vv = window.visualViewport;
-  const viewTop = vv ? vv.offsetTop : 0;
-  const viewLeft = vv ? vv.offsetLeft : 0;
-  const viewW = vv ? vv.width : window.innerWidth;
-  const viewH = vv ? vv.height : window.innerHeight;
-  const viewBottom = viewTop + viewH;
-
-  const popH = els.popover.offsetHeight;
-  const popW = els.popover.offsetWidth;
-
-  const spaceBelow = viewBottom - r.bottom;
-  const spaceAbove = r.top - viewTop;
-
-  let top;
-  if (spaceBelow >= popH + margin || spaceBelow >= spaceAbove) {
-    top = r.bottom + margin;
+function showPopover(x, y, word, suggestions) {
+  let html = `<div class="pop-word"><b>${escapeHtml(word)}</b></div>`;
+  if (!suggestions.length) {
+    html += `<div class="pop-item no-sug">Санал болгох үг олдсонгүй</div>`;
   } else {
-    top = r.top - popH - margin;
+    for (const s of suggestions.slice(0, 5)) {
+      html += `<button class="pop-item sug-btn" type="button" data-val="${escapeHtml(s)}">${escapeHtml(s)}</button>`;
+    }
   }
-
-  top = Math.max(viewTop + margin, Math.min(top, viewBottom - popH - margin));
-  const left = Math.max(viewLeft + margin, Math.min(r.left, viewLeft + viewW - popW - margin));
-
-  els.popover.style.top = window.scrollY + top + 'px';
-  els.popover.style.left = window.scrollX + left + 'px';
+  els.popover.innerHTML = html;
+  els.popover.style.left = `${x}px`;
+  els.popover.style.top = `${y}px`;
+  els.popover.hidden = false;
 }
 
-function showPopoverFor(t) {
-  let mark = els.backdrop.querySelector('mark[data-start="' + t.start + '"]');
-  if (!mark) {
-    render();
-    mark = els.backdrop.querySelector('mark[data-start="' + t.start + '"]');
-  }
+els.editor.addEventListener('input', () => {
+  hidePopover();
+  update();
+});
+els.editor.addEventListener('scroll', syncScroll);
+
+els.backdrop.addEventListener('click', (e) => {
+  if (!ready) return;
+  const mark = e.target.closest('mark.proof');
   if (!mark) {
     hidePopover();
     return;
   }
+  const idx = parseInt(mark.getAttribute('data-index'), 10);
+  const found = badTokens.find((t) => t.index === idx);
+  if (!found) return;
+  pendingFix = found;
+  const sugs = checker.suggest(found.word);
+  const rect = mark.getBoundingClientRect();
+  const wrapper = els.editor.parentElement.getBoundingClientRect();
+  const x = rect.left - wrapper.left + els.editor.scrollLeft;
+  const y = rect.bottom - wrapper.top + els.editor.scrollTop + 4;
+  showPopover(x, y, found.word, sugs);
+});
 
-  const suggestions = checker.suggest(t.word).slice(0, 8);
-  els.popover.innerHTML = suggestions.length
-    ? suggestions.map((s) => '<button class="sg" type="button">' + escapeHtml(s) + '</button>').join('')
-    : '<div class="muted pop-empty">санал алга</div>';
-
-  activeStart = t.start;
-  els.popover.hidden = false;
-  bringWordIntoView();
-  placePopover();
-  scheduleKbAdjust();
-
-  els.popover.querySelectorAll('.sg').forEach((btn) => {
-    btn.addEventListener('click', () => applySuggestion(t, btn.textContent));
-  });
-}
-
-function suggestAtCaret() {
-  const t = tokenAtCaret();
-  if (t) showPopoverFor(t);
-  else hidePopover();
-}
-
-function maybePropagateManual() {
-  if (!pendingFix) return;
-  const text = els.editor.value;
-  const pos = els.editor.selectionStart;
-  const w = wordAtCaret(text, pos);
-  if (!w) return;
-  const lower = w.word.toLowerCase();
-  if (lower === pendingFix.original) return;
-  if (!isCorrect(w.word)) return;
-  const original = pendingFix.original;
-  const primaryPattern = pendingFix.originalPattern || 'lower';
-  pendingFix = null;
-  const { text: nt, caret } = replaceAllWord(text, original, w.word, pos, primaryPattern);
-  if (nt === text) return;
-  const top = els.editor.scrollTop;
-  setEditorText(nt, caret);
-  els.editor.scrollTop = top;
-  render();
-}
-
-function recheck() {
-  render();
-  maybePropagateManual();
-  saveText();
-}
-
-function applySuggestion(t, replacement) {
-  pendingFix = null;
-  const v = els.editor.value;
-  const { text: nt, caret } = replaceAllWord(v, t.word.toLowerCase(), replacement, t.end, casePattern(t.word));
-  if (nt === v) { hidePopover(); return; }
-  const top = els.editor.scrollTop;
-  setEditorText(nt, caret);
-  els.editor.scrollTop = top;
+els.popover.addEventListener('click', (e) => {
+  const btn = e.target.closest('.sug-btn');
+  if (!btn || !pendingFix) return;
+  const rep = btn.getAttribute('data-val');
+  const orig = els.editor.value;
+  const next = orig.slice(0, pendingFix.index) + rep + orig.slice(pendingFix.index + pendingFix.word.length);
+  els.editor.value = next;
+  els.editor.focus();
+  els.editor.setSelectionRange(pendingFix.index + rep.length, pendingFix.index + rep.length);
   hidePopover();
-  render();
-  saveText();
-}
-
-function isSeparatorInput(e) {
-  const it = e.inputType || '';
-  if (it === 'insertText') return e.data != null && /[\s\p{P}\p{S}]/u.test(e.data);
-  if (it === 'insertLineBreak' || it === 'insertParagraph') return true;
-  if (it.indexOf('insertFromPaste') === 0 || it.indexOf('insertFromDrop') === 0) return true;
-  return false;
-}
-const deferredCheck = debounce(() => recheck(), 1500);
-
-els.editor.addEventListener('beforeinput', () => {
-  const t = tokenAtCaret();
-  pendingFix = t ? { original: t.word.toLowerCase(), originalPattern: casePattern(t.word) } : null;
+  renderBackdrop();
 });
 
-const STORAGE_KEY = 'mn-spell:text';
-function saveText() {
-  try {
-    localStorage.setItem(STORAGE_KEY, els.editor.value);
-  } catch (_) {}
-}
-function loadText() {
-  try {
-    const t = localStorage.getItem(STORAGE_KEY);
-    if (t != null) els.editor.value = t;
-  } catch (_) {}
-}
-let saveTimer = null;
-function saveTextSoon() {
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(saveText, 400);
-}
-window.addEventListener('pagehide', saveText);
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') saveText();
-});
-
-let programmaticEdit = false;
-function setEditorText(newText, caret) {
-  const old = els.editor.value;
-  els.editor.focus({ preventScroll: true });
-  if (old === newText) {
-    if (caret != null) { try { els.editor.setSelectionRange(caret, caret); } catch (_) {} }
-    return;
-  }
-  let p = 0;
-  const minLen = Math.min(old.length, newText.length);
-  while (p < minLen && old[p] === newText[p]) p++;
-  let s = 0;
-  while (s < minLen - p && old[old.length - 1 - s] === newText[newText.length - 1 - s]) s++;
-  const oldEnd = old.length - s;
-  const slice = newText.slice(p, newText.length - s);
-  try { els.editor.setSelectionRange(p, oldEnd); } catch (_) {}
-  let ok = false;
-  programmaticEdit = true;
-  try {
-    ok = slice === ''
-      ? document.execCommand('delete', false)
-      : document.execCommand('insertText', false, slice);
-  } catch (_) { ok = false; }
-  programmaticEdit = false;
-  if (!ok) els.editor.value = newText;
-  if (caret != null) { try { els.editor.setSelectionRange(caret, caret); } catch (_) {} }
-}
-function insertEditorText(text, start, end) {
-  els.editor.focus({ preventScroll: true });
-  try { els.editor.setSelectionRange(start, end); } catch (_) {}
-  let ok = false;
-  programmaticEdit = true;
-  try { ok = document.execCommand('insertText', false, text); } catch (_) { ok = false; }
-  programmaticEdit = false;
-  if (!ok) {
-    const v = els.editor.value;
-    els.editor.value = v.slice(0, start) + text + v.slice(end);
-    const pos = start + text.length;
-    try { els.editor.setSelectionRange(pos, pos); } catch (_) {}
-  }
-}
-els.editor.addEventListener('input', (e) => {
-  if (programmaticEdit) return;
-  saveTextSoon();
-  if (isSeparatorInput(e)) recheck();
-  else deferredCheck();
-});
-els.editor.addEventListener('scroll', () => {
-  syncScroll();
-  placePopover();
-});
-els.editor.addEventListener('click', () => {
-  if (suppressNextClick) {
-    suppressNextClick = false;
-    return;
-  }
-  suggestAtCaret();
-});
-els.editor.addEventListener('keyup', (e) => {
-  const nav = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
-  if (nav.indexOf(e.key) !== -1) suggestAtCaret();
-});
-
-let suppressNextClick = false;
-
-function markAtPoint(x, y) {
-  const marks = els.backdrop.querySelectorAll('mark[data-start]');
-  for (const m of marks) {
-    const rects = m.getClientRects();
-    for (const r of rects) {
-      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return m;
-    }
-  }
-  return null;
-}
-function tokenForMark(mark) {
-  const start = Number(mark.getAttribute('data-start'));
-  for (const t of badTokens) if (t.start === start) return t;
-  return null;
-}
-els.editor.addEventListener('pointerdown', (e) => {
-  if (e.pointerType === 'mouse') return; // десктоп: курсор тавих + click→suggest ердийнхөөрөө
-  const mark = markAtPoint(e.clientX, e.clientY);
-  if (!mark) return;
-  const t = tokenForMark(mark);
-  if (!t) return;
-  e.preventDefault();
-  suppressNextClick = true;
-  showPopoverFor(t);
-});
-
-els.editor.addEventListener('contextmenu', (e) => {
-  const t = tokenAtCaret();
-  if (t) {
-    e.preventDefault();
-    showPopoverFor(t);
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.editor-wrapper') && !e.target.closest('#popover')) {
+    hidePopover();
   }
 });
-document.addEventListener('mousedown', (e) => {
-  if (!e.target.closest('#popover') && e.target !== els.editor) hidePopover();
-});
 
-if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', () => {
-    bringWordIntoView();
-    placePopover();
+(function initFontAndTheme() {
+  const tbtn = document.querySelector('#themeBtn');
+  const sizeKey = 'editor_fontsize';
+  let size = parseFloat(localStorage.getItem(sizeKey)) || 1.15;
+  const applySize = () => document.documentElement.style.setProperty('--editor-scale', size);
+  applySize();
+
+  document.querySelector('#fontIncBtn').addEventListener('click', () => {
+    size = Math.min(2.5, size + 0.1);
+    localStorage.setItem(sizeKey, size);
+    applySize();
   });
-  window.visualViewport.addEventListener('scroll', placePopover);
-}
-window.addEventListener('resize', placePopover);
+  document.querySelector('#fontDecBtn').addEventListener('click', () => {
+    size = Math.max(0.7, size - 0.1);
+    localStorage.setItem(sizeKey, size);
+    applySize();
+  });
+  document.querySelector('#fontResetBtn').addEventListener('click', () => {
+    size = 1.15;
+    localStorage.removeItem(sizeKey);
+    applySize();
+  });
 
-const rootEl = document.documentElement;
-function applyTheme(theme) {
-  rootEl.setAttribute('data-theme', theme);
-  const btn = document.querySelector('#themeBtn');
-  if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
-}
-(function initTheme() {
-  let theme = null;
-  try { theme = localStorage.getItem('theme'); } catch (_) {}
-  if (!theme) {
-    theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
-  applyTheme(theme);
-})();
-function flash(sel, msg) {
-  const b = document.querySelector(sel);
-  if (!b) return;
-  const old = b.dataset.label || b.textContent;
-  b.dataset.label = old;
-  b.textContent = msg;
-  setTimeout(() => { b.textContent = b.dataset.label; }, 1100);
-}
-document.querySelector('#themeBtn').addEventListener('click', () => {
-  const next = rootEl.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-  applyTheme(next);
-  try { localStorage.setItem('theme', next); } catch (_) {}
-});
+  const getTheme = () => document.documentElement.getAttribute('data-theme') || 'light';
+  const setTheme = (t) => {
+    document.documentElement.setAttribute('data-theme', t);
+    localStorage.setItem('theme', t);
+    tbtn.textContent = t === 'dark' ? '☀️' : '🌙';
+  };
+  tbtn.textContent = getTheme() === 'dark' ? '☀️' : '🌙';
+  tbtn.addEventListener('click', () => setTheme(getTheme() === 'dark' ? 'light' : 'dark'));
 
-const FONT_KEY = 'mn-spell:scale';
-const FONT_MIN = 0.8;
-const FONT_MAX = 1.8;
-const FONT_STEP = 0.1;
-let fontScale = 1;
-try {
-  const s = parseFloat(localStorage.getItem(FONT_KEY));
-  if (!isNaN(s)) fontScale = s;
-} catch (_) {}
-function applyScale() {
-  fontScale = Math.round(Math.min(FONT_MAX, Math.max(FONT_MIN, fontScale)) * 100) / 100;
-  rootEl.style.setProperty('--editor-scale', String(fontScale));
-  try { localStorage.setItem(FONT_KEY, String(fontScale)); } catch (_) {}
-}
-applyScale();
-document.querySelector('#fontIncBtn').addEventListener('click', () => { fontScale += FONT_STEP; applyScale(); });
-document.querySelector('#fontDecBtn').addEventListener('click', () => { fontScale -= FONT_STEP; applyScale(); });
-document.querySelector('#fontResetBtn').addEventListener('click', () => { fontScale = 1; applyScale(); });
-
-const verEl = document.querySelector('#appVersion');
-if (verEl) verEl.textContent = 'v' + (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '') + (typeof __HUNSPELL_VERSION__ !== 'undefined' ? ' · hunspell ' + __HUNSPELL_VERSION__ : '');
-document.querySelector('#clearBtn').addEventListener('click', () => {
-  if (!els.editor.value) { els.editor.focus(); return; }
-  setEditorText('', 0);
-  hidePopover();
-  render();
-  saveText();
-});
-function insertAtCaret(text) {
-  let start = els.editor.selectionStart;
-  let end = els.editor.selectionEnd;
-  if (start == null) { start = els.editor.value.length; end = start; }
-  insertEditorText(text, start, end);
-  render();
-  saveText();
-}
-
-document.querySelector('#pasteBtn').addEventListener('click', async () => {
-  try {
-    if (navigator.clipboard && navigator.clipboard.readText) {
-      const text = await navigator.clipboard.readText();
-      if (text) insertAtCaret(text);
-      else els.editor.focus();
-      return;
-    }
-    throw new Error('no-api');
-  } catch (_) {
-
+  document.querySelector('#clearBtn').addEventListener('click', () => {
+    els.editor.value = '';
+    hidePopover();
+    renderBackdrop();
     els.editor.focus();
-    flash('#pasteBtn', 'Ctrl+V');
-  }
-});
-document.querySelector('#copyBtn').addEventListener('click', async () => {
-  try {
-    await navigator.clipboard.writeText(els.editor.value || '');
-    flash('#copyBtn', 'Хууллаа');
-  } catch (_) {
-    flash('#copyBtn', 'Боломжгүй');
-  }
-});
-const hasFSSave = 'showSaveFilePicker' in window;
-const hasFSOpen = 'showOpenFilePicker' in window;
-let currentFileHandle = null;
-let currentFileName = null;
+  });
 
-function isDesktopApp() {
-  if (!window.matchMedia) return false;
-  const installed =
-    window.matchMedia('(display-mode: standalone)').matches ||
-    window.matchMedia('(display-mode: window-controls-overlay)').matches ||
-    window.matchMedia('(display-mode: minimal-ui)').matches;
-  return installed && window.matchMedia('(pointer: fine)').matches;
-}
-
-function stampName() {
-  const d = new Date(Date.now() + 8 * 60 * 60 * 1000);
-  const p = (n) => String(n).padStart(2, '0');
-  const ts =
-    d.getUTCFullYear() + '-' + p(d.getUTCMonth() + 1) + '-' + p(d.getUTCDate()) +
-    '-' + p(d.getUTCHours()) + p(d.getUTCMinutes());
-  const isMobile = window.matchMedia && window.matchMedia('(max-width: 700px)').matches;
-  return (isMobile ? '' : 'бичвэр-') + ts + '.txt';
-}
-
-function ensureTxt(name) {
-  name = (name || '').trim();
-  if (!name) return stampName();
-  return /\.txt$/i.test(name) ? name : name + '.txt';
-}
-
-function downloadText(text, name) {
-  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = ensureTxt(name);
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-const TXT_TYPES = [{ description: 'Текст файл', accept: { 'text/plain': ['.txt'] } }];
-
-document.querySelector('#saveBtn').addEventListener('click', async () => {
-  const text = els.editor.value || '';
-  if (!text.trim()) { flash('#saveBtn', 'Хоосон байна'); return; }
-
-  if (currentFileHandle) {
+  document.querySelector('#copyBtn').addEventListener('click', async () => {
     try {
-      const w = await currentFileHandle.createWritable();
-      await w.write(text);
-      await w.close();
-      flash('#saveBtn', 'Хадгаллаа');
-      return;
+      await navigator.clipboard.writeText(els.editor.value);
     } catch (_) {}
-  }
+  });
 
-  if (currentFileName) {
-    try { downloadText(text, currentFileName); flash('#saveBtn', 'Хадгаллаа'); }
-    catch (_) { flash('#saveBtn', 'Боломжгүй'); }
-    return;
-  }
-
-  if (isDesktopApp() && hasFSSave) {
+  document.querySelector('#pasteBtn').addEventListener('click', async () => {
     try {
-      const handle = await window.showSaveFilePicker({ suggestedName: stampName(), types: TXT_TYPES });
-      const w = await handle.createWritable();
-      await w.write(text);
-      await w.close();
-      currentFileHandle = handle;
-      flash('#saveBtn', 'Хадгаллаа');
-      return;
-    } catch (e) {
-      if (e && e.name === 'AbortError') return;
-    }
-  }
-
-  try { downloadText(text, stampName()); flash('#saveBtn', 'Хадгаллаа'); }
-  catch (_) { flash('#saveBtn', 'Боломжгүй'); }
-});
-
-function readAsText(file) {
-  return file.text
-    ? file.text()
-    : new Promise((res, rej) => {
-        const r = new FileReader();
-        r.onload = () => res(String(r.result));
-        r.onerror = rej;
-        r.readAsText(file);
-      });
-}
-
-async function loadFileContent(content, name, handle) {
-  currentFileHandle = handle || null;
-  currentFileName = name || (handle && handle.name) || null;
-  setEditorText(content, content.length);
-  hidePopover();
-  render();
-  saveText();
-  flash('#openBtn', 'Нээлээ');
-}
-
-const openFileEl = document.querySelector('#openFile');
-const openBtn = document.querySelector('#openBtn');
-if (openBtn && openFileEl) {
-  openBtn.addEventListener('click', async () => {
-    if (hasFSOpen) {
-      try {
-        const [handle] = await window.showOpenFilePicker({ types: TXT_TYPES, multiple: false });
-        const file = await handle.getFile();
-        await loadFileContent(await file.text(), file.name, handle);
-      } catch (e) {
-        if (e && e.name !== 'AbortError') flash('#openBtn', 'Боломжгүй');
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        els.editor.value = text;
+        hidePopover();
+        renderBackdrop();
       }
-    } else {
-      openFileEl.click();
-    }
-  });
-  openFileEl.addEventListener('change', async () => {
-    const f = openFileEl.files && openFileEl.files[0];
-    if (!f) return;
-    try { await loadFileContent(await readAsText(f), f.name, null); }
-    catch (_) { flash('#openBtn', 'Боломжгүй'); }
-    openFileEl.value = '';
-  });
-}
-
-function dragHasFiles(e) {
-  const t = e.dataTransfer && e.dataTransfer.types;
-  return !!t && Array.from(t).includes('Files');
-}
-function isTextFile(f) {
-  return !!f && ((f.type && f.type.indexOf('text/') === 0) || /\.txt$/i.test(f.name) || !f.type);
-}
-els.editor.addEventListener('dragover', (e) => {
-  if (!dragHasFiles(e)) return;
-  e.preventDefault();
-  if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
-  els.editor.classList.add('drag-over');
-});
-els.editor.addEventListener('dragleave', () => els.editor.classList.remove('drag-over'));
-els.editor.addEventListener('drop', async (e) => {
-  if (!dragHasFiles(e)) return;
-  e.preventDefault();
-  els.editor.classList.remove('drag-over');
-  const dt = e.dataTransfer;
-  let handle = null;
-  const item = dt && dt.items && dt.items[0];
-  if (item && item.kind === 'file' && item.getAsFileSystemHandle) {
-    try { const h = await item.getAsFileSystemHandle(); if (h && h.kind === 'file') handle = h; } catch (_) {}
-  }
-  const f = handle ? await handle.getFile() : (dt && dt.files && dt.files[0]);
-  if (!isTextFile(f)) return;
-  try { await loadFileContent(await readAsText(f), f.name, handle); } catch (_) {}
-});
-
-(function setupShortcuts() {
-  const isDesktop = window.matchMedia && window.matchMedia('(pointer: fine)').matches;
-  if (!isDesktop) return;
-
-  const uaData = navigator.userAgentData;
-  const uaPlat = (uaData && uaData.platform) || '';
-  const isMac =
-    /mac/i.test(uaPlat) ||
-    /Mac|iPhone|iPad|iPod/i.test(navigator.platform || '') ||
-    (/Mac OS X/i.test(navigator.userAgent || '') && !/Windows|Android/i.test(navigator.userAgent || ''));
-  const mod = isMac ? '⌘' : 'Ctrl+';
-  const shiftSym = isMac ? '⇧' : 'Shift+';
-
-  [
-    ['#clearBtn', mod + 'D'],
-    ['#pasteBtn', mod + 'V'],
-    ['#copyBtn', mod + 'C'],
-    ['#openBtn', mod + 'O'],
-    ['#saveBtn', mod + 'S'],
-    ['#fontDecBtn', mod + '-'],
-    ['#fontIncBtn', mod + '+'],
-    ['#fontResetBtn', mod + '0'],
-    ['#themeBtn', mod + shiftSym + 'D'],
-  ].forEach(([sel, combo]) => {
-    const b = document.querySelector(sel);
-    if (!b) return;
-    const base = b.getAttribute('title') || '';
-    b.setAttribute('title', base ? base + ' · ' + combo : combo);
+    } catch (_) {}
   });
 
-  function trigger(sel) {
+  const openBtn = document.querySelector('#openBtn');
+  const openFile = document.querySelector('#openFile');
+  openBtn.addEventListener('click', () => openFile.click());
+  openFile.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const r = new FileReader();
+    r.onload = (evt) => {
+      els.editor.value = evt.target.result;
+      hidePopover();
+      renderBackdrop();
+    };
+    r.readAsText(file);
+    openFile.value = '';
+  });
+
+  document.querySelector('#saveBtn').addEventListener('click', () => {
+    const blob = new Blob([els.editor.value], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'bichig-' + Math.floor(Date.now() / 1000) + '.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  const trigger = (sel) => {
     const b = document.querySelector(sel);
     if (b) b.click();
-  }
-
+  };
   window.addEventListener('keydown', (e) => {
-    const m = isMac ? (e.metaKey && !e.ctrlKey) : (e.ctrlKey && !e.metaKey);
-    if (!m || e.altKey) return;
-    const k = e.key;
-    const kl = k.toLowerCase();
-
-    if (e.shiftKey) {
-      if (kl === 'd') { e.preventDefault(); trigger('#themeBtn'); return; }
-      if (k === '+') { e.preventDefault(); trigger('#fontIncBtn'); return; }
-      return;
-    }
-
-    if (k === '-' || k === 'Subtract') { e.preventDefault(); trigger('#fontDecBtn'); return; }
-    if (k === '+' || k === '=' || k === 'Add') { e.preventDefault(); trigger('#fontIncBtn'); return; }
-    if (k === '0' || k === 'Numpad0') { e.preventDefault(); trigger('#fontResetBtn'); return; }
-
-    if (kl === 's') { e.preventDefault(); trigger('#saveBtn'); }
-    else if (kl === 'o') { e.preventDefault(); trigger('#openBtn'); }
-    else if (kl === 'd') { e.preventDefault(); trigger('#clearBtn'); }
-    else if (kl === 'c') {
+    if (!ready) return;
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const cmd = isMac ? e.metaKey : e.ctrlKey;
+    if (!cmd) return;
+    const kl = e.key.toLowerCase();
+    if (kl === 'o') {
+      e.preventDefault();
+      trigger('#openBtn');
+    } else if (kl === 'd') {
+      e.preventDefault();
+      trigger('#clearBtn');
+    } else if (kl === 'c') {
       if (els.editor.selectionStart === els.editor.selectionEnd) {
         e.preventDefault();
         trigger('#copyBtn');
@@ -769,11 +244,19 @@ els.editor.addEventListener('drop', async (e) => {
   });
 })();
 
-async function boot() {
-  setStatus('Hunspell ачаалж байна…');
+async function bootstrapApp() {
+  setStatus('Үгийн санг татаж байна...');
   try {
-    const { loaded, failed, source, fallbackReason } = await checker.init();
+    const base = process.env.VITE_BASE || '/hunspell-mn/';
+    const dictUrl = `${base}dict/dictionaries.zip`;
+    const res = await fetch(dictUrl);
+    if (!res.ok) throw new Error(`${res.status}`);
+
+    setStatus('Hunspell ачаалж байна…');
+
+    const { loaded, failed, fallbackReason } = await checker.init();
     ready = true;
+
     if (loaded.length) {
       const seenName = new Set();
       const simple = [];
@@ -789,20 +272,21 @@ async function boot() {
         msg += ' <span class="muted">(олдсонгүй: ' + failed.map((f) => f.id).join(', ') + ')</span>';
       }
       if (fallbackReason) {
-        msg += '<br><span class="muted">hunspell-wasm амжилтгүй (nspell ашиглаж байна): ' +
-          escapeHtml(fallbackReason) + '</span>';
+        msg += '<br><span class="muted">hunspell-wasm амжилтгүй (nspell ашиглаж байна): ' + escapeHtml(fallbackReason) + '</span>';
       }
       baseStatus = msg;
       setStatus(msg);
     } else {
-      setStatus('Нэг ч толь алга — <code>public/dict/</code> дотор .aff/.dic эсвэл dictionaries.zip хийнэ үү.');
+      setStatus('<span class="error">Толь ачаалж чадсангүй.</span>');
     }
-    loadText();
-    render();
-    els.editor.focus();
+    renderBackdrop();
   } catch (e) {
-    setStatus('Ачаалахад алдаа гарлаа: ' + (e && e.message ? e.message : String(e)));
+    setStatus('<span class="error">Алдаа: Интернет холболтоо шалгаад хуудсыг дахин ачаална уу. (' + escapeHtml(String(e)) + ')</span>');
   }
 }
 
-boot();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootstrapApp);
+} else {
+  bootstrapApp();
+}
