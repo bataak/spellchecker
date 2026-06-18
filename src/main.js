@@ -788,11 +788,12 @@ async function isOfflineReady() {
   try {
     const base = import.meta.env.BASE_URL;
     const u = (p) => new URL(base + p, location).href;
+    const opt = { ignoreSearch: true };
     const swControlled = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
     if (!swControlled) return false;
-    const shell = (await caches.match(u('index.html'))) || (await caches.match(u('')));
+    const shell = (await caches.match(u('index.html'), opt)) || (await caches.match(u(''), opt));
     if (!shell) return false;
-    const dict = await caches.match(u('dict/dictionaries.zip'));
+    const dict = await caches.match(u('dict/dictionaries.zip'), opt);
     return !!dict;
   } catch (_) {
     return false;
@@ -819,7 +820,7 @@ async function runOfflineReadyIndicator(mainMsg) {
 
   if (isReady) {
     show('Офлайн горимд ашиглахад бэлэн ✓');
-    await new Promise((r) => setTimeout(r, 5000));
+    await new Promise((r) => setTimeout(r, 2000));
   }
 
   show(mainMsg);
