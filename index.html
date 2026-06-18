@@ -31,9 +31,12 @@
         } catch (e) {}
       })();
 
-      window.addEventListener('load', function () {
+      function __showBody() {
         document.body && document.body.classList.add('ready');
-      });
+      }
+      window.addEventListener('DOMContentLoaded', __showBody);
+      window.addEventListener('load', __showBody);
+      setTimeout(__showBody, 1500);
 </script>
   </head>
   <body>
@@ -84,8 +87,16 @@
 
     <script type="module" src="/src/main.js"></script>
 
-    <!-- Cloudflare Web Analytics -->
-    <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "7c5503579f3c4a0584c8f41fc5488584"}'></script>
+    <!-- Cloudflare Web Analytics (зөвхөн онлайн үед) -->
+    <script>
+      if (navigator.onLine) {
+        var __cf = document.createElement('script');
+        __cf.defer = true;
+        __cf.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+        __cf.setAttribute('data-cf-beacon', '{"token": "7c5503579f3c4a0584c8f41fc5488584"}');
+        document.head.appendChild(__cf);
+      }
+    </script>
     <!-- End Cloudflare Web Analytics -->
   </body>
 </html>
