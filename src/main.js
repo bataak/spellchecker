@@ -769,7 +769,64 @@ els.editor.addEventListener('drop', async (e) => {
   });
 })();
 
+async function requestDurableStorage() {
+  try {
+    if (navigator.storage && typeof navigator.storage.persist === 'function') {
+      const already = navigator.storage.persisted ? await navigator.storage.persisted() : false;
+      if (!already) await navigator.storage.persist();
+    }
+  } catch (_) {
+    /* persist дэмжигдээгүй — алгасна */
+  }
+}
+
+function offlineCapable() {
+  return 'serviceWorker' in navigator && 'caches' in window;
+}
+
+async function isOfflineReady() {
+  try {
+    const base = import.meta.env.BASE_URL;
+    const u = (p) => new URL(base + p, location).href;
+    const swControlled = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
+    if (!swControlled) return false;
+    const shell = (await caches.match(u('index.html'))) || (await caches.match(u('')));
+    if (!shell) return false;
+    const dict = await caches.match(u('dict/dictionaries.zip'));
+    return !!dict;
+  } catch (_) {
+    return false;
+  }
+}
+
+// Офлайнд бэлэн болохыг хүлээж, статусыг үе шаттай харуулна:
+// "бэлтгэж байна…" → "бэлэн ✓" (5 сек) → үндсэн мессеж.
+// Редактор хоосон үед л дэлгэцэд харуулна (хэрэглэгчийн тоологчийг дарахгүй).
+async function runOfflineReadyIndicator(mainMsg) {
+  const idle = () => els.editor.value.trim() === '';
+  const show = (msg) => { baseStatus = msg; if (idle()) setStatus(msg); };
+
+  if (!offlineCapable()) { show(mainMsg); return; }
+
+  show('Офлайн горимд бэлтгэж байна…');
+
+  const deadline = Date.now() + 20000;
+  let isReady = await isOfflineReady();
+  while (!isReady && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 700));
+    isReady = await isOfflineReady();
+  }
+
+  if (isReady) {
+    show('Офлайн горимд ашиглахад бэлэн ✓');
+    await new Promise((r) => setTimeout(r, 5000));
+  }
+
+  show(mainMsg);
+}
+
 async function boot() {
+  requestDurableStorage();
   setStatus('Hunspell ачаалж байна…');
   try {
     const { loaded, failed, source, fallbackReason } = await checker.init();
@@ -793,7 +850,7 @@ async function boot() {
           escapeHtml(fallbackReason) + '</span>';
       }
       baseStatus = msg;
-      setStatus(msg);
+      runOfflineReadyIndicator(msg);
     } else {
       setStatus('Нэг ч толь алга — <code>public/dict/</code> дотор .aff/.dic эсвэл dictionaries.zip хийнэ үү.');
     }
