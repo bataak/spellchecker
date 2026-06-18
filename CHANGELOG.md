@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/bataak/spellchecker/compare/v1.5.1...v1.6.0) (2026-06-18)
+
+
+### Features
+
+* add keyboard shortcuts with OS-aware hints ([7139f57](https://github.com/bataak/spellchecker/commit/7139f57b442e0cbdaf41a4ba6b9d54ee28ee477e))
+
 ## [1.5.1](https://github.com/bataak/spellchecker/compare/v1.5.0...v1.5.1) (2026-06-18)
 
 
