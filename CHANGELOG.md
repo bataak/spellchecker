@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.0](https://github.com/bataak/spellchecker/compare/v1.7.2...v1.8.0) (2026-06-19)
+
+
+### Features
+
+* show dictionary version in footer ([c6d88d0](https://github.com/bataak/spellchecker/commit/c6d88d06c4c1f26ea97570e2a627d74ef8c523e6))
+
 ## [1.7.2](https://github.com/bataak/spellchecker/compare/v1.7.1...v1.7.2) (2026-06-18)
 
 
