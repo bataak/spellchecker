@@ -83,6 +83,7 @@ export class MultiSpellChecker {
     this.source = null;
     this.zipUsed = false;
     this.fallbackReason = null;
+    this.mnVersion = null;
   }
 
   async init() {
@@ -111,7 +112,11 @@ export class MultiSpellChecker {
             aff = a;
             dic = d;
           }
-          const inst = await backend.build(toText(aff), toText(dic), id);
+          const affText = toText(aff);
+          const inst = await backend.build(affText, toText(dic), id);
+          if (id === 'mn_MN') {
+            this.mnVersion = affText.match(/^#?\s*Version:\s*(.+)$/m)?.[1].trim() || null;
+          }
           this.instances.push({ id, label, inst });
           loaded.push(id);
         } catch (e) {
@@ -129,6 +134,7 @@ export class MultiSpellChecker {
       source: this.source,
       zip: this.zipUsed,
       fallbackReason: this.fallbackReason,
+      mnVersion: this.mnVersion,
     };
   }
 
