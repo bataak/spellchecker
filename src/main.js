@@ -827,8 +827,9 @@ async function boot() {
   requestDurableStorage();
   setStatus('Hunspell ачаалж байна…');
   try {
-    const { loaded, failed, source, fallbackReason } = await checker.init();
+    const { loaded, failed, source, fallbackReason, mnVersion } = await checker.init();
     ready = true;
+    if (mnVersion && verEl) verEl.textContent += ' · mn_MN ' + mnVersion;
     if (loaded.length) {
       const seenName = new Set();
       const simple = [];
