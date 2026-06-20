@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.1](https://github.com/bataak/spellchecker/compare/v1.8.0...v1.8.1) (2026-06-20)
+
+
+### Bug Fixes
+
+* **spell:** vendor rebuilt hunspell.wasm with full suggestions ([60c48a0](https://github.com/bataak/spellchecker/commit/60c48a04e185aee4f9caab1a14ece1be301a3937))
+
 ## [1.8.0](https://github.com/bataak/spellchecker/compare/v1.7.2...v1.8.0) (2026-06-19)
 
 
