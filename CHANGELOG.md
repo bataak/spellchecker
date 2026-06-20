@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.0](https://github.com/bataak/spellchecker/compare/v1.8.1...v1.9.0) (2026-06-20)
+
+
+### Features
+
+* **ui:** collapsible version label in toolbar ([adf111e](https://github.com/bataak/spellchecker/commit/adf111ed041e6b1e988f5dd85ee470c2aba420c8))
+
 ## [1.8.1](https://github.com/bataak/spellchecker/compare/v1.8.0...v1.8.1) (2026-06-20)
 
 
