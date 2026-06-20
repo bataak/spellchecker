@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.3](https://github.com/bataak/spellchecker/compare/v1.9.2...v1.9.3) (2026-06-20)
+
+
+### Bug Fixes
+
+* **suggest:** fall back to lowercase for Cyrillic uppercase words ([4291f2b](https://github.com/bataak/spellchecker/commit/4291f2b20ab8964c74ae129beed2b00f13a84e45))
+
 ## [1.9.2](https://github.com/bataak/spellchecker/compare/v1.9.1...v1.9.2) (2026-06-20)
 
 
