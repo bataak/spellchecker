@@ -800,8 +800,9 @@ async function isOfflineReady() {
     const base = import.meta.env.BASE_URL;
     const u = (p) => new URL(base + p, location).href;
     const opt = { ignoreSearch: true };
-    const swControlled = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-    if (!swControlled) return false;
+    // SW бүртгэгдсэн эсэхийг шалгана (controller анх ачаалалд хожуу тогтдог).
+    const reg = navigator.serviceWorker && (await navigator.serviceWorker.getRegistration());
+    if (!reg || !reg.active) return false;
     const shell = (await caches.match(u('index.html'), opt)) || (await caches.match(u(''), opt));
     if (!shell) return false;
     const dict = await caches.match(u('dict/dictionaries.zip'), opt);
