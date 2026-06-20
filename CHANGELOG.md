@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.1](https://github.com/bataak/spellchecker/compare/v1.9.0...v1.9.1) (2026-06-20)
+
+
+### Bug Fixes
+
+* **offline:** show readiness on first load + collapsible version ([efa01f8](https://github.com/bataak/spellchecker/commit/efa01f840cd6852e7059a7b776a4314013e88511))
+
 ## [1.9.0](https://github.com/bataak/spellchecker/compare/v1.8.1...v1.9.0) (2026-06-20)
 
 
