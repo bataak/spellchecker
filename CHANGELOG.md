@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.2](https://github.com/bataak/spellchecker/compare/v1.9.1...v1.9.2) (2026-06-20)
+
+
+### Bug Fixes
+
+* **pwa:** add standard mobile-web-app-capable meta tag ([73520c1](https://github.com/bataak/spellchecker/commit/73520c1ba1412efcc6798c5b163eaf8208699019))
+
 ## [1.9.1](https://github.com/bataak/spellchecker/compare/v1.9.0...v1.9.1) (2026-06-20)
 
 
