@@ -509,7 +509,18 @@ document.querySelector('#fontDecBtn').addEventListener('click', () => { fontScal
 document.querySelector('#fontResetBtn').addEventListener('click', () => { fontScale = 1; applyScale(); });
 
 const verEl = document.querySelector('#appVersion');
-if (verEl) verEl.textContent = 'v' + (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '') + (typeof __HUNSPELL_VERSION__ !== 'undefined' ? ' · hunspell ' + __HUNSPELL_VERSION__ : '');
+if (verEl) {
+  const av = (typeof __APP_VERSION__ !== 'undefined') ? __APP_VERSION__ : '';
+  const hv = (typeof __HUNSPELL_VERSION__ !== 'undefined') ? __HUNSPELL_VERSION__ : '';
+  verEl.dataset.short = av ? 'v' + av : '';
+  verEl.dataset.full = (av ? 'v' + av : '') + (hv ? ' · hunspell ' + hv : '');
+  verEl.textContent = verEl.dataset.short;
+  verEl.style.cursor = 'pointer';
+  verEl.addEventListener('click', () => {
+    const expanded = verEl.textContent !== verEl.dataset.short;
+    verEl.textContent = expanded ? verEl.dataset.short : verEl.dataset.full;
+  });
+}
 document.querySelector('#clearBtn').addEventListener('click', () => {
   if (!els.editor.value) { els.editor.focus(); return; }
   setEditorText('', 0);
@@ -829,7 +840,7 @@ async function boot() {
   try {
     const { loaded, failed, source, fallbackReason, mnVersion } = await checker.init();
     ready = true;
-    if (mnVersion && verEl) verEl.textContent += ' · mn_MN ' + mnVersion;
+    if (mnVersion && verEl) verEl.dataset.full += ' · mn_MN ' + mnVersion;
     if (loaded.length) {
       const seenName = new Set();
       const simple = [];
