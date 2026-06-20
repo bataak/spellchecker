@@ -20,23 +20,7 @@
       html { background: #f7f4ee; }
       html[data-theme="dark"] { background: #17150f; }
     </style>
-    <script>
-
-      (function () {
-        try {
-          var t = localStorage.getItem('theme');
-          if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-          document.documentElement.setAttribute('data-theme', t);
-        } catch (e) {}
-      })();
-
-      function __showBody() {
-        document.body && document.body.classList.add('ready');
-      }
-      window.addEventListener('DOMContentLoaded', __showBody);
-      window.addEventListener('load', __showBody);
-      setTimeout(__showBody, 1500);
-</script>
+    <script src="%BASE_URL%app-init.js"></script>
   </head>
   <body>
     <main>
@@ -83,8 +67,6 @@
     </main>
 
     <div id="popover" class="popover" hidden></div>
-
-    <script>document.body && document.body.classList.add('ready');</script>
 
     <script type="module" src="/src/main.js"></script>
   </body>

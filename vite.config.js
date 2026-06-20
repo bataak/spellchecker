@@ -22,7 +22,7 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
-      injectRegister: 'inline',
+      injectRegister: 'script',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,wasm,zip}'],
         navigateFallback: base + 'index.html',
