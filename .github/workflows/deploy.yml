@@ -3,7 +3,6 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 permissions:
@@ -23,6 +22,10 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - name: Pack dictionaries.zip
+        run: |
+          sudo apt-get update && sudo apt-get install -y zip
+          sh pack-dict.sh
       - run: npm run build
         env:
           VITE_BASE: /
