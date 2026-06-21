@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.4](https://github.com/bataak/spellchecker/compare/v1.9.3...v1.9.4) (2026-06-21)
+
+
+### Bug Fixes
+
+* **suggest:** vendor -O0 hunspell build, drop case-fallback ([2fe420f](https://github.com/bataak/spellchecker/commit/2fe420f994aeea5906c4b232a952973201ac23a8))
+
 ## [1.9.3](https://github.com/bataak/spellchecker/compare/v1.9.2...v1.9.3) (2026-06-20)
 
 
