@@ -253,15 +253,7 @@ function showPopoverFor(t) {
     return;
   }
 
-  let suggestions = checker.suggest(t.word);
-  if (suggestions.length === 0) {
-    const lower = t.word.toLowerCase();
-    if (lower !== t.word) {
-      const pat = casePattern(t.word);
-      suggestions = checker.suggest(lower).map((s) => applyCase(pat, s));
-    }
-  }
-  suggestions = suggestions.slice(0, 8);
+  const suggestions = checker.suggest(t.word).slice(0, 8);
   els.popover.innerHTML = suggestions.length
     ? suggestions.map((s) => '<button class="sg" type="button">' + escapeHtml(s) + '</button>').join('')
     : '<div class="muted pop-empty">санал алга</div>';
