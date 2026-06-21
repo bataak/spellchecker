@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.5](https://github.com/bataak/spellchecker/compare/v1.9.4...v1.9.5) (2026-06-21)
+
+
+### Bug Fixes
+
+* **suggest:** switch to rotemdan prebuilt wasm for speed ([ae58a3f](https://github.com/bataak/spellchecker/commit/ae58a3f2dee3fa61e5ee2179d0bfc2ec24eaee76))
+
 ## [1.9.4](https://github.com/bataak/spellchecker/compare/v1.9.3...v1.9.4) (2026-06-21)
 
 
