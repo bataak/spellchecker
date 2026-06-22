@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.0](https://github.com/bataak/spellchecker/compare/v1.11.0...v1.12.0) (2026-06-22)
+
+
+### Features
+
+* add desktop error-word panel and related editor fixes ([d8b0aa0](https://github.com/bataak/spellchecker/commit/d8b0aa0fe963826696c880a45375dbccfdb921de))
+
 ## [1.11.0](https://github.com/bataak/spellchecker/compare/v1.10.0...v1.11.0) (2026-06-22)
 
 
