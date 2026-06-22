@@ -135,7 +135,7 @@ function render() {
     if (text.trim() === '') {
       setStatus(baseStatus);
     } else {
-      setStatus('Нийт тэмдэгт: <b>' + text.length + '</b>, үгийн тоо: <b>' + total + '</b>, алдаатай үг: <b>' + bad.length + '</b>');
+      setStatus('Үгийн тоо: <b>' + total + '</b>, алдаатай үг: <b>' + bad.length + '</b>, нийт тэмдэгт: <b>' + text.length + '</b>');   
     }
   }
 }
