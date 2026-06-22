@@ -358,3 +358,97 @@ a.tbtn { text-decoration: none; display: inline-flex; align-items: center; }
   white-space: nowrap;
   user-select: none;
 }
+
+.workspace {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.error-panel { display: none; }
+
+@media (min-width: 1024px) {
+  .workspace {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 14px;
+  }
+  .editor-wrap {
+    flex: 0 1 75ch;
+    min-width: 0;
+  }
+  .error-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--editor-bg);
+    overflow: hidden;
+  }
+  .workspace:has(.editor:placeholder-shown) .editor-wrap { flex: 1 1 auto; }
+  .workspace:has(.editor:placeholder-shown) .error-panel { display: none; }
+  .error-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 11px 12px 10px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .error-panel-title {
+    font-family: var(--sans);
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .error-copy {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    color: var(--muted);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .error-copy:hover { color: var(--ink); border-color: var(--line); background: var(--paper); }
+  .error-copy:active { transform: translateY(1px); }
+  .error-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .error-copy:disabled { opacity: 0.4; cursor: default; }
+  .error-copy.copied { color: var(--accent); }
+  .error-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    padding: 12px 14px;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 7px;
+  }
+  .error-empty {
+    color: var(--muted);
+  }
+  .ew {
+    font-family: var(--serif);
+    font-size: calc(0.98rem * var(--editor-scale, 1));
+    line-height: 1.2;
+    color: #fff;
+    background: var(--proof);
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 5px 10px;
+    cursor: pointer;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    text-align: left;
+  }
+  .ew:hover { border-color: var(--proof); }
+  .ew:active { transform: translateY(1px); }
+  .ew:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+}
