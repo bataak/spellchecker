@@ -31,12 +31,6 @@
   background: radial-gradient(120% 80% at 50% -10%, #1d1a13 0%, var(--paper) 60%) fixed;
 }
 
-:root[data-theme="dark"] .ew {
-  color: #ffffff;
-  background: var(--proof-soft);
-  border-color: var(--proof-soft);
-}
-
 * { box-sizing: border-box; }
 
 body {
@@ -144,6 +138,10 @@ a.tbtn { text-decoration: none; display: inline-flex; align-items: center; }
 .openctl { display: inline-flex; align-items: center; }
 .tbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .tbtn-icon { padding: 5px 8px; font-size: 0.95rem; }
+.kbd-active {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
 
 @media (max-width: 520px) {
   .tbtn { font-size: 0.8rem; padding: 5px 9px; }
@@ -444,8 +442,8 @@ a.tbtn { text-decoration: none; display: inline-flex; align-items: center; }
     font-family: var(--serif);
     font-size: calc(0.98rem * var(--editor-scale, 1));
     line-height: 1.2;
-    color: var(--proof);
-    background: var(--proof-soft);
+    color: #fff;
+    background: var(--proof);
     border: 1px solid transparent;
     border-radius: 8px;
     padding: 5px 10px;

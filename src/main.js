@@ -86,27 +86,31 @@ function rankToPattern(rank) {
 }
 
 function replaceAllWord(text, originalLower, baseRepl, caretOffset, primaryPattern) {
+  baseRepl = baseRepl.replace(/\s+$/, '');
   const verbatim = irregularCase(baseRepl);
   const corrRank = caseRank(casePattern(baseRepl));
   const primRank = caseRank(primaryPattern || 'lower');
   const floor = corrRank > primRank ? corrRank : 0;
+  const targetLower = originalLower.replace(/\s+$/, '');
   let result = '';
   let cursor = 0;
   let caret = caretOffset;
   for (const { word, index } of tokenize(text)) {
-    if (word.toLowerCase() === originalLower) {
+    const trail = (word.match(/\s+$/) || [''])[0];
+    const core = trail ? word.slice(0, word.length - trail.length) : word;
+    if (core.toLowerCase() === targetLower) {
       result += text.slice(cursor, index);
       let rep;
       if (verbatim) {
         rep = baseRepl;
       } else {
-        const r = Math.max(caseRank(casePattern(word)), floor);
+        const r = Math.max(caseRank(casePattern(core)), floor);
         rep = applyCase(rankToPattern(r), baseRepl);
       }
       if (caretOffset != null && index + word.length <= caretOffset) {
-        caret += rep.length - word.length;
+        caret += rep.length - core.length;
       }
-      result += rep;
+      result += rep + trail;
       cursor = index + word.length;
     }
   }
@@ -143,7 +147,7 @@ function render() {
     if (text.trim() === '') {
       setStatus(baseStatus);
     } else {
-      setStatus('Үгийн тоо: <b>' + total + '</b>, алдаатай үг: <b>' + bad.length + '</b>, нийт тэмдэгт: <b>' + text.length + '</b>');   
+      setStatus('Үгийн тоо: ' + total + ', <b>Алдаатай үг: ' + bad.length + '</b>, Нийт тэмдэгт: ' + text.length);   
     }
   }
 }
@@ -229,7 +233,7 @@ function renderErrorPanel() {
   const items = buildErrorList(badTokens);
   errorWords = items.map((t) => t.word);
   if (!items.length) {
-    panelEls.list.innerHTML = '<div class="error-empty">Бичвэр алдаагүй</div>';
+    panelEls.list.innerHTML = '<div class="error-empty">Алдаагүй</div>';
     if (panelEls.copy) panelEls.copy.disabled = true;
     return;
   }
@@ -320,8 +324,9 @@ function showPopoverFor(t) {
 
 function suggestAtCaret() {
   const t = tokenAtCaret();
-  if (t) showPopoverFor(t);
-  else hidePopover();
+  if (!t) { hidePopover(); return; }
+  if (!els.popover.hidden && activeStart === t.start) return;
+  showPopoverFor(t);
 }
 
 function maybePropagateManual() {
@@ -787,6 +792,7 @@ els.editor.addEventListener('drop', async (e) => {
     ['#clearBtn', mod + 'D'],
     ['#pasteBtn', mod + 'V'],
     ['#copyBtn', mod + 'C'],
+    ['#copyErrorsBtn', mod + 'E'],
     ['#openBtn', mod + 'O'],
     ['#saveBtn', mod + 'S'],
     ['#fontDecBtn', mod + '-'],
@@ -800,9 +806,13 @@ els.editor.addEventListener('drop', async (e) => {
     b.setAttribute('title', base ? base + ' · ' + combo : combo);
   });
 
-  function trigger(sel) {
+  function trigger(sel, doClick = true) {
     const b = document.querySelector(sel);
-    if (b) b.click();
+    if (!b || b.disabled) return;
+    if (doClick) b.click();
+    b.classList.add('kbd-active');
+    clearTimeout(b._kbdTimer);
+    b._kbdTimer = setTimeout(() => b.classList.remove('kbd-active'), 260);
   }
 
   window.addEventListener('keydown', (e) => {
@@ -824,6 +834,8 @@ els.editor.addEventListener('drop', async (e) => {
     if (kl === 's') { e.preventDefault(); trigger('#saveBtn'); }
     else if (kl === 'o') { e.preventDefault(); trigger('#openBtn'); }
     else if (kl === 'd') { e.preventDefault(); trigger('#clearBtn'); }
+    else if (kl === 'e') { e.preventDefault(); trigger('#copyErrorsBtn'); }
+    else if (kl === 'v') { trigger('#pasteBtn', false); }
     else if (kl === 'c') {
       if (els.editor.selectionStart === els.editor.selectionEnd) {
         e.preventDefault();
