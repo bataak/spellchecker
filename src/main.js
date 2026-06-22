@@ -147,7 +147,7 @@ function render() {
     if (text.trim() === '') {
       setStatus(baseStatus);
     } else {
-      setStatus('Үгийн тоо: ' + total + ', <b>Алдаатай үг: ' + bad.length + '</b>, Нийт тэмдэгт: ' + text.length);   
+      setStatus('Үгийн тоо: ' + total + ', <b>Алдаатай үг</b>: <b>' + bad.length + '</b>, Нийт тэмдэгт: ' + text.length);   
     }
   }
 }
