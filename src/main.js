@@ -229,7 +229,7 @@ function renderErrorPanel() {
   const items = buildErrorList(badTokens);
   errorWords = items.map((t) => t.word);
   if (!items.length) {
-    panelEls.list.innerHTML = '<div class="error-empty">Алдаагүй</div>';
+    panelEls.list.innerHTML = '<div class="error-empty">Бичвэр алдаагүй</div>';
     if (panelEls.copy) panelEls.copy.disabled = true;
     return;
   }
