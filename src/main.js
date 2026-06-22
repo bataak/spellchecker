@@ -10,6 +10,13 @@ const els = {
   popover: document.querySelector('#popover'),
 };
 
+const panelEls = {
+  list: document.querySelector('#errorList'),
+  copy: document.querySelector('#copyErrorsBtn'),
+};
+const desktopMQ = window.matchMedia('(min-width: 1024px)');
+let errorWords = [];
+
 const checker = new MultiSpellChecker();
 const cache = new Map();
 let ready = false;
@@ -130,6 +137,7 @@ function render() {
   html += escapeHtml(text.slice(cursor)) + '\n';
   els.backdrop.innerHTML = html;
   syncScroll();
+  renderErrorPanel();
 
   if (ready) {
     if (text.trim() === '') {
@@ -190,6 +198,45 @@ function bringWordIntoView() {
     els.editor.scrollTop = next;
     syncScroll();
   }
+}
+
+function scrollMarkIntoView(start) {
+  const mark = els.backdrop.querySelector('mark[data-start="' + start + '"]');
+  if (!mark) return;
+  const er = els.editor.getBoundingClientRect();
+  const r = mark.getBoundingClientRect();
+  const pad = 24;
+  if (r.top >= er.top + pad && r.bottom <= er.bottom - pad) return;
+  const targetY = er.top + Math.max(pad, Math.min(er.height * 0.3, 160));
+  const maxScroll = els.editor.scrollHeight - els.editor.clientHeight;
+  const next = Math.max(0, Math.min(els.editor.scrollTop + (r.top - targetY), maxScroll));
+  els.editor.scrollTop = next;
+  syncScroll();
+}
+
+function buildErrorList(tokens) {
+  const seen = new Map();
+  for (const t of tokens) {
+    const key = t.word.toLowerCase();
+    if (!seen.has(key)) seen.set(key, t);
+  }
+  return [...seen.values()];
+}
+
+function renderErrorPanel() {
+  if (!panelEls.list) return;
+  if (!desktopMQ.matches) { errorWords = []; return; }
+  const items = buildErrorList(badTokens);
+  errorWords = items.map((t) => t.word);
+  if (!items.length) {
+    panelEls.list.innerHTML = '<div class="error-empty">Алдаагүй</div>';
+    if (panelEls.copy) panelEls.copy.disabled = true;
+    return;
+  }
+  if (panelEls.copy) panelEls.copy.disabled = false;
+  panelEls.list.innerHTML = items
+    .map((t) => '<button class="ew" type="button" data-start="' + t.start + '">' + escapeHtml(t.word) + '</button>')
+    .join('');
 }
 
 function scheduleKbAdjust() {
@@ -878,5 +925,42 @@ async function boot() {
     setStatus('Ачаалахад алдаа гарлаа: ' + (e && e.message ? e.message : String(e)));
   }
 }
+
+if (panelEls.list) {
+  panelEls.list.addEventListener('click', (e) => {
+    const btn = e.target.closest('.ew');
+    if (!btn) return;
+    const start = Number(btn.getAttribute('data-start'));
+    const t = badTokens.find((x) => x.start === start);
+    if (!t) return;
+    scrollMarkIntoView(t.start);
+    showPopoverFor(t);
+  });
+}
+
+if (panelEls.copy) {
+  const copyIcon = panelEls.copy.innerHTML;
+  const checkIcon =
+    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+  let copyTimer = null;
+  panelEls.copy.addEventListener('click', async () => {
+    if (!errorWords.length) return;
+    try {
+      await navigator.clipboard.writeText(errorWords.join('\n'));
+      panelEls.copy.classList.add('copied');
+      panelEls.copy.innerHTML = checkIcon;
+      clearTimeout(copyTimer);
+      copyTimer = setTimeout(() => {
+        panelEls.copy.classList.remove('copied');
+        panelEls.copy.innerHTML = copyIcon;
+      }, 1100);
+    } catch (_) {}
+  });
+}
+
+desktopMQ.addEventListener('change', () => {
+  hidePopover();
+  renderErrorPanel();
+});
 
 boot();
