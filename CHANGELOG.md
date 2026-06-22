@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.0](https://github.com/bataak/spellchecker/compare/v1.10.0...v1.11.0) (2026-06-22)
+
+
+### Features
+
+* add desktop error-word panel with copy and jump-to-word ([9d16747](https://github.com/bataak/spellchecker/commit/9d16747039e2afcccd1ea755fcb7f002a2c0b63a))
+
 ## [1.10.0](https://github.com/bataak/spellchecker/compare/v1.9.5...v1.10.0) (2026-06-22)
 
 
