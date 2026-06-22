@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.0](https://github.com/bataak/spellchecker/compare/v1.9.5...v1.10.0) (2026-06-22)
+
+
+### Features
+
+* **suggest:** close popover on deliberate editor scroll ([bba1200](https://github.com/bataak/spellchecker/commit/bba120061511d96c3236455268f38106ba0eec5a))
+
 ## [1.9.5](https://github.com/bataak/spellchecker/compare/v1.9.4...v1.9.5) (2026-06-21)
 
 
