@@ -31,6 +31,12 @@
   background: radial-gradient(120% 80% at 50% -10%, #1d1a13 0%, var(--paper) 60%) fixed;
 }
 
+:root[data-theme="dark"] .ew {
+  color: #ffffff;
+  background: var(--proof-soft);
+  border-color: var(--proof-soft);
+}
+
 * { box-sizing: border-box; }
 
 body {
@@ -442,8 +448,8 @@ a.tbtn { text-decoration: none; display: inline-flex; align-items: center; }
     font-family: var(--serif);
     font-size: calc(0.98rem * var(--editor-scale, 1));
     line-height: 1.2;
-    color: #fff;
-    background: var(--proof);
+    color: var(--proof);
+    background: var(--proof-soft);
     border: 1px solid transparent;
     border-radius: 8px;
     padding: 5px 10px;
