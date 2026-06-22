@@ -32,7 +32,7 @@
 }
 
 :root[data-theme="dark"] .ew {
-  color: #ffffff;
+  color: var(--proof);
   background: var(--proof-soft);
   border-color: var(--proof-soft);
 }
