@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.1](https://github.com/bataak/spellchecker/compare/v1.12.0...v1.12.1) (2026-06-22)
+
+
+### Bug Fixes
+
+* downgrade hunspell engine to 1.7.2 for correct suggestions ([3273073](https://github.com/bataak/spellchecker/commit/327307338bc73793d62467977d3cdd04658c3d4a))
+
 ## [1.12.0](https://github.com/bataak/spellchecker/compare/v1.11.0...v1.12.0) (2026-06-22)
 
 
