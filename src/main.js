@@ -155,6 +155,7 @@ function tokenAtCaret() {
 
 let activeStart = null;
 let kbAdjustTimer = null;
+let popoverScrollTop = 0;
 
 function hidePopover() {
   els.popover.hidden = true;
@@ -259,6 +260,7 @@ function showPopoverFor(t) {
     : '<div class="muted pop-empty">санал алга</div>';
 
   activeStart = t.start;
+  popoverScrollTop = els.editor.scrollTop;
   els.popover.hidden = false;
   bringWordIntoView();
   placePopover();
@@ -399,7 +401,11 @@ els.editor.addEventListener('input', (e) => {
 });
 els.editor.addEventListener('scroll', () => {
   syncScroll();
-  placePopover();
+  if (!els.popover.hidden && Math.abs(els.editor.scrollTop - popoverScrollTop) > 20) {
+    hidePopover();
+  } else {
+    placePopover();
+  }
 });
 els.editor.addEventListener('click', () => {
   if (suppressNextClick) {
