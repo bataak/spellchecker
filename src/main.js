@@ -146,7 +146,7 @@ function render() {
 
   if (ready) {
     if (text.trim() === '') {
-      setStatus(baseStatus);
+      if (baseStatus) setStatus(baseStatus);
     } else {
       setStatus('Үгийн тоо: ' + total + ', <b>Алдаатай үг</b>: <b>' + bad.length + '</b>, Нийт тэмдэгт: ' + text.length);   
     }
@@ -899,20 +899,45 @@ async function isOfflineReady() {
     if (!reg || !reg.active) return false;
     const shell = (await caches.match(u('index.html'), opt)) || (await caches.match(u(''), opt));
     if (!shell) return false;
-    const dict = await caches.match(u('dict/dictionaries.zip'), opt);
-    return !!dict;
+    const manRes = await caches.match(u('dict/dict-manifest.json'), opt);
+    if (!manRes) return false;
+    const man = await manRes.clone().json();
+    const mn = (man.dicts || []).find((d) => d.id === 'mn_MN');
+    if (!mn) return false;
+    return !!(await caches.match(u('dict/' + mn.dic), opt));
   } catch (_) {
     return false;
   }
 }
 
-async function runOfflineReadyIndicator(mainMsg) {
+function dictStatusMessage(loaded, failed, fallbackReason) {
+  const seenName = new Set();
+  const simple = [];
+  for (const id of loaded) {
+    const name = id.startsWith('mn') ? 'монгол' : id.startsWith('en') ? 'англи' : labelOf(id);
+    if (!seenName.has(name)) {
+      seenName.add(name);
+      simple.push(name);
+    }
+  }
+  let msg = 'Ашиглаж буй толь: <b>' + simple.join(', ') + '</b>';
+  if (failed && failed.length) {
+    msg += ' <span class="muted">(олдсонгүй: ' + failed.map((f) => f.id).join(', ') + ')</span>';
+  }
+  if (fallbackReason) {
+    msg += '<br><span class="muted">hunspell-wasm амжилтгүй (nspell ашиглаж байна): ' +
+      escapeHtml(fallbackReason) + '</span>';
+  }
+  return msg;
+}
+
+async function runOfflineReadyIndicator() {
   const idle = () => els.editor.value.trim() === '';
-  const show = (msg) => { baseStatus = msg; if (idle()) setStatus(msg); };
+  const transient = (msg) => { if (idle()) setStatus(msg); };
 
-  if (!offlineCapable()) { show(mainMsg); return; }
+  if (!offlineCapable()) { if (idle()) setStatus(baseStatus); return; }
 
-  show('Офлайн горимд ажиллахад бэлтгэж байна…');
+  transient('Офлайн горимд ажиллахад бэлтгэж байна…');
 
   const deadline = Date.now() + 20000;
   let isReady = await isOfflineReady();
@@ -922,46 +947,38 @@ async function runOfflineReadyIndicator(mainMsg) {
   }
 
   if (isReady) {
-    show('Офлайн горимд ажиллахад бэлэн');
+    transient('Офлайн горимд ажиллахад бэлэн');
     await new Promise((r) => setTimeout(r, 2000));
   }
 
-  show(mainMsg);
+  if (idle()) setStatus(baseStatus);
 }
 
 async function boot() {
   requestDurableStorage();
   setStatus('Hunspell ачаалж байна…');
   try {
-    const { loaded, failed, source, fallbackReason, mnVersion } = await checker.init();
+    const { loaded, failed, fallbackReason, mnVersion } = await checker.init();
     ready = true;
     if (mnVersion && verEl) verEl.dataset.full += ' · mn_MN ' + mnVersion;
     if (loaded.length) {
-      const seenName = new Set();
-      const simple = [];
-      for (const id of loaded) {
-        const name = id.startsWith('mn') ? 'монгол' : id.startsWith('en') ? 'англи' : labelOf(id);
-        if (!seenName.has(name)) {
-          seenName.add(name);
-          simple.push(name);
-        }
-      }
-      let msg = 'Ашиглаж буй толь: <b>' + simple.join(', ') + '</b>';
-      if (failed.length) {
-        msg += ' <span class="muted">(олдсонгүй: ' + failed.map((f) => f.id).join(', ') + ')</span>';
-      }
-      if (fallbackReason) {
-        msg += '<br><span class="muted">hunspell-wasm амжилтгүй (nspell ашиглаж байна): ' +
-          escapeHtml(fallbackReason) + '</span>';
-      }
-      baseStatus = msg;
-      runOfflineReadyIndicator(msg);
+      baseStatus = dictStatusMessage(loaded, failed, fallbackReason);
+      runOfflineReadyIndicator();
     } else {
-      setStatus('Нэг ч толь алга — <code>public/dict/</code> дотор .aff/.dic эсвэл dictionaries.zip хийнэ үү.');
+      setStatus('Нэг ч толь алга — <code>public/dict/</code> дотор .aff/.dic хийнэ үү.');
     }
     loadText();
     render();
     els.editor.focus();
+
+    checker.whenComplete().then((done) => {
+      if (!checker.instances.length) return;
+      cache.clear();
+      const allLoaded = checker.instances.map((i) => i.id);
+      baseStatus = dictStatusMessage(allLoaded, [...(failed || []), ...done.failed], fallbackReason);
+      if (els.editor.value.trim() === '') setStatus(baseStatus);
+      render();
+    });
   } catch (e) {
     setStatus('Ачаалахад алдаа гарлаа: ' + (e && e.message ? e.message : String(e)));
   }

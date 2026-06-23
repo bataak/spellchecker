@@ -1,8 +1,6 @@
-import { unzipSync } from 'fflate';
+import { gunzipSync } from 'fflate';
 
-const ZIP_NAME = 'dictionaries.zip';
 const decoder = new TextDecoder('utf-8');
-const toText = (b) => decoder.decode(b);
 
 export const DICTIONARIES = [
   { id: 'mn_MN', label: 'Монгол' },
@@ -10,28 +8,29 @@ export const DICTIONARIES = [
   { id: 'en_US', label: 'English (US)' },
 ];
 
+const PRIMARY = 'mn_MN';
+
 const asset = (p) => `${import.meta.env.BASE_URL}${p}`.replace(/([^:])\/{2,}/g, '$1/');
 
-async function fetchBytes(url) {
+async function fetchGzText(url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(url + ' -> ' + res.status);
-  return new Uint8Array(await res.arrayBuffer());
+  const buf = new Uint8Array(await res.arrayBuffer());
+  const gzipped = buf.length > 1 && buf[0] === 0x1f && buf[1] === 0x8b;
+  if (!gzipped) return decoder.decode(buf);
+  if (typeof DecompressionStream === 'function') {
+    const stream = new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return new Response(stream).text();
+  }
+  return decoder.decode(gunzipSync(buf));
 }
 
-async function loadZipEntries() {
-  let res;
-  try {
-    res = await fetch(asset('dict/' + ZIP_NAME));
-  } catch (_) {
-    return {};
-  }
-  if (!res || !res.ok) return {};
-  const raw = unzipSync(new Uint8Array(await res.arrayBuffer()));
+async function loadManifest() {
+  const res = await fetch(asset('dict/dict-manifest.json'));
+  if (!res.ok) throw new Error('dict-manifest.json -> ' + res.status);
+  const data = await res.json();
   const out = {};
-  for (const path in raw) {
-    const base = path.split('/').pop();
-    if (base) out[base] = raw[path];
-  }
+  for (const e of data.dicts || []) out[e.id] = e;
   return out;
 }
 
@@ -81,70 +80,85 @@ export class MultiSpellChecker {
   constructor() {
     this.instances = [];
     this.source = null;
-    this.zipUsed = false;
     this.fallbackReason = null;
     this.mnVersion = null;
+    this.manifest = null;
+    this.backend = null;
+    this.restReady = null;
+  }
+
+  async _loadOne({ id, label }) {
+    const entry = this.manifest[id];
+    if (!entry) throw new Error(id + ' manifest-д алга');
+    const [aff, dic] = await Promise.all([
+      fetchGzText(asset('dict/' + entry.aff)),
+      fetchGzText(asset('dict/' + entry.dic)),
+    ]);
+    const inst = await this.backend.build(aff, dic, id);
+    if (id === PRIMARY) {
+      this.mnVersion =
+        entry.version || aff.match(/^#?\s*Version:\s*(.+)$/m)?.[1].trim() || null;
+    }
+    this.instances.push({ id, label, inst });
+    const order = (x) => DICTIONARIES.findIndex((d) => d.id === x.id);
+    this.instances.sort((a, b) => order(a) - order(b));
+    return id;
   }
 
   async init() {
-    const backend = await resolveBackend();
-    this.source = backend.label;
-    this.fallbackReason = backend.fallbackReason || null;
-
-    const zip = await loadZipEntries();
-    this.zipUsed = Object.keys(zip).length > 0;
+    this.backend = await resolveBackend();
+    this.source = this.backend.label;
+    this.fallbackReason = this.backend.fallbackReason || null;
+    this.manifest = await loadManifest();
 
     const loaded = [];
     const failed = [];
 
-    await Promise.all(
-      DICTIONARIES.map(async ({ id, label }) => {
-        try {
-          const affName = id + '.aff';
-          const dicName = id + '.dic';
-          let aff = zip[affName];
-          let dic = zip[dicName];
-          if (!aff || !dic) {
-            const [a, d] = await Promise.all([
-              aff || fetchBytes(asset('dict/' + affName)),
-              dic || fetchBytes(asset('dict/' + dicName)),
-            ]);
-            aff = a;
-            dic = d;
-          }
-          const affText = toText(aff);
-          const inst = await backend.build(affText, toText(dic), id);
-          if (id === 'mn_MN') {
-            this.mnVersion = affText.match(/^#?\s*Version:\s*(.+)$/m)?.[1].trim() || null;
-          }
-          this.instances.push({ id, label, inst });
-          loaded.push(id);
-        } catch (e) {
-          failed.push({ id, error: String(e) });
-        }
-      })
-    );
+    const primary = DICTIONARIES.find((d) => d.id === PRIMARY);
+    try {
+      await this._loadOne(primary);
+      loaded.push(PRIMARY);
+    } catch (e) {
+      failed.push({ id: PRIMARY, error: String(e) });
+    }
 
-    const order = (x) => DICTIONARIES.findIndex((d) => d.id === x.id);
-    this.instances.sort((a, b) => order(a) - order(b));
+    const rest = DICTIONARIES.filter((d) => d.id !== PRIMARY);
+    this.restReady = Promise.all(
+      rest.map((d) =>
+        this._loadOne(d).then(
+          (id) => ({ id }),
+          (e) => ({ id: d.id, error: String(e) })
+        )
+      )
+    );
 
     return {
       loaded,
       failed,
+      pending: rest.map((d) => d.id),
       source: this.source,
-      zip: this.zipUsed,
       fallbackReason: this.fallbackReason,
       mnVersion: this.mnVersion,
     };
   }
 
+  async whenComplete() {
+    const results = await (this.restReady || Promise.resolve([]));
+    return {
+      loaded: results.filter((r) => !r.error).map((r) => r.id),
+      failed: results.filter((r) => r.error),
+    };
+  }
+
   isCorrect(word) {
     if (!this.instances.length) return true;
+    const cyr = /[\u0400-\u04FF\u1800-\u18AF]/.test(word);
+    const lat = /[A-Za-z]/.test(word);
+    if (lat && !cyr && !this.instances.some(({ id }) => id.startsWith('en'))) return true;
     return this.instances.some(({ inst }) => inst.spell(word));
   }
 
   suggest(word) {
-
     const cyr = /[\u0400-\u04FF\u1800-\u18AF]/.test(word);
     const lat = /[A-Za-z]/.test(word);
     let list = this.instances;
