@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.0](https://github.com/bataak/spellchecker/compare/v1.14.0...v1.15.0) (2026-06-23)
+
+
+### Features
+
+* switch dictionaries to versioned gzip with native decompression ([6c8023f](https://github.com/bataak/spellchecker/commit/6c8023fd14cf850d717363ff7f10fb0eea396741))
+
 ## [1.14.0](https://github.com/bataak/spellchecker/compare/v1.13.0...v1.14.0) (2026-06-23)
 
 
