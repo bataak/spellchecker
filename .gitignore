@@ -5,3 +5,5 @@ dev-dist
 .DS_Store
 !vendor/hunspell-wasm/dist
 public/dict/dictionaries.zip
+public/dict/*.gz
+public/dict/dict-manifest.json
