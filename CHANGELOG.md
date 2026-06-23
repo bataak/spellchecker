@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.0](https://github.com/bataak/spellchecker/compare/v1.12.1...v1.13.0) (2026-06-23)
+
+
+### Features
+
+* reflect clean state in error panel title ([4285966](https://github.com/bataak/spellchecker/commit/4285966578b0cd3671021691d3bba7213543dbd8))
+
 ## [1.12.1](https://github.com/bataak/spellchecker/compare/v1.12.0...v1.12.1) (2026-06-22)
 
 
