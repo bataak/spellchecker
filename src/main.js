@@ -13,6 +13,7 @@ const els = {
 const panelEls = {
   list: document.querySelector('#errorList'),
   copy: document.querySelector('#copyErrorsBtn'),
+  title: document.querySelector('#errorPanelTitle'),
 };
 const desktopMQ = window.matchMedia('(min-width: 1024px)');
 let errorWords = [];
@@ -233,10 +234,12 @@ function renderErrorPanel() {
   const items = buildErrorList(badTokens);
   errorWords = items.map((t) => t.word);
   if (!items.length) {
-    panelEls.list.innerHTML = '<div class="error-empty">Алдаагүй</div>';
+    if (panelEls.title) panelEls.title.textContent = 'Алдаагүй';
+    panelEls.list.innerHTML = '';
     if (panelEls.copy) panelEls.copy.disabled = true;
     return;
   }
+  if (panelEls.title) panelEls.title.textContent = 'Алдаатай үгс';
   if (panelEls.copy) panelEls.copy.disabled = false;
   panelEls.list.innerHTML = items
     .map((t) => '<button class="ew" type="button" data-start="' + t.start + '">' + escapeHtml(t.word) + '</button>')
