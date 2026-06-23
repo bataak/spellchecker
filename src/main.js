@@ -386,15 +386,28 @@ els.editor.addEventListener('beforeinput', () => {
 });
 
 const STORAGE_KEY = 'mn-spell:text';
+const CARET_KEY = 'mn-spell:caret';
 function saveText() {
   try {
     localStorage.setItem(STORAGE_KEY, els.editor.value);
+    const s = els.editor.selectionStart;
+    const e = els.editor.selectionEnd;
+    if (s != null) localStorage.setItem(CARET_KEY, s + ',' + e);
   } catch (_) {}
 }
 function loadText() {
   try {
     const t = localStorage.getItem(STORAGE_KEY);
     if (t != null) els.editor.value = t;
+    const c = localStorage.getItem(CARET_KEY);
+    if (c != null) {
+      const parts = c.split(',');
+      const len = els.editor.value.length;
+      const start = Math.min(Math.max(0, parseInt(parts[0], 10) || 0), len);
+      const end = Math.min(Math.max(start, parseInt(parts[1], 10) || start), len);
+      try { els.editor.setSelectionRange(start, end); } catch (_) {}
+      lastCaret = { start, end };
+    }
   } catch (_) {}
 }
 let saveTimer = null;
@@ -453,6 +466,10 @@ els.editor.addEventListener('input', (e) => {
   saveTextSoon();
   if (isSeparatorInput(e)) recheck();
   else deferredCheck();
+});
+let lastCaret = null;
+els.editor.addEventListener('blur', () => {
+  lastCaret = { start: els.editor.selectionStart, end: els.editor.selectionEnd };
 });
 els.editor.addEventListener('scroll', () => {
   syncScroll();
@@ -838,9 +855,18 @@ els.editor.addEventListener('drop', async (e) => {
     else if (kl === 'o') { e.preventDefault(); trigger('#openBtn'); }
     else if (kl === 'd') { e.preventDefault(); trigger('#clearBtn'); }
     else if (kl === 'e') { e.preventDefault(); trigger('#copyErrorsBtn'); }
-    else if (kl === 'v') { trigger('#pasteBtn', false); }
+    else if (kl === 'v') {
+      if (document.activeElement !== els.editor) {
+        els.editor.focus({ preventScroll: true });
+        if (lastCaret) {
+          try { els.editor.setSelectionRange(lastCaret.start, lastCaret.end); } catch (_) {}
+        }
+      }
+      trigger('#pasteBtn', false);
+    }
     else if (kl === 'c') {
-      if (els.editor.selectionStart === els.editor.selectionEnd) {
+      const pageSel = window.getSelection ? window.getSelection().toString() : '';
+      if (els.editor.selectionStart === els.editor.selectionEnd && !pageSel) {
         e.preventDefault();
         trigger('#copyBtn');
       }
@@ -942,12 +968,28 @@ async function boot() {
 }
 
 if (panelEls.list) {
-  panelEls.list.addEventListener('click', (e) => {
+  const ancestorOf = (a, b) => {
+    for (let n = a; n; n = n.parentElement) if (n.contains(b)) return n;
+    return a;
+  };
+  const panel = panelEls.title ? ancestorOf(panelEls.list, panelEls.title) : panelEls.list;
+
+  panel.addEventListener('click', (e) => {
+    if (e.target.closest('#copyErrorsBtn')) return;
     const btn = e.target.closest('.ew');
-    if (!btn) return;
+    if (!btn) {
+      els.editor.focus({ preventScroll: true });
+      if (lastCaret) {
+        try { els.editor.setSelectionRange(lastCaret.start, lastCaret.end); } catch (_) {}
+      }
+      return;
+    }
     const start = Number(btn.getAttribute('data-start'));
     const t = badTokens.find((x) => x.start === start);
     if (!t) return;
+    els.editor.focus({ preventScroll: true });
+    try { els.editor.setSelectionRange(t.start, t.end); } catch (_) {}
+    lastCaret = { start: t.start, end: t.end };
     scrollMarkIntoView(t.start);
     showPopoverFor(t);
   });
