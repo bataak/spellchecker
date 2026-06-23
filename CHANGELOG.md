@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.0](https://github.com/bataak/spellchecker/compare/v1.13.0...v1.14.0) (2026-06-23)
+
+
+### Features
+
+* improve editor caret handling for paste, reload, and error panel ([28a4ebf](https://github.com/bataak/spellchecker/commit/28a4ebf74e61a64e7fa1900629cfb88a8f0a2dea))
+
 ## [1.13.0](https://github.com/bataak/spellchecker/compare/v1.12.1...v1.13.0) (2026-06-23)
 
 
