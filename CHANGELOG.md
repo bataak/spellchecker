@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.20.0](https://github.com/bataak/spellchecker/compare/v1.19.1...v1.20.0) (2026-06-24)
+
+
+### Features
+
+* scroll mobile toolbar to clear button on load ([eef8f3b](https://github.com/bataak/spellchecker/commit/eef8f3bed4f4260da39974688e2e802e8cb57479))
+
 ## [1.19.1](https://github.com/bataak/spellchecker/compare/v1.19.0...v1.19.1) (2026-06-24)
 
 
