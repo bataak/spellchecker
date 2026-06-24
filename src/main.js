@@ -164,7 +164,7 @@ async function render() {
     if (panelEls.list) panelEls.list.innerHTML = '';
     if (panelEls.copy) panelEls.copy.disabled = true;
     if (panelEls.title && text.trim() !== '' && desktopMQ.matches) {
-      panelEls.title.textContent = 'Тоолж байна…';
+      panelEls.title.textContent = 'Тооцоолж байна…';
     }
     return;
   }
