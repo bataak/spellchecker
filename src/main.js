@@ -900,7 +900,9 @@ els.editor.addEventListener('drop', async (e) => {
     }
     else if (kl === 'c') {
       const pageSel = window.getSelection ? window.getSelection().toString() : '';
-      if (els.editor.selectionStart === els.editor.selectionEnd && !pageSel) {
+      const editorFocused = document.activeElement === els.editor;
+      const editorHasSelection = editorFocused && els.editor.selectionStart !== els.editor.selectionEnd;
+      if (!pageSel && !editorHasSelection) {
         e.preventDefault();
         trigger('#copyBtn');
       }
@@ -1042,7 +1044,7 @@ if (panelEls.list) {
     if (!t) return;
     els.editor.focus({ preventScroll: true });
     try { els.editor.setSelectionRange(t.start, t.end); } catch (_) {}
-    lastCaret = { start: t.start, end: t.end };
+    lastCaret = { start: t.end, end: t.end };
     scrollMarkIntoView(t.start);
     showPopoverFor(t);
   });
