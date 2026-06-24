@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.1](https://github.com/bataak/spellchecker/compare/v1.15.0...v1.15.1) (2026-06-24)
+
+
+### Performance Improvements
+
+* move hunspell to web worker for non-blocking spell-check ([41f05b8](https://github.com/bataak/spellchecker/commit/41f05b88d751656b6feb11ea0de15cdab902817b))
+
 ## [1.15.0](https://github.com/bataak/spellchecker/compare/v1.14.0...v1.15.0) (2026-06-23)
 
 
