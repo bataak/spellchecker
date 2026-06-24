@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.22.0](https://github.com/bataak/spellchecker/compare/v1.21.0...v1.22.0) (2026-06-24)
+
+
+### Features
+
+* js proximity snap for mobile toolbar ([2705020](https://github.com/bataak/spellchecker/commit/2705020f4f3df9757f9cf6829662729175baaecc))
+
 ## [1.21.0](https://github.com/bataak/spellchecker/compare/v1.20.0...v1.21.0) (2026-06-24)
 
 
