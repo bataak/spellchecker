@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.21.0](https://github.com/bataak/spellchecker/compare/v1.20.0...v1.21.0) (2026-06-24)
+
+
+### Features
+
+* soft snap mobile toolbar to clear button ([7d45138](https://github.com/bataak/spellchecker/commit/7d45138e750a5815252c99d12a281d1052012853))
+
 ## [1.20.0](https://github.com/bataak/spellchecker/compare/v1.19.1...v1.20.0) (2026-06-24)
 
 
