@@ -175,7 +175,11 @@ async function render() {
     if (text.trim() === '') {
       if (baseStatus && !offlineIndicatorActive) setStatus(baseStatus);
     } else {
-      setStatus('Үгийн тоо: ' + total + ', Нийт тэмдэгт: ' + text.length);
+      if (desktopMQ.matches) {
+        setStatus('Үгийн тоо: ' + total + ', Нийт тэмдэгт: ' + text.length);
+      } else {
+        setStatus('Үгийн тоо: ' + total + ', <b>Алдаатай үг</b>: <b>' + bad.length + '</b>, Нийт тэмдэгт: ' + text.length);
+      }
     }
   }
 }
@@ -979,7 +983,7 @@ async function runOfflineReadyIndicator() {
 
   if (isReady) {
     transient('Офлайн горимд ажиллахад бэлэн', false);
-    await new Promise((r) => setTimeout(r, 2000));
+    await new Promise((r) => setTimeout(r, 1500));
   }
 
   offlineIndicatorActive = false;
