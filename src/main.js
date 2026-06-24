@@ -266,7 +266,7 @@ function renderErrorPanel() {
     if (panelEls.copy) panelEls.copy.disabled = true;
     return;
   }
-  if (panelEls.title) panelEls.title.textContent = 'Нийт алдаатай үг: ' + items.length;
+  if (panelEls.title) panelEls.title.textContent = 'Нийт алдаатай үг: ' + badTokens.length;
   if (panelEls.copy) panelEls.copy.disabled = false;
   panelEls.list.innerHTML = items
     .map((t) => '<button class="ew" type="button" data-start="' + t.start + '">' + escapeHtml(t.word) + '</button>')
