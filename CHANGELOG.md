@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.19.1](https://github.com/bataak/spellchecker/compare/v1.19.0...v1.19.1) (2026-06-24)
+
+
+### Bug Fixes
+
+* show error count and list only after all dictionaries load ([e762610](https://github.com/bataak/spellchecker/commit/e7626103bed76dfc6a42b89bee25789cc479096c))
+
 ## [1.19.0](https://github.com/bataak/spellchecker/compare/v1.18.0...v1.19.0) (2026-06-24)
 
 
