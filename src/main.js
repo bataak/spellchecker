@@ -21,6 +21,7 @@ let errorWords = [];
 const checker = new MultiSpellChecker();
 const cache = new Map();
 let ready = false;
+let allReady = false;
 let badTokens = [];
 let baseStatus = '';
 let offlineIndicatorActive = false;
@@ -154,6 +155,20 @@ let renderSeq = 0;
 async function render() {
   const text = els.editor.value;
   const seq = ++renderSeq;
+
+  if (!allReady) {
+    badTokens = [];
+    errorWords = [];
+    els.backdrop.innerHTML = escapeHtml(text) + '\n';
+    syncScroll();
+    if (panelEls.list) panelEls.list.innerHTML = '';
+    if (panelEls.copy) panelEls.copy.disabled = true;
+    if (panelEls.title && text.trim() !== '' && desktopMQ.matches) {
+      panelEls.title.textContent = 'Тоолж байна…';
+    }
+    return;
+  }
+
   await ensureChecked(text);
   if (seq !== renderSeq) return;
   const { bad, total } = computeBad(text);
@@ -893,7 +908,7 @@ els.editor.addEventListener('drop', async (e) => {
       if (document.activeElement !== els.editor) {
         els.editor.focus({ preventScroll: true });
         if (lastCaret) {
-          try { els.editor.setSelectionRange(lastCaret.start, lastCaret.end); } catch (_) {}
+          try { els.editor.setSelectionRange(lastCaret.start, lastCaret.end, 'forward'); } catch (_) {}
         }
       }
       trigger('#pasteBtn', false);
@@ -1013,6 +1028,7 @@ async function boot() {
 
     checker.whenComplete().then((done) => {
       cache.clear();
+      allReady = true;
       baseStatus = dictStatusMessage(checker.loadedIds, [...(failed || []), ...done.failed], fallbackReason);
       if (els.editor.value.trim() === '' && !offlineIndicatorActive) setStatus(baseStatus, false);
       render();
@@ -1035,7 +1051,7 @@ if (panelEls.list) {
     if (!btn) {
       els.editor.focus({ preventScroll: true });
       if (lastCaret) {
-        try { els.editor.setSelectionRange(lastCaret.start, lastCaret.end); } catch (_) {}
+        try { els.editor.setSelectionRange(lastCaret.start, lastCaret.end, 'forward'); } catch (_) {}
       }
       return;
     }
@@ -1043,7 +1059,7 @@ if (panelEls.list) {
     const t = badTokens.find((x) => x.start === start);
     if (!t) return;
     els.editor.focus({ preventScroll: true });
-    try { els.editor.setSelectionRange(t.start, t.end); } catch (_) {}
+    try { els.editor.setSelectionRange(t.start, t.end, 'forward'); } catch (_) {}
     lastCaret = { start: t.end, end: t.end };
     scrollMarkIntoView(t.start);
     showPopoverFor(t);
