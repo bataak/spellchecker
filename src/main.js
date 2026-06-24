@@ -23,10 +23,18 @@ const cache = new Map();
 let ready = false;
 let badTokens = [];
 let baseStatus = '';
+let offlineIndicatorActive = false;
 let pendingFix = null;
 
 const labelOf = (id) => (DICTIONARIES.find((d) => d.id === id) || {}).label || id;
-const setStatus = (html) => (els.status.innerHTML = html);
+const setStatus = (html, animate = true) => {
+  if (html.indexOf('Үгийн тоо') !== -1) animate = false;
+  els.status.innerHTML = html;
+  if (!animate) return;
+  els.status.classList.remove('status-reveal');
+  void els.status.offsetWidth;
+  els.status.classList.add('status-reveal');
+};
 const escapeHtml = (s) =>
   s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 
@@ -165,9 +173,9 @@ async function render() {
 
   if (ready) {
     if (text.trim() === '') {
-      if (baseStatus) setStatus(baseStatus);
+      if (baseStatus && !offlineIndicatorActive) setStatus(baseStatus);
     } else {
-      setStatus('Үгийн тоо: ' + total + ', <b>Алдаатай үг</b>: <b>' + bad.length + '</b>, Нийт тэмдэгт: ' + text.length);   
+      setStatus('Үгийн тоо: ' + total + ', Нийт тэмдэгт: ' + text.length);
     }
   }
 }
@@ -258,7 +266,7 @@ function renderErrorPanel() {
     if (panelEls.copy) panelEls.copy.disabled = true;
     return;
   }
-  if (panelEls.title) panelEls.title.textContent = 'Алдаатай үгс';
+  if (panelEls.title) panelEls.title.textContent = 'Нийт алдаатай үг: ' + items.length;
   if (panelEls.copy) panelEls.copy.disabled = false;
   panelEls.list.innerHTML = items
     .map((t) => '<button class="ew" type="button" data-start="' + t.start + '">' + escapeHtml(t.word) + '</button>')
@@ -955,24 +963,26 @@ function dictStatusMessage(loaded, failed, fallbackReason) {
 
 async function runOfflineReadyIndicator() {
   const idle = () => els.editor.value.trim() === '';
-  const transient = (msg) => { if (idle()) setStatus(msg); };
+  const transient = (msg, animate = true) => { if (idle()) setStatus(msg, animate); };
 
   if (!offlineCapable()) { if (idle()) setStatus(baseStatus); return; }
 
+  offlineIndicatorActive = true;
   transient('Офлайн горимд ажиллахад бэлтгэж байна…');
 
-  const deadline = Date.now() + 20000;
   let isReady = await isOfflineReady();
+  const deadline = Date.now() + 20000;
   while (!isReady && Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, 700));
     isReady = await isOfflineReady();
   }
 
   if (isReady) {
-    transient('Офлайн горимд ажиллахад бэлэн');
+    transient('Офлайн горимд ажиллахад бэлэн', false);
     await new Promise((r) => setTimeout(r, 2000));
   }
 
+  offlineIndicatorActive = false;
   if (idle()) setStatus(baseStatus);
 }
 
@@ -986,19 +996,19 @@ async function boot() {
     const { loaded, failed, fallbackReason, mnVersion } = await checker.init(import.meta.env.BASE_URL);
     ready = true;
     if (mnVersion && verEl) verEl.dataset.full += ' · mn_MN ' + mnVersion;
+    cache.clear();
+    render();
     if (loaded.length) {
       baseStatus = dictStatusMessage(loaded, failed, fallbackReason);
       runOfflineReadyIndicator();
     } else {
       setStatus('Нэг ч толь алга — <code>public/dict/</code> дотор .aff/.dic хийнэ үү.');
     }
-    cache.clear();
-    render();
 
     checker.whenComplete().then((done) => {
       cache.clear();
       baseStatus = dictStatusMessage(checker.loadedIds, [...(failed || []), ...done.failed], fallbackReason);
-      if (els.editor.value.trim() === '') setStatus(baseStatus);
+      if (els.editor.value.trim() === '' && !offlineIndicatorActive) setStatus(baseStatus, false);
       render();
     });
   } catch (e) {
