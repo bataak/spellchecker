@@ -1092,3 +1092,14 @@ desktopMQ.addEventListener('change', () => {
 });
 
 boot();
+
+(function initToolbarScroll() {
+  if (window.matchMedia('(min-width: 1024px)').matches) return;
+  const bar = document.querySelector('.toolbar');
+  const clearBtn = document.querySelector('#clearBtn');
+  if (!bar || !clearBtn) return;
+  requestAnimationFrame(() => {
+    if (bar.scrollWidth <= bar.clientWidth) return;
+    bar.scrollLeft += clearBtn.getBoundingClientRect().left - bar.getBoundingClientRect().left;
+  });
+})();
