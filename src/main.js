@@ -31,10 +31,25 @@ const escapeHtml = (s) =>
   s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 
 function isCorrect(word) {
+  return cache.has(word) ? cache.get(word) : true;
+}
+function checkable(word) {
+  return word.length >= 2 && !/^\p{N}+(-|$)/u.test(word);
+}
+async function ensureChecked(text) {
+  const need = new Set();
+  for (const { word } of tokenize(text)) {
+    if (checkable(word) && !cache.has(word)) need.add(word);
+  }
+  if (!need.size) return;
+  const results = await checker.checkWords([...need]);
+  for (const w in results) cache.set(w, results[w]);
+}
+async function correctNow(word) {
   if (cache.has(word)) return cache.get(word);
-  const ok = checker.isCorrect(word);
-  cache.set(word, ok);
-  return ok;
+  const r = await checker.checkWords([word]);
+  cache.set(word, r[word]);
+  return r[word];
 }
 function debounce(fn, ms) {
   let t;
@@ -49,7 +64,7 @@ function computeBad(text) {
   let total = 0;
   for (const { word, index } of tokenize(text)) {
     total++;
-    if (word.length < 2 || /^\p{N}+(-|$)/u.test(word) || isCorrect(word)) continue;
+    if (!checkable(word) || isCorrect(word)) continue;
     bad.push({ word, start: index, end: index + word.length });
   }
   return { bad, total };
@@ -127,8 +142,12 @@ function wordAtCaret(text, pos) {
   return null;
 }
 
-function render() {
+let renderSeq = 0;
+async function render() {
   const text = els.editor.value;
+  const seq = ++renderSeq;
+  await ensureChecked(text);
+  if (seq !== renderSeq) return;
   const { bad, total } = computeBad(text);
   badTokens = bad;
 
@@ -297,10 +316,10 @@ function placePopover() {
   els.popover.style.left = window.scrollX + left + 'px';
 }
 
-function showPopoverFor(t) {
+async function showPopoverFor(t) {
   let mark = els.backdrop.querySelector('mark[data-start="' + t.start + '"]');
   if (!mark) {
-    render();
+    await render();
     mark = els.backdrop.querySelector('mark[data-start="' + t.start + '"]');
   }
   if (!mark) {
@@ -308,17 +327,20 @@ function showPopoverFor(t) {
     return;
   }
 
-  const suggestions = checker.suggest(t.word).slice(0, 8);
-  els.popover.innerHTML = suggestions.length
-    ? suggestions.map((s) => '<button class="sg" type="button">' + escapeHtml(s) + '</button>').join('')
-    : '<div class="muted pop-empty">санал алга</div>';
-
+  els.popover.innerHTML = '<div class="muted pop-empty">…</div>';
   activeStart = t.start;
   popoverScrollTop = els.editor.scrollTop;
   els.popover.hidden = false;
   bringWordIntoView();
   placePopover();
   scheduleKbAdjust();
+
+  const suggestions = (await checker.suggest(t.word)).slice(0, 8);
+  if (activeStart !== t.start || els.popover.hidden) return;
+  els.popover.innerHTML = suggestions.length
+    ? suggestions.map((s) => '<button class="sg" type="button">' + escapeHtml(s) + '</button>').join('')
+    : '<div class="muted pop-empty">санал алга</div>';
+  placePopover();
 
   els.popover.querySelectorAll('.sg').forEach((btn) => {
     btn.addEventListener('click', () => applySuggestion(t, btn.textContent));
@@ -332,7 +354,7 @@ function suggestAtCaret() {
   showPopoverFor(t);
 }
 
-function maybePropagateManual() {
+async function maybePropagateManual() {
   if (!pendingFix) return;
   const text = els.editor.value;
   const pos = els.editor.selectionStart;
@@ -340,7 +362,7 @@ function maybePropagateManual() {
   if (!w) return;
   const lower = w.word.toLowerCase();
   if (lower === pendingFix.original) return;
-  if (!isCorrect(w.word)) return;
+  if (!(await correctNow(w.word))) return;
   const original = pendingFix.original;
   const primaryPattern = pendingFix.originalPattern || 'lower';
   pendingFix = null;
@@ -352,13 +374,13 @@ function maybePropagateManual() {
   render();
 }
 
-function recheck() {
-  render();
-  maybePropagateManual();
+async function recheck() {
+  await render();
+  await maybePropagateManual();
   saveText();
 }
 
-function applySuggestion(t, replacement) {
+async function applySuggestion(t, replacement) {
   pendingFix = null;
   const v = els.editor.value;
   const { text: nt, caret } = replaceAllWord(v, t.word.toLowerCase(), replacement, t.end, casePattern(t.word));
@@ -367,7 +389,7 @@ function applySuggestion(t, replacement) {
   setEditorText(nt, caret);
   els.editor.scrollTop = top;
   hidePopover();
-  render();
+  await render();
   saveText();
 }
 
@@ -957,8 +979,11 @@ async function runOfflineReadyIndicator() {
 async function boot() {
   requestDurableStorage();
   setStatus('Hunspell ачаалж байна…');
+  loadText();
+  render();
+  els.editor.focus();
   try {
-    const { loaded, failed, fallbackReason, mnVersion } = await checker.init();
+    const { loaded, failed, fallbackReason, mnVersion } = await checker.init(import.meta.env.BASE_URL);
     ready = true;
     if (mnVersion && verEl) verEl.dataset.full += ' · mn_MN ' + mnVersion;
     if (loaded.length) {
@@ -967,15 +992,12 @@ async function boot() {
     } else {
       setStatus('Нэг ч толь алга — <code>public/dict/</code> дотор .aff/.dic хийнэ үү.');
     }
-    loadText();
+    cache.clear();
     render();
-    els.editor.focus();
 
     checker.whenComplete().then((done) => {
-      if (!checker.instances.length) return;
       cache.clear();
-      const allLoaded = checker.instances.map((i) => i.id);
-      baseStatus = dictStatusMessage(allLoaded, [...(failed || []), ...done.failed], fallbackReason);
+      baseStatus = dictStatusMessage(checker.loadedIds, [...(failed || []), ...done.failed], fallbackReason);
       if (els.editor.value.trim() === '') setStatus(baseStatus);
       render();
     });
