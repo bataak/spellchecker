@@ -1103,3 +1103,23 @@ boot();
     bar.scrollLeft += clearBtn.getBoundingClientRect().left - bar.getBoundingClientRect().left;
   });
 })();
+
+(function initToolbarSnap() {
+  if (window.matchMedia('(min-width: 1024px)').matches) return;
+  const bar = document.querySelector('.toolbar');
+  const clearBtn = document.querySelector('#clearBtn');
+  const saveBtn = document.querySelector('#saveBtn');
+  if (!bar || !clearBtn || !saveBtn) return;
+  const T = 15;
+  let st;
+  bar.addEventListener('scroll', () => {
+    clearTimeout(st);
+    st = setTimeout(() => {
+      const b = bar.getBoundingClientRect();
+      const dStart = clearBtn.getBoundingClientRect().left - b.left;
+      if (Math.abs(dStart) <= T) { bar.scrollBy({ left: dStart, behavior: 'smooth' }); return; }
+      const dEnd = b.right - saveBtn.getBoundingClientRect().right;
+      if (Math.abs(dEnd) <= T) { bar.scrollBy({ left: -dEnd, behavior: 'smooth' }); }
+    }, 90);
+  }, { passive: true });
+})();
