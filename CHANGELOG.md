@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.19.0](https://github.com/bataak/spellchecker/compare/v1.18.0...v1.19.0) (2026-06-24)
+
+
+### Features
+
+* refine status UI and error panel, fix copy and caret behavior ([3f60f20](https://github.com/bataak/spellchecker/commit/3f60f20fc564c963fe7ab6542f403d0bc040c7f8))
+
 ## [1.18.0](https://github.com/bataak/spellchecker/compare/v1.17.0...v1.18.0) (2026-06-24)
 
 
