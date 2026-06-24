@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.17.0](https://github.com/bataak/spellchecker/compare/v1.16.0...v1.17.0) (2026-06-24)
+
+
+### Features
+
+* move error count to panel title and animate status messages ([099e02c](https://github.com/bataak/spellchecker/commit/099e02cc5451b180030a9f1ea6b7b764845d2f25))
+
 ## [1.16.0](https://github.com/bataak/spellchecker/compare/v1.15.1...v1.16.0) (2026-06-24)
 
 
