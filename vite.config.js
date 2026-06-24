@@ -11,25 +11,6 @@ try {
 
 const base = process.env.VITE_BASE || '/hunspell-mn/';
 
-function dictPreload() {
-  return {
-    name: 'dict-preload',
-    transformIndexHtml() {
-      let dicts = [];
-      try {
-        dicts = JSON.parse(readFileSync('./public/dict/dict-manifest.json', 'utf-8')).dicts || [];
-      } catch {}
-      const mn = dicts.find((d) => d.id === 'mn_MN');
-      if (!mn) return [];
-      return [mn.aff, mn.dic].map((f) => ({
-        tag: 'link',
-        attrs: { rel: 'preload', as: 'fetch', href: base + 'dict/' + f, crossorigin: '' },
-        injectTo: 'head',
-      }));
-    },
-  };
-}
-
 function stripRawDicts() {
   let outDir = 'dist';
   return {
@@ -66,7 +47,6 @@ export default defineConfig({
   optimizeDeps: { exclude: ['hunspell-wasm'] },
   server: { fs: { allow: ['.', '../hunspell-wasm'] } },
   plugins: [
-    dictPreload(),
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'script',
