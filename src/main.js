@@ -499,7 +499,7 @@ function setEditorText(newText, caret) {
       : document.execCommand('insertText', false, slice);
   } catch (_) { ok = false; }
   programmaticEdit = false;
-  if (!ok) els.editor.value = newText;
+  if (!ok || els.editor.value !== newText) els.editor.value = newText;
   if (caret != null) { try { els.editor.setSelectionRange(caret, caret); } catch (_) {} }
 }
 function insertEditorText(text, start, end) {
