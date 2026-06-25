@@ -110,7 +110,7 @@ function rankToPattern(rank) {
   return rank === 2 ? 'upper' : rank === 1 ? 'capital' : 'lower';
 }
 
-function replaceAllWord(text, originalLower, baseRepl, caretOffset, primaryPattern) {
+function replaceAllWord(text, originalLower, baseRepl, caretOffset, primaryPattern, onlyAt) {
   baseRepl = baseRepl.replace(/\s+$/, '');
   const verbatim = irregularCase(baseRepl);
   const corrRank = caseRank(casePattern(baseRepl));
@@ -123,7 +123,7 @@ function replaceAllWord(text, originalLower, baseRepl, caretOffset, primaryPatte
   for (const { word, index } of tokenize(text)) {
     const trail = (word.match(/\s+$/) || [''])[0];
     const core = trail ? word.slice(0, word.length - trail.length) : word;
-    if (core.toLowerCase() === targetLower) {
+    if (core.toLowerCase() === targetLower && (onlyAt == null || index === onlyAt)) {
       result += text.slice(cursor, index);
       let rep;
       if (verbatim) {
@@ -141,6 +141,10 @@ function replaceAllWord(text, originalLower, baseRepl, caretOffset, primaryPatte
   }
   result += text.slice(cursor);
   return { text: result, caret };
+}
+function isDashSuffix(text, t) {
+  if (t.word.indexOf('-') > 0) return false;
+  return t.word.startsWith('-') || text.charAt(t.start - 1) === '-';
 }
 function wordAtCaret(text, pos) {
   for (const { word, index } of tokenize(text)) {
@@ -383,6 +387,7 @@ function suggestAtCaret() {
 
 async function maybePropagateManual() {
   if (!pendingFix) return;
+  if (pendingFix.dashSuffix) { pendingFix = null; return; }
   const text = els.editor.value;
   const pos = els.editor.selectionStart;
   const w = wordAtCaret(text, pos);
@@ -410,7 +415,8 @@ async function recheck() {
 async function applySuggestion(t, replacement) {
   pendingFix = null;
   const v = els.editor.value;
-  const { text: nt, caret } = replaceAllWord(v, t.word.toLowerCase(), replacement, t.end, casePattern(t.word));
+  const onlyAt = isDashSuffix(v, t) ? t.start : null;
+  const { text: nt, caret } = replaceAllWord(v, t.word.toLowerCase(), replacement, t.end, casePattern(t.word), onlyAt);
   if (nt === v) { hidePopover(); return; }
   const top = els.editor.scrollTop;
   setEditorText(nt, caret);
@@ -431,7 +437,7 @@ const deferredCheck = debounce(() => recheck(), 1500);
 
 els.editor.addEventListener('beforeinput', () => {
   const t = tokenAtCaret();
-  pendingFix = t ? { original: t.word.toLowerCase(), originalPattern: casePattern(t.word) } : null;
+  pendingFix = t ? { original: t.word.toLowerCase(), originalPattern: casePattern(t.word), dashSuffix: isDashSuffix(els.editor.value, t) } : null;
 });
 
 const STORAGE_KEY = 'mn-spell:text';
