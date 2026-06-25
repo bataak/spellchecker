@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.23.3](https://github.com/bataak/spellchecker/compare/v1.23.2...v1.23.3) (2026-06-25)
+
+
+### Bug Fixes
+
+* drop clear-button snap anchor in toolbar ([9c8a567](https://github.com/bataak/spellchecker/commit/9c8a5679995d9ee797cfbf005bd464b530f20ba4))
+
 ## [1.23.2](https://github.com/bataak/spellchecker/compare/v1.23.1...v1.23.2) (2026-06-25)
 
 
