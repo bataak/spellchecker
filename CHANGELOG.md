@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.23.0](https://github.com/bataak/spellchecker/compare/v1.22.0...v1.23.0) (2026-06-25)
+
+
+### Features
+
+* mobile toolbar snap and long-press error-word copy ([2084578](https://github.com/bataak/spellchecker/commit/208457820be6921afedda0210e232416bd3dd785))
+
 ## [1.22.0](https://github.com/bataak/spellchecker/compare/v1.21.0...v1.22.0) (2026-06-24)
 
 
