@@ -679,14 +679,6 @@ document.querySelector('#pasteBtn').addEventListener('click', async () => {
     flash('#pasteBtn', 'Ctrl+V');
   }
 });
-document.querySelector('#copyBtn').addEventListener('click', async () => {
-  try {
-    await navigator.clipboard.writeText(els.editor.value || '');
-    flash('#copyBtn', 'Хууллаа');
-  } catch (_) {
-    flash('#copyBtn', 'Боломжгүй');
-  }
-});
 const hasFSSave = 'showSaveFilePicker' in window;
 const hasFSOpen = 'showOpenFilePicker' in window;
 let currentFileHandle = null;
@@ -1116,10 +1108,86 @@ boot();
     clearTimeout(st);
     st = setTimeout(() => {
       const b = bar.getBoundingClientRect();
-      const dStart = clearBtn.getBoundingClientRect().left - b.left;
-      if (Math.abs(dStart) <= T) { bar.scrollBy({ left: dStart, behavior: 'smooth' }); return; }
       const dEnd = b.right - saveBtn.getBoundingClientRect().right;
-      if (Math.abs(dEnd) <= T) { bar.scrollBy({ left: -dEnd, behavior: 'smooth' }); }
+      if (Math.abs(dEnd) <= T) { bar.scrollBy({ left: -dEnd, behavior: 'smooth' }); return; }
+      const dStart = clearBtn.getBoundingClientRect().left - b.left;
+      if (Math.abs(dStart) <= T) { bar.scrollBy({ left: dStart, behavior: 'smooth' }); }
     }, 90);
   }, { passive: true });
 })();
+
+(function initCopyErrorsHold() {
+  const btn = document.querySelector('#copyBtn');
+  if (!btn) return;
+  const HOLD = 500;
+  let timer = null;
+  let armed = false;
+  let prevStatus = '';
+  let revertTimer = null;
+
+  const showStatus = (msg) => {
+    setStatus(msg);
+    clearTimeout(revertTimer);
+    revertTimer = setTimeout(() => {
+      if (els.status.innerHTML === msg) setStatus(prevStatus, false);
+    }, 1600);
+  };
+
+  btn.addEventListener('pointerdown', () => {
+    clearTimeout(timer);
+    armed = false;
+    timer = setTimeout(() => {
+      armed = true;
+      prevStatus = els.status.innerHTML;
+      const hasWords = buildErrorList(badTokens).length > 0;
+      showStatus(hasWords ? 'Алдаатай үгс хуулагдлаа' : 'Алдаатай үг алга');
+    }, HOLD);
+  });
+  const clear = () => clearTimeout(timer);
+  btn.addEventListener('pointerup', clear);
+  btn.addEventListener('pointercancel', clear);
+  btn.addEventListener('pointerleave', clear);
+  btn.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  btn.addEventListener('click', async () => {
+    if (armed) {
+      armed = false;
+      const words = buildErrorList(badTokens).map((t) => t.word);
+      if (!words.length) return;
+      try { await copyText(words.join('\n')); }
+      catch (_) { showStatus('Хуулах боломжгүй'); }
+      return;
+    }
+    try {
+      await copyText(els.editor.value || '');
+      flash('#copyBtn', 'Хууллаа');
+    } catch (_) {
+      flash('#copyBtn', 'Боломжгүй');
+    }
+  });
+})();
+
+function copyText(str) {
+  if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+    return navigator.clipboard.writeText(str);
+  }
+  return new Promise((resolve, reject) => {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = str;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '-1000px';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      ta.setSelectionRange(0, str.length);
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      ok ? resolve() : reject(new Error('exec'));
+    } catch (e) {
+      reject(e);
+    }
+  });
+}

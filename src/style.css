@@ -143,6 +143,9 @@ h1 {
   padding: 5px 10px;
   line-height: 1;
   cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 a.tbtn { text-decoration: none; display: inline-flex; align-items: center; }
 .tbtn:hover { border-color: var(--accent); }
