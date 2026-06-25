@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.23.2](https://github.com/bataak/spellchecker/compare/v1.23.1...v1.23.2) (2026-06-25)
+
+
+### Bug Fixes
+
+* guard against iOS smart-delete merging adjacent words ([c7636fb](https://github.com/bataak/spellchecker/commit/c7636fb0b43f2b96126f8ce8522ba4640026ae54))
+
 ## [1.23.1](https://github.com/bataak/spellchecker/compare/v1.23.0...v1.23.1) (2026-06-25)
 
 
