@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.23.1](https://github.com/bataak/spellchecker/compare/v1.23.0...v1.23.1) (2026-06-25)
+
+
+### Bug Fixes
+
+* keep replace-all for whole hyphenated tokens ([38fcc41](https://github.com/bataak/spellchecker/commit/38fcc41de45330f831374cb89d1cf4b3652f1050))
+
 ## [1.23.0](https://github.com/bataak/spellchecker/compare/v1.22.0...v1.23.0) (2026-06-25)
 
 
