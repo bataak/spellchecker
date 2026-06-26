@@ -273,7 +273,9 @@ function buildErrorList(tokens) {
   const seen = new Map();
   for (const t of tokens) {
     const key = t.word.toLowerCase();
-    if (!seen.has(key)) seen.set(key, t);
+    const e = seen.get(key);
+    if (e) e.count++;
+    else seen.set(key, { word: t.word, start: t.start, count: 1 });
   }
   return [...seen.values()];
 }
@@ -292,7 +294,11 @@ function renderErrorPanel() {
   if (panelEls.title) panelEls.title.textContent = 'Нийт алдаатай үг: ' + badTokens.length;
   if (panelEls.copy) panelEls.copy.disabled = false;
   panelEls.list.innerHTML = items
-    .map((t) => '<button class="ew" type="button" data-start="' + t.start + '">' + escapeHtml(t.word) + '</button>')
+    .map((t) => {
+      const n = t.count > 99 ? '99+' : t.count;
+      const badge = t.count >= 2 ? '<span class="ew-count">' + n + '</span>' : '';
+      return '<button class="ew" type="button" data-start="' + t.start + '">' + escapeHtml(t.word) + badge + '</button>';
+    })
     .join('');
 }
 
