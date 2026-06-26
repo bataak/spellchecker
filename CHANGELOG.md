@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.24.0](https://github.com/bataak/spellchecker/compare/v1.23.3...v1.24.0) (2026-06-26)
+
+
+### Features
+
+* show repeat-count badge in error panel ([fbcd5eb](https://github.com/bataak/spellchecker/commit/fbcd5eb95ddb48e9f5e6c206af3c4f4cadc40485))
+
 ## [1.23.3](https://github.com/bataak/spellchecker/compare/v1.23.2...v1.23.3) (2026-06-25)
 
 
