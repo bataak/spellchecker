@@ -6,6 +6,7 @@
   --line: #e3ddd1;
   --proof: #b3261e;
   --proof-soft: #f6dedb;
+  --count-bg: #c45650;
   --accent: #2c3a2e;
   --editor-bg: #ffffff;
   --focus: #b9b1a1;
@@ -23,6 +24,7 @@
   --line: #3a342a;
   --proof: #ff6f61;
   --proof-soft: #3a2420;
+  --count-bg: #ff8579;
   --accent: #86b08c;
   --editor-bg: #211d16;
   --focus: #4a4438;
@@ -466,6 +468,26 @@ a.tbtn { text-decoration: none; display: inline-flex; align-items: center; }
     max-width: 100%;
     overflow-wrap: anywhere;
     text-align: left;
+    position: relative;
+  }
+  .ew-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.6em;
+    height: 1.6em;
+    padding: 0 0.2em;
+    margin-left: 4px;
+    position: relative;
+    top: -0.4em;
+    font-family: var(--sans);
+    font-size: 0.56em;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    color: var(--proof-soft);
+    background: var(--count-bg);
+    border-radius: 999px;
   }
   .ew:hover { border-color: var(--proof); }
   .ew:active { transform: translateY(1px); }
