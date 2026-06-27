@@ -678,20 +678,13 @@ function insertAtCaret(text) {
 
 document.querySelector('#pasteBtn').addEventListener('click', async () => {
   els.editor.focus({ preventScroll: true });
-  if (isTouch()) {
-    let ok = false;
-    try { ok = document.execCommand('paste'); } catch (_) {}
-    setStatus('paste: execCommand=' + ok);
-    return;
-  }
   if (navigator.clipboard && navigator.clipboard.readText) {
     try {
       const text = await navigator.clipboard.readText();
-      if (text) insertAtCaret(text);
-    } catch (e) {
-      setStatus('paste алдаа: ' + ((e && e.name) || 'fail'));
-    }
+      if (text) { insertAtCaret(text); return; }
+    } catch (_) {}
   }
+  flash('#pasteBtn', isTouch() ? 'Дараад → Paste' : 'Ctrl+V');
 });
 const hasFSSave = 'showSaveFilePicker' in window;
 const hasFSOpen = 'showOpenFilePicker' in window;
