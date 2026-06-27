@@ -678,19 +678,15 @@ function insertAtCaret(text) {
 
 document.querySelector('#pasteBtn').addEventListener('click', async () => {
   els.editor.focus({ preventScroll: true });
-  const hasRead = !!(navigator.clipboard && navigator.clipboard.readText);
-  if (!hasRead) {
-    setStatus('paste: ' + location.protocol + ' secure=' + window.isSecureContext +
-      ' clip=' + !!navigator.clipboard + ' read=' + hasRead);
-    flash('#pasteBtn', 'Ctrl+V');
-    return;
-  }
   try {
-    const text = await navigator.clipboard.readText();
-    if (text) insertAtCaret(text);
-    else setStatus('paste: хоосон буцлаа');
-  } catch (e) {
-    setStatus('paste алдаа: ' + ((e && e.name) || 'fail'));
+    if (navigator.clipboard && navigator.clipboard.readText) {
+      const text = await navigator.clipboard.readText();
+      if (text) insertAtCaret(text);
+      return;
+    }
+    throw new Error('no-api');
+  } catch (_) {
+    flash('#pasteBtn', 'Ctrl+V');
   }
 });
 const hasFSSave = 'showSaveFilePicker' in window;
