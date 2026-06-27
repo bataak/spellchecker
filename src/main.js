@@ -677,17 +677,15 @@ function insertAtCaret(text) {
 }
 
 document.querySelector('#pasteBtn').addEventListener('click', async () => {
+  els.editor.focus({ preventScroll: true });
   try {
     if (navigator.clipboard && navigator.clipboard.readText) {
       const text = await navigator.clipboard.readText();
       if (text) insertAtCaret(text);
-      else els.editor.focus();
       return;
     }
     throw new Error('no-api');
   } catch (_) {
-
-    els.editor.focus();
     flash('#pasteBtn', 'Ctrl+V');
   }
 });
