@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.24.1](https://github.com/bataak/spellchecker/compare/v1.24.0...v1.24.1) (2026-06-27)
+
+
+### Bug Fixes
+
+* focus editor before clipboard read for ios 26 paste ([3e5e0ce](https://github.com/bataak/spellchecker/commit/3e5e0ce113deeb4437b322bc300a17b101d9e0e3))
+
 ## [1.24.0](https://github.com/bataak/spellchecker/compare/v1.23.3...v1.24.0) (2026-06-26)
 
 
