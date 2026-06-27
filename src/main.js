@@ -676,23 +676,25 @@ function insertAtCaret(text) {
   saveText();
 }
 
+let clipboardReadBlocked = false;
+try { clipboardReadBlocked = localStorage.getItem('mn-spell:clipboard-blocked') === '1'; } catch (_) {}
+
 document.querySelector('#pasteBtn').addEventListener('click', async () => {
-  if (navigator.clipboard && navigator.clipboard.readText) {
+  els.editor.focus({ preventScroll: true });
+  if (!clipboardReadBlocked && navigator.clipboard && navigator.clipboard.readText) {
     try {
       const text = await navigator.clipboard.readText();
-      if (text) {
-        els.editor.focus({ preventScroll: true });
-        insertAtCaret(text);
+      if (text) { insertAtCaret(text); return; }
+    } catch (_) {
+      if (isTouch()) {
+        clipboardReadBlocked = true;
+        try { localStorage.setItem('mn-spell:clipboard-blocked', '1'); } catch (_) {}
+        flash('#pasteBtn', 'дахин дарна уу');
         return;
       }
-      setStatus('paste: хоосон');
-    } catch (e) {
-      setStatus('paste: ' + ((e && e.name) || 'fail'));
     }
-    return;
   }
-  els.editor.focus({ preventScroll: true });
-  flash('#pasteBtn', 'Ctrl+V');
+  if (!isTouch()) flash('#pasteBtn', 'Ctrl+V');
 });
 const hasFSSave = 'showSaveFilePicker' in window;
 const hasFSOpen = 'showOpenFilePicker' in window;
