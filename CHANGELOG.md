@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.24.3](https://github.com/bataak/spellchecker/compare/v1.24.2...v1.24.3) (2026-06-27)
+
+
+### Bug Fixes
+
+* retry clipboard read after ios paste permission grant ([b315785](https://github.com/bataak/spellchecker/commit/b315785bc43e69bdee75d60de406ef32a12f573b))
+
 ## [1.24.2](https://github.com/bataak/spellchecker/compare/v1.24.1...v1.24.2) (2026-06-27)
 
 
