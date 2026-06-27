@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.24.2](https://github.com/bataak/spellchecker/compare/v1.24.1...v1.24.2) (2026-06-27)
+
+
+### Bug Fixes
+
+* graceful paste fallback when clipboard read is blocked ([c5ea370](https://github.com/bataak/spellchecker/commit/c5ea370235e38cb4d971526799354d18be67de49))
+
 ## [1.24.1](https://github.com/bataak/spellchecker/compare/v1.24.0...v1.24.1) (2026-06-27)
 
 
