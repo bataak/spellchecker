@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.24.4](https://github.com/bataak/spellchecker/compare/v1.24.3...v1.24.4) (2026-06-27)
+
+
+### Bug Fixes
+
+* route ios paste to native menu after clipboard read is blocked ([43f8f5d](https://github.com/bataak/spellchecker/commit/43f8f5deb9ff940aa34a824bfd77ce4493947383))
+
 ## [1.24.3](https://github.com/bataak/spellchecker/compare/v1.24.2...v1.24.3) (2026-06-27)
 
 
