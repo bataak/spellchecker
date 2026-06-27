@@ -677,19 +677,22 @@ function insertAtCaret(text) {
 }
 
 document.querySelector('#pasteBtn').addEventListener('click', async () => {
-  els.editor.focus({ preventScroll: true });
   if (navigator.clipboard && navigator.clipboard.readText) {
     try {
       const text = await navigator.clipboard.readText();
-      if (text) { insertAtCaret(text); return; }
-    } catch (_) {
-      try {
-        const text = await navigator.clipboard.readText();
-        if (text) { insertAtCaret(text); return; }
-      } catch (_) {}
+      if (text) {
+        els.editor.focus({ preventScroll: true });
+        insertAtCaret(text);
+        return;
+      }
+      setStatus('paste: хоосон');
+    } catch (e) {
+      setStatus('paste: ' + ((e && e.name) || 'fail'));
     }
+    return;
   }
-  flash('#pasteBtn', isTouch() ? 'Дараад → Paste' : 'Ctrl+V');
+  els.editor.focus({ preventScroll: true });
+  flash('#pasteBtn', 'Ctrl+V');
 });
 const hasFSSave = 'showSaveFilePicker' in window;
 const hasFSOpen = 'showOpenFilePicker' in window;
