@@ -682,7 +682,12 @@ document.querySelector('#pasteBtn').addEventListener('click', async () => {
     try {
       const text = await navigator.clipboard.readText();
       if (text) { insertAtCaret(text); return; }
-    } catch (_) {}
+    } catch (_) {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text) { insertAtCaret(text); return; }
+      } catch (_) {}
+    }
   }
   flash('#pasteBtn', isTouch() ? 'Дараад → Paste' : 'Ctrl+V');
 });
