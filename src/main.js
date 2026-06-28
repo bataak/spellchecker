@@ -692,9 +692,7 @@ document.querySelector('#pasteBtn').addEventListener('click', async () => {
       }
     }
   }
-  setStatus(isTouch()
-    ? 'Талбар дотор дарж <b>Paste</b>-г сонгож буулгана уу'
-    : 'Гар дээрх <b>Ctrl+V</b>-ээр буулгана уу');
+  if (isTouch()) setStatus('Талбар дотор удаан дарахад гарах <b>Paste</b> цэсийг ашиглан буулгана уу');
 });
 const hasFSSave = 'showSaveFilePicker' in window;
 const hasFSOpen = 'showOpenFilePicker' in window;
