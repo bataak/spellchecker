@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.24.5](https://github.com/bataak/spellchecker/compare/v1.24.4...v1.24.5) (2026-06-28)
+
+
+### Bug Fixes
+
+* show paste guidance in status bar when clipboard read fails ([c9d2be9](https://github.com/bataak/spellchecker/commit/c9d2be91ce21bf4e8be34245508ba7b2983659cf))
+
 ## [1.24.4](https://github.com/bataak/spellchecker/compare/v1.24.3...v1.24.4) (2026-06-27)
 
 
