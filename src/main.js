@@ -687,7 +687,7 @@ document.querySelector('#pasteBtn').addEventListener('click', async () => {
     throw new Error('no-api');
   } catch (_) {
     els.editor.focus();
-    if (isTouch()) setStatus('Талбар дотор удаан дарахад гарах <b>Paste</b> цэсийг ашиглан буулгана уу');
+    if (isTouch()) setStatus('Талбар дотор товшиход гарах <b>Paste</b> цэсийг ашиглан буулгана уу');
     else flash('#pasteBtn', 'Ctrl+V');
   }
 });
