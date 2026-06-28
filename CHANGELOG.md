@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.24.7](https://github.com/bataak/spellchecker/compare/v1.24.6...v1.24.7) (2026-06-28)
+
+
+### Bug Fixes
+
+* restore readText paste flow broken by pre-focus ([efe54c6](https://github.com/bataak/spellchecker/commit/efe54c6d44d1b7ba6c9b3821b84faa595ccd67fb))
+
 ## [1.24.6](https://github.com/bataak/spellchecker/compare/v1.24.5...v1.24.6) (2026-06-28)
 
 
