@@ -689,12 +689,12 @@ document.querySelector('#pasteBtn').addEventListener('click', async () => {
       if (isTouch()) {
         clipboardReadBlocked = true;
         try { localStorage.setItem('mn-spell:clipboard-blocked', '1'); } catch (_) {}
-        flash('#pasteBtn', 'дахин дарна уу');
-        return;
       }
     }
   }
-  if (!isTouch()) flash('#pasteBtn', 'Ctrl+V');
+  setStatus(isTouch()
+    ? 'Талбар дотор дарж <b>Paste</b>-г сонгож буулгана уу'
+    : 'Гар дээрх <b>Ctrl+V</b>-ээр буулгана уу');
 });
 const hasFSSave = 'showSaveFilePicker' in window;
 const hasFSOpen = 'showOpenFilePicker' in window;
