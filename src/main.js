@@ -676,23 +676,20 @@ function insertAtCaret(text) {
   saveText();
 }
 
-let clipboardReadBlocked = false;
-try { clipboardReadBlocked = localStorage.getItem('mn-spell:clipboard-blocked') === '1'; } catch (_) {}
-
 document.querySelector('#pasteBtn').addEventListener('click', async () => {
-  els.editor.focus({ preventScroll: true });
-  if (!clipboardReadBlocked && navigator.clipboard && navigator.clipboard.readText) {
-    try {
+  try {
+    if (navigator.clipboard && navigator.clipboard.readText) {
       const text = await navigator.clipboard.readText();
-      if (text) { insertAtCaret(text); return; }
-    } catch (_) {
-      if (isTouch()) {
-        clipboardReadBlocked = true;
-        try { localStorage.setItem('mn-spell:clipboard-blocked', '1'); } catch (_) {}
-      }
+      if (text) insertAtCaret(text);
+      else els.editor.focus();
+      return;
     }
+    throw new Error('no-api');
+  } catch (_) {
+    els.editor.focus();
+    if (isTouch()) setStatus('Талбар дотор удаан дарахад гарах <b>Paste</b> цэсийг ашиглан буулгана уу');
+    else flash('#pasteBtn', 'Ctrl+V');
   }
-  if (isTouch()) setStatus('Талбар дотор удаан дарахад гарах <b>Paste</b> цэсийг ашиглан буулгана уу');
 });
 const hasFSSave = 'showSaveFilePicker' in window;
 const hasFSOpen = 'showOpenFilePicker' in window;
