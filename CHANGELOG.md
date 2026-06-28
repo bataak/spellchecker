@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.24.6](https://github.com/bataak/spellchecker/compare/v1.24.5...v1.24.6) (2026-06-28)
+
+
+### Bug Fixes
+
+* guide native paste on touch when clipboard read is blocked ([13d57c0](https://github.com/bataak/spellchecker/commit/13d57c02834d128ff178c0585b1d3b437eea7481))
+
 ## [1.24.5](https://github.com/bataak/spellchecker/compare/v1.24.4...v1.24.5) (2026-06-28)
 
 
