@@ -2,6 +2,7 @@ import './style.css';
 import { MultiSpellChecker, tokenize, DICTIONARIES } from './spellchecker.js';
 import { initFileIO } from './fileio.js';
 import { initToolbar } from './toolbar.js';
+import { initAppearance } from './appearance.js';
 
 document.body.classList.add('ready');
 
@@ -603,20 +604,7 @@ if (window.visualViewport) {
 }
 window.addEventListener('resize', placePopover);
 
-const rootEl = document.documentElement;
-function applyTheme(theme) {
-  rootEl.setAttribute('data-theme', theme);
-  const btn = document.querySelector('#themeBtn');
-  if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
-}
-(function initTheme() {
-  let theme = null;
-  try { theme = localStorage.getItem('theme'); } catch (_) {}
-  if (!theme) {
-    theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
-  applyTheme(theme);
-})();
+initAppearance();
 function flash(sel, msg) {
   const b = document.querySelector(sel);
   if (!b) return;
@@ -625,30 +613,6 @@ function flash(sel, msg) {
   b.textContent = msg;
   setTimeout(() => { b.textContent = b.dataset.label; }, 1100);
 }
-document.querySelector('#themeBtn').addEventListener('click', () => {
-  const next = rootEl.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-  applyTheme(next);
-  try { localStorage.setItem('theme', next); } catch (_) {}
-});
-
-const FONT_KEY = 'mn-spell:scale';
-const FONT_MIN = 0.8;
-const FONT_MAX = 1.8;
-const FONT_STEP = 0.1;
-let fontScale = 1;
-try {
-  const s = parseFloat(localStorage.getItem(FONT_KEY));
-  if (!isNaN(s)) fontScale = s;
-} catch (_) {}
-function applyScale() {
-  fontScale = Math.round(Math.min(FONT_MAX, Math.max(FONT_MIN, fontScale)) * 100) / 100;
-  rootEl.style.setProperty('--editor-scale', String(fontScale));
-  try { localStorage.setItem(FONT_KEY, String(fontScale)); } catch (_) {}
-}
-applyScale();
-document.querySelector('#fontIncBtn').addEventListener('click', () => { fontScale += FONT_STEP; applyScale(); });
-document.querySelector('#fontDecBtn').addEventListener('click', () => { fontScale -= FONT_STEP; applyScale(); });
-document.querySelector('#fontResetBtn').addEventListener('click', () => { fontScale = 1; applyScale(); });
 
 const verEl = document.querySelector('#appVersion');
 if (verEl) {
