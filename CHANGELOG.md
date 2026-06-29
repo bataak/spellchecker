@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.0](https://github.com/bataak/spellchecker/compare/v1.25.0...v1.26.0) (2026-06-29)
+
+
+### Features
+
+* dash-suffix parity for en/em dash, scale suggestion count ([e59d572](https://github.com/bataak/spellchecker/commit/e59d572504c711a011fa83a316724af72417193c))
+
 ## [1.25.0](https://github.com/bataak/spellchecker/compare/v1.24.7...v1.25.0) (2026-06-29)
 
 
