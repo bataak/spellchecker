@@ -1,35 +1,38 @@
 #!/usr/bin/env sh
 set -e
-cd "$(dirname "$0")/public/dict"
+root="$(dirname "$0")"
+src="$root/public/dict"
+out="$root/dist/dict"
 
-rm -f ./*.gz dict-manifest.json
+mkdir -p "$out"
+rm -f "$out"/*.gz "$out/dict-manifest.json"
+
+json_escape() {
+  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
 
 entries=""
 for id in mn_MN en_GB en_US; do
-  [ -f "$id.aff" ] && [ -f "$id.dic" ] || continue
+  [ -f "$src/$id.aff" ] && [ -f "$src/$id.dic" ] || continue
 
-  ver=$(grep -m1 '^#\?[[:space:]]*Version:' "$id.aff" | sed 's/^#\?[[:space:]]*Version:[[:space:]]*//')
-  slug=""
-  if [ -n "$ver" ]; then
-    slug=$(printf '%s' "$ver" | tr -c 'A-Za-z0-9.' '-' | sed 's/-\{2,\}/-/g; s/^-//; s/-$//')
-  fi
-  if [ -z "$slug" ]; then
-    ver=$(cat "$id.aff" "$id.dic" | sha256sum | cut -c1-12)
-    slug="$ver"
-  fi
+  ver=$(grep -m1 '^#\?[[:space:]]*Version:' "$src/$id.aff" | sed 's/^#\?[[:space:]]*Version:[[:space:]]*//')
+  [ -z "$ver" ] && ver="0"
+
+  slug=$(printf '%s' "$ver" | sed 's/[^A-Za-z0-9._-]/-/g; s/-\{2,\}/-/g; s/^-//; s/-$//')
+  [ -z "$slug" ] && slug="0"
 
   aff_out="$id.$slug.aff.gz"
   dic_out="$id.$slug.dic.gz"
-  gzip -9 -c "$id.aff" > "$aff_out"
-  gzip -9 -c "$id.dic" > "$dic_out"
+  gzip -9 -c "$src/$id.aff" > "$out/$aff_out"
+  gzip -9 -c "$src/$id.dic" > "$out/$dic_out"
+  rm -f "$out/$id.aff" "$out/$id.dic"
 
-  ver_json=$(printf '%s' "$ver" | sed 's/\\/\\\\/g; s/"/\\"/g')
-  entry="{\"id\":\"$id\",\"version\":\"$ver_json\",\"aff\":\"$aff_out\",\"dic\":\"$dic_out\"}"
+  entry="{\"id\":\"$id\",\"version\":\"$(json_escape "$ver")\",\"aff\":\"$aff_out\",\"dic\":\"$dic_out\"}"
   entries="$entries${entries:+,}$entry"
-  echo "Үүсгэв: $aff_out, $dic_out (v$ver)"
+  echo "Үүсгэв: dist/dict/$aff_out, dist/dict/$dic_out (v$ver)"
 done
 
-[ -z "$entries" ] && { echo "Толь олдсонгүй. Эхлээд .aff/.dic-ээ public/dict/-д хийнэ үү."; exit 1; }
+[ -z "$entries" ] && { echo "Толь олдсонгүй. public/dict/-д .aff/.dic байгаа эсэхээ шалга."; exit 1; }
 
-printf '{"dicts":[%s]}\n' "$entries" > dict-manifest.json
-echo "Үүсгэв: dict-manifest.json"
+printf '{"dicts":[%s]}\n' "$entries" > "$out/dict-manifest.json"
+echo "Үүсгэв: dist/dict/dict-manifest.json"

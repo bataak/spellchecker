@@ -5,11 +5,9 @@
   "type": "module",
   "description": "Монгол үгийн алдаа шалгагч — hunspell-wasm + nspell, GitHub Pages",
   "scripts": {
-    "predev": "sh pack-dict.sh",
     "dev": "vite",
-    "prebuild": "sh pack-dict.sh",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite build && vite preview"
   },
   "dependencies": {
     "fflate": "^0.8.2",
