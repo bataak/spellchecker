@@ -142,9 +142,10 @@ function replaceAllWord(text, originalLower, baseRepl, caretOffset, primaryPatte
   result += text.slice(cursor);
   return { text: result, caret };
 }
+const DASHES = /[-\u2013\u2014]/;
 function isDashSuffix(text, t) {
-  if (t.word.indexOf('-') > 0) return false;
-  return t.word.startsWith('-') || text.charAt(t.start - 1) === '-';
+  if (DASHES.test(t.word.slice(1))) return false;
+  return DASHES.test(t.word.charAt(0)) || DASHES.test(text.charAt(t.start - 1));
 }
 function wordAtCaret(text, pos) {
   for (const { word, index } of tokenize(text)) {
@@ -372,7 +373,7 @@ async function showPopoverFor(t) {
   placePopover();
   scheduleKbAdjust();
 
-  const suggestions = (await checker.suggest(t.word)).slice(0, 8);
+  const suggestions = (await checker.suggest(t.word)).slice(0, desktopMQ.matches ? 15 : 8);
   if (activeStart !== t.start || els.popover.hidden) return;
   els.popover.innerHTML = suggestions.length
     ? suggestions.map((s) => '<button class="sg" type="button">' + escapeHtml(s) + '</button>').join('')
