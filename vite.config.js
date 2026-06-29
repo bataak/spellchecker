@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { readFileSync, readdirSync, rmSync } from 'fs';
+import { execSync } from 'node:child_process';
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
 
@@ -10,6 +11,16 @@ try {
 } catch {}
 
 const base = process.env.VITE_BASE || '/hunspell-mn/';
+
+function packDict() {
+  return {
+    name: 'pack-dict',
+    apply: 'build',
+    writeBundle() {
+      execSync('sh pack-dict.sh', { stdio: 'inherit' });
+    },
+  };
+}
 
 function stripRawDicts() {
   let outDir = 'dist';
@@ -47,6 +58,7 @@ export default defineConfig({
   optimizeDeps: { exclude: ['hunspell-wasm'] },
   server: { fs: { allow: ['.', '../hunspell-wasm'] } },
   plugins: [
+    packDict(),
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'script',

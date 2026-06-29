@@ -26,6 +26,13 @@ async function fetchGzText(url) {
 }
 
 async function loadManifest() {
+  if (import.meta.env.DEV) {
+    const out = {};
+    for (const d of DICTIONARIES) {
+      out[d.id] = { id: d.id, version: null, aff: d.id + '.aff', dic: d.id + '.dic' };
+    }
+    return out;
+  }
   const res = await fetch(asset('dict/dict-manifest.json'));
   if (!res.ok) throw new Error('dict-manifest.json -> ' + res.status);
   const data = await res.json();
