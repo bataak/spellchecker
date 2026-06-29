@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.25.0](https://github.com/bataak/spellchecker/compare/v1.24.7...v1.25.0) (2026-06-29)
+
+
+### Features
+
+* coordinate clear/save toolbar snap, rename rule link ([5ef7f39](https://github.com/bataak/spellchecker/commit/5ef7f3921cc8002ed8df7594dcc6fa32a41825e3))
+
 ## [1.24.7](https://github.com/bataak/spellchecker/compare/v1.24.6...v1.24.7) (2026-06-28)
 
 
