@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.5](https://github.com/bataak/spellchecker/compare/v1.26.4...v1.26.5) (2026-07-01)
+
+
+### Bug Fixes
+
+* drive empty-state via value length instead of :placeholder-shown to stop flicker during IME composition ([d5462ff](https://github.com/bataak/spellchecker/commit/d5462ff63351413f1ccb117021949c780b543c2f))
+
 ## [1.26.4](https://github.com/bataak/spellchecker/compare/v1.26.3...v1.26.4) (2026-07-01)
 
 
