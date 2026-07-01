@@ -12,6 +12,7 @@ const els = {
   editor: document.querySelector("#editor"),
   backdrop: document.querySelector("#backdrop"),
   popover: document.querySelector("#popover"),
+  emptyState: document.querySelector("#emptyState"),
 };
 
 const panelEls = {
@@ -181,6 +182,11 @@ let renderSeq = 0;
 async function render() {
   const text = els.editor.value;
   const seq = ++renderSeq;
+
+  if (els.emptyState) {
+    els.emptyState.style.opacity = text.length === 0 ? "" : "0";
+    document.body.classList.toggle("has-text", text.length !== 0);
+  }
 
   if (!allReady) {
     badTokens = [];
