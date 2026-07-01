@@ -429,13 +429,10 @@ a.tbtn {
   pointer-events: none;
   overflow: hidden;
   color: var(--muted);
-  opacity: 0;
+  opacity: 1;
   transition: opacity 0.15s ease;
 }
-.editor:placeholder-shown + .empty-state {
-  opacity: 1;
-}
-html.booting .editor:placeholder-shown + .empty-state {
+html.booting .empty-state {
   opacity: 0;
   transition: none;
 }
@@ -501,10 +498,10 @@ html.booting .editor:placeholder-shown + .empty-state {
     background: var(--editor-bg);
     overflow: hidden;
   }
-  .workspace:has(.editor:placeholder-shown) .editor-wrap {
+  body:not(.has-text) .editor-wrap {
     flex: 1 1 auto;
   }
-  .workspace:has(.editor:placeholder-shown) .error-panel {
+  body:not(.has-text) .error-panel {
     display: none;
   }
   .error-panel-head {
