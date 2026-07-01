@@ -435,6 +435,10 @@ a.tbtn {
 .editor:placeholder-shown + .empty-state {
   opacity: 1;
 }
+html.booting .editor:placeholder-shown + .empty-state {
+  opacity: 0;
+  transition: none;
+}
 .empty-state .empty-title {
   margin: 0;
   font-family: var(--serif);
