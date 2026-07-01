@@ -855,7 +855,13 @@ initFileIO({ els, flash, setEditorText, hidePopover, render, saveText });
       trigger("#saveBtn");
     } else if (kl === "o") {
       e.preventDefault();
-      trigger("#openBtn");
+      const openFileEl = document.querySelector("#openFile");
+      if (!window.showOpenFilePicker && openFileEl) {
+        trigger("#openBtn", false);
+        openFileEl.click();
+      } else {
+        trigger("#openBtn");
+      }
     } else if (kl === "d") {
       e.preventDefault();
       trigger("#clearBtn");
