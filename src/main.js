@@ -660,6 +660,11 @@ function insertEditorText(text, start, end) {
 }
 els.editor.addEventListener("input", (e) => {
   if (programmaticEdit) return;
+  if (els.emptyState) {
+    const empty = els.editor.value.length === 0;
+    els.emptyState.style.opacity = empty ? "" : "0";
+    document.body.classList.toggle("has-text", !empty);
+  }
   saveTextSoon();
   if (isSeparatorInput(e)) recheck();
   else deferredCheck();
@@ -860,12 +865,13 @@ initFileIO({ els, flash, setEditorText, hidePopover, render, saveText });
       e.preventDefault();
       trigger("#saveBtn");
     } else if (kl === "o") {
-      e.preventDefault();
       if (!window.showOpenFilePicker) {
         const openFileEl = document.querySelector("#openFile");
         if (openFileEl) openFileEl.click();
+        e.preventDefault();
         trigger("#openBtn", false);
       } else {
+        e.preventDefault();
         trigger("#openBtn");
       }
     } else if (kl === "d") {
