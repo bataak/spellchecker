@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.9](https://github.com/bataak/spellchecker/compare/v1.26.8...v1.26.9) (2026-07-01)
+
+
+### Bug Fixes
+
+* move placeholder out of editor-wrap so it fades in place without shifting when error panel opens ([025b378](https://github.com/bataak/spellchecker/commit/025b378d99782444911b436ae82335e709293601))
+
 ## [1.26.8](https://github.com/bataak/spellchecker/compare/v1.26.7...v1.26.8) (2026-07-01)
 
 
