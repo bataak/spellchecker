@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.3](https://github.com/bataak/spellchecker/compare/v1.26.2...v1.26.3) (2026-07-01)
+
+
+### Bug Fixes
+
+* open file synchronously on Ctrl+O in Firefox to preserve user activation ([20e9c71](https://github.com/bataak/spellchecker/commit/20e9c7108d5405e55c466770b6567870164d6d63))
+
 ## [1.26.2](https://github.com/bataak/spellchecker/compare/v1.26.1...v1.26.2) (2026-07-01)
 
 
