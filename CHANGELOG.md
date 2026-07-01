@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.26.1](https://github.com/bataak/spellchecker/compare/v1.26.0...v1.26.1) (2026-07-01)
+
+
+### Bug Fixes
+
+* ignore soft hyphen (U+00AD) via IGNORE directive ([db184dc](https://github.com/bataak/spellchecker/commit/db184dca92c72e5952d95d6aacddd7ea97dd55a5))
+* treat soft hyphen (U+00AD) as word-continuation in tokenizer ([b16ca1e](https://github.com/bataak/spellchecker/commit/b16ca1e3b9ec3de9cf85664e877b07384c460dd1))
+
 ## [1.26.0](https://github.com/bataak/spellchecker/compare/v1.25.0...v1.26.0) (2026-06-29)
 
 
