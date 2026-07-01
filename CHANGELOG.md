@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.8](https://github.com/bataak/spellchecker/compare/v1.26.7...v1.26.8) (2026-07-01)
+
+
+### Bug Fixes
+
+* hide placeholder on first character instead of waiting for separator input ([7fbc0b8](https://github.com/bataak/spellchecker/commit/7fbc0b8b392579f04f88942c1d4c344ee13dfa72))
+
 ## [1.26.7](https://github.com/bataak/spellchecker/compare/v1.26.6...v1.26.7) (2026-07-01)
 
 
