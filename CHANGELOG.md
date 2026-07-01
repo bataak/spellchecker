@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.2](https://github.com/bataak/spellchecker/compare/v1.26.1...v1.26.2) (2026-07-01)
+
+
+### Bug Fixes
+
+* suppress empty-state placeholder flash on reload ([216b01f](https://github.com/bataak/spellchecker/commit/216b01f2b1a3acd4e07291e63e01c20ed3342701))
+
 ## [1.26.1](https://github.com/bataak/spellchecker/compare/v1.26.0...v1.26.1) (2026-07-01)
 
 
