@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.4](https://github.com/bataak/spellchecker/compare/v1.26.3...v1.26.4) (2026-07-01)
+
+
+### Bug Fixes
+
+* remove booting class in main.js as fallback to restore placeholder ([c84fabc](https://github.com/bataak/spellchecker/commit/c84fabc4eaef00db830bf4975c44627185d442cc))
+
 ## [1.26.3](https://github.com/bataak/spellchecker/compare/v1.26.2...v1.26.3) (2026-07-01)
 
 
