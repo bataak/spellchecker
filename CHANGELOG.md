@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.6](https://github.com/bataak/spellchecker/compare/v1.26.5...v1.26.6) (2026-07-01)
+
+
+### Bug Fixes
+
+* defer booting class removal until after text restore to stop placeholder flash on refresh ([33ff248](https://github.com/bataak/spellchecker/commit/33ff248a2a9b54b20d44021f41c1e5709fdc58d3))
+
 ## [1.26.5](https://github.com/bataak/spellchecker/compare/v1.26.4...v1.26.5) (2026-07-01)
 
 
