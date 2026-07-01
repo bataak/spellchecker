@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.7](https://github.com/bataak/spellchecker/compare/v1.26.6...v1.26.7) (2026-07-01)
+
+
+### Bug Fixes
+
+* call file input click before decorative trigger to preserve user activation on Ctrl+O ([1442497](https://github.com/bataak/spellchecker/commit/1442497433eb51dc7fec55b2eea00abe54cda5d3))
+
 ## [1.26.6](https://github.com/bataak/spellchecker/compare/v1.26.5...v1.26.6) (2026-07-01)
 
 
