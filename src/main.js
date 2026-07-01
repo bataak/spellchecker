@@ -5,7 +5,6 @@ import { initToolbar } from "./toolbar.js";
 import { initAppearance } from "./appearance.js";
 
 document.body.classList.add("ready");
-document.documentElement.classList.remove("booting");
 
 const els = {
   status: document.querySelector("#statusText"),
@@ -1015,6 +1014,7 @@ async function boot() {
   setStatus("Hunspell ачаалж байна…");
   loadText();
   render();
+  document.documentElement.classList.remove("booting");
   els.editor.focus();
   try {
     const { loaded, failed, fallbackReason, mnVersion } = await checker.init(
@@ -1118,6 +1118,10 @@ desktopMQ.addEventListener("change", () => {
 });
 
 boot();
+
+setTimeout(() => {
+  document.documentElement.classList.remove("booting");
+}, 2000);
 
 initToolbar({
   els,
