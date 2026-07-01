@@ -24,6 +24,7 @@ LANG mn_MN
 SET UTF-8
 TRY аоөийубвгцхдтжчзүьэлмныёеъсшяюрпфкщАОӨИЙУБВГЦХДТЖЧЗҮЬЭЛМНЫЁЕЪСШЯЮРПФКЩ
 FLAG long
+IGNORE ­
 
 FULLSTRIP
 NOSUGGEST --
