@@ -5,6 +5,7 @@ import { initToolbar } from "./toolbar.js";
 import { initAppearance } from "./appearance.js";
 
 document.body.classList.add("ready");
+document.documentElement.classList.remove("booting");
 
 const els = {
   status: document.querySelector("#statusText"),
