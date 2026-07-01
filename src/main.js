@@ -861,10 +861,10 @@ initFileIO({ els, flash, setEditorText, hidePopover, render, saveText });
       trigger("#saveBtn");
     } else if (kl === "o") {
       e.preventDefault();
-      const openFileEl = document.querySelector("#openFile");
-      if (!window.showOpenFilePicker && openFileEl) {
+      if (!window.showOpenFilePicker) {
+        const openFileEl = document.querySelector("#openFile");
+        if (openFileEl) openFileEl.click();
         trigger("#openBtn", false);
-        openFileEl.click();
       } else {
         trigger("#openBtn");
       }
