@@ -89,7 +89,7 @@ export class MultiSpellChecker {
   }
 }
 
-const WORD_RE = /[\p{L}\p{M}\p{N}][\p{L}\p{M}\p{N}'\u2019\u2013\u2014-]*/gu;
+const WORD_RE = /[\p{L}\p{M}\p{N}][\p{L}\p{M}\p{N}'\u2019\u2013\u2014\u00AD-]*/gu;
 export function* tokenize(text) {
   WORD_RE.lastIndex = 0;
   let m;
