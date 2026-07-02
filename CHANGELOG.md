@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.12](https://github.com/bataak/spellchecker/compare/v1.26.11...v1.26.12) (2026-07-02)
+
+
+### Bug Fixes
+
+* remove redundant dict runtimeCaching route ([cd9e191](https://github.com/bataak/spellchecker/commit/cd9e1919771b9e6c5d20f9490b96c91b3c9f530f))
+
 ## [1.26.11](https://github.com/bataak/spellchecker/compare/v1.26.10...v1.26.11) (2026-07-02)
 
 
