@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.11](https://github.com/bataak/spellchecker/compare/v1.26.10...v1.26.11) (2026-07-02)
+
+
+### Bug Fixes
+
+* restore paste fallback hint on newer ios ([0c24ae3](https://github.com/bataak/spellchecker/commit/0c24ae34debfe104b94180010d855af7ceb35205))
+
 ## [1.26.10](https://github.com/bataak/spellchecker/compare/v1.26.9...v1.26.10) (2026-07-02)
 
 
