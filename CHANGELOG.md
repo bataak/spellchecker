@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.26.14](https://github.com/bataak/spellchecker/compare/v1.26.13...v1.26.14) (2026-07-02)
+
+
+### Bug Fixes
+
+* detect gzip by magic bytes, not filename ([7f0a987](https://github.com/bataak/spellchecker/commit/7f0a9873bbc4a1c49f3abf90182fd81dcc9a880f))
+* fail safe when a gz dictionary is missing or malformed ([dbd72e9](https://github.com/bataak/spellchecker/commit/dbd72e9bfc9865d73918ffa10dde10a195ec23aa))
+
 ## [1.26.13](https://github.com/bataak/spellchecker/compare/v1.26.12...v1.26.13) (2026-07-02)
 
 
