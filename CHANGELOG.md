@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.13](https://github.com/bataak/spellchecker/compare/v1.26.12...v1.26.13) (2026-07-02)
+
+
+### Bug Fixes
+
+* load dicts from precache with ignoreSearch offline ([b5df2d1](https://github.com/bataak/spellchecker/commit/b5df2d13a2fbda0574624233f58f9e4a730b6393))
+
 ## [1.26.12](https://github.com/bataak/spellchecker/compare/v1.26.11...v1.26.12) (2026-07-02)
 
 
