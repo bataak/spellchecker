@@ -80,6 +80,7 @@ function initButtons({
     render();
     saveText();
   });
+
   function insertAtCaret(text) {
     let start = els.editor.selectionStart;
     let end = els.editor.selectionEnd;
@@ -97,17 +98,14 @@ function initButtons({
       if (navigator.clipboard && navigator.clipboard.readText) {
         const text = await navigator.clipboard.readText();
         if (text) insertAtCaret(text);
-        else els.editor.focus();
+        else if (!isTouch()) els.editor.focus();
         return;
       }
       throw new Error("no-api");
     } catch (_) {
+      if (isTouch()) return;
       els.editor.focus();
-      if (isTouch())
-        setStatus(
-          "Талбар дотор товшиход гарах <b>Paste</b> цэсийг ашиглан буулгана уу",
-        );
-      else flash("#pasteBtn", "Ctrl+V");
+      flash("#pasteBtn", "Ctrl+V");
     }
   });
 
@@ -119,7 +117,6 @@ function initButtons({
     let armed = false;
     let prevStatus = "";
     let revertTimer = null;
-
     const showStatus = (msg) => {
       setStatus(msg);
       clearTimeout(revertTimer);
@@ -127,7 +124,6 @@ function initButtons({
         if (els.status.innerHTML === msg) setStatus(prevStatus, false);
       }, 1600);
     };
-
     btn.addEventListener("pointerdown", () => {
       clearTimeout(timer);
       armed = false;
@@ -143,7 +139,6 @@ function initButtons({
     btn.addEventListener("pointercancel", clear);
     btn.addEventListener("pointerleave", clear);
     btn.addEventListener("contextmenu", (e) => e.preventDefault());
-
     btn.addEventListener("click", async () => {
       if (armed) {
         armed = false;
