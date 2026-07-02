@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.10](https://github.com/bataak/spellchecker/compare/v1.26.9...v1.26.10) (2026-07-02)
+
+
+### Bug Fixes
+
+* restore native paste callout over paste button ([83bbe30](https://github.com/bataak/spellchecker/commit/83bbe30e0743348a070230b9faad084c169dd28c))
+
 ## [1.26.9](https://github.com/bataak/spellchecker/compare/v1.26.8...v1.26.9) (2026-07-01)
 
 
