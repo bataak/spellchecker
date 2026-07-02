@@ -25,8 +25,6 @@ async function fetchGzText(url) {
   if (!res.ok) throw new Error(url + " -> " + res.status);
   const buf = new Uint8Array(await res.arrayBuffer());
   const gz = buf.length > 1 && buf[0] === 0x1f && buf[1] === 0x8b;
-  if (/\.gz(\?|$)/.test(url) && !gz)
-    throw new Error(url + " -> gzip биш (" + buf.length + "B)");
   if (!gz) return decoder.decode(buf);
   if (typeof DecompressionStream === "function") {
     const stream = new Blob([buf])
