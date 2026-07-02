@@ -12,8 +12,16 @@ const PRIMARY = "mn_MN";
 let BASE = "/";
 const asset = (p) => (BASE + p).replace(/([^:])\/{2,}/g, "$1/");
 
+async function getResponse(url) {
+  try {
+    const cached = await caches.match(url, { ignoreSearch: true });
+    if (cached) return cached;
+  } catch {}
+  return fetch(url);
+}
+
 async function fetchGzText(url) {
-  const res = await fetch(url);
+  const res = await getResponse(url);
   if (!res.ok) throw new Error(url + " -> " + res.status);
   const buf = new Uint8Array(await res.arrayBuffer());
   const gz = buf.length > 1 && buf[0] === 0x1f && buf[1] === 0x8b;
@@ -40,7 +48,7 @@ async function loadManifest() {
     }
     return out;
   }
-  const res = await fetch(asset("dict/dict-manifest.json"));
+  const res = await getResponse(asset("dict/dict-manifest.json"));
   if (!res.ok) throw new Error("dict-manifest.json -> " + res.status);
   const data = await res.json();
   const out = {};
