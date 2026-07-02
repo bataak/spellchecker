@@ -74,18 +74,6 @@ export default defineConfig({
         clientsClaim: true,
         skipWaiting: true,
         maximumFileSizeToCacheInBytes: 20 * 1024 * 1024,
-
-        runtimeCaching: [
-          {
-            urlPattern: new RegExp(`${base}dict/`),
-            handler: "CacheFirst",
-            options: {
-              cacheName: "dict-cache",
-              cacheableResponse: { statuses: [0, 200] },
-              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
-            },
-          },
-        ],
       },
       manifest: {
         name: "Монгол үгийн алдаа шалгагч",
