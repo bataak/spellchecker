@@ -98,14 +98,17 @@ function initButtons({
       if (navigator.clipboard && navigator.clipboard.readText) {
         const text = await navigator.clipboard.readText();
         if (text) insertAtCaret(text);
-        else if (!isTouch()) els.editor.focus();
+        else els.editor.focus();
         return;
       }
       throw new Error("no-api");
     } catch (_) {
-      if (isTouch()) return;
       els.editor.focus();
-      flash("#pasteBtn", "Ctrl+V");
+      if (isTouch())
+        setStatus(
+          "Талбар дотор удаан дарахад гарах <b>Paste</b> цэсийг ашиглан буулгана уу",
+        );
+      else flash("#pasteBtn", "Ctrl+V");
     }
   });
 
