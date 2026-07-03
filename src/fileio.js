@@ -1,11 +1,14 @@
 export function initFileIO({
   els,
   flash,
+  setStatus,
   setEditorText,
   hidePopover,
   render,
   saveText,
 }) {
+  const MAX_OPEN_BYTES = 10 * 1024 * 1024;
+  const BIG_NOTICE_BYTES = 2 * 1024 * 1024;
   const hasFSSave = "showSaveFilePicker" in window;
   const hasFSOpen = "showOpenFilePicker" in window;
   let currentFileHandle = null;
@@ -143,6 +146,7 @@ export function initFileIO({
             multiple: false,
           });
           const file = await handle.getFile();
+          if (!sizeOk(file)) return;
           await loadFileContent(await file.text(), file.name, handle);
         } catch (e) {
           if (e && e.name !== "AbortError") flash("#openBtn", "Боломжгүй");
@@ -154,6 +158,10 @@ export function initFileIO({
     openFileEl.addEventListener("change", async () => {
       const f = openFileEl.files && openFileEl.files[0];
       if (!f) return;
+      if (!sizeOk(f)) {
+        openFileEl.value = "";
+        return;
+      }
       try {
         await loadFileContent(await readAsText(f), f.name, null);
       } catch (_) {
@@ -161,6 +169,27 @@ export function initFileIO({
       }
       openFileEl.value = "";
     });
+  }
+
+  function sizeOk(f) {
+    if (!f) return true;
+    if (f.size > MAX_OPEN_BYTES) {
+      setStatus(
+        "Файл хэт том (" +
+          toMb(f.size) +
+          " MB) — 10 MB-аас бага бичвэрэн файл ачаална уу",
+      );
+      flash("#openBtn", "Хэт том");
+      return false;
+    }
+    if (f.size > BIG_NOTICE_BYTES) {
+      setStatus("Том файл (" + toMb(f.size) + " MB) — шалгалт удаж болно");
+    }
+    return true;
+  }
+
+  function toMb(bytes) {
+    return (bytes / (1024 * 1024)).toFixed(1);
   }
 
   function dragHasFiles(e) {
@@ -202,6 +231,7 @@ export function initFileIO({
         ? await handle.getFile()
         : dt && dt.files && dt.files[0];
       if (!isTextFile(f)) return;
+      if (!sizeOk(f)) return;
       await loadFileContent(await readAsText(f), f.name, handle);
     } catch (_) {}
   });

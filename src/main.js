@@ -3,6 +3,19 @@ import { MultiSpellChecker, tokenize, DICTIONARIES } from "./spellchecker.js";
 import { initFileIO } from "./fileio.js";
 import { initToolbar } from "./toolbar.js";
 import { initAppearance } from "./appearance.js";
+import { escapeHtml } from "./htmlutil.js";
+import {
+  initDraftStorage,
+  saveDraft,
+  flushDraft,
+  loadDraft,
+} from "./storage.js";
+import {
+  initBackdrop,
+  renderBackdrop,
+  refreshBackdropMarks,
+  materializeMark,
+} from "./backdrop.js";
 
 document.body.classList.add("ready");
 
@@ -20,6 +33,7 @@ const panelEls = {
   title: document.querySelector("#errorPanelTitle"),
 };
 const desktopMQ = window.matchMedia("(min-width: 1024px)");
+initBackdrop(els.backdrop);
 
 const checker = new MultiSpellChecker();
 const cache = new Map();
@@ -38,9 +52,6 @@ const setStatus = (html, animate = true) => {
   void els.status.offsetWidth;
   els.status.classList.add("status-reveal");
 };
-const escapeHtml = (s) =>
-  s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
-
 function isCorrect(word) {
   return cache.has(word) ? cache.get(word) : true;
 }
@@ -186,7 +197,7 @@ async function render() {
 
   if (!ready) {
     badTokens = [];
-    els.backdrop.innerHTML = escapeHtml(text) + "\n";
+    renderBackdrop(text, []);
     syncScroll();
     if (panelEls.list) panelEls.list.innerHTML = "";
     if (panelEls.copy) panelEls.copy.disabled = true;
@@ -201,20 +212,7 @@ async function render() {
   const { bad, total } = computeBad(text);
   badTokens = bad;
 
-  let html = "";
-  let cursor = 0;
-  for (const t of bad) {
-    html += escapeHtml(text.slice(cursor, t.start));
-    html +=
-      '<mark data-start="' +
-      t.start +
-      '">' +
-      escapeHtml(text.slice(t.start, t.end)) +
-      "</mark>";
-    cursor = t.end;
-  }
-  html += escapeHtml(text.slice(cursor)) + "\n";
-  els.backdrop.innerHTML = html;
+  renderBackdrop(text, bad);
   syncScroll();
   renderErrorPanel();
 
@@ -300,6 +298,7 @@ function bringWordIntoView() {
 }
 
 function scrollMarkIntoView(start) {
+  materializeMark(start);
   const mark = els.backdrop.querySelector('mark[data-start="' + start + '"]');
   if (!mark) return;
   const er = els.editor.getBoundingClientRect();
@@ -415,9 +414,11 @@ function placePopover() {
 }
 
 async function showPopoverFor(t) {
+  materializeMark(t.start);
   let mark = els.backdrop.querySelector('mark[data-start="' + t.start + '"]');
   if (!mark) {
     await render();
+    materializeMark(t.start);
     mark = els.backdrop.querySelector('mark[data-start="' + t.start + '"]');
   }
   if (!mark) {
@@ -560,31 +561,28 @@ els.editor.addEventListener("beforeinput", () => {
     : null;
 });
 
-const STORAGE_KEY = "mn-spell:text";
 const CARET_KEY = "mn-spell:caret";
 let storageWarned = false;
-function saveText() {
-  try {
-    localStorage.setItem(STORAGE_KEY, els.editor.value);
-    storageWarned = false;
-    try {
-      const s = els.editor.selectionStart;
-      const e = els.editor.selectionEnd;
-      if (s != null) localStorage.setItem(CARET_KEY, s + "," + e);
-    } catch (_) {}
-  } catch (_) {
-    if (!storageWarned) {
-      storageWarned = true;
-      setStatus(
-        "Анхаар: бичвэр хэт том тул автоматаар хадгалагдсангүй — " +
-          "хаахаасаа өмнө файл болгож хадгална уу",
-      );
-    }
-  }
+function warnStorageFailure() {
+  if (storageWarned) return;
+  storageWarned = true;
+  setStatus(
+    "Анхаар: бичвэр автоматаар хадгалагдсангүй — " +
+      "хаахаасаа өмнө файл болгож хадгална уу",
+  );
 }
-function loadText() {
+initDraftStorage({ onError: warnStorageFailure });
+function saveText() {
+  saveDraft(els.editor.value);
   try {
-    const t = localStorage.getItem(STORAGE_KEY);
+    const s = els.editor.selectionStart;
+    const e = els.editor.selectionEnd;
+    if (s != null) localStorage.setItem(CARET_KEY, s + "," + e);
+  } catch (_) {}
+}
+async function loadText() {
+  try {
+    const t = await loadDraft();
     if (t != null) els.editor.value = t;
     const c = localStorage.getItem(CARET_KEY);
     if (c != null) {
@@ -607,9 +605,15 @@ function saveTextSoon() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(saveText, 400);
 }
-window.addEventListener("pagehide", saveText);
+window.addEventListener("pagehide", () => {
+  saveText();
+  flushDraft();
+});
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden") saveText();
+  if (document.visibilityState === "hidden") {
+    saveText();
+    flushDraft();
+  }
 });
 
 let programmaticEdit = false;
@@ -699,8 +703,16 @@ els.editor.addEventListener("blur", () => {
     end: els.editor.selectionEnd,
   };
 });
+let marksRefreshQueued = false;
 els.editor.addEventListener("scroll", () => {
   syncScroll();
+  if (!marksRefreshQueued) {
+    marksRefreshQueued = true;
+    requestAnimationFrame(() => {
+      marksRefreshQueued = false;
+      refreshBackdropMarks();
+    });
+  }
   if (
     !els.popover.hidden &&
     Math.abs(els.editor.scrollTop - popoverScrollTop) > 20
@@ -837,7 +849,7 @@ if (verEl) {
     verEl.textContent = expanded ? verEl.dataset.short : verEl.dataset.full;
   });
 }
-initFileIO({ els, flash, setEditorText, hidePopover, render, saveText });
+initFileIO({ els, flash, setStatus, setEditorText, hidePopover, render, saveText });
 
 (function setupShortcuts() {
   const isDesktop =
@@ -1049,7 +1061,7 @@ async function runOfflineReadyIndicator() {
     if (idle()) setStatus(msg, animate);
   };
 
-  if (!offlineCapable()) {
+  if (import.meta.env.DEV || !offlineCapable()) {
     if (idle()) setStatus(baseStatus);
     return;
   }
@@ -1083,7 +1095,7 @@ async function boot() {
     );
   };
   setStatus("Hunspell ачаалж байна…");
-  loadText();
+  await loadText();
   render();
   document.documentElement.classList.remove("booting");
   els.editor.focus();
