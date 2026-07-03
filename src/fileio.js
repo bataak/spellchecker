@@ -21,17 +21,17 @@ export function initFileIO({
   }
 
   function stampName() {
-    const d = new Date(Date.now() + 8 * 60 * 60 * 1000);
+    const d = new Date();
     const p = (n) => String(n).padStart(2, "0");
     const ts =
-      d.getUTCFullYear() +
+      d.getFullYear() +
       "-" +
-      p(d.getUTCMonth() + 1) +
+      p(d.getMonth() + 1) +
       "-" +
-      p(d.getUTCDate()) +
+      p(d.getDate()) +
       "-" +
-      p(d.getUTCHours()) +
-      p(d.getUTCMinutes());
+      p(d.getHours()) +
+      p(d.getMinutes());
     const isMobile =
       window.matchMedia && window.matchMedia("(max-width: 700px)").matches;
     return (isMobile ? "" : "бичвэр-") + ts + ".txt";
@@ -197,9 +197,11 @@ export function initFileIO({
         if (h && h.kind === "file") handle = h;
       } catch (_) {}
     }
-    const f = handle ? await handle.getFile() : dt && dt.files && dt.files[0];
-    if (!isTextFile(f)) return;
     try {
+      const f = handle
+        ? await handle.getFile()
+        : dt && dt.files && dt.files[0];
+      if (!isTextFile(f)) return;
       await loadFileContent(await readAsText(f), f.name, handle);
     } catch (_) {}
   });

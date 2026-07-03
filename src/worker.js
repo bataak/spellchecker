@@ -216,17 +216,25 @@ self.onmessage = async (e) => {
 
   if (msg.type === "check") {
     const out = {};
-    for (const w of msg.words) out[w] = isCorrect(w);
+    for (const w of msg.words) {
+      try {
+        out[w] = isCorrect(w);
+      } catch (_) {
+        out[w] = true;
+      }
+    }
     self.postMessage({ type: "check", id: msg.id, results: out });
     return;
   }
 
   if (msg.type === "suggest") {
-    self.postMessage({
-      type: "suggest",
-      id: msg.id,
-      suggestions: suggest(msg.word),
-    });
+    let suggestions = [];
+    try {
+      suggestions = suggest(msg.word) || [];
+    } catch (_) {
+      suggestions = [];
+    }
+    self.postMessage({ type: "suggest", id: msg.id, suggestions });
     return;
   }
 };

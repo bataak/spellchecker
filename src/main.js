@@ -20,7 +20,6 @@ const panelEls = {
   title: document.querySelector("#errorPanelTitle"),
 };
 const desktopMQ = window.matchMedia("(min-width: 1024px)");
-let errorWords = [];
 
 const checker = new MultiSpellChecker();
 const cache = new Map();
@@ -187,7 +186,6 @@ async function render() {
 
   if (!ready) {
     badTokens = [];
-    errorWords = [];
     els.backdrop.innerHTML = escapeHtml(text) + "\n";
     syncScroll();
     if (panelEls.list) panelEls.list.innerHTML = "";
@@ -331,12 +329,8 @@ function buildErrorList(tokens) {
 
 function renderErrorPanel() {
   if (!panelEls.list) return;
-  if (!desktopMQ.matches) {
-    errorWords = [];
-    return;
-  }
+  if (!desktopMQ.matches) return;
   const items = buildErrorList(badTokens);
-  errorWords = items.map((t) => t.word);
   if (!items.length) {
     if (panelEls.title) panelEls.title.textContent = "Алдаагүй";
     panelEls.list.innerHTML = "";
@@ -477,10 +471,20 @@ async function maybePropagateManual() {
   }
   const text = els.editor.value;
   const pos = els.editor.selectionStart;
-  const w = wordAtCaret(text, pos);
+  let w = null;
+  if (pos > 0 && /[\s\p{P}\p{S}]/u.test(text.charAt(pos - 1))) {
+    const prev = wordAtCaret(text, pos - 1);
+    if (prev && prev.end === pos - 1) w = prev;
+  }
+  if (!w) w = wordAtCaret(text, pos);
   if (!w) return;
+  if (w.start !== pendingFix.start) {
+    pendingFix = null;
+    return;
+  }
   const lower = w.word.toLowerCase();
   if (lower === pendingFix.original) return;
+  if (pendingFix.original.length - w.word.length > 2) return;
   if (!(await correctNow(w.word))) return;
   const original = pendingFix.original;
   const primaryPattern = pendingFix.originalPattern || "lower";
@@ -544,25 +548,39 @@ function isSeparatorInput(e) {
 const deferredCheck = debounce(() => recheck(), 1500);
 
 els.editor.addEventListener("beforeinput", () => {
+  if (programmaticEdit) return;
   const t = tokenAtCaret();
   pendingFix = t
     ? {
         original: t.word.toLowerCase(),
         originalPattern: casePattern(t.word),
         dashSuffix: isDashSuffix(els.editor.value, t),
+        start: t.start,
       }
     : null;
 });
 
 const STORAGE_KEY = "mn-spell:text";
 const CARET_KEY = "mn-spell:caret";
+let storageWarned = false;
 function saveText() {
   try {
     localStorage.setItem(STORAGE_KEY, els.editor.value);
-    const s = els.editor.selectionStart;
-    const e = els.editor.selectionEnd;
-    if (s != null) localStorage.setItem(CARET_KEY, s + "," + e);
-  } catch (_) {}
+    storageWarned = false;
+    try {
+      const s = els.editor.selectionStart;
+      const e = els.editor.selectionEnd;
+      if (s != null) localStorage.setItem(CARET_KEY, s + "," + e);
+    } catch (_) {}
+  } catch (_) {
+    if (!storageWarned) {
+      storageWarned = true;
+      setStatus(
+        "Анхаар: бичвэр хэт том тул автоматаар хадгалагдсангүй — " +
+          "хаахаасаа өмнө файл болгож хадгална уу",
+      );
+    }
+  }
 }
 function loadText() {
   try {
@@ -596,6 +614,7 @@ document.addEventListener("visibilitychange", () => {
 
 let programmaticEdit = false;
 function setEditorText(newText, caret) {
+  pendingFix = null;
   const old = els.editor.value;
   els.editor.focus({ preventScroll: true });
   if (old === newText) {
@@ -639,6 +658,7 @@ function setEditorText(newText, caret) {
   }
 }
 function insertEditorText(text, start, end) {
+  pendingFix = null;
   els.editor.focus({ preventScroll: true });
   try {
     els.editor.setSelectionRange(start, end);
@@ -673,6 +693,7 @@ els.editor.addEventListener("input", (e) => {
 });
 let lastCaret = null;
 els.editor.addEventListener("blur", () => {
+  pendingFix = null;
   lastCaret = {
     start: els.editor.selectionStart,
     end: els.editor.selectionEnd,
@@ -690,6 +711,7 @@ els.editor.addEventListener("scroll", () => {
   }
 });
 els.editor.addEventListener("click", () => {
+  pendingFix = null;
   if (suppressNextClick) {
     suppressNextClick = false;
     return;
@@ -705,7 +727,10 @@ els.editor.addEventListener("keyup", (e) => {
     "Home",
     "End",
   ];
-  if (nav.indexOf(e.key) !== -1) suggestAtCaret();
+  if (nav.indexOf(e.key) !== -1) {
+    pendingFix = null;
+    suggestAtCaret();
+  }
 });
 
 let suppressNextClick = false;
@@ -830,7 +855,7 @@ initFileIO({ els, flash, setEditorText, hidePopover, render, saveText });
   const shiftSym = isMac ? "⇧" : "Shift+";
 
   [
-    ["#clearBtn", mod + "D"],
+    ["#clearBtn", mod + shiftSym + "⌫"],
     ["#pasteBtn", mod + "V"],
     ["#copyBtn", mod + "C"],
     ["#copyErrorsBtn", mod + "E"],
@@ -866,6 +891,11 @@ initFileIO({ els, flash, setEditorText, hidePopover, render, saveText });
       if (kl === "d") {
         e.preventDefault();
         trigger("#themeBtn");
+        return;
+      }
+      if (k === "Backspace") {
+        e.preventDefault();
+        trigger("#clearBtn");
         return;
       }
       if (k === "+") {
@@ -905,9 +935,6 @@ initFileIO({ els, flash, setEditorText, hidePopover, render, saveText });
         e.preventDefault();
         trigger("#openBtn");
       }
-    } else if (kl === "d") {
-      e.preventDefault();
-      trigger("#clearBtn");
     } else if (kl === "e") {
       e.preventDefault();
       trigger("#copyErrorsBtn");
@@ -1004,7 +1031,7 @@ function dictStatusMessage(loaded, failed, fallbackReason) {
   if (failed && failed.length) {
     msg +=
       ' <span class="muted">(олдсонгүй: ' +
-      failed.map((f) => f.id).join(", ") +
+      failed.map((f) => escapeHtml(String(f.id))).join(", ") +
       ")</span>";
   }
   if (fallbackReason) {
@@ -1048,6 +1075,13 @@ async function runOfflineReadyIndicator() {
 
 async function boot() {
   requestDurableStorage();
+  checker.onFatal = (reason) => {
+    setStatus(
+      "Алдаа шалгагч зогслоо: " +
+        escapeHtml(String(reason)) +
+        " — хуудсыг дахин ачаална уу",
+    );
+  };
   setStatus("Hunspell ачаалж байна…");
   loadText();
   render();
@@ -1083,7 +1117,8 @@ async function boot() {
     });
   } catch (e) {
     setStatus(
-      "Ачаалахад алдаа гарлаа: " + (e && e.message ? e.message : String(e)),
+      "Ачаалахад алдаа гарлаа: " +
+        escapeHtml(e && e.message ? e.message : String(e)),
     );
   }
 }
@@ -1116,6 +1151,7 @@ if (panelEls.list) {
     const start = Number(btn.getAttribute("data-start"));
     const t = badTokens.find((x) => x.start === start);
     if (!t) return;
+    pendingFix = null;
     els.editor.focus({ preventScroll: true });
     try {
       els.editor.setSelectionRange(t.start, t.end, "forward");
@@ -1134,9 +1170,10 @@ if (panelEls.copy) {
     'stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
   let copyTimer = null;
   panelEls.copy.addEventListener("click", async () => {
-    if (!errorWords.length) return;
+    const words = buildErrorList(badTokens).map((t) => t.word);
+    if (!words.length) return;
     try {
-      await copyText(errorWords.join("\n"));
+      await copyText(words.join("\n"));
       panelEls.copy.classList.add("copied");
       panelEls.copy.innerHTML = checkIcon;
       clearTimeout(copyTimer);
@@ -1171,4 +1208,5 @@ initToolbar({
   isTouch,
   buildErrorList,
   getBadTokens: () => badTokens,
+  copyText,
 });
