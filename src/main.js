@@ -34,7 +34,6 @@ let pendingFix = null;
 const labelOf = (id) =>
   (DICTIONARIES.find((d) => d.id === id) || {}).label || id;
 const setStatus = (html, animate = true) => {
-  if (html.indexOf("Үгийн тоо") !== -1) animate = false;
   els.status.innerHTML = html;
   if (!animate) return;
   els.status.classList.remove("status-reveal");
@@ -227,7 +226,10 @@ async function render() {
       if (baseStatus && !offlineIndicatorActive) setStatus(baseStatus);
     } else {
       if (desktopMQ.matches) {
-        setStatus("Үгийн тоо: " + total + ", Нийт тэмдэгт: " + text.length);
+        setStatus(
+          "Үгийн тоо: " + total + ", Нийт тэмдэгт: " + text.length,
+          false,
+        );
       } else {
         setStatus(
           "Үгийн тоо: " +
@@ -236,6 +238,7 @@ async function render() {
             bad.length +
             "</b>, Нийт тэмдэгт: " +
             text.length,
+          false,
         );
       }
     }
@@ -767,6 +770,35 @@ function flash(sel, msg) {
   }, 1100);
 }
 
+function copyText(str) {
+  if (
+    navigator.clipboard &&
+    navigator.clipboard.writeText &&
+    window.isSecureContext
+  ) {
+    return navigator.clipboard.writeText(str);
+  }
+  return new Promise((resolve, reject) => {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = str;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.top = "-1000px";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      ta.setSelectionRange(0, str.length);
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      ok ? resolve() : reject(new Error("exec"));
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
 const verEl = document.querySelector("#appVersion");
 if (verEl) {
   const av = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "";
@@ -1106,7 +1138,7 @@ if (panelEls.copy) {
   panelEls.copy.addEventListener("click", async () => {
     if (!errorWords.length) return;
     try {
-      await navigator.clipboard.writeText(errorWords.join("\n"));
+      await copyText(errorWords.join("\n"));
       panelEls.copy.classList.add("copied");
       panelEls.copy.innerHTML = checkIcon;
       clearTimeout(copyTimer);
