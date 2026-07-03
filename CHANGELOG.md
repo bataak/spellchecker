@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.28.0](https://github.com/bataak/spellchecker/compare/v1.27.0...v1.28.0) (2026-07-03)
+
+
+### Features
+
+* two-tier draft storage, windowed rendering, revert status effect ([5d81cb0](https://github.com/bataak/spellchecker/commit/5d81cb0c735b7c224b660177b8e5b020f75061f0))
+
+
+### Bug Fixes
+
+* restore status reveal effect styles ([faf2d55](https://github.com/bataak/spellchecker/commit/faf2d5545eebbfb25daba522e3f23742faf6f324))
+
 ## [1.27.0](https://github.com/bataak/spellchecker/compare/v1.26.16...v1.27.0) (2026-07-03)
 
 
