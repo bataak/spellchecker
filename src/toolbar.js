@@ -69,12 +69,16 @@ function initButtons({
   isTouch,
   buildErrorList,
   getBadTokens,
+  copyText,
 }) {
   document.querySelector("#clearBtn").addEventListener("click", () => {
     if (!els.editor.value) {
       els.editor.focus();
       return;
     }
+    try {
+      localStorage.setItem("mn-spell:last-cleared", els.editor.value);
+    } catch (_) {}
     setEditorText("", 0);
     hidePopover();
     render();
@@ -108,7 +112,13 @@ function initButtons({
         setStatus(
           "Талбар дотор удаан дарахад гарах <b>Paste</b> цэсийг ашиглан буулгана уу",
         );
-      else flash("#pasteBtn", "Ctrl+V");
+      else {
+        const uaData = navigator.userAgentData;
+        const isMac =
+          /mac/i.test((uaData && uaData.platform) || "") ||
+          /Mac|iPhone|iPad|iPod/i.test(navigator.platform || "");
+        flash("#pasteBtn", isMac ? "⌘V" : "Ctrl+V");
+      }
     }
   });
 
@@ -163,32 +173,4 @@ function initButtons({
     });
   })();
 
-  function copyText(str) {
-    if (
-      navigator.clipboard &&
-      navigator.clipboard.writeText &&
-      window.isSecureContext
-    ) {
-      return navigator.clipboard.writeText(str);
-    }
-    return new Promise((resolve, reject) => {
-      try {
-        const ta = document.createElement("textarea");
-        ta.value = str;
-        ta.setAttribute("readonly", "");
-        ta.style.position = "fixed";
-        ta.style.top = "-1000px";
-        ta.style.opacity = "0";
-        document.body.appendChild(ta);
-        ta.focus();
-        ta.select();
-        ta.setSelectionRange(0, str.length);
-        const ok = document.execCommand("copy");
-        document.body.removeChild(ta);
-        ok ? resolve() : reject(new Error("exec"));
-      } catch (e) {
-        reject(e);
-      }
-    });
-  }
 }

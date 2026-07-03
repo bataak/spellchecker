@@ -15,7 +15,7 @@ entries=""
 for id in mn_MN en_GB en_US; do
   [ -f "$src/$id.aff" ] && [ -f "$src/$id.dic" ] || continue
 
-  ver=$(grep -m1 '^#\?[[:space:]]*Version:' "$src/$id.aff" | sed 's/^#\?[[:space:]]*Version:[[:space:]]*//')
+  ver=$(grep -m1 -E '^#?[[:space:]]*Version:' "$src/$id.aff" | sed -E 's/^#?[[:space:]]*Version:[[:space:]]*//')
   [ -z "$ver" ] && ver="0"
 
   slug=$(printf '%s' "$ver" | sed 's/[^A-Za-z0-9._-]/-/g; s/-\{2,\}/-/g; s/^-//; s/-$//')

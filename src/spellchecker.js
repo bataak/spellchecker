@@ -17,7 +17,34 @@ export class MultiSpellChecker {
     this._initHandler = null;
     this._restResolve = null;
     this.restReady = new Promise((r) => (this._restResolve = r));
+    this.dead = false;
+    this.onFatal = null;
     this.worker.onmessage = (e) => this._onMessage(e.data);
+    this.worker.onerror = (e) =>
+      this._fatal((e && e.message) || 'worker error');
+    this.worker.onmessageerror = () => this._fatal('worker message error');
+  }
+
+  _deadResult(type, payload) {
+    if (type === 'check') {
+      const results = {};
+      for (const w of payload.words) results[w] = true;
+      return { results };
+    }
+    return { suggestions: [] };
+  }
+
+  _fatal(reason) {
+    if (this.dead) return;
+    this.dead = true;
+    const pend = [...this._pending.values()];
+    this._pending.clear();
+    for (const p of pend) p.resolve(this._deadResult(p.type, p.payload));
+    if (!this.ready && this._initHandler) {
+      this._initHandler({ type: 'error', error: String(reason) });
+    } else if (this.onFatal) {
+      this.onFatal(String(reason));
+    }
   }
 
   _onMessage(msg) {
@@ -25,7 +52,7 @@ export class MultiSpellChecker {
       const p = this._pending.get(msg.id);
       if (p) {
         this._pending.delete(msg.id);
-        p(msg);
+        p.resolve(msg);
       }
       return;
     }
@@ -53,7 +80,11 @@ export class MultiSpellChecker {
           this.loadedIds = this.loadedIds.concat(msg.loaded);
           this._restResolve({ loaded: msg.loaded, failed: msg.failed });
         } else if (msg.type === 'error') {
-          reject(new Error(msg.error));
+          if (this.ready) {
+            if (this.onFatal) this.onFatal(String(msg.error));
+          } else {
+            reject(new Error(msg.error));
+          }
         }
       };
       this.worker.postMessage({ type: 'init', base });
@@ -65,15 +96,16 @@ export class MultiSpellChecker {
   }
 
   _rpc(type, payload) {
+    if (this.dead) return Promise.resolve(this._deadResult(type, payload));
     const id = ++this._seq;
     return new Promise((resolve) => {
-      this._pending.set(id, resolve);
+      this._pending.set(id, { resolve, type, payload });
       this.worker.postMessage({ type, id, ...payload });
     });
   }
 
   async checkWords(words) {
-    if (!this.ready || !words.length) {
+    if (!this.ready || this.dead || !words.length) {
       const r = {};
       for (const w of words) r[w] = true;
       return r;
@@ -83,9 +115,9 @@ export class MultiSpellChecker {
   }
 
   async suggest(word) {
-    if (!this.ready) return [];
+    if (!this.ready || this.dead) return [];
     const msg = await this._rpc('suggest', { word });
-    return msg.suggestions;
+    return msg.suggestions || [];
   }
 }
 
