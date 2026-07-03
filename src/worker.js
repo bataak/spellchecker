@@ -2,6 +2,22 @@ import { gunzipSync } from "fflate";
 
 const decoder = new TextDecoder("utf-8");
 
+if (!self.__cacheFirstFetch) {
+  self.__cacheFirstFetch = true;
+  const origFetch = self.fetch.bind(self);
+  self.fetch = async (input, init) => {
+    const url =
+      typeof input === "string" ? input : (input && input.url) || "";
+    if (url && (!init || init.method == null || init.method === "GET")) {
+      try {
+        const cached = await caches.match(url, { ignoreSearch: true });
+        if (cached) return cached;
+      } catch {}
+    }
+    return origFetch(input, init);
+  };
+}
+
 const DICTIONARIES = [
   { id: "mn_MN", label: "Монгол" },
   { id: "en_GB", label: "English (UK)" },
@@ -12,16 +28,8 @@ const PRIMARY = "mn_MN";
 let BASE = "/";
 const asset = (p) => (BASE + p).replace(/([^:])\/{2,}/g, "$1/");
 
-async function getResponse(url) {
-  try {
-    const cached = await caches.match(url, { ignoreSearch: true });
-    if (cached) return cached;
-  } catch {}
-  return fetch(url);
-}
-
 async function fetchGzText(url) {
-  const res = await getResponse(url);
+  const res = await fetch(url);
   if (!res.ok) throw new Error(url + " -> " + res.status);
   const buf = new Uint8Array(await res.arrayBuffer());
   const gz = buf.length > 1 && buf[0] === 0x1f && buf[1] === 0x8b;
@@ -48,7 +56,7 @@ async function loadManifest() {
     }
     return out;
   }
-  const res = await getResponse(asset("dict/dict-manifest.json"));
+  const res = await fetch(asset("dict/dict-manifest.json"));
   if (!res.ok) throw new Error("dict-manifest.json -> " + res.status);
   const data = await res.json();
   const out = {};
