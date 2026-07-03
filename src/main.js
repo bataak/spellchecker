@@ -172,9 +172,7 @@ function replaceAllWord(
 const DASHES = /[-\u2013\u2014]/;
 function isDashSuffix(text, t) {
   if (DASHES.test(t.word.slice(1))) return false;
-  return (
-    DASHES.test(t.word.charAt(0)) || DASHES.test(text.charAt(t.start - 1))
-  );
+  return DASHES.test(t.word.charAt(0)) || DASHES.test(text.charAt(t.start - 1));
 }
 function wordAtCaret(text, pos) {
   for (const { word, index } of tokenize(text)) {
@@ -539,10 +537,7 @@ function isSeparatorInput(e) {
   if (it === "insertText")
     return e.data != null && /[\s\p{P}\p{S}]/u.test(e.data);
   if (it === "insertLineBreak" || it === "insertParagraph") return true;
-  if (
-    it.indexOf("insertFromPaste") === 0 ||
-    it.indexOf("insertFromDrop") === 0
-  )
+  if (it.indexOf("insertFromPaste") === 0 || it.indexOf("insertFromDrop") === 0)
     return true;
   return false;
 }
@@ -752,8 +747,7 @@ function markAtPoint(x, y) {
   for (const m of marks) {
     const rects = m.getClientRects();
     for (const r of rects) {
-      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom)
-        return m;
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return m;
     }
   }
   return null;
@@ -849,7 +843,15 @@ if (verEl) {
     verEl.textContent = expanded ? verEl.dataset.short : verEl.dataset.full;
   });
 }
-initFileIO({ els, flash, setStatus, setEditorText, hidePopover, render, saveText });
+initFileIO({
+  els,
+  flash,
+  setStatus,
+  setEditorText,
+  hidePopover,
+  render,
+  saveText,
+});
 
 (function setupShortcuts() {
   const isDesktop =
@@ -970,8 +972,7 @@ initFileIO({ els, flash, setStatus, setEditorText, hidePopover, render, saveText
         : "";
       const editorFocused = document.activeElement === els.editor;
       const editorHasSelection =
-        editorFocused &&
-        els.editor.selectionStart !== els.editor.selectionEnd;
+        editorFocused && els.editor.selectionStart !== els.editor.selectionEnd;
       if (!pageSel && !editorHasSelection) {
         e.preventDefault();
         trigger("#copyBtn");
@@ -982,10 +983,7 @@ initFileIO({ els, flash, setStatus, setEditorText, hidePopover, render, saveText
 
 async function requestDurableStorage() {
   try {
-    if (
-      navigator.storage &&
-      typeof navigator.storage.persist === "function"
-    ) {
+    if (navigator.storage && typeof navigator.storage.persist === "function") {
       const already = navigator.storage.persisted
         ? await navigator.storage.persisted()
         : false;
