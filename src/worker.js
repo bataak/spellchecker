@@ -6,8 +6,7 @@ if (!self.__cacheFirstFetch) {
   self.__cacheFirstFetch = true;
   const origFetch = self.fetch.bind(self);
   self.fetch = async (input, init) => {
-    const url =
-      typeof input === "string" ? input : (input && input.url) || "";
+    const url = typeof input === "string" ? input : (input && input.url) || "";
     if (url && (!init || init.method == null || init.method === "GET")) {
       try {
         const cached = await caches.match(url, { ignoreSearch: true });

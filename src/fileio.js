@@ -82,7 +82,7 @@ export function initFileIO({
     if (currentFileName) {
       try {
         downloadText(text, currentFileName);
-        flash("#saveBtn", "Хадгаллаа");
+        flash("#saveBtn", "Хадгалав");
       } catch (_) {
         flash("#saveBtn", "Боломжгүй");
       }
@@ -175,15 +175,17 @@ export function initFileIO({
     if (!f) return true;
     if (f.size > MAX_OPEN_BYTES) {
       setStatus(
-        "Файл хэт том (" +
+        "Файл хэт том байна (" +
           toMb(f.size) +
-          " MB) — 10 MB-аас бага бичвэрэн файл ачаална уу",
+          " MB) — 10 мегабайтаас хэтэрч болохгүй",
       );
       flash("#openBtn", "Хэт том");
       return false;
     }
     if (f.size > BIG_NOTICE_BYTES) {
-      setStatus("Том файл (" + toMb(f.size) + " MB) — шалгалт удаж болно");
+      setStatus(
+        "Том файл (" + toMb(f.size) + " MB) уншиж буй тул шалгалт удна",
+      );
     }
     return true;
   }
