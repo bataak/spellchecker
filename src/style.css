@@ -140,44 +140,18 @@ h1 {
   min-width: 12ch;
 }
 
-@keyframes statusWordIn {
+@keyframes statusReveal {
   from {
     opacity: 0;
-    filter: blur(6px);
+    clip-path: inset(0 100% 0 0);
   }
   to {
     opacity: 1;
-    filter: none;
+    clip-path: inset(0 0 0 0);
   }
 }
-#statusText .sw {
-  display: inline-block;
-  animation: statusWordIn 420ms ease-out both;
-}
-@keyframes statusShimmer {
-  from {
-    background-position: 180% 0;
-  }
-  to {
-    background-position: -80% 0;
-  }
-}
-#statusText.shimmer {
-  background-image: linear-gradient(
-    100deg,
-    var(--muted) 42%,
-    var(--ink) 50%,
-    var(--muted) 58%
-  );
-  background-size: 250% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  animation: statusShimmer 1.25s ease-in-out both;
-}
-#statusText.shimmer,
-#statusText.shimmer * {
-  color: transparent;
-  background-color: transparent;
+#statusText.status-reveal {
+  animation: statusReveal 480ms ease-out;
 }
 .muted {
   color: var(--muted);
