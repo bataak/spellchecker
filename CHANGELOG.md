@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.26.16](https://github.com/bataak/spellchecker/compare/v1.26.15...v1.26.16) (2026-07-03)
+
+
+### Bug Fixes
+
+* do not flag cyrillic words when the mn dictionary is unavailable ([ac6ef36](https://github.com/bataak/spellchecker/commit/ac6ef3634a4412cda5e94692b0f1b52a07c2f3e4))
+
+
+### Performance Improvements
+
+* start mongolian checking as soon as mn_MN loads ([4d0dea2](https://github.com/bataak/spellchecker/commit/4d0dea29bdcdb5fd9ad6e14ab273531f88ce50e6))
+
 ## [1.26.15](https://github.com/bataak/spellchecker/compare/v1.26.14...v1.26.15) (2026-07-03)
 
 
