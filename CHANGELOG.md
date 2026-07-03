@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.27.0](https://github.com/bataak/spellchecker/compare/v1.26.16...v1.27.0) (2026-07-03)
+
+
+### Features
+
+* move clear shortcut to Ctrl+Shift+Backspace and harden core logic ([9fcdc42](https://github.com/bataak/spellchecker/commit/9fcdc42ef1122a2a373f7bf4d4c999d3f551be27))
+
 ## [1.26.16](https://github.com/bataak/spellchecker/compare/v1.26.15...v1.26.16) (2026-07-03)
 
 
