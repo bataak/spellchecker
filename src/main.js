@@ -25,7 +25,6 @@ let errorWords = [];
 const checker = new MultiSpellChecker();
 const cache = new Map();
 let ready = false;
-let allReady = false;
 let badTokens = [];
 let baseStatus = "";
 let offlineIndicatorActive = false;
@@ -186,7 +185,7 @@ async function render() {
     document.body.classList.toggle("has-text", text.length !== 0);
   }
 
-  if (!allReady) {
+  if (!ready) {
     badTokens = [];
     errorWords = [];
     els.backdrop.innerHTML = escapeHtml(text) + "\n";
@@ -1073,7 +1072,6 @@ async function boot() {
 
     checker.whenComplete().then((done) => {
       cache.clear();
-      allReady = true;
       baseStatus = dictStatusMessage(
         checker.loadedIds,
         [...(failed || []), ...done.failed],
