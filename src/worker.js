@@ -141,6 +141,7 @@ function isCorrect(word) {
   const cyr = /[\u0400-\u04FF\u1800-\u18AF]/.test(word);
   const lat = /[A-Za-z]/.test(word);
   if (lat && !cyr && !instances.some((i) => i.id.startsWith("en"))) return true;
+  if (cyr && !lat && !instances.some((i) => i.id.startsWith("mn"))) return true;
   return instances.some(({ inst }) => inst.spell(word));
 }
 
