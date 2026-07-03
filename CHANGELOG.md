@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.15](https://github.com/bataak/spellchecker/compare/v1.26.14...v1.26.15) (2026-07-03)
+
+
+### Bug Fixes
+
+* serve wasm from precache offline via cache-first fetch ([c00d4ba](https://github.com/bataak/spellchecker/commit/c00d4badbde8230b1a4316a5175033c7367bc073))
+
 ## [1.26.14](https://github.com/bataak/spellchecker/compare/v1.26.13...v1.26.14) (2026-07-02)
 
 
