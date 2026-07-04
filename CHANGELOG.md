@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.31.0](https://github.com/bataak/spellchecker/compare/v1.30.0...v1.31.0) (2026-07-04)
+
+
+### Features
+
+* add word suggestion form with Turnstile verification ([d6eccc8](https://github.com/bataak/spellchecker/commit/d6eccc85146a46c9fe495f1be579cb6348ed464e))
+* add word suggestion links to error panel and toolbar ([1a54a83](https://github.com/bataak/spellchecker/commit/1a54a8384a8b6735a32c4df54da241c1953fd3a0))
+
 ## [1.30.0](https://github.com/bataak/spellchecker/compare/v1.29.0...v1.30.0) (2026-07-04)
 
 
