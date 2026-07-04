@@ -1243,4 +1243,7 @@ initToolbar({
   copyText,
 });
 
-initSuggest();
+initSuggest({
+  buildErrorList,
+  getBadTokens: () => badTokens,
+});

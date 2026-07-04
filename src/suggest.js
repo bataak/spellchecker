@@ -2,12 +2,15 @@ const ENDPOINT = "https://api.bichig.dev/suggest";
 const SITEKEY = "0x4AAAAAADvk6t3Gsh_j1vH7";
 const WORD_RE = /^[\u0400-\u04FF][\u0400-\u04FF-]{1,49}$/u;
 const MAX_WORDS = 20;
+const PREFILL_MAX = 5;
+const ROOT_LEN = 4;
 
 let overlay = null;
 let widgetId = null;
 let scriptPromise = null;
 let busy = false;
 let words = [];
+let deps = {};
 
 function loadTurnstile() {
   if (window.turnstile) return Promise.resolve();
@@ -64,6 +67,22 @@ function renderChips() {
   });
 }
 
+function prefillFromErrors() {
+  words = [];
+  if (!deps.getBadTokens || !deps.buildErrorList) return;
+  const list = deps.buildErrorList(deps.getBadTokens());
+  const cyr = list.filter((t) => WORD_RE.test(t.word));
+  cyr.sort((a, b) => b.count - a.count);
+  const roots = new Set();
+  for (const t of cyr) {
+    if (words.length >= PREFILL_MAX) break;
+    const root = t.word.toLowerCase().slice(0, ROOT_LEN);
+    if (roots.has(root)) continue;
+    roots.add(root);
+    words.push(t.word);
+  }
+}
+
 function addFromInput(commit) {
   const wordEl = overlay.querySelector("#suggestWord");
   const parts = wordEl.value.split(/[\s,\u3001\uFF0C]+/);
@@ -109,16 +128,16 @@ function build() {
   overlay.innerHTML =
     '<div class="suggest-card" role="dialog" aria-modal="true" aria-labelledby="suggestTitle">' +
     '<h2 id="suggestTitle" class="suggest-title">\u0428\u0438\u043D\u044D \u04AF\u0433 \u0441\u0430\u043D\u0430\u043B \u0431\u043E\u043B\u0433\u043E\u0445</h2>' +
-    '<p class="suggest-hint">\u0410\u043B\u0434\u0430\u0430 \u0448\u0430\u043B\u0433\u0430\u0445 \u0442\u043E\u043B\u0438\u043D\u0434 \u0445\u0430\u0440\u0430\u0430\u0445\u0430\u043D \u0431\u04AF\u0440\u0442\u0433\u044D\u0433\u0434\u044D\u044D\u0433\u04AF\u0439 \u0448\u0438\u043D\u044D \u04AF\u0433\u0438\u0439\u0433 \u0438\u043B\u0433\u044D\u044D\u043C\u044D\u0433\u0446 \u0431\u0438\u0434 \u0445\u044F\u043D\u0430\u0436 \u04AF\u0437\u0441\u044D\u043D\u0438\u0439 \u0434\u0430\u0440\u0430\u0430 \u04AF\u0433\u0438\u0439\u043D \u0441\u0430\u043D\u0434 \u043D\u044D\u043C\u044D\u0445 \u0431\u043E\u043B\u043D\u043E.</p>' +
+    '<p class="suggest-hint">\u0410\u043B\u0434\u0430\u0430 \u0448\u0430\u043B\u0433\u0430\u0445 \u0442\u043E\u043B\u0438\u043D\u0434 \u0445\u0430\u0440\u0430\u0430\u0445\u0430\u043D \u0431\u04AF\u0440\u0442\u0433\u044D\u0433\u0434\u044D\u044D\u0433\u04AF\u0439 \u0448\u0438\u043D\u044D \u04AF\u0433\u0438\u0439\u0433 \u0441\u0430\u043D\u0430\u043B \u0431\u043E\u043B\u0433\u043E\u0445</p>' +
     '<label class="suggest-label" for="suggestWord">\u0428\u0438\u043D\u044D \u04AF\u0433</label>' +
     '<div class="suggest-chips"></div>' +
-    '<input id="suggestWord" class="suggest-input" type="text" maxlength="50" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="\u04AE\u0433 \u0431\u0438\u0447\u044D\u044D\u0434 \u0437\u0430\u0439 \u044D\u0441\u0432\u044D\u043B \u0442\u0430\u0441\u043B\u0430\u043B \u0434\u0430\u0440\u043D\u0430 \u0443\u0443" />' +
+    '<input id="suggestWord" class="suggest-input" type="text" maxlength="50" autocomplete="off" autocapitalize="off" spellcheck="false" />' +
     '<label class="suggest-label" for="suggestNote">\u0422\u0430\u0439\u043B\u0431\u0430\u0440 (\u0437\u0430\u0430\u0432\u0430\u043B \u0431\u0438\u0448)</label>' +
-    '<textarea id="suggestNote" class="suggest-input suggest-textarea" maxlength="500" rows="2"></textarea>' +
+    '<textarea id="suggestNote" class="suggest-input suggest-textarea" maxlength="500" rows="3"></textarea>' +
     '<div class="suggest-turnstile"></div>' +
     '<p class="suggest-note" aria-live="polite"></p>' +
     '<div class="suggest-actions">' +
-    '<button type="button" class="tbtn suggest-cancel">\u0411\u043E\u043B\u0438\u0445</button>' +
+    '<button type="button" class="tbtn suggest-cancel">\u0426\u0443\u0446\u043B\u0430\u0445</button>' +
     '<button type="button" class="tbtn suggest-send">\u0418\u043B\u0433\u044D\u044D\u0445</button>' +
     "</div>" +
     "</div>";
@@ -153,12 +172,11 @@ async function openForm() {
   if (!overlay) build();
   overlay.hidden = false;
   note("");
-  words = [];
+  prefillFromErrors();
   renderChips();
   overlay.querySelector("#suggestNote").value = "";
   const wordEl = overlay.querySelector("#suggestWord");
   wordEl.value = "";
-  wordEl.focus();
   try {
     await loadTurnstile();
   } catch (_) {
@@ -238,7 +256,8 @@ async function submit() {
   }
 }
 
-export function initSuggest() {
+export function initSuggest(options) {
+  deps = options || {};
   document.querySelectorAll("a.suggestctl, a.suggest-word").forEach((a) => {
     a.addEventListener("click", (e) => {
       e.preventDefault();
