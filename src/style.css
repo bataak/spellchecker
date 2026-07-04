@@ -648,3 +648,86 @@ html.booting .empty-state {
     outline-offset: 1px;
   }
 }
+
+.suggest-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.38);
+}
+.suggest-overlay[hidden] {
+  display: none;
+}
+.suggest-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
+  padding: 18px 18px 14px;
+}
+.suggest-title {
+  margin: 0 0 6px;
+  font-family: var(--serif);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.suggest-hint {
+  margin: 0 0 12px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.suggest-label {
+  display: block;
+  margin: 8px 0 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.suggest-input {
+  width: 100%;
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  color: var(--ink);
+  background: var(--editor-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.suggest-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.suggest-textarea {
+  resize: vertical;
+  min-height: 44px;
+}
+.suggest-turnstile {
+  margin-top: 12px;
+  min-height: 0;
+}
+.suggest-note {
+  margin: 8px 0 0;
+  min-height: 1.2em;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.suggest-note[data-kind="ok"] {
+  color: var(--accent);
+}
+.suggest-note[data-kind="err"] {
+  color: var(--proof);
+}
+.suggest-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
