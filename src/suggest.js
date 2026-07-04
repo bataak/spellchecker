@@ -1,11 +1,13 @@
 const ENDPOINT = "https://api.bichig.dev/suggest";
 const SITEKEY = "0x4AAAAAADvk6t3Gsh_j1vH7";
 const WORD_RE = /^[\u0400-\u04FF][\u0400-\u04FF-]{1,49}$/u;
+const MAX_WORDS = 20;
 
 let overlay = null;
 let widgetId = null;
 let scriptPromise = null;
 let busy = false;
+let words = [];
 
 function loadTurnstile() {
   if (window.turnstile) return Promise.resolve();
@@ -33,6 +35,63 @@ function note(msg, kind) {
   el.dataset.kind = kind || "";
 }
 
+function escapeChip(s) {
+  return s.replace(/[&<>"]/g, (c) => {
+    if (c === "&") return "&amp;";
+    if (c === "<") return "&lt;";
+    if (c === ">") return "&gt;";
+    return "&quot;";
+  });
+}
+
+function renderChips() {
+  const box = overlay.querySelector(".suggest-chips");
+  box.innerHTML = words
+    .map(
+      (w, i) =>
+        '<span class="suggest-chip">' +
+        escapeChip(w) +
+        '<button type="button" class="suggest-chip-x" data-i="' +
+        i +
+        '" aria-label="Устгах">&times;</button></span>',
+    )
+    .join("");
+  box.querySelectorAll(".suggest-chip-x").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      words.splice(Number(btn.dataset.i), 1);
+      renderChips();
+    });
+  });
+}
+
+function addFromInput(commit) {
+  const wordEl = overlay.querySelector("#suggestWord");
+  const parts = wordEl.value.split(/[\s,\u3001\uFF0C]+/);
+  const tail = commit ? "" : parts.pop();
+  let added = false;
+  for (const p of parts) {
+    const w = p.trim();
+    if (!w) continue;
+    if (!WORD_RE.test(w)) {
+      note("\u00AB" + w + "\u00BB \u2014 \u043A\u0438\u0440\u0438\u043B\u043B \u04AF\u0441\u0433\u044D\u044D\u0440, 2\u201350 \u0442\u044D\u043C\u0434\u044D\u0433\u0442 \u0431\u0430\u0439\u0445 \u0451\u0441\u0442\u043E\u0439", "err");
+      continue;
+    }
+    if (words.length >= MAX_WORDS) {
+      note("\u0425\u0430\u043C\u0433\u0438\u0439\u043D \u0438\u0445\u0434\u044D\u044D " + MAX_WORDS + " \u04AF\u0433", "err");
+      break;
+    }
+    if (!words.some((x) => x.toLowerCase() === w.toLowerCase())) {
+      words.push(w);
+      added = true;
+    }
+  }
+  wordEl.value = tail;
+  if (added) {
+    renderChips();
+    if (overlay.querySelector(".suggest-note").dataset.kind !== "err") note("");
+  }
+}
+
 function closeForm() {
   if (!overlay || overlay.hidden) return;
   overlay.hidden = true;
@@ -49,50 +108,61 @@ function build() {
   overlay.hidden = true;
   overlay.innerHTML =
     '<div class="suggest-card" role="dialog" aria-modal="true" aria-labelledby="suggestTitle">' +
-    '<h2 id="suggestTitle" class="suggest-title">Шинэ үг санал болгох</h2>' +
-    '<p class="suggest-hint">Толинд бүртгэгдээгүй зөв үгийг илгээнэ үү. Хянаж үзсэний дараа толинд нэмэгдэнэ.</p>' +
-    '<label class="suggest-label" for="suggestWord">Үг</label>' +
-    '<input id="suggestWord" class="suggest-input" type="text" maxlength="50" autocomplete="off" autocapitalize="off" spellcheck="false" />' +
-    '<label class="suggest-label" for="suggestNote">Тайлбар (заавал биш)</label>' +
+    '<h2 id="suggestTitle" class="suggest-title">\u0428\u0438\u043D\u044D \u04AF\u0433 \u0441\u0430\u043D\u0430\u043B \u0431\u043E\u043B\u0433\u043E\u0445</h2>' +
+    '<p class="suggest-hint">\u0410\u043B\u0434\u0430\u0430 \u0448\u0430\u043B\u0433\u0430\u0445 \u0442\u043E\u043B\u0438\u043D\u0434 \u0445\u0430\u0440\u0430\u0430\u0445\u0430\u043D \u0431\u04AF\u0440\u0442\u0433\u044D\u0433\u0434\u044D\u044D\u0433\u04AF\u0439 \u0448\u0438\u043D\u044D \u04AF\u0433\u0438\u0439\u0433 \u0438\u043B\u0433\u044D\u044D\u043C\u044D\u0433\u0446 \u0431\u0438\u0434 \u0445\u044F\u043D\u0430\u0436 \u04AF\u0437\u0441\u044D\u043D\u0438\u0439 \u0434\u0430\u0440\u0430\u0430 \u04AF\u0433\u0438\u0439\u043D \u0441\u0430\u043D\u0434 \u043D\u044D\u043C\u044D\u0445 \u0431\u043E\u043B\u043D\u043E.</p>' +
+    '<label class="suggest-label" for="suggestWord">\u0428\u0438\u043D\u044D \u04AF\u0433</label>' +
+    '<div class="suggest-chips"></div>' +
+    '<input id="suggestWord" class="suggest-input" type="text" maxlength="50" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="\u04AE\u0433 \u0431\u0438\u0447\u044D\u044D\u0434 \u0437\u0430\u0439 \u044D\u0441\u0432\u044D\u043B \u0442\u0430\u0441\u043B\u0430\u043B \u0434\u0430\u0440\u043D\u0430 \u0443\u0443" />' +
+    '<label class="suggest-label" for="suggestNote">\u0422\u0430\u0439\u043B\u0431\u0430\u0440 (\u0437\u0430\u0430\u0432\u0430\u043B \u0431\u0438\u0448)</label>' +
     '<textarea id="suggestNote" class="suggest-input suggest-textarea" maxlength="500" rows="2"></textarea>' +
     '<div class="suggest-turnstile"></div>' +
     '<p class="suggest-note" aria-live="polite"></p>' +
     '<div class="suggest-actions">' +
-    '<button type="button" class="tbtn suggest-cancel">Болих</button>' +
-    '<button type="button" class="tbtn suggest-send">Илгээх</button>' +
+    '<button type="button" class="tbtn suggest-cancel">\u0411\u043E\u043B\u0438\u0445</button>' +
+    '<button type="button" class="tbtn suggest-send">\u0418\u043B\u0433\u044D\u044D\u0445</button>' +
     "</div>" +
     "</div>";
   document.body.appendChild(overlay);
+
+  const wordEl = overlay.querySelector("#suggestWord");
 
   overlay.addEventListener("pointerdown", (e) => {
     if (e.target === overlay) closeForm();
   });
   overlay.querySelector(".suggest-cancel").addEventListener("click", closeForm);
   overlay.querySelector(".suggest-send").addEventListener("click", submit);
-  overlay
-    .querySelector("#suggestWord")
-    .addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        submit();
-      }
-    });
+
+  wordEl.addEventListener("input", () => addFromInput(false));
+  wordEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addFromInput(true);
+    } else if (e.key === "Backspace" && wordEl.value === "" && words.length) {
+      words.pop();
+      renderChips();
+    }
+  });
+  wordEl.addEventListener("blur", () => addFromInput(true));
+
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") closeForm();
   });
 }
 
-async function openForm(prefill) {
+async function openForm() {
   if (!overlay) build();
   overlay.hidden = false;
   note("");
+  words = [];
+  renderChips();
+  overlay.querySelector("#suggestNote").value = "";
   const wordEl = overlay.querySelector("#suggestWord");
-  if (prefill) wordEl.value = prefill;
+  wordEl.value = "";
   wordEl.focus();
   try {
     await loadTurnstile();
   } catch (_) {
-    note("Баталгаажуулалт ачаалагдсангүй — интернетээ шалгана уу", "err");
+    note("\u0411\u0430\u0442\u0430\u043B\u0433\u0430\u0430\u0436\u0443\u0443\u043B\u0430\u043B\u0442 \u0430\u0447\u0430\u0430\u043B\u0430\u0433\u0434\u0441\u0430\u043D\u0433\u04AF\u0439 \u2014 \u0438\u043D\u0442\u0435\u0440\u043D\u0435\u0442\u044D\u044D \u0448\u0430\u043B\u0433\u0430\u043D\u0430 \u0443\u0443", "err");
     return;
   }
   if (widgetId == null) {
@@ -111,18 +181,17 @@ async function openForm(prefill) {
 
 async function submit() {
   if (busy) return;
-  const wordEl = overlay.querySelector("#suggestWord");
+  addFromInput(true);
   const noteEl = overlay.querySelector("#suggestNote");
   const sendBtn = overlay.querySelector(".suggest-send");
-  const word = wordEl.value.trim();
 
-  if (!WORD_RE.test(word)) {
-    note("Үг кирилл үсгээр, 2–50 тэмдэгт байна", "err");
-    wordEl.focus();
+  if (!words.length) {
+    note("\u0414\u043E\u0440 \u0445\u0430\u044F\u0436 \u043D\u044D\u0433 \u04AF\u0433 \u043E\u0440\u0443\u0443\u043B\u043D\u0430 \u0443\u0443", "err");
+    overlay.querySelector("#suggestWord").focus();
     return;
   }
   if (!navigator.onLine) {
-    note("Сүлжээгүй байна — холбогдсоны дараа дахин оролдоно уу", "err");
+    note("\u0421\u04AF\u043B\u0436\u044D\u044D\u0433\u04AF\u0439 \u0431\u0430\u0439\u043D\u0430 \u2014 \u0445\u043E\u043B\u0431\u043E\u0433\u0434\u0441\u043E\u043D\u044B \u0434\u0430\u0440\u0430\u0430 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443", "err");
     return;
   }
   const token =
@@ -130,38 +199,39 @@ async function submit() {
       ? window.turnstile.getResponse(widgetId)
       : "";
   if (!token) {
-    note("Баталгаажуулалт дуусаагүй — хэсэг хүлээгээд дахин дарна уу", "err");
+    note("\u0411\u0430\u0442\u0430\u043B\u0433\u0430\u0430\u0436\u0443\u0443\u043B\u0430\u043B\u0442 \u0434\u0443\u0443\u0441\u0430\u0430\u0433\u04AF\u0439 \u2014 \u0445\u044D\u0441\u044D\u0433 \u0445\u04AF\u043B\u044D\u044D\u0433\u044D\u044D\u0434 \u0434\u0430\u0445\u0438\u043D \u0434\u0430\u0440\u043D\u0430 \u0443\u0443", "err");
     return;
   }
 
   busy = true;
   sendBtn.disabled = true;
-  note("Илгээж байна…");
+  note("\u0418\u043B\u0433\u044D\u044D\u0436 \u0431\u0430\u0439\u043D\u0430\u2026");
   try {
     const r = await fetch(ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        word,
+        words,
         note: noteEl.value.trim(),
         turnstileToken: token,
       }),
     });
     if (r.status === 201) {
-      note("Илгээгдлээ, баярлалаа!", "ok");
-      wordEl.value = "";
+      note("\u0418\u043B\u0433\u044D\u044D\u0433\u0434\u043B\u044D\u044D, \u0431\u0430\u044F\u0440\u043B\u0430\u043B\u0430\u0430!", "ok");
+      words = [];
+      renderChips();
       noteEl.value = "";
       setTimeout(closeForm, 1400);
     } else if (r.status === 429) {
-      note("Цагийн хязгаарт хүрлээ — дараа дахин оролдоно уу", "err");
+      note("\u0426\u0430\u0433\u0438\u0439\u043D \u0445\u044F\u0437\u0433\u0430\u0430\u0440\u0442 \u0445\u04AF\u0440\u043B\u044D\u044D \u2014 \u0434\u0430\u0440\u0430\u0430 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443", "err");
     } else {
-      note("Илгээхэд алдаа гарлаа — дахин оролдоно уу", "err");
+      note("\u0418\u043B\u0433\u044D\u044D\u0445\u044D\u0434 \u0430\u043B\u0434\u0430\u0430 \u0433\u0430\u0440\u043B\u0430\u0430 \u2014 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443", "err");
       try {
         window.turnstile.reset(widgetId);
       } catch (_) {}
     }
   } catch (_) {
-    note("Сүлжээний алдаа — дахин оролдоно уу", "err");
+    note("\u0421\u04AF\u043B\u0436\u044D\u044D\u043D\u0438\u0439 \u0430\u043B\u0434\u0430\u0430 \u2014 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443", "err");
   } finally {
     busy = false;
     sendBtn.disabled = false;
@@ -169,12 +239,10 @@ async function submit() {
 }
 
 export function initSuggest() {
-  document
-    .querySelectorAll("a.suggestctl, a.suggest-word")
-    .forEach((a) => {
-      a.addEventListener("click", (e) => {
-        e.preventDefault();
-        openForm();
-      });
+  document.querySelectorAll("a.suggestctl, a.suggest-word").forEach((a) => {
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      openForm();
     });
+  });
 }
