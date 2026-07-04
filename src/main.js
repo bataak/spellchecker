@@ -2,6 +2,7 @@ import "./style.css";
 import { MultiSpellChecker, tokenize, DICTIONARIES } from "./spellchecker.js";
 import { initFileIO } from "./fileio.js";
 import { initToolbar } from "./toolbar.js";
+import { initSuggest } from "./suggest.js";
 import { initAppearance } from "./appearance.js";
 import { escapeHtml } from "./htmlutil.js";
 import {
@@ -1241,3 +1242,5 @@ initToolbar({
   getBadTokens: () => badTokens,
   copyText,
 });
+
+initSuggest();
