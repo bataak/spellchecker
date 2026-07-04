@@ -45,6 +45,7 @@ let pendingFix = null;
 
 const labelOf = (id) =>
   (DICTIONARIES.find((d) => d.id === id) || {}).label || id;
+const nf = (n) => n.toLocaleString("en-US");
 const setStatus = (html, animate = true) => {
   els.status.innerHTML = html;
   if (!animate) return;
@@ -58,14 +59,32 @@ function isCorrect(word) {
 function checkable(word) {
   return word.length >= 2 && !/^\p{N}+(-|$)/u.test(word);
 }
+const CHECK_NOTICE_MIN = 2000;
+const CHECK_BATCH = 8000;
 async function ensureChecked(text) {
   const need = new Set();
   for (const { word } of tokenize(text)) {
     if (checkable(word) && !cache.has(word)) need.add(word);
   }
   if (!need.size) return;
-  const results = await checker.checkWords([...need]);
-  for (const w in results) cache.set(w, results[w]);
+  const words = [...need];
+  const notify = words.length > CHECK_NOTICE_MIN;
+  if (notify) {
+    setStatus("Алдааг шалгаж байна… 0%", true);
+    await nextFrame();
+  }
+  for (let i = 0; i < words.length; i += CHECK_BATCH) {
+    if (notify) {
+      const pct = Math.floor((i / words.length) * 100);
+      setStatus("Алдааг шалгаж байна… " + pct + "%", false);
+      await nextFrame();
+    }
+    const results = await checker.checkWords(words.slice(i, i + CHECK_BATCH));
+    for (const w in results) cache.set(w, results[w]);
+  }
+}
+function nextFrame() {
+  return new Promise((r) => requestAnimationFrame(() => r()));
 }
 async function correctNow(word) {
   if (cache.has(word)) return cache.get(word);
@@ -172,7 +191,9 @@ function replaceAllWord(
 const DASHES = /[-\u2013\u2014]/;
 function isDashSuffix(text, t) {
   if (DASHES.test(t.word.slice(1))) return false;
-  return DASHES.test(t.word.charAt(0)) || DASHES.test(text.charAt(t.start - 1));
+  return (
+    DASHES.test(t.word.charAt(0)) || DASHES.test(text.charAt(t.start - 1))
+  );
 }
 function wordAtCaret(text, pos) {
   for (const { word, index } of tokenize(text)) {
@@ -220,17 +241,17 @@ async function render() {
     } else {
       if (desktopMQ.matches) {
         setStatus(
-          "Үгийн тоо: " + total + ", Нийт тэмдэгт: " + text.length,
+          "Үгийн тоо: " + nf(total) + ", Нийт тэмдэгт: " + nf(text.length),
           false,
         );
       } else {
         setStatus(
           "Үгийн тоо: " +
-            total +
+            nf(total) +
             ", <b>Алдаатай үг</b>: <b>" +
-            bad.length +
+            nf(bad.length) +
             "</b>, Нийт тэмдэгт: " +
-            text.length,
+            nf(text.length),
           false,
         );
       }
@@ -335,7 +356,7 @@ function renderErrorPanel() {
     return;
   }
   if (panelEls.title)
-    panelEls.title.textContent = "Нийт алдаатай үг: " + badTokens.length;
+    panelEls.title.textContent = "Нийт алдаатай үг: " + nf(badTokens.length);
   if (panelEls.copy) panelEls.copy.disabled = false;
   panelEls.list.innerHTML = items
     .map((t) => {
@@ -537,7 +558,10 @@ function isSeparatorInput(e) {
   if (it === "insertText")
     return e.data != null && /[\s\p{P}\p{S}]/u.test(e.data);
   if (it === "insertLineBreak" || it === "insertParagraph") return true;
-  if (it.indexOf("insertFromPaste") === 0 || it.indexOf("insertFromDrop") === 0)
+  if (
+    it.indexOf("insertFromPaste") === 0 ||
+    it.indexOf("insertFromDrop") === 0
+  )
     return true;
   return false;
 }
@@ -747,7 +771,8 @@ function markAtPoint(x, y) {
   for (const m of marks) {
     const rects = m.getClientRects();
     for (const r of rects) {
-      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return m;
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom)
+        return m;
     }
   }
   return null;
@@ -843,15 +868,7 @@ if (verEl) {
     verEl.textContent = expanded ? verEl.dataset.short : verEl.dataset.full;
   });
 }
-initFileIO({
-  els,
-  flash,
-  setStatus,
-  setEditorText,
-  hidePopover,
-  render,
-  saveText,
-});
+initFileIO({ els, flash, setStatus, setEditorText, hidePopover, render, saveText });
 
 (function setupShortcuts() {
   const isDesktop =
@@ -972,7 +989,8 @@ initFileIO({
         : "";
       const editorFocused = document.activeElement === els.editor;
       const editorHasSelection =
-        editorFocused && els.editor.selectionStart !== els.editor.selectionEnd;
+        editorFocused &&
+        els.editor.selectionStart !== els.editor.selectionEnd;
       if (!pageSel && !editorHasSelection) {
         e.preventDefault();
         trigger("#copyBtn");
@@ -983,7 +1001,10 @@ initFileIO({
 
 async function requestDurableStorage() {
   try {
-    if (navigator.storage && typeof navigator.storage.persist === "function") {
+    if (
+      navigator.storage &&
+      typeof navigator.storage.persist === "function"
+    ) {
       const already = navigator.storage.persisted
         ? await navigator.storage.persisted()
         : false;
@@ -1104,7 +1125,7 @@ async function boot() {
     ready = true;
     if (mnVersion && verEl) verEl.dataset.full += " · mn_MN " + mnVersion;
     cache.clear();
-    render();
+    await render();
     if (loaded.length) {
       baseStatus = dictStatusMessage(loaded, failed, fallbackReason);
       runOfflineReadyIndicator();
