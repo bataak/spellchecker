@@ -612,4 +612,36 @@ html.booting .empty-state {
     outline: 2px solid var(--accent);
     outline-offset: 1px;
   }
+  .error-panel-foot {
+    flex: 0 0 auto;
+    display: none;
+    justify-content: center;
+    padding: 9px 14px 10px;
+    border-top: 1px solid var(--line);
+  }
+  .error-panel:has(.ew) .error-panel-foot {
+    display: flex;
+  }
+  .suggest-word {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--sans);
+    font-size: 0.8rem;
+    line-height: 1;
+    color: var(--muted);
+    text-decoration: none;
+    border-radius: 6px;
+    padding: 4px 6px;
+  }
+  .suggest-word:hover {
+    color: var(--accent);
+  }
+  .suggest-word:active {
+    transform: translateY(1px);
+  }
+  .suggest-word:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
 }
