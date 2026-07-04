@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.28.1](https://github.com/bataak/spellchecker/compare/v1.28.0...v1.28.1) (2026-07-04)
+
+
+### Bug Fixes
+
+* surface batch-check progress and format status counts ([5d29ac0](https://github.com/bataak/spellchecker/commit/5d29ac05536df99b3470789f17373f687fd1c370))
+
 ## [1.28.0](https://github.com/bataak/spellchecker/compare/v1.27.0...v1.28.0) (2026-07-03)
 
 
