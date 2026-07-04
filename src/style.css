@@ -612,7 +612,7 @@ html.booting .empty-state {
     outline: 2px solid var(--accent);
     outline-offset: 1px;
   }
-  .suggestctl {
+  a.tbtn.suggestctl {
     display: none;
   }
   .error-panel-foot {
