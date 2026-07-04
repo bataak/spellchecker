@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.28.2](https://github.com/bataak/spellchecker/compare/v1.28.1...v1.28.2) (2026-07-04)
+
+
+### Bug Fixes
+
+* contain editor overscroll so touch scroll doesn't move the page on iOS ([4c97579](https://github.com/bataak/spellchecker/commit/4c975792780334094165011f95f7afdefee55a0c))
+
 ## [1.28.1](https://github.com/bataak/spellchecker/compare/v1.28.0...v1.28.1) (2026-07-04)
 
 
