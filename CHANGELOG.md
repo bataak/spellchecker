@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.29.0](https://github.com/bataak/spellchecker/compare/v1.28.2...v1.29.0) (2026-07-04)
+
+
+### Features
+
+* add new word submission link to error panel footer ([18bbc7c](https://github.com/bataak/spellchecker/commit/18bbc7c19b0cf7912e37b27c2c2a7a4c97efe5b8))
+
 ## [1.28.2](https://github.com/bataak/spellchecker/compare/v1.28.1...v1.28.2) (2026-07-04)
 
 
