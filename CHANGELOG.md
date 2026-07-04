@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.30.0](https://github.com/bataak/spellchecker/compare/v1.29.0...v1.30.0) (2026-07-04)
+
+
+### Features
+
+* add word submission link to toolbar for mobile ([9d59d88](https://github.com/bataak/spellchecker/commit/9d59d8843a9989a7549d16480e2e5325b6d218f0))
+
 ## [1.29.0](https://github.com/bataak/spellchecker/compare/v1.28.2...v1.29.0) (2026-07-04)
 
 
