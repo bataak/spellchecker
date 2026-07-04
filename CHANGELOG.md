@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.33.0](https://github.com/bataak/spellchecker/compare/v1.32.0...v1.33.0) (2026-07-04)
+
+
+### Features
+
+* prefill error words as chips, mobile fullscreen form ([1865525](https://github.com/bataak/spellchecker/commit/18655254dcafb7e5444c9095949a9a0f0d3c9cc1))
+
 ## [1.32.0](https://github.com/bataak/spellchecker/compare/v1.31.0...v1.32.0) (2026-07-04)
 
 
