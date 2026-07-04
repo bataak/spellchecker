@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.32.0](https://github.com/bataak/spellchecker/compare/v1.31.0...v1.32.0) (2026-07-04)
+
+
+### Features
+
+* support multiple word chips in suggestion form ([31bc41f](https://github.com/bataak/spellchecker/commit/31bc41f3fd8b9c6a2a600c8a2f78297eedb62836))
+
 ## [1.31.0](https://github.com/bataak/spellchecker/compare/v1.30.0...v1.31.0) (2026-07-04)
 
 
