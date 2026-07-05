@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.39.1](https://github.com/bataak/spellchecker/compare/v1.39.0...v1.39.1) (2026-07-05)
+
+
+### Bug Fixes
+
+* rename mobile toolbar ignore button to Үг алгасах ([7991fcf](https://github.com/bataak/spellchecker/commit/7991fcf64c0caad6c09b4d01e7a8fc10ba864f1a))
+
 ## [1.39.0](https://github.com/bataak/spellchecker/compare/v1.38.1...v1.39.0) (2026-07-05)
 
 
