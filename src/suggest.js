@@ -3,7 +3,11 @@ const SITEKEY = "0x4AAAAAADvk6t3Gsh_j1vH7";
 const WORD_RE = /^[\u0400-\u04FF][\u0400-\u04FF-]{1,49}$/u;
 const MAX_WORDS = 20;
 const PREFILL_MAX = 5;
+<<<<<<< Updated upstream
 const ROOT_LEN = 4;
+=======
+const ROOT_LEN = 3;
+>>>>>>> Stashed changes
 
 let overlay = null;
 let widgetId = null;
@@ -11,6 +15,10 @@ let scriptPromise = null;
 let busy = false;
 let words = [];
 let deps = {};
+<<<<<<< Updated upstream
+=======
+let tokenResolve = null;
+>>>>>>> Stashed changes
 
 function loadTurnstile() {
   if (window.turnstile) return Promise.resolve();
@@ -114,10 +122,9 @@ function addFromInput(commit) {
 function closeForm() {
   if (!overlay || overlay.hidden) return;
   overlay.hidden = true;
-  if (window.turnstile && widgetId != null) {
-    try {
-      window.turnstile.reset(widgetId);
-    } catch (_) {}
+  if (tokenResolve) {
+    tokenResolve("");
+    tokenResolve = null;
   }
 }
 
@@ -136,6 +143,7 @@ function build() {
     '<textarea id="suggestNote" class="suggest-input suggest-textarea" maxlength="500" rows="3"></textarea>' +
     '<div class="suggest-turnstile"></div>' +
     '<p class="suggest-note" aria-live="polite"></p>' +
+    '<p class="suggest-legal">Cloudflare-\u0438\u0439\u043D \u0445\u0430\u043C\u0433\u0430\u0430\u043B\u0430\u043B\u0442\u0430\u0434 \u0445\u0430\u043C\u0440\u0430\u0433\u0434\u0441\u0430\u043D</p>' +
     '<div class="suggest-actions">' +
     '<button type="button" class="tbtn suggest-cancel">\u0426\u0443\u0446\u043B\u0430\u0445</button>' +
     '<button type="button" class="tbtn suggest-send">\u0418\u043B\u0433\u044D\u044D\u0445</button>' +
@@ -184,17 +192,46 @@ async function openForm() {
     return;
   }
   if (widgetId == null) {
-    const theme =
-      document.documentElement.dataset.theme === "dark" ? "dark" : "light";
     widgetId = window.turnstile.render(
       overlay.querySelector(".suggest-turnstile"),
-      { sitekey: SITEKEY, theme },
+      {
+        sitekey: SITEKEY,
+        size: "invisible",
+        callback: (t) => {
+          if (tokenResolve) {
+            tokenResolve(t);
+            tokenResolve = null;
+          }
+        },
+        "error-callback": () => {
+          if (tokenResolve) {
+            tokenResolve("");
+            tokenResolve = null;
+          }
+        },
+      },
     );
-  } else {
+  }
+}
+
+function getToken() {
+  if (!window.turnstile || widgetId == null) return Promise.resolve("");
+  return new Promise((resolve) => {
+    tokenResolve = resolve;
     try {
       window.turnstile.reset(widgetId);
-    } catch (_) {}
-  }
+      window.turnstile.execute(widgetId);
+    } catch (_) {
+      tokenResolve = null;
+      resolve("");
+    }
+    setTimeout(() => {
+      if (tokenResolve) {
+        tokenResolve("");
+        tokenResolve = null;
+      }
+    }, 15000);
+  });
 }
 
 async function submit() {
@@ -212,6 +249,7 @@ async function submit() {
     note("\u0421\u04AF\u043B\u0436\u044D\u044D\u0433\u04AF\u0439 \u0431\u0430\u0439\u043D\u0430 \u2014 \u0445\u043E\u043B\u0431\u043E\u0433\u0434\u0441\u043E\u043D\u044B \u0434\u0430\u0440\u0430\u0430 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443", "err");
     return;
   }
+<<<<<<< Updated upstream
   const token =
     window.turnstile && widgetId != null
       ? window.turnstile.getResponse(widgetId)
@@ -224,6 +262,18 @@ async function submit() {
   busy = true;
   sendBtn.disabled = true;
   note("\u0418\u043B\u0433\u044D\u044D\u0436 \u0431\u0430\u0439\u043D\u0430\u2026");
+=======
+  busy = true;
+  sendBtn.disabled = true;
+  note("\u0418\u043B\u0433\u044D\u044D\u0436 \u0431\u0430\u0439\u043D\u0430\u2026");
+  const token = await getToken();
+  if (!token) {
+    note("\u0411\u0430\u0442\u0430\u043B\u0433\u0430\u0430\u0436\u0443\u0443\u043B\u0430\u043B\u0442 \u0430\u043C\u0436\u0438\u043B\u0442\u0433\u04AF\u0439 \u2014 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443", "err");
+    busy = false;
+    sendBtn.disabled = false;
+    return;
+  }
+>>>>>>> Stashed changes
   try {
     const r = await fetch(ENDPOINT, {
       method: "POST",
@@ -244,9 +294,12 @@ async function submit() {
       note("\u0426\u0430\u0433\u0438\u0439\u043D \u0445\u044F\u0437\u0433\u0430\u0430\u0440\u0442 \u0445\u04AF\u0440\u043B\u044D\u044D \u2014 \u0434\u0430\u0440\u0430\u0430 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443", "err");
     } else {
       note("\u0418\u043B\u0433\u044D\u044D\u0445\u044D\u0434 \u0430\u043B\u0434\u0430\u0430 \u0433\u0430\u0440\u043B\u0430\u0430 \u2014 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443", "err");
+<<<<<<< Updated upstream
       try {
         window.turnstile.reset(widgetId);
       } catch (_) {}
+=======
+>>>>>>> Stashed changes
     }
   } catch (_) {
     note("\u0421\u04AF\u043B\u0436\u044D\u044D\u043D\u0438\u0439 \u0430\u043B\u0434\u0430\u0430 \u2014 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443", "err");

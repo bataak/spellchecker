@@ -732,6 +732,20 @@ html.booting .empty-state {
   margin-top: 10px;
 }
 
+<<<<<<< Updated upstream
+=======
+.suggest-turnstile:empty {
+  display: none;
+}
+.suggest-legal {
+  margin: 6px 0 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+>>>>>>> Stashed changes
 .suggest-chips {
   display: flex;
   flex-wrap: wrap;
