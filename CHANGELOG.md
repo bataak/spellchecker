@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.34.0](https://github.com/bataak/spellchecker/compare/v1.33.0...v1.34.0) (2026-07-05)
+
+
+### Features
+
+* switch Turnstile to invisible mode ([0ce7103](https://github.com/bataak/spellchecker/commit/0ce71037f04d87039622a0203ddd92ce73f9aea1))
+
 ## [1.33.0](https://github.com/bataak/spellchecker/compare/v1.32.0...v1.33.0) (2026-07-04)
 
 
