@@ -664,7 +664,7 @@ html.booting .empty-state {
 }
 .suggest-card {
   width: 100%;
-  max-width: 360px;
+  max-width: 420px;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -693,13 +693,18 @@ html.booting .empty-state {
 }
 .suggest-input {
   width: 100%;
-  font-family: var(--sans);
+  font-family: var(--serif);
   font-size: 16px;
   color: var(--ink);
   background: var(--editor-bg);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 8px 10px;
+}
+@media (min-width: 701px) {
+  .suggest-input {
+    font-size: calc(1.14rem * var(--editor-scale, 1));
+  }
 }
 .suggest-input:focus-visible {
   outline: 2px solid var(--accent);
