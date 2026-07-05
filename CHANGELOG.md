@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.35.0](https://github.com/bataak/spellchecker/compare/v1.34.1...v1.35.0) (2026-07-05)
+
+
+### Features
+
+* restore placeholder in word input matching main editor style ([d837dc9](https://github.com/bataak/spellchecker/commit/d837dc937eae92cc88b3d1f0bf7ac48f546262f3))
+
 ## [1.34.1](https://github.com/bataak/spellchecker/compare/v1.34.0...v1.34.1) (2026-07-05)
 
 
