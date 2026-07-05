@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.34.1](https://github.com/bataak/spellchecker/compare/v1.34.0...v1.34.1) (2026-07-05)
+
+
+### Bug Fixes
+
+* resolve merge conflict markers in suggest.js ([9e73039](https://github.com/bataak/spellchecker/commit/9e73039684e792627817b8c7e60e855fbfd8ca1c))
+
 ## [1.34.0](https://github.com/bataak/spellchecker/compare/v1.33.0...v1.34.0) (2026-07-05)
 
 
