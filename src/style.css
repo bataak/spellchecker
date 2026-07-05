@@ -710,6 +710,16 @@ html.booting .empty-state {
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
   padding: 18px 18px 14px;
 }
+@media (min-width: 701px) {
+  .ignore-overlay .suggest-card {
+    min-height: 430px;
+    display: flex;
+    flex-direction: column;
+  }
+  .ignore-overlay .ignore-actions {
+    margin-top: auto;
+  }
+}
 .suggest-title {
   margin: 0 0 6px;
   font-family: var(--serif);
@@ -806,8 +816,11 @@ html.booting .empty-state {
 .ignore-chips {
   display: flex;
   flex-wrap: wrap;
+  align-content: flex-start;
   gap: 6px;
   margin-bottom: 8px;
+  max-height: 132px;
+  overflow-y: auto;
 }
 .suggest-chips:empty,
 .ignore-chips:empty {
@@ -867,5 +880,8 @@ html.booting .empty-state {
   }
   .suggest-textarea {
     flex: 1 1 auto;
+  }
+  .ignore-actions {
+    margin-top: auto;
   }
 }

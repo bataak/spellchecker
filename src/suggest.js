@@ -2,7 +2,7 @@ const ENDPOINT = "https://api.bichig.dev/suggest";
 const SITEKEY = "0x4AAAAAADvk6t3Gsh_j1vH7";
 const WORD_RE = /^[\u0400-\u04FF][\u0400-\u04FF-]{1,49}$/u;
 const MAX_WORDS = 20;
-const PREFILL_MAX = 5;
+const PREFILL_MAX = 20;
 const ROOT_LEN = 3;
 
 let overlay = null;
