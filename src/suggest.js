@@ -131,12 +131,12 @@ function build() {
     '<p class="suggest-hint">\u0410\u043B\u0434\u0430\u0430 \u0448\u0430\u043B\u0433\u0430\u0445 \u0442\u043E\u043B\u0438\u043D\u0434 \u0445\u0430\u0440\u0430\u0430\u0445\u0430\u043D \u0431\u04AF\u0440\u0442\u0433\u044D\u0433\u0434\u044D\u044D\u0433\u04AF\u0439 \u0448\u0438\u043D\u044D \u04AF\u0433\u0438\u0439\u0433 \u0441\u0430\u043D\u0430\u043B \u0431\u043E\u043B\u0433\u043E\u0445</p>' +
     '<label class="suggest-label" for="suggestWord">\u0428\u0438\u043D\u044D \u04AF\u0433</label>' +
     '<div class="suggest-chips"></div>' +
-    '<input id="suggestWord" class="suggest-input" type="text" maxlength="50" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="\u0428\u0438\u043D\u044D \u04AF\u0433 \u043E\u0440\u0443\u0443\u043B\u0430\u0445" />' +
+    '<input id="suggestWord" class="suggest-input" type="text" maxlength="50" autocomplete="off" autocapitalize="off" spellcheck="false" />' +
     '<label class="suggest-label" for="suggestNote">\u0422\u0430\u0439\u043B\u0431\u0430\u0440 (\u0437\u0430\u0430\u0432\u0430\u043B \u0431\u0438\u0448)</label>' +
     '<textarea id="suggestNote" class="suggest-input suggest-textarea" maxlength="500" rows="3"></textarea>' +
     '<div class="suggest-turnstile"></div>' +
     '<p class="suggest-note" aria-live="polite"></p>' +
-    '<p class="suggest-legal">Cloudflare \u0445\u0430\u043C\u0433\u0430\u0430\u043B\u0430\u043B\u0442 \u0438\u0434\u044D\u0432\u0445\u0436\u0441\u044D\u043D</p>' +
+    '<p class="suggest-legal">Cloudflare \u0445\u0430\u043C\u0433\u0430\u0430\u043B\u0430\u043B\u0442 \u0438\u0434\u044D\u0432\u0445\u044D\u0436\u0441\u044D\u043D</p>' +
     '<div class="suggest-actions">' +
     '<button type="button" class="tbtn suggest-cancel">\u0426\u0443\u0446\u043B\u0430\u0445</button>' +
     '<button type="button" class="tbtn suggest-send">\u0418\u043B\u0433\u044D\u044D\u0445</button>' +

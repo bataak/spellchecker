@@ -705,15 +705,6 @@ html.booting .empty-state {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
-#suggestWord {
-  font-family: var(--serif);
-  font-size: clamp(1.05rem, 2.4vw, 1.35rem);
-  letter-spacing: 0.01em;
-}
-#suggestWord::placeholder {
-  color: var(--ink);
-  opacity: 0.82;
-}
 .suggest-textarea {
   resize: vertical;
   min-height: 44px;
