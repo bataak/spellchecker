@@ -732,8 +732,6 @@ html.booting .empty-state {
   margin-top: 10px;
 }
 
-<<<<<<< Updated upstream
-=======
 .suggest-turnstile:empty {
   display: none;
 }
@@ -745,7 +743,6 @@ html.booting .empty-state {
   opacity: 0.7;
 }
 
->>>>>>> Stashed changes
 .suggest-chips {
   display: flex;
   flex-wrap: wrap;

@@ -3,11 +3,7 @@ const SITEKEY = "0x4AAAAAADvk6t3Gsh_j1vH7";
 const WORD_RE = /^[\u0400-\u04FF][\u0400-\u04FF-]{1,49}$/u;
 const MAX_WORDS = 20;
 const PREFILL_MAX = 5;
-<<<<<<< Updated upstream
-const ROOT_LEN = 4;
-=======
 const ROOT_LEN = 3;
->>>>>>> Stashed changes
 
 let overlay = null;
 let widgetId = null;
@@ -15,10 +11,7 @@ let scriptPromise = null;
 let busy = false;
 let words = [];
 let deps = {};
-<<<<<<< Updated upstream
-=======
 let tokenResolve = null;
->>>>>>> Stashed changes
 
 function loadTurnstile() {
   if (window.turnstile) return Promise.resolve();
@@ -249,20 +242,6 @@ async function submit() {
     note("\u0421\u04AF\u043B\u0436\u044D\u044D\u0433\u04AF\u0439 \u0431\u0430\u0439\u043D\u0430 \u2014 \u0445\u043E\u043B\u0431\u043E\u0433\u0434\u0441\u043E\u043D\u044B \u0434\u0430\u0440\u0430\u0430 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443", "err");
     return;
   }
-<<<<<<< Updated upstream
-  const token =
-    window.turnstile && widgetId != null
-      ? window.turnstile.getResponse(widgetId)
-      : "";
-  if (!token) {
-    note("\u0411\u0430\u0442\u0430\u043B\u0433\u0430\u0430\u0436\u0443\u0443\u043B\u0430\u043B\u0442 \u0434\u0443\u0443\u0441\u0430\u0430\u0433\u04AF\u0439 \u2014 \u0445\u044D\u0441\u044D\u0433 \u0445\u04AF\u043B\u044D\u044D\u0433\u044D\u044D\u0434 \u0434\u0430\u0445\u0438\u043D \u0434\u0430\u0440\u043D\u0430 \u0443\u0443", "err");
-    return;
-  }
-
-  busy = true;
-  sendBtn.disabled = true;
-  note("\u0418\u043B\u0433\u044D\u044D\u0436 \u0431\u0430\u0439\u043D\u0430\u2026");
-=======
   busy = true;
   sendBtn.disabled = true;
   note("\u0418\u043B\u0433\u044D\u044D\u0436 \u0431\u0430\u0439\u043D\u0430\u2026");
@@ -273,7 +252,6 @@ async function submit() {
     sendBtn.disabled = false;
     return;
   }
->>>>>>> Stashed changes
   try {
     const r = await fetch(ENDPOINT, {
       method: "POST",
@@ -294,12 +272,6 @@ async function submit() {
       note("\u0426\u0430\u0433\u0438\u0439\u043D \u0445\u044F\u0437\u0433\u0430\u0430\u0440\u0442 \u0445\u04AF\u0440\u043B\u044D\u044D \u2014 \u0434\u0430\u0440\u0430\u0430 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443", "err");
     } else {
       note("\u0418\u043B\u0433\u044D\u044D\u0445\u044D\u0434 \u0430\u043B\u0434\u0430\u0430 \u0433\u0430\u0440\u043B\u0430\u0430 \u2014 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443", "err");
-<<<<<<< Updated upstream
-      try {
-        window.turnstile.reset(widgetId);
-      } catch (_) {}
-=======
->>>>>>> Stashed changes
     }
   } catch (_) {
     note("\u0421\u04AF\u043B\u0436\u044D\u044D\u043D\u0438\u0439 \u0430\u043B\u0434\u0430\u0430 \u2014 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443", "err");
