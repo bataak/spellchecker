@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.37.0](https://github.com/bataak/spellchecker/compare/v1.36.0...v1.37.0) (2026-07-05)
+
+
+### Features
+
+* match suggestion input font size to editor on desktop ([920d24a](https://github.com/bataak/spellchecker/commit/920d24a2c6408f768dafe1fd7e885a0fa2df94f2))
+
 ## [1.36.0](https://github.com/bataak/spellchecker/compare/v1.35.0...v1.36.0) (2026-07-05)
 
 
