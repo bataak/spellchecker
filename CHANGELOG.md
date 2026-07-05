@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.40.0](https://github.com/bataak/spellchecker/compare/v1.39.1...v1.40.0) (2026-07-05)
+
+
+### Features
+
+* scrollable chip lists, unlimited prefill, and improved ignore dialog layout ([6cbafe7](https://github.com/bataak/spellchecker/commit/6cbafe74e9d31338150e59af4c123a0cf29372e3))
+
 ## [1.39.1](https://github.com/bataak/spellchecker/compare/v1.39.0...v1.39.1) (2026-07-05)
 
 
