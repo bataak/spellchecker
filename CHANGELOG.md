@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.38.1](https://github.com/bataak/spellchecker/compare/v1.38.0...v1.38.1) (2026-07-05)
+
+
+### Bug Fixes
+
+* don't hijack keyboard shortcuts when form inputs are focused ([89ee404](https://github.com/bataak/spellchecker/commit/89ee4047968ceaf61c346079367fbc2da5abc548))
+
 ## [1.38.0](https://github.com/bataak/spellchecker/compare/v1.37.0...v1.38.0) (2026-07-05)
 
 
