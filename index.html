@@ -103,11 +103,30 @@
           <div id="errorList" class="error-list"></div>
           <div class="error-panel-foot">
             <a
+              class="ignore-list-link"
+              href="#"
+              title="Алгасах үгийн жагсаалт"
+            >
+              <svg
+                viewBox="0 0 16 16"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                aria-hidden="true"
+              >
+                <path d="M3 8h10" />
+              </svg>
+              Үг алгасах
+            </a>
+            <a
               class="suggest-word"
               href="https://github.com/bataak/dict-mn"
               target="_blank"
               rel="noopener noreferrer"
-              title="Толинд бүртгэгдээгүй үгийг GitHub дээр санал болгох"
+              title="Толинд бүртгэгдээгүй үгийг үндсэн санд нэмүүлэх"
             >
               <svg
                 viewBox="0 0 16 16"
@@ -121,7 +140,7 @@
               >
                 <path d="M8 3v10M3 8h10" />
               </svg>
-              Шинэ үг илгээх
+              Үг мэдэгдэх
             </a>
           </div>
         </aside>
@@ -145,12 +164,18 @@
         >
         <span id="appVersion" class="tver"></span>
         <a
+          class="tbtn tlink ignorectl"
+          href="#"
+          title="Алгасах үгийн жагсаалт"
+          >Алгасах</a
+        >
+        <a
           class="tbtn tlink suggestctl"
           href="https://github.com/bataak/dict-mn"
           target="_blank"
           rel="noopener noreferrer"
           title="Толинд шинэ үг санал болгох"
-          >Үг нэмэх</a
+          >Үг мэдэгдэх</a
         >
         <button
           id="fontDecBtn"

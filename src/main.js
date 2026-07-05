@@ -3,6 +3,14 @@ import { MultiSpellChecker, tokenize, DICTIONARIES } from "./spellchecker.js";
 import { initFileIO } from "./fileio.js";
 import { initToolbar } from "./toolbar.js";
 import { initSuggest } from "./suggest.js";
+import {
+  isIgnored,
+  addIgnored,
+  removeIgnored,
+  clearIgnored,
+  getIgnored,
+} from "./ignore.js";
+import { initIgnoreList, syncIgnoreVisibility } from "./ignorelist.js";
 import { initAppearance } from "./appearance.js";
 import { escapeHtml } from "./htmlutil.js";
 import {
@@ -106,7 +114,7 @@ function computeBad(text) {
   let total = 0;
   for (const { word, index } of tokenize(text)) {
     total++;
-    if (!checkable(word) || isCorrect(word)) continue;
+    if (!checkable(word) || isCorrect(word) || isIgnored(word)) continue;
     bad.push({ word, start: index, end: index + word.length });
   }
   return { bad, total };
@@ -192,9 +200,7 @@ function replaceAllWord(
 const DASHES = /[-\u2013\u2014]/;
 function isDashSuffix(text, t) {
   if (DASHES.test(t.word.slice(1))) return false;
-  return (
-    DASHES.test(t.word.charAt(0)) || DASHES.test(text.charAt(t.start - 1))
-  );
+  return DASHES.test(t.word.charAt(0)) || DASHES.test(text.charAt(t.start - 1));
 }
 function wordAtCaret(text, pos) {
   for (const { word, index } of tokenize(text)) {
@@ -459,7 +465,7 @@ async function showPopoverFor(t) {
     desktopMQ.matches ? 15 : 8,
   );
   if (activeStart !== t.start || els.popover.hidden) return;
-  els.popover.innerHTML = suggestions.length
+  const sgHtml = suggestions.length
     ? suggestions
         .map(
           (s) =>
@@ -467,11 +473,23 @@ async function showPopoverFor(t) {
         )
         .join("")
     : '<div class="muted pop-empty">санал алга</div>';
+  els.popover.innerHTML =
+    sgHtml +
+    '<button class="sg sg-ignore" type="button">Энэ үгийг алгасах</button>';
   placePopover();
 
-  els.popover.querySelectorAll(".sg").forEach((btn) => {
+  els.popover.querySelectorAll(".sg:not(.sg-ignore)").forEach((btn) => {
     btn.addEventListener("click", () => applySuggestion(t, btn.textContent));
   });
+  const ignoreBtn = els.popover.querySelector(".sg-ignore");
+  if (ignoreBtn) {
+    ignoreBtn.addEventListener("click", () => {
+      addIgnored(t.word);
+      syncIgnoreVisibility();
+      hidePopover();
+      render();
+    });
+  }
 }
 
 function suggestAtCaret() {
@@ -559,10 +577,7 @@ function isSeparatorInput(e) {
   if (it === "insertText")
     return e.data != null && /[\s\p{P}\p{S}]/u.test(e.data);
   if (it === "insertLineBreak" || it === "insertParagraph") return true;
-  if (
-    it.indexOf("insertFromPaste") === 0 ||
-    it.indexOf("insertFromDrop") === 0
-  )
+  if (it.indexOf("insertFromPaste") === 0 || it.indexOf("insertFromDrop") === 0)
     return true;
   return false;
 }
@@ -772,8 +787,7 @@ function markAtPoint(x, y) {
   for (const m of marks) {
     const rects = m.getClientRects();
     for (const r of rects) {
-      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom)
-        return m;
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return m;
     }
   }
   return null;
@@ -1006,8 +1020,7 @@ initFileIO({
         : "";
       const editorFocused = document.activeElement === els.editor;
       const editorHasSelection =
-        editorFocused &&
-        els.editor.selectionStart !== els.editor.selectionEnd;
+        editorFocused && els.editor.selectionStart !== els.editor.selectionEnd;
       if (!pageSel && !editorHasSelection) {
         e.preventDefault();
         trigger("#copyBtn");
@@ -1018,10 +1031,7 @@ initFileIO({
 
 async function requestDurableStorage() {
   try {
-    if (
-      navigator.storage &&
-      typeof navigator.storage.persist === "function"
-    ) {
+    if (navigator.storage && typeof navigator.storage.persist === "function") {
       const already = navigator.storage.persisted
         ? await navigator.storage.persisted()
         : false;
@@ -1262,4 +1272,8 @@ initToolbar({
 initSuggest({
   buildErrorList,
   getBadTokens: () => badTokens,
+});
+
+initIgnoreList({
+  onChange: () => render(),
 });
