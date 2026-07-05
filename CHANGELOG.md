@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.38.0](https://github.com/bataak/spellchecker/compare/v1.37.0...v1.38.0) (2026-07-05)
+
+
+### Features
+
+* refine suggestion form layout and Enter submission ([0df34af](https://github.com/bataak/spellchecker/commit/0df34aff00c930d43c7683d289353267b5c4687d))
+
 ## [1.37.0](https://github.com/bataak/spellchecker/compare/v1.36.0...v1.37.0) (2026-07-05)
 
 
