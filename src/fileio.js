@@ -229,9 +229,7 @@ export function initFileIO({
       } catch (_) {}
     }
     try {
-      const f = handle
-        ? await handle.getFile()
-        : dt && dt.files && dt.files[0];
+      const f = handle ? await handle.getFile() : dt && dt.files && dt.files[0];
       if (!isTextFile(f)) return;
       if (!sizeOk(f)) return;
       await loadFileContent(await readAsText(f), f.name, handle);
