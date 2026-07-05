@@ -107,7 +107,7 @@ function closeForm() {
 
 function build() {
   overlay = document.createElement("div");
-  overlay.className = "suggest-overlay";
+  overlay.className = "suggest-overlay ignore-overlay";
   overlay.hidden = true;
   overlay.innerHTML =
     '<div class="suggest-card" role="dialog" aria-modal="true" aria-labelledby="ignoreTitle">' +
