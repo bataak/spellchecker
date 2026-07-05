@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.36.0](https://github.com/bataak/spellchecker/compare/v1.35.0...v1.36.0) (2026-07-05)
+
+
+### Features
+
+* remove word input placeholder ([35b72c0](https://github.com/bataak/spellchecker/commit/35b72c036620e0c5a40a95413c2bdf71c3d35e56))
+
 ## [1.35.0](https://github.com/bataak/spellchecker/compare/v1.34.1...v1.35.0) (2026-07-05)
 
 
