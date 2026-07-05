@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.39.0](https://github.com/bataak/spellchecker/compare/v1.38.1...v1.39.0) (2026-07-05)
+
+
+### Features
+
+* add ignore-word feature with case-aware matching, management dialog, and import/export ([dd1a4ac](https://github.com/bataak/spellchecker/commit/dd1a4ac49b9cbf8910ebbabc28caf0cd5bc3e96f))
+
 ## [1.38.1](https://github.com/bataak/spellchecker/compare/v1.38.0...v1.38.1) (2026-07-05)
 
 
