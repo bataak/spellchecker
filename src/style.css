@@ -674,7 +674,7 @@ html.booting .empty-state {
 .suggest-title {
   margin: 0 0 6px;
   font-family: var(--serif);
-  font-size: 1.1rem;
+  font-size: 1.35rem;
   font-weight: 600;
   color: var(--ink);
 }
@@ -686,7 +686,7 @@ html.booting .empty-state {
 }
 .suggest-label {
   display: block;
-  margin: 8px 0 4px;
+  margin: 16px 0 7px;
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--muted);
@@ -703,7 +703,7 @@ html.booting .empty-state {
 }
 @media (min-width: 701px) {
   .suggest-input {
-    font-size: calc(1.14rem * var(--editor-scale, 1));
+    font-size: calc(1.05rem * var(--editor-scale, 1));
   }
 }
 .suggest-input:focus-visible {
@@ -717,6 +717,8 @@ html.booting .empty-state {
 .suggest-turnstile {
   margin-top: 12px;
   min-height: 0;
+  display: flex;
+  justify-content: center;
 }
 .suggest-note {
   margin: 8px 0 0;
@@ -735,6 +737,21 @@ html.booting .empty-state {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 10px;
+}
+.suggest-send {
+  color: var(--panel);
+  background: var(--accent);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.suggest-send:hover {
+  border-color: var(--accent);
+  opacity: 0.9;
+}
+.suggest-actions .tbtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  font-weight: 700;
 }
 
 .suggest-chips {

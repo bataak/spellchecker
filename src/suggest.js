@@ -92,21 +92,11 @@ function addFromInput(commit) {
     const w = p.trim();
     if (!w) continue;
     if (!WORD_RE.test(w)) {
-      note(
-        "\u00AB" +
-          w +
-          "\u00BB \u2014 \u043A\u0438\u0440\u0438\u043B\u043B \u04AF\u0441\u0433\u044D\u044D\u0440, 2\u201350 \u0442\u044D\u043C\u0434\u044D\u0433\u0442 \u0431\u0430\u0439\u0445 \u0451\u0441\u0442\u043E\u0439",
-        "err",
-      );
+      note("\u00AB" + w + "\u00BB \u2014 \u043A\u0438\u0440\u0438\u043B\u043B \u04AF\u0441\u0433\u044D\u044D\u0440, 2\u201350 \u0442\u044D\u043C\u0434\u044D\u0433\u0442 \u0431\u0430\u0439\u0445 \u0451\u0441\u0442\u043E\u0439", "err");
       continue;
     }
     if (words.length >= MAX_WORDS) {
-      note(
-        "\u0425\u0430\u043C\u0433\u0438\u0439\u043D \u0438\u0445\u0434\u044D\u044D " +
-          MAX_WORDS +
-          " \u04AF\u0433",
-        "err",
-      );
+      note("\u0425\u0430\u043C\u0433\u0438\u0439\u043D \u0438\u0445\u0434\u044D\u044D " + MAX_WORDS + " \u04AF\u0433", "err");
       break;
     }
     if (!words.some((x) => x.toLowerCase() === w.toLowerCase())) {
@@ -165,7 +155,9 @@ function build() {
   wordEl.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      addFromInput(true);
+      e.stopPropagation();
+      if (wordEl.value.trim()) addFromInput(true);
+      else submit();
     } else if (e.key === "Backspace" && wordEl.value === "" && words.length) {
       words.pop();
       renderChips();
@@ -173,8 +165,18 @@ function build() {
   });
   wordEl.addEventListener("blur", () => addFromInput(true));
 
+  overlay.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    const t = e.target;
+    if (t === wordEl) return;
+    if (t.tagName === "TEXTAREA") return;
+    if (t.tagName === "BUTTON") return;
+    e.preventDefault();
+    submit();
+  });
+
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeForm();
+    if (!overlay.hidden && e.key === "Escape") closeForm();
   });
 }
 
@@ -190,10 +192,7 @@ async function openForm() {
   try {
     await loadTurnstile();
   } catch (_) {
-    note(
-      "\u0411\u0430\u0442\u0430\u043B\u0433\u0430\u0430\u0436\u0443\u0443\u043B\u0430\u043B\u0442 \u0430\u0447\u0430\u0430\u043B\u0430\u0433\u0434\u0441\u0430\u043D\u0433\u04AF\u0439 \u2014 \u0438\u043D\u0442\u0435\u0440\u043D\u0435\u0442\u044D\u044D \u0448\u0430\u043B\u0433\u0430\u043D\u0430 \u0443\u0443",
-      "err",
-    );
+    note("\u0411\u0430\u0442\u0430\u043B\u0433\u0430\u0430\u0436\u0443\u0443\u043B\u0430\u043B\u0442 \u0430\u0447\u0430\u0430\u043B\u0430\u0433\u0434\u0441\u0430\u043D\u0433\u04AF\u0439 \u2014 \u0438\u043D\u0442\u0435\u0440\u043D\u0435\u0442\u044D\u044D \u0448\u0430\u043B\u0433\u0430\u043D\u0430 \u0443\u0443", "err");
     return;
   }
   if (widgetId == null) {
@@ -217,18 +216,12 @@ async function submit() {
   const sendBtn = overlay.querySelector(".suggest-send");
 
   if (!words.length) {
-    note(
-      "\u0414\u043E\u0440 \u0445\u0430\u044F\u0436 \u043D\u044D\u0433 \u04AF\u0433 \u043E\u0440\u0443\u0443\u043B\u043D\u0430 \u0443\u0443",
-      "err",
-    );
+    note("\u0414\u043E\u0440 \u0445\u0430\u044F\u0436 \u043D\u044D\u0433 \u04AF\u0433 \u043E\u0440\u0443\u0443\u043B\u043D\u0430 \u0443\u0443", "err");
     overlay.querySelector("#suggestWord").focus();
     return;
   }
   if (!navigator.onLine) {
-    note(
-      "\u0421\u04AF\u043B\u0436\u044D\u044D\u0433\u04AF\u0439 \u0431\u0430\u0439\u043D\u0430 \u2014 \u0445\u043E\u043B\u0431\u043E\u0433\u0434\u0441\u043E\u043D\u044B \u0434\u0430\u0440\u0430\u0430 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443",
-      "err",
-    );
+    note("\u0421\u04AF\u043B\u0436\u044D\u044D\u0433\u04AF\u0439 \u0431\u0430\u0439\u043D\u0430 \u2014 \u0445\u043E\u043B\u0431\u043E\u0433\u0434\u0441\u043E\u043D\u044B \u0434\u0430\u0440\u0430\u0430 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443", "err");
     return;
   }
   const token =
@@ -236,17 +229,12 @@ async function submit() {
       ? window.turnstile.getResponse(widgetId)
       : "";
   if (!token) {
-    note(
-      "\u0411\u0430\u0442\u0430\u043B\u0433\u0430\u0430\u0436\u0443\u0443\u043B\u0430\u043B\u0442 \u0434\u0443\u0443\u0441\u0430\u0430\u0433\u04AF\u0439 \u2014 \u0445\u044D\u0441\u044D\u0433 \u0445\u04AF\u043B\u044D\u044D\u0433\u044D\u044D\u0434 \u0434\u0430\u0445\u0438\u043D \u0434\u0430\u0440\u043D\u0430 \u0443\u0443",
-      "err",
-    );
+    note("\u0411\u0430\u0442\u0430\u043B\u0433\u0430\u0430\u0436\u0443\u0443\u043B\u0430\u043B\u0442 \u0434\u0443\u0443\u0441\u0430\u0430\u0433\u04AF\u0439 \u2014 \u0445\u044D\u0441\u044D\u0433 \u0445\u04AF\u043B\u044D\u044D\u0433\u044D\u044D\u0434 \u0434\u0430\u0445\u0438\u043D \u0434\u0430\u0440\u043D\u0430 \u0443\u0443", "err");
     return;
   }
   busy = true;
   sendBtn.disabled = true;
-  note(
-    "\u0418\u043B\u0433\u044D\u044D\u0436 \u0431\u0430\u0439\u043D\u0430\u2026",
-  );
+  note("\u0418\u043B\u0433\u044D\u044D\u0436 \u0431\u0430\u0439\u043D\u0430\u2026");
   try {
     const r = await fetch(ENDPOINT, {
       method: "POST",
@@ -258,36 +246,24 @@ async function submit() {
       }),
     });
     if (r.status === 201) {
-      note(
-        "\u0418\u043B\u0433\u044D\u044D\u0433\u0434\u043B\u044D\u044D, \u0431\u0430\u044F\u0440\u043B\u0430\u043B\u0430\u0430!",
-        "ok",
-      );
+      note("\u0418\u043B\u0433\u044D\u044D\u0433\u0434\u043B\u044D\u044D, \u0431\u0430\u044F\u0440\u043B\u0430\u043B\u0430\u0430!", "ok");
       words = [];
       renderChips();
       noteEl.value = "";
       setTimeout(closeForm, 1400);
     } else if (r.status === 429) {
-      note(
-        "\u0426\u0430\u0433\u0438\u0439\u043D \u0445\u044F\u0437\u0433\u0430\u0430\u0440\u0442 \u0445\u04AF\u0440\u043B\u044D\u044D \u2014 \u0434\u0430\u0440\u0430\u0430 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443",
-        "err",
-      );
+      note("\u0426\u0430\u0433\u0438\u0439\u043D \u0445\u044F\u0437\u0433\u0430\u0430\u0440\u0442 \u0445\u04AF\u0440\u043B\u044D\u044D \u2014 \u0434\u0430\u0440\u0430\u0430 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443", "err");
       try {
         window.turnstile.reset(widgetId);
       } catch (_) {}
     } else {
-      note(
-        "\u0418\u043B\u0433\u044D\u044D\u0445\u044D\u0434 \u0430\u043B\u0434\u0430\u0430 \u0433\u0430\u0440\u043B\u0430\u0430 \u2014 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443",
-        "err",
-      );
+      note("\u0418\u043B\u0433\u044D\u044D\u0445\u044D\u0434 \u0430\u043B\u0434\u0430\u0430 \u0433\u0430\u0440\u043B\u0430\u0430 \u2014 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443", "err");
       try {
         window.turnstile.reset(widgetId);
       } catch (_) {}
     }
   } catch (_) {
-    note(
-      "\u0421\u04AF\u043B\u0436\u044D\u044D\u043D\u0438\u0439 \u0430\u043B\u0434\u0430\u0430 \u2014 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443",
-      "err",
-    );
+    note("\u0421\u04AF\u043B\u0436\u044D\u044D\u043D\u0438\u0439 \u0430\u043B\u0434\u0430\u0430 \u2014 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443", "err");
     try {
       window.turnstile.reset(widgetId);
     } catch (_) {}
