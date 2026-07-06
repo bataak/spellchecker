@@ -822,6 +822,12 @@ html.booting .empty-state {
   max-height: 132px;
   overflow-y: auto;
 }
+.suggest-chips {
+  --chip-h: 26px;
+  --chip-gap: 6px;
+  gap: var(--chip-gap);
+  max-height: calc(var(--chip-h) * 4.5 + var(--chip-gap) * 4);
+}
 .suggest-chips:empty,
 .ignore-chips:empty {
   display: none;
@@ -832,6 +838,7 @@ html.booting .empty-state {
   gap: 4px;
   font-family: var(--serif);
   font-size: 0.9rem;
+  line-height: 18px;
   color: var(--ink);
   background: var(--paper);
   border: 1px solid var(--line);
