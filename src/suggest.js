@@ -147,9 +147,7 @@ function build() {
     '<div class="suggest-turnstile"></div>' +
     '<p class="suggest-note" aria-live="polite"></p>' +
     '<div class="suggest-actions">' +
-    '<a class="suggest-word suggest-issues" style="margin-right:auto" href="https://github.com/bataak/dict-mn/issues?q=is%3Aissue%20label%3Auser-submitted" target="_blank" rel="noopener noreferrer" title="\u0425\u044D\u0440\u044D\u0433\u043B\u044D\u0433\u0447\u0438\u0439\u043D \u043C\u044D\u0434\u044D\u0433\u0434\u0441\u044D\u043D \u04AF\u0433\u0441">' +
-    '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 4.5h10M3 8h10M3 11.5h7"/></svg> ' +
-    "\u041C\u044D\u0434\u044D\u0433\u0434\u0441\u044D\u043D \u04AF\u0433\u0441</a>" +
+    '<a class="tbtn suggest-issues" style="margin-right:auto" href="https://github.com/bataak/dict-mn/issues?q=is%3Aissue%20label%3Auser-submitted" target="_blank" rel="noopener noreferrer" title="\u0425\u044D\u0440\u044D\u0433\u043B\u044D\u0433\u0447\u0438\u0439\u043D \u043C\u044D\u0434\u044D\u0433\u0434\u0441\u044D\u043D \u04AF\u0433\u0441">\u041C\u044D\u0434\u044D\u0433\u0434\u0441\u044D\u043D \u04AF\u0433\u0441</a>' +
     '<button type="button" class="tbtn suggest-cancel">\u0426\u0443\u0446\u043B\u0430\u0445</button>' +
     '<button type="button" class="tbtn suggest-send">\u0418\u043B\u0433\u044D\u044D\u0445</button>' +
     "</div>" +
