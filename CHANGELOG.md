@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.41.0](https://github.com/bataak/spellchecker/compare/v1.40.0...v1.41.0) (2026-07-06)
+
+
+### Features
+
+* add help link and submitted-words link, refine suggest hint ([465af91](https://github.com/bataak/spellchecker/commit/465af91b66317a0bbb1094755f07a3d6c59b78f4))
+
 ## [1.40.0](https://github.com/bataak/spellchecker/compare/v1.39.1...v1.40.0) (2026-07-05)
 
 
