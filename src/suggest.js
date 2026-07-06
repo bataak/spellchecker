@@ -1,9 +1,7 @@
 const ENDPOINT = "https://api.bichig.dev/suggest";
 const SITEKEY = "0x4AAAAAADvk6t3Gsh_j1vH7";
 const WORD_RE = /^[\u0400-\u04FF][\u0400-\u04FF-]{1,49}$/u;
-const MAX_WORDS = 20;
-const PREFILL_MAX = 20;
-const ROOT_LEN = 3;
+const MAX_WORDS = 50;
 
 let overlay = null;
 let widgetId = null;
@@ -70,15 +68,15 @@ function renderChips() {
 function prefillFromErrors() {
   words = [];
   if (!deps.getBadTokens || !deps.buildErrorList) return;
-  const list = deps.buildErrorList(deps.getBadTokens());
-  const cyr = list.filter((t) => WORD_RE.test(t.word));
-  cyr.sort((a, b) => b.count - a.count);
-  const roots = new Set();
-  for (const t of cyr) {
-    if (words.length >= PREFILL_MAX) break;
-    const root = t.word.toLowerCase().slice(0, ROOT_LEN);
-    if (roots.has(root)) continue;
-    roots.add(root);
+  const list = deps
+    .buildErrorList(deps.getBadTokens())
+    .filter((t) => WORD_RE.test(t.word))
+    .sort((a, b) => b.count - a.count);
+  const seen = new Set();
+  for (const t of list) {
+    const key = t.word.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
     words.push(t.word);
   }
 }
@@ -236,6 +234,15 @@ async function submit() {
       "err",
     );
     overlay.querySelector("#suggestWord").focus();
+    return;
+  }
+  if (words.length > MAX_WORDS) {
+    note(
+      "\u0418\u043B\u0433\u044D\u044D\u0445 \u04AF\u0433\u0438\u0439\u043D \u0442\u043E\u043E \u0445\u0430\u043C\u0433\u0438\u0439\u043D \u0438\u0445\u0434\u044D\u044D " +
+        MAX_WORDS +
+        " \u0431\u0430\u0439\u0445 \u0451\u0441\u0442\u043E\u0439.",
+      "err",
+    );
     return;
   }
   if (!navigator.onLine) {
