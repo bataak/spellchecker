@@ -5,7 +5,7 @@
 
 ### Features
 
-* **dict:** update mn_MN to 2026.07.06 (620149 stems, +14 REP rules) ([2d8ec86](https://github.com/bataak/spellchecker/commit/2d8ec86bc2a4d2d9ebde5ca6cc089bcd8f2ce331))
+* **dict:** update mn_MN to 2026.07.06 (620149 stems, +14 REP rules) ([a5071fd](https://github.com/bataak/spellchecker/commit/a5071fdda0faeb25310d87f0a45b7407d0c3fbfc))
 
 ## [1.41.0](https://github.com/bataak/spellchecker/compare/v1.40.0...v1.41.0) (2026-07-06)
 
