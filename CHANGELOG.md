@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.45.0](https://github.com/bataak/spellchecker/compare/v1.44.0...v1.45.0) (2026-07-07)
+
+
+### Features
+
+* show word count in suggest label, red when over the limit ([cf61f6a](https://github.com/bataak/spellchecker/commit/cf61f6aba43e5bb56b7d604c9c11582eed50d9cb))
+
 ## [1.44.0](https://github.com/bataak/spellchecker/compare/v1.43.0...v1.44.0) (2026-07-07)
 
 
