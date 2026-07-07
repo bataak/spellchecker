@@ -740,6 +740,14 @@ html.booting .empty-state {
   font-weight: 600;
   color: var(--muted);
 }
+.suggest-count {
+  margin-left: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.suggest-count.over {
+  color: var(--proof);
+  font-weight: 700;
+}
 .suggest-input {
   width: 100%;
   font-family: var(--serif);
