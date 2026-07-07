@@ -66,7 +66,12 @@ function isCorrect(word) {
   return cache.has(word) ? cache.get(word) : true;
 }
 function checkable(word) {
-  return word.length >= 2 && !/^\p{N}+(-|$)/u.test(word);
+  const w = word.trim();
+  return (
+    w.length >= 2 &&
+    /[A-Za-z\u00C0-\u024F\u0400-\u04FF]/.test(w) &&
+    !/^\p{N}+(-|$)/u.test(w)
+  );
 }
 const CHECK_NOTICE_MIN = 2000;
 const CHECK_BATCH = 8000;
@@ -1272,6 +1277,7 @@ initToolbar({
 initSuggest({
   buildErrorList,
   getBadTokens: () => badTokens,
+  isDashSuffix: (t) => isDashSuffix(els.editor.value, t),
 });
 
 initIgnoreList({
