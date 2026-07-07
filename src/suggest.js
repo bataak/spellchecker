@@ -2,6 +2,28 @@ const ENDPOINT = "https://api.bichig.dev/suggest";
 const SITEKEY = "0x4AAAAAADvk6t3Gsh_j1vH7";
 const WORD_RE = /^[\u0400-\u04FF][\u0400-\u04FF-]{1,49}$/u;
 const MAX_WORDS = 50;
+const SUBMITTED_KEY = "mn-spell:submitted";
+const ISSUES_URL =
+  "https://github.com/bataak/dict-mn/issues?q=is%3Aissue%20label%3Auser-submitted";
+
+function getSubmitted() {
+  try {
+    const raw = localStorage.getItem(SUBMITTED_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch (_) {
+    return new Set();
+  }
+}
+
+function addSubmitted(list) {
+  try {
+    const set = getSubmitted();
+    for (const w of list) set.add(w.toLowerCase());
+    localStorage.setItem(SUBMITTED_KEY, JSON.stringify([...set]));
+  } catch (_) {}
+}
 
 let overlay = null;
 let widgetId = null;
@@ -9,6 +31,40 @@ let scriptPromise = null;
 let busy = false;
 let words = [];
 let deps = {};
+let showingSubmitted = false;
+
+const FORM_TITLE = "Шинэ буюу алдаатай үг мэдэгдэх";
+const SUBMITTED_TITLE = "Мэдэгдсэн үгс";
+
+function renderSubmittedList() {
+  const box = overlay.querySelector(".suggest-submitted-chips");
+  const list = [...getSubmitted()].sort((a, b) => a.localeCompare(b));
+  overlay.querySelector("#suggestTitle").textContent = list.length
+    ? SUBMITTED_TITLE + " (" + list.length + ")"
+    : SUBMITTED_TITLE;
+  box.innerHTML = list.length
+    ? list
+        .map((w) => '<span class="suggest-chip">' + escapeChip(w) + "</span>")
+        .join("")
+    : '<span class="suggest-hint">Одоогоор мэдэгдсэн үг алга</span>';
+}
+
+function setSubmittedView(on) {
+  const card = overlay.querySelector(".suggest-card");
+  if (on && window.matchMedia("(min-width: 701px)").matches) {
+    card.style.height = card.offsetHeight + "px";
+  }
+  if (!on) card.style.height = "";
+  showingSubmitted = on;
+  card.classList.toggle("submitted-view", on);
+  overlay
+    .querySelector(".suggest-view-submitted")
+    .classList.toggle("active", on);
+  overlay.querySelector(".suggest-send").disabled = on || busy;
+  note("");
+  if (on) renderSubmittedList();
+  else overlay.querySelector("#suggestTitle").textContent = FORM_TITLE;
+}
 
 function loadTurnstile() {
   if (window.turnstile) return Promise.resolve();
@@ -47,6 +103,8 @@ function escapeChip(s) {
 
 function renderChips() {
   const box = overlay.querySelector(".suggest-chips");
+  const clr = overlay.querySelector(".suggest-clear-all");
+  if (clr) clr.hidden = words.length < 2;
   box.innerHTML = words
     .map(
       (w, i) =>
@@ -65,26 +123,146 @@ function renderChips() {
   });
 }
 
+function isLowerDashSuffix(t) {
+  if (!deps.isDashSuffix || !deps.isDashSuffix(t)) return false;
+  const ch = t.word.replace(/^[-\u2013\u2014]+/, "").charAt(0);
+  return ch !== "" && ch === ch.toLowerCase() && ch !== ch.toUpperCase();
+}
+
+function H(tpl) {
+  const map = { A: ["а", "э", "о", "ө"], Y: ["ы", "ий"] };
+  let out = [""];
+  for (const ch of tpl) {
+    const opts = map[ch] || [ch];
+    const next = [];
+    for (const p of out) for (const o of opts) next.push(p + o);
+    out = next;
+  }
+  return out;
+}
+
+const NOUN_MS = [
+  ...H("гүй"),
+  ...H("Yн"), ...H("нY"), "гийн", ...H("Y"), "н", "йн",
+  ...H("Yг"), "г", "йг",
+  "д", "т", "нд", ...H("Aд"), "ид", "уд", "үд", "ыд",
+  ...H("AAс"), ...H("AAр"), ...H("AA"),
+  "тай", "тэй", "той",
+  ...H("гAA"), ...H("хAA"), "еэ", "ёо", "яа", "ье",
+  "х", "хан", "хэн", "хон", "хн",
+  "ууд", "үүд",
+];
+
+const VERB_MS = [
+  "в", "вч", ...H("Aв"),
+  ...H("лAA"), "жээ", "чээ", "ж", "ч",
+  ...H("сAн"), "сн", ...H("сAAр"), ...H("сAд"), "сд",
+  ...H("нA"), "нам", "нэм", "муй", "мүй", "муу", "мүү",
+  ...H("AAд"), ...H("AAч"), "ай", "эй", "ой", "өй",
+  ...H("дAг"), "дг", ...H("Aг"), ...H("Aх"), ...H("Aл"), ...H("Aм"), ...H("Aн"),
+  ...H("вAл"), ...H("вAAс"), ...H("бAл"), ...H("бAAс"),
+  ...H("мAгц"), ...H("тAл"), ...H("тлAA"), "хул", "хүл", "ул", "үл",
+  ...H("мAAр"), ...H("мAр"), ...H("лAAр"),
+  "уй", "үй", "уйц", "үйц", "дүй", "дуй",
+  "жухуй", "чухуй", "шгүй", ...H("Aшгүй"), ...H("Aс"), ...H("Aж"),
+  "су", "сү", "сугай", "сүгэй", "тугай", "түгэй", "тун", "түн", "туй", "түй",
+  "уужин", "үүжин", "уузай", "үүзэй", "жин", "зай", "сай",
+  "ъя", "ъё", "ъе", "ъюу", "ъю", "юу", "юү", "ьюу", "ьюү", "ья", "ье", "ьё",
+  "руун", "рүүн", "архуу", "эрхүү", "орхуу", "өрхүү", "рхуу", "рхүү",
+  "гай", "гэй", "гой", "гөй", "хай", "хэй", "хой", "хөй", "гий", "хий",
+  "гуй", "гуут", "гүүт", "уут", "үүт", "ууш", "үүш", "уур", "үүр",
+  ...H("члAн"), "чаа", "чаан",
+  "мз", "з", "р", "л", "м", "ш", "с", "ц",
+  "а", "э", "и", "о", "у", "ө", "ү", "ы", "е", "ё", "ю", "я",
+];
+
+function mkChain(morphs) {
+  const MS = [...new Set(morphs)].sort((a, b) => b.length - a.length);
+  return function (tail, prevCh) {
+    let rest = tail;
+    let prev = prevCh;
+    if (rest[0] === "-") {
+      rest = rest.slice(1);
+      prev = "-";
+    }
+    if (rest === "") return true;
+    const memo = new Map();
+    function go(i, pc) {
+      if (i === rest.length) return true;
+      if (memo.has(i)) return memo.get(i);
+      let ok = false;
+      for (const m of MS) {
+        if (!rest.startsWith(m, i)) continue;
+        if (m === "т" && pc === "т") continue;
+        if (go(i + m.length, m[m.length - 1])) {
+          ok = true;
+          break;
+        }
+      }
+      memo.set(i, ok);
+      return ok;
+    }
+    return go(0, prev);
+  };
+}
+
+const nounChain = mkChain(NOUN_MS);
+const unionChain = mkChain([...NOUN_MS, ...VERB_MS]);
+
+function sameRoot(a, b) {
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  if (i < 3) return false;
+  const pc = a[i - 1];
+  for (let da = 0; da <= 1; da++) {
+    for (let db = 0; db <= 1; db++) {
+      if (
+        a
+          .slice(i, i + da)
+          .split("")
+          .some((c) => c === pc)
+      )
+        continue;
+      if (
+        b
+          .slice(i, i + db)
+          .split("")
+          .some((c) => c === pc)
+      )
+        continue;
+      const ta = a.slice(i + da);
+      const tb = b.slice(i + db);
+      if (nounChain(ta, pc) && nounChain(tb, pc)) return true;
+      if (unionChain(ta, pc) && unionChain(tb, pc)) return true;
+    }
+  }
+  return false;
+}
+
 function prefillFromErrors() {
   words = [];
   if (!deps.getBadTokens || !deps.buildErrorList) return;
   const list = deps
-    .buildErrorList(deps.getBadTokens())
+    .buildErrorList(deps.getBadTokens().filter((t) => !isLowerDashSuffix(t)))
     .filter((t) => WORD_RE.test(t.word))
-    .sort((a, b) => b.count - a.count);
-  const seen = new Set();
+    .sort((a, b) => a.word.length - b.word.length);
+  const submitted = getSubmitted();
+  const kept = [];
   for (const t of list) {
     const key = t.word.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    words.push(t.word);
+    if (submitted.has(key)) continue;
+    if (kept.some((k) => sameRoot(k.key, key))) continue;
+    kept.push({ key, t });
   }
+  kept.sort((a, b) => a.t.word.localeCompare(b.t.word, "mn"));
+  for (const k of kept) words.push(k.t.word);
 }
 
 function addFromInput(commit) {
   const wordEl = overlay.querySelector("#suggestWord");
   const parts = wordEl.value.split(/[\s,\u3001\uFF0C]+/);
   const tail = commit ? "" : parts.pop();
+  const submitted = getSubmitted();
   let added = false;
   for (const p of parts) {
     const w = p.trim();
@@ -96,6 +274,10 @@ function addFromInput(commit) {
           "\u00BB \u2014 \u043A\u0438\u0440\u0438\u043B\u043B \u04AF\u0441\u0433\u044D\u044D\u0440, 2\u201350 \u0442\u044D\u043C\u0434\u044D\u0433\u0442 \u0431\u0430\u0439\u0445 \u0451\u0441\u0442\u043E\u0439",
         "err",
       );
+      continue;
+    }
+    if (submitted.has(w.toLowerCase())) {
+      note("\u00AB" + w + "\u00BB \u2014 энэ үгийг аль хэдийн мэдэгдсэн байна", "err");
       continue;
     }
     if (words.length >= MAX_WORDS) {
@@ -139,13 +321,22 @@ function build() {
     '<p class="suggest-hint">\u0428\u0438\u043D\u044D \u04AF\u0433\u0438\u0439\u0433 \u04AF\u0433\u0438\u0439\u043D \u0441\u0430\u043D\u0434 \u0445\u0443\u0432\u0438\u043B\u043B\u044B\u043D \u0445\u0430\u043C\u0442 \u043D\u044D\u043C\u04AF\u04AF\u043B\u044D\u0445 \u0431\u0443\u044E\u0443 \u0430\u043B\u0434\u0430\u0430 \u043C\u044D\u0434\u044D\u044D\u043B\u044D\u0445</p>' +
     '<label class="suggest-label" for="suggestWord">\u041C\u044D\u0434\u044D\u0433\u0434\u044D\u0445 \u04AF\u0433</label>' +
     '<div class="suggest-chips"></div>' +
+    '<div class="suggest-input-row">' +
     '<input id="suggestWord" class="suggest-input" type="text" maxlength="50" autocomplete="off" autocapitalize="off" spellcheck="false" />' +
+    '<button type="button" class="suggest-clear-all" hidden title="\u0411\u04AF\u0433\u0434\u0438\u0439\u0433 \u0443\u0441\u0442\u0433\u0430\u0445" aria-label="\u0411\u04AF\u0433\u0434\u0438\u0439\u0433 \u0443\u0441\u0442\u0433\u0430\u0445">&times;</button>' +
+    "</div>" +
     '<label class="suggest-label" for="suggestNote">\u0422\u0430\u0439\u043B\u0431\u0430\u0440 (\u0437\u0430\u0430\u0432\u0430\u043B \u0431\u0438\u0448)</label>' +
     '<textarea id="suggestNote" class="suggest-input suggest-textarea" maxlength="500" rows="3"></textarea>' +
     '<div class="suggest-turnstile"></div>' +
+    '<div class="suggest-submitted">' +
+    '<div class="suggest-chips suggest-submitted-chips"></div>' +
+    "</div>" +
     '<p class="suggest-note" aria-live="polite"></p>' +
     '<div class="suggest-actions">' +
-    '<a class="tbtn suggest-issues" style="margin-right:auto" href="https://github.com/bataak/dict-mn/issues?q=is%3Aissue%20label%3Auser-submitted" target="_blank" rel="noopener noreferrer" title="\u0425\u044D\u0440\u044D\u0433\u043B\u044D\u0433\u0447\u0438\u0439\u043D \u043C\u044D\u0434\u044D\u0433\u0434\u0441\u044D\u043D \u04AF\u0433\u0441">\u041C\u044D\u0434\u044D\u0433\u0434\u0441\u044D\u043D \u04AF\u0433\u0441</a>' +
+    '<a class="tbtn suggest-issues" href="' +
+    ISSUES_URL +
+    '" target="_blank" rel="noopener noreferrer" title="Нийт хэрэглэгчдийн мэдэгдсэн үгс">GitHub</a>' +
+    '<button type="button" class="tbtn suggest-view-submitted" title="Миний мэдэгдсэн үгс" style="margin-right:auto">Мэдэгдсэн үгс</button>' +
     '<button type="button" class="tbtn suggest-cancel">\u0426\u0443\u0446\u043B\u0430\u0445</button>' +
     '<button type="button" class="tbtn suggest-send">\u0418\u043B\u0433\u044D\u044D\u0445</button>' +
     "</div>" +
@@ -159,6 +350,51 @@ function build() {
   });
   overlay.querySelector(".suggest-cancel").addEventListener("click", closeForm);
   overlay.querySelector(".suggest-send").addEventListener("click", submit);
+  const viewBtn = overlay.querySelector(".suggest-view-submitted");
+  viewBtn.addEventListener("click", () =>
+    setSubmittedView(!showingSubmitted),
+  );
+  let pressTimer = null;
+  let longPressed = false;
+  const issuesHidden = () =>
+    getComputedStyle(overlay.querySelector(".suggest-issues")).display ===
+    "none";
+  const startPress = () => {
+    if (!issuesHidden()) return;
+    longPressed = false;
+    pressTimer = setTimeout(() => {
+      longPressed = true;
+      window.open(ISSUES_URL, "_blank", "noopener,noreferrer");
+    }, 550);
+  };
+  const cancelPress = () => {
+    if (pressTimer) clearTimeout(pressTimer);
+    pressTimer = null;
+  };
+  viewBtn.addEventListener("pointerdown", startPress);
+  viewBtn.addEventListener("pointerup", cancelPress);
+  viewBtn.addEventListener("pointerleave", cancelPress);
+  viewBtn.addEventListener("pointercancel", cancelPress);
+  viewBtn.addEventListener("contextmenu", (e) => {
+    if (issuesHidden()) e.preventDefault();
+  });
+  viewBtn.addEventListener(
+    "click",
+    (e) => {
+      if (longPressed) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        longPressed = false;
+      }
+    },
+    true,
+  );
+  overlay.querySelector(".suggest-clear-all").addEventListener("click", () => {
+    words = [];
+    renderChips();
+    note("");
+    wordEl.focus();
+  });
 
   wordEl.addEventListener("input", () => addFromInput(false));
   wordEl.addEventListener("keydown", (e) => {
@@ -193,6 +429,7 @@ function build() {
 async function openForm() {
   if (!overlay) build();
   overlay.hidden = false;
+  setSubmittedView(false);
   note("");
   prefillFromErrors();
   renderChips();
@@ -223,7 +460,7 @@ async function openForm() {
 }
 
 async function submit() {
-  if (busy) return;
+  if (busy || showingSubmitted) return;
   addFromInput(true);
   const noteEl = overlay.querySelector("#suggestNote");
   const sendBtn = overlay.querySelector(".suggest-send");
@@ -279,6 +516,7 @@ async function submit() {
       }),
     });
     if (r.status === 201) {
+      addSubmitted(words);
       note(
         "\u0418\u043B\u0433\u044D\u044D\u0433\u0434\u043B\u044D\u044D, \u0431\u0430\u044F\u0440\u043B\u0430\u043B\u0430\u0430!",
         "ok",
