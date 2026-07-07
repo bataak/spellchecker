@@ -759,6 +759,38 @@ html.booting .empty-state {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+.suggest-input-row {
+  position: relative;
+}
+.suggest-input-row .suggest-input {
+  padding-right: 34px;
+}
+.suggest-clear-all {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  font-size: 1.05rem;
+  line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.suggest-clear-all:hover {
+  color: var(--proof);
+  background: var(--proof-soft);
+}
+.suggest-clear-all:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
 .suggest-textarea {
   resize: vertical;
   min-height: 44px;
@@ -801,6 +833,45 @@ html.booting .empty-state {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   font-weight: 700;
+}
+.suggest-view-submitted.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.suggest-submitted {
+  display: none;
+}
+.suggest-card.submitted-view {
+  display: flex;
+  flex-direction: column;
+}
+.suggest-card.submitted-view .suggest-submitted {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.suggest-card.submitted-view .suggest-actions {
+  margin-top: 10px;
+}
+.suggest-submitted .suggest-chips {
+  flex: 1 1 auto;
+  max-height: none;
+}
+.suggest-card.submitted-view > .suggest-hint,
+.suggest-card.submitted-view > .suggest-label,
+.suggest-card.submitted-view > .suggest-chips,
+.suggest-card.submitted-view > .suggest-input-row,
+.suggest-card.submitted-view > .suggest-textarea,
+.suggest-card.submitted-view > .suggest-turnstile {
+  display: none;
+}
+.suggest-submitted .suggest-hint {
+  margin: 0 0 10px;
+}
+.suggest-submitted .suggest-chip {
+  padding: 3px 11px;
 }
 .ignore-actions {
   justify-content: space-between;
@@ -887,6 +958,15 @@ html.booting .empty-state {
   }
   .suggest-textarea {
     flex: 1 1 auto;
+  }
+  .suggest-actions {
+    flex-wrap: nowrap;
+  }
+  .suggest-issues {
+    display: none;
+  }
+  .suggest-view-submitted {
+    margin-right: auto;
   }
   .ignore-actions {
     margin-top: auto;
