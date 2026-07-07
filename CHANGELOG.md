@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.43.0](https://github.com/bataak/spellchecker/compare/v1.42.0...v1.43.0) (2026-07-06)
+
+
+### Features
+
+* **dict:** update mn_MN to 2026.07.06 (620149 stems, +14 REP rules) ([a5071fd](https://github.com/bataak/spellchecker/commit/a5071fdda0faeb25310d87f0a45b7407d0c3fbfc))
+* prefill all error words and cap suggestions at 50 ([28d17ce](https://github.com/bataak/spellchecker/commit/28d17ce58147e6ac5e9d739d3711cd9c775b41cc))
+
+
+### Bug Fixes
+
+* keep suggest chip overflow cut at half a row on all devices ([a76e9e5](https://github.com/bataak/spellchecker/commit/a76e9e5713901e2656a054200f389cb66dc73a61))
+
 ## [1.42.0](https://github.com/bataak/spellchecker/compare/v1.41.0...v1.42.0) (2026-07-06)
 
 
