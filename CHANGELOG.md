@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.44.0](https://github.com/bataak/spellchecker/compare/v1.43.0...v1.44.0) (2026-07-07)
+
+
+### Features
+
+* add submitted-words view, morphology-based root dedup, and mobile long-press to suggest dialog ([063bfaf](https://github.com/bataak/spellchecker/commit/063bfafb5e9edebb648aa845bf2b54d516b3e814))
+* style submitted-words view, clear-all button, and condensed mobile action row ([eb22f89](https://github.com/bataak/spellchecker/commit/eb22f898255640377deaa02233a934ad051ec548))
+
+
+### Bug Fixes
+
+* require letters in checkable tokens and pass isDashSuffix to suggest ([b76c34a](https://github.com/bataak/spellchecker/commit/b76c34a3bd4ae2bc243d359c22f3b7d15a31147d))
+
 ## [1.43.0](https://github.com/bataak/spellchecker/compare/v1.42.0...v1.43.0) (2026-07-06)
 
 
