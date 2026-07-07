@@ -105,6 +105,11 @@ function renderChips() {
   const box = overlay.querySelector(".suggest-chips");
   const clr = overlay.querySelector(".suggest-clear-all");
   if (clr) clr.hidden = words.length < 2;
+  const cnt = overlay.querySelector(".suggest-count");
+  if (cnt) {
+    cnt.textContent = words.length ? "(" + words.length + ")" : "";
+    cnt.classList.toggle("over", words.length > MAX_WORDS);
+  }
   box.innerHTML = words
     .map(
       (w, i) =>
@@ -469,7 +474,7 @@ function build() {
     '<div class="suggest-card" role="dialog" aria-modal="true" aria-labelledby="suggestTitle">' +
     '<h2 id="suggestTitle" class="suggest-title">\u0428\u0438\u043D\u044D \u0431\u0443\u044E\u0443 \u0430\u043B\u0434\u0430\u0430\u0442\u0430\u0439 \u04AF\u0433 \u043C\u044D\u0434\u044D\u0433\u0434\u044D\u0445</h2>' +
     '<p class="suggest-hint">\u0428\u0438\u043D\u044D \u04AF\u0433\u0438\u0439\u0433 \u04AF\u0433\u0438\u0439\u043D \u0441\u0430\u043D\u0434 \u0445\u0443\u0432\u0438\u043B\u043B\u044B\u043D \u0445\u0430\u043C\u0442 \u043D\u044D\u043C\u04AF\u04AF\u043B\u044D\u0445 \u0431\u0443\u044E\u0443 \u0430\u043B\u0434\u0430\u0430 \u043C\u044D\u0434\u044D\u044D\u043B\u044D\u0445</p>' +
-    '<label class="suggest-label" for="suggestWord">\u041C\u044D\u0434\u044D\u0433\u0434\u044D\u0445 \u04AF\u0433</label>' +
+    '<label class="suggest-label" for="suggestWord">\u041C\u044D\u0434\u044D\u0433\u0434\u044D\u0445 \u04AF\u0433 <span class="suggest-count" aria-hidden="true"></span></label>' +
     '<div class="suggest-chips"></div>' +
     '<div class="suggest-input-row">' +
     '<input id="suggestWord" class="suggest-input" type="text" maxlength="50" autocomplete="off" autocapitalize="off" spellcheck="false" />' +
