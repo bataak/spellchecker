@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.47.0](https://github.com/bataak/spellchecker/compare/v1.46.2...v1.47.0) (2026-07-08)
+
+
+### Features
+
+* add morphology-based root dedup and extract testable helper modules ([2b26550](https://github.com/bataak/spellchecker/commit/2b26550ef686bd960bc2494b85fbc254aeb7b033))
+
 ## [1.46.2](https://github.com/bataak/spellchecker/compare/v1.46.1...v1.46.2) (2026-07-08)
 
 
