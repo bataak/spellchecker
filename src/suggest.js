@@ -187,6 +187,12 @@ const NOUN_MS = [
   "хн",
   "ууд",
   "үүд",
+  ...H("нхдAA"),
+  ...H("нхтAA"),
+  ...H("нхтэй"),
+  "нхэд",
+  "нхад",
+  "нход",
 ];
 
 const VERB_MS = [
@@ -341,22 +347,25 @@ function mkChain(morphs) {
     }
     if (rest === "") return true;
     const memo = new Map();
-    function go(i, pc) {
+    function go(i, pc, run) {
       if (i === rest.length) return true;
-      if (memo.has(i)) return memo.get(i);
+      const key = i * 4 + run;
+      if (memo.has(key)) return memo.get(key);
       let ok = false;
       for (const m of MS) {
         if (!rest.startsWith(m, i)) continue;
         if (m === "т" && pc === "т") continue;
-        if (go(i + m.length, m[m.length - 1])) {
+        const nr = m.length === 1 ? run + 1 : 0;
+        if (nr > 2) continue;
+        if (go(i + m.length, m[m.length - 1], nr)) {
           ok = true;
           break;
         }
       }
-      memo.set(i, ok);
+      memo.set(key, ok);
       return ok;
     }
-    return go(0, prev);
+    return go(0, prev, 0);
   };
 }
 
@@ -387,7 +396,8 @@ function sameRoot(a, b) {
       const ta = a.slice(i + da);
       const tb = b.slice(i + db);
       if (nounChain(ta, pc) && nounChain(tb, pc)) return true;
-      if (unionChain(ta, pc) && unionChain(tb, pc)) return true;
+      if (ta === "" && unionChain(tb, pc)) return true;
+      if (tb === "" && unionChain(ta, pc)) return true;
     }
   }
   return false;
