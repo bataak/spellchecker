@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.46.2](https://github.com/bataak/spellchecker/compare/v1.46.1...v1.46.2) (2026-07-08)
+
+
+### Bug Fixes
+
+* cap consecutive single-char morphemes to prevent conflating distinct stems like Шилхинцэг/Шилгэнцэг ([2063267](https://github.com/bataak/spellchecker/commit/2063267d2b3053cd86b4ec34fb3551fcb0ebf7a2))
+
 ## [1.46.1](https://github.com/bataak/spellchecker/compare/v1.46.0...v1.46.1) (2026-07-08)
 
 
