@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.46.1](https://github.com/bataak/spellchecker/compare/v1.46.0...v1.46.1) (2026-07-08)
+
+
+### Bug Fixes
+
+* wrap submitted-words title count in muted count span ([2ab341a](https://github.com/bataak/spellchecker/commit/2ab341ac4060d0f937829f42bfbd8ebd2cde79b7))
+
 ## [1.46.0](https://github.com/bataak/spellchecker/compare/v1.45.0...v1.46.0) (2026-07-08)
 
 
