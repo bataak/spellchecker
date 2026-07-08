@@ -14,6 +14,11 @@ import { initIgnoreList, syncIgnoreVisibility } from "./ignorelist.js";
 import { initAppearance } from "./appearance.js";
 import { escapeHtml } from "./htmlutil.js";
 import {
+  checkable,
+  isDashSuffix,
+  buildErrorList,
+} from "./textcheck.js";
+import {
   initDraftStorage,
   saveDraft,
   flushDraft,
@@ -64,14 +69,6 @@ const setStatus = (html, animate = true) => {
 };
 function isCorrect(word) {
   return cache.has(word) ? cache.get(word) : true;
-}
-function checkable(word) {
-  const w = word.trim();
-  return (
-    w.length >= 2 &&
-    /[A-Za-z\u00C0-\u024F\u0400-\u04FF]/.test(w) &&
-    !/^\p{N}+(-|$)/u.test(w)
-  );
 }
 const CHECK_NOTICE_MIN = 2000;
 const CHECK_BATCH = 8000;
@@ -201,11 +198,6 @@ function replaceAllWord(
   }
   result += text.slice(cursor);
   return { text: result, caret };
-}
-const DASHES = /[-\u2013\u2014]/;
-function isDashSuffix(text, t) {
-  if (DASHES.test(t.word.slice(1))) return false;
-  return DASHES.test(t.word.charAt(0)) || DASHES.test(text.charAt(t.start - 1));
 }
 function wordAtCaret(text, pos) {
   for (const { word, index } of tokenize(text)) {
@@ -346,16 +338,6 @@ function scrollMarkIntoView(start) {
   syncScroll();
 }
 
-function buildErrorList(tokens) {
-  const seen = new Map();
-  for (const t of tokens) {
-    const key = t.word.toLowerCase();
-    const e = seen.get(key);
-    if (e) e.count++;
-    else seen.set(key, { word: t.word, start: t.start, count: 1 });
-  }
-  return [...seen.values()];
-}
 
 function renderErrorPanel() {
   if (!panelEls.list) return;

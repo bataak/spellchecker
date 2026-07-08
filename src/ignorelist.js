@@ -75,7 +75,7 @@ const LATIN_WORD_RE =
   /^[A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F'\u2019-]{1,49}$/;
 const CYR_WORD_RE = /^[\u0400-\u04FF][\u0400-\u04FF-]{1,49}$/u;
 
-function normalizeImport(raw) {
+export function normalizeImport(raw) {
   const w = raw.trim();
   if (!w) return null;
   if (HAS_LATIN.test(w)) {
