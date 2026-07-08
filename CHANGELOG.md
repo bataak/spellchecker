@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.46.0](https://github.com/bataak/spellchecker/compare/v1.45.0...v1.46.0) (2026-07-08)
+
+
+### Features
+
+* show word counts in suggest and ignore dialogs with consistent styling ([890f783](https://github.com/bataak/spellchecker/commit/890f7836ff46ade44b6b8375bcd0f8b67982e3f1))
+
 ## [1.45.0](https://github.com/bataak/spellchecker/compare/v1.44.0...v1.45.0) (2026-07-07)
 
 
