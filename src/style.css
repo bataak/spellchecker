@@ -742,11 +742,19 @@ html.booting .empty-state {
 }
 .suggest-count {
   margin-left: 2px;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
+  color: var(--muted);
 }
 .suggest-count.over {
   color: var(--proof);
   font-weight: 700;
+}
+.ignore-count {
+  margin-left: 3px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
 }
 .suggest-input {
   width: 100%;
