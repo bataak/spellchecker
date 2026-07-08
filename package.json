@@ -5,8 +5,12 @@
   "type": "module",
   "description": "Монгол үгийн алдаа шалгагч — hunspell-wasm + nspell, GitHub Pages",
   "scripts": {
+    "test": "node --test \"tests/*.test.js\"",
+    "predev": "npm test",
     "dev": "vite",
+    "prebuild": "npm test",
     "build": "vite build",
+    "prepreview": "npm test",
     "preview": "vite build && vite preview"
   },
   "dependencies": {
