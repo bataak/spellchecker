@@ -39,8 +39,11 @@ const SUBMITTED_TITLE = "Мэдэгдсэн үгс";
 function renderSubmittedList() {
   const box = overlay.querySelector(".suggest-submitted-chips");
   const list = [...getSubmitted()].sort((a, b) => a.localeCompare(b));
-  overlay.querySelector("#suggestTitle").textContent = list.length
-    ? SUBMITTED_TITLE + " (" + list.length + ")"
+  overlay.querySelector("#suggestTitle").innerHTML = list.length
+    ? SUBMITTED_TITLE +
+      ' <span class="suggest-count" aria-hidden="true">(' +
+      list.length +
+      ")</span>"
     : SUBMITTED_TITLE;
   box.innerHTML = list.length
     ? list
@@ -451,7 +454,8 @@ function addFromInput(commit) {
   wordEl.value = tail;
   if (added) {
     renderChips();
-    if (overlay.querySelector(".suggest-note").dataset.kind !== "err") note("");
+    if (overlay.querySelector(".suggest-note").dataset.kind !== "err")
+      note("");
   }
 }
 
@@ -502,10 +506,14 @@ function build() {
   overlay.addEventListener("pointerdown", (e) => {
     if (e.target === overlay) closeForm();
   });
-  overlay.querySelector(".suggest-cancel").addEventListener("click", closeForm);
+  overlay
+    .querySelector(".suggest-cancel")
+    .addEventListener("click", closeForm);
   overlay.querySelector(".suggest-send").addEventListener("click", submit);
   const viewBtn = overlay.querySelector(".suggest-view-submitted");
-  viewBtn.addEventListener("click", () => setSubmittedView(!showingSubmitted));
+  viewBtn.addEventListener("click", () =>
+    setSubmittedView(!showingSubmitted),
+  );
   let pressTimer = null;
   let longPressed = false;
   const issuesHidden = () =>
@@ -541,12 +549,14 @@ function build() {
     },
     true,
   );
-  overlay.querySelector(".suggest-clear-all").addEventListener("click", () => {
-    words = [];
-    renderChips();
-    note("");
-    wordEl.focus();
-  });
+  overlay
+    .querySelector(".suggest-clear-all")
+    .addEventListener("click", () => {
+      words = [];
+      renderChips();
+      note("");
+      wordEl.focus();
+    });
 
   wordEl.addEventListener("input", () => addFromInput(false));
   wordEl.addEventListener("keydown", (e) => {
