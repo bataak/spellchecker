@@ -23,6 +23,8 @@ function renderList() {
   const empty = overlay.querySelector(".ignore-empty");
   const clearBtn = overlay.querySelector(".ignore-clear");
   const exportBtn = overlay.querySelector(".ignore-export");
+  const cnt = overlay.querySelector(".ignore-count");
+  if (cnt) cnt.textContent = words.length ? "(" + words.length + ")" : "";
   clearBtn.hidden = words.length < 2;
   exportBtn.disabled = words.length === 0;
   if (!words.length) {
@@ -111,7 +113,7 @@ function build() {
   overlay.hidden = true;
   overlay.innerHTML =
     '<div class="suggest-card" role="dialog" aria-modal="true" aria-labelledby="ignoreTitle">' +
-    '<h2 id="ignoreTitle" class="suggest-title">\u0428\u0430\u043B\u0433\u0430\u043B\u0442\u044B\u0433 \u0430\u043B\u0433\u0430\u0441\u0430\u0445 \u04AF\u0433</h2>' +
+    '<h2 id="ignoreTitle" class="suggest-title">\u0428\u0430\u043B\u0433\u0430\u043B\u0442\u044B\u0433 \u0430\u043B\u0433\u0430\u0441\u0430\u0445 \u04AF\u0433 <span class="ignore-count" aria-hidden="true"></span></h2>' +
     '<p class="suggest-hint">\u042D\u0434\u0433\u044D\u044D\u0440 \u04AF\u0433\u0441\u0438\u0439\u0433 \u0430\u043B\u0434\u0430\u0430\u043D\u0434 \u0442\u043E\u043E\u0446\u043E\u0445\u0433\u04AF\u0439 (\u0443\u043B\u0430\u0430\u043D\u0430\u0430\u0440 \u0437\u0443\u0440\u0430\u0445\u0433\u04AF\u0439).</p>' +
     '<div class="ignore-chips"></div>' +
     '<p class="ignore-empty suggest-hint" hidden>\u0410\u043B\u0433\u0430\u0441\u0430\u0445 \u04AF\u0433 \u0430\u043B\u0433\u0430.</p>' +
