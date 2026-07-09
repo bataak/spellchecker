@@ -415,10 +415,6 @@ a.tbtn {
 }
 
 @media (max-width: 700px) {
-  .fontctl {
-    display: none;
-  }
-
   .subtitle {
     white-space: nowrap;
     overflow-x: auto;
