@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.48.0](https://github.com/bataak/spellchecker/compare/v1.47.0...v1.48.0) (2026-07-09)
+
+
+### Features
+
+* show font size controls on mobile toolbar ([d542081](https://github.com/bataak/spellchecker/commit/d5420818c22cceacbd594764e4a4a1d73760d49b))
+
+
+### Bug Fixes
+
+* prevent double-tap zoom on buttons and links ([c637ab9](https://github.com/bataak/spellchecker/commit/c637ab992639eb319a1fb868426e34028b149715))
+
 ## [1.47.0](https://github.com/bataak/spellchecker/compare/v1.46.2...v1.47.0) (2026-07-08)
 
 
