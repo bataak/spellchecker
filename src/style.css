@@ -172,6 +172,12 @@ h1 {
 .toolbar::-webkit-scrollbar {
   display: none;
 }
+button,
+a,
+select,
+label {
+  touch-action: manipulation;
+}
 .tbtn {
   flex: 0 0 auto;
   white-space: nowrap;
