@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.48.1](https://github.com/bataak/spellchecker/compare/v1.48.0...v1.48.1) (2026-07-10)
+
+
+### Bug Fixes
+
+* merge stems with a dropped vowel while keeping consonant-skip suffix handling ([b85356a](https://github.com/bataak/spellchecker/commit/b85356abcc983f350abba80a97661ce267d779b0))
+
 ## [1.48.0](https://github.com/bataak/spellchecker/compare/v1.47.0...v1.48.0) (2026-07-09)
 
 
