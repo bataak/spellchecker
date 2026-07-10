@@ -255,6 +255,8 @@ function mkChain(morphs) {
 export const nounChain = mkChain(NOUN_MS);
 export const unionChain = mkChain([...NOUN_MS, ...VERB_MS]);
 
+const VOWELS = "аэиоуөүы";
+
 export function sameRoot(a, b) {
   let i = 0;
   while (i < a.length && i < b.length && a[i] === b[i]) i++;
@@ -262,25 +264,26 @@ export function sameRoot(a, b) {
   const pc = a[i - 1];
   for (let da = 0; da <= 1; da++) {
     for (let db = 0; db <= 1; db++) {
-      if (
-        a
-          .slice(i, i + da)
-          .split("")
-          .some((c) => c === pc)
-      )
-        continue;
-      if (
-        b
-          .slice(i, i + db)
-          .split("")
-          .some((c) => c === pc)
-      )
-        continue;
-      const ta = a.slice(i + da);
-      const tb = b.slice(i + db);
-      if (nounChain(ta, pc) && nounChain(tb, pc)) return true;
-      if (ta === "" && unionChain(tb, pc)) return true;
-      if (tb === "" && unionChain(ta, pc)) return true;
+      const sa = a.slice(i, i + da);
+      const sb = b.slice(i, i + db);
+      if (sa.split("").some((c) => c === pc)) continue;
+      if (sb.split("").some((c) => c === pc)) continue;
+      let ta = a.slice(i + da);
+      let tb = b.slice(i + db);
+      let cpc = pc;
+      if (da + db === 1 && VOWELS.includes(da === 1 ? sa : sb)) {
+        let j = 0;
+        while (j < ta.length && j < tb.length && ta[j] === tb[j]) j++;
+        if (j > 0) {
+          cpc = ta[j - 1];
+          ta = ta.slice(j);
+          tb = tb.slice(j);
+        }
+      }
+      if (ta === "" && tb === "") return true;
+      if (nounChain(ta, cpc) && nounChain(tb, cpc)) return true;
+      if (ta === "" && unionChain(tb, cpc)) return true;
+      if (tb === "" && unionChain(ta, cpc)) return true;
     }
   }
   return false;
