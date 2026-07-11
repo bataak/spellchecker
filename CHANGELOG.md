@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.49.0](https://github.com/bataak/spellchecker/compare/v1.48.1...v1.49.0) (2026-07-11)
+
+
+### Features
+
+* rotate placeholder tips randomly ([d02e4e5](https://github.com/bataak/spellchecker/commit/d02e4e521051e15ea826beaf7a1ac0257b3cf8ab))
+
 ## [1.48.1](https://github.com/bataak/spellchecker/compare/v1.48.0...v1.48.1) (2026-07-10)
 
 
