@@ -30,6 +30,7 @@ import {
   refreshBackdropMarks,
   materializeMark,
 } from "./backdrop.js";
+import { rotateEmptyTips, syncEmptyTips } from "./emptytips.js";
 
 document.body.classList.add("ready");
 
@@ -216,6 +217,7 @@ async function render() {
   if (els.emptyState) {
     els.emptyState.style.opacity = text.length === 0 ? "" : "0";
     document.body.classList.toggle("has-text", text.length !== 0);
+    syncEmptyTips(text.length === 0);
   }
 
   if (!ready) {
@@ -712,11 +714,16 @@ els.editor.addEventListener("input", (e) => {
     const empty = els.editor.value.length === 0;
     els.emptyState.style.opacity = empty ? "" : "0";
     document.body.classList.toggle("has-text", !empty);
+    syncEmptyTips(empty);
   }
   saveTextSoon();
   if (isSeparatorInput(e)) recheck();
   else deferredCheck();
 });
+const clearBtnEl = document.querySelector("#clearBtn");
+if (clearBtnEl) {
+  clearBtnEl.addEventListener("click", () => rotateEmptyTips());
+}
 let lastCaret = null;
 els.editor.addEventListener("blur", () => {
   pendingFix = null;
