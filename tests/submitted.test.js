@@ -29,7 +29,7 @@ test("getSubmitted: эвдэрсэн JSON-д хоосон Set буцаана", (
   assert.equal(getSubmitted().size, 0);
 });
 
-test("getSubmitted: жагсалат биш утгад хоосон Set буцаана", () => {
+test("getSubmitted: жагсаалт биш утгад хоосон Set буцаана", () => {
   rawSet(KEY, JSON.stringify({ a: 1 }));
   assert.equal(getSubmitted().size, 0);
 });
