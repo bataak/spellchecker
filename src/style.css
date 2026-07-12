@@ -440,7 +440,7 @@ a.tbtn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 16px;
   padding: clamp(20px, 5vh, 56px) 24px;
   text-align: center;
@@ -453,6 +453,10 @@ a.tbtn {
 html.booting .empty-state {
   opacity: 0;
   transition: none;
+}
+.empty-state::before {
+  content: "";
+  flex: 0 0 21%;
 }
 .empty-state .empty-title {
   margin: 0;
@@ -517,6 +521,9 @@ html.booting .empty-state {
 }
 
 @media (min-width: 1024px) {
+  .empty-state::before {
+    flex-basis: 36%;
+  }
   .empty-state .empty-note {
     width: min(76ch, 100%);
   }
