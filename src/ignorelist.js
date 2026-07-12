@@ -8,11 +8,11 @@ import {
 let overlay = null;
 let onChange = null;
 
-function escapeChip(s) {
-  return s.replace(/[&<>"]/g, (c) => {
-    if (c === "&") return "&amp;";
-    if (c === "<") return "&lt;";
-    if (c === ">") return "&gt;";
+function escapeChip(text) {
+  return text.replace(/[&<>"]/g, (char) => {
+    if (char === "&") return "&amp;";
+    if (char === "<") return "&lt;";
+    if (char === ">") return "&gt;";
     return "&quot;";
   });
 }
@@ -35,11 +35,11 @@ function renderList() {
   empty.hidden = true;
   box.innerHTML = words
     .map(
-      (w) =>
+      (word) =>
         '<span class="suggest-chip">' +
-        escapeChip(w) +
+        escapeChip(word) +
         '<button type="button" class="suggest-chip-x" data-w="' +
-        escapeChip(w) +
+        escapeChip(word) +
         '" aria-label="Хасах">&times;</button></span>',
     )
     .join("");
@@ -60,12 +60,12 @@ function doExport() {
     type: "text/plain;charset=utf-8",
   });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "algasah-ugs.txt";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  const downloadLink = document.createElement("a");
+  downloadLink.href = url;
+  downloadLink.download = "algasah-ugs.txt";
+  document.body.appendChild(downloadLink);
+  downloadLink.click();
+  downloadLink.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
@@ -76,12 +76,12 @@ const LATIN_WORD_RE =
 const CYR_WORD_RE = /^[\u0400-\u04FF][\u0400-\u04FF-]{1,49}$/u;
 
 export function normalizeImport(raw) {
-  const w = raw.trim();
-  if (!w) return null;
-  if (HAS_LATIN.test(w)) {
-    return LATIN_WORD_RE.test(w) ? w : null;
+  const trimmedWord = raw.trim();
+  if (!trimmedWord) return null;
+  if (HAS_LATIN.test(trimmedWord)) {
+    return LATIN_WORD_RE.test(trimmedWord) ? trimmedWord : null;
   }
-  const stripped = w.replace(APOS, "");
+  const stripped = trimmedWord.replace(APOS, "");
   return CYR_WORD_RE.test(stripped) ? stripped : null;
 }
 
@@ -91,9 +91,9 @@ function doImport(file) {
     const text = String(reader.result || "");
     let added = 0;
     for (const part of text.split(/[\s,;]+/)) {
-      const w = normalizeImport(part);
-      if (!w) continue;
-      if (addIgnored(w)) added++;
+      const importedWord = normalizeImport(part);
+      if (!importedWord) continue;
+      if (addIgnored(importedWord)) added++;
     }
     renderList();
     syncIgnoreVisibility();
@@ -164,18 +164,22 @@ function openForm() {
 }
 
 export function syncIgnoreVisibility() {
-  document.querySelectorAll("a.ignorectl, a.ignore-list-link").forEach((a) => {
-    a.classList.remove("link-disabled");
-  });
+  document
+    .querySelectorAll("a.ignorectl, a.ignore-list-link")
+    .forEach((link) => {
+      link.classList.remove("link-disabled");
+    });
 }
 
 export function initIgnoreList(options) {
   onChange = options && options.onChange;
-  document.querySelectorAll("a.ignorectl, a.ignore-list-link").forEach((a) => {
-    a.addEventListener("click", (e) => {
-      e.preventDefault();
-      openForm();
+  document
+    .querySelectorAll("a.ignorectl, a.ignore-list-link")
+    .forEach((link) => {
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        openForm();
+      });
     });
-  });
   syncIgnoreVisibility();
 }

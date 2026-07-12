@@ -13,11 +13,7 @@ import {
 import { initIgnoreList, syncIgnoreVisibility } from "./ignorelist.js";
 import { initAppearance } from "./appearance.js";
 import { escapeHtml } from "./htmlutil.js";
-import {
-  checkable,
-  isDashSuffix,
-  buildErrorList,
-} from "./textcheck.js";
+import { checkable, isDashSuffix, buildErrorList } from "./textcheck.js";
 import {
   initDraftStorage,
   saveDraft,
@@ -59,8 +55,8 @@ let offlineIndicatorActive = false;
 let pendingFix = null;
 
 const labelOf = (id) =>
-  (DICTIONARIES.find((d) => d.id === id) || {}).label || id;
-const nf = (n) => n.toLocaleString("en-US");
+  (DICTIONARIES.find((dict) => dict.id === id) || {}).label || id;
+const nf = (num) => num.toLocaleString("en-US");
 const setStatus = (html, animate = true) => {
   els.status.innerHTML = html;
   if (!animate) return;
@@ -96,19 +92,19 @@ async function ensureChecked(text) {
   }
 }
 function nextFrame() {
-  return new Promise((r) => requestAnimationFrame(() => r()));
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
 }
 async function correctNow(word) {
   if (cache.has(word)) return cache.get(word);
-  const r = await checker.checkWords([word]);
-  cache.set(word, r[word]);
-  return r[word];
+  const checkResults = await checker.checkWords([word]);
+  cache.set(word, checkResults[word]);
+  return checkResults[word];
 }
 function debounce(fn, ms) {
-  let t;
-  return (...a) => {
-    clearTimeout(t);
-    t = setTimeout(() => fn(...a), ms);
+  let timerId;
+  return (...args) => {
+    clearTimeout(timerId);
+    timerId = setTimeout(() => fn(...args), ms);
   };
 }
 
@@ -129,11 +125,11 @@ function casePattern(src) {
     lower = 0,
     firstCased = null;
   for (const ch of src) {
-    const u = ch.toUpperCase(),
-      l = ch.toLowerCase();
-    if (u === l) continue;
+    const upperChar = ch.toUpperCase(),
+      lowerChar = ch.toLowerCase();
+    if (upperChar === lowerChar) continue;
     if (firstCased === null) firstCased = ch;
-    if (ch === u) upper++;
+    if (ch === upperChar) upper++;
     else lower++;
   }
   if (upper === 0) return "lower";
@@ -148,8 +144,8 @@ function applyCase(pattern, word) {
   if (pattern === "capital") return lo.charAt(0).toUpperCase() + lo.slice(1);
   return lo;
 }
-function irregularCase(s) {
-  return applyCase(casePattern(s), s.toLowerCase()) !== s;
+function irregularCase(word) {
+  return applyCase(casePattern(word), word.toLowerCase()) !== word;
 }
 function caseRank(pattern) {
   return pattern === "upper" ? 2 : pattern === "capital" ? 1 : 0;
@@ -187,8 +183,8 @@ function replaceAllWord(
       if (verbatim) {
         rep = baseRepl;
       } else {
-        const r = Math.max(caseRank(casePattern(core)), floor);
-        rep = applyCase(rankToPattern(r), baseRepl);
+        const resolvedRank = Math.max(caseRank(casePattern(core)), floor);
+        rep = applyCase(rankToPattern(resolvedRank), baseRepl);
       }
       if (caretOffset != null && index + word.length <= caretOffset) {
         caret += rep.length - core.length;
@@ -272,8 +268,8 @@ function syncScroll() {
 
 function tokenAtCaret() {
   const pos = els.editor.selectionStart;
-  for (const t of badTokens) {
-    if (pos >= t.start && pos <= t.end) return t;
+  for (const token of badTokens) {
+    if (pos >= token.start && pos <= token.end) return token;
   }
   return null;
 }
@@ -307,14 +303,14 @@ function bringWordIntoView() {
   const visH = visBottom - visTop;
   if (visH <= 60) return;
 
-  const r = mark.getBoundingClientRect();
-  if (r.top >= visTop + 8 && r.bottom <= visBottom - 8) return;
+  const markRect = mark.getBoundingClientRect();
+  if (markRect.top >= visTop + 8 && markRect.bottom <= visBottom - 8) return;
 
   const targetY = visTop + Math.max(60, Math.min(visH * 0.3, 150));
   const maxScroll = els.editor.scrollHeight - els.editor.clientHeight;
   const next = Math.max(
     0,
-    Math.min(els.editor.scrollTop + (r.top - targetY), maxScroll),
+    Math.min(els.editor.scrollTop + (markRect.top - targetY), maxScroll),
   );
   if (Math.abs(next - els.editor.scrollTop) > 2) {
     els.editor.scrollTop = next;
@@ -326,20 +322,24 @@ function scrollMarkIntoView(start) {
   materializeMark(start);
   const mark = els.backdrop.querySelector('mark[data-start="' + start + '"]');
   if (!mark) return;
-  const er = els.editor.getBoundingClientRect();
-  const r = mark.getBoundingClientRect();
+  const editorRect = els.editor.getBoundingClientRect();
+  const markRect = mark.getBoundingClientRect();
   const pad = 24;
-  if (r.top >= er.top + pad && r.bottom <= er.bottom - pad) return;
-  const targetY = er.top + Math.max(pad, Math.min(er.height * 0.3, 160));
+  if (
+    markRect.top >= editorRect.top + pad &&
+    markRect.bottom <= editorRect.bottom - pad
+  )
+    return;
+  const targetY =
+    editorRect.top + Math.max(pad, Math.min(editorRect.height * 0.3, 160));
   const maxScroll = els.editor.scrollHeight - els.editor.clientHeight;
   const next = Math.max(
     0,
-    Math.min(els.editor.scrollTop + (r.top - targetY), maxScroll),
+    Math.min(els.editor.scrollTop + (markRect.top - targetY), maxScroll),
   );
   els.editor.scrollTop = next;
   syncScroll();
 }
-
 
 function renderErrorPanel() {
   if (!panelEls.list) return;
@@ -355,15 +355,17 @@ function renderErrorPanel() {
     panelEls.title.textContent = "Нийт алдаатай үг: " + nf(badTokens.length);
   if (panelEls.copy) panelEls.copy.disabled = false;
   panelEls.list.innerHTML = items
-    .map((t) => {
-      const n = t.count > 99 ? "99+" : t.count;
+    .map((item) => {
+      const repeatCountLabel = item.count > 99 ? "99+" : item.count;
       const badge =
-        t.count >= 2 ? '<span class="ew-count">' + n + "</span>" : "";
+        item.count >= 2
+          ? '<span class="ew-count">' + repeatCountLabel + "</span>"
+          : "";
       return (
         '<button class="ew" type="button" data-start="' +
-        t.start +
+        item.start +
         '">' +
-        escapeHtml(t.word) +
+        escapeHtml(item.word) +
         badge +
         "</button>"
       );
@@ -374,14 +376,17 @@ function renderErrorPanel() {
 function scheduleKbAdjust() {
   clearTimeout(kbAdjustTimer);
   const delays = [100, 250, 450, 650];
-  let i = 0;
+  let delayIndex = 0;
   const run = () => {
     if (els.popover.hidden) return;
     bringWordIntoView();
     placePopover();
-    i++;
-    if (i < delays.length)
-      kbAdjustTimer = setTimeout(run, delays[i] - delays[i - 1]);
+    delayIndex++;
+    if (delayIndex < delays.length)
+      kbAdjustTimer = setTimeout(
+        run,
+        delays[delayIndex] - delays[delayIndex - 1],
+      );
   };
   kbAdjustTimer = setTimeout(run, delays[0]);
 }
@@ -395,7 +400,7 @@ function placePopover() {
     hidePopover();
     return;
   }
-  const r = mark.getBoundingClientRect();
+  const markRect = mark.getBoundingClientRect();
   const margin = 6;
 
   const vv = window.visualViewport;
@@ -408,33 +413,37 @@ function placePopover() {
   const popH = els.popover.offsetHeight;
   const popW = els.popover.offsetWidth;
 
-  const spaceBelow = viewBottom - r.bottom;
-  const spaceAbove = r.top - viewTop;
+  const spaceBelow = viewBottom - markRect.bottom;
+  const spaceAbove = markRect.top - viewTop;
 
   let top;
   if (spaceBelow >= popH + margin || spaceBelow >= spaceAbove) {
-    top = r.bottom + margin;
+    top = markRect.bottom + margin;
   } else {
-    top = r.top - popH - margin;
+    top = markRect.top - popH - margin;
   }
 
   top = Math.max(viewTop + margin, Math.min(top, viewBottom - popH - margin));
   const left = Math.max(
     viewLeft + margin,
-    Math.min(r.left, viewLeft + viewW - popW - margin),
+    Math.min(markRect.left, viewLeft + viewW - popW - margin),
   );
 
   els.popover.style.top = window.scrollY + top + "px";
   els.popover.style.left = window.scrollX + left + "px";
 }
 
-async function showPopoverFor(t) {
-  materializeMark(t.start);
-  let mark = els.backdrop.querySelector('mark[data-start="' + t.start + '"]');
+async function showPopoverFor(token) {
+  materializeMark(token.start);
+  let mark = els.backdrop.querySelector(
+    'mark[data-start="' + token.start + '"]',
+  );
   if (!mark) {
     await render();
-    materializeMark(t.start);
-    mark = els.backdrop.querySelector('mark[data-start="' + t.start + '"]');
+    materializeMark(token.start);
+    mark = els.backdrop.querySelector(
+      'mark[data-start="' + token.start + '"]',
+    );
   }
   if (!mark) {
     hidePopover();
@@ -442,23 +451,25 @@ async function showPopoverFor(t) {
   }
 
   els.popover.innerHTML = '<div class="muted pop-empty">…</div>';
-  activeStart = t.start;
+  activeStart = token.start;
   popoverScrollTop = els.editor.scrollTop;
   els.popover.hidden = false;
   bringWordIntoView();
   placePopover();
   scheduleKbAdjust();
 
-  const suggestions = (await checker.suggest(t.word)).slice(
+  const suggestions = (await checker.suggest(token.word)).slice(
     0,
     desktopMQ.matches ? 15 : 8,
   );
-  if (activeStart !== t.start || els.popover.hidden) return;
+  if (activeStart !== token.start || els.popover.hidden) return;
   const sgHtml = suggestions.length
     ? suggestions
         .map(
-          (s) =>
-            '<button class="sg" type="button">' + escapeHtml(s) + "</button>",
+          (suggestion) =>
+            '<button class="sg" type="button">' +
+            escapeHtml(suggestion) +
+            "</button>",
         )
         .join("")
     : '<div class="muted pop-empty">санал алга</div>';
@@ -468,12 +479,14 @@ async function showPopoverFor(t) {
   placePopover();
 
   els.popover.querySelectorAll(".sg:not(.sg-ignore)").forEach((btn) => {
-    btn.addEventListener("click", () => applySuggestion(t, btn.textContent));
+    btn.addEventListener("click", () =>
+      applySuggestion(token, btn.textContent),
+    );
   });
   const ignoreBtn = els.popover.querySelector(".sg-ignore");
   if (ignoreBtn) {
     ignoreBtn.addEventListener("click", () => {
-      addIgnored(t.word);
+      addIgnored(token.word);
       syncIgnoreVisibility();
       hidePopover();
       render();
@@ -482,13 +495,13 @@ async function showPopoverFor(t) {
 }
 
 function suggestAtCaret() {
-  const t = tokenAtCaret();
-  if (!t) {
+  const caretToken = tokenAtCaret();
+  if (!caretToken) {
     hidePopover();
     return;
   }
-  if (!els.popover.hidden && activeStart === t.start) return;
-  showPopoverFor(t);
+  if (!els.popover.hidden && activeStart === caretToken.start) return;
+  showPopoverFor(caretToken);
 }
 
 async function maybePropagateManual() {
@@ -499,28 +512,28 @@ async function maybePropagateManual() {
   }
   const text = els.editor.value;
   const pos = els.editor.selectionStart;
-  let w = null;
+  let manualFixToken = null;
   if (pos > 0 && /[\s\p{P}\p{S}]/u.test(text.charAt(pos - 1))) {
     const prev = wordAtCaret(text, pos - 1);
-    if (prev && prev.end === pos - 1) w = prev;
+    if (prev && prev.end === pos - 1) manualFixToken = prev;
   }
-  if (!w) w = wordAtCaret(text, pos);
-  if (!w) return;
-  if (w.start !== pendingFix.start) {
+  if (!manualFixToken) manualFixToken = wordAtCaret(text, pos);
+  if (!manualFixToken) return;
+  if (manualFixToken.start !== pendingFix.start) {
     pendingFix = null;
     return;
   }
-  const lower = w.word.toLowerCase();
+  const lower = manualFixToken.word.toLowerCase();
   if (lower === pendingFix.original) return;
-  if (pendingFix.original.length - w.word.length > 2) return;
-  if (!(await correctNow(w.word))) return;
+  if (pendingFix.original.length - manualFixToken.word.length > 2) return;
+  if (!(await correctNow(manualFixToken.word))) return;
   const original = pendingFix.original;
   const primaryPattern = pendingFix.originalPattern || "lower";
   pendingFix = null;
   const { text: nt, caret } = replaceAllWord(
     text,
     original,
-    w.word,
+    manualFixToken.word,
     pos,
     primaryPattern,
   );
@@ -537,19 +550,19 @@ async function recheck() {
   saveText();
 }
 
-async function applySuggestion(t, replacement) {
+async function applySuggestion(token, replacement) {
   pendingFix = null;
-  const v = els.editor.value;
-  const onlyAt = isDashSuffix(v, t) ? t.start : null;
+  const editorText = els.editor.value;
+  const onlyAt = isDashSuffix(editorText, token) ? token.start : null;
   const { text: nt, caret } = replaceAllWord(
-    v,
-    t.word.toLowerCase(),
+    editorText,
+    token.word.toLowerCase(),
     replacement,
-    t.end,
-    casePattern(t.word),
+    token.end,
+    casePattern(token.word),
     onlyAt,
   );
-  if (nt === v) {
+  if (nt === editorText) {
     hidePopover();
     return;
   }
@@ -566,7 +579,10 @@ function isSeparatorInput(e) {
   if (it === "insertText")
     return e.data != null && /[\s\p{P}\p{S}]/u.test(e.data);
   if (it === "insertLineBreak" || it === "insertParagraph") return true;
-  if (it.indexOf("insertFromPaste") === 0 || it.indexOf("insertFromDrop") === 0)
+  if (
+    it.indexOf("insertFromPaste") === 0 ||
+    it.indexOf("insertFromDrop") === 0
+  )
     return true;
   return false;
 }
@@ -574,13 +590,13 @@ const deferredCheck = debounce(() => recheck(), 1500);
 
 els.editor.addEventListener("beforeinput", () => {
   if (programmaticEdit) return;
-  const t = tokenAtCaret();
-  pendingFix = t
+  const caretToken = tokenAtCaret();
+  pendingFix = caretToken
     ? {
-        original: t.word.toLowerCase(),
-        originalPattern: casePattern(t.word),
-        dashSuffix: isDashSuffix(els.editor.value, t),
-        start: t.start,
+        original: caretToken.word.toLowerCase(),
+        originalPattern: casePattern(caretToken.word),
+        dashSuffix: isDashSuffix(els.editor.value, caretToken),
+        start: caretToken.start,
       }
     : null;
 });
@@ -599,18 +615,19 @@ initDraftStorage({ onError: warnStorageFailure });
 function saveText() {
   saveDraft(els.editor.value);
   try {
-    const s = els.editor.selectionStart;
-    const e = els.editor.selectionEnd;
-    if (s != null) localStorage.setItem(CARET_KEY, s + "," + e);
+    const selectionStart = els.editor.selectionStart;
+    const selectionEnd = els.editor.selectionEnd;
+    if (selectionStart != null)
+      localStorage.setItem(CARET_KEY, selectionStart + "," + selectionEnd);
   } catch (_) {}
 }
 async function loadText() {
   try {
-    const t = await loadDraft();
-    if (t != null) els.editor.value = t;
-    const c = localStorage.getItem(CARET_KEY);
-    if (c != null) {
-      const parts = c.split(",");
+    const draftText = await loadDraft();
+    if (draftText != null) els.editor.value = draftText;
+    const savedCaretRaw = localStorage.getItem(CARET_KEY);
+    if (savedCaretRaw != null) {
+      const parts = savedCaretRaw.split(",");
       const len = els.editor.value.length;
       const start = Math.min(Math.max(0, parseInt(parts[0], 10) || 0), len);
       const end = Math.min(
@@ -653,19 +670,27 @@ function setEditorText(newText, caret) {
     }
     return;
   }
-  let p = 0;
+  let commonPrefixLen = 0;
   const minLen = Math.min(old.length, newText.length);
-  while (p < minLen && old[p] === newText[p]) p++;
-  let s = 0;
   while (
-    s < minLen - p &&
-    old[old.length - 1 - s] === newText[newText.length - 1 - s]
+    commonPrefixLen < minLen &&
+    old[commonPrefixLen] === newText[commonPrefixLen]
   )
-    s++;
-  const oldEnd = old.length - s;
-  const slice = newText.slice(p, newText.length - s);
+    commonPrefixLen++;
+  let commonSuffixLen = 0;
+  while (
+    commonSuffixLen < minLen - commonPrefixLen &&
+    old[old.length - 1 - commonSuffixLen] ===
+      newText[newText.length - 1 - commonSuffixLen]
+  )
+    commonSuffixLen++;
+  const oldEnd = old.length - commonSuffixLen;
+  const slice = newText.slice(
+    commonPrefixLen,
+    newText.length - commonSuffixLen,
+  );
   try {
-    els.editor.setSelectionRange(p, oldEnd);
+    els.editor.setSelectionRange(commonPrefixLen, oldEnd);
   } catch (_) {}
   let ok = false;
   programmaticEdit = true;
@@ -700,8 +725,9 @@ function insertEditorText(text, start, end) {
   }
   programmaticEdit = false;
   if (!ok) {
-    const v = els.editor.value;
-    els.editor.value = v.slice(0, start) + text + v.slice(end);
+    const editorText = els.editor.value;
+    els.editor.value =
+      editorText.slice(0, start) + text + editorText.slice(end);
     const pos = start + text.length;
     try {
       els.editor.setSelectionRange(pos, pos);
@@ -778,35 +804,41 @@ let suppressNextClick = false;
 
 function markAtPoint(x, y) {
   const marks = els.backdrop.querySelectorAll("mark[data-start]");
-  for (const m of marks) {
-    const rects = m.getClientRects();
-    for (const r of rects) {
-      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return m;
+  for (const mark of marks) {
+    const rects = mark.getClientRects();
+    for (const rect of rects) {
+      if (
+        x >= rect.left &&
+        x <= rect.right &&
+        y >= rect.top &&
+        y <= rect.bottom
+      )
+        return mark;
     }
   }
   return null;
 }
 function tokenForMark(mark) {
   const start = Number(mark.getAttribute("data-start"));
-  for (const t of badTokens) if (t.start === start) return t;
+  for (const token of badTokens) if (token.start === start) return token;
   return null;
 }
 els.editor.addEventListener("pointerdown", (e) => {
   if (e.pointerType === "mouse") return;
   const mark = markAtPoint(e.clientX, e.clientY);
   if (!mark) return;
-  const t = tokenForMark(mark);
-  if (!t) return;
+  const markToken = tokenForMark(mark);
+  if (!markToken) return;
   e.preventDefault();
   suppressNextClick = true;
-  showPopoverFor(t);
+  showPopoverFor(markToken);
 });
 
 els.editor.addEventListener("contextmenu", (e) => {
-  const t = tokenAtCaret();
-  if (t) {
+  const caretToken = tokenAtCaret();
+  if (caretToken) {
     e.preventDefault();
-    showPopoverFor(t);
+    showPopoverFor(caretToken);
   }
 });
 document.addEventListener("mousedown", (e) => {
@@ -824,13 +856,13 @@ window.addEventListener("resize", placePopover);
 
 initAppearance();
 function flash(sel, msg) {
-  const b = document.querySelector(sel);
-  if (!b) return;
-  const old = b.dataset.label || b.textContent;
-  b.dataset.label = old;
-  b.textContent = msg;
+  const flashBtn = document.querySelector(sel);
+  if (!flashBtn) return;
+  const old = flashBtn.dataset.label || flashBtn.textContent;
+  flashBtn.dataset.label = old;
+  flashBtn.textContent = msg;
   setTimeout(() => {
-    b.textContent = b.dataset.label;
+    flashBtn.textContent = flashBtn.dataset.label;
   }, 1100);
 }
 
@@ -914,19 +946,19 @@ initFileIO({
     ["#fontResetBtn", mod + "0"],
     ["#themeBtn", mod + shiftSym + "D"],
   ].forEach(([sel, combo]) => {
-    const b = document.querySelector(sel);
-    if (!b) return;
-    const base = b.getAttribute("title") || "";
-    b.setAttribute("title", base ? base + " · " + combo : combo);
+    const btn = document.querySelector(sel);
+    if (!btn) return;
+    const base = btn.getAttribute("title") || "";
+    btn.setAttribute("title", base ? base + " · " + combo : combo);
   });
 
   function trigger(sel, doClick = true) {
-    const b = document.querySelector(sel);
-    if (!b || b.disabled) return;
-    if (doClick) b.click();
-    b.classList.add("kbd-active");
-    clearTimeout(b._kbdTimer);
-    b._kbdTimer = setTimeout(() => b.classList.remove("kbd-active"), 260);
+    const btn = document.querySelector(sel);
+    if (!btn || btn.disabled) return;
+    if (doClick) btn.click();
+    btn.classList.add("kbd-active");
+    clearTimeout(btn._kbdTimer);
+    btn._kbdTimer = setTimeout(() => btn.classList.remove("kbd-active"), 260);
   }
 
   window.addEventListener("keydown", (e) => {
@@ -938,23 +970,25 @@ initFileIO({
     ) {
       return;
     }
-    const m = isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
-    if (!m || e.altKey) return;
-    const k = e.key;
-    const kl = k.toLowerCase();
+    const hasPrimaryModifier = isMac
+      ? e.metaKey && !e.ctrlKey
+      : e.ctrlKey && !e.metaKey;
+    if (!hasPrimaryModifier || e.altKey) return;
+    const key = e.key;
+    const lowerKey = key.toLowerCase();
 
     if (e.shiftKey) {
-      if (kl === "d") {
+      if (lowerKey === "d") {
         e.preventDefault();
         trigger("#themeBtn");
         return;
       }
-      if (k === "Backspace") {
+      if (key === "Backspace") {
         e.preventDefault();
         trigger("#clearBtn");
         return;
       }
-      if (k === "+") {
+      if (key === "+") {
         e.preventDefault();
         trigger("#fontIncBtn");
         return;
@@ -962,26 +996,26 @@ initFileIO({
       return;
     }
 
-    if (k === "-" || k === "Subtract") {
+    if (key === "-" || key === "Subtract") {
       e.preventDefault();
       trigger("#fontDecBtn");
       return;
     }
-    if (k === "+" || k === "=" || k === "Add") {
+    if (key === "+" || key === "=" || key === "Add") {
       e.preventDefault();
       trigger("#fontIncBtn");
       return;
     }
-    if (k === "0" || k === "Numpad0") {
+    if (key === "0" || key === "Numpad0") {
       e.preventDefault();
       trigger("#fontResetBtn");
       return;
     }
 
-    if (kl === "s") {
+    if (lowerKey === "s") {
       e.preventDefault();
       trigger("#saveBtn");
-    } else if (kl === "o") {
+    } else if (lowerKey === "o") {
       if (!window.showOpenFilePicker) {
         const openFileEl = document.querySelector("#openFile");
         if (openFileEl) openFileEl.click();
@@ -991,10 +1025,10 @@ initFileIO({
         e.preventDefault();
         trigger("#openBtn");
       }
-    } else if (kl === "e") {
+    } else if (lowerKey === "e") {
       e.preventDefault();
       trigger("#copyErrorsBtn");
-    } else if (kl === "v") {
+    } else if (lowerKey === "v") {
       if (document.activeElement !== els.editor) {
         els.editor.focus({ preventScroll: true });
         if (lastCaret) {
@@ -1008,13 +1042,14 @@ initFileIO({
         }
       }
       trigger("#pasteBtn", false);
-    } else if (kl === "c") {
+    } else if (lowerKey === "c") {
       const pageSel = window.getSelection
         ? window.getSelection().toString()
         : "";
       const editorFocused = document.activeElement === els.editor;
       const editorHasSelection =
-        editorFocused && els.editor.selectionStart !== els.editor.selectionEnd;
+        editorFocused &&
+        els.editor.selectionStart !== els.editor.selectionEnd;
       if (!pageSel && !editorHasSelection) {
         e.preventDefault();
         trigger("#copyBtn");
@@ -1025,7 +1060,10 @@ initFileIO({
 
 async function requestDurableStorage() {
   try {
-    if (navigator.storage && typeof navigator.storage.persist === "function") {
+    if (
+      navigator.storage &&
+      typeof navigator.storage.persist === "function"
+    ) {
       const already = navigator.storage.persisted
         ? await navigator.storage.persisted()
         : false;
@@ -1043,7 +1081,7 @@ function offlineCapable() {
 async function isOfflineReady() {
   try {
     const base = import.meta.env.BASE_URL;
-    const u = (p) => new URL(base + p, location).href;
+    const resolveAppUrl = (path) => new URL(base + path, location).href;
     const opt = { ignoreSearch: true };
     // SW бүртгэгдсэн эсэхийг шалгана (controller анх ачаалалд хожуу тогтдог).
     const reg =
@@ -1051,15 +1089,18 @@ async function isOfflineReady() {
       (await navigator.serviceWorker.getRegistration());
     if (!reg || !reg.active) return false;
     const shell =
-      (await caches.match(u("index.html"), opt)) ||
-      (await caches.match(u(""), opt));
+      (await caches.match(resolveAppUrl("index.html"), opt)) ||
+      (await caches.match(resolveAppUrl(""), opt));
     if (!shell) return false;
-    const manRes = await caches.match(u("dict/dict-manifest.json"), opt);
+    const manRes = await caches.match(
+      resolveAppUrl("dict/dict-manifest.json"),
+      opt,
+    );
     if (!manRes) return false;
     const man = await manRes.clone().json();
-    const mn = (man.dicts || []).find((d) => d.id === "mn_MN");
+    const mn = (man.dicts || []).find((dict) => dict.id === "mn_MN");
     if (!mn) return false;
-    return !!(await caches.match(u("dict/" + mn.dic), opt));
+    return !!(await caches.match(resolveAppUrl("dict/" + mn.dic), opt));
   } catch (_) {
     return false;
   }
@@ -1083,7 +1124,7 @@ function dictStatusMessage(loaded, failed, fallbackReason) {
   if (failed && failed.length) {
     msg +=
       ' <span class="muted">(олдсонгүй: ' +
-      failed.map((f) => escapeHtml(String(f.id))).join(", ") +
+      failed.map((fail) => escapeHtml(String(fail.id))).join(", ") +
       ")</span>";
   }
   if (fallbackReason) {
@@ -1112,13 +1153,13 @@ async function runOfflineReadyIndicator() {
   let isReady = await isOfflineReady();
   const deadline = Date.now() + 20000;
   while (!isReady && Date.now() < deadline) {
-    await new Promise((r) => setTimeout(r, 700));
+    await new Promise((resolve) => setTimeout(resolve, 700));
     isReady = await isOfflineReady();
   }
 
   if (isReady) {
     transient("Офлайн горимд ажиллахад бэлэн", false);
-    await new Promise((r) => setTimeout(r, 1500));
+    await new Promise((resolve) => setTimeout(resolve, 1500));
   }
 
   offlineIndicatorActive = false;
@@ -1176,9 +1217,10 @@ async function boot() {
 }
 
 if (panelEls.list) {
-  const ancestorOf = (a, b) => {
-    for (let n = a; n; n = n.parentElement) if (n.contains(b)) return n;
-    return a;
+  const ancestorOf = (node, other) => {
+    for (let current = node; current; current = current.parentElement)
+      if (current.contains(other)) return current;
+    return node;
   };
   const panel = panelEls.title
     ? ancestorOf(panelEls.list, panelEls.title)
@@ -1201,16 +1243,20 @@ if (panelEls.list) {
       return;
     }
     const start = Number(btn.getAttribute("data-start"));
-    const t = badTokens.find((x) => x.start === start);
-    if (!t) return;
+    const clickedToken = badTokens.find((token) => token.start === start);
+    if (!clickedToken) return;
     pendingFix = null;
     els.editor.focus({ preventScroll: true });
     try {
-      els.editor.setSelectionRange(t.start, t.end, "forward");
+      els.editor.setSelectionRange(
+        clickedToken.start,
+        clickedToken.end,
+        "forward",
+      );
     } catch (_) {}
-    lastCaret = { start: t.end, end: t.end };
-    scrollMarkIntoView(t.start);
-    showPopoverFor(t);
+    lastCaret = { start: clickedToken.end, end: clickedToken.end };
+    scrollMarkIntoView(clickedToken.start);
+    showPopoverFor(clickedToken);
   });
 }
 
@@ -1222,7 +1268,7 @@ if (panelEls.copy) {
     'stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
   let copyTimer = null;
   panelEls.copy.addEventListener("click", async () => {
-    const words = buildErrorList(badTokens).map((t) => t.word);
+    const words = buildErrorList(badTokens).map((token) => token.word);
     if (!words.length) return;
     try {
       await copyText(words.join("\n"));
@@ -1266,7 +1312,7 @@ initToolbar({
 initSuggest({
   buildErrorList,
   getBadTokens: () => badTokens,
-  isDashSuffix: (t) => isDashSuffix(els.editor.value, t),
+  isDashSuffix: (token) => isDashSuffix(els.editor.value, token),
 });
 
 initIgnoreList({

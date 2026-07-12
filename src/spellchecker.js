@@ -18,7 +18,7 @@ export class MultiSpellChecker {
     this._pending = new Map();
     this._initHandler = null;
     this._restResolve = null;
-    this.restReady = new Promise((r) => (this._restResolve = r));
+    this.restReady = new Promise((resolve) => (this._restResolve = resolve));
     this.dead = false;
     this.onFatal = null;
     this.worker.onmessage = (e) => this._onMessage(e.data);
@@ -30,7 +30,7 @@ export class MultiSpellChecker {
   _deadResult(type, payload) {
     if (type === "check") {
       const results = {};
-      for (const w of payload.words) results[w] = true;
+      for (const word of payload.words) results[word] = true;
       return { results };
     }
     return { suggestions: [] };
@@ -39,9 +39,10 @@ export class MultiSpellChecker {
   _fatal(reason) {
     if (this.dead) return;
     this.dead = true;
-    const pend = [...this._pending.values()];
+    const pendingList = [...this._pending.values()];
     this._pending.clear();
-    for (const p of pend) p.resolve(this._deadResult(p.type, p.payload));
+    for (const pending of pendingList)
+      pending.resolve(this._deadResult(pending.type, pending.payload));
     if (!this.ready && this._initHandler) {
       this._initHandler({ type: "error", error: String(reason) });
     } else if (this.onFatal) {
@@ -51,10 +52,10 @@ export class MultiSpellChecker {
 
   _onMessage(msg) {
     if (msg.type === "check" || msg.type === "suggest") {
-      const p = this._pending.get(msg.id);
-      if (p) {
+      const pendingRequest = this._pending.get(msg.id);
+      if (pendingRequest) {
         this._pending.delete(msg.id);
-        p.resolve(msg);
+        pendingRequest.resolve(msg);
       }
       return;
     }
@@ -108,9 +109,9 @@ export class MultiSpellChecker {
 
   async checkWords(words) {
     if (!this.ready || this.dead || !words.length) {
-      const r = {};
-      for (const w of words) r[w] = true;
-      return r;
+      const allCorrectResults = {};
+      for (const word of words) allCorrectResults[word] = true;
+      return allCorrectResults;
     }
     const msg = await this._rpc("check", { words });
     return msg.results;
@@ -127,8 +128,8 @@ const WORD_RE =
   /[\p{L}\p{M}\p{N}][\p{L}\p{M}\p{N}'\u2019\u2013\u2014\u00AD-]*/gu;
 export function* tokenize(text) {
   WORD_RE.lastIndex = 0;
-  let m;
-  while ((m = WORD_RE.exec(text)) !== null) {
-    yield { word: m[0], index: m.index };
+  let match;
+  while ((match = WORD_RE.exec(text)) !== null) {
+    yield { word: match[0], index: match.index };
   }
 }

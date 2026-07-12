@@ -36,8 +36,8 @@ export function initAppearance() {
   const FONT_STEP = 0.1;
   let fontScale = 1;
   try {
-    const s = parseFloat(localStorage.getItem(FONT_KEY));
-    if (!isNaN(s)) fontScale = s;
+    const savedFontScale = parseFloat(localStorage.getItem(FONT_KEY));
+    if (!isNaN(savedFontScale)) fontScale = savedFontScale;
   } catch (_) {}
   function applyScale() {
     fontScale =

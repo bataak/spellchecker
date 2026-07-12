@@ -38,7 +38,7 @@ export function flushDraft() {
 export function loadDraft() {
   if (getTier() === "idb") {
     return idbGet(IDB_TEXT_KEY)
-      .then((t) => (t != null ? t : readLocal()))
+      .then((storedText) => (storedText != null ? storedText : readLocal()))
       .catch(readLocal);
   }
   return Promise.resolve(readLocal());
@@ -131,7 +131,8 @@ function idbRequest(mode, run) {
   );
 }
 
-const idbGet = (key) => idbRequest("readonly", (s) => s.get(key));
+const idbGet = (key) => idbRequest("readonly", (store) => store.get(key));
 const idbSet = (key, value) =>
-  idbRequest("readwrite", (s) => s.put(value, key));
-const idbDelete = (key) => idbRequest("readwrite", (s) => s.delete(key));
+  idbRequest("readwrite", (store) => store.put(value, key));
+const idbDelete = (key) =>
+  idbRequest("readwrite", (store) => store.delete(key));

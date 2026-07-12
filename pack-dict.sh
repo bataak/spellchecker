@@ -31,7 +31,7 @@ for id in mn_MN en_GB en_US; do
   entries="$entries${entries:+,}$entry"
   echo "Үүсгэв: dist/dict/$aff_out, dist/dict/$dic_out (v$ver)"
 done
-
+ 
 [ -z "$entries" ] && { echo "Толь олдсонгүй. public/dict/-д .aff/.dic байгаа эсэхээ шалга."; exit 1; }
 
 printf '{"dicts":[%s]}\n' "$entries" > "$out/dict-manifest.json"

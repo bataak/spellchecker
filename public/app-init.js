@@ -1,9 +1,11 @@
 (function () {
   try {
-    var t = localStorage.getItem("theme");
-    if (!t)
-      t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    document.documentElement.setAttribute("data-theme", t);
+    var theme = localStorage.getItem("theme");
+    if (!theme)
+      theme = matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light";
+    document.documentElement.setAttribute("data-theme", theme);
   } catch (e) {}
 })();
 

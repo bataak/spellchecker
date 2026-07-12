@@ -24,20 +24,21 @@ function initToolbarSnap() {
   const saveBtn = document.querySelector("#saveBtn");
   if (!bar || !clearBtn || !saveBtn) return;
   const ZONE = 56;
-  let st;
+  let snapTimer;
   bar.addEventListener(
     "scroll",
     () => {
-      clearTimeout(st);
-      st = setTimeout(() => {
-        const b = bar.getBoundingClientRect();
-        const dHome = clearBtn.getBoundingClientRect().left - b.left;
-        const dSave = saveBtn.getBoundingClientRect().right - b.right;
+      clearTimeout(snapTimer);
+      snapTimer = setTimeout(() => {
+        const barRect = bar.getBoundingClientRect();
+        const dHome = clearBtn.getBoundingClientRect().left - barRect.left;
+        const dSave = saveBtn.getBoundingClientRect().right - barRect.right;
         const aHome = Math.abs(dHome);
         const aSave = Math.abs(dSave);
         if (Math.min(aHome, aSave) > ZONE) return;
-        const d = aHome <= aSave ? dHome : dSave;
-        if (Math.abs(d) > 1) bar.scrollBy({ left: d, behavior: "smooth" });
+        const snapDelta = aHome <= aSave ? dHome : dSave;
+        if (Math.abs(snapDelta) > 1)
+          bar.scrollBy({ left: snapDelta, behavior: "smooth" });
       }, 90);
     },
     { passive: true },
@@ -50,9 +51,9 @@ function initSaveReveal() {
   const saveBtn = document.querySelector("#saveBtn");
   if (!bar || !saveBtn) return;
   saveBtn.addEventListener("click", () => {
-    const b = bar.getBoundingClientRect();
-    const r = saveBtn.getBoundingClientRect();
-    const over = r.right - b.right;
+    const barRect = bar.getBoundingClientRect();
+    const saveBtnRect = saveBtn.getBoundingClientRect();
+    const over = saveBtnRect.right - barRect.right;
     if (over > 0) bar.scrollBy({ left: over + 8, behavior: "smooth" });
   });
 }
@@ -155,7 +156,7 @@ function initButtons({
     btn.addEventListener("click", async () => {
       if (armed) {
         armed = false;
-        const words = buildErrorList(getBadTokens()).map((t) => t.word);
+        const words = buildErrorList(getBadTokens()).map((token) => token.word);
         if (!words.length) return;
         try {
           await copyText(words.join("\n"));

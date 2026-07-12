@@ -31,7 +31,10 @@ function renderSubmittedList() {
     : SUBMITTED_TITLE;
   box.innerHTML = list.length
     ? list
-        .map((w) => '<span class="suggest-chip">' + escapeChip(w) + "</span>")
+        .map(
+          (word) =>
+            '<span class="suggest-chip">' + escapeChip(word) + "</span>",
+        )
         .join("")
     : '<span class="suggest-hint">Одоогоор мэдэгдсэн үг алга</span>';
 }
@@ -57,17 +60,17 @@ function loadTurnstile() {
   if (window.turnstile) return Promise.resolve();
   if (!scriptPromise) {
     scriptPromise = new Promise((resolve, reject) => {
-      const s = document.createElement("script");
-      s.src =
+      const turnstileScript = document.createElement("script");
+      turnstileScript.src =
         "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-      s.async = true;
-      s.onload = () => resolve();
-      s.onerror = () => {
+      turnstileScript.async = true;
+      turnstileScript.onload = () => resolve();
+      turnstileScript.onerror = () => {
         scriptPromise = null;
-        s.remove();
+        turnstileScript.remove();
         reject(new Error("turnstile-load"));
       };
-      document.head.appendChild(s);
+      document.head.appendChild(turnstileScript);
     });
   }
   return scriptPromise;
@@ -79,11 +82,11 @@ function note(msg, kind) {
   el.dataset.kind = kind || "";
 }
 
-function escapeChip(s) {
-  return s.replace(/[&<>"]/g, (c) => {
-    if (c === "&") return "&amp;";
-    if (c === "<") return "&lt;";
-    if (c === ">") return "&gt;";
+function escapeChip(text) {
+  return text.replace(/[&<>"]/g, (char) => {
+    if (char === "&") return "&amp;";
+    if (char === "<") return "&lt;";
+    if (char === ">") return "&gt;";
     return "&quot;";
   });
 }
@@ -99,11 +102,11 @@ function renderChips() {
   }
   box.innerHTML = words
     .map(
-      (w, i) =>
+      (word, index) =>
         '<span class="suggest-chip">' +
-        escapeChip(w) +
+        escapeChip(word) +
         '<button type="button" class="suggest-chip-x" data-i="' +
-        i +
+        index +
         '" aria-label="Устгах">&times;</button></span>',
     )
     .join("");
@@ -115,28 +118,30 @@ function renderChips() {
   });
 }
 
-function isLowerDashSuffix(t) {
-  if (!deps.isDashSuffix || !deps.isDashSuffix(t)) return false;
-  return startsLowerAfterDash(t.word);
+function isLowerDashSuffix(token) {
+  if (!deps.isDashSuffix || !deps.isDashSuffix(token)) return false;
+  return startsLowerAfterDash(token.word);
 }
 
 function prefillFromErrors() {
   words = [];
   if (!deps.getBadTokens || !deps.buildErrorList) return;
   const list = deps
-    .buildErrorList(deps.getBadTokens().filter((t) => !isLowerDashSuffix(t)))
-    .filter((t) => WORD_RE.test(t.word))
+    .buildErrorList(
+      deps.getBadTokens().filter((token) => !isLowerDashSuffix(token)),
+    )
+    .filter((token) => WORD_RE.test(token.word))
     .sort((a, b) => a.word.length - b.word.length);
   const submitted = getSubmitted();
   const kept = [];
-  for (const t of list) {
-    const key = t.word.toLowerCase();
+  for (const token of list) {
+    const key = token.word.toLowerCase();
     if (submitted.has(key)) continue;
-    if (kept.some((k) => sameRoot(k.key, key))) continue;
-    kept.push({ key, t });
+    if (kept.some((keptEntry) => sameRoot(keptEntry.key, key))) continue;
+    kept.push({ key, token });
   }
-  kept.sort((a, b) => a.t.word.localeCompare(b.t.word, "mn"));
-  for (const k of kept) words.push(k.t.word);
+  kept.sort((a, b) => a.token.word.localeCompare(b.token.word, "mn"));
+  for (const keptEntry of kept) words.push(keptEntry.token.word);
 }
 
 function addFromInput(commit) {
@@ -145,21 +150,21 @@ function addFromInput(commit) {
   const tail = commit ? "" : parts.pop();
   const submitted = getSubmitted();
   let added = false;
-  for (const p of parts) {
-    const w = p.trim();
-    if (!w) continue;
-    if (!WORD_RE.test(w)) {
+  for (const rawPart of parts) {
+    const word = rawPart.trim();
+    if (!word) continue;
+    if (!WORD_RE.test(word)) {
       note(
         "\u00AB" +
-          w +
+          word +
           "\u00BB \u2014 \u043A\u0438\u0440\u0438\u043B\u043B \u04AF\u0441\u0433\u044D\u044D\u0440, 2\u201350 \u0442\u044D\u043C\u0434\u044D\u0433\u0442 \u0431\u0430\u0439\u0445 \u0451\u0441\u0442\u043E\u0439",
         "err",
       );
       continue;
     }
-    if (submitted.has(w.toLowerCase())) {
+    if (submitted.has(word.toLowerCase())) {
       note(
-        "\u00AB" + w + "\u00BB \u2014 энэ үгийг аль хэдийн мэдэгдсэн байна",
+        "\u00AB" + word + "\u00BB \u2014 энэ үгийг аль хэдийн мэдэгдсэн байна",
         "err",
       );
       continue;
@@ -173,16 +178,17 @@ function addFromInput(commit) {
       );
       break;
     }
-    if (!words.some((x) => x.toLowerCase() === w.toLowerCase())) {
-      words.push(w);
+    if (
+      !words.some((existing) => existing.toLowerCase() === word.toLowerCase())
+    ) {
+      words.push(word);
       added = true;
     }
   }
   wordEl.value = tail;
   if (added) {
     renderChips();
-    if (overlay.querySelector(".suggest-note").dataset.kind !== "err")
-      note("");
+    if (overlay.querySelector(".suggest-note").dataset.kind !== "err") note("");
   }
 }
 
@@ -233,14 +239,10 @@ function build() {
   overlay.addEventListener("pointerdown", (e) => {
     if (e.target === overlay) closeForm();
   });
-  overlay
-    .querySelector(".suggest-cancel")
-    .addEventListener("click", closeForm);
+  overlay.querySelector(".suggest-cancel").addEventListener("click", closeForm);
   overlay.querySelector(".suggest-send").addEventListener("click", submit);
   const viewBtn = overlay.querySelector(".suggest-view-submitted");
-  viewBtn.addEventListener("click", () =>
-    setSubmittedView(!showingSubmitted),
-  );
+  viewBtn.addEventListener("click", () => setSubmittedView(!showingSubmitted));
   let pressTimer = null;
   let longPressed = false;
   const issuesHidden = () =>
@@ -276,14 +278,12 @@ function build() {
     },
     true,
   );
-  overlay
-    .querySelector(".suggest-clear-all")
-    .addEventListener("click", () => {
-      words = [];
-      renderChips();
-      note("");
-      wordEl.focus();
-    });
+  overlay.querySelector(".suggest-clear-all").addEventListener("click", () => {
+    words = [];
+    renderChips();
+    note("");
+    wordEl.focus();
+  });
 
   wordEl.addEventListener("input", () => addFromInput(false));
   wordEl.addEventListener("keydown", (e) => {
@@ -301,11 +301,11 @@ function build() {
 
   overlay.addEventListener("keydown", (e) => {
     if (e.key !== "Enter") return;
-    const t = e.target;
-    if (t === wordEl) return;
-    if (t.tagName === "TEXTAREA") return;
-    if (t.tagName === "BUTTON") return;
-    if (t.tagName === "A") return;
+    const target = e.target;
+    if (target === wordEl) return;
+    if (target.tagName === "TEXTAREA") return;
+    if (target.tagName === "BUTTON") return;
+    if (target.tagName === "A") return;
     e.preventDefault();
     submit();
   });
@@ -395,7 +395,7 @@ async function submit() {
     "\u0418\u043B\u0433\u044D\u044D\u0436 \u0431\u0430\u0439\u043D\u0430\u2026",
   );
   try {
-    const r = await fetch(ENDPOINT, {
+    const response = await fetch(ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -404,7 +404,7 @@ async function submit() {
         turnstileToken: token,
       }),
     });
-    if (r.status === 201) {
+    if (response.status === 201) {
       addSubmitted(words);
       note(
         "\u0418\u043B\u0433\u044D\u044D\u0433\u0434\u043B\u044D\u044D, \u0431\u0430\u044F\u0440\u043B\u0430\u043B\u0430\u0430!",
@@ -414,7 +414,7 @@ async function submit() {
       renderChips();
       noteEl.value = "";
       setTimeout(closeForm, 1400);
-    } else if (r.status === 429) {
+    } else if (response.status === 429) {
       note(
         "\u0426\u0430\u0433\u0438\u0439\u043D \u0445\u044F\u0437\u0433\u0430\u0430\u0440\u0442 \u0445\u04AF\u0440\u043B\u044D\u044D \u2014 \u0434\u0430\u0440\u0430\u0430 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443",
         "err",
@@ -447,8 +447,8 @@ async function submit() {
 
 export function initSuggest(options) {
   deps = options || {};
-  document.querySelectorAll("a.suggestctl, a.suggest-word").forEach((a) => {
-    a.addEventListener("click", (e) => {
+  document.querySelectorAll("a.suggestctl, a.suggest-word").forEach((link) => {
+    link.addEventListener("click", (e) => {
       e.preventDefault();
       openForm();
     });

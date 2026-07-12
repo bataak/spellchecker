@@ -25,7 +25,7 @@ const DICTIONARIES = [
 const PRIMARY = "mn_MN";
 
 let BASE = "/";
-const asset = (p) => (BASE + p).replace(/([^:])\/{2,}/g, "$1/");
+const asset = (path) => (BASE + path).replace(/([^:])\/{2,}/g, "$1/");
 
 async function fetchGzText(url) {
   const res = await fetch(url);
@@ -45,12 +45,12 @@ async function fetchGzText(url) {
 async function loadManifest() {
   if (import.meta.env.DEV) {
     const out = {};
-    for (const d of DICTIONARIES) {
-      out[d.id] = {
-        id: d.id,
+    for (const dict of DICTIONARIES) {
+      out[dict.id] = {
+        id: dict.id,
         version: null,
-        aff: d.id + ".aff",
-        dic: d.id + ".dic",
+        aff: dict.id + ".aff",
+        dic: dict.id + ".dic",
       };
     }
     return out;
@@ -59,7 +59,7 @@ async function loadManifest() {
   if (!res.ok) throw new Error("dict-manifest.json -> " + res.status);
   const data = await res.json();
   const out = {};
-  for (const e of data.dicts || []) out[e.id] = e;
+  for (const entry of data.dicts || []) out[entry.id] = entry;
   return out;
 }
 
@@ -77,10 +77,10 @@ async function loadHunspellWasm() {
   return {
     label: "hunspell-wasm",
     build: async (aff, dic) => {
-      const h = await create(aff, dic);
+      const hunspellInstance = await create(aff, dic);
       return {
-        spell: (w) => h.testSpelling(w),
-        suggest: (w) => h.getSpellingSuggestions(w),
+        spell: (word) => hunspellInstance.testSpelling(word),
+        suggest: (word) => hunspellInstance.getSpellingSuggestions(word),
       };
     },
   };
@@ -95,8 +95,11 @@ async function loadNspell() {
   return {
     label: "nspell (хялбаршуулсан)",
     build: async (aff, dic) => {
-      const s = nspell(aff, dic);
-      return { spell: (w) => s.correct(w), suggest: (w) => s.suggest(w) };
+      const nspellInstance = nspell(aff, dic);
+      return {
+        spell: (word) => nspellInstance.correct(word),
+        suggest: (word) => nspellInstance.suggest(word),
+      };
     },
   };
 }
@@ -104,11 +107,12 @@ async function loadNspell() {
 async function resolveBackend() {
   try {
     return await loadHunspellWasm();
-  } catch (e1) {
-    const reason = e1 && e1.message ? e1.message : String(e1);
-    const b = await loadNspell();
-    b.fallbackReason = reason;
-    return b;
+  } catch (wasmError) {
+    const reason =
+      wasmError && wasmError.message ? wasmError.message : String(wasmError);
+    const fallbackBackend = await loadNspell();
+    fallbackBackend.fallbackReason = reason;
+    return fallbackBackend;
   }
 }
 
@@ -130,7 +134,7 @@ async function loadOne(id) {
       entry.version || aff.match(/^#?\s*Version:\s*(.+)$/m)?.[1].trim() || null;
   }
   instances.push({ id, inst });
-  const order = (x) => DICTIONARIES.findIndex((d) => d.id === x.id);
+  const order = (item) => DICTIONARIES.findIndex((dict) => dict.id === item.id);
   instances.sort((a, b) => order(a) - order(b));
   return id;
 }
@@ -139,8 +143,10 @@ function isCorrect(word) {
   if (!instances.length) return true;
   const cyr = /[\u0400-\u04FF\u1800-\u18AF]/.test(word);
   const lat = /[A-Za-z]/.test(word);
-  if (lat && !cyr && !instances.some((i) => i.id.startsWith("en"))) return true;
-  if (cyr && !lat && !instances.some((i) => i.id.startsWith("mn"))) return true;
+  if (lat && !cyr && !instances.some((item) => item.id.startsWith("en")))
+    return true;
+  if (cyr && !lat && !instances.some((item) => item.id.startsWith("mn")))
+    return true;
   return instances.some(({ inst }) => inst.spell(word));
 }
 
@@ -158,10 +164,10 @@ function suggest(word) {
   const seen = new Set();
   const out = [];
   for (const { inst } of list) {
-    for (const s of inst.suggest(word) || []) {
-      if (!seen.has(s)) {
-        seen.add(s);
-        out.push(s);
+    for (const suggestion of inst.suggest(word) || []) {
+      if (!seen.has(suggestion)) {
+        seen.add(suggestion);
+        out.push(suggestion);
       }
     }
   }
@@ -188,24 +194,28 @@ self.onmessage = async (e) => {
         type: "ready",
         loaded,
         failed,
-        pending: DICTIONARIES.filter((d) => d.id !== PRIMARY).map((d) => d.id),
+        pending: DICTIONARIES.filter((dict) => dict.id !== PRIMARY).map(
+          (dict) => dict.id,
+        ),
         source: backend.label,
         fallbackReason: backend.fallbackReason || null,
         mnVersion,
       });
-      const rest = DICTIONARIES.filter((d) => d.id !== PRIMARY);
+      const rest = DICTIONARIES.filter((dict) => dict.id !== PRIMARY);
       const results = await Promise.all(
-        rest.map((d) =>
-          loadOne(d.id).then(
+        rest.map((dict) =>
+          loadOne(dict.id).then(
             (id) => ({ id }),
-            (err) => ({ id: d.id, error: String(err) }),
+            (err) => ({ id: dict.id, error: String(err) }),
           ),
         ),
       );
       self.postMessage({
         type: "complete",
-        loaded: results.filter((r) => !r.error).map((r) => r.id),
-        failed: results.filter((r) => r.error),
+        loaded: results
+          .filter((result) => !result.error)
+          .map((result) => result.id),
+        failed: results.filter((result) => result.error),
       });
     } catch (err) {
       self.postMessage({ type: "error", error: String(err) });
@@ -215,11 +225,11 @@ self.onmessage = async (e) => {
 
   if (msg.type === "check") {
     const out = {};
-    for (const w of msg.words) {
+    for (const word of msg.words) {
       try {
-        out[w] = isCorrect(w);
+        out[word] = isCorrect(word);
       } catch (_) {
-        out[w] = true;
+        out[word] = true;
       }
     }
     self.postMessage({ type: "check", id: msg.id, results: out });

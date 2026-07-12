@@ -26,27 +26,28 @@ function pick(list, key) {
     const raw = localStorage.getItem(key);
     if (raw !== null) last = parseInt(raw, 10);
   } catch (_) {}
-  let i = Math.floor(Math.random() * list.length);
-  if (list.length > 1 && i === last) i = (i + 1) % list.length;
+  let tipIndex = Math.floor(Math.random() * list.length);
+  if (list.length > 1 && tipIndex === last)
+    tipIndex = (tipIndex + 1) % list.length;
   try {
-    localStorage.setItem(key, String(i));
+    localStorage.setItem(key, String(tipIndex));
   } catch (_) {}
-  return list[i];
+  return list[tipIndex];
 }
 
 function renderTip(el, text) {
   el.textContent = "";
-  const m = text.match(/https?:\/\/\S+/);
-  if (!m) {
+  const urlMatch = text.match(/https?:\/\/\S+/);
+  if (!urlMatch) {
     el.textContent = text;
     return;
   }
-  el.append(text.slice(0, m.index));
+  el.append(text.slice(0, urlMatch.index));
   const url = document.createElement("span");
   url.className = "empty-url";
-  url.textContent = m[0];
+  url.textContent = urlMatch[0];
   el.append(url);
-  const rest = text.slice(m.index + m[0].length);
+  const rest = text.slice(urlMatch.index + urlMatch[0].length);
   if (rest) el.append(rest);
 }
 
