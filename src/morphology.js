@@ -1,42 +1,43 @@
-function H(tpl) {
+function expandHarmony(template) {
   const map = { A: ["а", "э", "о", "ө"], Y: ["ы", "ий"] };
   let out = [""];
-  for (const ch of tpl) {
+  for (const ch of template) {
     const opts = map[ch] || [ch];
     const next = [];
-    for (const p of out) for (const o of opts) next.push(p + o);
+    for (const prefix of out)
+      for (const option of opts) next.push(prefix + option);
     out = next;
   }
   return out;
 }
 
 const NOUN_MS = [
-  ...H("гүй"),
-  ...H("Yн"),
-  ...H("нY"),
+  ...expandHarmony("гүй"),
+  ...expandHarmony("Yн"),
+  ...expandHarmony("нY"),
   "гийн",
-  ...H("Y"),
+  ...expandHarmony("Y"),
   "н",
   "йн",
-  ...H("Yг"),
+  ...expandHarmony("Yг"),
   "г",
   "йг",
   "д",
   "т",
   "нд",
-  ...H("Aд"),
+  ...expandHarmony("Aд"),
   "ид",
   "уд",
   "үд",
   "ыд",
-  ...H("AAс"),
-  ...H("AAр"),
-  ...H("AA"),
+  ...expandHarmony("AAс"),
+  ...expandHarmony("AAр"),
+  ...expandHarmony("AA"),
   "тай",
   "тэй",
   "той",
-  ...H("гAA"),
-  ...H("хAA"),
+  ...expandHarmony("гAA"),
+  ...expandHarmony("хAA"),
   "еэ",
   "ёо",
   "яа",
@@ -48,9 +49,9 @@ const NOUN_MS = [
   "хн",
   "ууд",
   "үүд",
-  ...H("нхдAA"),
-  ...H("нхтAA"),
-  ...H("нхтэй"),
+  ...expandHarmony("нхдAA"),
+  ...expandHarmony("нхтAA"),
+  ...expandHarmony("нхтэй"),
   "нхэд",
   "нхад",
   "нход",
@@ -59,51 +60,51 @@ const NOUN_MS = [
 const VERB_MS = [
   "в",
   "вч",
-  ...H("Aв"),
-  ...H("лAA"),
+  ...expandHarmony("Aв"),
+  ...expandHarmony("лAA"),
   "жээ",
   "чээ",
   "ж",
   "ч",
-  ...H("сAн"),
+  ...expandHarmony("сAн"),
   "сн",
-  ...H("сAAр"),
-  ...H("сAд"),
+  ...expandHarmony("сAAр"),
+  ...expandHarmony("сAд"),
   "сд",
-  ...H("нA"),
+  ...expandHarmony("нA"),
   "нам",
   "нэм",
   "муй",
   "мүй",
   "муу",
   "мүү",
-  ...H("AAд"),
-  ...H("AAч"),
+  ...expandHarmony("AAд"),
+  ...expandHarmony("AAч"),
   "ай",
   "эй",
   "ой",
   "өй",
-  ...H("дAг"),
+  ...expandHarmony("дAг"),
   "дг",
-  ...H("Aг"),
-  ...H("Aх"),
-  ...H("Aл"),
-  ...H("Aм"),
-  ...H("Aн"),
-  ...H("вAл"),
-  ...H("вAAс"),
-  ...H("бAл"),
-  ...H("бAAс"),
-  ...H("мAгц"),
-  ...H("тAл"),
-  ...H("тлAA"),
+  ...expandHarmony("Aг"),
+  ...expandHarmony("Aх"),
+  ...expandHarmony("Aл"),
+  ...expandHarmony("Aм"),
+  ...expandHarmony("Aн"),
+  ...expandHarmony("вAл"),
+  ...expandHarmony("вAAс"),
+  ...expandHarmony("бAл"),
+  ...expandHarmony("бAAс"),
+  ...expandHarmony("мAгц"),
+  ...expandHarmony("тAл"),
+  ...expandHarmony("тлAA"),
   "хул",
   "хүл",
   "ул",
   "үл",
-  ...H("мAAр"),
-  ...H("мAр"),
-  ...H("лAAр"),
+  ...expandHarmony("мAAр"),
+  ...expandHarmony("мAр"),
+  ...expandHarmony("лAAр"),
   "уй",
   "үй",
   "уйц",
@@ -113,9 +114,9 @@ const VERB_MS = [
   "жухуй",
   "чухуй",
   "шгүй",
-  ...H("Aшгүй"),
-  ...H("Aс"),
-  ...H("Aж"),
+  ...expandHarmony("Aшгүй"),
+  ...expandHarmony("Aс"),
+  ...expandHarmony("Aж"),
   "су",
   "сү",
   "сугай",
@@ -172,14 +173,14 @@ const VERB_MS = [
   "үүш",
   "уур",
   "үүр",
-  ...H("члAн"),
+  ...expandHarmony("члAн"),
   "чаа",
   "чаан",
-  ...H("Aр"),
-  ...H("Aч"),
-  ...H("тгAй"),
+  ...expandHarmony("Aр"),
+  ...expandHarmony("Aч"),
+  ...expandHarmony("тгAй"),
   "тгий",
-  ...H("хчAA"),
+  ...expandHarmony("хчAA"),
   "гч",
   "лт",
   "уш",
@@ -195,7 +196,7 @@ const VERB_MS = [
   "жи",
   "чи",
   "ши",
-  ...H("нхAн"),
+  ...expandHarmony("нхAн"),
   "тий",
   "мз",
   "з",
@@ -220,35 +221,35 @@ const VERB_MS = [
 ];
 
 function mkChain(morphs) {
-  const MS = [...new Set(morphs)].sort((a, b) => b.length - a.length);
+  const sortedMorphs = [...new Set(morphs)].sort((a, b) => b.length - a.length);
   return function (tail, prevCh) {
     let rest = tail;
-    let prev = prevCh;
+    let prevChar = prevCh;
     if (rest[0] === "-") {
       rest = rest.slice(1);
-      prev = "-";
+      prevChar = "-";
     }
     if (rest === "") return true;
     const memo = new Map();
-    function go(i, pc, run) {
-      if (i === rest.length) return true;
-      const key = i * 4 + run;
-      if (memo.has(key)) return memo.get(key);
-      let ok = false;
-      for (const m of MS) {
-        if (!rest.startsWith(m, i)) continue;
-        if (m === "т" && pc === "т") continue;
-        const nr = m.length === 1 ? run + 1 : 0;
-        if (nr > 2) continue;
-        if (go(i + m.length, m[m.length - 1], nr)) {
-          ok = true;
+    function matchFrom(pos, lastChar, singleRun) {
+      if (pos === rest.length) return true;
+      const memoKey = pos * 4 + singleRun;
+      if (memo.has(memoKey)) return memo.get(memoKey);
+      let matched = false;
+      for (const morph of sortedMorphs) {
+        if (!rest.startsWith(morph, pos)) continue;
+        if (morph === "т" && lastChar === "т") continue;
+        const nextRun = morph.length === 1 ? singleRun + 1 : 0;
+        if (nextRun > 2) continue;
+        if (matchFrom(pos + morph.length, morph[morph.length - 1], nextRun)) {
+          matched = true;
           break;
         }
       }
-      memo.set(key, ok);
-      return ok;
+      memo.set(memoKey, matched);
+      return matched;
     }
-    return go(0, prev, 0);
+    return matchFrom(0, prevChar, 0);
   };
 }
 
@@ -258,32 +259,55 @@ export const unionChain = mkChain([...NOUN_MS, ...VERB_MS]);
 const VOWELS = "аэиоуөүы";
 
 export function sameRoot(a, b) {
-  let i = 0;
-  while (i < a.length && i < b.length && a[i] === b[i]) i++;
-  if (i < 3) return false;
-  const pc = a[i - 1];
-  for (let da = 0; da <= 1; da++) {
-    for (let db = 0; db <= 1; db++) {
-      const sa = a.slice(i, i + da);
-      const sb = b.slice(i, i + db);
-      if (sa.split("").some((c) => c === pc)) continue;
-      if (sb.split("").some((c) => c === pc)) continue;
-      let ta = a.slice(i + da);
-      let tb = b.slice(i + db);
-      let cpc = pc;
-      if (da + db === 1 && VOWELS.includes(da === 1 ? sa : sb)) {
-        let j = 0;
-        while (j < ta.length && j < tb.length && ta[j] === tb[j]) j++;
-        if (j > 0) {
-          cpc = ta[j - 1];
-          ta = ta.slice(j);
-          tb = tb.slice(j);
+  let commonPrefixLen = 0;
+  while (
+    commonPrefixLen < a.length &&
+    commonPrefixLen < b.length &&
+    a[commonPrefixLen] === b[commonPrefixLen]
+  )
+    commonPrefixLen++;
+  if (commonPrefixLen < 3) return false;
+  const prevChar = a[commonPrefixLen - 1];
+  for (let skipCountA = 0; skipCountA <= 1; skipCountA++) {
+    for (let skipCountB = 0; skipCountB <= 1; skipCountB++) {
+      const skippedCharsA = a.slice(
+        commonPrefixLen,
+        commonPrefixLen + skipCountA,
+      );
+      const skippedCharsB = b.slice(
+        commonPrefixLen,
+        commonPrefixLen + skipCountB,
+      );
+      if (skippedCharsA.split("").some((char) => char === prevChar)) continue;
+      if (skippedCharsB.split("").some((char) => char === prevChar)) continue;
+      let tailA = a.slice(commonPrefixLen + skipCountA);
+      let tailB = b.slice(commonPrefixLen + skipCountB);
+      let reanchoredPrevChar = prevChar;
+      if (
+        skipCountA + skipCountB === 1 &&
+        VOWELS.includes(skipCountA === 1 ? skippedCharsA : skippedCharsB)
+      ) {
+        let realignLen = 0;
+        while (
+          realignLen < tailA.length &&
+          realignLen < tailB.length &&
+          tailA[realignLen] === tailB[realignLen]
+        )
+          realignLen++;
+        if (realignLen > 0) {
+          reanchoredPrevChar = tailA[realignLen - 1];
+          tailA = tailA.slice(realignLen);
+          tailB = tailB.slice(realignLen);
         }
       }
-      if (ta === "" && tb === "") return true;
-      if (nounChain(ta, cpc) && nounChain(tb, cpc)) return true;
-      if (ta === "" && unionChain(tb, cpc)) return true;
-      if (tb === "" && unionChain(ta, cpc)) return true;
+      if (tailA === "" && tailB === "") return true;
+      if (
+        nounChain(tailA, reanchoredPrevChar) &&
+        nounChain(tailB, reanchoredPrevChar)
+      )
+        return true;
+      if (tailA === "" && unionChain(tailB, reanchoredPrevChar)) return true;
+      if (tailB === "" && unionChain(tailA, reanchoredPrevChar)) return true;
     }
   }
   return false;

@@ -1,2 +1,5 @@
-export const escapeHtml = (s) =>
-  s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+export const escapeHtml = (text) =>
+  text.replace(
+    /[&<>]/g,
+    (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[char],
+  );

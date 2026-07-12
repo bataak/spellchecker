@@ -14,7 +14,7 @@ export function getSubmitted() {
 export function addSubmitted(list) {
   try {
     const set = getSubmitted();
-    for (const w of list) set.add(w.toLowerCase());
+    for (const word of list) set.add(word.toLowerCase());
     localStorage.setItem(SUBMITTED_KEY, JSON.stringify([...set]));
   } catch (_) {}
 }

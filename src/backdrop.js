@@ -108,7 +108,7 @@ function marksInRange(marks, start, end) {
 
 function markKey(slice) {
   let key = "";
-  for (const t of slice) key += t.start + ":" + t.end + ",";
+  for (const mark of slice) key += mark.start + ":" + mark.end + ",";
   return key;
 }
 
@@ -121,13 +121,13 @@ function markedHtml(raw, chunkStart, slice) {
   const body = stripChunkNewline(raw);
   let html = "";
   let cursor = 0;
-  for (const t of slice) {
-    const from = t.start - chunkStart;
-    const to = t.end - chunkStart;
+  for (const mark of slice) {
+    const from = mark.start - chunkStart;
+    const to = mark.end - chunkStart;
     html += escapeHtml(body.slice(cursor, from));
     html +=
       '<mark data-start="' +
-      t.start +
+      mark.start +
       '">' +
       escapeHtml(body.slice(from, to)) +
       "</mark>";

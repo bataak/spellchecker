@@ -24,17 +24,17 @@ export function initFileIO({
   }
 
   function stampName() {
-    const d = new Date();
-    const p = (n) => String(n).padStart(2, "0");
+    const now = new Date();
+    const pad2 = (num) => String(num).padStart(2, "0");
     const ts =
-      d.getFullYear() +
+      now.getFullYear() +
       "-" +
-      p(d.getMonth() + 1) +
+      pad2(now.getMonth() + 1) +
       "-" +
-      p(d.getDate()) +
+      pad2(now.getDate()) +
       "-" +
-      p(d.getHours()) +
-      p(d.getMinutes());
+      pad2(now.getHours()) +
+      pad2(now.getMinutes());
     const isMobile =
       window.matchMedia && window.matchMedia("(max-width: 700px)").matches;
     return (isMobile ? "" : "бичвэр-") + ts + ".txt";
@@ -49,12 +49,12 @@ export function initFileIO({
   function downloadText(text, name) {
     const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = ensureTxt(name);
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    const downloadLink = document.createElement("a");
+    downloadLink.href = url;
+    downloadLink.download = ensureTxt(name);
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    downloadLink.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
@@ -71,9 +71,9 @@ export function initFileIO({
 
     if (currentFileHandle) {
       try {
-        const w = await currentFileHandle.createWritable();
-        await w.write(text);
-        await w.close();
+        const writableStream = await currentFileHandle.createWritable();
+        await writableStream.write(text);
+        await writableStream.close();
         flash("#saveBtn", "Хадгаллаа");
         return;
       } catch (_) {}
@@ -95,9 +95,9 @@ export function initFileIO({
           suggestedName: stampName(),
           types: TXT_TYPES,
         });
-        const w = await handle.createWritable();
-        await w.write(text);
-        await w.close();
+        const writableStream = await handle.createWritable();
+        await writableStream.write(text);
+        await writableStream.close();
         currentFileHandle = handle;
         flash("#saveBtn", "Хадгаллаа");
         return;
@@ -117,11 +117,11 @@ export function initFileIO({
   function readAsText(file) {
     return file.text
       ? file.text()
-      : new Promise((res, rej) => {
-          const r = new FileReader();
-          r.onload = () => res(String(r.result));
-          r.onerror = rej;
-          r.readAsText(file);
+      : new Promise((resolve, reject) => {
+          const fileReader = new FileReader();
+          fileReader.onload = () => resolve(String(fileReader.result));
+          fileReader.onerror = reject;
+          fileReader.readAsText(file);
         });
   }
 
@@ -156,14 +156,18 @@ export function initFileIO({
       }
     });
     openFileEl.addEventListener("change", async () => {
-      const f = openFileEl.files && openFileEl.files[0];
-      if (!f) return;
-      if (!sizeOk(f)) {
+      const selectedFile = openFileEl.files && openFileEl.files[0];
+      if (!selectedFile) return;
+      if (!sizeOk(selectedFile)) {
         openFileEl.value = "";
         return;
       }
       try {
-        await loadFileContent(await readAsText(f), f.name, null);
+        await loadFileContent(
+          await readAsText(selectedFile),
+          selectedFile.name,
+          null,
+        );
       } catch (_) {
         flash("#openBtn", "Боломжгүй");
       }
@@ -171,20 +175,20 @@ export function initFileIO({
     });
   }
 
-  function sizeOk(f) {
-    if (!f) return true;
-    if (f.size > MAX_OPEN_BYTES) {
+  function sizeOk(file) {
+    if (!file) return true;
+    if (file.size > MAX_OPEN_BYTES) {
       setStatus(
         "Файл хэт том байна (" +
-          toMb(f.size) +
+          toMb(file.size) +
           " MB) — 10 мегабайтаас хэтэрч болохгүй",
       );
       flash("#openBtn", "Хэт том");
       return false;
     }
-    if (f.size > BIG_NOTICE_BYTES) {
+    if (file.size > BIG_NOTICE_BYTES) {
       setStatus(
-        "Том файл (" + toMb(f.size) + " MB) уншиж буй тул шалгалт удна",
+        "Том файл (" + toMb(file.size) + " MB) уншиж буй тул шалгалт удна",
       );
     }
     return true;
@@ -195,15 +199,15 @@ export function initFileIO({
   }
 
   function dragHasFiles(e) {
-    const t = e.dataTransfer && e.dataTransfer.types;
-    return !!t && Array.from(t).includes("Files");
+    const transferTypes = e.dataTransfer && e.dataTransfer.types;
+    return !!transferTypes && Array.from(transferTypes).includes("Files");
   }
-  function isTextFile(f) {
+  function isTextFile(file) {
     return (
-      !!f &&
-      ((f.type && f.type.indexOf("text/") === 0) ||
-        /\.txt$/i.test(f.name) ||
-        !f.type)
+      !!file &&
+      ((file.type && file.type.indexOf("text/") === 0) ||
+        /\.txt$/i.test(file.name) ||
+        !file.type)
     );
   }
   els.editor.addEventListener("dragover", (e) => {
@@ -224,15 +228,21 @@ export function initFileIO({
     const item = dt && dt.items && dt.items[0];
     if (item && item.kind === "file" && item.getAsFileSystemHandle) {
       try {
-        const h = await item.getAsFileSystemHandle();
-        if (h && h.kind === "file") handle = h;
+        const fsHandle = await item.getAsFileSystemHandle();
+        if (fsHandle && fsHandle.kind === "file") handle = fsHandle;
       } catch (_) {}
     }
     try {
-      const f = handle ? await handle.getFile() : dt && dt.files && dt.files[0];
-      if (!isTextFile(f)) return;
-      if (!sizeOk(f)) return;
-      await loadFileContent(await readAsText(f), f.name, handle);
+      const droppedFile = handle
+        ? await handle.getFile()
+        : dt && dt.files && dt.files[0];
+      if (!isTextFile(droppedFile)) return;
+      if (!sizeOk(droppedFile)) return;
+      await loadFileContent(
+        await readAsText(droppedFile),
+        droppedFile.name,
+        handle,
+      );
     } catch (_) {}
   });
 }

@@ -8,11 +8,11 @@ function caseOf(word) {
     lower = 0,
     firstCased = null;
   for (const ch of word) {
-    const u = ch.toUpperCase(),
-      l = ch.toLowerCase();
-    if (u === l) continue;
+    const upperChar = ch.toUpperCase(),
+      lowerChar = ch.toLowerCase();
+    if (upperChar === lowerChar) continue;
     if (firstCased === null) firstCased = ch;
-    if (ch === u) upper++;
+    if (ch === upperChar) upper++;
     else lower++;
   }
   if (upper === 0) return "lower";
@@ -23,8 +23,8 @@ function caseOf(word) {
 
 function rebuild() {
   lookup = new Map();
-  for (const w of ignored) {
-    lookup.set(w.toLowerCase(), caseOf(w));
+  for (const word of ignored) {
+    lookup.set(word.toLowerCase(), caseOf(word));
   }
 }
 
@@ -49,23 +49,24 @@ export function isIgnored(word) {
   const stored = lookup.get(word.toLowerCase());
   if (stored === undefined) return false;
   if (stored === "lower") return true;
-  const wc = caseOf(word);
-  if (stored === "capital") return wc === "capital" || wc === "upper";
-  return wc === "upper";
+  const wordCase = caseOf(word);
+  if (stored === "capital")
+    return wordCase === "capital" || wordCase === "upper";
+  return wordCase === "upper";
 }
 
 export function addIgnored(word) {
-  const w = word.trim();
-  if (!w) return false;
-  const key = w.toLowerCase();
+  const trimmedWord = word.trim();
+  if (!trimmedWord) return false;
+  const key = trimmedWord.toLowerCase();
   const existing = lookup.get(key);
   if (existing !== undefined) {
     if (existing === "lower") return false;
-    const wc = caseOf(w);
-    if (existing === wc) return false;
-    ignored = ignored.filter((x) => x.toLowerCase() !== key);
+    const wordCase = caseOf(trimmedWord);
+    if (existing === wordCase) return false;
+    ignored = ignored.filter((stored) => stored.toLowerCase() !== key);
   }
-  ignored.push(w);
+  ignored.push(trimmedWord);
   rebuild();
   persist();
   return true;
@@ -73,7 +74,7 @@ export function addIgnored(word) {
 
 export function removeIgnored(word) {
   const before = ignored.length;
-  ignored = ignored.filter((x) => x !== word);
+  ignored = ignored.filter((stored) => stored !== word);
   if (ignored.length === before) return false;
   rebuild();
   persist();
