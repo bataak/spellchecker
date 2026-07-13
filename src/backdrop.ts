@@ -128,12 +128,17 @@ function markKey(slice: Token[]): string {
   return key;
 }
 
-function plainHtml(raw: string): string {
-  const html = escapeHtml(stripChunkNewline(raw));
+export function plainHtml(raw: string): string {
+  const body = stripChunkNewline(raw);
+  const html = escapeHtml(body) + hangingGuard(body);
   return html === "" ? "\u200b" : html;
 }
 
-function markedHtml(raw: string, chunkStart: number, slice: Token[]): string {
+export function markedHtml(
+  raw: string,
+  chunkStart: number,
+  slice: Token[],
+): string {
   const body = stripChunkNewline(raw);
   let html = "";
   let cursor = 0;
@@ -149,8 +154,12 @@ function markedHtml(raw: string, chunkStart: number, slice: Token[]): string {
       "</mark>";
     cursor = to;
   }
-  html += escapeHtml(body.slice(cursor));
+  html += escapeHtml(body.slice(cursor)) + hangingGuard(body);
   return html === "" ? "\u200b" : html;
+}
+
+function hangingGuard(body: string): string {
+  return body.endsWith("\n") ? "\u200b" : "";
 }
 
 function stripChunkNewline(raw: string): string {
