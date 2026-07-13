@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { unionChain } from "../src/morphology.js";
+import { unionChain } from "../src/morphology.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -26,6 +26,6 @@ function affSuffixes() {
 test("mn_MN.aff файлын бүх нөхцөлийн хоршилд хүчинтэй", () => {
   const suffixes = affSuffixes();
   assert.ok(suffixes.length > 3000, "aff файлаас нөхцөл олдсонгүй");
-  const fails = suffixes.filter((s) => !unionChain(s, ""));
+  const fails = suffixes.filter((s) => !unionChain(String(s), ""));
   assert.deepEqual(fails, []);
 });

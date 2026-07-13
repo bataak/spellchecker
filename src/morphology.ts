@@ -1,9 +1,13 @@
-function expandHarmony(template) {
-  const map = { A: ["а", "э", "о", "ө"], Y: ["ы", "ий"] };
+function expandHarmony(template: string): string[] {
+  const map: Record<string, string[]> = {
+    A: ["а", "э", "о", "ө"],
+    Y: ["ы", "ий"],
+  };
   let out = [""];
+
   for (const ch of template) {
     const opts = map[ch] || [ch];
-    const next = [];
+    const next: string[] = [];
     for (const prefix of out)
       for (const option of opts) next.push(prefix + option);
     out = next;
@@ -220,9 +224,9 @@ const VERB_MS = [
   "я",
 ];
 
-function mkChain(morphs) {
+function mkChain(morphs: string[]): (tail: string, prevCh: string) => boolean {
   const sortedMorphs = [...new Set(morphs)].sort((a, b) => b.length - a.length);
-  return function (tail, prevCh) {
+  return function (tail: string, prevCh: string): boolean {
     let rest = tail;
     let prevChar = prevCh;
     if (rest[0] === "-") {
@@ -230,11 +234,15 @@ function mkChain(morphs) {
       prevChar = "-";
     }
     if (rest === "") return true;
-    const memo = new Map();
-    function matchFrom(pos, lastChar, singleRun) {
+    const memo = new Map<number, boolean>();
+    function matchFrom(
+      pos: number,
+      lastChar: string,
+      singleRun: number,
+    ): boolean {
       if (pos === rest.length) return true;
       const memoKey = pos * 4 + singleRun;
-      if (memo.has(memoKey)) return memo.get(memoKey);
+      if (memo.has(memoKey)) return memo.get(memoKey)!;
       let matched = false;
       for (const morph of sortedMorphs) {
         if (!rest.startsWith(morph, pos)) continue;
@@ -258,7 +266,7 @@ export const unionChain = mkChain([...NOUN_MS, ...VERB_MS]);
 
 const VOWELS = "аэиоуөүы";
 
-export function sameRoot(a, b) {
+export function sameRoot(a: string, b: string): boolean {
   let commonPrefixLen = 0;
   while (
     commonPrefixLen < a.length &&

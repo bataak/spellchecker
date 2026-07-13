@@ -1,4 +1,31 @@
 import { gunzipSync } from "fflate";
+import type { WorkerRequest, WorkerResponse, DictFailure } from "./messages.ts";
+
+interface SpellerInstance {
+  spell: (word: string) => boolean;
+  suggest: (word: string) => string[];
+}
+
+interface Backend {
+  label: string;
+  fallbackReason?: string;
+  build: (aff: string, dic: string, id?: string) => Promise<SpellerInstance>;
+}
+
+interface ManifestEntry {
+  id: string;
+  version: string | null;
+  aff: string;
+  dic: string;
+}
+
+declare global {
+  interface Window {
+    __cacheFirstFetch?: boolean;
+  }
+}
+
+const post = (msg: WorkerResponse): void => self.postMessage(msg);
 
 const decoder = new TextDecoder("utf-8");
 
@@ -6,7 +33,12 @@ if (!self.__cacheFirstFetch) {
   self.__cacheFirstFetch = true;
   const origFetch = self.fetch.bind(self);
   self.fetch = async (input, init) => {
-    const url = typeof input === "string" ? input : (input && input.url) || "";
+    const url =
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.href
+          : (input && input.url) || "";
     if (url && (!init || init.method == null || init.method === "GET")) {
       try {
         const cached = await caches.match(url, { ignoreSearch: true });
@@ -25,9 +57,10 @@ const DICTIONARIES = [
 const PRIMARY = "mn_MN";
 
 let BASE = "/";
-const asset = (path) => (BASE + path).replace(/([^:])\/{2,}/g, "$1/");
+const asset = (path: string): string =>
+  (BASE + path).replace(/([^:])\/{2,}/g, "$1/");
 
-async function fetchGzText(url) {
+async function fetchGzText(url: string): Promise<string> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(url + " -> " + res.status);
   const buf = new Uint8Array(await res.arrayBuffer());
@@ -42,9 +75,9 @@ async function fetchGzText(url) {
   return decoder.decode(gunzipSync(buf));
 }
 
-async function loadManifest() {
+async function loadManifest(): Promise<Record<string, ManifestEntry>> {
   if (import.meta.env.DEV) {
-    const out = {};
+    const out: Record<string, ManifestEntry> = {};
     for (const dict of DICTIONARIES) {
       out[dict.id] = {
         id: dict.id,
@@ -57,17 +90,15 @@ async function loadManifest() {
   }
   const res = await fetch(asset("dict/dict-manifest.json"));
   if (!res.ok) throw new Error("dict-manifest.json -> " + res.status);
-  const data = await res.json();
-  const out = {};
+  const data = (await res.json()) as { dicts?: ManifestEntry[] };
+  const out: Record<string, ManifestEntry> = {};
   for (const entry of data.dicts || []) out[entry.id] = entry;
   return out;
 }
 
-async function loadHunspellWasm() {
+async function loadHunspellWasm(): Promise<Backend> {
   const mod = await import("hunspell-wasm");
-  const create =
-    mod.createHunspellFromStrings ||
-    (mod.default && mod.default.createHunspellFromStrings);
+  const create = mod.createHunspellFromStrings;
   if (typeof create !== "function")
     throw new Error("createHunspellFromStrings алга");
   const probe = await create("SET UTF-8\n", "1\nhello\n");
@@ -86,7 +117,7 @@ async function loadHunspellWasm() {
   };
 }
 
-async function loadNspell() {
+async function loadNspell(): Promise<Backend> {
   const mod = await import("nspell");
   const nspell = mod.default || mod;
   const probe = nspell("SET UTF-8\n", "1\nhello\n");
@@ -104,42 +135,45 @@ async function loadNspell() {
   };
 }
 
-async function resolveBackend() {
+async function resolveBackend(): Promise<Backend> {
   try {
     return await loadHunspellWasm();
   } catch (wasmError) {
     const reason =
-      wasmError && wasmError.message ? wasmError.message : String(wasmError);
+      wasmError instanceof Error ? wasmError.message : String(wasmError);
     const fallbackBackend = await loadNspell();
     fallbackBackend.fallbackReason = reason;
     return fallbackBackend;
   }
 }
 
-const instances = [];
-let backend = null;
-let manifest = null;
-let mnVersion = null;
+const instances: { id: string; inst: SpellerInstance }[] = [];
+let backend: Backend | null = null;
+let manifest: Record<string, ManifestEntry> | null = null;
+let mnVersion: string | null = null;
 
-async function loadOne(id) {
-  const entry = manifest[id];
+async function loadOne(id: string): Promise<string> {
+  const entry = manifest![id];
   if (!entry) throw new Error(id + " manifest-д алга");
   const [aff, dic] = await Promise.all([
     fetchGzText(asset("dict/" + entry.aff)),
     fetchGzText(asset("dict/" + entry.dic)),
   ]);
-  const inst = await backend.build(aff, dic, id);
+  const inst = await backend!.build(aff, dic, id);
   if (id === PRIMARY) {
     mnVersion =
-      entry.version || aff.match(/^#?\s*Version:\s*(.+)$/m)?.[1].trim() || null;
+      entry.version ||
+      aff.match(/^#?\s*Version:\s*(.+)$/m)?.[1]!.trim() ||
+      null;
   }
   instances.push({ id, inst });
-  const order = (item) => DICTIONARIES.findIndex((dict) => dict.id === item.id);
+  const order = (item: { id: string }): number =>
+    DICTIONARIES.findIndex((dict) => dict.id === item.id);
   instances.sort((a, b) => order(a) - order(b));
   return id;
 }
 
-function isCorrect(word) {
+function isCorrect(word: string): boolean {
   if (!instances.length) return true;
   const cyr = /[\u0400-\u04FF\u1800-\u18AF]/.test(word);
   const lat = /[A-Za-z]/.test(word);
@@ -150,7 +184,7 @@ function isCorrect(word) {
   return instances.some(({ inst }) => inst.spell(word));
 }
 
-function suggest(word) {
+function suggest(word: string): string[] {
   const cyr = /[\u0400-\u04FF\u1800-\u18AF]/.test(word);
   const lat = /[A-Za-z]/.test(word);
   let list = instances;
@@ -161,8 +195,8 @@ function suggest(word) {
   }
   if (!list.length) list = instances;
 
-  const seen = new Set();
-  const out = [];
+  const seen = new Set<string>();
+  const out: string[] = [];
   for (const { inst } of list) {
     for (const suggestion of inst.suggest(word) || []) {
       if (!seen.has(suggestion)) {
@@ -174,7 +208,7 @@ function suggest(word) {
   return out;
 }
 
-self.onmessage = async (e) => {
+self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   const msg = e.data;
 
   if (msg.type === "init") {
@@ -182,15 +216,15 @@ self.onmessage = async (e) => {
     try {
       backend = await resolveBackend();
       manifest = await loadManifest();
-      const loaded = [];
-      const failed = [];
+      const loaded: string[] = [];
+      const failed: DictFailure[] = [];
       try {
         await loadOne(PRIMARY);
         loaded.push(PRIMARY);
       } catch (err) {
         failed.push({ id: PRIMARY, error: String(err) });
       }
-      self.postMessage({
+      post({
         type: "ready",
         loaded,
         failed,
@@ -205,26 +239,28 @@ self.onmessage = async (e) => {
       const results = await Promise.all(
         rest.map((dict) =>
           loadOne(dict.id).then(
-            (id) => ({ id }),
+            (id) => ({ id, error: null as string | null }),
             (err) => ({ id: dict.id, error: String(err) }),
           ),
         ),
       );
-      self.postMessage({
+      post({
         type: "complete",
         loaded: results
           .filter((result) => !result.error)
           .map((result) => result.id),
-        failed: results.filter((result) => result.error),
+        failed: results.filter(
+          (result): result is { id: string; error: string } => !!result.error,
+        ),
       });
     } catch (err) {
-      self.postMessage({ type: "error", error: String(err) });
+      post({ type: "error", error: String(err) });
     }
     return;
   }
 
   if (msg.type === "check") {
-    const out = {};
+    const out: Record<string, boolean> = {};
     for (const word of msg.words) {
       try {
         out[word] = isCorrect(word);
@@ -232,18 +268,17 @@ self.onmessage = async (e) => {
         out[word] = true;
       }
     }
-    self.postMessage({ type: "check", id: msg.id, results: out });
+    post({ type: "check", id: msg.id, results: out });
     return;
   }
 
   if (msg.type === "suggest") {
-    let suggestions = [];
+    let suggestions: string[] = [];
     try {
       suggestions = suggest(msg.word) || [];
     } catch (_) {
       suggestions = [];
     }
-    self.postMessage({ type: "suggest", id: msg.id, suggestions });
-    return;
+    post({ type: "suggest", id: msg.id, suggestions });
   }
 };

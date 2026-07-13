@@ -1,76 +1,80 @@
 import "./style.css";
-import { MultiSpellChecker, tokenize, DICTIONARIES } from "./spellchecker.js";
-import { initFileIO } from "./fileio.js";
-import { initToolbar } from "./toolbar.js";
-import { initSuggest } from "./suggest.js";
-import {
-  isIgnored,
-  addIgnored,
-  removeIgnored,
-  clearIgnored,
-  getIgnored,
-} from "./ignore.js";
-import { initIgnoreList, syncIgnoreVisibility } from "./ignorelist.js";
-import { initAppearance } from "./appearance.js";
-import { escapeHtml } from "./htmlutil.js";
-import { checkable, isDashSuffix, buildErrorList } from "./textcheck.js";
+import { MultiSpellChecker, tokenize, DICTIONARIES } from "./spellchecker.ts";
+import { initFileIO } from "./fileio.ts";
+import { initToolbar } from "./toolbar.ts";
+import { initSuggest } from "./suggest.ts";
+import { isIgnored, addIgnored } from "./ignore.ts";
+import type { Token } from "./textcheck.ts";
+import { initIgnoreList, syncIgnoreVisibility } from "./ignorelist.ts";
+import { initAppearance } from "./appearance.ts";
+import { escapeHtml } from "./htmlutil.ts";
+import { checkable, isDashSuffix, buildErrorList } from "./textcheck.ts";
 import {
   initDraftStorage,
   saveDraft,
   flushDraft,
   loadDraft,
-} from "./storage.js";
+} from "./storage.ts";
 import {
   initBackdrop,
   renderBackdrop,
   refreshBackdropMarks,
   materializeMark,
-} from "./backdrop.js";
-import { rotateEmptyTips, syncEmptyTips } from "./emptytips.js";
+} from "./backdrop.ts";
+import { rotateEmptyTips, syncEmptyTips } from "./emptytips.ts";
 
 document.body.classList.add("ready");
 
 const els = {
-  status: document.querySelector("#statusText"),
-  editor: document.querySelector("#editor"),
-  backdrop: document.querySelector("#backdrop"),
-  popover: document.querySelector("#popover"),
-  emptyState: document.querySelector("#emptyState"),
+  status: document.querySelector("#statusText") as HTMLElement,
+  editor: document.querySelector("#editor") as HTMLTextAreaElement,
+  backdrop: document.querySelector("#backdrop") as HTMLElement,
+  popover: document.querySelector("#popover") as HTMLElement,
+  emptyState: document.querySelector<HTMLElement>("#emptyState"),
 };
 
 const panelEls = {
-  list: document.querySelector("#errorList"),
-  copy: document.querySelector("#copyErrorsBtn"),
-  title: document.querySelector("#errorPanelTitle"),
+  list: document.querySelector<HTMLElement>("#errorList"),
+  copy: document.querySelector<HTMLButtonElement>("#copyErrorsBtn"),
+  title: document.querySelector<HTMLElement>("#errorPanelTitle"),
 };
 const desktopMQ = window.matchMedia("(min-width: 1024px)");
 initBackdrop(els.backdrop);
 
 const checker = new MultiSpellChecker();
-const cache = new Map();
+interface PendingFix {
+  original: string;
+  originalPattern: CasePattern;
+  dashSuffix: boolean;
+  start: number;
+}
+
+type CasePattern = "lower" | "capital" | "upper";
+
+const cache = new Map<string, boolean>();
 let ready = false;
-let badTokens = [];
+let badTokens: Token[] = [];
 let baseStatus = "";
 let offlineIndicatorActive = false;
-let pendingFix = null;
+let pendingFix: PendingFix | null = null;
 
-const labelOf = (id) =>
-  (DICTIONARIES.find((dict) => dict.id === id) || {}).label || id;
-const nf = (num) => num.toLocaleString("en-US");
-const setStatus = (html, animate = true) => {
+const labelOf = (id: string): string =>
+  DICTIONARIES.find((dict) => dict.id === id)?.label || id;
+const nf = (num: number): string => num.toLocaleString("en-US");
+const setStatus = (html: string, animate = true): void => {
   els.status.innerHTML = html;
   if (!animate) return;
   els.status.classList.remove("status-reveal");
   void els.status.offsetWidth;
   els.status.classList.add("status-reveal");
 };
-function isCorrect(word) {
-  return cache.has(word) ? cache.get(word) : true;
+function isCorrect(word: string): boolean {
+  return cache.has(word) ? cache.get(word)! : true;
 }
 const CHECK_NOTICE_MIN = 2000;
 const CHECK_BATCH = 8000;
-async function ensureChecked(text) {
-  const need = new Set();
+async function ensureChecked(text: string): Promise<void> {
+  const need = new Set<string>();
   for (const { word } of tokenize(text)) {
     if (checkable(word) && !cache.has(word)) need.add(word);
   }
@@ -88,28 +92,32 @@ async function ensureChecked(text) {
       await nextFrame();
     }
     const results = await checker.checkWords(words.slice(i, i + CHECK_BATCH));
-    for (const w in results) cache.set(w, results[w]);
+    for (const w in results) cache.set(w, results[w]!);
   }
 }
-function nextFrame() {
-  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+function nextFrame(): Promise<void> {
+  return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 }
-async function correctNow(word) {
-  if (cache.has(word)) return cache.get(word);
+async function correctNow(word: string): Promise<boolean> {
+  if (cache.has(word)) return cache.get(word)!;
   const checkResults = await checker.checkWords([word]);
-  cache.set(word, checkResults[word]);
-  return checkResults[word];
+  const correct = checkResults[word] === true;
+  cache.set(word, correct);
+  return correct;
 }
-function debounce(fn, ms) {
-  let timerId;
-  return (...args) => {
+function debounce<A extends unknown[]>(
+  fn: (...args: A) => void,
+  ms: number,
+): (...args: A) => void {
+  let timerId: ReturnType<typeof setTimeout> | undefined;
+  return (...args: A) => {
     clearTimeout(timerId);
     timerId = setTimeout(() => fn(...args), ms);
   };
 }
 
-function computeBad(text) {
-  const bad = [];
+function computeBad(text: string): { bad: Token[]; total: number } {
+  const bad: Token[] = [];
   let total = 0;
   for (const { word, index } of tokenize(text)) {
     total++;
@@ -119,7 +127,7 @@ function computeBad(text) {
   return { bad, total };
 }
 
-function casePattern(src) {
+function casePattern(src: string): CasePattern {
   if (!src) return "lower";
   let upper = 0,
     lower = 0,
@@ -138,30 +146,30 @@ function casePattern(src) {
   if (firstCased && firstCased === firstCased.toUpperCase()) return "capital";
   return "lower";
 }
-function applyCase(pattern, word) {
+function applyCase(pattern: CasePattern, word: string): string {
   const lo = word.toLowerCase();
   if (pattern === "upper") return word.toUpperCase();
   if (pattern === "capital") return lo.charAt(0).toUpperCase() + lo.slice(1);
   return lo;
 }
-function irregularCase(word) {
+function irregularCase(word: string): boolean {
   return applyCase(casePattern(word), word.toLowerCase()) !== word;
 }
-function caseRank(pattern) {
+function caseRank(pattern: CasePattern): number {
   return pattern === "upper" ? 2 : pattern === "capital" ? 1 : 0;
 }
-function rankToPattern(rank) {
+function rankToPattern(rank: number): CasePattern {
   return rank === 2 ? "upper" : rank === 1 ? "capital" : "lower";
 }
 
 function replaceAllWord(
-  text,
-  originalLower,
-  baseRepl,
-  caretOffset,
-  primaryPattern,
-  onlyAt,
-) {
+  text: string,
+  originalLower: string,
+  baseRepl: string,
+  caretOffset: number,
+  primaryPattern: CasePattern,
+  onlyAt?: number | null,
+): { text: string; caret: number } {
   baseRepl = baseRepl.replace(/\s+$/, "");
   const verbatim = irregularCase(baseRepl);
   const corrRank = caseRank(casePattern(baseRepl));
@@ -196,7 +204,7 @@ function replaceAllWord(
   result += text.slice(cursor);
   return { text: result, caret };
 }
-function wordAtCaret(text, pos) {
+function wordAtCaret(text: string, pos: number): Token | null {
   for (const { word, index } of tokenize(text)) {
     if (pos >= index && pos <= index + word.length) {
       return { word, start: index, end: index + word.length };
@@ -274,14 +282,14 @@ function tokenAtCaret() {
   return null;
 }
 
-let activeStart = null;
-let kbAdjustTimer = null;
+let activeStart: number | null = null;
+let kbAdjustTimer: ReturnType<typeof setTimeout> | null = null;
 let popoverScrollTop = 0;
 
-function hidePopover() {
+function hidePopover(): void {
   els.popover.hidden = true;
   activeStart = null;
-  clearTimeout(kbAdjustTimer);
+  if (kbAdjustTimer) clearTimeout(kbAdjustTimer);
 }
 
 const isTouch = () => window.matchMedia("(pointer: coarse)").matches;
@@ -318,7 +326,7 @@ function bringWordIntoView() {
   }
 }
 
-function scrollMarkIntoView(start) {
+function scrollMarkIntoView(start: number): void {
   materializeMark(start);
   const mark = els.backdrop.querySelector('mark[data-start="' + start + '"]');
   if (!mark) return;
@@ -373,8 +381,8 @@ function renderErrorPanel() {
     .join("");
 }
 
-function scheduleKbAdjust() {
-  clearTimeout(kbAdjustTimer);
+function scheduleKbAdjust(): void {
+  if (kbAdjustTimer) clearTimeout(kbAdjustTimer);
   const delays = [100, 250, 450, 650];
   let delayIndex = 0;
   const run = () => {
@@ -433,7 +441,7 @@ function placePopover() {
   els.popover.style.left = window.scrollX + left + "px";
 }
 
-async function showPopoverFor(token) {
+async function showPopoverFor(token: Token): Promise<void> {
   materializeMark(token.start);
   let mark = els.backdrop.querySelector(
     'mark[data-start="' + token.start + '"]',
@@ -441,9 +449,7 @@ async function showPopoverFor(token) {
   if (!mark) {
     await render();
     materializeMark(token.start);
-    mark = els.backdrop.querySelector(
-      'mark[data-start="' + token.start + '"]',
-    );
+    mark = els.backdrop.querySelector('mark[data-start="' + token.start + '"]');
   }
   if (!mark) {
     hidePopover();
@@ -550,7 +556,10 @@ async function recheck() {
   saveText();
 }
 
-async function applySuggestion(token, replacement) {
+async function applySuggestion(
+  token: Token,
+  replacement: string,
+): Promise<void> {
   pendingFix = null;
   const editorText = els.editor.value;
   const onlyAt = isDashSuffix(editorText, token) ? token.start : null;
@@ -574,15 +583,12 @@ async function applySuggestion(token, replacement) {
   saveText();
 }
 
-function isSeparatorInput(e) {
+function isSeparatorInput(e: InputEvent): boolean {
   const it = e.inputType || "";
   if (it === "insertText")
     return e.data != null && /[\s\p{P}\p{S}]/u.test(e.data);
   if (it === "insertLineBreak" || it === "insertParagraph") return true;
-  if (
-    it.indexOf("insertFromPaste") === 0 ||
-    it.indexOf("insertFromDrop") === 0
-  )
+  if (it.indexOf("insertFromPaste") === 0 || it.indexOf("insertFromDrop") === 0)
     return true;
   return false;
 }
@@ -641,9 +647,9 @@ async function loadText() {
     }
   } catch (_) {}
 }
-let saveTimer = null;
-function saveTextSoon() {
-  clearTimeout(saveTimer);
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+function saveTextSoon(): void {
+  if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(saveText, 400);
 }
 window.addEventListener("pagehide", () => {
@@ -658,7 +664,7 @@ document.addEventListener("visibilitychange", () => {
 });
 
 let programmaticEdit = false;
-function setEditorText(newText, caret) {
+function setEditorText(newText: string, caret: number | null): void {
   pendingFix = null;
   const old = els.editor.value;
   els.editor.focus({ preventScroll: true });
@@ -710,7 +716,7 @@ function setEditorText(newText, caret) {
     } catch (_) {}
   }
 }
-function insertEditorText(text, start, end) {
+function insertEditorText(text: string, start: number, end: number): void {
   pendingFix = null;
   els.editor.focus({ preventScroll: true });
   try {
@@ -736,6 +742,7 @@ function insertEditorText(text, start, end) {
 }
 els.editor.addEventListener("input", (e) => {
   if (programmaticEdit) return;
+  if (!(e instanceof InputEvent)) return;
   if (els.emptyState) {
     const empty = els.editor.value.length === 0;
     els.emptyState.style.opacity = empty ? "" : "0";
@@ -750,7 +757,7 @@ const clearBtnEl = document.querySelector("#clearBtn");
 if (clearBtnEl) {
   clearBtnEl.addEventListener("click", () => rotateEmptyTips());
 }
-let lastCaret = null;
+let lastCaret: { start: number; end: number } | null = null;
 els.editor.addEventListener("blur", () => {
   pendingFix = null;
   lastCaret = {
@@ -802,8 +809,8 @@ els.editor.addEventListener("keyup", (e) => {
 
 let suppressNextClick = false;
 
-function markAtPoint(x, y) {
-  const marks = els.backdrop.querySelectorAll("mark[data-start]");
+function markAtPoint(x: number, y: number): HTMLElement | null {
+  const marks = els.backdrop.querySelectorAll<HTMLElement>("mark[data-start]");
   for (const mark of marks) {
     const rects = mark.getClientRects();
     for (const rect of rects) {
@@ -818,7 +825,7 @@ function markAtPoint(x, y) {
   }
   return null;
 }
-function tokenForMark(mark) {
+function tokenForMark(mark: HTMLElement): Token | null {
   const start = Number(mark.getAttribute("data-start"));
   for (const token of badTokens) if (token.start === start) return token;
   return null;
@@ -842,7 +849,8 @@ els.editor.addEventListener("contextmenu", (e) => {
   }
 });
 document.addEventListener("mousedown", (e) => {
-  if (!e.target.closest("#popover") && e.target !== els.editor) hidePopover();
+  const target = e.target instanceof Element ? e.target : null;
+  if (!target?.closest("#popover") && target !== els.editor) hidePopover();
 });
 
 if (window.visualViewport) {
@@ -855,18 +863,18 @@ if (window.visualViewport) {
 window.addEventListener("resize", placePopover);
 
 initAppearance();
-function flash(sel, msg) {
-  const flashBtn = document.querySelector(sel);
+function flash(sel: string, msg: string): void {
+  const flashBtn = document.querySelector<HTMLElement>(sel);
   if (!flashBtn) return;
-  const old = flashBtn.dataset.label || flashBtn.textContent;
+  const old = flashBtn.dataset.label || flashBtn.textContent || "";
   flashBtn.dataset.label = old;
   flashBtn.textContent = msg;
   setTimeout(() => {
-    flashBtn.textContent = flashBtn.dataset.label;
+    flashBtn.textContent = flashBtn.dataset.label ?? "";
   }, 1100);
 }
 
-function copyText(str) {
+function copyText(str: string): Promise<void> {
   if (
     navigator.clipboard &&
     navigator.clipboard.writeText &&
@@ -874,7 +882,7 @@ function copyText(str) {
   ) {
     return navigator.clipboard.writeText(str);
   }
-  return new Promise((resolve, reject) => {
+  return new Promise<void>((resolve, reject) => {
     try {
       const ta = document.createElement("textarea");
       ta.value = str;
@@ -895,7 +903,7 @@ function copyText(str) {
   });
 }
 
-const verEl = document.querySelector("#appVersion");
+const verEl = document.querySelector<HTMLElement>("#appVersion");
 if (verEl) {
   const av = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "";
   const hv =
@@ -906,7 +914,8 @@ if (verEl) {
   verEl.style.cursor = "pointer";
   verEl.addEventListener("click", () => {
     const expanded = verEl.textContent !== verEl.dataset.short;
-    verEl.textContent = expanded ? verEl.dataset.short : verEl.dataset.full;
+    verEl.textContent =
+      (expanded ? verEl.dataset.short : verEl.dataset.full) ?? "";
   });
 }
 initFileIO({
@@ -952,13 +961,19 @@ initFileIO({
     btn.setAttribute("title", base ? base + " · " + combo : combo);
   });
 
-  function trigger(sel, doClick = true) {
-    const btn = document.querySelector(sel);
+  function trigger(sel: string, doClick = true): void {
+    const btn = document.querySelector<HTMLButtonElement>(sel);
     if (!btn || btn.disabled) return;
     if (doClick) btn.click();
     btn.classList.add("kbd-active");
-    clearTimeout(btn._kbdTimer);
-    btn._kbdTimer = setTimeout(() => btn.classList.remove("kbd-active"), 260);
+    const kbdBtn = btn as HTMLButtonElement & {
+      _kbdTimer?: ReturnType<typeof setTimeout>;
+    };
+    if (kbdBtn._kbdTimer) clearTimeout(kbdBtn._kbdTimer);
+    kbdBtn._kbdTimer = setTimeout(
+      () => btn.classList.remove("kbd-active"),
+      260,
+    );
   }
 
   window.addEventListener("keydown", (e) => {
@@ -1017,7 +1032,8 @@ initFileIO({
       trigger("#saveBtn");
     } else if (lowerKey === "o") {
       if (!window.showOpenFilePicker) {
-        const openFileEl = document.querySelector("#openFile");
+        const openFileEl =
+          document.querySelector<HTMLInputElement>("#openFile");
         if (openFileEl) openFileEl.click();
         e.preventDefault();
         trigger("#openBtn", false);
@@ -1044,12 +1060,11 @@ initFileIO({
       trigger("#pasteBtn", false);
     } else if (lowerKey === "c") {
       const pageSel = window.getSelection
-        ? window.getSelection().toString()
+        ? (window.getSelection()?.toString() ?? "")
         : "";
       const editorFocused = document.activeElement === els.editor;
       const editorHasSelection =
-        editorFocused &&
-        els.editor.selectionStart !== els.editor.selectionEnd;
+        editorFocused && els.editor.selectionStart !== els.editor.selectionEnd;
       if (!pageSel && !editorHasSelection) {
         e.preventDefault();
         trigger("#copyBtn");
@@ -1060,10 +1075,7 @@ initFileIO({
 
 async function requestDurableStorage() {
   try {
-    if (
-      navigator.storage &&
-      typeof navigator.storage.persist === "function"
-    ) {
+    if (navigator.storage && typeof navigator.storage.persist === "function") {
       const already = navigator.storage.persisted
         ? await navigator.storage.persisted()
         : false;
@@ -1081,7 +1093,8 @@ function offlineCapable() {
 async function isOfflineReady() {
   try {
     const base = import.meta.env.BASE_URL;
-    const resolveAppUrl = (path) => new URL(base + path, location).href;
+    const resolveAppUrl = (path: string): string =>
+      new URL(base + path, location.href).href;
     const opt = { ignoreSearch: true };
     // SW бүртгэгдсэн эсэхийг шалгана (controller анх ачаалалд хожуу тогтдог).
     const reg =
@@ -1097,7 +1110,9 @@ async function isOfflineReady() {
       opt,
     );
     if (!manRes) return false;
-    const man = await manRes.clone().json();
+    const man = (await manRes.clone().json()) as {
+      dicts?: { id: string; dic: string }[];
+    };
     const mn = (man.dicts || []).find((dict) => dict.id === "mn_MN");
     if (!mn) return false;
     return !!(await caches.match(resolveAppUrl("dict/" + mn.dic), opt));
@@ -1106,9 +1121,13 @@ async function isOfflineReady() {
   }
 }
 
-function dictStatusMessage(loaded, failed, fallbackReason) {
-  const seenName = new Set();
-  const simple = [];
+function dictStatusMessage(
+  loaded: string[],
+  failed: { id: string; error: string }[] | null,
+  fallbackReason: string | null,
+): string {
+  const seenName = new Set<string>();
+  const simple: string[] = [];
   for (const id of loaded) {
     const name = id.startsWith("mn")
       ? "монгол"
@@ -1138,7 +1157,7 @@ function dictStatusMessage(loaded, failed, fallbackReason) {
 
 async function runOfflineReadyIndicator() {
   const idle = () => els.editor.value.trim() === "";
-  const transient = (msg, animate = true) => {
+  const transient = (msg: string, animate = true): void => {
     if (idle()) setStatus(msg, animate);
   };
 
@@ -1211,14 +1230,18 @@ async function boot() {
   } catch (e) {
     setStatus(
       "Ачаалахад алдаа гарлаа: " +
-        escapeHtml(e && e.message ? e.message : String(e)),
+        escapeHtml(e instanceof Error ? e.message : String(e)),
     );
   }
 }
 
 if (panelEls.list) {
-  const ancestorOf = (node, other) => {
-    for (let current = node; current; current = current.parentElement)
+  const ancestorOf = (node: HTMLElement, other: HTMLElement): HTMLElement => {
+    for (
+      let current: HTMLElement | null = node;
+      current;
+      current = current.parentElement
+    )
       if (current.contains(other)) return current;
     return node;
   };
@@ -1227,8 +1250,9 @@ if (panelEls.list) {
     : panelEls.list;
 
   panel.addEventListener("click", (e) => {
-    if (e.target.closest("#copyErrorsBtn")) return;
-    const btn = e.target.closest(".ew");
+    const target = e.target instanceof Element ? e.target : null;
+    if (!target || target.closest("#copyErrorsBtn")) return;
+    const btn = target.closest(".ew");
     if (!btn) {
       els.editor.focus({ preventScroll: true });
       if (lastCaret) {
@@ -1266,21 +1290,24 @@ if (panelEls.copy) {
     '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" ' +
     'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
     'stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
-  let copyTimer = null;
-  panelEls.copy.addEventListener("click", async () => {
-    const words = buildErrorList(badTokens).map((token) => token.word);
-    if (!words.length) return;
-    try {
-      await copyText(words.join("\n"));
-      panelEls.copy.classList.add("copied");
-      panelEls.copy.innerHTML = checkIcon;
-      clearTimeout(copyTimer);
-      copyTimer = setTimeout(() => {
-        panelEls.copy.classList.remove("copied");
-        panelEls.copy.innerHTML = copyIcon;
-      }, 1100);
-    } catch (_) {}
-  });
+  let copyTimer: ReturnType<typeof setTimeout> | null = null;
+  const copyBtn = panelEls.copy;
+  if (copyBtn) {
+    copyBtn.addEventListener("click", async () => {
+      const words = buildErrorList(badTokens).map((token) => token.word);
+      if (!words.length) return;
+      try {
+        await copyText(words.join("\n"));
+        copyBtn.classList.add("copied");
+        copyBtn.innerHTML = checkIcon;
+        if (copyTimer) clearTimeout(copyTimer);
+        copyTimer = setTimeout(() => {
+          copyBtn.classList.remove("copied");
+          copyBtn.innerHTML = copyIcon;
+        }, 1100);
+      } catch (_) {}
+    });
+  }
 }
 
 desktopMQ.addEventListener("change", () => {

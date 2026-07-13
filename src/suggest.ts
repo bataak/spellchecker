@@ -1,6 +1,28 @@
-import { sameRoot } from "./morphology.js";
-import { getSubmitted, addSubmitted } from "./submitted.js";
-import { startsLowerAfterDash } from "./textcheck.js";
+import { sameRoot } from "./morphology.ts";
+import { getSubmitted, addSubmitted } from "./submitted.ts";
+import { startsLowerAfterDash } from "./textcheck.ts";
+import type { Token, ErrorEntry } from "./textcheck.ts";
+
+interface Turnstile {
+  render(
+    el: Element | null,
+    options: { sitekey: string; theme: string },
+  ): string;
+  reset(widgetId: string | null): void;
+  getResponse(widgetId: string): string;
+}
+
+declare global {
+  interface Window {
+    turnstile?: Turnstile;
+  }
+}
+
+export interface SuggestDeps {
+  getBadTokens?: () => Token[];
+  buildErrorList?: (tokens: Token[]) => ErrorEntry[];
+  isDashSuffix?: (token: Token) => boolean;
+}
 
 const ENDPOINT = "https://api.bichig.dev/suggest";
 const SITEKEY = "0x4AAAAAADvk6t3Gsh_j1vH7";
@@ -9,21 +31,21 @@ const MAX_WORDS = 50;
 const ISSUES_URL =
   "https://github.com/bataak/dict-mn/issues?q=is%3Aissue%20label%3Auser-submitted";
 
-let overlay = null;
-let widgetId = null;
-let scriptPromise = null;
+let overlay: HTMLDivElement | null = null;
+let widgetId: string | null = null;
+let scriptPromise: Promise<void> | null = null;
 let busy = false;
-let words = [];
-let deps = {};
+let words: string[] = [];
+let deps: SuggestDeps = {};
 let showingSubmitted = false;
 
 const FORM_TITLE = "Шинэ буюу алдаатай үг мэдэгдэх";
 const SUBMITTED_TITLE = "Мэдэгдсэн үгс";
 
-function renderSubmittedList() {
-  const box = overlay.querySelector(".suggest-submitted-chips");
+function renderSubmittedList(): void {
+  const box = overlay!.querySelector(".suggest-submitted-chips")!;
   const list = [...getSubmitted()].sort((a, b) => a.localeCompare(b));
-  overlay.querySelector("#suggestTitle").innerHTML = list.length
+  overlay!.querySelector("#suggestTitle")!.innerHTML = list.length
     ? SUBMITTED_TITLE +
       ' <span class="suggest-count" aria-hidden="true">(' +
       list.length +
@@ -39,27 +61,28 @@ function renderSubmittedList() {
     : '<span class="suggest-hint">Одоогоор мэдэгдсэн үг алга</span>';
 }
 
-function setSubmittedView(on) {
-  const card = overlay.querySelector(".suggest-card");
+function setSubmittedView(on: boolean): void {
+  const card = overlay!.querySelector<HTMLElement>(".suggest-card")!;
   if (on && window.matchMedia("(min-width: 701px)").matches) {
     card.style.height = card.offsetHeight + "px";
   }
   if (!on) card.style.height = "";
   showingSubmitted = on;
   card.classList.toggle("submitted-view", on);
-  overlay
-    .querySelector(".suggest-view-submitted")
+  overlay!
+    .querySelector(".suggest-view-submitted")!
     .classList.toggle("active", on);
-  overlay.querySelector(".suggest-send").disabled = on || busy;
+  overlay!.querySelector<HTMLButtonElement>(".suggest-send")!.disabled =
+    on || busy;
   note("");
   if (on) renderSubmittedList();
-  else overlay.querySelector("#suggestTitle").textContent = FORM_TITLE;
+  else overlay!.querySelector("#suggestTitle")!.textContent = FORM_TITLE;
 }
 
-function loadTurnstile() {
+function loadTurnstile(): Promise<void> {
   if (window.turnstile) return Promise.resolve();
   if (!scriptPromise) {
-    scriptPromise = new Promise((resolve, reject) => {
+    scriptPromise = new Promise<void>((resolve, reject) => {
       const turnstileScript = document.createElement("script");
       turnstileScript.src =
         "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
@@ -76,13 +99,13 @@ function loadTurnstile() {
   return scriptPromise;
 }
 
-function note(msg, kind) {
-  const el = overlay.querySelector(".suggest-note");
+function note(msg: string, kind?: string): void {
+  const el = overlay!.querySelector<HTMLElement>(".suggest-note")!;
   el.textContent = msg;
   el.dataset.kind = kind || "";
 }
 
-function escapeChip(text) {
+function escapeChip(text: string): string {
   return text.replace(/[&<>"]/g, (char) => {
     if (char === "&") return "&amp;";
     if (char === "<") return "&lt;";
@@ -91,11 +114,11 @@ function escapeChip(text) {
   });
 }
 
-function renderChips() {
-  const box = overlay.querySelector(".suggest-chips");
-  const clr = overlay.querySelector(".suggest-clear-all");
+function renderChips(): void {
+  const box = overlay!.querySelector(".suggest-chips")!;
+  const clr = overlay!.querySelector<HTMLElement>(".suggest-clear-all");
   if (clr) clr.hidden = words.length < 2;
-  const cnt = overlay.querySelector(".suggest-count");
+  const cnt = overlay!.querySelector<HTMLElement>(".suggest-count");
   if (cnt) {
     cnt.textContent = words.length ? "(" + words.length + ")" : "";
     cnt.classList.toggle("over", words.length > MAX_WORDS);
@@ -110,7 +133,7 @@ function renderChips() {
         '" aria-label="Устгах">&times;</button></span>',
     )
     .join("");
-  box.querySelectorAll(".suggest-chip-x").forEach((btn) => {
+  box.querySelectorAll<HTMLElement>(".suggest-chip-x").forEach((btn) => {
     btn.addEventListener("click", () => {
       words.splice(Number(btn.dataset.i), 1);
       renderChips();
@@ -118,12 +141,12 @@ function renderChips() {
   });
 }
 
-function isLowerDashSuffix(token) {
+function isLowerDashSuffix(token: Token): boolean {
   if (!deps.isDashSuffix || !deps.isDashSuffix(token)) return false;
   return startsLowerAfterDash(token.word);
 }
 
-function prefillFromErrors() {
+function prefillFromErrors(): void {
   words = [];
   if (!deps.getBadTokens || !deps.buildErrorList) return;
   const list = deps
@@ -133,7 +156,7 @@ function prefillFromErrors() {
     .filter((token) => WORD_RE.test(token.word))
     .sort((a, b) => a.word.length - b.word.length);
   const submitted = getSubmitted();
-  const kept = [];
+  const kept: { key: string; token: ErrorEntry }[] = [];
   for (const token of list) {
     const key = token.word.toLowerCase();
     if (submitted.has(key)) continue;
@@ -144,10 +167,10 @@ function prefillFromErrors() {
   for (const keptEntry of kept) words.push(keptEntry.token.word);
 }
 
-function addFromInput(commit) {
-  const wordEl = overlay.querySelector("#suggestWord");
+function addFromInput(commit: boolean): void {
+  const wordEl = overlay!.querySelector<HTMLInputElement>("#suggestWord")!;
   const parts = wordEl.value.split(/[\s,\u3001\uFF0C]+/);
-  const tail = commit ? "" : parts.pop();
+  const tail = commit ? "" : (parts.pop() ?? "");
   const submitted = getSubmitted();
   let added = false;
   for (const rawPart of parts) {
@@ -188,11 +211,15 @@ function addFromInput(commit) {
   wordEl.value = tail;
   if (added) {
     renderChips();
-    if (overlay.querySelector(".suggest-note").dataset.kind !== "err") note("");
+    if (
+      overlay!.querySelector<HTMLElement>(".suggest-note")!.dataset.kind !==
+      "err"
+    )
+      note("");
   }
 }
 
-function closeForm() {
+function closeForm(): void {
   if (!overlay || overlay.hidden) return;
   overlay.hidden = true;
   if (window.turnstile && widgetId != null) {
@@ -202,7 +229,7 @@ function closeForm() {
   }
 }
 
-function build() {
+function build(): void {
   overlay = document.createElement("div");
   overlay.className = "suggest-overlay";
   overlay.hidden = true;
@@ -234,19 +261,21 @@ function build() {
     "</div>";
   document.body.appendChild(overlay);
 
-  const wordEl = overlay.querySelector("#suggestWord");
+  const wordEl = overlay.querySelector<HTMLInputElement>("#suggestWord")!;
 
   overlay.addEventListener("pointerdown", (e) => {
     if (e.target === overlay) closeForm();
   });
-  overlay.querySelector(".suggest-cancel").addEventListener("click", closeForm);
-  overlay.querySelector(".suggest-send").addEventListener("click", submit);
-  const viewBtn = overlay.querySelector(".suggest-view-submitted");
+  overlay
+    .querySelector(".suggest-cancel")!
+    .addEventListener("click", closeForm);
+  overlay.querySelector(".suggest-send")!.addEventListener("click", submit);
+  const viewBtn = overlay.querySelector(".suggest-view-submitted")!;
   viewBtn.addEventListener("click", () => setSubmittedView(!showingSubmitted));
-  let pressTimer = null;
+  let pressTimer: ReturnType<typeof setTimeout> | null = null;
   let longPressed = false;
   const issuesHidden = () =>
-    getComputedStyle(overlay.querySelector(".suggest-issues")).display ===
+    getComputedStyle(overlay!.querySelector(".suggest-issues")!).display ===
     "none";
   const startPress = () => {
     if (!issuesHidden()) return;
@@ -278,7 +307,7 @@ function build() {
     },
     true,
   );
-  overlay.querySelector(".suggest-clear-all").addEventListener("click", () => {
+  overlay.querySelector(".suggest-clear-all")!.addEventListener("click", () => {
     words = [];
     renderChips();
     note("");
@@ -302,6 +331,7 @@ function build() {
   overlay.addEventListener("keydown", (e) => {
     if (e.key !== "Enter") return;
     const target = e.target;
+    if (!(target instanceof Element)) return;
     if (target === wordEl) return;
     if (target.tagName === "TEXTAREA") return;
     if (target.tagName === "BUTTON") return;
@@ -311,19 +341,19 @@ function build() {
   });
 
   document.addEventListener("keydown", (e) => {
-    if (!overlay.hidden && e.key === "Escape") closeForm();
+    if (!overlay!.hidden && e.key === "Escape") closeForm();
   });
 }
 
-async function openForm() {
+async function openForm(): Promise<void> {
   if (!overlay) build();
-  overlay.hidden = false;
+  overlay!.hidden = false;
   setSubmittedView(false);
   note("");
   prefillFromErrors();
   renderChips();
-  overlay.querySelector("#suggestNote").value = "";
-  const wordEl = overlay.querySelector("#suggestWord");
+  overlay!.querySelector<HTMLTextAreaElement>("#suggestNote")!.value = "";
+  const wordEl = overlay!.querySelector<HTMLInputElement>("#suggestWord")!;
   wordEl.value = "";
   try {
     await loadTurnstile();
@@ -337,29 +367,29 @@ async function openForm() {
   if (widgetId == null) {
     const theme =
       document.documentElement.dataset.theme === "dark" ? "dark" : "light";
-    widgetId = window.turnstile.render(
-      overlay.querySelector(".suggest-turnstile"),
+    widgetId = window.turnstile!.render(
+      overlay!.querySelector(".suggest-turnstile"),
       { sitekey: SITEKEY, theme },
     );
   } else {
     try {
-      window.turnstile.reset(widgetId);
+      window.turnstile!.reset(widgetId);
     } catch (_) {}
   }
 }
 
-async function submit() {
+async function submit(): Promise<void> {
   if (busy || showingSubmitted) return;
   addFromInput(true);
-  const noteEl = overlay.querySelector("#suggestNote");
-  const sendBtn = overlay.querySelector(".suggest-send");
+  const noteEl = overlay!.querySelector<HTMLTextAreaElement>("#suggestNote")!;
+  const sendBtn = overlay!.querySelector<HTMLButtonElement>(".suggest-send")!;
 
   if (!words.length) {
     note(
       "\u0414\u043E\u0440 \u0445\u0430\u044F\u0436 \u043D\u044D\u0433 \u04AF\u0433 \u043E\u0440\u0443\u0443\u043B\u043D\u0430 \u0443\u0443",
       "err",
     );
-    overlay.querySelector("#suggestWord").focus();
+    overlay!.querySelector<HTMLInputElement>("#suggestWord")!.focus();
     return;
   }
   if (words.length > MAX_WORDS) {
@@ -420,7 +450,7 @@ async function submit() {
         "err",
       );
       try {
-        window.turnstile.reset(widgetId);
+        window.turnstile!.reset(widgetId);
       } catch (_) {}
     } else {
       note(
@@ -428,7 +458,7 @@ async function submit() {
         "err",
       );
       try {
-        window.turnstile.reset(widgetId);
+        window.turnstile!.reset(widgetId);
       } catch (_) {}
     }
   } catch (_) {
@@ -437,7 +467,7 @@ async function submit() {
       "err",
     );
     try {
-      window.turnstile.reset(widgetId);
+      window.turnstile!.reset(widgetId);
     } catch (_) {}
   } finally {
     busy = false;
@@ -445,7 +475,7 @@ async function submit() {
   }
 }
 
-export function initSuggest(options) {
+export function initSuggest(options?: SuggestDeps): void {
   deps = options || {};
   document.querySelectorAll("a.suggestctl, a.suggest-word").forEach((link) => {
     link.addEventListener("click", (e) => {

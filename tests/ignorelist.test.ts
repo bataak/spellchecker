@@ -1,8 +1,8 @@
-import "./helpers/mock-storage.js";
+import "./helpers/mock-storage.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeImport } from "../src/ignorelist.js";
-import { tokenize } from "../src/spellchecker.js";
+import { normalizeImport } from "../src/ignorelist.ts";
+import { tokenize } from "../src/spellchecker.ts";
 
 test("normalizeImport: кирилл үгийг зөвшөөрнө", () => {
   assert.equal(normalizeImport("тест"), "тест");

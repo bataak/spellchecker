@@ -1,14 +1,26 @@
-import { escapeHtml } from "./htmlutil.js";
+import { escapeHtml } from "./htmlutil.ts";
+import type { Token } from "./textcheck.ts";
+
+interface ChunkNode extends HTMLDivElement {
+  _start: number;
+  _src: string;
+  _markKey: string | null;
+}
+
+interface ChunkBound {
+  start: number;
+  end: number;
+}
 
 const CHUNK_TARGET = 4096;
 const VIEW_BUFFER_PX = 800;
 
-let root = null;
-let trailer = null;
-let nodes = [];
-let lastMarks = [];
+let root: HTMLElement | null = null;
+let trailer: HTMLDivElement | null = null;
+let nodes: ChunkNode[] = [];
+let lastMarks: Token[] = [];
 
-export function initBackdrop(el) {
+export function initBackdrop(el: HTMLElement): void {
   root = el;
   root.textContent = "";
   nodes = [];
@@ -17,27 +29,27 @@ export function initBackdrop(el) {
   root.appendChild(trailer);
 }
 
-export function renderBackdrop(text, marks) {
+export function renderBackdrop(text: string, marks: Token[]): void {
   lastMarks = marks;
   const bounds = splitChunks(text);
   syncChunkCount(bounds.length);
   for (let i = 0; i < bounds.length; i++) {
-    updateChunkText(nodes[i], text, bounds[i]);
+    updateChunkText(nodes[i]!, text, bounds[i]!);
   }
   applyVisibleMarks();
 }
 
-export function refreshBackdropMarks() {
+export function refreshBackdropMarks(): void {
   applyVisibleMarks();
 }
 
-export function materializeMark(start) {
+export function materializeMark(start: number): void {
   const node = nodeAtOffset(start);
   if (node) applyChunkMarks(node);
 }
 
-function splitChunks(text) {
-  const bounds = [];
+function splitChunks(text: string): ChunkBound[] {
+  const bounds: ChunkBound[] = [];
   let start = 0;
   let cursor = 0;
   while (cursor < text.length) {
@@ -51,16 +63,20 @@ function splitChunks(text) {
   return bounds;
 }
 
-function syncChunkCount(count) {
-  while (nodes.length > count) nodes.pop().remove();
+function syncChunkCount(count: number): void {
+  while (nodes.length > count) nodes.pop()!.remove();
   while (nodes.length < count) {
-    const div = document.createElement("div");
-    root.insertBefore(div, trailer);
+    const div = document.createElement("div") as ChunkNode;
+    root!.insertBefore(div, trailer);
     nodes.push(div);
   }
 }
 
-function updateChunkText(node, text, bound) {
+function updateChunkText(
+  node: ChunkNode,
+  text: string,
+  bound: ChunkBound,
+): void {
   const raw = text.slice(bound.start, bound.end);
   node._start = bound.start;
   if (node._src === raw) return;
@@ -69,7 +85,7 @@ function updateChunkText(node, text, bound) {
   node.innerHTML = plainHtml(raw);
 }
 
-function applyVisibleMarks() {
+function applyVisibleMarks(): void {
   if (!root) return;
   const top = root.scrollTop - VIEW_BUFFER_PX;
   const bottom = root.scrollTop + root.clientHeight + VIEW_BUFFER_PX;
@@ -80,7 +96,7 @@ function applyVisibleMarks() {
   }
 }
 
-function applyChunkMarks(node) {
+function applyChunkMarks(node: ChunkNode): void {
   const start = node._start;
   const slice = marksInRange(lastMarks, start, start + node._src.length);
   const key = markKey(slice);
@@ -91,33 +107,33 @@ function applyChunkMarks(node) {
     : plainHtml(node._src);
 }
 
-function marksInRange(marks, start, end) {
+function marksInRange(marks: Token[], start: number, end: number): Token[] {
   let lo = 0;
   let hi = marks.length;
   while (lo < hi) {
     const mid = (lo + hi) >> 1;
-    if (marks[mid].start < start) lo = mid + 1;
+    if (marks[mid]!.start < start) lo = mid + 1;
     else hi = mid;
   }
-  const out = [];
-  for (let i = lo; i < marks.length && marks[i].start < end; i++) {
-    out.push(marks[i]);
+  const out: Token[] = [];
+  for (let i = lo; i < marks.length && marks[i]!.start < end; i++) {
+    out.push(marks[i]!);
   }
   return out;
 }
 
-function markKey(slice) {
+function markKey(slice: Token[]): string {
   let key = "";
   for (const mark of slice) key += mark.start + ":" + mark.end + ",";
   return key;
 }
 
-function plainHtml(raw) {
+function plainHtml(raw: string): string {
   const html = escapeHtml(stripChunkNewline(raw));
   return html === "" ? "\u200b" : html;
 }
 
-function markedHtml(raw, chunkStart, slice) {
+function markedHtml(raw: string, chunkStart: number, slice: Token[]): string {
   const body = stripChunkNewline(raw);
   let html = "";
   let cursor = 0;
@@ -137,11 +153,11 @@ function markedHtml(raw, chunkStart, slice) {
   return html === "" ? "\u200b" : html;
 }
 
-function stripChunkNewline(raw) {
+function stripChunkNewline(raw: string): string {
   return raw.endsWith("\n") ? raw.slice(0, -1) : raw;
 }
 
-function nodeAtOffset(pos) {
+function nodeAtOffset(pos: number): ChunkNode | null {
   for (const node of nodes) {
     if (pos >= node._start && pos < node._start + node._src.length) {
       return node;

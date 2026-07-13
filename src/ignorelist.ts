@@ -3,12 +3,12 @@ import {
   addIgnored,
   removeIgnored,
   clearIgnored,
-} from "./ignore.js";
+} from "./ignore.ts";
 
-let overlay = null;
-let onChange = null;
+let overlay: HTMLDivElement | null = null;
+let onChange: (() => void) | null = null;
 
-function escapeChip(text) {
+function escapeChip(text: string): string {
   return text.replace(/[&<>"]/g, (char) => {
     if (char === "&") return "&amp;";
     if (char === "<") return "&lt;";
@@ -17,13 +17,14 @@ function escapeChip(text) {
   });
 }
 
-function renderList() {
-  const box = overlay.querySelector(".ignore-chips");
+function renderList(): void {
+  const box = overlay!.querySelector(".ignore-chips")!;
   const words = getIgnored();
-  const empty = overlay.querySelector(".ignore-empty");
-  const clearBtn = overlay.querySelector(".ignore-clear");
-  const exportBtn = overlay.querySelector(".ignore-export");
-  const cnt = overlay.querySelector(".ignore-count");
+  const empty = overlay!.querySelector<HTMLElement>(".ignore-empty")!;
+  const clearBtn = overlay!.querySelector<HTMLButtonElement>(".ignore-clear")!;
+  const exportBtn =
+    overlay!.querySelector<HTMLButtonElement>(".ignore-export")!;
+  const cnt = overlay!.querySelector(".ignore-count");
   if (cnt) cnt.textContent = words.length ? "(" + words.length + ")" : "";
   clearBtn.hidden = words.length < 2;
   exportBtn.disabled = words.length === 0;
@@ -43,9 +44,9 @@ function renderList() {
         '" aria-label="Хасах">&times;</button></span>',
     )
     .join("");
-  box.querySelectorAll(".suggest-chip-x").forEach((btn) => {
+  box.querySelectorAll<HTMLElement>(".suggest-chip-x").forEach((btn) => {
     btn.addEventListener("click", () => {
-      removeIgnored(btn.dataset.w);
+      removeIgnored(btn.dataset.w ?? "");
       renderList();
       syncIgnoreVisibility();
       if (onChange) onChange();
@@ -53,7 +54,7 @@ function renderList() {
   });
 }
 
-function doExport() {
+function doExport(): void {
   const words = getIgnored();
   if (!words.length) return;
   const blob = new Blob([words.join("\n") + "\n"], {
@@ -75,7 +76,7 @@ const LATIN_WORD_RE =
   /^[A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F'\u2019-]{1,49}$/;
 const CYR_WORD_RE = /^[\u0400-\u04FF][\u0400-\u04FF-]{1,49}$/u;
 
-export function normalizeImport(raw) {
+export function normalizeImport(raw: string): string | null {
   const trimmedWord = raw.trim();
   if (!trimmedWord) return null;
   if (HAS_LATIN.test(trimmedWord)) {
@@ -85,7 +86,7 @@ export function normalizeImport(raw) {
   return CYR_WORD_RE.test(stripped) ? stripped : null;
 }
 
-function doImport(file) {
+function doImport(file: File): void {
   const reader = new FileReader();
   reader.onload = () => {
     const text = String(reader.result || "");
@@ -102,12 +103,12 @@ function doImport(file) {
   reader.readAsText(file);
 }
 
-function closeForm() {
+function closeForm(): void {
   if (!overlay || overlay.hidden) return;
   overlay.hidden = true;
 }
 
-function build() {
+function build(): void {
   overlay = document.createElement("div");
   overlay.className = "suggest-overlay ignore-overlay";
   overlay.hidden = true;
@@ -132,11 +133,11 @@ function build() {
   overlay.addEventListener("pointerdown", (e) => {
     if (e.target === overlay) closeForm();
   });
-  overlay.querySelector(".ignore-close").addEventListener("click", closeForm);
-  overlay.querySelector(".ignore-export").addEventListener("click", doExport);
+  overlay.querySelector(".ignore-close")!.addEventListener("click", closeForm);
+  overlay.querySelector(".ignore-export")!.addEventListener("click", doExport);
 
-  const fileInput = overlay.querySelector(".ignore-file");
-  overlay.querySelector(".ignore-import").addEventListener("click", () => {
+  const fileInput = overlay.querySelector<HTMLInputElement>(".ignore-file")!;
+  overlay.querySelector(".ignore-import")!.addEventListener("click", () => {
     fileInput.click();
   });
   fileInput.addEventListener("change", () => {
@@ -144,7 +145,7 @@ function build() {
     fileInput.value = "";
   });
 
-  overlay.querySelector(".ignore-clear").addEventListener("click", () => {
+  overlay.querySelector(".ignore-clear")!.addEventListener("click", () => {
     if (clearIgnored()) {
       renderList();
       syncIgnoreVisibility();
@@ -153,28 +154,28 @@ function build() {
     }
   });
   document.addEventListener("keydown", (e) => {
-    if (!overlay.hidden && e.key === "Escape") closeForm();
+    if (!overlay!.hidden && e.key === "Escape") closeForm();
   });
 }
 
-function openForm() {
+function openForm(): void {
   if (!overlay) build();
-  overlay.hidden = false;
+  overlay!.hidden = false;
   renderList();
 }
 
-export function syncIgnoreVisibility() {
+export function syncIgnoreVisibility(): void {
   document
-    .querySelectorAll("a.ignorectl, a.ignore-list-link")
+    .querySelectorAll<HTMLAnchorElement>("a.ignorectl, a.ignore-list-link")
     .forEach((link) => {
       link.classList.remove("link-disabled");
     });
 }
 
-export function initIgnoreList(options) {
-  onChange = options && options.onChange;
+export function initIgnoreList(options?: { onChange?: () => void }): void {
+  onChange = (options && options.onChange) || null;
   document
-    .querySelectorAll("a.ignorectl, a.ignore-list-link")
+    .querySelectorAll<HTMLAnchorElement>("a.ignorectl, a.ignore-list-link")
     .forEach((link) => {
       link.addEventListener("click", (e) => {
         e.preventDefault();

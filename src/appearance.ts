@@ -1,13 +1,13 @@
-export function initAppearance() {
+export function initAppearance(): void {
   const rootEl = document.documentElement;
 
-  function applyTheme(theme) {
+  function applyTheme(theme: string): void {
     rootEl.setAttribute("data-theme", theme);
     const btn = document.querySelector("#themeBtn");
     if (btn) btn.textContent = theme === "dark" ? "☀️" : "🌙";
   }
   (function initTheme() {
-    let theme = null;
+    let theme: string | null = null;
     try {
       theme = localStorage.getItem("theme");
     } catch (_) {}
@@ -21,7 +21,7 @@ export function initAppearance() {
     applyTheme(theme);
   })();
 
-  document.querySelector("#themeBtn").addEventListener("click", () => {
+  document.querySelector("#themeBtn")!.addEventListener("click", () => {
     const next =
       rootEl.getAttribute("data-theme") === "dark" ? "light" : "dark";
     applyTheme(next);
@@ -36,10 +36,10 @@ export function initAppearance() {
   const FONT_STEP = 0.1;
   let fontScale = 1;
   try {
-    const savedFontScale = parseFloat(localStorage.getItem(FONT_KEY));
+    const savedFontScale = parseFloat(localStorage.getItem(FONT_KEY) ?? "");
     if (!isNaN(savedFontScale)) fontScale = savedFontScale;
   } catch (_) {}
-  function applyScale() {
+  function applyScale(): void {
     fontScale =
       Math.round(Math.min(FONT_MAX, Math.max(FONT_MIN, fontScale)) * 100) / 100;
     rootEl.style.setProperty("--editor-scale", String(fontScale));
@@ -48,15 +48,15 @@ export function initAppearance() {
     } catch (_) {}
   }
   applyScale();
-  document.querySelector("#fontIncBtn").addEventListener("click", () => {
+  document.querySelector("#fontIncBtn")!.addEventListener("click", () => {
     fontScale += FONT_STEP;
     applyScale();
   });
-  document.querySelector("#fontDecBtn").addEventListener("click", () => {
+  document.querySelector("#fontDecBtn")!.addEventListener("click", () => {
     fontScale -= FONT_STEP;
     applyScale();
   });
-  document.querySelector("#fontResetBtn").addEventListener("click", () => {
+  document.querySelector("#fontResetBtn")!.addEventListener("click", () => {
     fontScale = 1;
     applyScale();
   });

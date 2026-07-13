@@ -1,14 +1,31 @@
-export function initToolbar(deps) {
+import type { Token, ErrorEntry } from "./textcheck.ts";
+
+export interface ToolbarDeps {
+  els: { editor: HTMLTextAreaElement; status: HTMLElement };
+  flash: (sel: string, msg: string) => void;
+  setStatus: (html: string, animate?: boolean) => void;
+  setEditorText: (text: string, caret: number | null) => void;
+  insertEditorText: (text: string, start: number, end: number) => void;
+  hidePopover: () => void;
+  render: () => Promise<void> | void;
+  saveText: () => void;
+  isTouch: () => boolean;
+  buildErrorList: (tokens: Token[]) => ErrorEntry[];
+  getBadTokens: () => Token[];
+  copyText: (str: string) => Promise<void>;
+}
+
+export function initToolbar(deps: ToolbarDeps): void {
   initToolbarScroll();
   initToolbarSnap();
   initSaveReveal();
   initButtons(deps);
 }
 
-function initToolbarScroll() {
+function initToolbarScroll(): void {
   if (window.matchMedia("(min-width: 1024px)").matches) return;
-  const bar = document.querySelector(".toolbar");
-  const clearBtn = document.querySelector("#clearBtn");
+  const bar = document.querySelector<HTMLElement>(".toolbar");
+  const clearBtn = document.querySelector<HTMLElement>("#clearBtn");
   if (!bar || !clearBtn) return;
   requestAnimationFrame(() => {
     if (bar.scrollWidth <= bar.clientWidth) return;
@@ -17,14 +34,14 @@ function initToolbarScroll() {
   });
 }
 
-function initToolbarSnap() {
+function initToolbarSnap(): void {
   if (window.matchMedia("(min-width: 1024px)").matches) return;
-  const bar = document.querySelector(".toolbar");
-  const clearBtn = document.querySelector("#clearBtn");
-  const saveBtn = document.querySelector("#saveBtn");
+  const bar = document.querySelector<HTMLElement>(".toolbar");
+  const clearBtn = document.querySelector<HTMLElement>("#clearBtn");
+  const saveBtn = document.querySelector<HTMLElement>("#saveBtn");
   if (!bar || !clearBtn || !saveBtn) return;
   const ZONE = 56;
-  let snapTimer;
+  let snapTimer: ReturnType<typeof setTimeout> | undefined;
   bar.addEventListener(
     "scroll",
     () => {
@@ -45,10 +62,10 @@ function initToolbarSnap() {
   );
 }
 
-function initSaveReveal() {
+function initSaveReveal(): void {
   if (window.matchMedia("(min-width: 1024px)").matches) return;
-  const bar = document.querySelector(".toolbar");
-  const saveBtn = document.querySelector("#saveBtn");
+  const bar = document.querySelector<HTMLElement>(".toolbar");
+  const saveBtn = document.querySelector<HTMLElement>("#saveBtn");
   if (!bar || !saveBtn) return;
   saveBtn.addEventListener("click", () => {
     const barRect = bar.getBoundingClientRect();
@@ -71,8 +88,8 @@ function initButtons({
   buildErrorList,
   getBadTokens,
   copyText,
-}) {
-  document.querySelector("#clearBtn").addEventListener("click", () => {
+}: ToolbarDeps): void {
+  document.querySelector("#clearBtn")!.addEventListener("click", () => {
     if (!els.editor.value) {
       els.editor.focus();
       return;
@@ -86,7 +103,7 @@ function initButtons({
     saveText();
   });
 
-  function insertAtCaret(text) {
+  function insertAtCaret(text: string): void {
     let start = els.editor.selectionStart;
     let end = els.editor.selectionEnd;
     if (start == null) {
@@ -98,7 +115,7 @@ function initButtons({
     saveText();
   }
 
-  document.querySelector("#pasteBtn").addEventListener("click", async () => {
+  document.querySelector("#pasteBtn")!.addEventListener("click", async () => {
     try {
       if (navigator.clipboard && navigator.clipboard.readText) {
         const text = await navigator.clipboard.readText();
@@ -124,22 +141,22 @@ function initButtons({
   });
 
   (function initCopyErrorsHold() {
-    const btn = document.querySelector("#copyBtn");
+    const btn = document.querySelector<HTMLElement>("#copyBtn");
     if (!btn) return;
     const HOLD = 500;
-    let timer = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     let armed = false;
     let prevStatus = "";
-    let revertTimer = null;
-    const showStatus = (msg) => {
+    let revertTimer: ReturnType<typeof setTimeout> | null = null;
+    const showStatus = (msg: string): void => {
       setStatus(msg);
-      clearTimeout(revertTimer);
+      if (revertTimer) clearTimeout(revertTimer);
       revertTimer = setTimeout(() => {
         if (els.status.innerHTML === msg) setStatus(prevStatus, false);
       }, 1600);
     };
     btn.addEventListener("pointerdown", () => {
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
       armed = false;
       timer = setTimeout(() => {
         armed = true;
@@ -148,7 +165,9 @@ function initButtons({
         showStatus(hasWords ? "Алдаатай үгс хуулагдлаа" : "Алдаатай үг алга");
       }, HOLD);
     });
-    const clear = () => clearTimeout(timer);
+    const clear = () => {
+      if (timer) clearTimeout(timer);
+    };
     btn.addEventListener("pointerup", clear);
     btn.addEventListener("pointercancel", clear);
     btn.addEventListener("pointerleave", clear);

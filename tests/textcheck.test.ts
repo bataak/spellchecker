@@ -5,7 +5,7 @@ import {
   isDashSuffix,
   startsLowerAfterDash,
   buildErrorList,
-} from "../src/textcheck.js";
+} from "../src/textcheck.ts";
 
 test("checkable: үсэг агуулсан 2+ тэмдэгт үгийг зөвшөөрнө", () => {
   for (const w of ["үг", "цэнг", "word", "café", "5а", "ТЕГ-аас"]) {
@@ -54,9 +54,10 @@ test("buildErrorList: case-insensitive давхардлыг тоолж нэгт�
   ]);
   assert.equal(items.length, 2);
   const first = items.find((i) => i.word === "Үг");
+  assert.ok(first);
   assert.equal(first.count, 2);
   assert.equal(first.start, 0);
-  assert.equal(items.find((i) => i.word === "өөр").count, 1);
+  assert.equal(items.find((i) => i.word === "өөр")?.count, 1);
 });
 
 test("buildErrorList: хоосон оролт", () => {

@@ -6,26 +6,26 @@ const IDB_THROTTLE_MS = 3000;
 const DB_NAME = "mn-spell";
 const STORE_NAME = "kv";
 
-let dbPromise = null;
-let onError = null;
+let dbPromise: Promise<IDBDatabase> | null = null;
+let onError: (() => void) | null = null;
 let saveSeq = 0;
-let pendingText = null;
+let pendingText: string | null = null;
 let pendingSeq = 0;
-let idbTimer = null;
+let idbTimer: ReturnType<typeof setTimeout> | null = null;
 let lastIdbWrite = 0;
 
-export function initDraftStorage(opts) {
+export function initDraftStorage(opts?: { onError?: () => void }): void {
   onError = (opts && opts.onError) || null;
 }
 
-export function saveDraft(text) {
+export function saveDraft(text: string): void {
   const seq = ++saveSeq;
   if (text.length <= LS_TIER_MAX) saveSmall(text, seq);
   else saveLarge(text, seq);
 }
 
-export function flushDraft() {
-  clearTimeout(idbTimer);
+export function flushDraft(): Promise<void> {
+  if (idbTimer) clearTimeout(idbTimer);
   idbTimer = null;
   if (pendingText == null) return Promise.resolve();
   const text = pendingText;
@@ -35,16 +35,18 @@ export function flushDraft() {
   return writeLarge(text, seq).catch(reportError);
 }
 
-export function loadDraft() {
+export function loadDraft(): Promise<string | null> {
   if (getTier() === "idb") {
     return idbGet(IDB_TEXT_KEY)
-      .then((storedText) => (storedText != null ? storedText : readLocal()))
+      .then((storedText) =>
+        typeof storedText === "string" ? storedText : readLocal(),
+      )
       .catch(readLocal);
   }
   return Promise.resolve(readLocal());
 }
 
-function saveSmall(text, seq) {
+function saveSmall(text: string, seq: number): void {
   cancelQueuedLarge();
   try {
     localStorage.setItem(TEXT_KEY, text);
@@ -55,7 +57,7 @@ function saveSmall(text, seq) {
   }
 }
 
-function saveLarge(text, seq) {
+function saveLarge(text: string, seq: number): void {
   pendingText = text;
   pendingSeq = seq;
   const wait = lastIdbWrite + IDB_THROTTLE_MS - Date.now();
@@ -66,7 +68,7 @@ function saveLarge(text, seq) {
   if (!idbTimer) idbTimer = setTimeout(flushDraft, wait);
 }
 
-function writeLarge(text, seq) {
+function writeLarge(text: string, seq: number): Promise<void> {
   return idbSet(IDB_TEXT_KEY, text).then(() => {
     if (seq !== saveSeq) return;
     setTier("idb");
@@ -76,17 +78,17 @@ function writeLarge(text, seq) {
   });
 }
 
-function cancelQueuedLarge() {
-  clearTimeout(idbTimer);
+function cancelQueuedLarge(): void {
+  if (idbTimer) clearTimeout(idbTimer);
   idbTimer = null;
   pendingText = null;
 }
 
-function reportError() {
+function reportError(): void {
   if (onError) onError();
 }
 
-function readLocal() {
+function readLocal(): string | null {
   try {
     return localStorage.getItem(TEXT_KEY);
   } catch (_) {
@@ -94,13 +96,13 @@ function readLocal() {
   }
 }
 
-function setTier(tier) {
+function setTier(tier: "ls" | "idb"): void {
   try {
     localStorage.setItem(TIER_KEY, tier);
   } catch (_) {}
 }
 
-function getTier() {
+function getTier(): string | null {
   try {
     return localStorage.getItem(TIER_KEY);
   } catch (_) {
@@ -108,9 +110,9 @@ function getTier() {
   }
 }
 
-function openDb() {
+function openDb(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise;
-  dbPromise = new Promise((resolve, reject) => {
+  dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, 1);
     req.onupgradeneeded = () => req.result.createObjectStore(STORE_NAME);
     req.onsuccess = () => resolve(req.result);
@@ -119,10 +121,13 @@ function openDb() {
   return dbPromise;
 }
 
-function idbRequest(mode, run) {
+function idbRequest<T>(
+  mode: IDBTransactionMode,
+  run: (store: IDBObjectStore) => IDBRequest<T>,
+): Promise<T> {
   return openDb().then(
     (db) =>
-      new Promise((resolve, reject) => {
+      new Promise<T>((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, mode);
         const req = run(tx.objectStore(STORE_NAME));
         req.onsuccess = () => resolve(req.result);
@@ -131,8 +136,9 @@ function idbRequest(mode, run) {
   );
 }
 
-const idbGet = (key) => idbRequest("readonly", (store) => store.get(key));
-const idbSet = (key, value) =>
+const idbGet = (key: string) =>
+  idbRequest("readonly", (store) => store.get(key) as IDBRequest<unknown>);
+const idbSet = (key: string, value: string) =>
   idbRequest("readwrite", (store) => store.put(value, key));
-const idbDelete = (key) =>
+const idbDelete = (key: string) =>
   idbRequest("readwrite", (store) => store.delete(key));
