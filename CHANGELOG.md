@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.49.1](https://github.com/bataak/spellchecker/compare/v1.49.0...v1.49.1) (2026-07-13)
+
+
+### Bug Fixes
+
+* prevent backdrop mark drift when text ends with blank lines ([8248a9f](https://github.com/bataak/spellchecker/commit/8248a9f89dc60059d6c676e91f886ce2e148582f))
+
 ## [1.49.0](https://github.com/bataak/spellchecker/compare/v1.48.1...v1.49.0) (2026-07-11)
 
 
