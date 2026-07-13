@@ -1,5 +1,11 @@
 import "./style.css";
-import { MultiSpellChecker, tokenize, DICTIONARIES } from "./spellchecker.ts";
+import {
+  MultiSpellChecker,
+  checkWordsBatched,
+  tokenize,
+  DICTIONARIES,
+} from "./spellchecker.ts";
+import type { SpellChecker } from "./spellchecker.ts";
 import { initFileIO } from "./fileio.ts";
 import { initToolbar } from "./toolbar.ts";
 import { initSuggest } from "./suggest.ts";
@@ -41,7 +47,7 @@ const panelEls = {
 const desktopMQ = window.matchMedia("(min-width: 1024px)");
 initBackdrop(els.backdrop);
 
-const checker = new MultiSpellChecker();
+const checker: SpellChecker = new MultiSpellChecker();
 interface PendingFix {
   original: string;
   originalPattern: CasePattern;
@@ -85,15 +91,18 @@ async function ensureChecked(text: string): Promise<void> {
     setStatus("Алдааг шалгаж байна… 0%", true);
     await nextFrame();
   }
-  for (let i = 0; i < words.length; i += CHECK_BATCH) {
-    if (notify) {
-      const pct = Math.floor((i / words.length) * 100);
+  const results = await checkWordsBatched(
+    checker,
+    words,
+    CHECK_BATCH,
+    async (done, total) => {
+      if (!notify) return;
+      const pct = Math.floor((done / total) * 100);
       setStatus("Алдааг шалгаж байна… " + pct + "%", false);
       await nextFrame();
-    }
-    const results = await checker.checkWords(words.slice(i, i + CHECK_BATCH));
-    for (const w in results) cache.set(w, results[w]!);
-  }
+    },
+  );
+  for (const [word, correct] of results) cache.set(word, correct);
 }
 function nextFrame(): Promise<void> {
   return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
