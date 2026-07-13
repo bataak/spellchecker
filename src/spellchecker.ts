@@ -31,6 +31,34 @@ export interface CompleteResult {
   failed: DictFailure[];
 }
 
+export interface SpellChecker {
+  readonly ready: boolean;
+  readonly loadedIds: string[];
+  readonly mnVersion: string | null;
+  readonly source: string | null;
+  readonly fallbackReason: string | null;
+  onFatal: ((reason: string) => void) | null;
+  init(base: string): Promise<InitResult>;
+  whenComplete(): Promise<CompleteResult>;
+  checkWords(words: string[]): Promise<Record<string, boolean>>;
+  suggest(word: string): Promise<string[]>;
+}
+
+export async function checkWordsBatched(
+  checker: Pick<SpellChecker, "checkWords">,
+  words: string[],
+  batchSize: number,
+  onBatch?: (done: number, total: number) => Promise<void> | void,
+): Promise<Map<string, boolean>> {
+  const results = new Map<string, boolean>();
+  for (let i = 0; i < words.length; i += batchSize) {
+    if (onBatch) await onBatch(i, words.length);
+    const batch = await checker.checkWords(words.slice(i, i + batchSize));
+    for (const word in batch) results.set(word, batch[word]!);
+  }
+  return results;
+}
+
 type RpcType = "check" | "suggest";
 type RpcPayload = { words: string[] } | { word: string };
 
@@ -40,7 +68,7 @@ interface PendingEntry {
   payload: RpcPayload;
 }
 
-export class MultiSpellChecker {
+export class MultiSpellChecker implements SpellChecker {
   worker: Worker;
   ready: boolean;
   loadedIds: string[];

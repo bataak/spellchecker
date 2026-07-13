@@ -1,12 +1,12 @@
 import { gunzipSync } from "fflate";
 import type { WorkerRequest, WorkerResponse, DictFailure } from "./messages.ts";
 
-interface SpellerInstance {
+export interface SpellerInstance {
   spell: (word: string) => boolean;
   suggest: (word: string) => string[];
 }
 
-interface Backend {
+export interface SpellBackend {
   label: string;
   fallbackReason?: string;
   build: (aff: string, dic: string, id?: string) => Promise<SpellerInstance>;
@@ -96,7 +96,7 @@ async function loadManifest(): Promise<Record<string, ManifestEntry>> {
   return out;
 }
 
-async function loadHunspellWasm(): Promise<Backend> {
+async function loadHunspellWasm(): Promise<SpellBackend> {
   const mod = await import("hunspell-wasm");
   const create = mod.createHunspellFromStrings;
   if (typeof create !== "function")
@@ -117,7 +117,7 @@ async function loadHunspellWasm(): Promise<Backend> {
   };
 }
 
-async function loadNspell(): Promise<Backend> {
+async function loadNspell(): Promise<SpellBackend> {
   const mod = await import("nspell");
   const nspell = mod.default || mod;
   const probe = nspell("SET UTF-8\n", "1\nhello\n");
@@ -135,7 +135,7 @@ async function loadNspell(): Promise<Backend> {
   };
 }
 
-async function resolveBackend(): Promise<Backend> {
+async function resolveBackend(): Promise<SpellBackend> {
   try {
     return await loadHunspellWasm();
   } catch (wasmError) {
@@ -148,7 +148,7 @@ async function resolveBackend(): Promise<Backend> {
 }
 
 const instances: { id: string; inst: SpellerInstance }[] = [];
-let backend: Backend | null = null;
+let backend: SpellBackend | null = null;
 let manifest: Record<string, ManifestEntry> | null = null;
 let mnVersion: string | null = null;
 
