@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { sameRoot, nounChain, unionChain } from "../src/morphology.js";
+import { sameRoot, nounChain, unionChain } from "../src/morphology.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const lines = (f) =>
+const lines = (f: string): string[] =>
   readFileSync(join(here, "fixtures", f), "utf8")
     .trim()
     .split("\n")
@@ -26,7 +26,7 @@ test("язгуур үйл үгийн хувилал (цахир)", () => {
 
 test("язгуур үг байхгүй бол хамгийн богино хувилбарыг тооцно", () => {
   const forms = lines("tsahir.txt").sort((a, b) => a.length - b.length);
-  const kept = [];
+  const kept: string[] = [];
   for (const w of forms) {
     if (!kept.some((k) => sameRoot(k, w))) kept.push(w);
   }

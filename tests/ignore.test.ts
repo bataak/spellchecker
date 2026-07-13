@@ -1,4 +1,4 @@
-import { resetStorage, rawGet } from "./helpers/mock-storage.js";
+import { resetStorage, rawGet } from "./helpers/mock-storage.ts";
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -7,7 +7,7 @@ import {
   removeIgnored,
   clearIgnored,
   getIgnored,
-} from "../src/ignore.js";
+} from "../src/ignore.ts";
 
 const KEY = "mn-spell:ignored";
 

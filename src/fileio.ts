@@ -1,3 +1,13 @@
+export interface FileIODeps {
+  els: { editor: HTMLTextAreaElement };
+  flash: (sel: string, msg: string) => void;
+  setStatus: (html: string, animate?: boolean) => void;
+  setEditorText: (text: string, caret: number | null) => void;
+  hidePopover: () => void;
+  render: () => Promise<void> | void;
+  saveText: () => void;
+}
+
 export function initFileIO({
   els,
   flash,
@@ -6,13 +16,13 @@ export function initFileIO({
   hidePopover,
   render,
   saveText,
-}) {
+}: FileIODeps): void {
   const MAX_OPEN_BYTES = 10 * 1024 * 1024;
   const BIG_NOTICE_BYTES = 2 * 1024 * 1024;
   const hasFSSave = "showSaveFilePicker" in window;
   const hasFSOpen = "showOpenFilePicker" in window;
-  let currentFileHandle = null;
-  let currentFileName = null;
+  let currentFileHandle: FileSystemFileHandle | null = null;
+  let currentFileName: string | null = null;
 
   function isDesktopApp() {
     if (!window.matchMedia) return false;
@@ -25,7 +35,7 @@ export function initFileIO({
 
   function stampName() {
     const now = new Date();
-    const pad2 = (num) => String(num).padStart(2, "0");
+    const pad2 = (num: number): string => String(num).padStart(2, "0");
     const ts =
       now.getFullYear() +
       "-" +
@@ -40,13 +50,13 @@ export function initFileIO({
     return (isMobile ? "" : "бичвэр-") + ts + ".txt";
   }
 
-  function ensureTxt(name) {
+  function ensureTxt(name: string): string {
     name = (name || "").trim();
     if (!name) return stampName();
     return /\.txt$/i.test(name) ? name : name + ".txt";
   }
 
-  function downloadText(text, name) {
+  function downloadText(text: string, name: string): void {
     const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const downloadLink = document.createElement("a");
@@ -62,7 +72,7 @@ export function initFileIO({
     { description: "Текст файл", accept: { "text/plain": [".txt"] } },
   ];
 
-  document.querySelector("#saveBtn").addEventListener("click", async () => {
+  document.querySelector("#saveBtn")!.addEventListener("click", async () => {
     const text = els.editor.value || "";
     if (!text.trim()) {
       flash("#saveBtn", "Хоосон байна");
@@ -91,7 +101,7 @@ export function initFileIO({
 
     if (isDesktopApp() && hasFSSave) {
       try {
-        const handle = await window.showSaveFilePicker({
+        const handle = await window.showSaveFilePicker!({
           suggestedName: stampName(),
           types: TXT_TYPES,
         });
@@ -102,7 +112,7 @@ export function initFileIO({
         flash("#saveBtn", "Хадгаллаа");
         return;
       } catch (e) {
-        if (e && e.name === "AbortError") return;
+        if (e instanceof DOMException && e.name === "AbortError") return;
       }
     }
 
@@ -114,7 +124,7 @@ export function initFileIO({
     }
   });
 
-  function readAsText(file) {
+  function readAsText(file: File): Promise<string> {
     return file.text
       ? file.text()
       : new Promise((resolve, reject) => {
@@ -125,7 +135,11 @@ export function initFileIO({
         });
   }
 
-  async function loadFileContent(content, name, handle) {
+  async function loadFileContent(
+    content: string,
+    name: string | null,
+    handle: FileSystemFileHandle | null,
+  ): Promise<void> {
     currentFileHandle = handle || null;
     currentFileName = name || (handle && handle.name) || null;
     setEditorText(content, content.length);
@@ -135,21 +149,23 @@ export function initFileIO({
     flash("#openBtn", "Нээлээ");
   }
 
-  const openFileEl = document.querySelector("#openFile");
-  const openBtn = document.querySelector("#openBtn");
+  const openFileEl = document.querySelector<HTMLInputElement>("#openFile");
+  const openBtn = document.querySelector<HTMLElement>("#openBtn");
   if (openBtn && openFileEl) {
     openBtn.addEventListener("click", async () => {
       if (hasFSOpen) {
         try {
-          const [handle] = await window.showOpenFilePicker({
+          const [handle] = await window.showOpenFilePicker!({
             types: TXT_TYPES,
             multiple: false,
           });
+          if (!handle) return;
           const file = await handle.getFile();
           if (!sizeOk(file)) return;
           await loadFileContent(await file.text(), file.name, handle);
         } catch (e) {
-          if (e && e.name !== "AbortError") flash("#openBtn", "Боломжгүй");
+          if (!(e instanceof DOMException) || e.name !== "AbortError")
+            flash("#openBtn", "Боломжгүй");
         }
       } else {
         openFileEl.click();
@@ -175,7 +191,7 @@ export function initFileIO({
     });
   }
 
-  function sizeOk(file) {
+  function sizeOk(file: File | null | undefined): boolean {
     if (!file) return true;
     if (file.size > MAX_OPEN_BYTES) {
       setStatus(
@@ -194,15 +210,15 @@ export function initFileIO({
     return true;
   }
 
-  function toMb(bytes) {
+  function toMb(bytes: number): string {
     return (bytes / (1024 * 1024)).toFixed(1);
   }
 
-  function dragHasFiles(e) {
+  function dragHasFiles(e: DragEvent): boolean {
     const transferTypes = e.dataTransfer && e.dataTransfer.types;
     return !!transferTypes && Array.from(transferTypes).includes("Files");
   }
-  function isTextFile(file) {
+  function isTextFile(file: File | null | undefined): file is File {
     return (
       !!file &&
       ((file.type && file.type.indexOf("text/") === 0) ||
@@ -224,12 +240,13 @@ export function initFileIO({
     e.preventDefault();
     els.editor.classList.remove("drag-over");
     const dt = e.dataTransfer;
-    let handle = null;
+    let handle: FileSystemFileHandle | null = null;
     const item = dt && dt.items && dt.items[0];
     if (item && item.kind === "file" && item.getAsFileSystemHandle) {
       try {
         const fsHandle = await item.getAsFileSystemHandle();
-        if (fsHandle && fsHandle.kind === "file") handle = fsHandle;
+        if (fsHandle && fsHandle.kind === "file")
+          handle = fsHandle as FileSystemFileHandle;
       } catch (_) {}
     }
     try {

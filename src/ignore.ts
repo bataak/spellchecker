@@ -1,12 +1,14 @@
 const KEY = "mn-spell:ignored";
 
-let ignored = [];
-let lookup = new Map();
+type CasePattern = "lower" | "capital" | "upper";
 
-function caseOf(word) {
+let ignored: string[] = [];
+let lookup = new Map<string, CasePattern>();
+
+function caseOf(word: string): CasePattern {
   let upper = 0,
     lower = 0,
-    firstCased = null;
+    firstCased: string | null = null;
   for (const ch of word) {
     const upperChar = ch.toUpperCase(),
       lowerChar = ch.toLowerCase();
@@ -31,8 +33,10 @@ function rebuild() {
 function load() {
   try {
     const raw = localStorage.getItem(KEY);
-    ignored = raw ? JSON.parse(raw) : [];
-    if (!Array.isArray(ignored)) ignored = [];
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    ignored = Array.isArray(parsed)
+      ? parsed.filter((w): w is string => typeof w === "string")
+      : [];
   } catch (_) {
     ignored = [];
   }
@@ -45,7 +49,7 @@ function persist() {
   } catch (_) {}
 }
 
-export function isIgnored(word) {
+export function isIgnored(word: string): boolean {
   const stored = lookup.get(word.toLowerCase());
   if (stored === undefined) return false;
   if (stored === "lower") return true;
@@ -55,7 +59,7 @@ export function isIgnored(word) {
   return wordCase === "upper";
 }
 
-export function addIgnored(word) {
+export function addIgnored(word: string): boolean {
   const trimmedWord = word.trim();
   if (!trimmedWord) return false;
   const key = trimmedWord.toLowerCase();
@@ -72,7 +76,7 @@ export function addIgnored(word) {
   return true;
 }
 
-export function removeIgnored(word) {
+export function removeIgnored(word: string): boolean {
   const before = ignored.length;
   ignored = ignored.filter((stored) => stored !== word);
   if (ignored.length === before) return false;
@@ -81,7 +85,7 @@ export function removeIgnored(word) {
   return true;
 }
 
-export function clearIgnored() {
+export function clearIgnored(): boolean {
   if (!ignored.length) return false;
   ignored = [];
   rebuild();
@@ -89,7 +93,7 @@ export function clearIgnored() {
   return true;
 }
 
-export function getIgnored() {
+export function getIgnored(): string[] {
   return ignored.slice();
 }
 

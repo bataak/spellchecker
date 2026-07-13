@@ -17,10 +17,10 @@ const ACTION_TIPS = [
 const KEY_INFO = "mn-spell:tip-info";
 const KEY_ACTION = "mn-spell:tip-action";
 
-let wasEmpty = null;
-let swapTimer = null;
+let wasEmpty: boolean | null = null;
+let swapTimer: ReturnType<typeof setTimeout> | null = null;
 
-function pick(list, key) {
+function pick(list: string[], key: string): string {
   let last = -1;
   try {
     const raw = localStorage.getItem(key);
@@ -32,13 +32,13 @@ function pick(list, key) {
   try {
     localStorage.setItem(key, String(tipIndex));
   } catch (_) {}
-  return list[tipIndex];
+  return list[tipIndex]!;
 }
 
-function renderTip(el, text) {
+function renderTip(el: HTMLElement, text: string): void {
   el.textContent = "";
   const urlMatch = text.match(/https?:\/\/\S+/);
-  if (!urlMatch) {
+  if (!urlMatch || urlMatch.index == null) {
     el.textContent = text;
     return;
   }
@@ -51,10 +51,10 @@ function renderTip(el, text) {
   if (rest) el.append(rest);
 }
 
-function apply(animate) {
-  const info = document.querySelector("#emptyNoteInfo");
-  const action = document.querySelector("#emptyNoteAction");
-  const els = [info, action].filter(Boolean);
+function apply(animate: boolean): void {
+  const info = document.querySelector<HTMLElement>("#emptyNoteInfo");
+  const action = document.querySelector<HTMLElement>("#emptyNoteAction");
+  const els = [info, action].filter((el): el is HTMLElement => el !== null);
   if (els.length === 0) return;
   const write = () => {
     if (info) renderTip(info, pick(INFO_TIPS, KEY_INFO));
@@ -65,19 +65,19 @@ function apply(animate) {
     return;
   }
   for (const el of els) el.classList.add("tip-swap");
-  clearTimeout(swapTimer);
+  if (swapTimer) clearTimeout(swapTimer);
   swapTimer = setTimeout(() => {
     write();
     for (const el of els) el.classList.remove("tip-swap");
   }, 160);
 }
 
-export function rotateEmptyTips() {
+export function rotateEmptyTips(): void {
   apply(true);
   wasEmpty = true;
 }
 
-export function syncEmptyTips(isEmpty) {
+export function syncEmptyTips(isEmpty: boolean): void {
   if (isEmpty && wasEmpty === false) apply(true);
   wasEmpty = isEmpty;
 }
