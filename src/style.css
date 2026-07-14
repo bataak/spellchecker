@@ -481,7 +481,6 @@ html.booting .empty-state {
   font-style: italic;
   line-height: 1.7;
   text-align: left;
-  text-wrap: pretty;
   transition: opacity 0.16s ease;
 }
 .empty-state .empty-note::before {
