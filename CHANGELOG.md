@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.50.0](https://github.com/bataak/spellchecker/compare/v1.49.2...v1.50.0) (2026-07-14)
+
+
+### Features
+
+* copy suggestion words via Ctrl+C and long-press ([caa1181](https://github.com/bataak/spellchecker/commit/caa118117360fe29d1788bda07b615d64c80ce2e))
+
 ## [1.49.2](https://github.com/bataak/spellchecker/compare/v1.49.1...v1.49.2) (2026-07-14)
 
 
