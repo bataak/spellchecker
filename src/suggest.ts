@@ -22,6 +22,7 @@ export interface SuggestDeps {
   getBadTokens?: () => Token[];
   buildErrorList?: (tokens: Token[]) => ErrorEntry[];
   isDashSuffix?: (token: Token) => boolean;
+  copyText?: (str: string) => Promise<void>;
 }
 
 const ENDPOINT = "https://api.bichig.dev/suggest";
@@ -234,6 +235,35 @@ function collectCopyWords(): string[] {
   return all;
 }
 
+function fallbackCopyText(str: string): Promise<void> {
+  if (
+    navigator.clipboard &&
+    navigator.clipboard.writeText &&
+    window.isSecureContext
+  ) {
+    return navigator.clipboard.writeText(str);
+  }
+  return new Promise<void>((resolve, reject) => {
+    try {
+      const helper = document.createElement("textarea");
+      helper.value = str;
+      helper.setAttribute("readonly", "");
+      helper.style.position = "fixed";
+      helper.style.top = "-1000px";
+      helper.style.opacity = "0";
+      document.body.appendChild(helper);
+      helper.focus();
+      helper.select();
+      helper.setSelectionRange(0, str.length);
+      const ok = document.execCommand("copy");
+      document.body.removeChild(helper);
+      ok ? resolve() : reject(new Error("exec"));
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
 async function copyWordsToClipboard(): Promise<void> {
   const list = collectCopyWords();
   if (!list.length) {
@@ -241,7 +271,7 @@ async function copyWordsToClipboard(): Promise<void> {
     return;
   }
   try {
-    await navigator.clipboard.writeText(list.join("\n"));
+    await (deps.copyText ?? fallbackCopyText)(list.join("\n"));
     note(list.length + " үг санах ойд хуулагдлаа", "ok");
   } catch (_) {
     note("Хуулж чадсангүй — дахин оролдоно уу", "err");
@@ -260,50 +290,71 @@ function hasActiveSelection(): boolean {
   return selection != null && selection.toString().length > 0;
 }
 
-function attachLongPressCopy(el: HTMLElement): void {
-  let tracking = false;
-  let suppressClick = false;
-  let startTime = 0;
-  let startX = 0;
-  let startY = 0;
-  el.addEventListener("pointerdown", (e) => {
-    suppressClick = false;
-    if (e.pointerType === "mouse" || showingSubmitted) return;
-    tracking = true;
-    startTime = performance.now();
-    startX = e.clientX;
-    startY = e.clientY;
+function attachHoldToCopy(el: HTMLElement): void {
+  let pressStart = 0;
+  let pressDuration = 0;
+  let releasedAt = 0;
+  let armTimer: ReturnType<typeof setTimeout> | null = null;
+  let verifyTimer: ReturnType<typeof setTimeout> | null = null;
+  const disarm = () => {
+    if (armTimer) clearTimeout(armTimer);
+    armTimer = null;
+  };
+  const clearVerify = () => {
+    if (verifyTimer) clearTimeout(verifyTimer);
+    verifyTimer = null;
+  };
+  el.addEventListener(
+    "touchstart",
+    (e) => {
+      if (e.touches.length !== 1) return;
+      pressStart = performance.now();
+      pressDuration = 0;
+      disarm();
+      clearVerify();
+      armTimer = setTimeout(() => {
+        armTimer = null;
+        if (showingSubmitted) return;
+        const count = collectCopyWords().length;
+        if (count) note(count + " үг санах ойд хуулагдлаа", "ok");
+        else note("Хуулах үг алга");
+      }, LONG_PRESS_MS);
+    },
+    { passive: true },
+  );
+  el.addEventListener("touchend", () => {
+    disarm();
+    if (pressStart) {
+      pressDuration = performance.now() - pressStart;
+      releasedAt = performance.now();
+      if (pressDuration >= LONG_PRESS_MS) {
+        clearVerify();
+        verifyTimer = setTimeout(() => {
+          verifyTimer = null;
+          if (!showingSubmitted && collectCopyWords().length)
+            note("Хуулж чадсангүй — дахин оролдоно уу", "err");
+        }, 400);
+      }
+    }
+    pressStart = 0;
   });
-  el.addEventListener("pointermove", (e) => {
-    if (!tracking) return;
-    if (Math.hypot(e.clientX - startX, e.clientY - startY) > 10)
-      tracking = false;
-  });
-  el.addEventListener("pointercancel", () => {
-    tracking = false;
-  });
-  el.addEventListener("pointerup", (e) => {
-    if (!tracking) return;
-    tracking = false;
-    if (performance.now() - startTime < LONG_PRESS_MS) return;
-    e.preventDefault();
-    suppressClick = true;
-    void copyWordsToClipboard();
+  el.addEventListener("touchcancel", () => {
+    disarm();
+    clearVerify();
+    pressStart = 0;
+    pressDuration = 0;
+    note("");
   });
   el.addEventListener("contextmenu", (e) => {
-    if (tracking) e.preventDefault();
+    if (pressStart) e.preventDefault();
   });
-  el.addEventListener(
-    "click",
-    (e) => {
-      if (suppressClick) {
-        e.preventDefault();
-        e.stopPropagation();
-        suppressClick = false;
-      }
-    },
-    true,
-  );
+  el.addEventListener("click", () => {
+    clearVerify();
+    const held =
+      pressDuration >= LONG_PRESS_MS && performance.now() - releasedAt < 700;
+    pressDuration = 0;
+    if (held && !showingSubmitted) void copyWordsToClipboard();
+  });
 }
 
 function closeForm(): void {
@@ -357,6 +408,11 @@ function build(): void {
     .querySelector(".suggest-cancel")!
     .addEventListener("click", closeForm);
   overlay.querySelector(".suggest-send")!.addEventListener("click", submit);
+  overlay
+    .querySelectorAll<HTMLElement>(
+      "#suggestTitle, .suggest-card > .suggest-hint",
+    )
+    .forEach(attachHoldToCopy);
   const viewBtn = overlay.querySelector(".suggest-view-submitted")!;
   viewBtn.addEventListener("click", () => setSubmittedView(!showingSubmitted));
   let pressTimer: ReturnType<typeof setTimeout> | null = null;
@@ -426,12 +482,6 @@ function build(): void {
     e.preventDefault();
     submit();
   });
-
-  overlay
-    .querySelectorAll<HTMLElement>(
-      "#suggestTitle, .suggest-card > .suggest-hint, .suggest-card > .suggest-chips",
-    )
-    .forEach(attachLongPressCopy);
 
   document.addEventListener(
     "keydown",

@@ -988,8 +988,7 @@ html.booting .empty-state {
 
 @media (pointer: coarse) {
   .suggest-card > .suggest-title,
-  .suggest-card > .suggest-hint,
-  .suggest-card > .suggest-chips {
+  .suggest-card > .suggest-hint {
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;
