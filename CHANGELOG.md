@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.49.2](https://github.com/bataak/spellchecker/compare/v1.49.1...v1.49.2) (2026-07-14)
+
+
+### Bug Fixes
+
+* scope Ctrl+C to suggestion words while dialog is open ([33ef1ab](https://github.com/bataak/spellchecker/commit/33ef1ab3deb34ed557008d8102d6508a9dec0961))
+
 ## [1.49.1](https://github.com/bataak/spellchecker/compare/v1.49.0...v1.49.1) (2026-07-13)
 
 
