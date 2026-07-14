@@ -28,6 +28,7 @@ const ENDPOINT = "https://api.bichig.dev/suggest";
 const SITEKEY = "0x4AAAAAADvk6t3Gsh_j1vH7";
 const WORD_RE = /^[\u0400-\u04FF][\u0400-\u04FF-]{1,49}$/u;
 const MAX_WORDS = 50;
+const LONG_PRESS_MS = 550;
 const ISSUES_URL =
   "https://github.com/bataak/dict-mn/issues?q=is%3Aissue%20label%3Auser-submitted";
 
@@ -219,6 +220,92 @@ function addFromInput(commit: boolean): void {
   }
 }
 
+function collectCopyWords(): string[] {
+  const wordEl = overlay!.querySelector<HTMLInputElement>("#suggestWord")!;
+  const pending = wordEl.value
+    .split(/[\s,\u3001\uFF0C]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const all = [...words];
+  for (const word of pending) {
+    if (!all.some((existing) => existing.toLowerCase() === word.toLowerCase()))
+      all.push(word);
+  }
+  return all;
+}
+
+async function copyWordsToClipboard(): Promise<void> {
+  const list = collectCopyWords();
+  if (!list.length) {
+    note("Хуулах үг алга");
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(list.join("\n"));
+    note(list.length + " үг санах ойд хуулагдлаа", "ok");
+  } catch (_) {
+    note("Хуулж чадсангүй — дахин оролдоно уу", "err");
+  }
+}
+
+function hasActiveSelection(): boolean {
+  const active = document.activeElement;
+  if (
+    (active instanceof HTMLInputElement ||
+      active instanceof HTMLTextAreaElement) &&
+    active.selectionStart !== active.selectionEnd
+  )
+    return true;
+  const selection = window.getSelection();
+  return selection != null && selection.toString().length > 0;
+}
+
+function attachLongPressCopy(el: HTMLElement): void {
+  let tracking = false;
+  let suppressClick = false;
+  let startTime = 0;
+  let startX = 0;
+  let startY = 0;
+  el.addEventListener("pointerdown", (e) => {
+    suppressClick = false;
+    if (e.pointerType === "mouse" || showingSubmitted) return;
+    tracking = true;
+    startTime = performance.now();
+    startX = e.clientX;
+    startY = e.clientY;
+  });
+  el.addEventListener("pointermove", (e) => {
+    if (!tracking) return;
+    if (Math.hypot(e.clientX - startX, e.clientY - startY) > 10)
+      tracking = false;
+  });
+  el.addEventListener("pointercancel", () => {
+    tracking = false;
+  });
+  el.addEventListener("pointerup", (e) => {
+    if (!tracking) return;
+    tracking = false;
+    if (performance.now() - startTime < LONG_PRESS_MS) return;
+    e.preventDefault();
+    suppressClick = true;
+    void copyWordsToClipboard();
+  });
+  el.addEventListener("contextmenu", (e) => {
+    if (tracking) e.preventDefault();
+  });
+  el.addEventListener(
+    "click",
+    (e) => {
+      if (suppressClick) {
+        e.preventDefault();
+        e.stopPropagation();
+        suppressClick = false;
+      }
+    },
+    true,
+  );
+}
+
 function closeForm(): void {
   if (!overlay || overlay.hidden) return;
   overlay.hidden = true;
@@ -340,9 +427,33 @@ function build(): void {
     submit();
   });
 
-  document.addEventListener("keydown", (e) => {
-    if (!overlay!.hidden && e.key === "Escape") closeForm();
-  });
+  overlay
+    .querySelectorAll<HTMLElement>(
+      "#suggestTitle, .suggest-card > .suggest-hint, .suggest-card > .suggest-chips",
+    )
+    .forEach(attachLongPressCopy);
+
+  document.addEventListener(
+    "keydown",
+    (e) => {
+      if (overlay!.hidden) return;
+      if (e.key === "Escape") {
+        closeForm();
+        return;
+      }
+      const isCopyCombo =
+        (e.ctrlKey || e.metaKey) &&
+        !e.altKey &&
+        (e.code === "KeyC" || e.key.toLowerCase() === "c");
+      if (!isCopyCombo) return;
+      e.stopPropagation();
+      if (showingSubmitted) return;
+      if (hasActiveSelection()) return;
+      e.preventDefault();
+      void copyWordsToClipboard();
+    },
+    true,
+  );
 }
 
 async function openForm(): Promise<void> {
