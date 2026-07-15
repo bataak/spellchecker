@@ -6,15 +6,9 @@ import type { Token, ErrorEntry } from "./textcheck.ts";
 interface Turnstile {
   render(
     el: Element | null,
-    options: {
-      sitekey: string;
-      theme: string;
-      callback?: (token: string) => void;
-      "error-callback"?: () => void;
-    },
+    options: { sitekey: string; theme: string },
   ): string;
   reset(widgetId: string | null): void;
-  remove(widgetId: string): void;
   getResponse(widgetId: string): string;
 }
 
@@ -38,10 +32,6 @@ const MAX_WORDS = 50;
 const LONG_PRESS_MS = 550;
 const ISSUES_URL =
   "https://github.com/bataak/dict-mn/issues?q=is%3Aissue%20label%3Auser-submitted";
-const PREWARM_ATTEMPTS_KEY = "suggestPrewarmAttempts";
-const MAX_PREWARM_ATTEMPTS = 2;
-const PREWARM_FALLBACK_DELAY_MS = 4000;
-const PREWARM_CLEANUP_MS = 30000;
 
 let overlay: HTMLDivElement | null = null;
 let widgetId: string | null = null;
@@ -367,111 +357,6 @@ function attachHoldToCopy(el: HTMLElement): void {
   });
 }
 
-function ensureWidget(): void {
-  if (widgetId != null || !window.turnstile) return;
-  const theme =
-    document.documentElement.dataset.theme === "dark" ? "dark" : "light";
-  widgetId = window.turnstile.render(
-    overlay!.querySelector(".suggest-turnstile"),
-    { sitekey: SITEKEY, theme },
-  );
-}
-
-function readPrewarmAttempts(): number {
-  try {
-    return Number(sessionStorage.getItem(PREWARM_ATTEMPTS_KEY)) || 0;
-  } catch (_) {
-    return 0;
-  }
-}
-
-function writePrewarmAttempts(count: number): void {
-  try {
-    sessionStorage.setItem(PREWARM_ATTEMPTS_KEY, String(count));
-  } catch (_) {}
-}
-
-/**
- * iOS WebKit дээр Turnstile-ийн анхны challenge (Proof-of-Work) main
- * thread-ийг удаан хааснаас хуудас устгагдаж дахин ачаалагддаг. Үүнээс
- * сэргийлж challenge-ийг хэрэглэгч цонх нээхээс өмнө, апп сул зогсолттой
- * үед урьдчилан ажиллуулна. Session дотор clearance тогтсоны дараа
- * дараагийн challenge-үүд хөнгөн тул цонх нээхэд аюулгүй болно.
- *
- * Widget-ийг display:none доторх container-т render хийж болохгүй —
- * тэнд challenge хэвийн дуусдаггүй. Тиймээс дэлгэцийн гадна байрлах
- * гэхдээ бодитоор render хийгдсэн түр host дотор ажиллуулж, token
- * гармагц widget болон host-ийг устгана. Цонх нээгдэхэд шинэ widget
- * урьдын адил render хийгдэх бөгөөд clearance-ийн ачаар хөнгөн байна.
- *
- * Урьдчилан халаах үед нь хуудас устгагдвал дахин ачаалагдсаны дараа
- * давтан оролдох тул sessionStorage-ийн тоолуураар дээд тал нь
- * MAX_PREWARM_ATTEMPTS удаа гэж хязгаарлаж, төгсгөлгүй reload-ийн
- * давталтаас сэргийлнэ. Хязгаарт хүрсэн session-д одоогийн (цонх нээх
- * үед render хийдэг) зан төлөв хэвээр үлдэнэ.
- */
-let prewarmHost: HTMLDivElement | null = null;
-let prewarmWidgetId: string | null = null;
-let prewarmCleanupTimer: ReturnType<typeof setTimeout> | null = null;
-
-function cancelPrewarm(): void {
-  if (prewarmCleanupTimer) clearTimeout(prewarmCleanupTimer);
-  prewarmCleanupTimer = null;
-  if (prewarmWidgetId != null && window.turnstile) {
-    try {
-      window.turnstile.remove(prewarmWidgetId);
-    } catch (_) {}
-  }
-  prewarmWidgetId = null;
-  if (prewarmHost) prewarmHost.remove();
-  prewarmHost = null;
-}
-
-async function prewarmTurnstile(): Promise<void> {
-  if (widgetId != null || prewarmHost) return;
-  const attempts = readPrewarmAttempts();
-  if (attempts >= MAX_PREWARM_ATTEMPTS) return;
-  writePrewarmAttempts(attempts + 1);
-  try {
-    await loadTurnstile();
-  } catch (_) {
-    writePrewarmAttempts(attempts);
-    return;
-  }
-  if (widgetId != null || prewarmHost) return;
-  prewarmHost = document.createElement("div");
-  prewarmHost.style.position = "fixed";
-  prewarmHost.style.left = "-9999px";
-  prewarmHost.style.top = "0";
-  prewarmHost.style.width = "300px";
-  prewarmHost.style.height = "65px";
-  prewarmHost.style.overflow = "hidden";
-  prewarmHost.setAttribute("aria-hidden", "true");
-  document.body.appendChild(prewarmHost);
-  const theme =
-    document.documentElement.dataset.theme === "dark" ? "dark" : "light";
-  try {
-    prewarmWidgetId = window.turnstile!.render(prewarmHost, {
-      sitekey: SITEKEY,
-      theme,
-      callback: cancelPrewarm,
-      "error-callback": cancelPrewarm,
-    });
-  } catch (_) {
-    cancelPrewarm();
-    return;
-  }
-  prewarmCleanupTimer = setTimeout(cancelPrewarm, PREWARM_CLEANUP_MS);
-}
-
-function schedulePrewarm(): void {
-  if ("requestIdleCallback" in window) {
-    requestIdleCallback(() => void prewarmTurnstile(), { timeout: 15000 });
-  } else {
-    setTimeout(() => void prewarmTurnstile(), PREWARM_FALLBACK_DELAY_MS);
-  }
-}
-
 function closeForm(): void {
   if (!overlay || overlay.hidden) return;
   overlay.hidden = true;
@@ -622,7 +507,6 @@ function build(): void {
 }
 
 async function openForm(): Promise<void> {
-  cancelPrewarm();
   if (!overlay) build();
   overlay!.hidden = false;
   setSubmittedView(false);
@@ -642,7 +526,12 @@ async function openForm(): Promise<void> {
     return;
   }
   if (widgetId == null) {
-    ensureWidget();
+    const theme =
+      document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+    widgetId = window.turnstile!.render(
+      overlay!.querySelector(".suggest-turnstile"),
+      { sitekey: SITEKEY, theme },
+    );
   } else {
     try {
       window.turnstile!.reset(widgetId);
@@ -755,5 +644,4 @@ export function initSuggest(options?: SuggestDeps): void {
       openForm();
     });
   });
-  schedulePrewarm();
 }
