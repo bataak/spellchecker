@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.50.2](https://github.com/bataak/spellchecker/compare/v1.50.1...v1.50.2) (2026-07-15)
+
+
+### Bug Fixes
+
+* **suggest:** prewarm Turnstile challenge at idle to prevent iOS page kill ([854c9d4](https://github.com/bataak/spellchecker/commit/854c9d44dbe9590d79dd554cdfdc4317a3e8dea9))
+
 ## [1.50.1](https://github.com/bataak/spellchecker/compare/v1.50.0...v1.50.1) (2026-07-15)
 
 
