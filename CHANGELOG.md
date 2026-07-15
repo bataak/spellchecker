@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.50.3](https://github.com/bataak/spellchecker/compare/v1.50.2...v1.50.3) (2026-07-15)
+
+
+### Bug Fixes
+
+* **suggest:** revert idle Turnstile prewarm (reload regression on iOS) ([1831eed](https://github.com/bataak/spellchecker/commit/1831eed8fcd1855db9108604727f697dbc88045c))
+
 ## [1.50.2](https://github.com/bataak/spellchecker/compare/v1.50.1...v1.50.2) (2026-07-15)
 
 
