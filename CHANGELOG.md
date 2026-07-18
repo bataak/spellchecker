@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.51.0](https://github.com/bataak/spellchecker/compare/v1.50.3...v1.51.0) (2026-07-18)
+
+
+### Features
+
+* add one-time satisfaction survey dialog ([9da04e7](https://github.com/bataak/spellchecker/commit/9da04e75f1fac7c653ec60572b5bc3772541cd44))
+
 ## [1.50.3](https://github.com/bataak/spellchecker/compare/v1.50.2...v1.50.3) (2026-07-15)
 
 
