@@ -919,6 +919,45 @@ html.booting .empty-state {
 .suggest-submitted .suggest-chip {
   padding: 3px 11px;
 }
+.survey-card {
+  max-width: 560px;
+  max-height: min(88vh, 720px);
+  overflow-y: auto;
+}
+.survey-q {
+  border: 0;
+  margin: 0 0 14px;
+  padding: 0;
+  min-width: 0;
+}
+.survey-q legend {
+  padding: 0;
+}
+.survey-card .suggest-label {
+  font-size: 0.92rem;
+}
+.survey-q-missing legend {
+  color: var(--proof);
+}
+.survey-opt {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 2px;
+  font-size: 0.92rem;
+  color: var(--ink);
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.survey-opt input {
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+.survey-card .suggest-textarea {
+  flex: 0 0 auto;
+}
 .ignore-actions {
   justify-content: space-between;
   margin-top: 18px;

@@ -9,6 +9,7 @@ import type { SpellChecker } from "./spellchecker.ts";
 import { initFileIO } from "./fileio.ts";
 import { initToolbar } from "./toolbar.ts";
 import { initSuggest } from "./suggest.ts";
+import { initSurvey, surveyOnErrorCount } from "./survey.ts";
 import { isIgnored, addIgnored } from "./ignore.ts";
 import type { Token } from "./textcheck.ts";
 import { initIgnoreList, syncIgnoreVisibility } from "./ignorelist.ts";
@@ -255,6 +256,7 @@ async function render() {
   renderBackdrop(text, bad);
   syncScroll();
   renderErrorPanel();
+  surveyOnErrorCount(bad.length, text.trim() !== "");
 
   if (ready) {
     if (text.trim() === "") {
@@ -1367,3 +1369,5 @@ initSuggest({
 initIgnoreList({
   onChange: () => render(),
 });
+
+initSurvey();
