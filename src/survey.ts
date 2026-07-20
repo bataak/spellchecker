@@ -155,6 +155,13 @@ function build(): void {
   overlay.addEventListener("pointerdown", (e) => {
     if (e.target === overlay) close();
   });
+  overlay.addEventListener(
+    "touchmove",
+    (e) => {
+      if (e.target === overlay) e.preventDefault();
+    },
+    { passive: false },
+  );
   overlay.addEventListener("change", (e) => {
     const input = e.target;
     if (input instanceof HTMLInputElement && input.name) {
@@ -180,6 +187,8 @@ function maybeOpen(): void {
   if (isDone()) return;
   if (!navigator.onLine) return;
   if (overlay && !overlay.hidden) return;
+  const active = document.activeElement;
+  if (active instanceof HTMLElement) active.blur();
   if (!overlay) build();
   syncSend();
   overlay!.hidden = false;
