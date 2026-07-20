@@ -14,6 +14,12 @@ const TRIGGER_BUTTONS = "#copyBtn, #copyErrorsBtn, #saveBtn, #clearBtn";
 let overlay: HTMLDivElement | null = null;
 let busy = false;
 let prevErrorCount = 0;
+let idleTimer: number | null = null;
+let lastActivity = 0;
+
+const OPEN_DELAY_MS = 30000;
+const IDLE_GAP_MS = 8000;
+const OFFLINE_RETRY_MS = 60000;
 
 function isDone(): boolean {
   try {
@@ -182,15 +188,16 @@ function maybeOpen(): void {
 async function submit(): Promise<void> {
   if (busy) return;
   const { answers, notes } = collectAnswers();
-  const missing = SURVEY_QUESTIONS.filter(
-    (question) => !(question.key in answers),
-  );
+  const missing = SURVEY_QUESTIONS.filter((question) => !(question.key in answers));
   for (const question of SURVEY_QUESTIONS) {
     const fieldset = overlay!.querySelector(
       '.survey-q[data-key="' + question.key + '"]',
     );
     if (!fieldset) continue;
-    fieldset.classList.toggle("survey-q-missing", !(question.key in answers));
+    fieldset.classList.toggle(
+      "survey-q-missing",
+      !(question.key in answers),
+    );
   }
   if (missing.length) {
     note("Улаанаар тэмдэглэсэн асуултад хариулна уу", "err");
@@ -234,14 +241,47 @@ async function submit(): Promise<void> {
   }
 }
 
+function recordActivity(): void {
+  lastActivity = Date.now();
+}
+
+function scheduleOpen(delay: number): void {
+  if (idleTimer !== null) return;
+  idleTimer = window.setTimeout(tryIdleOpen, delay);
+}
+
+function tryIdleOpen(): void {
+  idleTimer = null;
+  if (isDone()) return;
+  if (overlay && !overlay.hidden) return;
+  if (!navigator.onLine) {
+    scheduleOpen(OFFLINE_RETRY_MS);
+    return;
+  }
+  if (Date.now() - lastActivity < IDLE_GAP_MS) {
+    scheduleOpen(IDLE_GAP_MS);
+    return;
+  }
+  maybeOpen();
+}
+
 export function surveyOnErrorCount(count: number, hasText: boolean): void {
   const prev = prevErrorCount;
   prevErrorCount = hasText ? count : 0;
   if (!hasText) return;
+  recordActivity();
+  if (!isDone()) scheduleOpen(OPEN_DELAY_MS);
   if (prev > 0 && count === 0) maybeOpen();
 }
 
 export function initSurvey(): void {
+  window.addEventListener("scroll", recordActivity, {
+    capture: true,
+    passive: true,
+  });
+  window.addEventListener("touchmove", recordActivity, { passive: true });
+  window.addEventListener("wheel", recordActivity, { passive: true });
+
   document.addEventListener(
     "click",
     (e) => {
