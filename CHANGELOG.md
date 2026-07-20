@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.52.1](https://github.com/bataak/spellchecker/compare/v1.52.0...v1.52.1) (2026-07-20)
+
+
+### Bug Fixes
+
+* allow survey dialog scrolling on mobile ([4f3d9c3](https://github.com/bataak/spellchecker/commit/4f3d9c3239e38fb256a7b4d3ff48864cac9d06ab))
+* correct survey validation message wording ([877a766](https://github.com/bataak/spellchecker/commit/877a76640fad31f98ad81279b22724ff5db053c0))
+
 ## [1.52.0](https://github.com/bataak/spellchecker/compare/v1.51.0...v1.52.0) (2026-07-20)
 
 
