@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.52.0](https://github.com/bataak/spellchecker/compare/v1.51.0...v1.52.0) (2026-07-20)
+
+
+### Features
+
+* open survey after idle delay in addition to finish signals ([f1cf12f](https://github.com/bataak/spellchecker/commit/f1cf12f471e56d50191553f20c3e08ddb243435e))
+
 ## [1.51.0](https://github.com/bataak/spellchecker/compare/v1.50.3...v1.51.0) (2026-07-18)
 
 
