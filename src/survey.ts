@@ -197,19 +197,18 @@ function maybeOpen(): void {
 async function submit(): Promise<void> {
   if (busy) return;
   const { answers, notes } = collectAnswers();
-  const missing = SURVEY_QUESTIONS.filter((question) => !(question.key in answers));
+  const missing = SURVEY_QUESTIONS.filter(
+    (question) => !(question.key in answers),
+  );
   for (const question of SURVEY_QUESTIONS) {
     const fieldset = overlay!.querySelector(
       '.survey-q[data-key="' + question.key + '"]',
     );
     if (!fieldset) continue;
-    fieldset.classList.toggle(
-      "survey-q-missing",
-      !(question.key in answers),
-    );
+    fieldset.classList.toggle("survey-q-missing", !(question.key in answers));
   }
   if (missing.length) {
-    note("Улаанаар тэмдэглэсэн асуултад хариулна уу", "err");
+    note("Улаанаар тэмдэглэгдсэн асуултад хариулна уу", "err");
     overlay!
       .querySelector(".survey-q-missing")!
       .scrollIntoView({ block: "center", behavior: "smooth" });
