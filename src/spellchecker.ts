@@ -42,6 +42,7 @@ export interface SpellChecker {
   whenComplete(): Promise<CompleteResult>;
   checkWords(words: string[]): Promise<Record<string, boolean>>;
   suggest(word: string): Promise<string[]>;
+  setActive(ids: string[]): void;
 }
 
 export async function checkWordsBatched(
@@ -207,6 +208,11 @@ export class MultiSpellChecker implements SpellChecker {
     if (!this.ready || this.dead) return [];
     const msg = await this._rpc("suggest", { word });
     return msg.type === "suggest" ? msg.suggestions || [] : [];
+  }
+
+  setActive(ids: string[]): void {
+    if (this.dead) return;
+    this.worker.postMessage({ type: "setActive", ids });
   }
 }
 

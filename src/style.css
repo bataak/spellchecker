@@ -1073,3 +1073,90 @@ html.booting .empty-state {
     margin-top: auto;
   }
 }
+
+.dict-toggle {
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 1px 4px;
+  margin: -1px -4px;
+  outline: none;
+}
+.dict-toggle:hover {
+  background: var(--line);
+}
+.dict-toggle:focus-visible {
+  box-shadow: 0 0 0 2px var(--focus);
+}
+
+.subtitle:has(.dict-toggle),
+.topbar .subtitle:has(.dict-toggle) {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.dict-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 60;
+}
+
+.dict-menu {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 61;
+  width: max-content;
+  min-width: 224px;
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+}
+
+.dict-menu-title {
+  margin: 0 0 10px;
+  font-weight: 600;
+}
+
+.dict-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 4px 2px;
+  cursor: pointer;
+}
+.dict-row input {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.dict-menu-done {
+  width: 100%;
+  min-height: 40px;
+  margin-top: 12px;
+  border: none;
+  border-radius: 9px;
+  cursor: pointer;
+  font: inherit;
+  background: var(--line);
+  color: inherit;
+}
+.dict-menu-done:hover {
+  background: var(--focus);
+}
+
+.dict-row.is-locked,
+.dict-row.is-locked input {
+  cursor: default;
+}

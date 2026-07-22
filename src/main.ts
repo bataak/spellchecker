@@ -29,6 +29,12 @@ import {
   materializeMark,
 } from "./backdrop.ts";
 import { rotateEmptyTips, syncEmptyTips } from "./emptytips.ts";
+import {
+  initDictMenu,
+  loadEnabledEnglish,
+  activeIds,
+  visibleIds,
+} from "./dictmenu.ts";
 
 document.body.classList.add("ready");
 
@@ -64,6 +70,9 @@ let badTokens: Token[] = [];
 let baseStatus = "";
 let offlineIndicatorActive = false;
 let pendingFix: PendingFix | null = null;
+let enabledEnglish = loadEnabledEnglish();
+let lastFailed: { id: string; error: string }[] | null = null;
+let lastFallbackReason: string | null = null;
 
 const labelOf = (id: string): string =>
   DICTIONARIES.find((dict) => dict.id === id)?.label || id;
@@ -106,7 +115,9 @@ async function ensureChecked(text: string): Promise<void> {
   for (const [word, correct] of results) cache.set(word, correct);
 }
 function nextFrame(): Promise<void> {
-  return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  return new Promise<void>((resolve) =>
+    requestAnimationFrame(() => resolve()),
+  );
 }
 async function correctNow(word: string): Promise<boolean> {
   if (cache.has(word)) return cache.get(word)!;
@@ -460,7 +471,9 @@ async function showPopoverFor(token: Token): Promise<void> {
   if (!mark) {
     await render();
     materializeMark(token.start);
-    mark = els.backdrop.querySelector('mark[data-start="' + token.start + '"]');
+    mark = els.backdrop.querySelector(
+      'mark[data-start="' + token.start + '"]',
+    );
   }
   if (!mark) {
     hidePopover();
@@ -599,7 +612,10 @@ function isSeparatorInput(e: InputEvent): boolean {
   if (it === "insertText")
     return e.data != null && /[\s\p{P}\p{S}]/u.test(e.data);
   if (it === "insertLineBreak" || it === "insertParagraph") return true;
-  if (it.indexOf("insertFromPaste") === 0 || it.indexOf("insertFromDrop") === 0)
+  if (
+    it.indexOf("insertFromPaste") === 0 ||
+    it.indexOf("insertFromDrop") === 0
+  )
     return true;
   return false;
 }
@@ -821,7 +837,8 @@ els.editor.addEventListener("keyup", (e) => {
 let suppressNextClick = false;
 
 function markAtPoint(x: number, y: number): HTMLElement | null {
-  const marks = els.backdrop.querySelectorAll<HTMLElement>("mark[data-start]");
+  const marks =
+    els.backdrop.querySelectorAll<HTMLElement>("mark[data-start]");
   for (const mark of marks) {
     const rects = mark.getClientRects();
     for (const rect of rects) {
@@ -1075,7 +1092,8 @@ initFileIO({
         : "";
       const editorFocused = document.activeElement === els.editor;
       const editorHasSelection =
-        editorFocused && els.editor.selectionStart !== els.editor.selectionEnd;
+        editorFocused &&
+        els.editor.selectionStart !== els.editor.selectionEnd;
       if (!pageSel && !editorHasSelection) {
         e.preventDefault();
         trigger("#copyBtn");
@@ -1086,7 +1104,10 @@ initFileIO({
 
 async function requestDurableStorage() {
   try {
-    if (navigator.storage && typeof navigator.storage.persist === "function") {
+    if (
+      navigator.storage &&
+      typeof navigator.storage.persist === "function"
+    ) {
       const already = navigator.storage.persisted
         ? await navigator.storage.persisted()
         : false;
@@ -1150,7 +1171,11 @@ function dictStatusMessage(
       simple.push(name);
     }
   }
-  let msg = "Ашиглаж буй толь: <b>" + simple.join(", ") + "</b>";
+  let msg =
+    '<span class="dict-toggle" role="button" tabindex="0" aria-haspopup="dialog" aria-label="Толь сонгох">' +
+    "Ашиглаж буй толь: <b>" +
+    simple.join(", ") +
+    "</b></span>";
   if (failed && failed.length) {
     msg +=
       ' <span class="muted">(олдсонгүй: ' +
@@ -1215,11 +1240,18 @@ async function boot() {
       import.meta.env.BASE_URL,
     );
     ready = true;
+    checker.setActive(activeIds(enabledEnglish));
     if (mnVersion && verEl) verEl.dataset.full += " · mn_MN " + mnVersion;
     cache.clear();
     await render();
     if (loaded.length) {
-      baseStatus = dictStatusMessage(loaded, failed, fallbackReason);
+      lastFailed = failed;
+      lastFallbackReason = fallbackReason;
+      baseStatus = dictStatusMessage(
+        visibleIds(loaded, enabledEnglish),
+        failed,
+        fallbackReason,
+      );
       runOfflineReadyIndicator();
     } else {
       setStatus(
@@ -1229,9 +1261,10 @@ async function boot() {
 
     checker.whenComplete().then((done) => {
       cache.clear();
+      lastFailed = [...(failed || []), ...done.failed];
       baseStatus = dictStatusMessage(
-        checker.loadedIds,
-        [...(failed || []), ...done.failed],
+        visibleIds(checker.loadedIds, enabledEnglish),
+        lastFailed,
         fallbackReason,
       );
       if (els.editor.value.trim() === "" && !offlineIndicatorActive)
@@ -1359,3 +1392,22 @@ initIgnoreList({
 });
 
 initSurvey();
+
+initDictMenu({
+  statusEl: els.status,
+  getEnabled: () => enabledEnglish,
+  onApply: (next) => {
+    enabledEnglish = next;
+    checker.setActive(activeIds(enabledEnglish));
+    cache.clear();
+    baseStatus = dictStatusMessage(
+      visibleIds(checker.loadedIds, enabledEnglish),
+      lastFailed,
+      lastFallbackReason,
+    );
+    render();
+    if (els.editor.value.trim() === "" && !offlineIndicatorActive) {
+      setStatus(baseStatus, false);
+    }
+  },
+});

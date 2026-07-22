@@ -20,7 +20,16 @@ export interface SuggestRequest {
   word: string;
 }
 
-export type WorkerRequest = InitRequest | CheckRequest | SuggestRequest;
+export interface SetActiveRequest {
+  type: "setActive";
+  ids: string[];
+}
+
+export type WorkerRequest =
+  | InitRequest
+  | CheckRequest
+  | SuggestRequest
+  | SetActiveRequest;
 
 export interface ReadyResponse {
   type: "ready";

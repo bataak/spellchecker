@@ -148,6 +148,9 @@ async function resolveBackend(): Promise<SpellBackend> {
 }
 
 const instances: { id: string; inst: SpellerInstance }[] = [];
+const active = new Set<string>(DICTIONARIES.map((dict) => dict.id));
+const activeInstances = (): { id: string; inst: SpellerInstance }[] =>
+  instances.filter(({ id }) => active.has(id));
 let backend: SpellBackend | null = null;
 let manifest: Record<string, ManifestEntry> | null = null;
 let mnVersion: string | null = null;
@@ -174,26 +177,28 @@ async function loadOne(id: string): Promise<string> {
 }
 
 function isCorrect(word: string): boolean {
-  if (!instances.length) return true;
+  const list = activeInstances();
+  if (!list.length) return true;
   const cyr = /[\u0400-\u04FF\u1800-\u18AF]/.test(word);
   const lat = /[A-Za-z]/.test(word);
-  if (lat && !cyr && !instances.some((item) => item.id.startsWith("en")))
+  if (lat && !cyr && !list.some((item) => item.id.startsWith("en")))
     return true;
-  if (cyr && !lat && !instances.some((item) => item.id.startsWith("mn")))
+  if (cyr && !lat && !list.some((item) => item.id.startsWith("mn")))
     return true;
-  return instances.some(({ inst }) => inst.spell(word));
+  return list.some(({ inst }) => inst.spell(word));
 }
 
 function suggest(word: string): string[] {
+  const base = activeInstances();
   const cyr = /[\u0400-\u04FF\u1800-\u18AF]/.test(word);
   const lat = /[A-Za-z]/.test(word);
-  let list = instances;
+  let list = base;
   if (cyr && !lat) {
-    list = instances.filter(({ id }) => id.startsWith("mn"));
+    list = base.filter(({ id }) => id.startsWith("mn"));
   } else if (lat && !cyr) {
-    list = instances.filter(({ id }) => id.startsWith("en"));
+    list = base.filter(({ id }) => id.startsWith("en"));
   }
-  if (!list.length) list = instances;
+  if (!list.length) list = base;
 
   const seen = new Set<string>();
   const out: string[] = [];
@@ -256,6 +261,13 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
     } catch (err) {
       post({ type: "error", error: String(err) });
     }
+    return;
+  }
+
+  if (msg.type === "setActive") {
+    active.clear();
+    for (const id of msg.ids) active.add(id);
+    active.add(PRIMARY);
     return;
   }
 
