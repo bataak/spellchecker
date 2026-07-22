@@ -59,6 +59,7 @@ export interface DictMenuOptions {
   statusEl: HTMLElement;
   getEnabled: () => Set<string>;
   onApply: (enabled: Set<string>) => void;
+  onClose?: () => void;
 }
 
 export function initDictMenu(opts: DictMenuOptions): void {
@@ -162,7 +163,8 @@ export function initDictMenu(opts: DictMenuOptions): void {
     if (backdrop) backdrop.hidden = true;
     if (dialog) dialog.hidden = true;
     document.body.classList.remove("dict-menu-open");
-    if (lastFocus) lastFocus.focus();
+    if (opts.onClose) opts.onClose();
+    else if (lastFocus) lastFocus.focus();
   }
 
   const triggered = (e: Event): boolean => {

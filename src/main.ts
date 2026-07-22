@@ -115,9 +115,7 @@ async function ensureChecked(text: string): Promise<void> {
   for (const [word, correct] of results) cache.set(word, correct);
 }
 function nextFrame(): Promise<void> {
-  return new Promise<void>((resolve) =>
-    requestAnimationFrame(() => resolve()),
-  );
+  return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 }
 async function correctNow(word: string): Promise<boolean> {
   if (cache.has(word)) return cache.get(word)!;
@@ -471,9 +469,7 @@ async function showPopoverFor(token: Token): Promise<void> {
   if (!mark) {
     await render();
     materializeMark(token.start);
-    mark = els.backdrop.querySelector(
-      'mark[data-start="' + token.start + '"]',
-    );
+    mark = els.backdrop.querySelector('mark[data-start="' + token.start + '"]');
   }
   if (!mark) {
     hidePopover();
@@ -612,10 +608,7 @@ function isSeparatorInput(e: InputEvent): boolean {
   if (it === "insertText")
     return e.data != null && /[\s\p{P}\p{S}]/u.test(e.data);
   if (it === "insertLineBreak" || it === "insertParagraph") return true;
-  if (
-    it.indexOf("insertFromPaste") === 0 ||
-    it.indexOf("insertFromDrop") === 0
-  )
+  if (it.indexOf("insertFromPaste") === 0 || it.indexOf("insertFromDrop") === 0)
     return true;
   return false;
 }
@@ -837,8 +830,7 @@ els.editor.addEventListener("keyup", (e) => {
 let suppressNextClick = false;
 
 function markAtPoint(x: number, y: number): HTMLElement | null {
-  const marks =
-    els.backdrop.querySelectorAll<HTMLElement>("mark[data-start]");
+  const marks = els.backdrop.querySelectorAll<HTMLElement>("mark[data-start]");
   for (const mark of marks) {
     const rects = mark.getClientRects();
     for (const rect of rects) {
@@ -1092,8 +1084,7 @@ initFileIO({
         : "";
       const editorFocused = document.activeElement === els.editor;
       const editorHasSelection =
-        editorFocused &&
-        els.editor.selectionStart !== els.editor.selectionEnd;
+        editorFocused && els.editor.selectionStart !== els.editor.selectionEnd;
       if (!pageSel && !editorHasSelection) {
         e.preventDefault();
         trigger("#copyBtn");
@@ -1104,10 +1095,7 @@ initFileIO({
 
 async function requestDurableStorage() {
   try {
-    if (
-      navigator.storage &&
-      typeof navigator.storage.persist === "function"
-    ) {
+    if (navigator.storage && typeof navigator.storage.persist === "function") {
       const already = navigator.storage.persisted
         ? await navigator.storage.persisted()
         : false;
@@ -1410,4 +1398,5 @@ initDictMenu({
       setStatus(baseStatus, false);
     }
   },
+  onClose: () => els.editor.focus(),
 });
