@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.53.1](https://github.com/bataak/spellchecker/compare/v1.53.0...v1.53.1) (2026-07-22)
+
+
+### Bug Fixes
+
+* return focus to editor when dictionary menu closes ([79b59c2](https://github.com/bataak/spellchecker/commit/79b59c23de9e54e11cab29d866f0ca6d5eee6711))
+
 ## [1.53.0](https://github.com/bataak/spellchecker/compare/v1.52.1...v1.53.0) (2026-07-22)
 
 
