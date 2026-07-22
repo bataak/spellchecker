@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.53.0](https://github.com/bataak/spellchecker/compare/v1.52.1...v1.53.0) (2026-07-22)
+
+
+### Features
+
+* choose active English dictionary (British / American) ([e9435ae](https://github.com/bataak/spellchecker/commit/e9435aef01eabb032dbe3eff4c3c7a19e1618c5c))
+
 ## [1.52.1](https://github.com/bataak/spellchecker/compare/v1.52.0...v1.52.1) (2026-07-20)
 
 
