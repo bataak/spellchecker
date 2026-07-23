@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.54.1](https://github.com/bataak/spellchecker/compare/v1.54.0...v1.54.1) (2026-07-23)
+
+
+### Bug Fixes
+
+* prevent duplicate survey submission after success ([a364f5f](https://github.com/bataak/spellchecker/commit/a364f5f73a241349abd9ebf47adbc05684965c5d))
+
 ## [1.54.0](https://github.com/bataak/spellchecker/compare/v1.53.1...v1.54.0) (2026-07-23)
 
 
