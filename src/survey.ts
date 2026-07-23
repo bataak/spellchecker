@@ -13,6 +13,7 @@ const TRIGGER_BUTTONS = "#copyBtn, #copyErrorsBtn, #saveBtn, #clearBtn";
 
 let overlay: HTMLDivElement | null = null;
 let busy = false;
+let sent = false;
 let prevErrorCount = 0;
 let idleTimer: number | null = null;
 let lastActivity = 0;
@@ -90,7 +91,7 @@ function collectAnswers(): {
 
 function syncSend(): void {
   const sendBtn = overlay!.querySelector<HTMLButtonElement>(".survey-send")!;
-  sendBtn.disabled = busy;
+  sendBtn.disabled = busy || sent;
 }
 
 function close(): void {
@@ -172,6 +173,7 @@ function build(): void {
     if (noteEl.dataset.kind === "err") note("");
   });
   overlay.querySelector(".survey-decline")!.addEventListener("click", () => {
+    if (busy) return;
     markDone();
     close();
   });
@@ -185,6 +187,7 @@ function build(): void {
 
 function maybeOpen(): void {
   if (isDone()) return;
+  if (sent) return;
   if (!navigator.onLine) return;
   if (overlay && !overlay.hidden) return;
   const active = document.activeElement;
@@ -195,7 +198,7 @@ function maybeOpen(): void {
 }
 
 async function submit(): Promise<void> {
-  if (busy) return;
+  if (busy || sent) return;
   const { answers, notes } = collectAnswers();
   const missing = SURVEY_QUESTIONS.filter(
     (question) => !(question.key in answers),
@@ -233,6 +236,7 @@ async function submit(): Promise<void> {
       }),
     });
     if (response.status === 201) {
+      sent = true;
       markDone();
       note("Илгээгдлээ, баярлалаа!", "ok");
       setTimeout(close, 1400);
@@ -261,6 +265,7 @@ function scheduleOpen(delay: number): void {
 function tryIdleOpen(): void {
   idleTimer = null;
   if (isDone()) return;
+  if (sent) return;
   if (overlay && !overlay.hidden) return;
   if (!navigator.onLine) {
     scheduleOpen(OFFLINE_RETRY_MS);
