@@ -189,7 +189,9 @@ function addFromInput(commit: boolean): void {
     }
     if (submitted.has(word.toLowerCase())) {
       note(
-        "\u00AB" + word + "\u00BB \u2014 энэ үгийг аль хэдийн мэдэгдсэн байна",
+        "\u00AB" +
+          word +
+          "\u00BB \u2014 энэ үгийг аль хэдийн мэдэгдсэн байна",
         "err",
       );
       continue;
@@ -229,7 +231,9 @@ function collectCopyWords(): string[] {
     .filter(Boolean);
   const all = [...words];
   for (const word of pending) {
-    if (!all.some((existing) => existing.toLowerCase() === word.toLowerCase()))
+    if (
+      !all.some((existing) => existing.toLowerCase() === word.toLowerCase())
+    )
       all.push(word);
   }
   return all;
@@ -360,6 +364,9 @@ function attachHoldToCopy(el: HTMLElement): void {
 function closeForm(): void {
   if (!overlay || overlay.hidden) return;
   overlay.hidden = true;
+  busy = false;
+  const sendBtn = overlay.querySelector<HTMLButtonElement>(".suggest-send");
+  if (sendBtn) sendBtn.disabled = false;
   if (window.turnstile && widgetId != null) {
     try {
       window.turnstile.reset(widgetId);
@@ -414,7 +421,9 @@ function build(): void {
     )
     .forEach(attachHoldToCopy);
   const viewBtn = overlay.querySelector(".suggest-view-submitted")!;
-  viewBtn.addEventListener("click", () => setSubmittedView(!showingSubmitted));
+  viewBtn.addEventListener("click", () =>
+    setSubmittedView(!showingSubmitted),
+  );
   let pressTimer: ReturnType<typeof setTimeout> | null = null;
   let longPressed = false;
   const issuesHidden = () =>
@@ -450,12 +459,14 @@ function build(): void {
     },
     true,
   );
-  overlay.querySelector(".suggest-clear-all")!.addEventListener("click", () => {
-    words = [];
-    renderChips();
-    note("");
-    wordEl.focus();
-  });
+  overlay
+    .querySelector(".suggest-clear-all")!
+    .addEventListener("click", () => {
+      words = [];
+      renderChips();
+      note("");
+      wordEl.focus();
+    });
 
   wordEl.addEventListener("input", () => addFromInput(false));
   wordEl.addEventListener("keydown", (e) => {
@@ -582,6 +593,7 @@ async function submit(): Promise<void> {
   }
   busy = true;
   sendBtn.disabled = true;
+  let succeeded = false;
   note(
     "\u0418\u043B\u0433\u044D\u044D\u0436 \u0431\u0430\u0439\u043D\u0430\u2026",
   );
@@ -596,6 +608,7 @@ async function submit(): Promise<void> {
       }),
     });
     if (response.status === 201) {
+      succeeded = true;
       addSubmitted(words);
       note(
         "\u0418\u043B\u0433\u044D\u044D\u0433\u0434\u043B\u044D\u044D, \u0431\u0430\u044F\u0440\u043B\u0430\u043B\u0430\u0430!",
@@ -631,17 +644,21 @@ async function submit(): Promise<void> {
       window.turnstile!.reset(widgetId);
     } catch (_) {}
   } finally {
-    busy = false;
-    sendBtn.disabled = false;
+    if (!succeeded) {
+      busy = false;
+      sendBtn.disabled = false;
+    }
   }
 }
 
 export function initSuggest(options?: SuggestDeps): void {
   deps = options || {};
-  document.querySelectorAll("a.suggestctl, a.suggest-word").forEach((link) => {
-    link.addEventListener("click", (e) => {
-      e.preventDefault();
-      openForm();
+  document
+    .querySelectorAll("a.suggestctl, a.suggest-word")
+    .forEach((link) => {
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        openForm();
+      });
     });
-  });
 }
