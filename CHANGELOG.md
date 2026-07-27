@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.54.2](https://github.com/bataak/spellchecker/compare/v1.54.1...v1.54.2) (2026-07-27)
+
+
+### Bug Fixes
+
+* keep suggest submit button disabled from send until dialog closes ([c09fa2e](https://github.com/bataak/spellchecker/commit/c09fa2e3d73544b9027cb4b8c1b553e0f4002950))
+
 ## [1.54.1](https://github.com/bataak/spellchecker/compare/v1.54.0...v1.54.1) (2026-07-23)
 
 
