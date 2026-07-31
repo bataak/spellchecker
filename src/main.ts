@@ -619,7 +619,9 @@ function isSeparatorInput(e: InputEvent): boolean {
 }
 const deferredCheck = debounce(() => recheck(), 1500);
 
+let hadSelection = false;
 els.editor.addEventListener("beforeinput", () => {
+  hadSelection = els.editor.selectionStart !== els.editor.selectionEnd;
   if (programmaticEdit) return;
   const caretToken = tokenAtCaret();
   pendingFix = caretToken
@@ -771,7 +773,10 @@ els.editor.addEventListener("input", (e) => {
   syncEmptyState(els.editor.value);
   saveTextSoon();
   if (isSeparatorInput(e)) recheck();
-  else deferredCheck();
+  else {
+    if (hadSelection || els.editor.value.length === 0) render();
+    deferredCheck();
+  }
 });
 const clearBtnEl = document.querySelector("#clearBtn");
 if (clearBtnEl) {
