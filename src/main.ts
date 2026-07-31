@@ -232,16 +232,21 @@ function wordAtCaret(text: string, pos: number): Token | null {
   return null;
 }
 
+function syncEmptyState(text: string): void {
+  if (!els.emptyState) return;
+  const empty = text.length === 0;
+  els.emptyState.style.opacity = empty ? "" : "0";
+  els.emptyState.setAttribute("aria-hidden", empty ? "false" : "true");
+  document.body.classList.toggle("has-text", !empty);
+  syncEmptyTips(empty);
+}
+
 let renderSeq = 0;
 async function render() {
   const text = els.editor.value;
   const seq = ++renderSeq;
 
-  if (els.emptyState) {
-    els.emptyState.style.opacity = text.length === 0 ? "" : "0";
-    document.body.classList.toggle("has-text", text.length !== 0);
-    syncEmptyTips(text.length === 0);
-  }
+  syncEmptyState(text);
 
   if (!ready) {
     badTokens = [];
@@ -763,12 +768,7 @@ function insertEditorText(text: string, start: number, end: number): void {
 els.editor.addEventListener("input", (e) => {
   if (programmaticEdit) return;
   if (!(e instanceof InputEvent)) return;
-  if (els.emptyState) {
-    const empty = els.editor.value.length === 0;
-    els.emptyState.style.opacity = empty ? "" : "0";
-    document.body.classList.toggle("has-text", !empty);
-    syncEmptyTips(empty);
-  }
+  syncEmptyState(els.editor.value);
   saveTextSoon();
   if (isSeparatorInput(e)) recheck();
   else deferredCheck();
