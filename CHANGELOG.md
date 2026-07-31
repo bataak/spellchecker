@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.54.3](https://github.com/bataak/spellchecker/compare/v1.54.2...v1.54.3) (2026-07-31)
+
+
+### Bug Fixes
+
+* correct paste button tooltip wording ([4351de6](https://github.com/bataak/spellchecker/commit/4351de61e4fad26a239370b5811130cc13741dec))
+* repaint error marks immediately after a selection delete ([dbd9505](https://github.com/bataak/spellchecker/commit/dbd950552ac0b42b729d5831dbcc9370c80a7f62))
+* sync empty-state aria-hidden with visibility ([d7e096a](https://github.com/bataak/spellchecker/commit/d7e096af9e444cca8d79e6cc3e0ba1cf477ce7c5))
+
 ## [1.54.2](https://github.com/bataak/spellchecker/compare/v1.54.1...v1.54.2) (2026-07-27)
 
 
