@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.55.0](https://github.com/bataak/spellchecker/compare/v1.54.3...v1.55.0) (2026-07-31)
+
+
+### Features
+
+* add new stems and 40 REP pairs to mn_MN ([27af596](https://github.com/bataak/spellchecker/commit/27af596b3d5fa6457bf6aaef52da14fcff273857))
+
 ## [1.54.3](https://github.com/bataak/spellchecker/compare/v1.54.2...v1.54.3) (2026-07-31)
 
 
