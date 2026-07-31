@@ -415,6 +415,9 @@ a.tbtn {
     text-overflow: ellipsis;
   }
 
+  .toolbar {
+    padding-inline-end: 0;
+  }
   .toolbar #fontDecBtn {
     margin-left: auto;
   }
