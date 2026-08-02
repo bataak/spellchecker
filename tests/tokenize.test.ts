@@ -10,7 +10,10 @@ function words(text: string): string[] {
 
 test("keeps an initial joined to the surname", () => {
   assert.deepEqual(words("Ш.ЛХАГВАЖАВ"), ["Ш.ЛХАГВАЖАВ"]);
-  assert.deepEqual(words("Ц.Дамдинсүрэн бичсэн"), ["Ц.Дамдинсүрэн", "бичсэн"]);
+  assert.deepEqual(words("Ц.Дамдинсүрэн бичсэн"), [
+    "Ц.Дамдинсүрэн",
+    "бичсэн",
+  ]);
 });
 
 test("splits an initial that is followed by a space", () => {
@@ -46,7 +49,10 @@ test("keeps a soft hyphenated word together", () => {
 });
 
 test("keeps a suffix attached after a dash", () => {
-  assert.deepEqual(words("2\u20138-ны өдрүүдэд"), ["2\u20138-ны", "өдрүүдэд"]);
+  assert.deepEqual(words("2\u20138-ны өдрүүдэд"), [
+    "2\u20138-ны",
+    "өдрүүдэд",
+  ]);
 });
 
 test("skips dotted numbers and dates", () => {
@@ -59,4 +65,20 @@ test("still checks words that merely contain digits", () => {
   assert.equal(checkable("A4"), true);
   assert.equal(checkable("2\u20138-ны"), true);
   assert.equal(checkable("Ш.ЛХАГВАЖАВ"), true);
+});
+
+test("drops a trailing apostrophe or closing quote", () => {
+  assert.deepEqual(words("тухай\u2019\u2019"), ["тухай"]);
+  assert.deepEqual(words("\u2019\u2019тухай\u2019\u2019"), ["тухай"]);
+  assert.deepEqual(words("тухай\u2019 гэсэн"), ["тухай", "гэсэн"]);
+  assert.deepEqual(words("\u201cтухай\u201d"), ["тухай"]);
+});
+
+test("keeps an apostrophe that sits between letters", () => {
+  assert.deepEqual(words("don't stop"), ["don't", "stop"]);
+  assert.deepEqual(words("O'Brien"), ["O'Brien"]);
+});
+
+test("drops a straight apostrophe at the end too", () => {
+  assert.deepEqual(words("тухай' гэсэн"), ["тухай", "гэсэн"]);
 });
