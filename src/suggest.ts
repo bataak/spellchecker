@@ -189,9 +189,7 @@ function addFromInput(commit: boolean): void {
     }
     if (submitted.has(word.toLowerCase())) {
       note(
-        "\u00AB" +
-          word +
-          "\u00BB \u2014 энэ үгийг аль хэдийн мэдэгдсэн байна",
+        "\u00AB" + word + "\u00BB \u2014 энэ үгийг аль хэдийн мэдэгдсэн байна",
         "err",
       );
       continue;
@@ -231,9 +229,7 @@ function collectCopyWords(): string[] {
     .filter(Boolean);
   const all = [...words];
   for (const word of pending) {
-    if (
-      !all.some((existing) => existing.toLowerCase() === word.toLowerCase())
-    )
+    if (!all.some((existing) => existing.toLowerCase() === word.toLowerCase()))
       all.push(word);
   }
   return all;
@@ -421,9 +417,7 @@ function build(): void {
     )
     .forEach(attachHoldToCopy);
   const viewBtn = overlay.querySelector(".suggest-view-submitted")!;
-  viewBtn.addEventListener("click", () =>
-    setSubmittedView(!showingSubmitted),
-  );
+  viewBtn.addEventListener("click", () => setSubmittedView(!showingSubmitted));
   let pressTimer: ReturnType<typeof setTimeout> | null = null;
   let longPressed = false;
   const issuesHidden = () =>
@@ -459,14 +453,12 @@ function build(): void {
     },
     true,
   );
-  overlay
-    .querySelector(".suggest-clear-all")!
-    .addEventListener("click", () => {
-      words = [];
-      renderChips();
-      note("");
-      wordEl.focus();
-    });
+  overlay.querySelector(".suggest-clear-all")!.addEventListener("click", () => {
+    words = [];
+    renderChips();
+    note("");
+    wordEl.focus();
+  });
 
   wordEl.addEventListener("input", () => addFromInput(false));
   wordEl.addEventListener("keydown", (e) => {
@@ -653,12 +645,10 @@ async function submit(): Promise<void> {
 
 export function initSuggest(options?: SuggestDeps): void {
   deps = options || {};
-  document
-    .querySelectorAll("a.suggestctl, a.suggest-word")
-    .forEach((link) => {
-      link.addEventListener("click", (e) => {
-        e.preventDefault();
-        openForm();
-      });
+  document.querySelectorAll("a.suggestctl, a.suggest-word").forEach((link) => {
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      openForm();
     });
+  });
 }
