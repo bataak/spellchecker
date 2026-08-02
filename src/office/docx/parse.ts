@@ -59,7 +59,6 @@ const SKIPPED_ELEMENTS = new Set([
   "w:instrText",
   "w:delInstrText",
   "w:delText",
-  "w:fldSimple",
   "w:sdtPr",
 ]);
 
@@ -114,7 +113,7 @@ export function parsePart(
   const stack: string[] = [];
   const skipMarks: number[] = [];
 
-  let fieldDepth = 0;
+  let instrDepth = 0;
   let paragraphDepth = -1;
   let buffer = "";
   let nodes: TextNode[] = [];
@@ -130,7 +129,7 @@ export function parsePart(
 
   const skipping = (): boolean => skipMarks.length > 0;
   const collecting = (): boolean =>
-    paragraphDepth >= 0 && !skipping() && fieldDepth === 0;
+    paragraphDepth >= 0 && !skipping() && instrDepth === 0;
 
   const openParagraph = (tag: TagInfo): void => {
     paragraphDepth = stack.length;
@@ -215,8 +214,10 @@ export function parsePart(
     if (kind === "self") {
       if (tagName === vocab.fieldChar) {
         const type = readAttr(xml, tag, "w:fldCharType");
-        if (type === "begin") fieldDepth += 1;
-        else if (type === "end" && fieldDepth > 0) fieldDepth -= 1;
+        if (type === "begin") instrDepth += 1;
+        else if (instrDepth > 0 && (type === "separate" || type === "end")) {
+          instrDepth -= 1;
+        }
         return;
       }
 
@@ -273,8 +274,10 @@ export function parsePart(
 
       if (tagName === vocab.fieldChar) {
         const type = readAttr(xml, tag, "w:fldCharType");
-        if (type === "begin") fieldDepth += 1;
-        else if (type === "end" && fieldDepth > 0) fieldDepth -= 1;
+        if (type === "begin") instrDepth += 1;
+        else if (instrDepth > 0 && (type === "separate" || type === "end")) {
+          instrDepth -= 1;
+        }
         return;
       }
 
