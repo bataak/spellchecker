@@ -1,5 +1,9 @@
 export interface FileIODeps {
   els: { editor: HTMLTextAreaElement };
+  openDocxFile: (file: File) => Promise<boolean>;
+  closeDocx: () => void;
+  isDocxActive: () => boolean;
+  docxSave: () => Promise<void>;
   flash: (sel: string, msg: string) => void;
   setStatus: (html: string, animate?: boolean) => void;
   setEditorText: (text: string, caret: number | null) => void;
@@ -10,6 +14,10 @@ export interface FileIODeps {
 
 export function initFileIO({
   els,
+  openDocxFile,
+  closeDocx,
+  isDocxActive,
+  docxSave,
   flash,
   setStatus,
   setEditorText,
@@ -72,7 +80,58 @@ export function initFileIO({
     { description: "Текст файл", accept: { "text/plain": [".txt"] } },
   ];
 
+  const OFFICE_MIME: Record<string, string> = {
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    odt: "application/vnd.oasis.opendocument.text",
+    odp: "application/vnd.oasis.opendocument.presentation",
+  };
+
+  const OPEN_TYPES: {
+    description: string;
+    accept: Record<string, string[]>;
+  }[] = [
+    {
+      description: "Текст файл",
+      accept: { "text/plain": [".txt", ".md", ".markdown", ".text"] },
+    },
+    {
+      description: "Баримт",
+      accept: {
+        [OFFICE_MIME.docx]: [".docx"],
+        [OFFICE_MIME.pptx]: [".pptx"],
+        [OFFICE_MIME.odt]: [".odt"],
+        [OFFICE_MIME.odp]: [".odp"],
+      },
+    },
+  ];
+
+  function looksDocx(file: File | null | undefined): boolean {
+    if (!file) return false;
+    if (Object.values(OFFICE_MIME).includes(file.type)) return true;
+    return /\.(docx|pptx|odt|odp)$/i.test(file.name);
+  }
+
+  async function tryDocx(file: File): Promise<boolean> {
+    if (!looksDocx(file)) return false;
+    currentFileHandle = null;
+    currentFileName = null;
+    await openDocxFile(file);
+    flash("#openBtn", "Нээлээ");
+    return true;
+  }
+
   document.querySelector("#saveBtn")!.addEventListener("click", async () => {
+    if (isDocxActive()) {
+      try {
+        await docxSave();
+        flash("#saveBtn", "Хадгаллаа");
+      } catch (_) {
+        flash("#saveBtn", "Боломжгүй");
+      }
+      return;
+    }
+
     const text = els.editor.value || "";
     if (!text.trim()) {
       flash("#saveBtn", "Хоосон байна");
@@ -140,6 +199,7 @@ export function initFileIO({
     name: string | null,
     handle: FileSystemFileHandle | null,
   ): Promise<void> {
+    closeDocx();
     currentFileHandle = handle || null;
     currentFileName = name || (handle && handle.name) || null;
     setEditorText(content, content.length);
@@ -156,11 +216,12 @@ export function initFileIO({
       if (hasFSOpen) {
         try {
           const [handle] = await window.showOpenFilePicker!({
-            types: TXT_TYPES,
+            types: OPEN_TYPES,
             multiple: false,
           });
           if (!handle) return;
           const file = await handle.getFile();
+          if (await tryDocx(file)) return;
           if (!sizeOk(file)) return;
           await loadFileContent(await file.text(), file.name, handle);
         } catch (e) {
@@ -174,6 +235,10 @@ export function initFileIO({
     openFileEl.addEventListener("change", async () => {
       const selectedFile = openFileEl.files && openFileEl.files[0];
       if (!selectedFile) return;
+      if (await tryDocx(selectedFile)) {
+        openFileEl.value = "";
+        return;
+      }
       if (!sizeOk(selectedFile)) {
         openFileEl.value = "";
         return;
@@ -222,7 +287,7 @@ export function initFileIO({
     return (
       !!file &&
       ((file.type && file.type.indexOf("text/") === 0) ||
-        /\.txt$/i.test(file.name) ||
+        /\.(txt|md|markdown|mdown|text)$/i.test(file.name) ||
         !file.type)
     );
   }
@@ -253,6 +318,7 @@ export function initFileIO({
       const droppedFile = handle
         ? await handle.getFile()
         : dt && dt.files && dt.files[0];
+      if (droppedFile && (await tryDocx(droppedFile))) return;
       if (!isTextFile(droppedFile)) return;
       if (!sizeOk(droppedFile)) return;
       await loadFileContent(

@@ -2,6 +2,8 @@ import type { Token, ErrorEntry } from "./textcheck.ts";
 
 export interface ToolbarDeps {
   els: { editor: HTMLTextAreaElement; status: HTMLElement };
+  isDocxActive: () => boolean;
+  closeDocx: () => void;
   flash: (sel: string, msg: string) => void;
   setStatus: (html: string, animate?: boolean) => void;
   setEditorText: (text: string, caret: number | null) => void;
@@ -38,8 +40,8 @@ function initToolbarSnap(): void {
   if (window.matchMedia("(min-width: 1024px)").matches) return;
   const bar = document.querySelector<HTMLElement>(".toolbar");
   const clearBtn = document.querySelector<HTMLElement>("#clearBtn");
-  const saveBtn = document.querySelector<HTMLElement>("#saveBtn");
-  if (!bar || !clearBtn || !saveBtn) return;
+  const endBtn = document.querySelector<HTMLElement>("#openBtn");
+  if (!bar || !clearBtn || !endBtn) return;
   const ZONE = 56;
   let snapTimer: ReturnType<typeof setTimeout> | undefined;
   bar.addEventListener(
@@ -49,7 +51,7 @@ function initToolbarSnap(): void {
       snapTimer = setTimeout(() => {
         const barRect = bar.getBoundingClientRect();
         const dHome = clearBtn.getBoundingClientRect().left - barRect.left;
-        const dSave = saveBtn.getBoundingClientRect().right - barRect.right;
+        const dSave = endBtn.getBoundingClientRect().right - barRect.right;
         const aHome = Math.abs(dHome);
         const aSave = Math.abs(dSave);
         if (Math.min(aHome, aSave) > ZONE) return;
@@ -65,18 +67,23 @@ function initToolbarSnap(): void {
 function initSaveReveal(): void {
   if (window.matchMedia("(min-width: 1024px)").matches) return;
   const bar = document.querySelector<HTMLElement>(".toolbar");
-  const saveBtn = document.querySelector<HTMLElement>("#saveBtn");
-  if (!bar || !saveBtn) return;
-  saveBtn.addEventListener("click", () => {
-    const barRect = bar.getBoundingClientRect();
-    const saveBtnRect = saveBtn.getBoundingClientRect();
-    const over = saveBtnRect.right - barRect.right;
-    if (over > 0) bar.scrollBy({ left: over + 8, behavior: "smooth" });
-  });
+  if (!bar) return;
+
+  for (const id of ["#saveBtn", "#openBtn"]) {
+    const btn = document.querySelector<HTMLElement>(id);
+    if (!btn) continue;
+    btn.addEventListener("click", () => {
+      const barRect = bar.getBoundingClientRect();
+      const over = btn.getBoundingClientRect().right - barRect.right;
+      if (over > 0) bar.scrollBy({ left: over + 8, behavior: "smooth" });
+    });
+  }
 }
 
 function initButtons({
   els,
+  isDocxActive,
+  closeDocx,
   flash,
   setStatus,
   setEditorText,
@@ -97,6 +104,7 @@ function initButtons({
     try {
       localStorage.setItem("mn-spell:last-cleared", els.editor.value);
     } catch (_) {}
+    closeDocx();
     setEditorText("", 0);
     hidePopover();
     render();
@@ -116,6 +124,10 @@ function initButtons({
   }
 
   document.querySelector("#pasteBtn")!.addEventListener("click", async () => {
+    if (isDocxActive()) {
+      flash("#pasteBtn", "Боломжгүй");
+      return;
+    }
     try {
       if (navigator.clipboard && navigator.clipboard.readText) {
         const text = await navigator.clipboard.readText();
