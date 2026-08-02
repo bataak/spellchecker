@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.56.1](https://github.com/bataak/spellchecker/compare/v1.56.0...v1.56.1) (2026-08-02)
+
+
+### Bug Fixes
+
+* treat a period between letters as part of the word ([bcbd832](https://github.com/bataak/spellchecker/commit/bcbd8326d35f3ab24629431947fd97858f1b9ee4))
+
 ## [1.56.0](https://github.com/bataak/spellchecker/compare/v1.55.0...v1.56.0) (2026-08-02)
 
 
