@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.56.0](https://github.com/bataak/spellchecker/compare/v1.55.0...v1.56.0) (2026-08-02)
+
+
+### Features
+
+* support office documents, line numbers and code-aware checking ([0b85c45](https://github.com/bataak/spellchecker/commit/0b85c4548da4593ac71610afc3b1d37d2683b81a))
+
 ## [1.55.0](https://github.com/bataak/spellchecker/compare/v1.54.3...v1.55.0) (2026-07-31)
 
 
