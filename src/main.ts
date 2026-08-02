@@ -136,7 +136,9 @@ async function ensureChecked(text: string): Promise<void> {
   for (const [word, correct] of results) cache.set(word, correct);
 }
 function nextFrame(): Promise<void> {
-  return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  return new Promise<void>((resolve) =>
+    requestAnimationFrame(() => resolve()),
+  );
 }
 async function correctNow(word: string): Promise<boolean> {
   if (cache.has(word)) return cache.get(word)!;
@@ -572,6 +574,34 @@ function placePopover() {
   els.popover.style.left = window.scrollX + left + "px";
 }
 
+async function periodSplits(word: string): Promise<string[]> {
+  const parts: Array<{ left: string; right: string }> = [];
+
+  for (let index = 1; index < word.length - 1; index++) {
+    if (word[index] !== ".") continue;
+    const left = word.slice(0, index);
+    const right = word.slice(index + 1);
+    if (right.length < 2) continue;
+    parts.push({ left, right });
+  }
+
+  if (parts.length === 0) return [];
+
+  const need = new Set<string>();
+  for (const part of parts) {
+    if (checkable(part.left)) need.add(part.left);
+    if (checkable(part.right)) need.add(part.right);
+  }
+
+  const known = await checker.checkWords([...need]);
+  const good = (piece: string): boolean =>
+    !checkable(piece) || known[piece] === true;
+
+  return parts
+    .filter((part) => good(part.left) && good(part.right))
+    .map((part) => part.left + ". " + part.right);
+}
+
 async function showPopoverFor(token: Token): Promise<void> {
   materializeMark(token.start);
   let mark = els.backdrop.querySelector(
@@ -580,7 +610,9 @@ async function showPopoverFor(token: Token): Promise<void> {
   if (!mark) {
     await render();
     materializeMark(token.start);
-    mark = els.backdrop.querySelector('mark[data-start="' + token.start + '"]');
+    mark = els.backdrop.querySelector(
+      'mark[data-start="' + token.start + '"]',
+    );
   }
   if (!mark) {
     hidePopover();
@@ -595,10 +627,12 @@ async function showPopoverFor(token: Token): Promise<void> {
   placePopover();
   scheduleKbAdjust();
 
-  const suggestions = (await checker.suggest(token.word)).slice(
-    0,
-    desktopMQ.matches ? 15 : 8,
-  );
+  const splits = await periodSplits(token.word);
+  const offered = await checker.suggest(token.word);
+  const suggestions = [
+    ...splits,
+    ...offered.filter((item) => !splits.includes(item)),
+  ].slice(0, desktopMQ.matches ? 15 : 8);
   if (activeStart !== token.start || els.popover.hidden) return;
   const sgHtml = suggestions.length
     ? suggestions
@@ -719,7 +753,10 @@ function isSeparatorInput(e: InputEvent): boolean {
   if (it === "insertText")
     return e.data != null && /[\s\p{P}\p{S}]/u.test(e.data);
   if (it === "insertLineBreak" || it === "insertParagraph") return true;
-  if (it.indexOf("insertFromPaste") === 0 || it.indexOf("insertFromDrop") === 0)
+  if (
+    it.indexOf("insertFromPaste") === 0 ||
+    it.indexOf("insertFromDrop") === 0
+  )
     return true;
   return false;
 }
@@ -945,7 +982,8 @@ els.editor.addEventListener("keyup", (e) => {
 let suppressNextClick = false;
 
 function markAtPoint(x: number, y: number): HTMLElement | null {
-  const marks = els.backdrop.querySelectorAll<HTMLElement>("mark[data-start]");
+  const marks =
+    els.backdrop.querySelectorAll<HTMLElement>("mark[data-start]");
   for (const mark of marks) {
     const rects = mark.getClientRects();
     for (const rect of rects) {
@@ -1269,7 +1307,8 @@ initFileIO({
         : "";
       const editorFocused = document.activeElement === els.editor;
       const editorHasSelection =
-        editorFocused && els.editor.selectionStart !== els.editor.selectionEnd;
+        editorFocused &&
+        els.editor.selectionStart !== els.editor.selectionEnd;
       if (!pageSel && !editorHasSelection) {
         e.preventDefault();
         trigger("#copyBtn");
@@ -1280,7 +1319,10 @@ initFileIO({
 
 async function requestDurableStorage() {
   try {
-    if (navigator.storage && typeof navigator.storage.persist === "function") {
+    if (
+      navigator.storage &&
+      typeof navigator.storage.persist === "function"
+    ) {
       const already = navigator.storage.persisted
         ? await navigator.storage.persisted()
         : false;
