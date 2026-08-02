@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.57.1](https://github.com/bataak/spellchecker/compare/v1.57.0...v1.57.1) (2026-08-02)
+
+
+### Bug Fixes
+
+* keep trailing quotes and apostrophes out of words ([52c30eb](https://github.com/bataak/spellchecker/commit/52c30ebc704c24d4f7c04ef69c55d5acf01431e1))
+
 ## [1.57.0](https://github.com/bataak/spellchecker/compare/v1.56.1...v1.57.0) (2026-08-02)
 
 
