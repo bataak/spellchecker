@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.57.2](https://github.com/bataak/spellchecker/compare/v1.57.1...v1.57.2) (2026-08-02)
+
+
+### Bug Fixes
+
+* keep the visible result of word fields ([29ff360](https://github.com/bataak/spellchecker/commit/29ff3603d1489f076a1963e032794fa85f68d424))
+
 ## [1.57.1](https://github.com/bataak/spellchecker/compare/v1.57.0...v1.57.1) (2026-08-02)
 
 
