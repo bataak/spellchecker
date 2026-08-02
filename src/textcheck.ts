@@ -17,7 +17,7 @@ export function checkable(word: string): boolean {
   return (
     trimmedWord.length >= 2 &&
     /[A-Za-z\u00C0-\u024F\u0400-\u04FF]/.test(trimmedWord) &&
-    !/^\p{N}+(-|$)/u.test(trimmedWord)
+    !/^\p{N}[\p{N}.]*(-|$)/u.test(trimmedWord)
   );
 }
 
