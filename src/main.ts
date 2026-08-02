@@ -1,4 +1,5 @@
 import "./style.css";
+import "./gutter.css";
 import {
   MultiSpellChecker,
   checkWordsBatched,
@@ -15,6 +16,7 @@ import type { Token } from "./textcheck.ts";
 import { initIgnoreList, syncIgnoreVisibility } from "./ignorelist.ts";
 import { initAppearance } from "./appearance.ts";
 import { escapeHtml } from "./htmlutil.ts";
+import { inRanges, skipRanges } from "./codeskip.ts";
 import { checkable, isDashSuffix, buildErrorList } from "./textcheck.ts";
 import {
   initDraftStorage,
@@ -27,6 +29,8 @@ import {
   renderBackdrop,
   refreshBackdropMarks,
   materializeMark,
+  setActiveLine,
+  setLineBlocks,
 } from "./backdrop.ts";
 import { rotateEmptyTips, syncEmptyTips } from "./emptytips.ts";
 import {
@@ -35,6 +39,8 @@ import {
   activeIds,
   visibleIds,
 } from "./dictmenu.ts";
+import { splitName } from "./office/mode.ts";
+import type { OfficeMode } from "./office/mode.ts";
 
 document.body.classList.add("ready");
 
@@ -52,7 +58,19 @@ const panelEls = {
   title: document.querySelector<HTMLElement>("#errorPanelTitle"),
 };
 const desktopMQ = window.matchMedia("(min-width: 1024px)");
+const narrowMQ = window.matchMedia("(max-width: 700px)");
+setLineBlocks(!narrowMQ.matches);
 initBackdrop(els.backdrop);
+narrowMQ.addEventListener("change", () => {
+  setLineBlocks(!narrowMQ.matches);
+  initBackdrop(els.backdrop);
+  render();
+});
+els.editor.addEventListener("click", syncActiveLine);
+els.editor.addEventListener("keyup", syncActiveLine);
+document.addEventListener("selectionchange", () => {
+  if (document.activeElement === els.editor) syncActiveLine();
+});
 
 const checker: SpellChecker = new MultiSpellChecker();
 interface PendingFix {
@@ -73,6 +91,9 @@ let pendingFix: PendingFix | null = null;
 let enabledEnglish = loadEnabledEnglish();
 let lastFailed: { id: string; error: string }[] | null = null;
 let lastFallbackReason: string | null = null;
+let docx: OfficeMode | null = null;
+let skipCode = true;
+let skipLinks = true;
 
 const labelOf = (id: string): string =>
   DICTIONARIES.find((dict) => dict.id === id)?.label || id;
@@ -137,9 +158,11 @@ function debounce<A extends unknown[]>(
 
 function computeBad(text: string): { bad: Token[]; total: number } {
   const bad: Token[] = [];
+  const skip = skipRanges(text, { code: skipCode, links: skipLinks });
   let total = 0;
   for (const { word, index } of tokenize(text)) {
     total++;
+    if (skip.length && inRanges(skip, index)) continue;
     if (!checkable(word) || isCorrect(word) || isIgnored(word)) continue;
     bad.push({ word, start: index, end: index + word.length });
   }
@@ -274,29 +297,112 @@ async function render() {
     if (text.trim() === "") {
       if (baseStatus && !offlineIndicatorActive) setStatus(baseStatus);
     } else {
-      if (desktopMQ.matches) {
-        setStatus(
-          "Үгийн тоо: " + nf(total) + ", Нийт тэмдэгт: " + nf(text.length),
-          false,
-        );
-      } else {
-        setStatus(
-          "Үгийн тоо: " +
-            nf(total) +
-            ", <b>Алдаатай үг</b>: <b>" +
-            nf(bad.length) +
-            "</b>, Нийт тэмдэгт: " +
-            nf(text.length),
-          false,
-        );
-      }
+      statWords = total;
+      statBad = bad.length;
+      statChars = text.length;
+      setStatus(statsMessage(), false);
     }
   }
+}
+
+let statWords = 0;
+let statBad = 0;
+let statChars = 0;
+
+function lineInfo(): string {
+  if (!narrowMQ.matches) return "";
+
+  const value = els.editor.value;
+  if (value === "") return "";
+
+  const caret = Math.min(els.editor.selectionStart ?? 0, value.length);
+  let line = 1;
+  let total = 1;
+
+  for (let i = 0; i < value.length; i++) {
+    if (value.charCodeAt(i) !== 10) continue;
+    total++;
+    if (i < caret) line++;
+  }
+
+  return ", Мөр: " + nf(line) + " / " + nf(total);
+}
+
+let saveTitleBase: string | null = null;
+
+function statsBody(): string {
+  if (desktopMQ.matches) {
+    return "Үгийн тоо: " + nf(statWords) + ", Нийт тэмдэгт: " + nf(statChars);
+  }
+
+  return (
+    "Үгийн тоо: " +
+    nf(statWords) +
+    ", <b>Алдаатай үг</b>: <b>" +
+    nf(statBad) +
+    "</b>, Нийт тэмдэгт: " +
+    nf(statChars) +
+    lineInfo()
+  );
+}
+
+function syncSaveHint(): void {
+  const btn = document.querySelector<HTMLElement>("#saveBtn");
+  if (!btn) return;
+
+  if (saveTitleBase === null) saveTitleBase = btn.title;
+
+  const combo = saveTitleBase.includes(" · ")
+    ? saveTitleBase.slice(saveTitleBase.lastIndexOf(" · "))
+    : "";
+
+  btn.title = docx
+    ? docx.outputName() + " болгож хадгална" + combo
+    : saveTitleBase;
+}
+
+function statsMessage(): string {
+  if (!docx) return statsBody();
+
+  const full = docx.fileName();
+  const parts = splitName(full);
+
+  return (
+    '<b class="doc-head" title="' +
+    escapeHtml(full) +
+    '">' +
+    escapeHtml(parts.head) +
+    "</b>" +
+    '<b class="doc-keep">' +
+    escapeHtml(parts.tail) +
+    "</b>" +
+    '<span class="doc-rest">' +
+    ", " +
+    statsBody() +
+    "</span>"
+  );
+}
+
+function refreshLineInfo(): void {
+  if (!ready || !narrowMQ.matches) return;
+  if (!els.status.innerHTML.includes("Үгийн тоо:")) return;
+  setStatus(statsMessage(), false);
 }
 
 function syncScroll() {
   els.backdrop.scrollTop = els.editor.scrollTop;
   els.backdrop.scrollLeft = els.editor.scrollLeft;
+}
+
+function syncActiveLine() {
+  const value = els.editor.value;
+  const caret = Math.min(els.editor.selectionStart ?? 0, value.length);
+  let line = 0;
+  for (let i = 0; i < caret; i++) {
+    if (value.charCodeAt(i) === 10) line++;
+  }
+  setActiveLine(line);
+  refreshLineInfo();
 }
 
 function tokenAtCaret() {
@@ -694,6 +800,10 @@ let programmaticEdit = false;
 function setEditorText(newText: string, caret: number | null): void {
   pendingFix = null;
   const old = els.editor.value;
+  if (docx && old !== newText && !docx.sync(old, newText)) {
+    setStatus("Энэ өөрчлөлтийг docx файлд буулгах боломжгүй");
+    return;
+  }
   els.editor.focus({ preventScroll: true });
   if (old === newText) {
     if (caret != null) {
@@ -943,8 +1053,72 @@ if (verEl) {
       (expanded ? verEl.dataset.short : verEl.dataset.full) ?? "";
   });
 }
+async function openDocxFile(file: File): Promise<boolean> {
+  let mod: typeof import("./office/mode.ts");
+  try {
+    mod = await import("./office/mode.ts");
+  } catch (_) {
+    setStatus("Баримт уншигчийг ачаалж чадсангүй");
+    return true;
+  }
+
+  if (mod.officeFormat(file) === null) return false;
+
+  try {
+    docx = await mod.openOfficeMode(file);
+  } catch (e) {
+    docx = null;
+    setStatus(
+      e instanceof Error && e.message === "too-large"
+        ? "Файл хэт том байна — 12 мегабайтаас хэтэрч болохгүй"
+        : "Файлыг уншиж чадсангүй",
+    );
+    return true;
+  }
+
+  els.editor.readOnly = true;
+  els.editor.value = docx.text();
+  document.body.classList.add("docx-mode");
+  syncSaveHint();
+  hidePopover();
+  await render();
+  return true;
+}
+
+function closeDocx(): void {
+  if (!docx) return;
+  docx = null;
+  els.editor.readOnly = false;
+  document.body.classList.remove("docx-mode");
+  syncSaveHint();
+}
+
+async function docxSave(): Promise<void> {
+  if (!docx) return;
+  const out = await docx.save();
+
+  if (out.skipped > 0) {
+    console.warn("docx: алгасагдсан засвар", out.skippedWords);
+    const names = out.skippedWords
+      .map((item) => '"' + item.word + '" (' + item.reason + ")")
+      .join(", ");
+    setStatus(
+      "Засагдсангүй: " +
+        names +
+        " — үлдсэн " +
+        out.applied +
+        " засвар хадгалагдлаа",
+      false,
+    );
+  }
+}
+
 initFileIO({
   els,
+  openDocxFile,
+  closeDocx,
+  isDocxActive: () => docx !== null,
+  docxSave,
   flash,
   setStatus,
   setEditorText,
@@ -1002,23 +1176,32 @@ initFileIO({
   }
 
   window.addEventListener("keydown", (e) => {
-    const ae = document.activeElement;
-    if (
-      ae &&
-      ae !== els.editor &&
-      (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")
-    ) {
-      return;
-    }
     const hasPrimaryModifier = isMac
       ? e.metaKey && !e.ctrlKey
       : e.ctrlKey && !e.metaKey;
     if (!hasPrimaryModifier || e.altKey) return;
+
     const key = e.key;
     const lowerKey = key.toLowerCase();
+    const isLetter = (letter: string): boolean =>
+      lowerKey === letter || e.code === "Key" + letter.toUpperCase();
+
+    const ae = document.activeElement;
+    const inOtherField =
+      !!ae &&
+      ae !== els.editor &&
+      (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA");
+
+    if (isLetter("s") && !e.shiftKey) {
+      e.preventDefault();
+      if (!inOtherField) trigger("#saveBtn");
+      return;
+    }
+
+    if (inOtherField) return;
 
     if (e.shiftKey) {
-      if (lowerKey === "d") {
+      if (isLetter("d")) {
         e.preventDefault();
         trigger("#themeBtn");
         return;
@@ -1028,7 +1211,7 @@ initFileIO({
         trigger("#clearBtn");
         return;
       }
-      if (key === "+") {
+      if (key === "+" || e.code === "Equal") {
         e.preventDefault();
         trigger("#fontIncBtn");
         return;
@@ -1036,26 +1219,23 @@ initFileIO({
       return;
     }
 
-    if (key === "-" || key === "Subtract") {
+    if (key === "-" || key === "Subtract" || e.code === "Minus") {
       e.preventDefault();
       trigger("#fontDecBtn");
       return;
     }
-    if (key === "+" || key === "=" || key === "Add") {
+    if (key === "+" || key === "=" || key === "Add" || e.code === "Equal") {
       e.preventDefault();
       trigger("#fontIncBtn");
       return;
     }
-    if (key === "0" || key === "Numpad0") {
+    if (key === "0" || key === "Numpad0" || e.code === "Digit0") {
       e.preventDefault();
       trigger("#fontResetBtn");
       return;
     }
 
-    if (lowerKey === "s") {
-      e.preventDefault();
-      trigger("#saveBtn");
-    } else if (lowerKey === "o") {
+    if (isLetter("o")) {
       if (!window.showOpenFilePicker) {
         const openFileEl =
           document.querySelector<HTMLInputElement>("#openFile");
@@ -1066,10 +1246,10 @@ initFileIO({
         e.preventDefault();
         trigger("#openBtn");
       }
-    } else if (lowerKey === "e") {
+    } else if (isLetter("e")) {
       e.preventDefault();
       trigger("#copyErrorsBtn");
-    } else if (lowerKey === "v") {
+    } else if (isLetter("v")) {
       if (document.activeElement !== els.editor) {
         els.editor.focus({ preventScroll: true });
         if (lastCaret) {
@@ -1360,6 +1540,8 @@ setTimeout(() => {
 
 initToolbar({
   els,
+  isDocxActive: () => docx !== null,
+  closeDocx,
   flash,
   setStatus,
   setEditorText,
