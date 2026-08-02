@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.57.0](https://github.com/bataak/spellchecker/compare/v1.56.1...v1.57.0) (2026-08-02)
+
+
+### Features
+
+* suggest inserting a space at a period inside a word ([209c522](https://github.com/bataak/spellchecker/commit/209c52282b11aee22cdb58fadbbab58f7f6e1446))
+
 ## [1.56.1](https://github.com/bataak/spellchecker/compare/v1.56.0...v1.56.1) (2026-08-02)
 
 
