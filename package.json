@@ -1,7 +1,7 @@
 {
   "name": "hunspell-mn",
   "private": true,
-  "version": "1.61.0",
+  "version": "1.61.1",
   "type": "module",
   "description": "Монгол үгийн алдаа шалгагч — hunspell-wasm + nspell, GitHub Pages",
   "scripts": {
