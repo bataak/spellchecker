@@ -9,11 +9,15 @@ import {
 
 const ENDPOINT = "https://api.bichig.dev/survey";
 const DONE_KEY = "mn-spell:survey-done:" + SURVEY_ID;
+const USE_KEY = "mn-spell:use-days";
 const TRIGGER_BUTTONS = "#copyBtn, #copyErrorsBtn, #saveBtn, #clearBtn";
 
 let overlay: HTMLDivElement | null = null;
 let busy = false;
 let sent = false;
+let loaded = false;
+let usedDays = 0;
+let lastUsedDate = "";
 let prevErrorCount = 0;
 let idleTimer: number | null = null;
 let lastActivity = 0;
@@ -21,6 +25,7 @@ let lastActivity = 0;
 const OPEN_DELAY_MS = 30000;
 const IDLE_GAP_MS = 8000;
 const OFFLINE_RETRY_MS = 60000;
+const MIN_USE_DAYS = 7;
 
 function isDone(): boolean {
   try {
@@ -34,6 +39,45 @@ function markDone(): void {
   try {
     localStorage.setItem(DONE_KEY, "1");
   } catch (_) {}
+}
+
+function localDate(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return now.getFullYear() + "-" + month + "-" + day;
+}
+
+function ensureLoaded(): void {
+  if (loaded) return;
+  loaded = true;
+  try {
+    const raw = localStorage.getItem(USE_KEY);
+    if (raw === null) return;
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null) return;
+    const record = parsed as { days?: unknown; last?: unknown };
+    if (typeof record.days === "number" && Number.isFinite(record.days))
+      usedDays = record.days;
+    if (typeof record.last === "string") lastUsedDate = record.last;
+  } catch (_) {}
+}
+
+function markUsedToday(): void {
+  const today = localDate();
+  if (today === lastUsedDate) return;
+  lastUsedDate = today;
+  usedDays += 1;
+  try {
+    localStorage.setItem(
+      USE_KEY,
+      JSON.stringify({ days: usedDays, last: today }),
+    );
+  } catch (_) {}
+}
+
+function isTooNew(): boolean {
+  return usedDays < MIN_USE_DAYS;
 }
 
 function detectUa(): { os: string; browser: string; device: string } {
@@ -186,6 +230,7 @@ function build(): void {
 }
 
 function maybeOpen(): void {
+  if (isTooNew()) return;
   if (isDone()) return;
   if (sent) return;
   if (!navigator.onLine) return;
@@ -264,6 +309,7 @@ function scheduleOpen(delay: number): void {
 
 function tryIdleOpen(): void {
   idleTimer = null;
+  if (isTooNew()) return;
   if (isDone()) return;
   if (sent) return;
   if (overlay && !overlay.hidden) return;
@@ -279,15 +325,20 @@ function tryIdleOpen(): void {
 }
 
 export function surveyOnErrorCount(count: number, hasText: boolean): void {
+  ensureLoaded();
   const prev = prevErrorCount;
   prevErrorCount = hasText ? count : 0;
   if (!hasText) return;
+  markUsedToday();
   recordActivity();
+  if (isTooNew()) return;
   if (!isDone()) scheduleOpen(OPEN_DELAY_MS);
   if (prev > 0 && count === 0) maybeOpen();
 }
 
 export function initSurvey(): void {
+  ensureLoaded();
+
   window.addEventListener("scroll", recordActivity, {
     capture: true,
     passive: true,
