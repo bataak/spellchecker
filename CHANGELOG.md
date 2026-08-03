@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.61.0](https://github.com/bataak/spellchecker/compare/v1.60.0...v1.61.0) (2026-08-03)
+
+
+### Features
+
+* mention docx and pptx file checking in empty state tips ([34242cd](https://github.com/bataak/spellchecker/commit/34242cdd45bd202a6b060cac003224df97fe48c9))
+
 ## [1.60.0](https://github.com/bataak/spellchecker/compare/v1.59.0...v1.60.0) (2026-08-03)
 
 
