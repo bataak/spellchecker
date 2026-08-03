@@ -67,7 +67,7 @@ export default defineConfig({
       injectRegister: "script",
       workbox: {
         globPatterns: [
-          "**/*.{js,css,html,ico,png,svg,webmanifest,wasm,gz,json}",
+          "**/*.{js,css,html,ico,png,svg,webmanifest,wasm,gz,json,woff2}",
         ],
         navigateFallback: base + "index.html",
         cleanupOutdatedCaches: true,

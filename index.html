@@ -12,11 +12,21 @@
   <meta name="apple-mobile-web-app-title" content="Алдаа шалгагч">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="icon" href="pwa-192x192.png">
+  <link rel="preload" href=
+  "%BASE_URL%fonts/pt-serif-mn-400-v1.woff2" as="font" type=
+  "font/woff2" crossorigin="">
   <title>Монгол үгийн алдаа шалгагч</title>
   <meta name="description" content=
   "Монгол болон англи үгийн алдааг интернет хөтөч болон офлайн ап ашиглан шалгана.">
 
   <style>
+      @font-face {
+        font-family: "Bichig Serif";
+        src: url("%BASE_URL%fonts/pt-serif-mn-400-v1.woff2") format("woff2");
+        font-weight: 400;
+        font-style: normal;
+        font-display: block;
+      }
       html {
         background: #f7f4ee;
       }
