@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.58.0](https://github.com/bataak/spellchecker/compare/v1.57.2...v1.58.0) (2026-08-03)
+
+
+### Features
+
+* show survey only on the seventh day of use ([74efff3](https://github.com/bataak/spellchecker/commit/74efff33b9396ed562fe831c0a5f2976df113f2e))
+
 ## [1.57.2](https://github.com/bataak/spellchecker/compare/v1.57.1...v1.57.2) (2026-08-02)
 
 
