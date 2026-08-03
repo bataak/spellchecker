@@ -1,7 +1,7 @@
 .editor-wrap {
   --gutter-digits: 2;
   --gutter-gap: 10px;
-  --gutter-pad: 22px;
+  --gutter-pad: var(--editor-pad-x, 22px);
   --gutter-unit: 11px;
   --gutter-num: 0.95;
   --gutter-lh: var(--editor-lh, 1.9);
