@@ -4,7 +4,7 @@
   --gutter-pad: 22px;
   --gutter-unit: 11px;
   --gutter-num: 0.95;
-  --gutter-lh: 1.9;
+  --gutter-lh: var(--editor-lh, 1.9);
   --gutter-baseline: 0.04em;
   --gutter-w: calc(
     var(--gutter-digits) * var(--gutter-unit) * var(--editor-scale, 1) +
