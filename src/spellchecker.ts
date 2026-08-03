@@ -217,7 +217,7 @@ export class MultiSpellChecker implements SpellChecker {
 }
 
 const WORD_RE =
-  /[\p{L}\p{M}\p{N}](?:[\p{L}\p{M}\p{N}\u2013\u2014\u00AD-]|['\u2019.](?=[\p{L}\p{M}\p{N}]))*/gu;
+  /[\p{L}\p{M}\p{N}](?:[\p{L}\p{M}\p{N}\u00AD]|-(?=[\p{L}\p{M}\p{N}])|['\u2019.](?=[\p{L}\p{M}\p{N}]))*/gu;
 
 export interface RawToken {
   word: string;
