@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.60.0](https://github.com/bataak/spellchecker/compare/v1.59.0...v1.60.0) (2026-08-03)
+
+
+### Features
+
+* add bold weight to bundled editor serif ([6318f75](https://github.com/bataak/spellchecker/commit/6318f752c71620c9247612068c06c1e646640b38))
+
+
+### Bug Fixes
+
+* align backdrop and editor padding on narrow screens ([c9b70c0](https://github.com/bataak/spellchecker/commit/c9b70c03019226692bb9fa308b9c5743ae272439))
+
 ## [1.59.0](https://github.com/bataak/spellchecker/compare/v1.58.0...v1.59.0) (2026-08-03)
 
 
