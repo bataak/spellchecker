@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.61.2](https://github.com/bataak/spellchecker/compare/v1.61.1...v1.61.2) (2026-08-03)
+
+
+### Bug Fixes
+
+* split words joined by long dashes or repeated hyphens ([79c8a54](https://github.com/bataak/spellchecker/commit/79c8a545d5dc592a01021e2b33e8760b3f5c1b24))
+
 ## [1.61.1](https://github.com/bataak/spellchecker/compare/v1.61.0...v1.61.1) (2026-08-03)
 
 
