@@ -10,10 +10,7 @@ function words(text: string): string[] {
 
 test("keeps an initial joined to the surname", () => {
   assert.deepEqual(words("Ш.ЛХАГВАЖАВ"), ["Ш.ЛХАГВАЖАВ"]);
-  assert.deepEqual(words("Ц.Дамдинсүрэн бичсэн"), [
-    "Ц.Дамдинсүрэн",
-    "бичсэн",
-  ]);
+  assert.deepEqual(words("Ц.Дамдинсүрэн бичсэн"), ["Ц.Дамдинсүрэн", "бичсэн"]);
 });
 
 test("splits an initial that is followed by a space", () => {
@@ -48,11 +45,8 @@ test("keeps a soft hyphenated word together", () => {
   );
 });
 
-test("keeps a suffix attached after a dash", () => {
-  assert.deepEqual(words("2\u20138-ны өдрүүдэд"), [
-    "2\u20138-ны",
-    "өдрүүдэд",
-  ]);
+test("splits a number range but keeps the suffix", () => {
+  assert.deepEqual(words("2\u20138-ны өдрүүдэд"), ["2", "8-ны", "өдрүүдэд"]);
 });
 
 test("skips dotted numbers and dates", () => {
@@ -81,4 +75,37 @@ test("keeps an apostrophe that sits between letters", () => {
 
 test("drops a straight apostrophe at the end too", () => {
   assert.deepEqual(words("тухай' гэсэн"), ["тухай", "гэсэн"]);
+});
+
+test("splits words joined by an em dash", () => {
+  assert.deepEqual(words("хооллолт—Амьдралын"), ["хооллолт", "Амьдралын"]);
+});
+
+test("splits words joined by an en dash", () => {
+  assert.deepEqual(words("хооллолт–Амьдралын"), ["хооллолт", "Амьдралын"]);
+});
+
+test("splits words joined by a double hyphen", () => {
+  assert.deepEqual(words("хооллолт--Амьдралын"), ["хооллолт", "Амьдралын"]);
+});
+
+test("splits words joined by a triple hyphen", () => {
+  assert.deepEqual(words("хооллолт---Амьдралын"), ["хооллолт", "Амьдралын"]);
+});
+
+test("keeps a single hyphen between two words", () => {
+  assert.deepEqual(words("сайн-муу"), ["сайн-муу"]);
+});
+
+test("keeps a suffix joined by a single hyphen", () => {
+  assert.deepEqual(words("УБ-ын"), ["УБ-ын"]);
+  assert.deepEqual(words("2-р"), ["2-р"]);
+});
+
+test("drops a trailing double hyphen", () => {
+  assert.deepEqual(words("үг--"), ["үг"]);
+});
+
+test("ignores a leading em dash", () => {
+  assert.deepEqual(words("—эхэлсэн"), ["эхэлсэн"]);
 });
