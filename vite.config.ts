@@ -1,9 +1,12 @@
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
-import { readFileSync, readdirSync, rmSync } from "fs";
+import { readFileSync, readdirSync, rmSync } from "node:fs";
 import { execSync } from "node:child_process";
+import type { Plugin, ResolvedConfig } from "vite";
 
-const pkg = JSON.parse(readFileSync("./package.json", "utf-8"));
+const pkg = JSON.parse(readFileSync("./package.json", "utf-8")) as {
+  version: string;
+};
 
 let hunspellVersion = "unknown";
 try {
@@ -15,7 +18,7 @@ try {
 
 const base = process.env.VITE_BASE || "/hunspell-mn/";
 
-function packDict() {
+function packDict(): Plugin {
   return {
     name: "pack-dict",
     apply: "build",
@@ -25,17 +28,17 @@ function packDict() {
   };
 }
 
-function stripRawDicts() {
+function stripRawDicts(): Plugin {
   let outDir = "dist";
   return {
     name: "strip-raw-dicts",
     apply: "build",
-    configResolved(cfg) {
+    configResolved(cfg: ResolvedConfig) {
       outDir = cfg.build.outDir || "dist";
     },
     closeBundle() {
       const dir = outDir + "/dict";
-      let files = [];
+      let files: string[] = [];
       try {
         files = readdirSync(dir);
       } catch {
@@ -57,6 +60,9 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __HUNSPELL_VERSION__: JSON.stringify(hunspellVersion),
+  },
+  build: {
+    target: "es2020",
   },
   optimizeDeps: { exclude: ["hunspell-wasm"] },
   server: { fs: { allow: [".", "../hunspell-wasm"] } },
