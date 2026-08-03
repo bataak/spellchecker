@@ -1629,3 +1629,19 @@ initDictMenu({
   },
   onClose: () => els.editor.focus(),
 });
+
+document.fonts.ready.then(() => {
+  initBackdrop(els.backdrop);
+  render();
+});
+
+if (import.meta.env.DEV) {
+  const assertMetrics = () => {
+    const delta = els.backdrop.scrollHeight - els.editor.scrollHeight;
+    if (delta !== 0) {
+      console.warn("backdrop/editor өндрийн зөрүү:", delta, "px");
+    }
+  };
+  els.editor.addEventListener("input", assertMetrics);
+  document.fonts.ready.then(assertMetrics);
+}
