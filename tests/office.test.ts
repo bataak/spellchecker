@@ -5,9 +5,9 @@ import {
   mapToSource,
   mergeEdit,
   renderFlat,
-  splitName,
   suggestName,
 } from "../src/office/mode.ts";
+import { splitName } from "../src/office/filename.ts";
 import type { OfficeEdit } from "../src/office/mode.ts";
 
 const SRC = "монгол улс\n\nхоёрдугаар мөр";

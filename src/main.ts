@@ -39,7 +39,7 @@ import {
   activeIds,
   visibleIds,
 } from "./dictmenu.ts";
-import { splitName } from "./office/mode.ts";
+import { splitName } from "./office/filename.ts";
 import type { OfficeMode } from "./office/mode.ts";
 
 document.body.classList.add("ready");
