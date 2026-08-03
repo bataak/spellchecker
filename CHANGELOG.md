@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.61.1](https://github.com/bataak/spellchecker/compare/v1.61.0...v1.61.1) (2026-08-03)
+
+
+### Performance Improvements
+
+* lazy-load office mode by extracting filename helper ([8a4c775](https://github.com/bataak/spellchecker/commit/8a4c7751dde091bb58421eff5113ae2ef3283b36))
+
 ## [1.61.0](https://github.com/bataak/spellchecker/compare/v1.60.0...v1.61.0) (2026-08-03)
 
 
