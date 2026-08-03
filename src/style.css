@@ -1,3 +1,8 @@
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 :root {
   --paper: #f7f4ee;
   --panel: #fffdf8;
@@ -12,6 +17,8 @@
   --focus: #b9b1a1;
   --editor-scale: 1;
   --editor-lh: 1.9;
+  --editor-pad-x: 22px;
+  --editor-pad-y: 20px;
 
   --sans:
     ui-sans-serif, system-ui, "Segoe UI", "Noto Sans", Roboto, Arial, sans-serif;
@@ -245,7 +252,7 @@ a.tbtn {
   margin: 0;
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 20px 22px;
+  padding: var(--editor-pad-y) var(--editor-pad-x);
   font-family: var(--serif);
   font-size: calc(1.14rem * var(--editor-scale, 1));
   font-weight: 400;
@@ -409,11 +416,12 @@ a.tbtn {
 
   :root {
     --editor-lh: 1.85;
+    --editor-pad-x: 16px;
+    --editor-pad-y: 16px;
   }
 
   .backdrop,
   .editor {
-    padding: 16px 16px;
     font-size: calc(1.06rem * var(--editor-scale, 1));
   }
 }
