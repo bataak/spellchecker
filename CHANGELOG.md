@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.59.0](https://github.com/bataak/spellchecker/compare/v1.58.0...v1.59.0) (2026-08-03)
+
+
+### Features
+
+* bundle PT Serif Cyrillic subset for deterministic editor metrics ([9c44552](https://github.com/bataak/spellchecker/commit/9c44552ff3a8aaed7d2f7385fc18b4b4bbdc663b))
+* preload and precache the editor webfont ([e302956](https://github.com/bataak/spellchecker/commit/e302956cd5c109ed6c8333bf18e9f9e3fe58d957))
+
+
+### Bug Fixes
+
+* pin editor font metrics and share line-height between editor and gutter ([cd82d97](https://github.com/bataak/spellchecker/commit/cd82d97562e8e37f0ed70d6fe83a22390f30275a))
+* re-render backdrop after fonts finish loading ([6683348](https://github.com/bataak/spellchecker/commit/6683348fee7ce93e25d9d4a5cb51b48c7aecb8ce))
+
 ## [1.58.0](https://github.com/bataak/spellchecker/compare/v1.57.2...v1.58.0) (2026-08-03)
 
 
