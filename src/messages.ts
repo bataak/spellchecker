@@ -25,11 +25,16 @@ export interface SetActiveRequest {
   ids: string[];
 }
 
+export interface RefreshRequest {
+  type: "refresh";
+}
+
 export type WorkerRequest =
   | InitRequest
   | CheckRequest
   | SuggestRequest
-  | SetActiveRequest;
+  | SetActiveRequest
+  | RefreshRequest;
 
 export interface ReadyResponse {
   type: "ready";
@@ -52,6 +57,12 @@ export interface ErrorResponse {
   error: string;
 }
 
+export interface DictUpdatedResponse {
+  type: "dictUpdated";
+  id: string;
+  version: string | null;
+}
+
 export interface CheckResponse {
   type: "check";
   id: number;
@@ -68,6 +79,7 @@ export type WorkerResponse =
   | ReadyResponse
   | CompleteResponse
   | ErrorResponse
+  | DictUpdatedResponse
   | CheckResponse
   | SuggestResponse;
 

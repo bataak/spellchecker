@@ -1,9 +1,10 @@
-import { gunzipSync } from "fflate";
 import type { WorkerRequest, WorkerResponse, DictFailure } from "./messages.ts";
+import { fetchGzText, loadDictText } from "./dictrefresh.ts";
 
 export interface SpellerInstance {
   spell: (word: string) => boolean;
   suggest: (word: string) => string[];
+  dispose?: () => void;
 }
 
 export interface SpellBackend {
@@ -27,7 +28,7 @@ declare global {
 
 const post = (msg: WorkerResponse): void => self.postMessage(msg);
 
-const decoder = new TextDecoder("utf-8");
+const netFetch: typeof fetch = self.fetch.bind(self);
 
 if (!self.__cacheFirstFetch) {
   self.__cacheFirstFetch = true;
@@ -59,21 +60,6 @@ const PRIMARY = "mn_MN";
 let BASE = "/";
 const asset = (path: string): string =>
   (BASE + path).replace(/([^:])\/{2,}/g, "$1/");
-
-async function fetchGzText(url: string): Promise<string> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(url + " -> " + res.status);
-  const buf = new Uint8Array(await res.arrayBuffer());
-  const gz = buf.length > 1 && buf[0] === 0x1f && buf[1] === 0x8b;
-  if (!gz) return decoder.decode(buf);
-  if (typeof DecompressionStream === "function") {
-    const stream = new Blob([buf])
-      .stream()
-      .pipeThrough(new DecompressionStream("gzip"));
-    return new Response(stream).text();
-  }
-  return decoder.decode(gunzipSync(buf));
-}
 
 async function loadManifest(): Promise<Record<string, ManifestEntry>> {
   if (import.meta.env.DEV) {
@@ -112,6 +98,9 @@ async function loadHunspellWasm(): Promise<SpellBackend> {
       return {
         spell: (word) => hunspellInstance.testSpelling(word),
         suggest: (word) => hunspellInstance.getSpellingSuggestions(word),
+        dispose: () => {
+          if (hunspellInstance.dispose) hunspellInstance.dispose();
+        },
       };
     },
   };
@@ -174,6 +163,69 @@ async function loadOne(id: string): Promise<string> {
     DICTIONARIES.findIndex((dict) => dict.id === item.id);
   instances.sort((a, b) => order(a) - order(b));
   return id;
+}
+
+let refreshing = false;
+
+const cacheOnlyFetch: typeof fetch = async (input) => {
+  const url =
+    typeof input === "string"
+      ? input
+      : input instanceof URL
+        ? input.href
+        : input.url;
+  const hit = await caches.match(url, { ignoreSearch: true });
+  if (!hit) throw new Error("precache-д алга: " + url);
+  return hit;
+};
+
+async function refreshPrimary(): Promise<void> {
+  if (import.meta.env.DEV) return;
+  if (refreshing || !backend || !manifest) return;
+  refreshing = true;
+  try {
+    const url =
+      asset("dict/dict-manifest.json") + "?fresh=" + String(Date.now());
+    const res = await netFetch(url, { cache: "no-store" });
+    if (!res.ok) return;
+    const data = (await res.json()) as { dicts?: ManifestEntry[] };
+    const entry = (data.dicts || []).find((dict) => dict.id === PRIMARY);
+    if (!entry || !entry.version) return;
+    if (entry.version === mnVersion) return;
+    const texts = await loadDictText(
+      asset("dict/" + entry.aff),
+      asset("dict/" + entry.dic),
+      [cacheOnlyFetch, netFetch],
+    );
+    if (!texts) return;
+    const inst = await backend.build(texts[0], texts[1], PRIMARY);
+    if (typeof inst.spell !== "function" || typeof inst.suggest !== "function")
+      return;
+    const index = instances.findIndex((item) => item.id === PRIMARY);
+    const previous = index >= 0 ? instances[index]!.inst : null;
+    if (index >= 0) {
+      instances[index] = { id: PRIMARY, inst };
+    } else {
+      instances.push({ id: PRIMARY, inst });
+      const order = (item: { id: string }): number =>
+        DICTIONARIES.findIndex((dict) => dict.id === item.id);
+      instances.sort((a, b) => order(a) - order(b));
+    }
+    manifest[PRIMARY] = entry;
+    mnVersion = entry.version;
+    post({ type: "dictUpdated", id: PRIMARY, version: entry.version });
+    if (previous && previous.dispose) {
+      try {
+        previous.dispose();
+      } catch (_) {
+        /* dispose дэмжигдээгүй */
+      }
+    }
+  } catch (_) {
+    /* сүлжээ эсвэл толь бэлтгэхэд алдаа — хуучин толь хэвээр */
+  } finally {
+    refreshing = false;
+  }
 }
 
 function isCorrect(word: string): boolean {
@@ -261,6 +313,11 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
     } catch (err) {
       post({ type: "error", error: String(err) });
     }
+    return;
+  }
+
+  if (msg.type === "refresh") {
+    await refreshPrimary();
     return;
   }
 
