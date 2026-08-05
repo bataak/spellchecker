@@ -38,11 +38,13 @@ export interface SpellChecker {
   readonly source: string | null;
   readonly fallbackReason: string | null;
   onFatal: ((reason: string) => void) | null;
+  onDictUpdated: ((id: string, version: string | null) => void) | null;
   init(base: string): Promise<InitResult>;
   whenComplete(): Promise<CompleteResult>;
   checkWords(words: string[]): Promise<Record<string, boolean>>;
   suggest(word: string): Promise<string[]>;
   setActive(ids: string[]): void;
+  refresh(): void;
 }
 
 export async function checkWordsBatched(
@@ -79,6 +81,7 @@ export class MultiSpellChecker implements SpellChecker {
   restReady: Promise<CompleteResult>;
   dead: boolean;
   onFatal: ((reason: string) => void) | null;
+  onDictUpdated: ((id: string, version: string | null) => void) | null;
   private _seq: number;
   private _pending: Map<number, PendingEntry>;
   private _initHandler: ((msg: InitProgressMessage) => void) | null;
@@ -100,6 +103,7 @@ export class MultiSpellChecker implements SpellChecker {
     this.restReady = new Promise((resolve) => (this._restResolve = resolve));
     this.dead = false;
     this.onFatal = null;
+    this.onDictUpdated = null;
     this.worker.onmessage = (e: MessageEvent<WorkerResponse>) =>
       this._onMessage(e.data);
     this.worker.onerror = (e) =>
@@ -135,6 +139,11 @@ export class MultiSpellChecker implements SpellChecker {
   }
 
   _onMessage(msg: WorkerResponse): void {
+    if (msg.type === "dictUpdated") {
+      if (msg.id === "mn_MN") this.mnVersion = msg.version;
+      if (this.onDictUpdated) this.onDictUpdated(msg.id, msg.version);
+      return;
+    }
     if (msg.type === "check" || msg.type === "suggest") {
       const pendingRequest = this._pending.get(msg.id);
       if (pendingRequest) {
@@ -213,6 +222,11 @@ export class MultiSpellChecker implements SpellChecker {
   setActive(ids: string[]): void {
     if (this.dead) return;
     this.worker.postMessage({ type: "setActive", ids });
+  }
+
+  refresh(): void {
+    if (this.dead || !this.ready) return;
+    this.worker.postMessage({ type: "refresh" });
   }
 }
 

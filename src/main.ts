@@ -93,6 +93,8 @@ let ready = false;
 let badTokens: Token[] = [];
 let baseStatus = "";
 let offlineIndicatorActive = false;
+let verBase = "";
+let lastDictRefresh = 0;
 let pendingFix: PendingFix | null = null;
 let enabledEnglish = loadEnabledEnglish();
 let lastFailed: { id: string; error: string }[] | null = null;
@@ -1053,7 +1055,8 @@ if (verEl) {
   const hv =
     typeof __HUNSPELL_VERSION__ !== "undefined" ? __HUNSPELL_VERSION__ : "";
   verEl.dataset.short = av ? "v" + av : "";
-  verEl.dataset.full = (av ? "v" + av : "") + (hv ? " · hunspell " + hv : "");
+  verBase = (av ? "v" + av : "") + (hv ? " · hunspell " + hv : "");
+  verEl.dataset.full = verBase;
   verEl.textContent = verEl.dataset.short;
   verEl.style.cursor = "pointer";
   verEl.addEventListener("click", () => {
@@ -1377,6 +1380,26 @@ function dictStatusMessage(
   return msg;
 }
 
+function setDictVersionLabel(version: string | null): void {
+  if (!verEl) return;
+  const full = verBase + (version ? " · mn_MN " + version : "");
+  const wasExpanded = verEl.textContent === verEl.dataset.full;
+  verEl.dataset.full = full;
+  if (wasExpanded) verEl.textContent = full;
+}
+
+const DICT_REFRESH_GAP_MS = 24 * 60 * 60 * 1000;
+const DICT_REFRESH_POLL_MS = 3 * 60 * 60 * 1000;
+
+function maybeRefreshDict(): void {
+  if (import.meta.env.DEV) return;
+  if (!ready || !navigator.onLine) return;
+  const now = Date.now();
+  if (lastDictRefresh && now - lastDictRefresh < DICT_REFRESH_GAP_MS) return;
+  lastDictRefresh = now;
+  checker.refresh();
+}
+
 async function runOfflineReadyIndicator() {
   const idle = () => els.editor.value.trim() === "";
   const transient = (msg: string, animate = true): void => {
@@ -1427,7 +1450,7 @@ async function boot() {
     );
     ready = true;
     checker.setActive(activeIds(enabledEnglish));
-    if (mnVersion && verEl) verEl.dataset.full += " · mn_MN " + mnVersion;
+    setDictVersionLabel(mnVersion);
     cache.clear();
     await render();
     if (loaded.length) {
@@ -1445,6 +1468,17 @@ async function boot() {
       );
     }
 
+    checker.onDictUpdated = (id) => {
+      if (id !== "mn_MN") return;
+      setDictVersionLabel(checker.mnVersion);
+      cache.clear();
+      void render();
+    };
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") maybeRefreshDict();
+    });
+    window.addEventListener("online", () => maybeRefreshDict());
+    setInterval(maybeRefreshDict, DICT_REFRESH_POLL_MS);
     checker.whenComplete().then((done) => {
       cache.clear();
       lastFailed = [...(failed || []), ...done.failed];
@@ -1456,6 +1490,7 @@ async function boot() {
       if (els.editor.value.trim() === "" && !offlineIndicatorActive)
         setStatus(baseStatus, false);
       render();
+      maybeRefreshDict();
     });
   } catch (e) {
     setStatus(
