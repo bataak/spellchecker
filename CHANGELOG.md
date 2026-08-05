@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.62.0](https://github.com/bataak/spellchecker/compare/v1.61.2...v1.62.0) (2026-08-05)
+
+
+### Features
+
+* refresh the Mongolian dictionary in the background when a newer version is published ([c46bf13](https://github.com/bataak/spellchecker/commit/c46bf1328d9b873a47d0f14cd724afc30eb4a7cc))
+
 ## [1.61.2](https://github.com/bataak/spellchecker/compare/v1.61.1...v1.61.2) (2026-08-03)
 
 
