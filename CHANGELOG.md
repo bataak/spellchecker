@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.62.1](https://github.com/bataak/spellchecker/compare/v1.62.0...v1.62.1) (2026-08-06)
+
+
+### Bug Fixes
+
+* keep placeholder title larger than note on narrow screens ([066256a](https://github.com/bataak/spellchecker/commit/066256a653c4fedab0f433688889683b8ccf7d9d))
+
 ## [1.62.0](https://github.com/bataak/spellchecker/compare/v1.61.2...v1.62.0) (2026-08-05)
 
 
