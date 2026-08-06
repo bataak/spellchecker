@@ -80,6 +80,8 @@ export function initFileIO({
     { description: "Текст файл", accept: { "text/plain": [".txt"] } },
   ];
 
+  const PDF_MIME = "application/pdf";
+
   const OFFICE_MIME: Record<string, string> = {
     docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -104,12 +106,17 @@ export function initFileIO({
         [OFFICE_MIME.odp]: [".odp"],
       },
     },
+    {
+      description: "PDF",
+      accept: { [PDF_MIME]: [".pdf"] },
+    },
   ];
 
   function looksDocx(file: File | null | undefined): boolean {
     if (!file) return false;
+    if (file.type === PDF_MIME) return true;
     if (Object.values(OFFICE_MIME).includes(file.type)) return true;
-    return /\.(docx|pptx|odt|odp)$/i.test(file.name);
+    return /\.(docx|pptx|odt|odp|pdf)$/i.test(file.name);
   }
 
   async function tryDocx(file: File): Promise<boolean> {
