@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.64.0](https://github.com/bataak/spellchecker/compare/v1.63.0...v1.64.0) (2026-08-06)
+
+
+### Features
+
+* read text from PDF files with cp1251 and T2A encoding repair ([f8ca944](https://github.com/bataak/spellchecker/commit/f8ca944c6519e6ec85f107effb4107072eba6d29))
+
 ## [1.63.0](https://github.com/bataak/spellchecker/compare/v1.62.1...v1.63.0) (2026-08-06)
 
 
