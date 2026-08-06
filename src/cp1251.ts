@@ -107,7 +107,10 @@ export function countMojibakeLetters(
   return count;
 }
 
-export function countMojibakeWords(text: string, variant: CyrVariant): number {
+export function countMojibakeWords(
+  text: string,
+  variant: CyrVariant,
+): number {
   const table = TABLES[variant];
   let words = 0;
   let run = 0;
@@ -156,22 +159,96 @@ export interface RepairResult {
   words: number;
 }
 
+const RUN_RE =
+  /[\p{L}\u0090\u00AA\u00AF\u00B0\u00B3\u00BA\u00BC\u00BF\u0152\u0153\u201C]+/gu;
+
+function repairWord(
+  word: string,
+  variant: CyrVariant,
+): { text: string; changed: boolean } {
+  const table = TABLES[variant];
+  let mojibake = 0;
+  let cyrillic = 0;
+  let latin = 0;
+  for (const ch of word) {
+    if (isMojibakeLetter(ch, table)) mojibake++;
+    else if (isCyrillic(ch)) cyrillic++;
+    else {
+      const code = ch.codePointAt(0)!;
+      if ((code >= 0x41 && code <= 0x5a) || (code >= 0x61 && code <= 0x7a))
+        latin++;
+    }
+  }
+  if (!mojibake) return { text: word, changed: false };
+  if (cyrillic === 0 && latin >= mojibake)
+    return { text: word, changed: false };
+  if (cyrillic === 0 && mojibake < 2) return { text: word, changed: false };
+  let out = "";
+  for (const ch of word) {
+    const byte = charToByte(ch);
+    if (byte !== null && byte >= 0x80 && isMojibakeLetter(ch, table)) {
+      out += table[byte - 0x80]!;
+    } else {
+      out += ch;
+    }
+  }
+  return { text: out, changed: true };
+}
+
 export function repairCyrillicDetailed(text: string): RepairResult {
   if (!text) return { text, applied: "none", words: 0 };
-  let cyrillic = 0;
-  for (const ch of text) if (isCyrillic(ch)) cyrillic++;
   const variant = detectVariant(text);
-  const words = countMojibakeWords(text, variant);
-  if (words > 0 && countMojibakeLetters(text, variant) > cyrillic) {
-    return { text: decodeWith(text, variant), applied: variant, words };
+  let changedWords = 0;
+  let sawCyrillic = false;
+  const repaired = text.replace(RUN_RE, (word) => {
+    const result = repairWord(word, variant);
+    if (result.changed) changedWords++;
+    else {
+      for (const ch of word) {
+        if (isCyrillic(ch)) {
+          sawCyrillic = true;
+          break;
+        }
+      }
+    }
+    return result.text;
+  });
+  if (changedWords > 0) {
+    let final = repaired;
+    if (changedWords >= 3) {
+      const table = TABLES[variant];
+      final = final.replace(RUN_RE, (word) => {
+        let mojibake = 0;
+        let other = 0;
+        for (const ch of word) {
+          if (isMojibakeLetter(ch, table)) {
+            const byte = charToByte(ch)!;
+            if (byte >= 0xc0 || VARIANT_SLOTS[variant][byte] !== undefined)
+              mojibake++;
+            else other++;
+          } else other++;
+        }
+        if (!mojibake || other) return word;
+        let out = "";
+        for (const ch of word) {
+          const byte = charToByte(ch)!;
+          out += table[byte - 0x80]!;
+        }
+        return out;
+      });
+    }
+    const slotFixed = fixSlotsInWords(final);
+    return { text: slotFixed, applied: variant, words: changedWords };
   }
-  if (cyrillic === 0) return { text, applied: "none", words: 0 };
-  const fixed = fixSlotsInWords(text);
-  return {
-    text: fixed,
-    applied: fixed === text ? "none" : "slots",
-    words: 0,
-  };
+  if (sawCyrillic) {
+    const fixed = fixSlotsInWords(text);
+    return {
+      text: fixed,
+      applied: fixed === text ? "none" : "slots",
+      words: 0,
+    };
+  }
+  return { text, applied: "none", words: 0 };
 }
 
 export function repairCyrillic(text: string): string {
