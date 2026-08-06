@@ -1,30 +1,55 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="mn" class="booting">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content=
-  "width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#17150f">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content=
-  "black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Алдаа шалгагч">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <link rel="icon" href="pwa-192x192.png">
-  <link rel="preload" href=
-  "%BASE_URL%fonts/pt-serif-mn-400-v1.woff2" as="font" type=
-  "font/woff2" crossorigin="">
-  <title>Монгол үгийн алдаа шалгагч</title>
-  <meta name="description" content=
-  "Монгол болон англи үгийн алдааг интернет хөтөч болон офлайн ап ашиглан шалгана.">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#17150f" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="Алдаа шалгагч" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <link rel="icon" href="pwa-192x192.png" />
+    <link
+      rel="preload"
+      href="%BASE_URL%fonts/pt-serif-mn-400-v1.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin=""
+    />
+    <link
+      rel="preload"
+      href="%BASE_URL%fonts/pt-serif-mn-italic-v1.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin=""
+    />
+    <title>Монгол үгийн алдаа шалгагч</title>
+    <meta
+      name="description"
+      content="Монгол болон англи үгийн алдааг интернет хөтөч болон офлайн ап ашиглан шалгана."
+    />
 
-  <style>
+    <style>
       @font-face {
         font-family: "Bichig Serif";
         src: url("%BASE_URL%fonts/pt-serif-mn-400-v1.woff2") format("woff2");
         font-weight: 400;
         font-style: normal;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "Bichig Serif";
+        src: url("%BASE_URL%fonts/pt-serif-mn-italic-v1.woff2")
+          format("woff2");
+        font-weight: 400;
+        font-style: italic;
         font-display: block;
       }
       html {
@@ -33,123 +58,275 @@
       html[data-theme="dark"] {
         background: #17150f;
       }
-  </style>
-  <script src="%BASE_URL%app-init.js"></script>
-</head>
-<body>
-  <main>
-    <header class="topbar">
-      <h1>Монгол үгийн алдаа шалгагч</h1>
-      <p id="statusText" class="subtitle">Ачаалж байна…</p>
-    </header>
-    <div class="workspace">
-      <div class="editor-wrap has-gutter">
-        <div id="backdrop" class="backdrop" aria-hidden="true">
+    </style>
+    <script src="%BASE_URL%app-init.js"></script>
+  </head>
+  <body>
+    <main>
+      <header class="topbar">
+        <h1>Монгол үгийн алдаа шалгагч</h1>
+        <p id="statusText" class="subtitle">Ачаалж байна…</p>
+      </header>
+      <div class="workspace">
+        <div class="editor-wrap has-gutter">
+          <div id="backdrop" class="backdrop" aria-hidden="true"></div>
+          <textarea
+            id="editor"
+            class="editor"
+            spellcheck="false"
+            autocorrect="off"
+            autocapitalize="sentences"
+            autocomplete="off"
+            placeholder=""
+            aria-label="Шалгах бичвэр"
+          ></textarea>
         </div>
-        <textarea id="editor" class="editor" spellcheck="false"
-        autocorrect="off" autocapitalize="sentences" autocomplete=
-        "off" placeholder="" aria-label="Шалгах бичвэр"></textarea>
+        <div id="emptyState" class="empty-state" aria-hidden="true">
+          <p class="empty-title">Энд бичвэрээ оруулна уу…</p>
+          <p id="emptyNoteInfo" class="empty-note">
+            Улаанаар зурагдсан үг бүрийг алдаанд тооцож болохгүй, энэ нь үгийн
+            алдаа шалгах толинд хараахан бүртгэгдээгүй байж болно.
+          </p>
+          <p id="emptyNoteAction" class="empty-note">
+            Ап ашиглах заавар: https://zuv.bichig.dev/online-app/
+          </p>
+        </div>
+        <aside
+          id="errorPanel"
+          class="error-panel"
+          aria-label="Алдаатай үгсийн жагсаалт"
+        >
+          <div class="error-panel-head">
+            <span id="errorPanelTitle" class="error-panel-title"
+              >Алдаатай үгс</span
+            >
+            <button
+              id="copyErrorsBtn"
+              class="error-copy"
+              type="button"
+              title="Жагсаалтыг хуулах"
+              aria-label="Алдаатай үгсийн жагсаалтыг хуулах"
+            >
+              <svg
+                viewbox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentcolor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect x="9" y="9" width="11" height="11" rx="2"></rect>
+                <path
+                  d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                ></path>
+              </svg>
+            </button>
+          </div>
+          <div id="errorList" class="error-list"></div>
+          <div class="error-panel-foot">
+            <a
+              class="ignore-list-link"
+              href="#"
+              title="Алгасах үгийн жагсаалт"
+              ><svg
+                viewbox="0 0 16 16"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentcolor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                aria-hidden="true"
+              >
+                <path d="M3 8h10"></path>
+              </svg>
+              Үг алгасах</a
+            >
+            <a
+              class="suggest-word"
+              href="https://github.com/bataak/dict-mn"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Толинд бүртгэгдээгүй үгийг үндсэн санд нэмүүлэх"
+              ><svg
+                viewbox="0 0 16 16"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentcolor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                aria-hidden="true"
+              >
+                <path d="M8 3v10M3 8h10"></path>
+              </svg>
+              Үг мэдэгдэх</a
+            >
+          </div>
+        </aside>
       </div>
-      <div id="emptyState" class="empty-state" aria-hidden="true">
-        <p class="empty-title">Энд бичвэрээ оруулна уу…</p>
-        <p id="emptyNoteInfo" class="empty-note">Улаанаар зурагдсан
-        үг бүрийг алдаанд тооцож болохгүй, энэ нь үгийн алдаа
-        шалгах толинд хараахан бүртгэгдээгүй байж болно.</p>
-        <p id="emptyNoteAction" class="empty-note">Ап ашиглах
-        заавар: https://zuv.bichig.dev/online-app/</p>
-      </div>
-      <aside id="errorPanel" class="error-panel" aria-label=
-      "Алдаатай үгсийн жагсаалт">
-        <div class="error-panel-head">
-          <span id="errorPanelTitle" class=
-          "error-panel-title">Алдаатай үгс</span> <button id=
-          "copyErrorsBtn" class="error-copy" type="button" title=
-          "Жагсаалтыг хуулах" aria-label=
-          "Алдаатай үгсийн жагсаалтыг хуулах"><svg viewbox=
-          "0 0 24 24" width="16" height="16" fill="none" stroke=
-          "currentcolor" stroke-width="2" stroke-linecap="round"
-          stroke-linejoin="round">
-          <rect x="9" y="9" width="11" height="11" rx="2"></rect>
-          <path d=
-          "M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1">
-          </path></svg></button>
-        </div>
-        <div id="errorList" class="error-list"></div>
-        <div class="error-panel-foot">
-          <a class="ignore-list-link" href="#" title=
-          "Алгасах үгийн жагсаалт"><svg viewbox="0 0 16 16" width=
-          "13" height="13" fill="none" stroke="currentcolor"
-          stroke-width="1.8" stroke-linecap="round" aria-hidden=
-          "true">
-          <path d="M3 8h10"></path></svg> Үг алгасах</a> <a class=
-          "suggest-word" href="https://github.com/bataak/dict-mn"
-          target="_blank" rel="noopener noreferrer" title=
-          "Толинд бүртгэгдээгүй үгийг үндсэн санд нэмүүлэх"><svg viewbox="0 0 16 16"
-          width="13" height="13" fill="none" stroke="currentcolor"
-          stroke-width="1.8" stroke-linecap="round" aria-hidden=
-          "true">
-          <path d="M8 3v10M3 8h10"></path></svg> Үг мэдэгдэх</a>
-        </div>
-      </aside>
-    </div>
-    <nav class="toolbar">
-      <a class="tbtn tlink" href="https://zuv.bichig.dev/book/"
-      target="_blank" rel="noopener noreferrer" title=
-      "Монгол үсгийн дүрмийн толь — zuv.bichig.dev">Толь</a>
-      <a class="tbtn tlink" href="https://zuv.bichig.dev/core/"
-      target="_blank" rel="noopener noreferrer" title=
-      "Дүрэм — zuv.bichig.dev">Дүрэм</a> <a class="tbtn tlink"
-      href="https://github.com/bataak/spellchecker" target="_blank"
-      rel="noopener noreferrer">GitHub</a> <span id="appVersion"
-      class="tver"></span> <a class="tbtn tlink ignorectl" href="#"
-      title="Алгасах үгийн жагсаалт">Үг алгасах</a> <a class=
-      "tbtn tlink suggestctl" href=
-      "https://github.com/bataak/dict-mn" target="_blank" rel=
-      "noopener noreferrer" title="Толинд шинэ үг санал болгох">Үг
-      мэдэгдэх</a> <button id="fontDecBtn" class=
-      "tbtn tbtn-icon fontctl" type="button" title=
-      "Үсэг жижгэрүүлэх" aria-label="Үсэг жижгэрүүлэх">A−</button>
-      <button id="fontIncBtn" class="tbtn tbtn-icon fontctl" type=
-      "button" title="Үсэг томруулах" aria-label=
-      "Үсэг томруулах">A+</button> <button id="fontResetBtn" class=
-      "tbtn tbtn-icon fontctl" type="button" title=
-      "Үсгийн анхны хэмжээг сэргээх" aria-label=
-      "Үсгийн анхны хэмжээг сэргээх"><svg viewbox="0 0 24 24"
-      width="14" height="14" fill="none" stroke="currentcolor"
-      stroke-width="2" stroke-linecap="round" stroke-linejoin=
-      "round" aria-hidden="true" style=
-      "transform: translateY(1px)">
-      <polyline points="1 4 1 10 7 10"></polyline>
-      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10">
-      </path></svg></button> <button id="themeBtn" class=
-      "tbtn tbtn-icon" type="button" title=
-      "Гэрэлтэй / бараан">🌙</button> <a id="helpBtn" class=
-      "tbtn tbtn-icon tlink" href=
-      "https://zuv.bichig.dev/online-app/" target="_blank" rel=
-      "noopener noreferrer" title="Тусламж — ашиглах заавар"
-      aria-label="Тусламж — ашиглах заавар"><svg viewbox=
-      "0 0 24 24" width="16" height="16" fill="none" stroke=
-      "currentcolor" stroke-width="2" stroke-linecap="round"
-      stroke-linejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="10"></circle>
-      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-      <line x1="12" y1="17" x2="12.01" y2="17"></line></svg></a>
-      <button id="clearBtn" class="tbtn" type="button" title=
-      "Бичвэрийг устгах">Цэвэрлэх</button> <button id="pasteBtn"
-      class="tbtn" type="button" title=
-      "Хуулсан бичвэрийг гаргах">Буулгах</button> <button id=
-      "copyBtn" class="tbtn" type="button" title=
-      "Бичвэрийг хуулах">Хуулах</button> <button id="saveBtn"
-      class="tbtn" type="button" title=
-      "Бичвэрийг файл болгож хадгалах">Хадгалах</button>
-      <button id="openBtn" class="tbtn openctl" type="button"
-      title="txt, md, docx, pptx, odt, odp файл нээх">Нээх</button>
-      <input id="openFile" type="file" accept=
-      ".txt,.md,.markdown,.text,text/plain,text/markdown,.docx,.pptx,.odt,.odp,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.oasis.opendocument.text,application/vnd.oasis.opendocument.presentation"
-      hidden="">
-    </nav>
-  </main>
-  <div id="popover" class="popover" hidden=""></div>
-  <script type="module" src="/src/main.ts"></script>
-</body>
+      <nav class="toolbar">
+        <a
+          class="tbtn tlink"
+          href="https://zuv.bichig.dev/book/"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Монгол үсгийн дүрмийн толь — zuv.bichig.dev"
+          >Толь</a
+        >
+        <a
+          class="tbtn tlink"
+          href="https://zuv.bichig.dev/core/"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Дүрэм — zuv.bichig.dev"
+          >Дүрэм</a
+        >
+        <a
+          class="tbtn tlink"
+          href="https://github.com/bataak/spellchecker"
+          target="_blank"
+          rel="noopener noreferrer"
+          >GitHub</a
+        >
+        <span id="appVersion" class="tver"></span>
+        <a
+          class="tbtn tlink ignorectl"
+          href="#"
+          title="Алгасах үгийн жагсаалт"
+          >Үг алгасах</a
+        >
+        <a
+          class="tbtn tlink suggestctl"
+          href="https://github.com/bataak/dict-mn"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Толинд шинэ үг санал болгох"
+          >Үг мэдэгдэх</a
+        >
+        <button
+          id="fontDecBtn"
+          class="tbtn tbtn-icon fontctl"
+          type="button"
+          title="Үсэг жижгэрүүлэх"
+          aria-label="Үсэг жижгэрүүлэх"
+        >
+          A−
+        </button>
+        <button
+          id="fontIncBtn"
+          class="tbtn tbtn-icon fontctl"
+          type="button"
+          title="Үсэг томруулах"
+          aria-label="Үсэг томруулах"
+        >
+          A+
+        </button>
+        <button
+          id="fontResetBtn"
+          class="tbtn tbtn-icon fontctl"
+          type="button"
+          title="Үсгийн анхны хэмжээг сэргээх"
+          aria-label="Үсгийн анхны хэмжээг сэргээх"
+        >
+          <svg
+            viewbox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentcolor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+            style="transform: translateY(1px)"
+          >
+            <polyline points="1 4 1 10 7 10"></polyline>
+            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+          </svg>
+        </button>
+        <button
+          id="themeBtn"
+          class="tbtn tbtn-icon"
+          type="button"
+          title="Гэрэлтэй / бараан"
+        >
+          🌙
+        </button>
+        <a
+          id="helpBtn"
+          class="tbtn tbtn-icon tlink"
+          href="https://zuv.bichig.dev/online-app/"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Тусламж — ашиглах заавар"
+          aria-label="Тусламж — ашиглах заавар"
+          ><svg
+            viewbox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentcolor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line></svg
+        ></a>
+        <button
+          id="clearBtn"
+          class="tbtn"
+          type="button"
+          title="Бичвэрийг устгах"
+        >
+          Цэвэрлэх
+        </button>
+        <button
+          id="pasteBtn"
+          class="tbtn"
+          type="button"
+          title="Хуулсан бичвэрийг гаргах"
+        >
+          Буулгах
+        </button>
+        <button
+          id="copyBtn"
+          class="tbtn"
+          type="button"
+          title="Бичвэрийг хуулах"
+        >
+          Хуулах
+        </button>
+        <button
+          id="saveBtn"
+          class="tbtn"
+          type="button"
+          title="Бичвэрийг файл болгож хадгалах"
+        >
+          Хадгалах
+        </button>
+        <button
+          id="openBtn"
+          class="tbtn openctl"
+          type="button"
+          title="txt, md, docx, pptx, odt, odp файл нээх"
+        >
+          Нээх
+        </button>
+        <input
+          id="openFile"
+          type="file"
+          accept=".txt,.md,.markdown,.text,text/plain,text/markdown,.docx,.pptx,.odt,.odp,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.oasis.opendocument.text,application/vnd.oasis.opendocument.presentation"
+          hidden=""
+        />
+      </nav>
+    </main>
+    <div id="popover" class="popover" hidden=""></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
 </html>
