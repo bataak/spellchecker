@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.64.2](https://github.com/bataak/spellchecker/compare/v1.64.1...v1.64.2) (2026-08-06)
+
+
+### Bug Fixes
+
+* repair mixed Unicode and mojibake text word by word ([ccf15de](https://github.com/bataak/spellchecker/commit/ccf15de2dd1971b296202292976013ce9f6f24d8))
+
 ## [1.64.1](https://github.com/bataak/spellchecker/compare/v1.64.0...v1.64.1) (2026-08-06)
 
 
