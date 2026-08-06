@@ -1062,7 +1062,42 @@ if (verEl) {
       (expanded ? verEl.dataset.short : verEl.dataset.full) ?? "";
   });
 }
+function isPdfFile(file: File): boolean {
+  return file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
+}
+
+async function openPdfFile(file: File): Promise<boolean> {
+  setStatus("PDF файлыг уншиж байна…");
+  let text: string;
+  try {
+    const mod = await import("./pdftext.ts");
+    text = await mod.extractPdfText(file, (page, total) => {
+      if (total > 1) setStatus("PDF уншиж байна — " + page + " / " + total);
+    });
+  } catch (e) {
+    const reason = e instanceof Error ? e.message : "";
+    const tooLarge = reason.startsWith("too-large");
+    setStatus(
+      tooLarge
+        ? "Файл хэт том байна — " +
+            (reason.split(":")[1] || "20") +
+            " мегабайтаас хэтэрч болохгүй"
+        : reason === "no-text"
+          ? "Энэ PDF-д текст алга — зөвхөн зураг байж болзошгүй"
+          : "PDF файлыг уншиж чадсангүй",
+    );
+    return true;
+  }
+  closeDocx();
+  setEditorText(text, text.length);
+  hidePopover();
+  await render();
+  saveText();
+  return true;
+}
+
 async function openDocxFile(file: File): Promise<boolean> {
+  if (isPdfFile(file)) return openPdfFile(file);
   let mod: typeof import("./office/mode.ts");
   try {
     mod = await import("./office/mode.ts");
@@ -1077,9 +1112,12 @@ async function openDocxFile(file: File): Promise<boolean> {
     docx = await mod.openOfficeMode(file);
   } catch (e) {
     docx = null;
+    const reason = e instanceof Error ? e.message : "";
     setStatus(
-      e instanceof Error && e.message === "too-large"
-        ? "Файл хэт том байна — 12 мегабайтаас хэтэрч болохгүй"
+      reason.startsWith("too-large")
+        ? "Файл хэт том байна — " +
+            (reason.split(":")[1] || "12") +
+            " мегабайтаас хэтэрч болохгүй"
         : "Файлыг уншиж чадсангүй",
     );
     return true;

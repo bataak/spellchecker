@@ -46,7 +46,7 @@ interface Engine {
   };
 }
 
-export const SIZE_LIMIT = 12 * 1024 * 1024;
+export const SIZE_LIMIT = 30 * 1024 * 1024;
 
 export const MIME: Record<OfficeFormat, string> = {
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -201,7 +201,7 @@ export async function deliver(
 export async function openOfficeMode(file: File): Promise<OfficeMode> {
   const format = officeFormat(file);
   if (format === null) throw new Error("unsupported");
-  if (file.size > SIZE_LIMIT) throw new Error("too-large");
+  if (file.size > SIZE_LIMIT) throw new Error("too-large:30");
 
   const engine = makeEngine(format, await readBytes(file));
   const source = engine.text;

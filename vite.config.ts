@@ -63,6 +63,14 @@ export default defineConfig({
   },
   build: {
     target: "es2020",
+    rollupOptions: {
+      output: {
+        chunkFileNames: (chunk: { name?: string }) =>
+          chunk.name && /^pdf/.test(chunk.name)
+            ? "assets/pdfjs-[hash].js"
+            : "assets/[name]-[hash].js",
+      },
+    },
   },
   optimizeDeps: { exclude: ["hunspell-wasm"] },
   server: { fs: { allow: [".", "../hunspell-wasm"] } },
@@ -75,6 +83,7 @@ export default defineConfig({
         globPatterns: [
           "**/*.{js,css,html,ico,png,svg,webmanifest,wasm,gz,json,woff2}",
         ],
+        globIgnores: ["**/pdfjs-*.js", "**/pdf.worker*.mjs"],
         navigateFallback: base + "index.html",
         cleanupOutdatedCaches: true,
         clientsClaim: true,
