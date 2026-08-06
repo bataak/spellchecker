@@ -536,6 +536,39 @@ html.booting .empty-state {
   user-select: none;
 }
 
+.treload {
+  flex: 0 0 auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 5px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.treload[hidden] {
+  display: none;
+}
+
+.treload:hover {
+  background: var(--paper);
+}
+
+.treload:active {
+  transform: translateY(1px);
+}
+
+.treload:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .workspace {
   flex: 1 1 auto;
   min-height: 0;

@@ -144,9 +144,7 @@ async function ensureChecked(text: string): Promise<void> {
   for (const [word, correct] of results) cache.set(word, correct);
 }
 function nextFrame(): Promise<void> {
-  return new Promise<void>((resolve) =>
-    requestAnimationFrame(() => resolve()),
-  );
+  return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 }
 async function correctNow(word: string): Promise<boolean> {
   if (cache.has(word)) return cache.get(word)!;
@@ -583,9 +581,7 @@ async function showPopoverFor(token: Token): Promise<void> {
   if (!mark) {
     await render();
     materializeMark(token.start);
-    mark = els.backdrop.querySelector(
-      'mark[data-start="' + token.start + '"]',
-    );
+    mark = els.backdrop.querySelector('mark[data-start="' + token.start + '"]');
   }
   if (!mark) {
     hidePopover();
@@ -726,10 +722,7 @@ function isSeparatorInput(e: InputEvent): boolean {
   if (it === "insertText")
     return e.data != null && /[\s\p{P}\p{S}]/u.test(e.data);
   if (it === "insertLineBreak" || it === "insertParagraph") return true;
-  if (
-    it.indexOf("insertFromPaste") === 0 ||
-    it.indexOf("insertFromDrop") === 0
-  )
+  if (it.indexOf("insertFromPaste") === 0 || it.indexOf("insertFromDrop") === 0)
     return true;
   return false;
 }
@@ -955,8 +948,7 @@ els.editor.addEventListener("keyup", (e) => {
 let suppressNextClick = false;
 
 function markAtPoint(x: number, y: number): HTMLElement | null {
-  const marks =
-    els.backdrop.querySelectorAll<HTMLElement>("mark[data-start]");
+  const marks = els.backdrop.querySelectorAll<HTMLElement>("mark[data-start]");
   for (const mark of marks) {
     const rects = mark.getClientRects();
     for (const rect of rects) {
@@ -1047,6 +1039,11 @@ function copyText(str: string): Promise<void> {
       reject(e);
     }
   });
+}
+
+const reloadEl = document.querySelector<HTMLElement>("#appReloadBtn");
+if (reloadEl) {
+  reloadEl.addEventListener("click", () => location.reload());
 }
 
 const verEl = document.querySelector<HTMLElement>("#appVersion");
@@ -1281,8 +1278,7 @@ initFileIO({
         : "";
       const editorFocused = document.activeElement === els.editor;
       const editorHasSelection =
-        editorFocused &&
-        els.editor.selectionStart !== els.editor.selectionEnd;
+        editorFocused && els.editor.selectionStart !== els.editor.selectionEnd;
       if (!pageSel && !editorHasSelection) {
         e.preventDefault();
         trigger("#copyBtn");
@@ -1293,10 +1289,7 @@ initFileIO({
 
 async function requestDurableStorage() {
   try {
-    if (
-      navigator.storage &&
-      typeof navigator.storage.persist === "function"
-    ) {
+    if (navigator.storage && typeof navigator.storage.persist === "function") {
       const already = navigator.storage.persisted
         ? await navigator.storage.persisted()
         : false;
@@ -1391,6 +1384,22 @@ function setDictVersionLabel(version: string | null): void {
 const DICT_REFRESH_GAP_MS = 24 * 60 * 60 * 1000;
 const DICT_REFRESH_POLL_MS = 3 * 60 * 60 * 1000;
 
+async function checkAppFreshness(): Promise<void> {
+  if (!reloadEl || !reloadEl.hidden) return;
+  try {
+    const swUrl = new URL(import.meta.env.BASE_URL + "sw.js", location.href);
+    swUrl.searchParams.set("fresh", String(Date.now()));
+    const res = await fetch(swUrl.href, { cache: "no-store" });
+    if (!res.ok) return;
+    const text = await res.text();
+    const selfName = import.meta.url.split("/").pop();
+    if (!selfName || text.includes(selfName)) return;
+    reloadEl.hidden = false;
+  } catch (_) {
+    /* сүлжээ хүрэхгүй — дараагийн шалгалтад */
+  }
+}
+
 function maybeRefreshDict(): void {
   if (import.meta.env.DEV) return;
   if (!ready || !navigator.onLine) return;
@@ -1398,6 +1407,7 @@ function maybeRefreshDict(): void {
   if (lastDictRefresh && now - lastDictRefresh < DICT_REFRESH_GAP_MS) return;
   lastDictRefresh = now;
   checker.refresh();
+  void checkAppFreshness();
 }
 
 async function runOfflineReadyIndicator() {
