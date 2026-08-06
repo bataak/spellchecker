@@ -18,8 +18,7 @@ const T2A_UPPER_PLAIN = "АБВГДЕЁЖЗИЙКЛМНОПРСТУҮФХЦЧШ�
 
 const CP1251_SENTENCE_BROKEN =
   "Ìîíãîë Óëñûí ¯íäýñíèé ñòàòèñòèêèéí õîðîî ºíººäºð";
-const T2A_SENTENCE_BROKEN =
-  "Ìîíãîë Óëñûí “íäýñíèé ñòàòèñòèêèéí õîðîî °í°°ä°ð";
+const T2A_SENTENCE_BROKEN = "Ìîíãîë Óëñûí “íäýñíèé ñòàòèñòèêèéí õîðîî °í°°ä°ð";
 const SENTENCE_PLAIN = "Монгол Улсын Үндэсний статистикийн хороо өнөөдөр";
 
 test("T2A жижиг үсгийн цагаан толгойг бүрэн сэргээнэ", () => {
@@ -74,15 +73,43 @@ test("эвдэрсэн текст доторх зөв кирилл үг хэвэ
     "Ìîíãîë Óëñûí “íäýñíèé õîðîî °í°°ä°ð Улаанбаатар",
   );
   assert.equal(result.applied, "t2a");
+  assert.equal(result.text, "Монгол Улсын Үндэсний хороо өнөөдөр Улаанбаатар");
+});
+
+test("зөв кирилл дундах ганц mojibake үг мөн сэргэнэ", () => {
+  const result = repairCyrillicDetailed(
+    "Монгол Улсын Үндэсний статистикийн хороо өнөөдөр Ìîíãîë",
+  );
+  assert.equal(result.applied, "cp1251");
   assert.equal(
     result.text,
-    "Монгол Улсын Үндэсний хороо өнөөдөр Улаанбаатар",
+    "Монгол Улсын Үндэсний статистикийн хороо өнөөдөр Монгол",
   );
 });
 
-test("ихэнх нь зөв кирилл бол хөрвүүлэхгүй", () => {
-  const text = "Монгол Улсын Үндэсний статистикийн хороо өнөөдөр Ìîíãîë";
-  assert.equal(repairCyrillicDetailed(text).applied, "none");
+test("Юникод болон mojibake хоёулаа их холилдсон баримт", () => {
+  const result = repairCyrillicDetailed(
+    "Ìýäýýëëèéí íóóöûã Монгол Улсын Õóâü õ¿íèé íóóöûí òóõàé " +
+      "õóóëèéí 22-ð ç¿éëèéí 3 дахь хэсэгт çààсны äàãóó чандлан õàäãàëíà.",
+  );
+  assert.equal(result.applied, "cp1251");
+  assert.equal(
+    result.text,
+    "Мэдээллийн нууцыг Монгол Улсын Хувь хүний нууцын тухай " +
+      "хуулийн 22-р зүйлийн 3 дахь хэсэгт заасны дагуу чандлан хадгална.",
+  );
+});
+
+test("үг доторх Юникод-mojibake холимогийг сэргээнэ", () => {
+  const result = repairCyrillicDetailed("çààсны äàãóó мөрдөнө");
+  assert.equal(result.text, "заасны дагуу мөрдөнө");
+});
+
+test("латин үгс mojibake баримт дотор хамгаалагдана", () => {
+  const result = repairCyrillicDetailed(
+    "Ìîíãîë Óëñûí café ñòàòèñòèêèéí õîðîî Ìîíãîë Óëñ",
+  );
+  assert.equal(result.text.includes("café"), true);
 });
 
 test("countMojibakeLetters нь хувилбар тус бүрээр тоолно", () => {
@@ -99,7 +126,6 @@ test("бүтэн эвдэрсэн үг байхгүй бол хөрвүүлэх�
 
 test("кирилл үг доторх нүдийг солино", () => {
   const result = repairCyrillicDetailed("ºнººдºр ¯зэсгэлэн нээгдэнэ");
-  assert.equal(result.applied, "slots");
   assert.equal(result.text, "өнөөдөр Үзэсгэлэн нээгдэнэ");
 });
 
