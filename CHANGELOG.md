@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.63.0](https://github.com/bataak/spellchecker/compare/v1.62.1...v1.63.0) (2026-08-06)
+
+
+### Features
+
+* show a reload control when the running bundle is out of date ([d6069d8](https://github.com/bataak/spellchecker/commit/d6069d865fd98c1876f51b750f75a87a6cba0597))
+
 ## [1.62.1](https://github.com/bataak/spellchecker/compare/v1.62.0...v1.62.1) (2026-08-06)
 
 
