@@ -194,9 +194,9 @@ export async function extractPdfText(
 ): Promise<string> {
   if (file.size > MAX_PDF_MB * 1024 * 1024)
     throw new Error("too-large:" + MAX_PDF_MB);
-  const pdfjs = await import("pdfjs-dist");
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-    "pdfjs-dist/build/pdf.worker.min.mjs",
+    "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
     import.meta.url,
   ).toString();
   const data = new Uint8Array(await file.arrayBuffer());
