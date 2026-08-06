@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.64.1](https://github.com/bataak/spellchecker/compare/v1.64.0...v1.64.1) (2026-08-06)
+
+
+### Bug Fixes
+
+* use the pdfjs legacy build so PDF text extraction works in Safari ([4db7885](https://github.com/bataak/spellchecker/commit/4db7885674c2c3bc729a5620e4aae880023fdb0c))
+
 ## [1.64.0](https://github.com/bataak/spellchecker/compare/v1.63.0...v1.64.0) (2026-08-06)
 
 
