@@ -205,8 +205,7 @@ async function readTextItems(page: TextPage): Promise<TextItem[]> {
       for (;;) {
         const chunk = await reader.read();
         if (chunk.done) break;
-        if (chunk.value && chunk.value.items)
-          items.push(...chunk.value.items);
+        if (chunk.value && chunk.value.items) items.push(...chunk.value.items);
       }
     } finally {
       reader.releaseLock();
@@ -243,9 +242,6 @@ export async function extractPdfText(
       if (blocks.length) pages.push(assemble(blocks));
       page.cleanup();
     }
-  } catch (error) {
-    console.error("PDF алдаа:", error);
-    throw error;
   } finally {
     await loadingTask.destroy();
   }
