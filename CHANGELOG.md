@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.65.2](https://github.com/bataak/spellchecker/compare/v1.65.1...v1.65.2) (2026-08-07)
+
+
+### Bug Fixes
+
+* keep the caret and scroll position after conversion ([7deb648](https://github.com/bataak/spellchecker/commit/7deb6480fbf6c59b4717833a2009b506d4ba85e3))
+* keep typographic quotes intact next to genuine Cyrillic ([84439c7](https://github.com/bataak/spellchecker/commit/84439c7e21ca540894396fe9a29da013b796f152))
+
 ## [1.65.1](https://github.com/bataak/spellchecker/compare/v1.65.0...v1.65.1) (2026-08-07)
 
 
