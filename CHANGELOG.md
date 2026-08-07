@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.65.7](https://github.com/bataak/spellchecker/compare/v1.65.6...v1.65.7) (2026-08-07)
+
+
+### Bug Fixes
+
+* split digit-letter compounds on both sides of the hyphen ([5e05611](https://github.com/bataak/spellchecker/commit/5e056115bb699385c74f70a72f860ca25c15c22b))
+
 ## [1.65.6](https://github.com/bataak/spellchecker/compare/v1.65.5...v1.65.6) (2026-08-07)
 
 
