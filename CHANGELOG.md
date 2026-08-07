@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.65.0](https://github.com/bataak/spellchecker/compare/v1.64.4...v1.65.0) (2026-08-07)
+
+
+### Features
+
+* add an editor button that repairs mojibake Cyrillic text ([c4b6e54](https://github.com/bataak/spellchecker/commit/c4b6e541fd8a3993fc9715497562c468b9b2c75d))
+
 ## [1.64.4](https://github.com/bataak/spellchecker/compare/v1.64.3...v1.64.4) (2026-08-07)
 
 
