@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.65.4](https://github.com/bataak/spellchecker/compare/v1.65.3...v1.65.4) (2026-08-07)
+
+
+### Bug Fixes
+
+* cache pdf.js chunks at runtime for offline use ([f359d7c](https://github.com/bataak/spellchecker/commit/f359d7cc42b25e34ea617eee351438852514ba9a))
+
 ## [1.65.3](https://github.com/bataak/spellchecker/compare/v1.65.2...v1.65.3) (2026-08-07)
 
 
