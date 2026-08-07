@@ -81,7 +81,7 @@
   transform: translateY(var(--gutter-baseline));
   font-variant-numeric: lining-nums tabular-nums;
   color: var(--muted);
-  opacity: 0.7;
+  opacity: 0.45;
   user-select: none;
   pointer-events: none;
 }
