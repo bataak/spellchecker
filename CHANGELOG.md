@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.64.4](https://github.com/bataak/spellchecker/compare/v1.64.3...v1.64.4) (2026-08-07)
+
+
+### Bug Fixes
+
+* convert Cyrillic letters encoded as non-letter symbols ([ceb33ff](https://github.com/bataak/spellchecker/commit/ceb33ff3b40983e0c9e9ffa6b08b6f98faba40ae))
+
 ## [1.64.3](https://github.com/bataak/spellchecker/compare/v1.64.2...v1.64.3) (2026-08-07)
 
 
