@@ -89,6 +89,41 @@ export function detectVariant(text: string): CyrVariant {
   return t2aHits > cp1251Hits ? "t2a" : "cp1251";
 }
 
+const CYRILLIC_BYTE = new Uint8Array(256);
+const HIGH_CHAR_BYTE = new Map<number, number>();
+
+for (let byte = 0x80; byte <= 0xff; byte++) {
+  const index = byte - 0x80;
+  if (isCyrillic(TABLES.cp1251[index]!) || isCyrillic(TABLES.t2a[index]!))
+    CYRILLIC_BYTE[byte] = 1;
+  const latin1 = String.fromCharCode(byte);
+  const cp1252 = byte < 0xa0 ? CP1252_HIGH[index]! : latin1;
+  if (cp1252 !== "\uFFFF" && cp1252.charCodeAt(0) > 0xff)
+    HIGH_CHAR_BYTE.set(cp1252.charCodeAt(0), byte);
+}
+
+const MIN_MOJIBAKE_RUN = 3;
+
+export function hasMojibake(text: string): boolean {
+  let run = 0;
+  for (let index = 0; index < text.length; index++) {
+    const code = text.charCodeAt(index);
+    let byte = -1;
+    if (code >= 0x80 && code <= 0xff) byte = code;
+    else if (code > 0xff) {
+      const mapped = HIGH_CHAR_BYTE.get(code);
+      if (mapped !== undefined) byte = mapped;
+    }
+    if (byte >= 0 && CYRILLIC_BYTE[byte]) {
+      run++;
+      if (run >= MIN_MOJIBAKE_RUN) return true;
+    } else {
+      run = 0;
+    }
+  }
+  return false;
+}
+
 const MIN_WORD_LETTERS = 3;
 
 function isMojibakeLetter(ch: string, table: string[]): boolean {
@@ -215,9 +250,12 @@ function repairWord(
   return { text: out, changed: true };
 }
 
-export function repairCyrillicDetailed(text: string): RepairResult {
+export function repairCyrillicDetailed(
+  text: string,
+  forcedVariant?: CyrVariant,
+): RepairResult {
   if (!text) return { text, applied: "none", words: 0 };
-  const variant = detectVariant(text);
+  const variant = forcedVariant ?? detectVariant(text);
   let changedWords = 0;
   let sawCyrillic = false;
   const repaired = text.replace(RUN_RE, (word) => {
@@ -243,8 +281,7 @@ export function repairCyrillicDetailed(text: string): RepairResult {
         for (const ch of word) {
           if (isMojibakeLetter(ch, table)) {
             const byte = charToByte(ch)!;
-            if (byte >= 0xc0 || VARIANT_SLOTS[variant][byte] !== undefined)
-              mojibake++;
+            if (byte >= 0xc0) mojibake++;
             else other++;
           } else other++;
         }

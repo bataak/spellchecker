@@ -6,6 +6,11 @@ import {
   tokenize,
   DICTIONARIES,
 } from "./spellchecker.ts";
+import {
+  detectVariant,
+  hasMojibake,
+  repairCyrillicDetailed,
+} from "./cp1251.ts";
 import type { SpellChecker } from "./spellchecker.ts";
 import { initFileIO } from "./fileio.ts";
 import { initToolbar } from "./toolbar.ts";
@@ -766,7 +771,10 @@ function saveText() {
 async function loadText() {
   try {
     const draftText = await loadDraft();
-    if (draftText != null) els.editor.value = draftText;
+    if (draftText != null) {
+      els.editor.value = draftText;
+      syncDecodeBtn();
+    }
     const savedCaretRaw = localStorage.getItem(CARET_KEY);
     if (savedCaretRaw != null) {
       const parts = savedCaretRaw.split(",");
@@ -855,6 +863,7 @@ function setEditorText(newText: string, caret: number | null): void {
       els.editor.setSelectionRange(caret, caret);
     } catch (_) {}
   }
+  syncDecodeBtn();
 }
 function insertEditorText(text: string, start: number, end: number): void {
   pendingFix = null;
@@ -890,7 +899,81 @@ els.editor.addEventListener("input", (e) => {
     if (hadSelection || els.editor.value.length === 0) render();
     deferredCheck();
   }
+  syncDecodeBtnSoon();
 });
+const decodeBtn = document.querySelector<HTMLButtonElement>("#decodeBtn");
+const DECODE_CHECK_DELAY = 300;
+let decodeCheckTimer: number | null = null;
+
+const DECODE_LABEL = "Үсэг таниулах";
+
+function syncDecodeBtn(): void {
+  if (!decodeBtn) return;
+  if (decodeBtn.classList.contains("is-done")) return;
+  decodeBtn.hidden = !hasMojibake(els.editor.value);
+}
+
+const DECODE_DONE_HOLD = 1400;
+const DECODE_DONE_FADE = 900;
+let decodeDoneTimer: number | null = null;
+
+function showDecodeMessage(message: string): void {
+  const button = decodeBtn;
+  if (!button) return;
+  if (decodeDoneTimer) clearTimeout(decodeDoneTimer);
+  button.hidden = false;
+  button.disabled = true;
+  button.textContent = message;
+  button.classList.remove("is-fading");
+  button.classList.add("is-done");
+  decodeDoneTimer = window.setTimeout(() => {
+    button.classList.add("is-fading");
+    decodeDoneTimer = window.setTimeout(() => {
+      decodeDoneTimer = null;
+      button.classList.remove("is-done", "is-fading");
+      button.disabled = false;
+      button.textContent = DECODE_LABEL;
+      syncDecodeBtn();
+    }, DECODE_DONE_FADE);
+  }, DECODE_DONE_HOLD);
+}
+
+function syncDecodeBtnSoon(): void {
+  if (!decodeBtn) return;
+  if (decodeCheckTimer) clearTimeout(decodeCheckTimer);
+  decodeCheckTimer = window.setTimeout(() => {
+    decodeCheckTimer = null;
+    syncDecodeBtn();
+  }, DECODE_CHECK_DELAY);
+}
+
+if (decodeBtn) {
+  decodeBtn.addEventListener("mousedown", (event) => event.preventDefault());
+  decodeBtn.addEventListener("click", () => {
+    const full = els.editor.value;
+    if (!full) return;
+    const start = els.editor.selectionStart;
+    const end = els.editor.selectionEnd;
+    const selected = end > start;
+    const variant = detectVariant(full);
+    const target = selected ? full.slice(start, end) : full;
+    const result = repairCyrillicDetailed(target, variant);
+    if (result.text === target) {
+      showDecodeMessage("Хөрвүүлэх үг олдсонгүй");
+      return;
+    }
+    const next = selected
+      ? full.slice(0, start) + result.text + full.slice(end)
+      : result.text;
+    const caret = selected ? start + result.text.length : next.length;
+    setEditorText(next, caret);
+    cache.clear();
+    void render();
+    saveText();
+    showDecodeMessage("Хөрвүүлэв — " + result.words + " үг");
+  });
+}
+
 const clearBtnEl = document.querySelector("#clearBtn");
 if (clearBtnEl) {
   clearBtnEl.addEventListener("click", () => rotateEmptyTips());

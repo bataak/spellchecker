@@ -243,6 +243,53 @@ a.tbtn {
   flex: 1 1 auto;
   min-height: 0;
 }
+.decode-btn {
+  position: absolute;
+  top: 10px;
+  right: 22px;
+  z-index: 3;
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--editor-bg) 72%, transparent);
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  cursor: pointer;
+  opacity: 0.62;
+  backdrop-filter: blur(12px) saturate(125%);
+  -webkit-backdrop-filter: blur(12px) saturate(125%);
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease;
+}
+
+.decode-btn[hidden] {
+  display: none;
+}
+
+.decode-btn:hover,
+.decode-btn:focus-visible {
+  opacity: 1;
+  background: var(--editor-bg);
+}
+
+.decode-btn:active {
+  transform: translateY(1px);
+}
+
+.decode-btn.is-done {
+  cursor: default;
+  opacity: 0.92;
+  background: var(--editor-bg);
+}
+
+.decode-btn.is-fading {
+  opacity: 0;
+  transition: opacity 0.9s ease;
+}
+
 .backdrop,
 .editor {
   position: absolute;

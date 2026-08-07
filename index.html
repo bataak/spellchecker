@@ -35,7 +35,7 @@
       name="description"
       content="Монгол болон англи үгийн алдааг интернет хөтөч болон офлайн ап ашиглан шалгана."
     />
-
+ 
     <style>
       @font-face {
         font-family: "Bichig Serif";
@@ -80,6 +80,15 @@
             placeholder=""
             aria-label="Шалгах бичвэр"
           ></textarea>
+          <button
+            id="decodeBtn"
+            class="decode-btn"
+            type="button"
+            title="Кирилл үсэг буруу кодчилолтой байна — зөв болгож хөрвүүлэх"
+            hidden=""
+          >
+            Үсэг таниулах
+          </button>
         </div>
         <div id="emptyState" class="empty-state" aria-hidden="true">
           <p class="empty-title">Энд бичвэрээ оруулна уу…</p>
@@ -175,7 +184,7 @@
           rel="noopener noreferrer"
           title="Монгол үсгийн дүрмийн толь — zuv.bichig.dev"
           >Толь</a
-        >
+        > 
         <a
           class="tbtn tlink"
           href="https://zuv.bichig.dev/core/"
