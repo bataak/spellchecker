@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.65.5](https://github.com/bataak/spellchecker/compare/v1.65.4...v1.65.5) (2026-08-07)
+
+
+### Bug Fixes
+
+* precache pdf.js so PDFs open offline ([a0aa9d9](https://github.com/bataak/spellchecker/commit/a0aa9d9b9bd9b17951cd04bd270215432f06031d))
+
 ## [1.65.4](https://github.com/bataak/spellchecker/compare/v1.65.3...v1.65.4) (2026-08-07)
 
 
