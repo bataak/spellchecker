@@ -357,7 +357,7 @@ function statsMessage(): string {
     escapeHtml(parts.tail) +
     "</b>" +
     '<span class="doc-rest">' +
-    ", " +
+    "&nbsp;" +
     statsBody() +
     "</span>"
   );
