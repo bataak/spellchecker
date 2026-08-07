@@ -81,9 +81,21 @@ export default defineConfig({
       injectRegister: "script",
       workbox: {
         globPatterns: [
-          "**/*.{js,css,html,ico,png,svg,webmanifest,wasm,gz,json,woff2}",
+          "**/*.{js,mjs,css,html,ico,png,svg,webmanifest,wasm,gz,json,woff2}",
         ],
         globIgnores: ["**/pdfjs-*.js", "**/pdf.worker*.mjs"],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }: { url: URL }) =>
+              /\/assets\/(pdfjs-|pdf\.worker)/.test(url.pathname),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "pdfjs",
+              expiration: { maxEntries: 8 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
         navigateFallback: base + "index.html",
         cleanupOutdatedCaches: true,
         clientsClaim: true,
