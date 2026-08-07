@@ -188,15 +188,44 @@ function tidy(text: string): string {
     .trim();
 }
 
+interface TextStreamChunk {
+  items?: TextItem[];
+}
+
+interface TextPage {
+  getTextContent: () => Promise<{ items: unknown[] }>;
+  streamTextContent?: () => ReadableStream<TextStreamChunk>;
+}
+
+async function readTextItems(page: TextPage): Promise<TextItem[]> {
+  if (typeof page.streamTextContent === "function") {
+    const reader = page.streamTextContent().getReader();
+    const items: TextItem[] = [];
+    try {
+      for (;;) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        if (chunk.value && chunk.value.items)
+          items.push(...chunk.value.items);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    return items;
+  }
+  const content = await page.getTextContent();
+  return content.items as TextItem[];
+}
+
 export async function extractPdfText(
   file: File,
   onProgress?: (page: number, total: number) => void,
 ): Promise<string> {
   if (file.size > MAX_PDF_MB * 1024 * 1024)
     throw new Error("too-large:" + MAX_PDF_MB);
-  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const pdfjs = await import("pdfjs-dist");
   pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-    "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
+    "pdfjs-dist/build/pdf.worker.min.mjs",
     import.meta.url,
   ).toString();
   const data = new Uint8Array(await file.arrayBuffer());
@@ -206,14 +235,16 @@ export async function extractPdfText(
     const doc = await loadingTask.promise;
     for (let index = 1; index <= doc.numPages; index++) {
       if (onProgress) onProgress(index, doc.numPages);
-      const page = await doc.getPage(index);
-      const content = await page.getTextContent();
-      const blocks = mergeParagraphs(pageLines(content.items as TextItem[]));
+      const page = (await doc.getPage(index)) as unknown as TextPage & {
+        cleanup: () => void;
+      };
+      const items = await readTextItems(page);
+      const blocks = mergeParagraphs(pageLines(items));
       if (blocks.length) pages.push(assemble(blocks));
       page.cleanup();
     }
   } catch (error) {
-    console.error("PDF-АЛДАА:", error);
+    console.error("PDF алдаа:", error);
     throw error;
   } finally {
     await loadingTask.destroy();
