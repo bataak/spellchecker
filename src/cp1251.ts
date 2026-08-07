@@ -239,15 +239,23 @@ function repairWord(
     return { text: word, changed: false };
   if (cyrillic === 0 && mojibake < 2) return { text: word, changed: false };
   let out = "";
+  let touched = false;
   for (const ch of word) {
     const byte = charToByte(ch);
-    if (byte !== null && byte >= 0x80 && isMojibakeLetter(ch, table)) {
+    const typographic = cyrillic > 0 && ch.codePointAt(0)! > 0xff;
+    if (
+      byte !== null &&
+      byte >= 0x80 &&
+      !typographic &&
+      isMojibakeLetter(ch, table)
+    ) {
       out += table[byte - 0x80]!;
+      touched = true;
     } else {
       out += ch;
     }
   }
-  return { text: out, changed: true };
+  return { text: out, changed: touched };
 }
 
 export function repairCyrillicDetailed(

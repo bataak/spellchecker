@@ -165,6 +165,30 @@ test("үсэг бус тэмдэгтээр илэрхийлэгдсэн ч, Ч, 
   assert.equal(result.text, "Тэргүүлэгч ёслол");
 });
 
+test("эвдэрсэн баримт доторх ганцаарчилсан тэмдэгт хөндөгдөхгүй", () => {
+  const result = repairCyrillicDetailed(
+    "\u00CC\u00EE\u00ED\u00E3\u00EE\u00EB \u00D3\u00EB\u00F1\u00FB\u00ED " +
+      "\u00F5\u00EE\u00F0\u00EE\u00EE 22-\u00F0 \u00E7\u00FF\u00E9\u00EB " +
+      "19.\u00BA 25\u00B0 C",
+  );
+  assert.equal(result.applied, "cp1251");
+  assert.equal(
+    result.text,
+    "Монгол Улсын хороо 22-р зяйл 19.\u00BA 25\u00B0 C",
+  );
+});
+
+test("жинхэнэ кирилл үгийн хажуудах ишлэлийн тэмдэг хөндөгдөхгүй", () => {
+  const result = repairCyrillicDetailed(
+    "\u00CC\u00EE\u00ED\u00E3\u00EE\u00EB \u00D3\u00EB\u00F1\u00FB\u00ED " +
+      "\u201CНацагдорж судлал\u201D \u00ED\u00EE\u00EC\u00FB\u00ED \u00F1\u00E0\u00ED",
+  );
+  assert.equal(
+    result.text,
+    "Монгол Улсын \u201CНацагдорж судлал\u201D номын сан",
+  );
+});
+
 test("математикийн тэмдэгтүүд хөндөгдөхгүй", () => {
   const text = "5 \u00D7 3 = 15, 20 \u00F7 4 = 5";
   assert.equal(repairCyrillicDetailed(text).text, text);
