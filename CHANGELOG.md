@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.65.6](https://github.com/bataak/spellchecker/compare/v1.65.5...v1.65.6) (2026-08-07)
+
+
+### Bug Fixes
+
+* jump straight to the latest version on reload click ([370ee61](https://github.com/bataak/spellchecker/commit/370ee61901a27417b921baa6595caa698e9c9c94))
+
 ## [1.65.5](https://github.com/bataak/spellchecker/compare/v1.65.4...v1.65.5) (2026-08-07)
 
 
