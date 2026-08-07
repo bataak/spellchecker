@@ -159,8 +159,28 @@ export interface RepairResult {
   words: number;
 }
 
-const RUN_RE =
-  /[\p{L}\u0090\u00AA\u00AF\u00B0\u00B3\u00BA\u00BC\u00BF\u0152\u0153\u201C]+/gu;
+function buildRunPattern(): string {
+  const chars = new Set<string>();
+  for (let byte = 0x80; byte <= 0xff; byte++) {
+    const latin1 = String.fromCharCode(byte);
+    const cp1252 = byte < 0xa0 ? CP1252_HIGH[byte - 0x80]! : latin1;
+    for (const ch of [latin1, cp1252]) {
+      if (ch === "\uFFFF") continue;
+      if (charToByte(ch) !== byte) continue;
+      const cp1251Char = TABLES.cp1251[byte - 0x80]!;
+      const t2aChar = TABLES.t2a[byte - 0x80]!;
+      if (isCyrillic(cp1251Char) || isCyrillic(t2aChar)) chars.add(ch);
+    }
+  }
+  let pattern = "";
+  for (const ch of chars) {
+    pattern +=
+      "\\u" + ch.codePointAt(0)!.toString(16).toUpperCase().padStart(4, "0");
+  }
+  return pattern;
+}
+
+const RUN_RE = new RegExp("[\\p{L}" + buildRunPattern() + "]+", "gu");
 
 function repairWord(
   word: string,

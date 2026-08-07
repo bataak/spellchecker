@@ -158,6 +158,18 @@ test("өргөлттэй латин хэлүүдийг хөндөхгүй", () =
   }
 });
 
+test("үсэг бус тэмдэгтээр илэрхийлэгдсэн ч, Ч, ё сэргэнэ", () => {
+  const result = repairCyrillicDetailed(
+    "\u00D2\u00FD\u00F0\u00E3\u00BF\u00BF\u00EB\u00FD\u00E3\u00F7 \u00B8\u00F1\u00EB\u00EE\u00EB",
+  );
+  assert.equal(result.text, "Тэргүүлэгч ёслол");
+});
+
+test("математикийн тэмдэгтүүд хөндөгдөхгүй", () => {
+  const text = "5 \u00D7 3 = 15, 20 \u00F7 4 = 5";
+  assert.equal(repairCyrillicDetailed(text).text, text);
+});
+
 test("хоосон болон ASCII текстийг хөндөхгүй", () => {
   assert.equal(repairCyrillic(""), "");
   assert.equal(repairCyrillic("plain ascii text"), "plain ascii text");
