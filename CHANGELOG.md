@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.65.3](https://github.com/bataak/spellchecker/compare/v1.65.2...v1.65.3) (2026-08-07)
+
+
+### Bug Fixes
+
+* check for mojibake when opening an office document ([e42d1b2](https://github.com/bataak/spellchecker/commit/e42d1b2804ed72e541e9d13b76476d5c98d994a8))
+* split conversion edits per word on equal-length lines ([ba52a68](https://github.com/bataak/spellchecker/commit/ba52a683a2929cf3382462a79460926fef02dfc3))
+
 ## [1.65.2](https://github.com/bataak/spellchecker/compare/v1.65.1...v1.65.2) (2026-08-07)
 
 
