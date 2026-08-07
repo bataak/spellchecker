@@ -212,6 +212,9 @@ export async function extractPdfText(
       if (blocks.length) pages.push(assemble(blocks));
       page.cleanup();
     }
+  } catch (error) {
+    console.error("PDF-АЛДАА:", error);
+    throw error;
   } finally {
     await loadingTask.destroy();
   }
