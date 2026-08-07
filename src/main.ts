@@ -1032,10 +1032,17 @@ if (decodeBtn) {
     const next = selected
       ? full.slice(0, start) + result.text + full.slice(end)
       : result.text;
-    const caret = selected ? start + result.text.length : next.length;
+    const caret = selected ? start + result.text.length : start;
+    const scrollTop = els.editor.scrollTop;
+    const scrollLeft = els.editor.scrollLeft;
+    const restoreView = (): void => {
+      els.editor.scrollTop = scrollTop;
+      els.editor.scrollLeft = scrollLeft;
+    };
     setEditorText(next, caret);
+    restoreView();
     cache.clear();
-    void render();
+    void Promise.resolve(render()).then(restoreView);
     saveText();
     showDecodeMessage("Хөрвүүлэв — " + result.words + " үг");
   });
