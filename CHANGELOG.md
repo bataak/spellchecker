@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.64.3](https://github.com/bataak/spellchecker/compare/v1.64.2...v1.64.3) (2026-08-07)
+
+
+### Bug Fixes
+
+* read PDF text via the stream reader for Safari compatibility ([8af7d2e](https://github.com/bataak/spellchecker/commit/8af7d2ea80f840988fd80cc272675b3ba488f262))
+
 ## [1.64.2](https://github.com/bataak/spellchecker/compare/v1.64.1...v1.64.2) (2026-08-06)
 
 
