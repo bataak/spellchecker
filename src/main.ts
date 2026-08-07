@@ -1283,6 +1283,7 @@ async function openDocxFile(file: File): Promise<boolean> {
 
   els.editor.readOnly = true;
   els.editor.value = docx.text();
+  syncDecodeBtn();
   document.body.classList.add("docx-mode");
   syncSaveHint();
   hidePopover();
