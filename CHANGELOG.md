@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.65.1](https://github.com/bataak/spellchecker/compare/v1.65.0...v1.65.1) (2026-08-07)
+
+
+### Performance Improvements
+
+* narrow when the mojibake check runs while editing ([dcf418f](https://github.com/bataak/spellchecker/commit/dcf418fa06f47984e96430aa5e0fc9dec41e91a2))
+
 ## [1.65.0](https://github.com/bataak/spellchecker/compare/v1.64.4...v1.65.0) (2026-08-07)
 
 
