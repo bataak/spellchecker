@@ -579,6 +579,13 @@ function placePopover() {
   els.popover.style.left = window.scrollX + left + "px";
 }
 
+const INITIAL_RE = /^\p{Lu}[\p{L}\p{M}]?$/u;
+const AFTER_INITIAL_RE = /^\p{Lu}/u;
+
+function looksLikeInitial(left: string, right: string): boolean {
+  return INITIAL_RE.test(left) && AFTER_INITIAL_RE.test(right);
+}
+
 async function periodSplits(word: string): Promise<string[]> {
   const parts: Array<{ left: string; right: string }> = [];
 
@@ -594,16 +601,23 @@ async function periodSplits(word: string): Promise<string[]> {
 
   const need = new Set<string>();
   for (const part of parts) {
+    if (looksLikeInitial(part.left, part.right)) continue;
     if (checkable(part.left)) need.add(part.left);
     if (checkable(part.right)) need.add(part.right);
   }
 
-  const known = await checker.checkWords([...need]);
+  const known = need.size
+    ? await checker.checkWords([...need])
+    : ({} as Record<string, boolean>);
   const good = (piece: string): boolean =>
     !checkable(piece) || known[piece] === true;
 
   return parts
-    .filter((part) => good(part.left) && good(part.right))
+    .filter(
+      (part) =>
+        looksLikeInitial(part.left, part.right) ||
+        (good(part.left) && good(part.right)),
+    )
     .map((part) => part.left + ". " + part.right);
 }
 
@@ -726,12 +740,62 @@ async function recheck() {
   saveText();
 }
 
+function periodSplitDot(word: string, replacement: string): number {
+  if (!replacement.includes(". ")) return -1;
+  if (replacement.split(". ").join(".") !== word) return -1;
+  return replacement.indexOf(". ");
+}
+
+function splitEveryOccurrence(
+  text: string,
+  word: string,
+  dot: number,
+  tokenStart: number,
+): { text: string; caret: number } | null {
+  const target = word.toLowerCase();
+  const hits: number[] = [];
+  for (const item of tokenize(text)) {
+    if (item.word.toLowerCase() === target) hits.push(item.index);
+  }
+  if (hits.length === 0) return null;
+
+  let next = text;
+  for (let index = hits.length - 1; index >= 0; index--) {
+    const at = hits[index]! + dot + 1;
+    next = next.slice(0, at) + " " + next.slice(at);
+  }
+
+  const before = hits.filter((start) => start < tokenStart).length;
+  const caret = tokenStart + before + word.length + 1;
+  return { text: next, caret };
+}
+
 async function applySuggestion(
   token: Token,
   replacement: string,
 ): Promise<void> {
   pendingFix = null;
   const editorText = els.editor.value;
+
+  const dot = periodSplitDot(token.word, replacement);
+  if (dot >= 0) {
+    const split = splitEveryOccurrence(
+      editorText,
+      token.word,
+      dot,
+      token.start,
+    );
+    if (split) {
+      const top = els.editor.scrollTop;
+      setEditorText(split.text, split.caret);
+      els.editor.scrollTop = top;
+      hidePopover();
+      await render();
+      saveText();
+      return;
+    }
+  }
+
   const onlyAt = isDashSuffix(editorText, token) ? token.start : null;
   const { text: nt, caret } = replaceAllWord(
     editorText,
@@ -751,6 +815,22 @@ async function applySuggestion(
   hidePopover();
   await render();
   saveText();
+}
+
+const BULK_DELETE = new Set([
+  "deleteWordBackward",
+  "deleteWordForward",
+  "deleteSoftLineBackward",
+  "deleteSoftLineForward",
+  "deleteHardLineBackward",
+  "deleteHardLineForward",
+  "deleteByCut",
+  "deleteByDrag",
+  "deleteContent",
+]);
+
+function isBulkDelete(e: InputEvent): boolean {
+  return BULK_DELETE.has(e.inputType || "");
 }
 
 function isSeparatorInput(e: InputEvent): boolean {
@@ -930,7 +1010,8 @@ els.editor.addEventListener("input", (e) => {
   saveTextSoon();
   if (isSeparatorInput(e)) recheck();
   else {
-    if (hadSelection || els.editor.value.length === 0) render();
+    if (hadSelection || els.editor.value.length === 0 || isBulkDelete(e))
+      render();
     deferredCheck();
   }
   updateDecodeBtnAfterInput(e);
