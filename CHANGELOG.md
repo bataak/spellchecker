@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.66.0](https://github.com/bataak/spellchecker/compare/v1.65.10...v1.66.0) (2026-08-08)
+
+
+### Features
+
+* tighten suggestion popover lifecycle ([b631850](https://github.com/bataak/spellchecker/commit/b6318508d5463e84131dc1dc77071f836f687745))
+
 ## [1.65.10](https://github.com/bataak/spellchecker/compare/v1.65.9...v1.65.10) (2026-08-08)
 
 
