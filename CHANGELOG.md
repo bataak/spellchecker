@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.65.8](https://github.com/bataak/spellchecker/compare/v1.65.7...v1.65.8) (2026-08-08)
+
+
+### Bug Fixes
+
+* apply insertions that fall inside a replaced range ([21461c2](https://github.com/bataak/spellchecker/commit/21461c2b072020e54a63f35a562808eefcd3a76c))
+* hold important status messages so stats do not overwrite them ([c9ca2ca](https://github.com/bataak/spellchecker/commit/c9ca2ca9dfaad141bbee563a89d3789c58419fe1))
+
 ## [1.65.7](https://github.com/bataak/spellchecker/compare/v1.65.6...v1.65.7) (2026-08-07)
 
 
