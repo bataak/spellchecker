@@ -111,13 +111,40 @@ let skipLinks = true;
 const labelOf = (id: string): string =>
   DICTIONARIES.find((dict) => dict.id === id)?.label || id;
 const nf = (num: number): string => num.toLocaleString("en-US");
+let statusHoldUntil = 0;
+let statusHoldTimer: number | null = null;
+
 const setStatus = (html: string, animate = true): void => {
+  if (statusHoldUntil > 0 && Date.now() < statusHoldUntil) return;
   els.status.innerHTML = html;
   if (!animate) return;
   els.status.classList.remove("status-reveal");
   void els.status.offsetWidth;
   els.status.classList.add("status-reveal");
 };
+
+const STATUS_HOLD_MS = 6000;
+
+function restoreStatus(): void {
+  if (!ready) return;
+  if (els.editor.value.trim() === "") {
+    if (baseStatus && !offlineIndicatorActive) setStatus(baseStatus);
+    return;
+  }
+  setStatus(statsMessage(), false);
+}
+
+function holdStatus(html: string, ms = STATUS_HOLD_MS): void {
+  if (statusHoldTimer) clearTimeout(statusHoldTimer);
+  statusHoldUntil = 0;
+  setStatus(html);
+  statusHoldUntil = Date.now() + ms;
+  statusHoldTimer = window.setTimeout(() => {
+    statusHoldTimer = null;
+    statusHoldUntil = 0;
+    restoreStatus();
+  }, ms);
+}
 function isCorrect(word: string): boolean {
   return cache.has(word) ? cache.get(word)! : true;
 }
@@ -357,7 +384,7 @@ function statsMessage(): string {
     escapeHtml(parts.tail) +
     "</b>" +
     '<span class="doc-rest">' +
-    "&nbsp;" +
+    ", " +
     statsBody() +
     "</span>"
   );
@@ -819,7 +846,7 @@ function setEditorText(newText: string, caret: number | null): void {
   pendingFix = null;
   const old = els.editor.value;
   if (docx && old !== newText && !docx.sync(old, newText)) {
-    setStatus("Энэ өөрчлөлтийг docx файлд буулгах боломжгүй");
+    holdStatus("Энэ өөрчлөлтийг docx файлд буулгах боломжгүй");
     return;
   }
   els.editor.focus({ preventScroll: true });
@@ -1235,13 +1262,13 @@ async function openPdfFile(file: File): Promise<boolean> {
   } catch (e) {
     const reason = e instanceof Error ? e.message : "";
     const tooLarge = reason.startsWith("too-large");
-    setStatus(
+    holdStatus(
       tooLarge
         ? "Файл хэт том байна — " +
             (reason.split(":")[1] || "20") +
             " мегабайтаас хэтэрч болохгүй"
         : reason === "no-text"
-          ? "Энэ PDF-д текст алга — зөвхөн зураг байж болзошгүй"
+          ? "Сканердсан баримт байна — текстийн давхарга агуулаагүй тул уншиж чадсангүй"
           : "PDF файлыг уншиж чадсангүй",
     );
     return true;
@@ -1260,7 +1287,7 @@ async function openDocxFile(file: File): Promise<boolean> {
   try {
     mod = await import("./office/mode.ts");
   } catch (_) {
-    setStatus("Баримт уншигчийг ачаалж чадсангүй");
+    holdStatus("Баримт уншигчийг ачаалж чадсангүй");
     return true;
   }
 
@@ -1271,7 +1298,7 @@ async function openDocxFile(file: File): Promise<boolean> {
   } catch (e) {
     docx = null;
     const reason = e instanceof Error ? e.message : "";
-    setStatus(
+    holdStatus(
       reason.startsWith("too-large")
         ? "Файл хэт том байна — " +
             (reason.split(":")[1] || "12") +
@@ -1283,7 +1310,6 @@ async function openDocxFile(file: File): Promise<boolean> {
 
   els.editor.readOnly = true;
   els.editor.value = docx.text();
-  syncDecodeBtn();
   document.body.classList.add("docx-mode");
   syncSaveHint();
   hidePopover();
@@ -1308,13 +1334,13 @@ async function docxSave(): Promise<void> {
     const names = out.skippedWords
       .map((item) => '"' + item.word + '" (' + item.reason + ")")
       .join(", ");
-    setStatus(
+    holdStatus(
       "Засагдсангүй: " +
         names +
         " — үлдсэн " +
         out.applied +
         " засвар хадгалагдлаа",
-      false,
+      12000,
     );
   }
 }
