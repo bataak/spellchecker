@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.66.1](https://github.com/bataak/spellchecker/compare/v1.66.0...v1.66.1) (2026-08-08)
+
+
+### Bug Fixes
+
+* pin pdfjs-dist to 5.4.624 so pdfs open on ios ([8c2a063](https://github.com/bataak/spellchecker/commit/8c2a063e3275c31849f8557f5b794b45f8017c62))
+
 ## [1.66.0](https://github.com/bataak/spellchecker/compare/v1.65.10...v1.66.0) (2026-08-08)
 
 
