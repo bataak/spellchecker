@@ -145,6 +145,11 @@ function holdStatus(html: string, ms = STATUS_HOLD_MS): void {
     restoreStatus();
   }, ms);
 }
+function releaseStatusHold(): void {
+  if (statusHoldTimer) clearTimeout(statusHoldTimer);
+  statusHoldTimer = null;
+  statusHoldUntil = 0;
+}
 function isCorrect(word: string): boolean {
   return cache.has(word) ? cache.get(word)! : true;
 }
@@ -1391,14 +1396,27 @@ function isPdfFile(file: File): boolean {
 }
 
 async function openPdfFile(file: File): Promise<boolean> {
+  releaseStatusHold();
   setStatus("PDF файлыг уншиж байна…");
   let text: string;
+  let stallTimer: number | null = null;
+  const armStall = (): void => {
+    if (stallTimer) clearTimeout(stallTimer);
+    stallTimer = window.setTimeout(() => {
+      stallTimer = null;
+      setStatus("Бичвэрийг бэлдэж байна…", false);
+    }, 5000);
+  };
   try {
     const mod = await import("./pdftext.ts");
+    armStall();
     text = await mod.extractPdfText(file, (page, total) => {
-      if (total > 1) setStatus("PDF уншиж байна — " + page + " / " + total);
+      armStall();
+      if (total > 1)
+        setStatus("PDF уншиж байна — " + page + " / " + total, false);
     });
   } catch (e) {
+    if (stallTimer) clearTimeout(stallTimer);
     const reason = e instanceof Error ? e.message : "";
     const tooLarge = reason.startsWith("too-large");
     holdStatus(
@@ -1412,6 +1430,11 @@ async function openPdfFile(file: File): Promise<boolean> {
     );
     return true;
   }
+  if (stallTimer) clearTimeout(stallTimer);
+  setStatus("Бичвэрийг бэлдэж байна…", false);
+  await new Promise((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve(null))),
+  );
   closeDocx();
   setEditorText(text, text.length);
   hidePopover();
