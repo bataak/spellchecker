@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   charToByte,
+  hasMojibake,
   countMojibakeLetters,
   countMojibakeWords,
   decodeWith,
@@ -192,6 +193,35 @@ test("жинхэнэ кирилл үгийн хажуудах ишлэлийн �
 test("математикийн тэмдэгтүүд хөндөгдөхгүй", () => {
   const text = "5 \u00D7 3 = 15, 20 \u00F7 4 = 5";
   assert.equal(repairCyrillicDetailed(text).text, text);
+});
+
+test("hasMojibake нь эвдэрсэн текстийг олно", () => {
+  assert.equal(hasMojibake("\u00CC\u00EE\u00ED\u00E3\u00EE\u00EB"), true);
+  assert.equal(hasMojibake("\u00B0\u00ED\u00B0\u00B0\u00E4\u00B0\u00F0"), true);
+  assert.equal(
+    hasMojibake("Монгол Улс \u00CC\u00EE\u00ED\u00E3\u00EE\u00EB"),
+    true,
+  );
+});
+
+test("hasMojibake нь цэвэр текстийг хөндөхгүй", () => {
+  assert.equal(hasMojibake(""), false);
+  assert.equal(hasMojibake("Монгол Улсын Үндэсний статистикийн хороо"), false);
+  assert.equal(hasMojibake("plain ascii text"), false);
+  assert.equal(hasMojibake("caf\u00E9 r\u00E9sum\u00E9 na\u00EFve"), false);
+  assert.equal(hasMojibake("5 \u00D7 3 = 15, 20 \u00F7 4 = 5"), false);
+  assert.equal(hasMojibake("Температур 25\u00BA, \u00F6нцөг 30\u00AA"), false);
+});
+
+test("hasMojibake нь гурваас богино гүйлтийг тоолохгүй", () => {
+  assert.equal(hasMojibake("\u00CC\u00EE"), false);
+  assert.equal(hasMojibake("\u00CC\u00EE\u00ED"), true);
+  assert.equal(hasMojibake("\u00CC\u00EE x \u00ED\u00E3"), false);
+});
+
+test("hasMojibake нь cp1252 өндөр тэмдэгтийг таньна", () => {
+  assert.equal(hasMojibake("\u201C\u00ED\u00E4\u00FD\u00F1"), true);
+  assert.equal(hasMojibake("\u201CНацагдорж судлал\u201D"), false);
 });
 
 test("хоосон болон ASCII текстийг хөндөхгүй", () => {
