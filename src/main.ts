@@ -430,6 +430,21 @@ function hidePopover(): void {
   if (kbAdjustTimer) clearTimeout(kbAdjustTimer);
 }
 
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || e.isComposing) return;
+  if (els.popover.hidden) return;
+  const ae = document.activeElement;
+  if (
+    ae &&
+    ae !== document.body &&
+    ae !== els.editor &&
+    !els.popover.contains(ae)
+  )
+    return;
+  hidePopover();
+  els.editor.focus({ preventScroll: true });
+});
+
 const isTouch = () => window.matchMedia("(pointer: coarse)").matches;
 
 function bringWordIntoView() {
@@ -1006,6 +1021,7 @@ function insertEditorText(text: string, start: number, end: number): void {
 els.editor.addEventListener("input", (e) => {
   if (programmaticEdit) return;
   if (!(e instanceof InputEvent)) return;
+  hidePopover();
   syncEmptyState(els.editor.value);
   saveTextSoon();
   if (isSeparatorInput(e)) recheck();
@@ -1206,7 +1222,6 @@ els.editor.addEventListener("keyup", (e) => {
   ];
   if (nav.indexOf(e.key) !== -1) {
     pendingFix = null;
-    suggestAtCaret();
   }
 });
 
