@@ -216,28 +216,63 @@ async function readTextItems(page: TextPage): Promise<TextItem[]> {
   return content.items as TextItem[];
 }
 
+function stageError(stage: string, cause: unknown): Error {
+  const detail =
+    cause instanceof Error ? cause.name + ": " + cause.message : String(cause);
+  return new Error(stage + " — " + detail);
+}
+
 export async function extractPdfText(
   file: File,
   onProgress?: (page: number, total: number) => void,
 ): Promise<string> {
   if (file.size > MAX_PDF_MB * 1024 * 1024)
     throw new Error("too-large:" + MAX_PDF_MB);
-  const pdfjs = await import("pdfjs-dist");
-  pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-    "pdfjs-dist/build/pdf.worker.min.mjs",
-    import.meta.url,
-  ).toString();
-  const data = new Uint8Array(await file.arrayBuffer());
+  let pdfjs: typeof import("pdfjs-dist");
+  try {
+    pdfjs = await import("pdfjs-dist");
+  } catch (e) {
+    throw stageError("import", e);
+  }
+  try {
+    pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+      "pdfjs-dist/build/pdf.worker.min.mjs",
+      import.meta.url,
+    ).toString();
+  } catch (e) {
+    throw stageError("workerSrc", e);
+  }
+  let data: Uint8Array;
+  try {
+    data = new Uint8Array(await file.arrayBuffer());
+  } catch (e) {
+    throw stageError("arrayBuffer", e);
+  }
   const loadingTask = pdfjs.getDocument({ data });
   const pages: string[] = [];
   try {
-    const doc = await loadingTask.promise;
+    let doc: Awaited<typeof loadingTask.promise>;
+    try {
+      doc = await loadingTask.promise;
+    } catch (e) {
+      throw stageError("getDocument", e);
+    }
     for (let index = 1; index <= doc.numPages; index++) {
       if (onProgress) onProgress(index, doc.numPages);
-      const page = (await doc.getPage(index)) as unknown as TextPage & {
-        cleanup: () => void;
-      };
-      const items = await readTextItems(page);
+      let page: TextPage & { cleanup: () => void };
+      try {
+        page = (await doc.getPage(index)) as unknown as TextPage & {
+          cleanup: () => void;
+        };
+      } catch (e) {
+        throw stageError("getPage " + index, e);
+      }
+      let items: TextItem[];
+      try {
+        items = await readTextItems(page);
+      } catch (e) {
+        throw stageError("readText " + index, e);
+      }
       const blocks = mergeParagraphs(pageLines(items));
       if (blocks.length) pages.push(assemble(blocks));
       page.cleanup();
