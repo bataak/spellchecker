@@ -18,7 +18,7 @@
     "fflate": "^0.8.3",
     "hunspell-wasm": "file:vendor/hunspell-wasm",
     "nspell": "^2.1.5",
-    "pdfjs-dist": "^6.2.108"
+    "pdfjs-dist": "5.4.624"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
