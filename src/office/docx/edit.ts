@@ -159,7 +159,9 @@ export function planParagraph(
   paragraph: Paragraph,
   edits: ParagraphEdit[],
 ): PlanResult {
-  const ordered = [...edits].sort((left, right) => left.start - right.start);
+  const ordered = [...edits].sort(
+    (left, right) => left.start - right.start || right.end - left.end,
+  );
   const raw: RawEdit[] = [];
   const applied: ParagraphEdit[] = [];
   const skipped: SkippedEdit[] = [];
@@ -168,7 +170,8 @@ export function planParagraph(
   let guard = -1;
 
   for (const edit of ordered) {
-    if (edit.start < guard) {
+    const insertion = edit.start === edit.end;
+    if (edit.start < guard && !insertion) {
       skipped.push({ edit, reason: "overlap" });
       continue;
     }
@@ -186,7 +189,7 @@ export function planParagraph(
     const narrowed = narrowEdit(current, edit.text, edit.start);
 
     if (narrowed.start === narrowed.end && narrowed.text.length === 0) {
-      guard = edit.end;
+      guard = Math.max(guard, edit.end);
       applied.push(edit);
       continue;
     }
@@ -226,13 +229,13 @@ export function planParagraph(
       else existing.push(operation);
     }
 
-    guard = edit.end;
+    guard = Math.max(guard, edit.end);
     applied.push(edit);
   }
 
   for (const [node, operations] of pending) {
     const sequence = [...operations].sort(
-      (left, right) => right.start - left.start,
+      (left, right) => right.start - left.start || right.end - left.end,
     );
     let next = node.text;
 
