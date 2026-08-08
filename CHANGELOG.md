@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.65.9](https://github.com/bataak/spellchecker/compare/v1.65.8...v1.65.9) (2026-08-08)
+
+
+### Bug Fixes
+
+* offer and apply initial splits without altering letter case ([0284bd7](https://github.com/bataak/spellchecker/commit/0284bd784de3ff3cd93d16b37ac08a39f07e1339))
+
 ## [1.65.8](https://github.com/bataak/spellchecker/compare/v1.65.7...v1.65.8) (2026-08-08)
 
 
