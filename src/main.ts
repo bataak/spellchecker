@@ -1437,6 +1437,7 @@ async function openDocxFile(file: File): Promise<boolean> {
   document.body.classList.add("docx-mode");
   syncSaveHint();
   hidePopover();
+  syncDecodeBtn();
   await render();
   return true;
 }
