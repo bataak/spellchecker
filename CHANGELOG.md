@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.65.10](https://github.com/bataak/spellchecker/compare/v1.65.9...v1.65.10) (2026-08-08)
+
+
+### Bug Fixes
+
+* show the decode button for office documents ([91b68af](https://github.com/bataak/spellchecker/commit/91b68afb905b3816069c2fc9166da6055c06fe52))
+
 ## [1.65.9](https://github.com/bataak/spellchecker/compare/v1.65.8...v1.65.9) (2026-08-08)
 
 
