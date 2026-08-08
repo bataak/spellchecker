@@ -1228,7 +1228,50 @@ function copyText(str: string): Promise<void> {
 
 const reloadEl = document.querySelector<HTMLElement>("#appReloadBtn");
 if (reloadEl) {
-  reloadEl.addEventListener("click", () => location.reload());
+  reloadEl.addEventListener("click", () => {
+    reloadEl.hidden = true;
+    setStatus("Шинэ хувилбарыг ачаалж байна…");
+    void reloadToLatest();
+  });
+}
+
+function swSettled(worker: ServiceWorker): Promise<void> {
+  return new Promise<void>((resolve) => {
+    const check = (): void => {
+      if (worker.state === "installed")
+        worker.postMessage({ type: "SKIP_WAITING" });
+      if (worker.state === "activated" || worker.state === "redundant") {
+        worker.removeEventListener("statechange", check);
+        resolve();
+      }
+    };
+    worker.addEventListener("statechange", check);
+    check();
+  });
+}
+
+async function reloadToLatest(): Promise<void> {
+  let done = false;
+  const reload = (): void => {
+    if (done) return;
+    done = true;
+    location.reload();
+  };
+  const timer = setTimeout(reload, 8000);
+  try {
+    const reg = navigator.serviceWorker
+      ? await navigator.serviceWorker.getRegistration()
+      : null;
+    if (reg) {
+      await reg.update();
+      const fresh = reg.installing || reg.waiting;
+      if (fresh) await swSettled(fresh);
+    }
+  } catch (_) {
+    /* сүлжээ хүрэхгүй — байгаа хувилбараар ачаална */
+  }
+  clearTimeout(timer);
+  reload();
 }
 
 const verEl = document.querySelector<HTMLElement>("#appVersion");
