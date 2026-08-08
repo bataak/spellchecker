@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.67.0](https://github.com/bataak/spellchecker/compare/v1.66.1...v1.67.0) (2026-08-08)
+
+
+### Features
+
+* report progress while opening large pdfs ([42d4249](https://github.com/bataak/spellchecker/commit/42d4249474b89ff1e83d64cc952bc8b0e8dcf8fe))
+
 ## [1.66.1](https://github.com/bataak/spellchecker/compare/v1.66.0...v1.66.1) (2026-08-08)
 
 
