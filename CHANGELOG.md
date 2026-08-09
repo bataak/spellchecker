@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.67.1](https://github.com/bataak/spellchecker/compare/v1.67.0...v1.67.1) (2026-08-09)
+
+
+### Bug Fixes
+
+* keep the PDF prepare notice on screen for three seconds ([cea8544](https://github.com/bataak/spellchecker/commit/cea8544809aa4f77d0b62b878b337f8a14952bc8))
+
 ## [1.67.0](https://github.com/bataak/spellchecker/compare/v1.66.1...v1.67.0) (2026-08-08)
 
 
