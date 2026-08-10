@@ -32,8 +32,7 @@ function initToolbarScroll(): void {
   requestAnimationFrame(() => {
     if (bar.scrollWidth <= bar.clientWidth) return;
     bar.scrollLeft +=
-      clearBtn.getBoundingClientRect().left -
-      bar.getBoundingClientRect().left;
+      clearBtn.getBoundingClientRect().left - bar.getBoundingClientRect().left;
   });
 }
 
@@ -188,9 +187,7 @@ function initButtons({
     btn.addEventListener("click", async () => {
       if (armed) {
         armed = false;
-        const words = buildErrorList(getBadTokens()).map(
-          (token) => token.word,
-        );
+        const words = buildErrorList(getBadTokens()).map((token) => token.word);
         if (!words.length) return;
         try {
           await copyText(words.join("\n"));
@@ -199,8 +196,12 @@ function initButtons({
         }
         return;
       }
+      if (!els.editor.value) {
+        els.editor.focus();
+        return;
+      }
       try {
-        await copyText(els.editor.value || "");
+        await copyText(els.editor.value);
         flash("#copyBtn", "Хуулагдав");
       } catch (_) {
         flash("#copyBtn", "Боломжгүй");
