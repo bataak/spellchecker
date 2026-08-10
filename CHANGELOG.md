@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.67.2](https://github.com/bataak/spellchecker/compare/v1.67.1...v1.67.2) (2026-08-10)
+
+
+### Bug Fixes
+
+* do not copy when the editor is empty ([6adecf1](https://github.com/bataak/spellchecker/commit/6adecf151146b5a8b4fa2adcff576465b7fb995b))
+* do not overwrite the clipboard when the editor is empty ([ab26ac0](https://github.com/bataak/spellchecker/commit/ab26ac07515eee269afce9fd0ee513f5536c1bad))
+
 ## [1.67.1](https://github.com/bataak/spellchecker/compare/v1.67.0...v1.67.1) (2026-08-09)
 
 
