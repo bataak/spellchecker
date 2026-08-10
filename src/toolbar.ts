@@ -196,10 +196,7 @@ function initButtons({
         }
         return;
       }
-      if (!els.editor.value) {
-        els.editor.focus();
-        return;
-      }
+      if (!els.editor.value) return;
       try {
         await copyText(els.editor.value);
         flash("#copyBtn", "Хуулагдав");
