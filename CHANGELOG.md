@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.68.0](https://github.com/bataak/spellchecker/compare/v1.67.3...v1.68.0) (2026-08-11)
+
+
+### Features
+
+* check a bracketed abbreviation together with the suffix after it ([448728c](https://github.com/bataak/spellchecker/commit/448728c13aa6306efbcc197c2301a5780de08bef))
+
+
+### Bug Fixes
+
+* check a numeral together with its case ending ([383e8c6](https://github.com/bataak/spellchecker/commit/383e8c6e8b0b88b0b9b5ac40285c9c106b14eb23))
+
 ## [1.67.3](https://github.com/bataak/spellchecker/compare/v1.67.2...v1.67.3) (2026-08-11)
 
 
