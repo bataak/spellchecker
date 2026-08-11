@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.67.3](https://github.com/bataak/spellchecker/compare/v1.67.2...v1.67.3) (2026-08-11)
+
+
+### Bug Fixes
+
+* announce the copied error words without animating the status ([4c89ef5](https://github.com/bataak/spellchecker/commit/4c89ef5945784c6e1f56b19785b904b4391d1bb4))
+
 ## [1.67.2](https://github.com/bataak/spellchecker/compare/v1.67.1...v1.67.2) (2026-08-10)
 
 
