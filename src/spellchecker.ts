@@ -246,7 +246,7 @@ function* splitMixed(word: string, index: number): Generator<RawToken> {
   let start = 0;
   for (let i = 1; i + 1 < word.length; i++) {
     if (word.charAt(i) !== "-") continue;
-    if (isDigit(word.charAt(i - 1)) === isDigit(word.charAt(i + 1))) continue;
+    if (!isDigit(word.charAt(i + 1))) continue;
     yield { word: word.slice(start, i), index: index + start };
     start = i + 1;
   }
