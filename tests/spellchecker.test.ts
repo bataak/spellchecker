@@ -93,12 +93,12 @@ test("tokenize: үсгэн дагавартай зураас хэвээр үлд
   assert.deepEqual([...tokenize("e-mail")], [{ word: "e-mail", index: 0 }]);
 });
 
-test("tokenize: хаалттай товчлолын дагавар хэвээр салангид үлдэнэ", () => {
+test("tokenize: хаалттай товчлол салангид үлдэж, хамт шалгагдана", () => {
   assert.deepEqual(
     [...tokenize("(АЖМХ)-ны")],
     [
       { word: "АЖМХ", index: 1 },
-      { word: "ны", index: 7 },
+      { word: "ны", index: 7, joined: "АЖМХ-ны" },
     ],
   );
 });

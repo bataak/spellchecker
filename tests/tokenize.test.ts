@@ -124,3 +124,38 @@ test("drops a trailing double hyphen", () => {
 test("ignores a leading em dash", () => {
   assert.deepEqual(words("—эхэлсэн"), ["эхэлсэн"]);
 });
+
+test("carries the joined form on the suffix after a bracket", () => {
+  const joined = [...tokenize("(АЖМХ)-ны")].map((token) => token.joined);
+  assert.deepEqual(joined, [undefined, "АЖМХ-ны"]);
+});
+
+test("carries the joined form across Mongolian quotation marks", () => {
+  const joined = [...tokenize("\u201eУБТЗ\u201c-ын")].map((t) => t.joined);
+  assert.deepEqual(joined, [undefined, "УБТЗ-ын"]);
+});
+
+test("joins the suffix to the last word inside the quotes", () => {
+  const tokens = [...tokenize("\u00abМонголын УБТЗ\u00bb-ын")];
+  assert.deepEqual(
+    tokens.map((token) => token.word),
+    ["Монголын", "УБТЗ", "ын"],
+  );
+  assert.deepEqual(
+    tokens.map((token) => token.joined),
+    [undefined, undefined, "УБТЗ-ын"],
+  );
+});
+
+test("leaves a latin abbreviation and a lowercase word unjoined", () => {
+  for (const text of ['"NATO"-гийн', "\u00abМонголын\u00bb-ыг"]) {
+    for (const token of tokenize(text))
+      assert.equal(token.joined, undefined, text + " " + token.word);
+  }
+});
+
+test("keeps word and index untouched when joining", () => {
+  const text = "(АЖМХ)-ны";
+  for (const { word, index } of tokenize(text))
+    assert.equal(text.slice(index, index + word.length), word);
+});

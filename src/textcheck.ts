@@ -4,6 +4,7 @@ export interface Token {
   word: string;
   start: number;
   end: number;
+  joined?: string;
 }
 
 export interface ErrorEntry {
