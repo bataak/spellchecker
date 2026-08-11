@@ -158,8 +158,9 @@ const CHECK_NOTICE_MIN = 2000;
 const CHECK_BATCH = 8000;
 async function ensureChecked(text: string): Promise<void> {
   const need = new Set<string>();
-  for (const { word } of tokenize(text)) {
-    if (checkable(word) && !cache.has(word)) need.add(word);
+  for (const { word, joined } of tokenize(text)) {
+    const probe = joined ?? word;
+    if (checkable(word) && !cache.has(probe)) need.add(probe);
   }
   if (!need.size) return;
   const words = [...need];
@@ -182,7 +183,9 @@ async function ensureChecked(text: string): Promise<void> {
   for (const [word, correct] of results) cache.set(word, correct);
 }
 function nextFrame(): Promise<void> {
-  return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  return new Promise<void>((resolve) =>
+    requestAnimationFrame(() => resolve()),
+  );
 }
 async function correctNow(word: string): Promise<boolean> {
   if (cache.has(word)) return cache.get(word)!;
@@ -206,11 +209,12 @@ function computeBad(text: string): { bad: Token[]; total: number } {
   const bad: Token[] = [];
   const skip = skipRanges(text, { code: skipCode, links: skipLinks });
   let total = 0;
-  for (const { word, index } of tokenize(text)) {
+  for (const { word, index, joined } of tokenize(text)) {
     total++;
     if (skip.length && inRanges(skip, index)) continue;
-    if (!checkable(word) || isCorrect(word) || isIgnored(word)) continue;
-    bad.push({ word, start: index, end: index + word.length });
+    if (!checkable(word) || isCorrect(joined ?? word) || isIgnored(word))
+      continue;
+    bad.push({ word, start: index, end: index + word.length, joined });
   }
   return { bad, total };
 }
@@ -640,6 +644,15 @@ async function periodSplits(word: string): Promise<string[]> {
     .map((part) => part.left + ". " + part.right);
 }
 
+// Товчлолтой хамт шалгасан үед саналыг нөхцөлийн хэсэг рүү нь буцаана.
+function scopeToSuffix(token: Token, offered: string[]): string[] {
+  if (!token.joined) return offered;
+  const head = token.joined.slice(0, token.joined.length - token.word.length);
+  return offered
+    .filter((item) => item.startsWith(head) && item.length > head.length)
+    .map((item) => item.slice(head.length));
+}
+
 async function showPopoverFor(token: Token): Promise<void> {
   materializeMark(token.start);
   let mark = els.backdrop.querySelector(
@@ -648,7 +661,9 @@ async function showPopoverFor(token: Token): Promise<void> {
   if (!mark) {
     await render();
     materializeMark(token.start);
-    mark = els.backdrop.querySelector('mark[data-start="' + token.start + '"]');
+    mark = els.backdrop.querySelector(
+      'mark[data-start="' + token.start + '"]',
+    );
   }
   if (!mark) {
     hidePopover();
@@ -664,10 +679,11 @@ async function showPopoverFor(token: Token): Promise<void> {
   scheduleKbAdjust();
 
   const splits = await periodSplits(token.word);
-  const offered = await checker.suggest(token.word);
+  const offered = await checker.suggest(token.joined ?? token.word);
+  const scoped = scopeToSuffix(token, offered);
   const suggestions = [
     ...splits,
-    ...offered.filter((item) => !splits.includes(item)),
+    ...scoped.filter((item) => !splits.includes(item)),
   ].slice(0, desktopMQ.matches ? 15 : 8);
   if (activeStart !== token.start || els.popover.hidden) return;
   const sgHtml = suggestions.length
@@ -855,7 +871,10 @@ function isSeparatorInput(e: InputEvent): boolean {
   if (it === "insertText")
     return e.data != null && /[\s\p{P}\p{S}]/u.test(e.data);
   if (it === "insertLineBreak" || it === "insertParagraph") return true;
-  if (it.indexOf("insertFromPaste") === 0 || it.indexOf("insertFromDrop") === 0)
+  if (
+    it.indexOf("insertFromPaste") === 0 ||
+    it.indexOf("insertFromDrop") === 0
+  )
     return true;
   return false;
 }
@@ -1037,7 +1056,8 @@ function editKind(event: Event): EditKind {
   const type = (event as InputEvent).inputType || "";
   if (type === "insertText" || type === "insertCompositionText")
     return "insert";
-  if (type === "insertLineBreak" || type === "insertParagraph") return "insert";
+  if (type === "insertLineBreak" || type === "insertParagraph")
+    return "insert";
   if (type === "insertFromPaste") return "insert";
   if (type.startsWith("delete")) return "delete";
   return "other";
@@ -1226,7 +1246,8 @@ els.editor.addEventListener("keyup", (e) => {
 let suppressNextClick = false;
 
 function markAtPoint(x: number, y: number): HTMLElement | null {
-  const marks = els.backdrop.querySelectorAll<HTMLElement>("mark[data-start]");
+  const marks =
+    els.backdrop.querySelectorAll<HTMLElement>("mark[data-start]");
   for (const mark of marks) {
     const rects = mark.getClientRects();
     for (const rect of rects) {
@@ -1656,7 +1677,8 @@ initFileIO({
         : "";
       const editorFocused = document.activeElement === els.editor;
       const editorHasSelection =
-        editorFocused && els.editor.selectionStart !== els.editor.selectionEnd;
+        editorFocused &&
+        els.editor.selectionStart !== els.editor.selectionEnd;
       if (!pageSel && !editorHasSelection) {
         e.preventDefault();
         trigger("#copyBtn");
@@ -1667,7 +1689,10 @@ initFileIO({
 
 async function requestDurableStorage() {
   try {
-    if (navigator.storage && typeof navigator.storage.persist === "function") {
+    if (
+      navigator.storage &&
+      typeof navigator.storage.persist === "function"
+    ) {
       const already = navigator.storage.persisted
         ? await navigator.storage.persisted()
         : false;

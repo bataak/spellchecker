@@ -236,6 +236,18 @@ const WORD_RE =
 export interface RawToken {
   word: string;
   index: number;
+  joined?: string;
+}
+
+// Хаалт, хашилтын хаах тал. Монголд „…“ тул “ нь хаах тэмдэг.
+const CLOSING_DASH = /^[”“‘’«»‹›()[\]"]+-$/;
+
+function isAbbrev(word: string): boolean {
+  return /^[\u0400-\u04FF]{2,}$/u.test(word) && word === word.toUpperCase();
+}
+
+function isSuffix(word: string): boolean {
+  return /^\p{Ll}+$/u.test(word);
 }
 
 function isDigit(ch: string): boolean {
@@ -256,7 +268,22 @@ function* splitMixed(word: string, index: number): Generator<RawToken> {
 export function* tokenize(text: string): Generator<RawToken> {
   WORD_RE.lastIndex = 0;
   let match;
+  let prev: RawToken | null = null;
   while ((match = WORD_RE.exec(text)) !== null) {
-    yield* splitMixed(match[0], match.index);
+    for (const token of splitMixed(match[0], match.index)) {
+      if (prev) {
+        const gap = text.slice(prev.index + prev.word.length, token.index);
+        if (
+          CLOSING_DASH.test(gap) &&
+          isAbbrev(prev.word) &&
+          isSuffix(token.word)
+        ) {
+          token.joined = prev.word + "-" + token.word;
+        }
+        yield prev;
+      }
+      prev = token;
+    }
   }
+  if (prev) yield prev;
 }
