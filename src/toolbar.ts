@@ -32,7 +32,8 @@ function initToolbarScroll(): void {
   requestAnimationFrame(() => {
     if (bar.scrollWidth <= bar.clientWidth) return;
     bar.scrollLeft +=
-      clearBtn.getBoundingClientRect().left - bar.getBoundingClientRect().left;
+      clearBtn.getBoundingClientRect().left -
+      bar.getBoundingClientRect().left;
   });
 }
 
@@ -158,10 +159,10 @@ function initButtons({
     const HOLD = 500;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let armed = false;
-    let prevStatus = "";
     let revertTimer: ReturnType<typeof setTimeout> | null = null;
     const showStatus = (msg: string): void => {
-      setStatus(msg);
+      const prevStatus = els.status.innerHTML;
+      setStatus(msg, false);
       if (revertTimer) clearTimeout(revertTimer);
       revertTimer = setTimeout(() => {
         if (els.status.innerHTML === msg) setStatus(prevStatus, false);
@@ -172,9 +173,6 @@ function initButtons({
       armed = false;
       timer = setTimeout(() => {
         armed = true;
-        prevStatus = els.status.innerHTML;
-        const hasWords = buildErrorList(getBadTokens()).length > 0;
-        showStatus(hasWords ? "Алдаатай үгс хуулагдлаа" : "Алдаатай үг алга");
       }, HOLD);
     });
     const clear = () => {
@@ -187,10 +185,16 @@ function initButtons({
     btn.addEventListener("click", async () => {
       if (armed) {
         armed = false;
-        const words = buildErrorList(getBadTokens()).map((token) => token.word);
-        if (!words.length) return;
+        const words = buildErrorList(getBadTokens()).map(
+          (token) => token.word,
+        );
+        if (!words.length) {
+          showStatus("Алдаатай үг алга");
+          return;
+        }
         try {
           await copyText(words.join("\n"));
+          showStatus("Алдаатай үгс хуулагдлаа");
         } catch (_) {
           showStatus("Хуулах боломжгүй");
         }
