@@ -30,6 +30,10 @@ npm run build      # production build (dist/)
 Service worker болон офлайн ажиллагааг шалгахдаа `npm run dev` биш
 `npm run preview` ашиглана, учир нь dev сервер precache-ийг алгасдаг.
 
+Гар утсан дээр туршихад `npm run test:mobile` ажиллуулаад, өөр терминалд
+`cloudflared tunnel --url http://localhost:4173` асаана. Скрипт нь хувилбарыг
+хэвлэж, service worker-гүй build хийж түгээнэ.
+
 Толь бичгийн файлууд (`public/dict/`) build хийх үед `pack-dict.sh` файл
 нь толинуудыг gzip болгон шахаж `dist/dict/` хавтсанд хуулна.
 
