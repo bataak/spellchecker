@@ -45,13 +45,19 @@ test("keeps a soft hyphenated word together", () => {
   );
 });
 
-test("splits a number range and the suffix after it", () => {
-  assert.deepEqual(words("2\u20138-ны өдрүүдэд"), ["2", "8", "ны", "өдрүүдэд"]);
+test("splits a number range but keeps the suffix with its numeral", () => {
+  assert.deepEqual(words("2\u20138-ны өдрүүдэд"), ["2", "8-ны", "өдрүүдэд"]);
 });
 
-test("skips dotted numbers and dates", () => {
-  for (const value of ["2.5", "08.02", "2026.08.02-нд", "1.3.3-аас"]) {
+test("skips bare dotted numbers", () => {
+  for (const value of ["2.5", "08.02"]) {
     assert.equal(checkable(value), false, value);
+  }
+});
+
+test("checks a dotted number that carries a suffix", () => {
+  for (const value of ["2026.08.02-нд", "1.3.3-аас"]) {
+    assert.equal(checkable(value), true, value);
   }
 });
 
@@ -101,14 +107,14 @@ test("keeps a suffix joined to letters by a single hyphen", () => {
   assert.deepEqual(words("УБ-ын"), ["УБ-ын"]);
 });
 
-test("splits a suffix joined to a number", () => {
-  assert.deepEqual(words("2-р"), ["2", "р"]);
-  assert.deepEqual(words("1982-онд"), ["1982", "онд"]);
+test("keeps a suffix joined to a number", () => {
+  assert.deepEqual(words("2-р"), ["2-р"]);
+  assert.deepEqual(words("1982-онд"), ["1982-онд"]);
 });
 
 test("splits a number joined after letters", () => {
   assert.deepEqual(words("Конвенци-1982"), ["Конвенци", "1982"]);
-  assert.deepEqual(words("Конвенци-1982-ны"), ["Конвенци", "1982", "ны"]);
+  assert.deepEqual(words("Конвенци-1982-ны"), ["Конвенци", "1982-ны"]);
 });
 
 test("drops a trailing double hyphen", () => {

@@ -14,8 +14,14 @@ test("checkable: үсэг агуулсан 2+ тэмдэгт үгийг зөвш
 });
 
 test("checkable: ганц тэмдэгт, тоо, тэмдэгтийг хасна", () => {
-  for (const w of ["б", "1 ", "12", "№5", "12)", "50-", "50-ны", "  ", ""]) {
+  for (const w of ["б", "1 ", "12", "№5", "12)", "50-", "  ", ""]) {
     assert.equal(checkable(w), false, JSON.stringify(w));
+  }
+});
+
+test("checkable: тоонд залгасан нөхцөлийг шалгана", () => {
+  for (const w of ["50-ны", "2-р", "1982-онд"]) {
+    assert.equal(checkable(w), true, JSON.stringify(w));
   }
 });
 

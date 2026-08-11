@@ -45,7 +45,7 @@ test("tokenize: цэг таслалаар зааглагдана", () => {
 
 test("tokenize: тоо болон холимог токен", () => {
   const words = [...tokenize("50-ны 12 5а")].map((t) => t.word);
-  assert.deepEqual(words, ["50", "ны", "12", "5а"]);
+  assert.deepEqual(words, ["50-ны", "12", "5а"]);
 });
 
 test("tokenize: хоосон бичвэрээс юу ч буцахгүй", () => {
