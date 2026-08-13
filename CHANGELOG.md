@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.69.0](https://github.com/bataak/spellchecker/compare/v1.68.0...v1.69.0) (2026-08-13)
+
+
+### Features
+
+* **dict:** update mn_MN to 2026.08.13 ([7503634](https://github.com/bataak/spellchecker/commit/750363450a23b971bb41774552940284ae50c0d9))
+
 ## [1.68.0](https://github.com/bataak/spellchecker/compare/v1.67.3...v1.68.0) (2026-08-11)
 
 
