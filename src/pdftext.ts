@@ -122,7 +122,14 @@ function startsBlock(text: string): boolean {
 
 function joinLine(previous: string, next: string): string {
   if (previous.endsWith("\u00AD")) return previous.slice(0, -1) + next;
-  if (previous.endsWith("-")) return previous + next;
+  if (previous.endsWith("\u2010")) {
+    const head = previous.slice(0, -1);
+    return isSoftHyphenBreak(head, next) ? head + next : previous + next;
+  }
+  if (previous.endsWith("-")) {
+    const head = previous.slice(0, -1);
+    return isSoftHyphenBreak(head, next) ? head + next : previous + next;
+  }
   return previous + " " + next;
 }
 
