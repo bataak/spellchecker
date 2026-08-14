@@ -1,131 +1,182 @@
-import assert from "node:assert/strict";
 import { test } from "node:test";
-
-import {
-  countLines,
-  markedHtml,
-  plainHtml,
-  setLineBlocks,
-} from "../src/backdrop.ts";
+import assert from "node:assert/strict";
+import { countLines, markedHtml, plainHtml } from "../src/backdrop.ts";
 import type { Token } from "../src/textcheck.ts";
 
-const mark = (start: number, end: number, word = ""): Token =>
-  ({ start, end, word }) as Token;
+function blocks(html: string): number {
+  return (html.match(/<div class="bl">/g) ?? []).length;
+}
 
-test("plainHtml: логик мөр бүрийг блок болгоно", () => {
-  assert.equal(
-    plainHtml("нэг\nхоёр"),
-    '<div class="bl">нэг</div><div class="bl">хоёр</div>',
-  );
+function unwrap(html: string): string {
+  return html
+    .replace(/<div class="bl">/g, "")
+    .replace(/<\/div>/g, "\n")
+    .replace(/<mark data-start="\d+">/g, "")
+    .replace(/<\/mark>/g, "")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/\u200B/g, "")
+    .replace(/\n$/, "");
+}
+
+function lcg(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
+}
+
+function randomText(random: () => number, lines: number): string {
+  const out: string[] = [];
+  for (let i = 0; i < lines; i++) {
+    if (random() < 0.3) {
+      out.push("");
+      continue;
+    }
+    const words: string[] = [];
+    const count = 1 + Math.floor(random() * 14);
+    for (let w = 0; w < count; w++) {
+      const pick = random();
+      if (pick < 0.1) words.push("<");
+      else if (pick < 0.15) words.push("&");
+      else words.push("үг".repeat(1 + Math.floor(random() * 12)));
+    }
+    out.push(words.join(" "));
+  }
+  return out.join("\n");
+}
+
+function randomMarks(random: () => number, text: string): Token[] {
+  const marks: Token[] = [];
+  const re = /[^\s]+/g;
+  let match;
+  while ((match = re.exec(text)) !== null) {
+    if (random() < 0.3) {
+      marks.push({
+        word: match[0],
+        start: match.index,
+        end: match.index + match[0].length,
+      });
+    }
+  }
+  return marks;
+}
+
+test("markedHtml нь plainHtml-тэй ижил тооны блок гаргана", () => {
+  const random = lcg(23);
+  for (let iteration = 0; iteration < 400; iteration++) {
+    const raw = randomText(random, 1 + Math.floor(random() * 12));
+    const marks = randomMarks(random, raw);
+    if (!marks.length) continue;
+    assert.equal(
+      blocks(markedHtml(raw, 0, marks)),
+      blocks(plainHtml(raw)),
+      "давталт " + iteration,
+    );
+  }
 });
 
-test("plainHtml: chunk-ийн төгсгөлийн нэг \\n-ийг хасна", () => {
-  assert.equal(plainHtml("абв\n"), '<div class="bl">абв</div>');
+test("тэмдэглэгээ эх текстийг өөрчлөхгүй", () => {
+  const random = lcg(31);
+  for (let iteration = 0; iteration < 400; iteration++) {
+    const raw = randomText(random, 1 + Math.floor(random() * 30));
+    const marks = randomMarks(random, raw);
+    const body = raw.replace(/\n$/, "");
+    assert.equal(unwrap(markedHtml(raw, 0, marks)), body, "давталт " + iteration);
+    assert.equal(unwrap(plainHtml(raw)), body, "давталт " + iteration);
+  }
 });
 
-test("plainHtml: хоосон мөрөөр төгссөн chunk хоосон блок үлдээнэ", () => {
-  assert.equal(
-    plainHtml("абв\n\n"),
-    '<div class="bl">абв</div><div class="bl"></div>',
-  );
+test("хэсгийн төгсгөлийн \\n нэмэлт блок үүсгэхгүй", () => {
+  const random = lcg(47);
+  for (let iteration = 0; iteration < 200; iteration++) {
+    const base = randomText(random, 1 + Math.floor(random() * 20)).replace(
+      /\n+$/,
+      "",
+    );
+    assert.equal(
+      blocks(plainHtml(base + "\n")),
+      blocks(plainHtml(base)),
+      "давталт " + iteration,
+    );
+    assert.equal(countLines(base + "\n"), countLines(base));
+  }
 });
 
-test("plainHtml: зөвхөн \\n агуулсан chunk нэг хоосон блок болно", () => {
-  assert.equal(plainHtml("\n"), '<div class="bl"></div>');
+test("мөрийн эхэн ба төгсгөлийн тэмдэглэгээ", () => {
+  const raw = "аав ээж\nахуй";
+  const marks: Token[] = [
+    { word: "аав", start: 0, end: 3 },
+    { word: "ээж", start: 4, end: 7 },
+    { word: "ахуй", start: 8, end: 12 },
+  ];
+  const html = markedHtml(raw, 0, marks);
+  assert.equal(blocks(html), 2);
+  assert.equal(unwrap(html), raw);
+  assert.equal((html.match(/<mark /g) ?? []).length, 3);
 });
 
-test("plainHtml: хоосон chunk нэг хоосон блок болно", () => {
-  assert.equal(plainHtml(""), '<div class="bl"></div>');
+test("хоосон мөрөнд тэмдэглэгээ орохгүй", () => {
+  const raw = "аав\n\nээж";
+  const marks: Token[] = [
+    { word: "аав", start: 0, end: 3 },
+    { word: "ээж", start: 5, end: 8 },
+  ];
+  const html = markedHtml(raw, 0, marks);
+  assert.equal(blocks(html), 3);
+  assert.ok(html.includes('<div class="bl"></div>'));
 });
 
-test("plainHtml: дундах хоосон мөр өөрийн блоктой", () => {
-  assert.equal(
-    plainHtml("нэг\n\nхоёр"),
-    '<div class="bl">нэг</div><div class="bl"></div><div class="bl">хоёр</div>',
-  );
+test("HTML тусгай тэмдэгтүүд escape хийгдэнэ", () => {
+  const raw = "a < b & c";
+  const marks: Token[] = [{ word: "c", start: 8, end: 9 }];
+  const html = markedHtml(raw, 0, marks);
+  assert.ok(html.includes("&lt;"));
+  assert.ok(html.includes("&amp;"));
+  assert.equal(unwrap(html), raw);
 });
 
-test("plainHtml: HTML тэмдэгтүүдийг escape хийнэ", () => {
-  assert.equal(plainHtml("<б>&"), '<div class="bl">&lt;б&gt;&amp;</div>');
-});
-
-test("countLines: chunk дахь логик мөрийн тоог өгнө", () => {
-  assert.equal(countLines(""), 1);
-  assert.equal(countLines("нэг"), 1);
-  assert.equal(countLines("нэг\n"), 1);
-  assert.equal(countLines("нэг\nхоёр"), 2);
-  assert.equal(countLines("нэг\n\n"), 2);
-});
-
-test("markedHtml: mark зөв байрлалд орно", () => {
-  assert.equal(
-    markedHtml("аа хот", 100, [mark(103, 106)]),
-    '<div class="bl">аа <mark data-start="103">хот</mark></div>',
-  );
-});
-
-test("markedHtml: хоосон мөрөөр төгссөн chunk хоосон блок үлдээнэ", () => {
-  assert.equal(
-    markedHtml("хот\n\n", 0, [mark(0, 3)]),
-    '<div class="bl"><mark data-start="0">хот</mark></div><div class="bl"></div>',
-  );
-});
-
-test("markedHtml: дараагийн мөрийн mark зөв offset-той", () => {
-  assert.equal(
-    markedHtml("нэг\nалдаа", 100, [mark(104, 109)]),
-    '<div class="bl">нэг</div><div class="bl"><mark data-start="104">алдаа</mark></div>',
-  );
-});
-
-test("markedHtml: олон мөрийн олон mark", () => {
-  assert.equal(
-    markedHtml("аа бб\nвв гг", 0, [mark(0, 2), mark(3, 5), mark(6, 8), mark(9, 11)]),
-    '<div class="bl"><mark data-start="0">аа</mark> <mark data-start="3">бб</mark></div>' +
-      '<div class="bl"><mark data-start="6">вв</mark> <mark data-start="9">гг</mark></div>',
-  );
-});
-
-test("markedHtml: mark-гүй мөр хэвээр үлдэнэ", () => {
-  const html = markedHtml("нэг\nхоёр\nгурав", 0, [mark(9, 14)]);
-
-  assert.ok(html.includes('<div class="bl">нэг</div>'));
-  assert.ok(html.includes('<div class="bl">хоёр</div>'));
+test("тэмдэглэгээ chunkStart-аар зөв шилжинэ", () => {
+  const text = "нэг\nхоёр\nгурав";
+  const chunkStart = 4;
+  const raw = text.slice(chunkStart);
+  const marks: Token[] = [{ word: "гурав", start: 9, end: 14 }];
+  const html = markedHtml(raw, chunkStart, marks);
+  assert.equal(unwrap(html), raw);
   assert.ok(html.includes('<mark data-start="9">гурав</mark>'));
 });
 
-test("markedHtml: харагдах бичвэр plainHtml-тэй ижил", () => {
-  const body = "нэг хоёр\n\nгурав дөрөв\nтав";
-  const strip = (html: string): string =>
-    html
-      .replace(/<div class="bl">/g, "")
-      .replace(/<\/div>/g, "\n")
-      .replace(/<mark data-start="\d+">/g, "")
-      .replace(/<\/mark>/g, "")
-      .replace(/\n$/, "");
-
-  assert.equal(strip(markedHtml(body, 0, [mark(0, 3), mark(19, 24)])), body);
-  assert.equal(strip(plainHtml(body)), body);
+test("олон мөрөнд тархсан тэмдэглэгээ", () => {
+  const raw = "нэг хоёр\nгурав дөрөв\n\nтав";
+  const marks: Token[] = [
+    { word: "хоёр", start: 4, end: 8 },
+    { word: "гурав", start: 9, end: 14 },
+    { word: "тав", start: 22, end: 25 },
+  ];
+  const html = markedHtml(raw, 0, marks);
+  assert.equal(blocks(html), 4);
+  assert.equal(unwrap(html), raw);
+  assert.equal((html.match(/<mark /g) ?? []).length, 3);
 });
 
-test("setLineBlocks(false): хавтгай гаралт буцаана", () => {
-  setLineBlocks(false);
-
-  assert.equal(plainHtml("нэг\nхоёр"), "нэг\nхоёр");
-  assert.equal(plainHtml("абв\n"), "абв");
-  assert.equal(plainHtml("абв\n\n"), "абв\n\u200b");
-  assert.equal(plainHtml("\n"), "\u200b");
-  assert.equal(
-    markedHtml("аа хот", 100, [mark(103, 106)]),
-    'аа <mark data-start="103">хот</mark>',
-  );
-
-  setLineBlocks(true);
+test("мөр давсан тэмдэглэгээ мөр бүрт тасарна", () => {
+  const raw = "аав\nээж";
+  const marks: Token[] = [{ word: "аав\nээж", start: 0, end: 7 }];
+  const html = markedHtml(raw, 0, marks);
+  assert.equal(blocks(html), 2);
+  assert.equal(unwrap(html), raw);
+  assert.equal((html.match(/<mark /g) ?? []).length, 2);
+  assert.ok(!html.includes("\n</mark>"));
 });
 
-test("setLineBlocks(true): блок горим сэргэнэ", () => {
-  assert.equal(
-    plainHtml("нэг\nхоёр"),
-    '<div class="bl">нэг</div><div class="bl">хоёр</div>',
-  );
+test("countLines нь хэсгийн төгсгөлийн \\n-ийг тоохгүй", () => {
+  assert.equal(countLines(""), 1);
+  assert.equal(countLines("a"), 1);
+  assert.equal(countLines("a\n"), 1);
+  assert.equal(countLines("a\nb"), 2);
+  assert.equal(countLines("a\nb\n"), 2);
+  assert.equal(countLines("\n"), 1);
+  assert.equal(countLines("\n\n"), 2);
 });
