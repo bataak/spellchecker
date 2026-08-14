@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.69.1](https://github.com/bataak/spellchecker/compare/v1.69.0...v1.69.1) (2026-08-14)
+
+
+### Bug Fixes
+
+* **pdf:** drop soft hyphens when joining wrapped lines ([65af3cb](https://github.com/bataak/spellchecker/commit/65af3cb916cf175304662401c8ab778659fdbf92))
+* **pdf:** strip control characters from extracted text ([15791df](https://github.com/bataak/spellchecker/commit/15791dfe11565d6e4ded6d73df1bdf2d86d26cfc))
+
 ## [1.69.0](https://github.com/bataak/spellchecker/compare/v1.68.0...v1.69.0) (2026-08-13)
 
 
