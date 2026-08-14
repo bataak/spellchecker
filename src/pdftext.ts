@@ -1,4 +1,6 @@
 import { repairCyrillic } from "./cp1251.ts";
+import { isSoftHyphenBreak } from "./office/pdf/dehyphen.ts";
+import { stripInvisible } from "./office/sanitize.ts";
 
 const MAX_PDF_MB = 30;
 
@@ -187,8 +189,7 @@ function assemble(blocks: Block[]): string {
 }
 
 function tidy(text: string): string {
-  return text
-    .replace(/\r\n?/g, "\n")
+  return stripInvisible(text.replace(/\r\n?/g, "\n"))
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .replace(/\u00AD/g, "")
