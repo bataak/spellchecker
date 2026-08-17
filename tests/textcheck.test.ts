@@ -1,71 +1,70 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-  checkable,
-  isDashSuffix,
-  startsLowerAfterDash,
-  buildErrorList,
-} from "../src/textcheck.ts";
+import { isDecimalPoint, splitNumberUnit } from "../src/textcheck.ts";
 
-test("checkable: үсэг агуулсан 2+ тэмдэгт үгийг зөвшөөрнө", () => {
-  for (const w of ["үг", "цэнг", "word", "café", "5а", "ТЕГ-аас"]) {
-    assert.equal(checkable(w), true, w);
-  }
+test("бүхэл тоо ба нэгжийг салгана", () => {
+  assert.deepEqual(splitNumberUnit("10мг"), { number: "10", unit: "мг" });
+  assert.deepEqual(splitNumberUnit("1990онд"), {
+    number: "1990",
+    unit: "онд",
+  });
 });
 
-test("checkable: ганц тэмдэгт, тоо, тэмдэгтийг хасна", () => {
-  for (const w of ["б", "1 ", "12", "№5", "12)", "50-", "  ", ""]) {
-    assert.equal(checkable(w), false, JSON.stringify(w));
-  }
+test("аравтын бутархайг таньна", () => {
+  assert.deepEqual(splitNumberUnit("7.7мг"), { number: "7.7", unit: "мг" });
+  assert.deepEqual(splitNumberUnit("25,5кг"), { number: "25,5", unit: "кг" });
+  assert.deepEqual(splitNumberUnit("1.234.567төг"), {
+    number: "1.234.567",
+    unit: "төг",
+  });
 });
 
-test("checkable: тоонд залгасан нөхцөлийг шалгана", () => {
-  for (const w of ["50-ны", "2-р", "1982-онд"]) {
-    assert.equal(checkable(w), true, JSON.stringify(w));
-  }
+test("латин нэгжийг мөн таньна", () => {
+  assert.deepEqual(splitNumberUnit("10mg"), { number: "10", unit: "mg" });
 });
 
-test("isDashSuffix: зураасаар эхэлсэн токен", () => {
-  assert.equal(isDashSuffix("юм -ны юм", { word: "-ны", start: 3 }), true);
+test("үсгээр эхэлсэн үгийг хөндөхгүй", () => {
+  assert.equal(splitNumberUnit("COVID19"), null);
+  assert.equal(splitNumberUnit("х2"), null);
+  assert.equal(splitNumberUnit("мг"), null);
 });
 
-test("isDashSuffix: бичвэр дэх өмнөө тэмдэгтэй зураас", () => {
-  assert.equal(isDashSuffix("50-ны", { word: "ны", start: 3 }), true);
+test("зөвхөн тооноос бүрдсэн үгийг хөндөхгүй", () => {
+  assert.equal(splitNumberUnit("10"), null);
+  assert.equal(splitNumberUnit("7.7"), null);
+  assert.equal(splitNumberUnit("25,5"), null);
 });
 
-test("isDashSuffix: дундаа зураастай бүтэн үг биш", () => {
-  assert.equal(isDashSuffix("ТЕГ-аас", { word: "ТЕГ-аас", start: 0 }), false);
+test("зураастай хэлбэрийг хөндөхгүй", () => {
+  assert.equal(splitNumberUnit("2-р"), null);
+  assert.equal(splitNumberUnit("1960-аад"), null);
 });
 
-test("isDashSuffix: энгийн үг биш", () => {
-  assert.equal(isDashSuffix("юм ны юм", { word: "ны", start: 3 }), false);
+test("тоо дундаа үсэгтэй бол таарахгүй", () => {
+  assert.equal(splitNumberUnit("10мг20"), null);
+  assert.equal(splitNumberUnit("1а2б"), null);
 });
 
-test("startsLowerAfterDash: жижиг үсгээр эхэлсэн нөхцөл", () => {
-  assert.equal(startsLowerAfterDash("-ны"), true);
-  assert.equal(startsLowerAfterDash("ны"), true);
+test("нэг үсэгт нэгжийг ч буцаана", () => {
+  assert.deepEqual(splitNumberUnit("5м"), { number: "5", unit: "м" });
 });
 
-test("startsLowerAfterDash: том үсэг ба хоосон", () => {
-  assert.equal(startsLowerAfterDash("-Улаанбаатар"), false);
-  assert.equal(startsLowerAfterDash("-"), false);
-  assert.equal(startsLowerAfterDash("-5"), false);
+test("хоосон ба тэмдэгттэй оролт", () => {
+  assert.equal(splitNumberUnit(""), null);
+  assert.equal(splitNumberUnit("10 мг"), null);
+  assert.equal(splitNumberUnit("10.мг"), null);
 });
 
-test("buildErrorList: case-insensitive давхардлыг тоолж нэгтгэнэ", () => {
-  const items = buildErrorList([
-    { word: "Үг", start: 0 },
-    { word: "үг", start: 10 },
-    { word: "өөр", start: 20 },
-  ]);
-  assert.equal(items.length, 2);
-  const first = items.find((i) => i.word === "Үг");
-  assert.ok(first);
-  assert.equal(first.count, 2);
-  assert.equal(first.start, 0);
-  assert.equal(items.find((i) => i.word === "өөр")?.count, 1);
+test("аравтын цэгийг таньж хуваалтын цэг гэж үзэхгүй", () => {
+  assert.equal(isDecimalPoint("7", "7мг"), true);
+  assert.equal(isDecimalPoint("1.234", "567төг"), true);
+  assert.equal(isDecimalPoint("3", "14"), true);
 });
 
-test("buildErrorList: хоосон оролт", () => {
-  assert.deepEqual(buildErrorList([]), []);
+test("нэрийн товчлол ба жагсаалтын цэг хуваалт хэвээр", () => {
+  assert.equal(isDecimalPoint("А", "Б.Иванов"), false);
+  assert.equal(isDecimalPoint("1", "Монгол"), false);
+  assert.equal(isDecimalPoint("үг", "2"), false);
+  assert.equal(isDecimalPoint("", "5"), false);
+  assert.equal(isDecimalPoint("5", ""), false);
 });
