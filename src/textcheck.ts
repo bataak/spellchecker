@@ -33,6 +33,26 @@ export function isDashSuffix(
   );
 }
 
+// 10мг, 7.7мг, 25,5кг — тоо ба нэгж зайгүй наалдсан тохиолдол.
+// Тоог задлахгүй, тоо ба үсгийн заагаар л салгана.
+const NUMBER_UNIT = /^(\p{N}+(?:[.,]\p{N}+)*)(\p{L}[\p{L}\p{M}]*)$/u;
+
+export interface NumberUnit {
+  number: string;
+  unit: string;
+}
+
+export function splitNumberUnit(word: string): NumberUnit | null {
+  const match = NUMBER_UNIT.exec(word);
+  if (!match) return null;
+  return { number: match[1]!, unit: match[2]! };
+}
+
+// Хоёр талдаа цифртэй цэг нь аравтын таслал тул хуваалтын цэг биш.
+export function isDecimalPoint(left: string, right: string): boolean {
+  return /\p{N}$/u.test(left) && /^\p{N}/u.test(right);
+}
+
 export function startsLowerAfterDash(word: string): boolean {
   const ch = word.replace(/^[-\u2013\u2014]+/, "").charAt(0);
   return ch !== "" && ch === ch.toLowerCase() && ch !== ch.toUpperCase();

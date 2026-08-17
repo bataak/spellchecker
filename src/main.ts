@@ -22,7 +22,13 @@ import { initIgnoreList, syncIgnoreVisibility } from "./ignorelist.ts";
 import { initAppearance } from "./appearance.ts";
 import { escapeHtml } from "./htmlutil.ts";
 import { inRanges, skipRanges } from "./codeskip.ts";
-import { checkable, isDashSuffix, buildErrorList } from "./textcheck.ts";
+import {
+  checkable,
+  isDashSuffix,
+  buildErrorList,
+  isDecimalPoint,
+  splitNumberUnit,
+} from "./textcheck.ts";
 import {
   initDraftStorage,
   saveDraft,
@@ -617,6 +623,7 @@ async function periodSplits(word: string): Promise<string[]> {
     const left = word.slice(0, index);
     const right = word.slice(index + 1);
     if (right.length < 2) continue;
+    if (isDecimalPoint(left, right)) continue;
     parts.push({ left, right });
   }
 
@@ -642,6 +649,15 @@ async function periodSplits(word: string): Promise<string[]> {
         (good(part.left) && good(part.right)),
     )
     .map((part) => part.left + ". " + part.right);
+}
+
+// 10мг, 7.7мг гэх мэт тоо ба нэгж наалдсан үгийг зайгаар салгаж санал болгоно.
+async function numberSplits(word: string): Promise<string[]> {
+  const split = splitNumberUnit(word);
+  if (!split || !checkable(split.unit)) return [];
+  const known = await checker.checkWords([split.unit]);
+  if (known[split.unit] !== true) return [];
+  return [split.number + " " + split.unit];
 }
 
 // Товчлолтой хамт шалгасан үед саналыг нөхцөлийн хэсэг рүү нь буцаана.
@@ -678,12 +694,19 @@ async function showPopoverFor(token: Token): Promise<void> {
   placePopover();
   scheduleKbAdjust();
 
-  const splits = await periodSplits(token.word);
-  const offered = await checker.suggest(token.joined ?? token.word);
+  const [splits, numbers, offered] = await Promise.all([
+    periodSplits(token.word),
+    numberSplits(token.word),
+    checker.suggest(token.joined ?? token.word),
+  ]);
   const scoped = scopeToSuffix(token, offered);
-  const suggestions = [
+  const ahead = [
     ...splits,
-    ...scoped.filter((item) => !splits.includes(item)),
+    ...numbers.filter((item) => !splits.includes(item)),
+  ];
+  const suggestions = [
+    ...ahead,
+    ...scoped.filter((item) => !ahead.includes(item)),
   ].slice(0, desktopMQ.matches ? 15 : 8);
   if (activeStart !== token.start || els.popover.hidden) return;
   const sgHtml = suggestions.length
