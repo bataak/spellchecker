@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.70.0](https://github.com/bataak/spellchecker/compare/v1.69.1...v1.70.0) (2026-08-18)
+
+
+### Features
+
+* add layout picker, markdown preview and PDF rendering ([d2bd226](https://github.com/bataak/spellchecker/commit/d2bd22654c2d2cc0571ac5cbfc58bde1ee420277))
+* **suggest:** offer a space between a number and its unit ([9ad88e0](https://github.com/bataak/spellchecker/commit/9ad88e0dadfd47fc263e735c202caac240b5dbea))
+
 ## [1.69.1](https://github.com/bataak/spellchecker/compare/v1.69.0...v1.69.1) (2026-08-14)
 
 
