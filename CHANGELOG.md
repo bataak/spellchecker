@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.70.2](https://github.com/bataak/spellchecker/compare/v1.70.1...v1.70.2) (2026-08-18)
+
+
+### Bug Fixes
+
+* keep the layout button clear of the editor scrollbar ([0926300](https://github.com/bataak/spellchecker/commit/0926300bba06e5224f66c8b8109ee78e7c6b69ce))
+
 ## [1.70.1](https://github.com/bataak/spellchecker/compare/v1.70.0...v1.70.1) (2026-08-18)
 
 
