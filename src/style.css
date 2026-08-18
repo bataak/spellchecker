@@ -47,17 +47,24 @@ html {
   );
   --preview-ink: #2f7d54;
   --slots-w: 0px;
-  --page-base: calc(var(--editor-width) + var(--slots-w) + 2 * var(--page-pad));
+  --page-base: calc(
+    var(--editor-width) + var(--slots-w) + 2 * var(--page-pad)
+  );
   --gutter-pull: min(
     var(--gutter-w),
-    max(var(--page-pad), calc((100vw - var(--page-base)) / 2 + var(--page-pad)))
+    max(
+      var(--page-pad),
+      calc((100vw - var(--page-base)) / 2 + var(--page-pad))
+    )
   );
   --page-max: calc(var(--page-base) - var(--gutter-pull));
 
   --sans:
-    ui-sans-serif, system-ui, "Segoe UI", "Noto Sans", Roboto, Arial, sans-serif;
+    ui-sans-serif, system-ui, "Segoe UI", "Noto Sans", Roboto, Arial,
+    sans-serif;
   --serif:
-    "Bichig Serif", "PT Serif", "Noto Serif", "Liberation Serif", Georgia, serif;
+    "Bichig Serif", "PT Serif", "Noto Serif", "Liberation Serif", Georgia,
+    serif;
 }
 
 :root[data-measure="b"] {
@@ -1159,7 +1166,8 @@ html.booting .empty-state {
   flex-direction: column;
   position: relative;
 }
-.error-panel {
+.error-panel,
+.preview-panel {
   display: none;
 }
 
