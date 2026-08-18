@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.70.1](https://github.com/bataak/spellchecker/compare/v1.70.0...v1.70.1) (2026-08-18)
+
+
+### Bug Fixes
+
+* **fonts:** declare 700 weight face and preload it instead of italic ([74f7828](https://github.com/bataak/spellchecker/commit/74f7828bbff76e57fcdf29444ec423493d54c620))
+* hide the preview panel below the desktop breakpoint ([c7a23ba](https://github.com/bataak/spellchecker/commit/c7a23bad62c87fe29d28cdd850cb9c7ecfd29eff))
+
+
+### Performance Improvements
+
+* **fonts:** re-subset italic without hinting, match 400 coverage ([a89b299](https://github.com/bataak/spellchecker/commit/a89b299c592b85c8ff8b592b344fb5d4385084fc))
+
 ## [1.70.0](https://github.com/bataak/spellchecker/compare/v1.69.1...v1.70.0) (2026-08-18)
 
 
