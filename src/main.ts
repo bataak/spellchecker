@@ -20,6 +20,10 @@ import { isIgnored, addIgnored } from "./ignore.ts";
 import type { Token } from "./textcheck.ts";
 import { initIgnoreList, syncIgnoreVisibility } from "./ignorelist.ts";
 import { initAppearance } from "./appearance.ts";
+import { mountMeasureControl } from "./measure.ts";
+import { initPreview, type Preview } from "./preview.ts";
+
+let previewCtl: Preview | null = null;
 import { escapeHtml } from "./htmlutil.ts";
 import { inRanges, skipRanges } from "./codeskip.ts";
 import {
@@ -291,6 +295,7 @@ async function render() {
   const seq = ++renderSeq;
 
   syncEmptyState(text);
+  previewCtl?.update();
 
   if (!ready) {
     badTokens = [];
@@ -651,7 +656,6 @@ async function periodSplits(word: string): Promise<string[]> {
     .map((part) => part.left + ". " + part.right);
 }
 
-// 10мг, 7.7мг гэх мэт тоо ба нэгж наалдсан үгийг зайгаар салгаж санал болгоно.
 async function numberSplits(word: string): Promise<string[]> {
   const split = splitNumberUnit(word);
   if (!split || !checkable(split.unit)) return [];
@@ -660,7 +664,6 @@ async function numberSplits(word: string): Promise<string[]> {
   return [split.number + " " + split.unit];
 }
 
-// Товчлолтой хамт шалгасан үед саналыг нөхцөлийн хэсэг рүү нь буцаана.
 function scopeToSuffix(token: Token, offered: string[]): string[] {
   if (!token.joined) return offered;
   const head = token.joined.slice(0, token.joined.length - token.word.length);
@@ -935,9 +938,24 @@ function saveText() {
     const selectionStart = els.editor.selectionStart;
     const selectionEnd = els.editor.selectionEnd;
     if (selectionStart != null)
-      localStorage.setItem(CARET_KEY, selectionStart + "," + selectionEnd);
+      localStorage.setItem(
+        CARET_KEY,
+        selectionStart + "," + selectionEnd + "," + els.editor.scrollTop,
+      );
   } catch (_) {}
 }
+let bootScroll: number | null = null;
+
+function restoreBootScroll(): void {
+  if (bootScroll == null) return;
+  const max = els.editor.scrollHeight - els.editor.clientHeight;
+  els.editor.scrollTop = Math.min(bootScroll, Math.max(0, max));
+}
+
+function dropBootScroll(): void {
+  bootScroll = null;
+}
+
 async function loadText() {
   try {
     const draftText = await loadDraft();
@@ -958,9 +976,12 @@ async function loadText() {
         els.editor.setSelectionRange(start, end);
       } catch (_) {}
       lastCaret = { start, end };
+      const top = parseFloat(parts[2] ?? "");
+      if (Number.isFinite(top) && top > 0) bootScroll = top;
     }
   } catch (_) {}
 }
+
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 function saveTextSoon(): void {
   if (saveTimer) clearTimeout(saveTimer);
@@ -980,6 +1001,7 @@ document.addEventListener("visibilitychange", () => {
 let programmaticEdit = false;
 function setEditorText(newText: string, caret: number | null): void {
   pendingFix = null;
+  previewCtl?.setSource(null);
   const old = els.editor.value;
   if (docx && old !== newText && !docx.sync(old, newText)) {
     holdStatus("Энэ өөрчлөлтийг docx файлд буулгах боломжгүй");
@@ -1323,6 +1345,27 @@ if (window.visualViewport) {
 window.addEventListener("resize", placePopover);
 
 initAppearance();
+
+const editorWrap = els.editor.closest<HTMLElement>(".editor-wrap");
+if (editorWrap) {
+  mountMeasureControl(editorWrap, els.editor, (l) => {
+    if (l.preview) previewCtl?.update();
+  });
+  previewCtl = initPreview(editorWrap, els.editor, (next) => {
+    const caret = Math.min(els.editor.selectionStart, next.length);
+    const scrollTop = els.editor.scrollTop;
+    const scrollLeft = els.editor.scrollLeft;
+    const restoreView = (): void => {
+      els.editor.scrollTop = scrollTop;
+      els.editor.scrollLeft = scrollLeft;
+    };
+    setEditorText(next, caret);
+    restoreView();
+    void Promise.resolve(render()).then(restoreView);
+    saveText();
+  });
+}
+
 function flash(sel: string, msg: string): void {
   const flashBtn = document.querySelector<HTMLElement>(sel);
   if (!flashBtn) return;
@@ -1404,9 +1447,7 @@ async function reloadToLatest(): Promise<void> {
       const fresh = reg.installing || reg.waiting;
       if (fresh) await swSettled(fresh);
     }
-  } catch (_) {
-    /* сүлжээ хүрэхгүй — байгаа хувилбараар ачаална */
-  }
+  } catch (_) {}
   clearTimeout(timer);
   reload();
 }
@@ -1476,6 +1517,7 @@ async function openPdfFile(file: File): Promise<boolean> {
   hidePopover();
   await render();
   saveText();
+  previewCtl?.setSource({ kind: "pdf", file });
   return true;
 }
 
@@ -1508,6 +1550,7 @@ async function openDocxFile(file: File): Promise<boolean> {
 
   els.editor.readOnly = true;
   els.editor.value = docx.text();
+  previewCtl?.setSource({ kind: "office", name: file.name });
   document.body.classList.add("docx-mode");
   syncSaveHint();
   hidePopover();
@@ -1721,9 +1764,7 @@ async function requestDurableStorage() {
         : false;
       if (!already) await navigator.storage.persist();
     }
-  } catch (_) {
-    /* persist дэмжигдээгүй — алгасна */
-  }
+  } catch (_) {}
 }
 
 function offlineCapable() {
@@ -1736,7 +1777,6 @@ async function isOfflineReady() {
     const resolveAppUrl = (path: string): string =>
       new URL(base + path, location.href).href;
     const opt = { ignoreSearch: true };
-    // SW бүртгэгдсэн эсэхийг шалгана (controller анх ачаалалд хожуу тогтдог).
     const reg =
       navigator.serviceWorker &&
       (await navigator.serviceWorker.getRegistration());
@@ -1821,9 +1861,7 @@ async function checkAppFreshness(): Promise<void> {
     const selfName = import.meta.url.split("/").pop();
     if (!selfName || text.includes(selfName)) return;
     reloadEl.hidden = false;
-  } catch (_) {
-    /* сүлжээ хүрэхгүй — дараагийн шалгалтад */
-  }
+  } catch (_) {}
 }
 
 function maybeRefreshDict(): void {
@@ -1880,6 +1918,13 @@ async function boot() {
   render();
   document.documentElement.classList.remove("booting");
   els.editor.focus();
+  restoreBootScroll();
+  void document.fonts?.ready.then(() => {
+    restoreBootScroll();
+    dropBootScroll();
+  });
+  for (const type of ["pointerdown", "wheel", "keydown", "touchstart"])
+    els.editor.addEventListener(type, dropBootScroll, { once: true });
   try {
     const { loaded, failed, fallbackReason, mnVersion } = await checker.init(
       import.meta.env.BASE_URL,
