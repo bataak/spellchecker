@@ -1,39 +1,16 @@
 .editor-wrap {
-  --gutter-digits: 2;
-  --gutter-gap: 10px;
   --gutter-pad: var(--editor-pad-x, 22px);
-  --gutter-unit: 11px;
   --gutter-num: 0.95;
   --gutter-lh: var(--editor-lh, 1.9);
   --gutter-baseline: 0.04em;
-  --gutter-w: calc(
-    var(--gutter-digits) * var(--gutter-unit) * var(--editor-scale, 1) +
-      var(--gutter-gap) * 2
-  );
+}
+
+.editor-wrap:not(.has-gutter) {
   --gutter-pull: 0px;
 }
 
 .editor-wrap.has-gutter {
-  --gutter-pull: min(
-    var(--gutter-w),
-    max(
-      var(--page-pad, max(20px, env(safe-area-inset-left))),
-      calc(
-        (100vw - 120ch) / 2 +
-          var(--page-pad, max(20px, env(safe-area-inset-left)))
-      )
-    )
-  );
-}
-
-.editor-wrap.has-gutter {
   margin-inline-start: calc(var(--gutter-pull) * -1);
-}
-
-@media (min-width: 701px) {
-  .editor-wrap.has-gutter {
-    flex-basis: calc(75ch + var(--gutter-w));
-  }
 }
 
 .editor-wrap.has-gutter::before {
