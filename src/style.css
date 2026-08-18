@@ -387,7 +387,7 @@ a.tbtn {
   display: flex;
   align-items: stretch;
   gap: 8px;
-  padding: 14px 14px 24px 34px;
+  padding: 14px calc(14px + var(--scrollbar-w, 0px)) 24px 34px;
   pointer-events: none;
 }
 
@@ -438,6 +438,7 @@ a.tbtn {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
+  max-width: calc(100vw - 2 * var(--page-pad));
   display: grid;
   grid-template-columns: repeat(3, auto);
   justify-items: start;

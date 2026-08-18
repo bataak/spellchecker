@@ -85,6 +85,20 @@ function syncToolbar(): void {
   else delete document.documentElement.dataset.toolbar;
 }
 
+let scrollbarWidth: number | null = null;
+
+function measureScrollbar(): number {
+  if (scrollbarWidth !== null) return scrollbarWidth;
+  const probe = document.createElement("div");
+  probe.style.cssText =
+    "position:absolute;visibility:hidden;pointer-events:none;" +
+    "width:100px;height:100px;overflow:scroll";
+  document.body.append(probe);
+  scrollbarWidth = probe.offsetWidth - probe.clientWidth;
+  probe.remove();
+  return scrollbarWidth;
+}
+
 function readMetrics(area: HTMLElement, wrap: HTMLElement): Metrics {
   const root = getComputedStyle(document.documentElement);
   const areaCs = getComputedStyle(area);
@@ -313,6 +327,11 @@ export function mountMeasureControl(
     document.documentElement.style.setProperty(
       "--editor-per",
       `${metrics.per.toFixed(3)}px`,
+    );
+
+    document.documentElement.style.setProperty(
+      "--scrollbar-w",
+      `${measureScrollbar()}px`,
     );
 
     const viewport = document.documentElement.clientWidth;
