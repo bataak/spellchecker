@@ -1,3 +1,5 @@
+import type { DraftFile } from "./storage.ts";
+
 export interface FileIODeps {
   els: { editor: HTMLTextAreaElement };
   openDocxFile: (file: File) => Promise<boolean>;
@@ -10,11 +12,13 @@ export interface FileIODeps {
   hidePopover: () => void;
   render: () => Promise<void> | void;
   saveText: () => void;
-  onFileOpened: (name: string | null) => void;
+  onFileOpened: (file: DraftFile | null) => void;
 }
 
 export interface FileIOControl {
   forgetFile: () => void;
+  restoreFile: (ref: DraftFile) => void;
+  targetName: () => string | null;
 }
 
 export function initFileIO({
@@ -64,6 +68,7 @@ export function initFileIO({
     return (isMobile ? "" : "бичвэр-") + ts + ".txt";
   }
 
+  const OFFICE_EXT_RE = /\.(docx|pptx|odt|odp|pdf)$/i;
   const TEXT_EXT_RE = /\.(txt|md|markdown|mdown|text)$/i;
   const MD_EXT_RE = /\.(md|markdown|mdown)$/i;
 
@@ -139,7 +144,7 @@ export function initFileIO({
     if (!looksDocx(file)) return false;
     currentFileHandle = null;
     currentFileName = null;
-    onFileOpened(null);
+    onFileOpened({ name: file.name, kind: "office" });
     await openDocxFile(file);
     flash("#openBtn", "Нээлээ");
     return true;
@@ -226,7 +231,9 @@ export function initFileIO({
     closeDocx();
     currentFileHandle = handle || null;
     currentFileName = name || (handle && handle.name) || null;
-    onFileOpened(currentFileName);
+    onFileOpened(
+      currentFileName ? { name: currentFileName, kind: "text" } : null,
+    );
     setEditorText(content, content.length);
     hidePopover();
     render();
@@ -359,6 +366,16 @@ export function initFileIO({
       currentFileHandle = null;
       currentFileName = null;
       onFileOpened(null);
+    },
+    restoreFile(ref: DraftFile) {
+      currentFileHandle = null;
+      currentFileName =
+        ref.kind === "office"
+          ? ref.name.replace(OFFICE_EXT_RE, "") + ".txt"
+          : ref.name;
+    },
+    targetName() {
+      return currentFileName;
     },
   };
 }

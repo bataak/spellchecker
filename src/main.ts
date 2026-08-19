@@ -38,6 +38,8 @@ import {
   saveDraft,
   flushDraft,
   loadDraft,
+  saveDraftFile,
+  loadDraftFile,
 } from "./storage.ts";
 import {
   initBackdrop,
@@ -381,9 +383,13 @@ function syncSaveHint(): void {
     ? saveTitleBase.slice(saveTitleBase.lastIndexOf(" · "))
     : "";
 
+  const target = fileIO.targetName();
+
   btn.title = docx
     ? docx.outputName() + " болгож хадгална" + combo
-    : saveTitleBase;
+    : target
+      ? target + " болгож хадгална" + combo
+      : saveTitleBase;
 }
 
 function statsMessage(): string {
@@ -1591,10 +1597,24 @@ const fileIO = initFileIO({
   hidePopover,
   render,
   saveText,
-  onFileOpened: (name) => {
-    plainName = name;
+  onFileOpened: (ref) => {
+    plainName = ref ? ref.name : null;
+    saveDraftFile(ref);
+    syncSaveHint();
   },
 });
+
+function restoreDraftFile(): void {
+  const ref = loadDraftFile();
+  if (!ref) return;
+  if (els.editor.value === "") {
+    saveDraftFile(null);
+    return;
+  }
+  fileIO.restoreFile(ref);
+  plainName = fileIO.targetName();
+  syncSaveHint();
+}
 
 (function setupShortcuts() {
   const isDesktop =
@@ -1906,6 +1926,7 @@ async function boot() {
   };
   setStatus("Hunspell ачаалж байна…");
   await loadText();
+  restoreDraftFile();
   render();
   document.documentElement.classList.remove("booting");
   els.editor.focus();
