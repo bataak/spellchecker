@@ -31,7 +31,7 @@ import {
   isDashSuffix,
   buildErrorList,
   isDecimalPoint,
-  splitNumberUnit,
+  splitNumberBoundary,
 } from "./textcheck.ts";
 import {
   initDraftStorage,
@@ -196,7 +196,9 @@ async function ensureChecked(text: string): Promise<void> {
   for (const [word, correct] of results) cache.set(word, correct);
 }
 function nextFrame(): Promise<void> {
-  return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  return new Promise<void>((resolve) =>
+    requestAnimationFrame(() => resolve()),
+  );
 }
 async function correctNow(word: string): Promise<boolean> {
   if (cache.has(word)) return cache.get(word)!;
@@ -662,11 +664,11 @@ async function periodSplits(word: string): Promise<string[]> {
 }
 
 async function numberSplits(word: string): Promise<string[]> {
-  const split = splitNumberUnit(word);
-  if (!split || !checkable(split.unit)) return [];
-  const known = await checker.checkWords([split.unit]);
-  if (known[split.unit] !== true) return [];
-  return [split.number + " " + split.unit];
+  const split = splitNumberBoundary(word);
+  if (!split || !checkable(split.word)) return [];
+  const known = await checker.checkWords([split.word]);
+  if (known[split.word] !== true) return [];
+  return [split.split];
 }
 
 function scopeToSuffix(token: Token, offered: string[]): string[] {
@@ -685,7 +687,9 @@ async function showPopoverFor(token: Token): Promise<void> {
   if (!mark) {
     await render();
     materializeMark(token.start);
-    mark = els.backdrop.querySelector('mark[data-start="' + token.start + '"]');
+    mark = els.backdrop.querySelector(
+      'mark[data-start="' + token.start + '"]',
+    );
   }
   if (!mark) {
     hidePopover();
@@ -900,7 +904,10 @@ function isSeparatorInput(e: InputEvent): boolean {
   if (it === "insertText")
     return e.data != null && /[\s\p{P}\p{S}]/u.test(e.data);
   if (it === "insertLineBreak" || it === "insertParagraph") return true;
-  if (it.indexOf("insertFromPaste") === 0 || it.indexOf("insertFromDrop") === 0)
+  if (
+    it.indexOf("insertFromPaste") === 0 ||
+    it.indexOf("insertFromDrop") === 0
+  )
     return true;
   return false;
 }
@@ -1101,7 +1108,8 @@ function editKind(event: Event): EditKind {
   const type = (event as InputEvent).inputType || "";
   if (type === "insertText" || type === "insertCompositionText")
     return "insert";
-  if (type === "insertLineBreak" || type === "insertParagraph") return "insert";
+  if (type === "insertLineBreak" || type === "insertParagraph")
+    return "insert";
   if (type === "insertFromPaste") return "insert";
   if (type.startsWith("delete")) return "delete";
   return "other";
@@ -1290,7 +1298,8 @@ els.editor.addEventListener("keyup", (e) => {
 let suppressNextClick = false;
 
 function markAtPoint(x: number, y: number): HTMLElement | null {
-  const marks = els.backdrop.querySelectorAll<HTMLElement>("mark[data-start]");
+  const marks =
+    els.backdrop.querySelectorAll<HTMLElement>("mark[data-start]");
   for (const mark of marks) {
     const rects = mark.getClientRects();
     for (const rect of rects) {
@@ -1758,7 +1767,8 @@ function restoreDraftFile(): void {
         : "";
       const editorFocused = document.activeElement === els.editor;
       const editorHasSelection =
-        editorFocused && els.editor.selectionStart !== els.editor.selectionEnd;
+        editorFocused &&
+        els.editor.selectionStart !== els.editor.selectionEnd;
       if (!pageSel && !editorHasSelection) {
         e.preventDefault();
         trigger("#copyBtn");
@@ -1769,7 +1779,10 @@ function restoreDraftFile(): void {
 
 async function requestDurableStorage() {
   try {
-    if (navigator.storage && typeof navigator.storage.persist === "function") {
+    if (
+      navigator.storage &&
+      typeof navigator.storage.persist === "function"
+    ) {
       const already = navigator.storage.persisted
         ? await navigator.storage.persisted()
         : false;
