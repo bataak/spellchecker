@@ -103,7 +103,10 @@ test("хүснэгт — урт нүдтэй үед тэгшитгэхгүй", (
 });
 
 test("escape — задлалтад алга болохгүй", () => {
-  const p = parse(SAMPLES.escape!)[0] as Extract<Block, { type: "paragraph" }>;
+  const p = parse(SAMPLES.escape!)[0] as Extract<
+    Block,
+    { type: "paragraph" }
+  >;
   const text = p.children.map((n) => ("value" in n ? n.value : "")).join("");
   assert.ok(text.includes("20XX - одоо"), text);
   assert.ok(text.includes("no_reply@example.mn"), text);
@@ -181,10 +184,32 @@ test("цэгцгүй бичвэр дээр өөрчлөлт гарна", () => {
   assert.notEqual(print(parse(messy)), messy);
 });
 
-test("isMarkdown — тэмдэглэгээтэй бичвэрийг таньна", () => {
-  const plain = new Set([SAMPLES.escape, SAMPLES.бишАвтолинк]);
-  for (const src of Object.values(SAMPLES)) {
-    if (plain.has(src)) continue;
-    assert.ok(isMarkdown(parse(src)), src);
-  }
+test("isMarkdown — тодорхой тэмдэглэгээг таньна", () => {
+  const strong = [
+    SAMPLES.гарчиг,
+    SAMPLES.ишлэл,
+    SAMPLES.код,
+    SAMPLES.зураас,
+    SAMPLES.холбоос,
+    SAMPLES.онцлол,
+    SAMPLES.inlineCode,
+    SAMPLES.хүснэгт,
+    SAMPLES.autolink,
+  ];
+  for (const src of strong) assert.ok(isMarkdown(parse(src!)), src);
+});
+
+test("isMarkdown — жагсаалт дангаараа хангалтгүй", () => {
+  const plain = [
+    "Талибууд Афганистанд хяналтаа тогтоов.\n",
+    "- нэг\n- хоёр\n- гурав\n",
+    "1. Эхлээд\n2. Дараа нь\n",
+    SAMPLES.escape!,
+    SAMPLES.бишАвтолинк!,
+  ];
+  for (const src of plain) assert.equal(isMarkdown(parse(src)), false, src);
+});
+
+test("isMarkdown — жагсаалтын доторх тэмдэглэгээ тоологдоно", () => {
+  assert.ok(isMarkdown(parse("- **нэг**\n- хоёр\n")));
 });
