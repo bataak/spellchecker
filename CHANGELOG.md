@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.72.0](https://github.com/bataak/spellchecker/compare/v1.71.0...v1.72.0) (2026-08-19)
+
+
+### Features
+
+* suggest space split for word-number tokens ([ac5a9f9](https://github.com/bataak/spellchecker/commit/ac5a9f9962b0ae167cffb90731bb604ae4112767))
+
 ## [1.71.0](https://github.com/bataak/spellchecker/compare/v1.70.2...v1.71.0) (2026-08-19)
 
 
