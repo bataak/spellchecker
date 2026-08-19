@@ -4,6 +4,7 @@ export interface ToolbarDeps {
   els: { editor: HTMLTextAreaElement; status: HTMLElement };
   isDocxActive: () => boolean;
   closeDocx: () => void;
+  forgetFile: () => void;
   flash: (sel: string, msg: string) => void;
   setStatus: (html: string, animate?: boolean) => void;
   setEditorText: (text: string, caret: number | null) => void;
@@ -112,6 +113,7 @@ function initButtons({
   els,
   isDocxActive,
   closeDocx,
+  forgetFile,
   flash,
   setStatus,
   setEditorText,
@@ -133,6 +135,7 @@ function initButtons({
       localStorage.setItem("mn-spell:last-cleared", els.editor.value);
     } catch (_) {}
     closeDocx();
+    forgetFile();
     setEditorText("", 0);
     hidePopover();
     render();

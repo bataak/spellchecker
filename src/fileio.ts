@@ -10,6 +10,11 @@ export interface FileIODeps {
   hidePopover: () => void;
   render: () => Promise<void> | void;
   saveText: () => void;
+  onFileOpened: (name: string | null) => void;
+}
+
+export interface FileIOControl {
+  forgetFile: () => void;
 }
 
 export function initFileIO({
@@ -24,7 +29,8 @@ export function initFileIO({
   hidePopover,
   render,
   saveText,
-}: FileIODeps): void {
+  onFileOpened,
+}: FileIODeps): FileIOControl {
   const MAX_OPEN_BYTES = 10 * 1024 * 1024;
   const BIG_NOTICE_BYTES = 2 * 1024 * 1024;
   const hasFSSave = "showSaveFilePicker" in window;
@@ -133,6 +139,7 @@ export function initFileIO({
     if (!looksDocx(file)) return false;
     currentFileHandle = null;
     currentFileName = null;
+    onFileOpened(null);
     await openDocxFile(file);
     flash("#openBtn", "Нээлээ");
     return true;
@@ -219,6 +226,7 @@ export function initFileIO({
     closeDocx();
     currentFileHandle = handle || null;
     currentFileName = name || (handle && handle.name) || null;
+    onFileOpened(currentFileName);
     setEditorText(content, content.length);
     hidePopover();
     render();
@@ -345,4 +353,12 @@ export function initFileIO({
       );
     } catch (_) {}
   });
+
+  return {
+    forgetFile() {
+      currentFileHandle = null;
+      currentFileName = null;
+      onFileOpened(null);
+    },
+  };
 }

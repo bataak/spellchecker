@@ -115,6 +115,7 @@ let enabledEnglish = loadEnabledEnglish();
 let lastFailed: { id: string; error: string }[] | null = null;
 let lastFallbackReason: string | null = null;
 let docx: OfficeMode | null = null;
+let plainName: string | null = null;
 let skipCode = true;
 let skipLinks = true;
 
@@ -193,9 +194,7 @@ async function ensureChecked(text: string): Promise<void> {
   for (const [word, correct] of results) cache.set(word, correct);
 }
 function nextFrame(): Promise<void> {
-  return new Promise<void>((resolve) =>
-    requestAnimationFrame(() => resolve()),
-  );
+  return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 }
 async function correctNow(word: string): Promise<boolean> {
   if (cache.has(word)) return cache.get(word)!;
@@ -388,9 +387,9 @@ function syncSaveHint(): void {
 }
 
 function statsMessage(): string {
-  if (!docx) return statsBody();
+  const full = docx ? docx.fileName() : plainName;
+  if (!full) return statsBody();
 
-  const full = docx.fileName();
   const parts = splitName(full);
 
   return (
@@ -680,9 +679,7 @@ async function showPopoverFor(token: Token): Promise<void> {
   if (!mark) {
     await render();
     materializeMark(token.start);
-    mark = els.backdrop.querySelector(
-      'mark[data-start="' + token.start + '"]',
-    );
+    mark = els.backdrop.querySelector('mark[data-start="' + token.start + '"]');
   }
   if (!mark) {
     hidePopover();
@@ -897,10 +894,7 @@ function isSeparatorInput(e: InputEvent): boolean {
   if (it === "insertText")
     return e.data != null && /[\s\p{P}\p{S}]/u.test(e.data);
   if (it === "insertLineBreak" || it === "insertParagraph") return true;
-  if (
-    it.indexOf("insertFromPaste") === 0 ||
-    it.indexOf("insertFromDrop") === 0
-  )
+  if (it.indexOf("insertFromPaste") === 0 || it.indexOf("insertFromDrop") === 0)
     return true;
   return false;
 }
@@ -1101,8 +1095,7 @@ function editKind(event: Event): EditKind {
   const type = (event as InputEvent).inputType || "";
   if (type === "insertText" || type === "insertCompositionText")
     return "insert";
-  if (type === "insertLineBreak" || type === "insertParagraph")
-    return "insert";
+  if (type === "insertLineBreak" || type === "insertParagraph") return "insert";
   if (type === "insertFromPaste") return "insert";
   if (type.startsWith("delete")) return "delete";
   return "other";
@@ -1291,8 +1284,7 @@ els.editor.addEventListener("keyup", (e) => {
 let suppressNextClick = false;
 
 function markAtPoint(x: number, y: number): HTMLElement | null {
-  const marks =
-    els.backdrop.querySelectorAll<HTMLElement>("mark[data-start]");
+  const marks = els.backdrop.querySelectorAll<HTMLElement>("mark[data-start]");
   for (const mark of marks) {
     const rects = mark.getClientRects();
     for (const rect of rects) {
@@ -1587,7 +1579,7 @@ async function docxSave(): Promise<void> {
   }
 }
 
-initFileIO({
+const fileIO = initFileIO({
   els,
   openDocxFile,
   closeDocx,
@@ -1599,6 +1591,9 @@ initFileIO({
   hidePopover,
   render,
   saveText,
+  onFileOpened: (name) => {
+    plainName = name;
+  },
 });
 
 (function setupShortcuts() {
@@ -1743,8 +1738,7 @@ initFileIO({
         : "";
       const editorFocused = document.activeElement === els.editor;
       const editorHasSelection =
-        editorFocused &&
-        els.editor.selectionStart !== els.editor.selectionEnd;
+        editorFocused && els.editor.selectionStart !== els.editor.selectionEnd;
       if (!pageSel && !editorHasSelection) {
         e.preventDefault();
         trigger("#copyBtn");
@@ -1755,10 +1749,7 @@ initFileIO({
 
 async function requestDurableStorage() {
   try {
-    if (
-      navigator.storage &&
-      typeof navigator.storage.persist === "function"
-    ) {
+    if (navigator.storage && typeof navigator.storage.persist === "function") {
       const already = navigator.storage.persisted
         ? await navigator.storage.persisted()
         : false;
@@ -2071,6 +2062,7 @@ initToolbar({
   els,
   isDocxActive: () => docx !== null,
   closeDocx,
+  forgetFile: fileIO.forgetFile,
   flash,
   setStatus,
   setEditorText,
