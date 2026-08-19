@@ -33,19 +33,39 @@ export function isDashSuffix(
   );
 }
 
-// 10мг, 7.7мг, 25,5кг — тоо ба нэгж зайгүй наалдсан тохиолдол.
+// 10мг, 7.7мг, 25,5кг, оруулалтаар19 — тоо ба үг зайгүй наалдсан тохиолдол.
 // Тоог задлахгүй, тоо ба үсгийн заагаар л салгана.
-const NUMBER_UNIT = /^(\p{N}+(?:[.,]\p{N}+)*)(\p{L}[\p{L}\p{M}]*)$/u;
+// Тоо түрүүлсэн бол аль ч бичгийн үсэг; үг түрүүлсэн бол зөвхөн кирилл, учир нь
+// латинаар MP3, COVID19 гэх мэт тоогоор төгссөн нэр хэвийн байдаг.
+const NUMBER = String.raw`\p{N}+(?:[.,]\p{N}+)*`;
+const LETTERS = String.raw`\p{L}[\p{L}\p{M}]*`;
+const CYRILLIC = String.raw`[\u0400-\u04FF][\u0400-\u04FF\p{M}]*`;
+const NUMBER_FIRST = new RegExp(`^(${NUMBER})(${LETTERS})$`, "u");
+const WORD_FIRST = new RegExp(`^(${CYRILLIC})(${NUMBER})$`, "u");
 
-export interface NumberUnit {
-  number: string;
-  unit: string;
+export interface NumberSplit {
+  // Толиос шалгах үсгэн хэсэг.
+  word: string;
+  // Зайгаар салгаж санал болгох хэлбэр.
+  split: string;
 }
 
-export function splitNumberUnit(word: string): NumberUnit | null {
-  const match = NUMBER_UNIT.exec(word);
-  if (!match) return null;
-  return { number: match[1]!, unit: match[2]! };
+export function splitNumberBoundary(input: string): NumberSplit | null {
+  const numberFirst = NUMBER_FIRST.exec(input);
+  if (numberFirst) {
+    return {
+      word: numberFirst[2]!,
+      split: numberFirst[1]! + " " + numberFirst[2]!,
+    };
+  }
+  const wordFirst = WORD_FIRST.exec(input);
+  if (wordFirst) {
+    return {
+      word: wordFirst[1]!,
+      split: wordFirst[1]! + " " + wordFirst[2]!,
+    };
+  }
+  return null;
 }
 
 // Хоёр талдаа цифртэй цэг нь аравтын таслал тул хуваалтын цэг биш.

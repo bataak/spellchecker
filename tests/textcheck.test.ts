@@ -1,58 +1,90 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isDecimalPoint, splitNumberUnit } from "../src/textcheck.ts";
+import { isDecimalPoint, splitNumberBoundary } from "../src/textcheck.ts";
 
 test("бүхэл тоо ба нэгжийг салгана", () => {
-  assert.deepEqual(splitNumberUnit("10мг"), { number: "10", unit: "мг" });
-  assert.deepEqual(splitNumberUnit("1990онд"), {
-    number: "1990",
-    unit: "онд",
+  assert.deepEqual(splitNumberBoundary("10мг"), {
+    word: "мг",
+    split: "10 мг",
+  });
+  assert.deepEqual(splitNumberBoundary("1990онд"), {
+    word: "онд",
+    split: "1990 онд",
   });
 });
 
 test("аравтын бутархайг таньна", () => {
-  assert.deepEqual(splitNumberUnit("7.7мг"), { number: "7.7", unit: "мг" });
-  assert.deepEqual(splitNumberUnit("25,5кг"), { number: "25,5", unit: "кг" });
-  assert.deepEqual(splitNumberUnit("1.234.567төг"), {
-    number: "1.234.567",
-    unit: "төг",
+  assert.deepEqual(splitNumberBoundary("7.7мг"), {
+    word: "мг",
+    split: "7.7 мг",
+  });
+  assert.deepEqual(splitNumberBoundary("25,5кг"), {
+    word: "кг",
+    split: "25,5 кг",
+  });
+  assert.deepEqual(splitNumberBoundary("1.234.567төг"), {
+    word: "төг",
+    split: "1.234.567 төг",
   });
 });
 
 test("латин нэгжийг мөн таньна", () => {
-  assert.deepEqual(splitNumberUnit("10mg"), { number: "10", unit: "mg" });
+  assert.deepEqual(splitNumberBoundary("10mg"), {
+    word: "mg",
+    split: "10 mg",
+  });
 });
 
-test("үсгээр эхэлсэн үгийг хөндөхгүй", () => {
-  assert.equal(splitNumberUnit("COVID19"), null);
-  assert.equal(splitNumberUnit("х2"), null);
-  assert.equal(splitNumberUnit("мг"), null);
+test("кирилл үг ба тоо наалдсаныг салгана", () => {
+  assert.deepEqual(splitNumberBoundary("оруулалтаар19"), {
+    word: "оруулалтаар",
+    split: "оруулалтаар 19",
+  });
+  assert.deepEqual(splitNumberBoundary("Оруулалтаар19"), {
+    word: "Оруулалтаар",
+    split: "Оруулалтаар 19",
+  });
+  assert.deepEqual(splitNumberBoundary("тун7.7"), {
+    word: "тун",
+    split: "тун 7.7",
+  });
 });
 
-test("зөвхөн тооноос бүрдсэн үгийг хөндөхгүй", () => {
-  assert.equal(splitNumberUnit("10"), null);
-  assert.equal(splitNumberUnit("7.7"), null);
-  assert.equal(splitNumberUnit("25,5"), null);
+test("латин үгээр эхэлсэн бол хөндөхгүй", () => {
+  assert.equal(splitNumberBoundary("COVID19"), null);
+  assert.equal(splitNumberBoundary("MP3"), null);
+  assert.equal(splitNumberBoundary("Windows11"), null);
+});
+
+test("үсэггүй буюу тоогүй үгийг хөндөхгүй", () => {
+  assert.equal(splitNumberBoundary("мг"), null);
+  assert.equal(splitNumberBoundary("10"), null);
+  assert.equal(splitNumberBoundary("7.7"), null);
+  assert.equal(splitNumberBoundary("25,5"), null);
 });
 
 test("зураастай хэлбэрийг хөндөхгүй", () => {
-  assert.equal(splitNumberUnit("2-р"), null);
-  assert.equal(splitNumberUnit("1960-аад"), null);
+  assert.equal(splitNumberBoundary("2-р"), null);
+  assert.equal(splitNumberBoundary("1960-аад"), null);
+  assert.equal(splitNumberBoundary("оруулалтаар-19"), null);
 });
 
 test("тоо дундаа үсэгтэй бол таарахгүй", () => {
-  assert.equal(splitNumberUnit("10мг20"), null);
-  assert.equal(splitNumberUnit("1а2б"), null);
+  assert.equal(splitNumberBoundary("10мг20"), null);
+  assert.equal(splitNumberBoundary("1а2б"), null);
+  assert.equal(splitNumberBoundary("оруулалтаар19хувь"), null);
 });
 
-test("нэг үсэгт нэгжийг ч буцаана", () => {
-  assert.deepEqual(splitNumberUnit("5м"), { number: "5", unit: "м" });
+test("богино хэсгийг ч буцаана, шүүлт нь checkable дээр", () => {
+  assert.deepEqual(splitNumberBoundary("5м"), { word: "м", split: "5 м" });
+  assert.deepEqual(splitNumberBoundary("х2"), { word: "х", split: "х 2" });
 });
 
 test("хоосон ба тэмдэгттэй оролт", () => {
-  assert.equal(splitNumberUnit(""), null);
-  assert.equal(splitNumberUnit("10 мг"), null);
-  assert.equal(splitNumberUnit("10.мг"), null);
+  assert.equal(splitNumberBoundary(""), null);
+  assert.equal(splitNumberBoundary("10 мг"), null);
+  assert.equal(splitNumberBoundary("10.мг"), null);
+  assert.equal(splitNumberBoundary("оруулалтаар 19"), null);
 });
 
 test("аравтын цэгийг таньж хуваалтын цэг гэж үзэхгүй", () => {
