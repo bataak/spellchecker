@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.71.0](https://github.com/bataak/spellchecker/compare/v1.70.2...v1.71.0) (2026-08-19)
+
+
+### Features
+
+* keep the opened file name across reloads ([5220b0e](https://github.com/bataak/spellchecker/commit/5220b0ec461d9baf7f4abb6af7bd1b582ffb936d))
+* **markdown:** refine markdown detection and support file extension check ([6f00542](https://github.com/bataak/spellchecker/commit/6f00542065e1b205a43b4dd9b4c249f0466696db))
+* reveal clipped toolbar buttons on first tap ([b6b1b17](https://github.com/bataak/spellchecker/commit/b6b1b178c5c71f529e435ac1daa7d9bd92804e15))
+* show opened text file name in the status line ([c7413c2](https://github.com/bataak/spellchecker/commit/c7413c2c1bbc0e8746235f86339352d3e73b60d5))
+
+
+### Bug Fixes
+
+* keep .md extension when saving downloaded text ([417e5c1](https://github.com/bataak/spellchecker/commit/417e5c103af51105604d06cdede3f1dec1c2a288))
+* keep the layout button clear of the editor scrollbar ([07dfd84](https://github.com/bataak/spellchecker/commit/07dfd84f5903fe0b69705c296aeceda8878d2888))
+
 ## [1.70.2](https://github.com/bataak/spellchecker/compare/v1.70.1...v1.70.2) (2026-08-18)
 
 
