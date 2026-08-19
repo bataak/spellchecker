@@ -474,8 +474,26 @@ export function format(src: string): string {
   return print(parse(src));
 }
 
+function hasInlineMarkup(nodes: readonly Inline[]): boolean {
+  return nodes.some((n) => n.type !== "text");
+}
+
 export function isMarkdown(blocks: readonly Block[]): boolean {
-  return blocks.some(
-    (b) => b.type !== "paragraph" || b.children.some((n) => n.type !== "text"),
-  );
+  for (const b of blocks) {
+    switch (b.type) {
+      case "heading":
+      case "codeblock":
+      case "table":
+      case "quote":
+      case "rule":
+        return true;
+      case "list":
+        if (b.items.some(hasInlineMarkup)) return true;
+        break;
+      case "paragraph":
+        if (hasInlineMarkup(b.children)) return true;
+        break;
+    }
+  }
+  return false;
 }

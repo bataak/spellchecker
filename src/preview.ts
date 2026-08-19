@@ -52,8 +52,11 @@ export type PreviewSource =
   | { kind: "pdf"; file: File }
   | { kind: "office"; name: string };
 
+const MD_NAME = /\.(md|markdown|mdown|mkd)$/i;
+
 export interface Preview {
   update(): void;
+  setFileName(name: string | null): void;
   setSource(src: PreviewSource | null): void;
   destroy(): void;
 }
@@ -116,6 +119,7 @@ export function initPreview(
 
   let raf = 0;
   let tidied: string | null = null;
+  let isMdFile = false;
   let source: PreviewSource | null = null;
   let sourceText = "";
   let pdfView: { destroy(): void } | null = null;
@@ -128,7 +132,8 @@ export function initPreview(
     body.classList.toggle("is-empty", !blocks.length);
 
     tidied = null;
-    if (onFormat && text.length <= TIDY_LIMIT && isMarkdown(blocks)) {
+    const looksMd = isMdFile || isMarkdown(blocks);
+    if (onFormat && looksMd && text.length <= TIDY_LIMIT) {
       const next = print(blocks);
       if (next !== text) tidied = next;
     }
@@ -218,8 +223,14 @@ export function initPreview(
   area.addEventListener("input", update);
   update();
 
+  const setFileName = (name: string | null): void => {
+    isMdFile = MD_NAME.test(name ?? "");
+    update();
+  };
+
   return {
     update,
+    setFileName,
     setSource,
     destroy() {
       if (raf) cancelAnimationFrame(raf);
