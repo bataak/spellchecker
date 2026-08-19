@@ -1,4 +1,5 @@
 const TEXT_KEY = "mn-spell:text";
+const FILE_KEY = "mn-spell:file";
 const TIER_KEY = "mn-spell:tier";
 const IDB_TEXT_KEY = "text";
 const LS_TIER_MAX = 1000000;
@@ -13,6 +14,33 @@ let pendingText: string | null = null;
 let pendingSeq = 0;
 let idbTimer: ReturnType<typeof setTimeout> | null = null;
 let lastIdbWrite = 0;
+
+export interface DraftFile {
+  name: string;
+  kind: "text" | "office";
+}
+
+export function saveDraftFile(ref: DraftFile | null): void {
+  try {
+    if (ref === null) localStorage.removeItem(FILE_KEY);
+    else localStorage.setItem(FILE_KEY, JSON.stringify(ref));
+  } catch (_) {}
+}
+
+export function loadDraftFile(): DraftFile | null {
+  try {
+    const raw = localStorage.getItem(FILE_KEY);
+    if (!raw) return null;
+    const value = JSON.parse(raw) as Partial<DraftFile>;
+    if (typeof value.name !== "string" || value.name === "") return null;
+    return {
+      name: value.name,
+      kind: value.kind === "office" ? "office" : "text",
+    };
+  } catch (_) {
+    return null;
+  }
+}
 
 export function initDraftStorage(opts?: { onError?: () => void }): void {
   onError = (opts && opts.onError) || null;
