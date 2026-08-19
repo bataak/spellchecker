@@ -33,7 +33,11 @@ function px(cs: CSSStyleDeclaration, prop: string, fallback: number): number {
   return Number.isFinite(v) ? v : fallback;
 }
 
-function measureVar(host: HTMLElement, name: string, fallback: number): number {
+function measureVar(
+  host: HTMLElement,
+  name: string,
+  fallback: number,
+): number {
   const probe = document.createElement("div");
   probe.style.cssText =
     `position:absolute;visibility:hidden;pointer-events:none;` +
