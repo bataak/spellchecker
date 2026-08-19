@@ -20,7 +20,7 @@ export interface ToolbarDeps {
 export function initToolbar(deps: ToolbarDeps): void {
   initToolbarScroll();
   initToolbarSnap();
-  initSaveReveal();
+  initClippedReveal();
   initButtons(deps);
 }
 
@@ -32,8 +32,7 @@ function initToolbarScroll(): void {
   requestAnimationFrame(() => {
     if (bar.scrollWidth <= bar.clientWidth) return;
     bar.scrollLeft +=
-      clearBtn.getBoundingClientRect().left -
-      bar.getBoundingClientRect().left;
+      clearBtn.getBoundingClientRect().left - bar.getBoundingClientRect().left;
   });
 }
 
@@ -65,20 +64,48 @@ function initToolbarSnap(): void {
   );
 }
 
-function initSaveReveal(): void {
+function initClippedReveal(): void {
   if (window.matchMedia("(min-width: 1024px)").matches) return;
-  const bar = document.querySelector<HTMLElement>(".toolbar");
-  if (!bar) return;
+  const found = document.querySelector<HTMLElement>(".toolbar");
+  if (!found) return;
+  const bar = found;
+  const TOL = 4;
+  const PAD = 8;
 
-  for (const id of ["#saveBtn", "#openBtn"]) {
-    const btn = document.querySelector<HTMLElement>(id);
-    if (!btn) continue;
-    btn.addEventListener("click", () => {
-      const barRect = bar.getBoundingClientRect();
-      const over = btn.getBoundingClientRect().right - barRect.right;
-      if (over > 0) bar.scrollBy({ left: over + 8, behavior: "smooth" });
-    });
+  function clipDelta(target: EventTarget | null): number {
+    const btn =
+      target instanceof Element
+        ? target.closest<HTMLElement>(".tbtn, .treload")
+        : null;
+    if (!btn || !bar.contains(btn)) return 0;
+    const barRect = bar.getBoundingClientRect();
+    const btnRect = btn.getBoundingClientRect();
+    const over = btnRect.right - barRect.right;
+    if (over > TOL) return over + PAD;
+    const under = barRect.left - btnRect.left;
+    if (under > TOL) return -(under + PAD);
+    return 0;
   }
+
+  bar.addEventListener(
+    "pointerdown",
+    (e) => {
+      if (clipDelta(e.target) !== 0) e.stopPropagation();
+    },
+    true,
+  );
+
+  bar.addEventListener(
+    "click",
+    (e) => {
+      const delta = clipDelta(e.target);
+      if (delta === 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      bar.scrollBy({ left: delta, behavior: "smooth" });
+    },
+    true,
+  );
 }
 
 function initButtons({
@@ -185,9 +212,7 @@ function initButtons({
     btn.addEventListener("click", async () => {
       if (armed) {
         armed = false;
-        const words = buildErrorList(getBadTokens()).map(
-          (token) => token.word,
-        );
+        const words = buildErrorList(getBadTokens()).map((token) => token.word);
         if (!words.length) {
           showStatus("Алдаатай үг алга");
           return;
