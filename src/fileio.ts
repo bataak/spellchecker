@@ -58,18 +58,28 @@ export function initFileIO({
     return (isMobile ? "" : "бичвэр-") + ts + ".txt";
   }
 
-  function ensureTxt(name: string): string {
+  const TEXT_EXT_RE = /\.(txt|md|markdown|mdown|text)$/i;
+  const MD_EXT_RE = /\.(md|markdown|mdown)$/i;
+
+  function ensureTextName(name: string): string {
     name = (name || "").trim();
     if (!name) return stampName();
-    return /\.txt$/i.test(name) ? name : name + ".txt";
+    return TEXT_EXT_RE.test(name) ? name : name + ".txt";
+  }
+
+  function textMime(name: string): string {
+    return MD_EXT_RE.test(name)
+      ? "text/markdown;charset=utf-8"
+      : "text/plain;charset=utf-8";
   }
 
   function downloadText(text: string, name: string): void {
-    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const fileName = ensureTextName(name);
+    const blob = new Blob([text], { type: textMime(fileName) });
     const url = URL.createObjectURL(blob);
     const downloadLink = document.createElement("a");
     downloadLink.href = url;
-    downloadLink.download = ensureTxt(name);
+    downloadLink.download = fileName;
     document.body.appendChild(downloadLink);
     downloadLink.click();
     downloadLink.remove();
