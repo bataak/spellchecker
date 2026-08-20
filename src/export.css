@@ -1,0 +1,79 @@
+.export-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: color-mix(in srgb, #000 42%, transparent);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.export-backdrop[hidden] {
+  display: none;
+}
+
+.export-panel {
+  width: min(24rem, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--editor-bg);
+  color: var(--ink);
+}
+
+.export-title {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 700;
+}
+
+.export-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.export-name {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.export-formats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.export-format.is-on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.export-ext {
+  opacity: 0.6;
+}
+
+.export-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.export-confirm {
+  border-color: var(--accent);
+  color: var(--accent);
+}

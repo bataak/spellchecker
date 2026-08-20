@@ -1,0 +1,120 @@
+.topbar {
+  position: relative;
+}
+
+.topbar.has-mdbar > h1 {
+  visibility: hidden;
+}
+
+.md-bar {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+}
+
+.md-bar[hidden] {
+  display: none;
+}
+
+.md-group {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+
+.md-group[hidden] {
+  display: none;
+}
+
+.md-bar .md-btn,
+.md-select .md-template {
+  box-sizing: border-box;
+  height: 32px;
+}
+
+.md-bar .md-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  font-variant-numeric: tabular-nums;
+}
+
+.md-bar .md-btn svg {
+  display: block;
+  width: 1.3em;
+  height: 1.3em;
+  overflow: visible;
+}
+
+.md-bar .md-btn[data-role="bold"] {
+  font-weight: 700;
+}
+
+.md-bar .md-btn[data-role="italic"] {
+  font-style: italic;
+}
+
+.md-bar .md-btn.is-on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.md-select {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.md-select::after {
+  content: "";
+  position: absolute;
+  inset-inline-end: 10px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-right: 1.4px solid currentColor;
+  border-bottom: 1.4px solid currentColor;
+  transform: translateY(-70%) rotate(45deg);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.md-select .md-template {
+  appearance: none;
+  -webkit-appearance: none;
+  max-width: 11rem;
+  padding-block: 0;
+  padding-inline-end: 26px;
+  line-height: normal;
+}
+
+@media (max-width: 700px) {
+  .md-bar .md-btn[data-role="h3"] {
+    display: none;
+  }
+}
+
+.md-select .md-template optgroup {
+  font-style: normal;
+  font-weight: 700;
+}
+
+.md-select .md-template optgroup option {
+  padding-inline-start: 6px;
+}
+
+.md-bar .md-btn[data-role="strike"] {
+  text-decoration: line-through;
+}
+
+.md-bar .md-btn[data-role="code"] {
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  letter-spacing: -0.05em;
+}
