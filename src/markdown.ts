@@ -185,7 +185,7 @@ export function parse(src: string): Block[] {
     const start = i;
     const buf: string[] = [];
     while (i < lines.length) {
-      const line = lines[i]!;
+      const line = lines[i]!.trimEnd();
       if (
         !line.trim() ||
         HEADING_RE.test(line) ||
@@ -308,7 +308,9 @@ export function parse(src: string): Block[] {
       continue;
     }
 
+    const before = i;
     paragraph();
+    if (i === before) i += 1;
   }
 
   return out;
