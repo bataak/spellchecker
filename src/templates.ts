@@ -7,7 +7,7 @@ export interface Template {
 }
 
 export const TEMPLATES: readonly Template[] = [
-  { id: PLAIN, name: "Энгийн", skeleton: "" },
+  { id: PLAIN, name: "Алдаа шалгах", skeleton: "" },
 
   {
     id: "letter",
@@ -159,15 +159,15 @@ export interface TemplateGroup {
 
 export const TEMPLATE_GROUPS: readonly TemplateGroup[] = [
   {
-    name: "Албан бичиг",
+    name: "Албан бичиг бэлтгэх",
     ids: ["letter", "contract", "application", "reference"],
   },
   {
-    name: "Тайлан, тэмдэглэл",
+    name: "Тайлан, тэмдэглэл бэлтгэх",
     ids: ["report", "cv", "minutes"],
   },
   {
-    name: "Хичээл, судалгаа",
+    name: "Хичээлийн ажил бэлтгэх",
     ids: ["coursework", "research", "essay"],
   },
 ];
