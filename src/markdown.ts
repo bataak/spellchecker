@@ -2,6 +2,7 @@ export type Inline =
   | { type: "text"; value: string }
   | { type: "code"; value: string }
   | { type: "strong"; children: Inline[] }
+  | { type: "del"; children: Inline[] }
   | { type: "em"; children: Inline[] }
   | { type: "link"; url: string; children: Inline[]; auto?: boolean };
 
@@ -74,7 +75,7 @@ function unmask(src: string, held: string[]): string {
 }
 
 const TOKEN =
-  /(`+)([\s\S]*?)\1|\*\*([\s\S]+?)\*\*|__([\s\S]+?)__|\*([^*\n]+?)\*|_([^_\n]+?)_|\[([^\]]*)\]\(([^)\s]*)\)|<((?:[a-z][a-z0-9+.-]*:|[^\s<>@]+@)[^\s<>]+)>/i;
+  /(`+)([\s\S]*?)\1|~~([\s\S]+?)~~|\*\*\*([\s\S]+?)\*\*\*|___([\s\S]+?)___|\*\*([\s\S]+?)\*\*|__([\s\S]+?)__|\*([^*\n]+?)\*|_([^_\n]+?)_|\[([^\]]*)\]\(([^)\s]*)\)|<((?:[a-z][a-z0-9+.-]*:|[^\s<>@]+@)[^\s<>]+)>/i;
 
 function parseInlineMasked(src: string, held: string[]): Inline[] {
   const out: Inline[] = [];
@@ -93,18 +94,30 @@ function parseInlineMasked(src: string, held: string[]): Inline[] {
     pushText(rest.slice(0, m.index));
     if (m[2] !== undefined) {
       out.push({ type: "code", value: unmask(m[2].trim(), held) });
-    } else if (m[3] ?? m[4]) {
+    } else if (m[3] !== undefined) {
+      out.push({ type: "del", children: parseInlineMasked(m[3], held) });
+    } else if (m[4] ?? m[5]) {
       out.push({
         type: "strong",
-        children: parseInlineMasked((m[3] ?? m[4])!, held),
+        children: [
+          {
+            type: "em",
+            children: parseInlineMasked((m[4] ?? m[5])!, held),
+          },
+        ],
       });
-    } else if (m[5] ?? m[6]) {
+    } else if (m[6] ?? m[7]) {
+      out.push({
+        type: "strong",
+        children: parseInlineMasked((m[6] ?? m[7])!, held),
+      });
+    } else if (m[8] ?? m[9]) {
       out.push({
         type: "em",
-        children: parseInlineMasked((m[5] ?? m[6])!, held),
+        children: parseInlineMasked((m[8] ?? m[9])!, held),
       });
-    } else if (m[9] !== undefined) {
-      const url = unmask(m[9], held);
+    } else if (m[12] !== undefined) {
+      const url = unmask(m[12], held);
       out.push({
         type: "link",
         url,
@@ -114,8 +127,8 @@ function parseInlineMasked(src: string, held: string[]): Inline[] {
     } else {
       out.push({
         type: "link",
-        url: unmask(m[8] ?? "", held),
-        children: parseInlineMasked(m[7] ?? "", held),
+        url: unmask(m[11] ?? "", held),
+        children: parseInlineMasked(m[10] ?? "", held),
       });
     }
     rest = rest.slice(m.index + m[0].length);
@@ -316,6 +329,7 @@ function inlineHtml(nodes: readonly Inline[]): string {
     else if (n.type === "strong")
       out += `<strong>${inlineHtml(n.children)}</strong>`;
     else if (n.type === "em") out += `<em>${inlineHtml(n.children)}</em>`;
+    else if (n.type === "del") out += `<del>${inlineHtml(n.children)}</del>`;
     else
       out +=
         `<a href="${esc(n.url)}" rel="noopener noreferrer" target="_blank">` +
@@ -371,6 +385,7 @@ const MAX_ALIGN_WIDTH = 40;
 function escapeText(s: string, cell: boolean): string {
   let out = s
     .replace(/([\\`*_[\]])/g, "\\$1")
+    .replace(/~~/g, "\\~~")
     .replace(/<(?=[A-Za-z/!?])/g, "\\<");
   if (cell) out = out.replace(/\|/g, "\\|");
   return out;
@@ -393,6 +408,7 @@ function inlineMd(nodes: readonly Inline[], cell: boolean): string {
       out += ticks + pad + n.value + pad + ticks;
     } else if (n.type === "strong") out += `**${inlineMd(n.children, cell)}**`;
     else if (n.type === "em") out += `*${inlineMd(n.children, cell)}*`;
+    else if (n.type === "del") out += `~~${inlineMd(n.children, cell)}~~`;
     else if (n.auto) out += `<${n.url}>`;
     else out += `[${inlineMd(n.children, cell)}](${n.url})`;
   }
