@@ -47,24 +47,17 @@ html {
   );
   --preview-ink: #2f7d54;
   --slots-w: 0px;
-  --page-base: calc(
-    var(--editor-width) + var(--slots-w) + 2 * var(--page-pad)
-  );
+  --page-base: calc(var(--editor-width) + var(--slots-w) + 2 * var(--page-pad));
   --gutter-pull: min(
     var(--gutter-w),
-    max(
-      var(--page-pad),
-      calc((100vw - var(--page-base)) / 2 + var(--page-pad))
-    )
+    max(var(--page-pad), calc((100vw - var(--page-base)) / 2 + var(--page-pad)))
   );
   --page-max: calc(var(--page-base) - var(--gutter-pull));
 
   --sans:
-    ui-sans-serif, system-ui, "Segoe UI", "Noto Sans", Roboto, Arial,
-    sans-serif;
+    ui-sans-serif, system-ui, "Segoe UI", "Noto Sans", Roboto, Arial, sans-serif;
   --serif:
-    "Bichig Serif", "PT Serif", "Noto Serif", "Liberation Serif", Georgia,
-    serif;
+    "Bichig Serif", "PT Serif", "Noto Serif", "Liberation Serif", Georgia, serif;
 }
 
 :root[data-measure="b"] {
@@ -261,12 +254,12 @@ label {
 }
 .tbtn {
   font-family: var(--sans);
-  font-size: 0.82rem;
+  font-size: 0.9rem;
   color: var(--ink);
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 7px;
-  padding: 5px 10px;
+  padding: 7px 10px;
   line-height: 1;
   cursor: pointer;
   user-select: none;
