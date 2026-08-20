@@ -286,7 +286,7 @@ a.tbtn {
   outline-offset: 1px;
 }
 .tbtn-icon {
-  padding: 5px 8px;
+  padding: 7px 8px;
   font-size: 0.95rem;
 }
 .kbd-active {
@@ -296,8 +296,8 @@ a.tbtn {
 
 @media (max-width: 520px) {
   .tbtn {
-    font-size: 0.8rem;
-    padding: 5px 9px;
+    font-size: 0.86rem;
+    padding: 7px 9px;
   }
 }
 
@@ -1821,4 +1821,16 @@ html.booting .empty-state {
 .dict-row.is-locked,
 .dict-row.is-locked input {
   cursor: default;
+}
+
+.decode-btn,
+.tidy-btn,
+.measure-btn {
+  box-sizing: border-box;
+  height: 32px;
+  font-size: 0.9rem;
+}
+
+.measure-btn.is-shown {
+  opacity: 1;
 }
