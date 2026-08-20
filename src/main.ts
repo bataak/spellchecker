@@ -1,5 +1,7 @@
 import "./style.css";
 import "./gutter.css";
+import "./md-toolbar.css";
+import "./export.css";
 import {
   MultiSpellChecker,
   checkWordsBatched,
@@ -41,6 +43,8 @@ import {
   saveDraftFile,
   loadDraftFile,
 } from "./storage.ts";
+import { initMdToolbar } from "./mdtoolbar.ts";
+import { initExport } from "./export.ts";
 import {
   initBackdrop,
   renderBackdrop,
@@ -1244,7 +1248,10 @@ if (decodeBtn) {
 
 const clearBtnEl = document.querySelector("#clearBtn");
 if (clearBtnEl) {
-  clearBtnEl.addEventListener("click", () => rotateEmptyTips());
+  clearBtnEl.addEventListener("click", () => {
+    mdBar.reset();
+    rotateEmptyTips();
+  });
 }
 let lastCaret: { start: number; end: number } | null = null;
 els.editor.addEventListener("blur", () => {
@@ -1610,7 +1617,29 @@ const fileIO = initFileIO({
     plainName = ref ? ref.name : null;
     saveDraftFile(ref);
     syncSaveHint();
+    mdBar.refresh();
   },
+});
+
+const MD_NAME_RE = /\.(md|markdown|mdown)$/i;
+
+const mdBar = initMdToolbar({
+  editor: els.editor,
+  mount: document.querySelector<HTMLElement>("header.topbar") ?? undefined,
+  isMdFile: () => {
+    if (docx) return false;
+    const name = fileIO.targetName() ?? plainName;
+    return !!name && MD_NAME_RE.test(name);
+  },
+});
+
+initExport({
+  editor: els.editor,
+  saveButton: document.querySelector<HTMLElement>("#saveBtn"),
+  baseName: () => fileIO.targetName() ?? plainName,
+  blocked: () => docx !== null,
+  onDone: () => flash("#saveBtn", "Хадгаллаа"),
+  onBlocked: () => flash("#saveBtn", "Экспорт хийх боломжгүй"),
 });
 
 function restoreDraftFile(): void {
