@@ -18,6 +18,7 @@
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
+  touch-action: pan-x;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -133,6 +134,7 @@
 .md-select .md-template optgroup {
   font-style: normal;
   font-weight: 700;
+  font-size: 1em;
 }
 
 .md-select .md-template optgroup option {
