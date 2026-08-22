@@ -15,6 +15,14 @@
   align-items: center;
   gap: 10px;
   max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.md-bar::-webkit-scrollbar {
+  display: none;
 }
 
 .md-bar[hidden] {
@@ -25,7 +33,7 @@
   display: flex;
   align-items: center;
   gap: 3px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .md-group[hidden] {
@@ -96,8 +104,29 @@
 }
 
 @media (max-width: 700px) {
+  .md-bar {
+    position: static;
+    order: -1;
+    flex: 0 0 100%;
+    width: 100%;
+    max-width: none;
+    margin-bottom: 6px;
+  }
+
+  .topbar.has-mdbar {
+    flex-wrap: wrap;
+  }
+
+  .topbar.has-mdbar > h1 {
+    display: none;
+  }
+
   .md-bar .md-btn[data-role="h3"] {
     display: none;
+  }
+
+  .md-bar .md-template {
+    max-width: 9rem;
   }
 }
 
