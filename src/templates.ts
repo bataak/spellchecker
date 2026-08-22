@@ -1,16 +1,29 @@
+/**
+ * Баримтын загварууд.
+ *
+ * Одоохондоо зөвхөн markdown араг яс. Экспортын хэлбэрийн тодорхойлолт
+ * (хуудасны зах, гарчгийн хэмжээ, хүрээ) дараа нь энэ бүтцэд нэмэгдэнэ —
+ * загварын нэр нь `DocIr`-ийн хэвүүдтэй холбогдоно.
+ */
+
 export const PLAIN = "plain";
+
+export type Frame = "plain" | "letter" | "structured";
 
 export interface Template {
   readonly id: string;
   readonly name: string;
+  readonly frame: Frame;
+  /** Сонгоход засварлагчид орох markdown. Хоосон бол юу ч оруулахгүй. */
   readonly skeleton: string;
 }
 
 export const TEMPLATES: readonly Template[] = [
-  { id: PLAIN, name: "Алдаа шалгах", skeleton: "" },
+  { id: PLAIN, name: "Алдаа шалгах", frame: "plain", skeleton: "" },
 
   {
     id: "letter",
+    frame: "letter",
     name: "Албан бичиг",
     skeleton: `# Албан бичгийн утга
 
@@ -24,6 +37,7 @@ export const TEMPLATES: readonly Template[] = [
 
   {
     id: "coursework",
+    frame: "structured",
     name: "Бие даалт",
     skeleton: `# Сэдэв
 
@@ -39,6 +53,7 @@ export const TEMPLATES: readonly Template[] = [
 
   {
     id: "contract",
+    frame: "structured",
     name: "Гэрээ",
     skeleton: `# Гэрээ
 
@@ -57,16 +72,23 @@ export const TEMPLATES: readonly Template[] = [
   {
     id: "application",
     name: "Өргөдөл",
-    skeleton: `# Өргөдөл
+    frame: "letter",
+    skeleton: `# "Хан Хурмаст Тэнгэр" ХХК-ийн захирал танаа өргөдөл гаргах нь:
 
-Тавьж буй хүсэлтээ товч, тодорхой бичнэ.
+Миний бие Боржигин овогт Боролдой нь тус байгууллагын Үүлэн Технологийн хэлтэст 2023 оны 05 сарын 10-ны өдрөөс эхлэн Программ хангамжийн хөгжүүлэгчээр ажиллаж байна.
 
-Хүсэлтийн үндэслэл, шаардлагатай нөхцөлийг тайлбарлана.
+Хөдөлмөрийн тухай хууль болон амралтын хуваарийн дагуу 2026 оны ээлжийн амралтаа 2026 оны 09 сарын 01-ний өдрөөс эхлэн ажлын 15 өдрийн хугацаатайгаар эдлэх хүсэлтэй байгаа бөгөөд амралтын хугацаанд өөрийн үүрэгт ажлаа хөгжүүлэгч Н. Хүлэгт хариуцуулах болно.
+
+Иймд миний ээлжийн амралтыг дээрх хугацаанд олгож, амралтын цалинг холбогдох хууль, журмын дагуу тооцон олгож өгнө үү.
+
+Өргөдөл гаргасан: Б. Боролдой
+
+Утас: 99112233
 `,
   },
-
   {
     id: "research",
+    frame: "structured",
     name: "Судалгааны ажил",
     skeleton: `# Судалгааны сэдэв
 
@@ -86,6 +108,7 @@ export const TEMPLATES: readonly Template[] = [
 
   {
     id: "report",
+    frame: "structured",
     name: "Тайлан",
     skeleton: `# Тайлангийн нэр
 
@@ -101,6 +124,7 @@ export const TEMPLATES: readonly Template[] = [
 
   {
     id: "cv",
+    frame: "structured",
     name: "Товч танилцуулга",
     skeleton: `# Товч танилцуулга
 
@@ -116,6 +140,7 @@ export const TEMPLATES: readonly Template[] = [
 
   {
     id: "reference",
+    frame: "letter",
     name: "Тодорхойлолт",
     skeleton: `# Тодорхойлолт
 
@@ -127,6 +152,7 @@ export const TEMPLATES: readonly Template[] = [
 
   {
     id: "minutes",
+    frame: "structured",
     name: "Хурлын тэмдэглэл",
     skeleton: `# Хурлын тэмдэглэл
 
@@ -140,6 +166,7 @@ export const TEMPLATES: readonly Template[] = [
 
   {
     id: "essay",
+    frame: "structured",
     name: "Эссе",
     skeleton: `# Эссений сэдэв
 
@@ -157,6 +184,11 @@ export interface TemplateGroup {
   readonly ids: readonly string[];
 }
 
+/**
+ * Сонгогчид харуулах бүлгүүд. Зөвхөн дэлгэцийн зохион байгуулалт —
+ * загварын өгөгдөлд нөлөөлөхгүй. Энд байхгүй загвар жагсаалтын төгсгөлд
+ * бүлэггүйгээр гарна.
+ */
 export const TEMPLATE_GROUPS: readonly TemplateGroup[] = [
   {
     name: "Албан бичиг бэлтгэх",
@@ -174,4 +206,13 @@ export const TEMPLATE_GROUPS: readonly TemplateGroup[] = [
 
 export function findTemplate(id: string): Template | undefined {
   return TEMPLATES.find((item) => item.id === id);
+}
+
+export function templateExamples(skeleton: string): string[] {
+  const out: string[] = [];
+  for (const block of skeleton.split(/\n\s*\n/)) {
+    const text = block.trim().replace(/^#{1,6}[ \t]+/, "");
+    if (text) out.push(text);
+  }
+  return out;
 }

@@ -1,5 +1,16 @@
 import { codeRanges, inRanges } from "./codeskip.ts";
 
+/**
+ * Markdown засварлагчийн цэвэр функцууд.
+ *
+ * DOM-гүй: бүх функц бичвэр + тэмдэглэлийн байрлалыг авч, шинэ бичвэр +
+ * шинэ байрлалыг буцаана. Node дээр браузергүйгээр тестлэгдэнэ.
+ *
+ * Дуудагч тал `document.execCommand("insertText")`-ээр өөрчлөлтийг хийж,
+ * дараа нь `setSelectionRange`-ээр тэмдэглэлийг сэргээнэ — эс бөгөөс
+ * хөтчийн уугуул undo стек устана.
+ */
+
 export interface Edit {
   readonly text: string;
   readonly start: number;
@@ -30,6 +41,10 @@ interface Bounds {
   readonly lines: string[];
 }
 
+/**
+ * Тэмдэглэл хамарч буй бүтэн мөрүүд. Тэмдэглэл мөрийн эхэнд төгссөн бол
+ * (`\n`-ийн яг ард) тэр мөрийг оруулахгүй.
+ */
 function blockLines(text: string, start: number, end: number): Bounds {
   const e = end > start && text[end - 1] === "\n" ? end - 1 : end;
   const from = lineStartAt(text, start);
@@ -38,10 +53,21 @@ function blockLines(text: string, start: number, end: number): Bounds {
 }
 
 interface PrefixSpec {
+  /** Мөрийн эхнээс хасах тэмдэгтийн тоо. */
   readonly drop: number;
+  /** Оронд нь тавих угтвар. */
   readonly add: string;
 }
 
+/**
+ * Мөр бүрийн угтварыг солино. Угтвар л өөрчлөгддөг тул тэмдэглэлийн
+ * байрлалыг нарийн тооцоолж болно: угтварын дотор байсан байрлал шинэ
+ * угтварын араас, түүнээс хойших байрлал зөрүүгээр шилжинэ.
+ *
+ * Мөрийн эхэнд тогтсон тэмдэглэлийн эхлэл тэндээ үлдэнэ — эс бөгөөс олон
+ * мөрийг хамарсан тэмдэглэл эхний угтварыг алдана. Хоосон заагч эсрэгээрээ
+ * угтварын ард шилжинэ.
+ */
 function mapPrefix(
   text: string,
   start: number,
@@ -87,6 +113,32 @@ function mapPrefix(
   };
 }
 
+/**
+ * Тэмдэглэсэн хэсгийг маркераар хүрээлэх, эсвэл аль хэдийн хүрээлэгдсэн
+ * бол тайлах. `marker` нь `"**"` (тод) эсвэл `"*"` (налуу).
+ *
+ * Тэмдэглэлийн хоёр захын зайг гадуур үлдээнэ — давхар товшилтоор үг
+ * сонгоход ард нь зай орох нь түгээмэл. Хажуугийн тэмдэгт мөн маркерын
+ * үсэг байвал тайлахгүй: `*`-аар налуу хийхэд `**`-ийн хагасыг хазахаас
+ * сэргийлнэ.
+ */
+function runBefore(text: string, pos: number, ch: string): number {
+  let n = 0;
+  while (pos - n - 1 >= 0 && text[pos - n - 1] === ch) n += 1;
+  return n;
+}
+
+function runAfter(text: string, pos: number, ch: string): number {
+  let n = 0;
+  while (pos + n < text.length && text[pos + n] === ch) n += 1;
+  return n;
+}
+
+function wrapped(run: number, marker: string): boolean {
+  if (marker[0] !== "*") return run >= marker.length;
+  return marker.length === 2 ? run >= 2 : run % 2 === 1;
+}
+
 export function toggleWrap(
   text: string,
   start: number,
@@ -102,11 +154,11 @@ export function toggleWrap(
   while (e > s && /\s/.test(text[e - 1]!)) e -= 1;
 
   if (s === e) {
-    if (
-      start >= m &&
-      text.slice(start - m, start) === marker &&
-      text.slice(start, start + m) === marker
-    ) {
+    const run = Math.min(
+      runBefore(text, start, ch),
+      runAfter(text, start, ch),
+    );
+    if (wrapped(run, marker)) {
       const at = start - m;
       return {
         text: text.slice(0, at) + text.slice(start + m),
@@ -122,13 +174,8 @@ export function toggleWrap(
     };
   }
 
-  const outer =
-    s >= m &&
-    text.slice(s - m, s) === marker &&
-    text.slice(e, e + m) === marker &&
-    text[s - m - 1] !== ch &&
-    text[e + m] !== ch;
-  if (outer) {
+  const outer = Math.min(runBefore(text, s, ch), runAfter(text, e, ch));
+  if (wrapped(outer, marker)) {
     return {
       text: text.slice(0, s - m) + text.slice(s, e) + text.slice(e + m),
       start: s - m,
@@ -136,13 +183,8 @@ export function toggleWrap(
     };
   }
 
-  const inner =
-    e - s >= 2 * m &&
-    text.slice(s, s + m) === marker &&
-    text.slice(e - m, e) === marker &&
-    text[s + m] !== ch &&
-    text[e - m - 1] !== ch;
-  if (inner) {
+  const inner = Math.min(runAfter(text, s, ch), runBefore(text, e, ch));
+  if (e - s >= 2 * m && inner > 0 && wrapped(inner, marker)) {
     return {
       text: text.slice(0, s) + text.slice(s + m, e - m) + text.slice(e),
       start: s,
@@ -163,6 +205,10 @@ export function headingDepthAt(text: string, pos: number): number {
   return HEADING.exec(line)?.[1]?.length ?? 0;
 }
 
+/**
+ * Гарчиг тавих. Хамрагдсан бүх утга агуулсан мөр аль хэдийн тэр түвшинд
+ * байвал гарчгийг авна.
+ */
 export function toggleHeading(
   text: string,
   start: number,
@@ -187,6 +233,10 @@ export function toggleHeading(
   });
 }
 
+/**
+ * Жагсаалт болгох. Хамрагдсан бүх утга агуулсан мөр аль хэдийн тэр
+ * төрлийн жагсаалт байвал тэмдэглэгээг авна.
+ */
 export function toggleList(
   text: string,
   start: number,
@@ -219,12 +269,7 @@ function lineAt(text: string, index: number): string {
   return text.slice(lineStartAt(text, index), lineEndAt(text, index));
 }
 
-function inTable(
-  text: string,
-  from: number,
-  to: number,
-  line: string,
-): boolean {
+function inTable(text: string, from: number, to: number, line: string): boolean {
   if (!line.includes("|")) return false;
   if (/^\s*\|/.test(line)) return true;
   const prev = from > 0 ? lineAt(text, from - 1) : "";
@@ -240,6 +285,18 @@ function inFence(text: string, caret: number): boolean {
   return inRanges(codeRanges(text), caret);
 }
 
+/**
+ * Enter дарахад юу оруулах вэ.
+ *
+ * Хэрэглэгчийн сэтгэхүйд Enter нь шинэ догол үүсгэдэг, гэтэл markdown-д
+ * ганц `\n` нь ердөө мөрийн ороолт. Тиймээс ердийн доголд `\n\n`
+ * оруулж, дискэн дээрх файлыг стандарт markdown хэвээр үлдээнэ.
+ *
+ * Хоосон мөр блокийг таслах дараах тохиолдолд ганц `\n` буцаана: мөр
+ * хоосон (давхар Enter дөрвөн мөр болохоос сэргийлнэ), жагсаалт (хоосон
+ * мөр жагсаалтыг тусдаа блокуудад задална), хүснэгтийн эгнээ (хоосон мөр
+ * хүснэгтийг бүрмөсөн устгана), ишлэл, кодын хашлагын дотор.
+ */
 export function enterInsert(text: string, caret: number): "\n" | "\n\n" {
   const from = lineStartAt(text, caret);
   const to = lineEndAt(text, caret);
@@ -260,6 +317,13 @@ export interface Patch {
   readonly insert: string;
 }
 
+/**
+ * Хоёр бичвэрийн ялгааг хамгийн богино орлуулга болгож олно.
+ *
+ * `textarea.value`-г бүхэлд нь солих нь хөтчийн undo стекийг устгадаг.
+ * Оронд нь өөрчлөгдсөн хэсгийг л тэмдэглээд `execCommand`-аар орлуулбал
+ * undo бүрэн хадгалагдана. Ижил бол `null`.
+ */
 export function minimalDiff(before: string, after: string): Patch | null {
   if (before === after) return null;
 
@@ -282,6 +346,11 @@ export function minimalDiff(before: string, after: string): Patch | null {
   };
 }
 
+
+/**
+ * Ишлэл болгох. Хамрагдсан бүх утга агуулсан мөр аль хэдийн ишлэл байвал
+ * тэмдэглэгээг авна.
+ */
 export function toggleQuote(text: string, start: number, end: number): Edit {
   const { lines } = blockLines(text, start, end);
   const filled = lines.filter((l) => l.trim());
@@ -297,6 +366,10 @@ export function toggleQuote(text: string, start: number, end: number): Edit {
 
 const URLISH = /^(?:[a-z][a-z0-9+.-]*:\/\/|www\.|mailto:)\S*$/i;
 
+/**
+ * Холбоос оруулах. Тэмдэглэсэн хэсэг хаяг бол хаягийн байранд, эс бөгөөс
+ * нэрийн байранд тавина. Заагч дараа нь бөглөх ёстой талбарт очно.
+ */
 export function wrapLink(text: string, start: number, end: number): Edit {
   let s = start;
   let e = end;
@@ -332,6 +405,10 @@ export function wrapLink(text: string, start: number, end: number): Edit {
   };
 }
 
+/**
+ * Хүснэгт оруулах. Одоогийн мөрийн ард шинэ блок болгон тавьж, эхний
+ * баганын нэрийг тэмдэглэнэ — хэрэглэгч шууд дарж бичнэ.
+ */
 export function insertTable(
   text: string,
   caret: number,
@@ -346,8 +423,7 @@ export function insertTable(
     (_, i) => "Багана " + String(i + 1),
   );
   const head = "| " + names.join(" | ") + " |";
-  const divider =
-    "| " + Array.from({ length: cols }, () => "---").join(" | ") + " |";
+  const divider = "| " + Array.from({ length: cols }, () => "---").join(" | ") + " |";
   const blank =
     "| " + Array.from({ length: cols }, () => "   ").join(" | ") + " |";
   const body = Array.from({ length: rows }, () => blank).join("\n");
@@ -362,4 +438,51 @@ export function insertTable(
     start: at,
     end: at + names[0]!.length,
   };
+}
+
+export interface Field {
+  readonly start: number;
+  readonly end: number;
+}
+
+function blockBounds(text: string, caret: number): Field {
+  let start = lineStartAt(text, caret);
+  while (start > 0) {
+    const prevEnd = start - 1;
+    const prevStart = lineStartAt(text, prevEnd);
+    if (!text.slice(prevStart, prevEnd).trim()) break;
+    start = prevStart;
+  }
+
+  let end = lineEndAt(text, caret);
+  while (end < text.length) {
+    const nextStart = end + 1;
+    const nextEnd = lineEndAt(text, nextStart);
+    if (!text.slice(nextStart, nextEnd).trim()) break;
+    end = nextEnd;
+  }
+
+  return { start, end };
+}
+
+export function exampleAt(
+  text: string,
+  caret: number,
+  examples: readonly string[],
+): Field | null {
+  if (examples.length === 0) return null;
+  if (!text.slice(lineStartAt(text, caret), lineEndAt(text, caret)).trim())
+    return null;
+
+  const { start, end } = blockBounds(text, caret);
+  const block = text.slice(start, end);
+  if (!block.trim()) return null;
+
+  const lead = block.length - block.trimStart().length;
+  const tail = block.length - block.trimEnd().length;
+  const body = block.slice(lead, block.length - tail);
+  const marker = HEADING.exec(body)?.[0].length ?? 0;
+
+  if (!examples.includes(body.slice(marker))) return null;
+  return { start: start + lead + marker, end: end - tail };
 }
