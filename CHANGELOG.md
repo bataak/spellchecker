@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.73.0](https://github.com/bataak/spellchecker/compare/v1.72.0...v1.73.0) (2026-08-22)
+
+
+### Features
+
+* add document templates ([8eab6f9](https://github.com/bataak/spellchecker/commit/8eab6f95bb7b8a76c7230e9a9d3e2543c79272f1))
+* add format-independent document representation ([ce43f91](https://github.com/bataak/spellchecker/commit/ce43f912571f8bc7470dd977d03ef262635f6aa7))
+* add formatting toolbar and export dialog ([8fe1111](https://github.com/bataak/spellchecker/commit/8fe11118a4528d5823887b5d725c6ab5f3587969))
+* add markdown editing primitives ([4a4cc7a](https://github.com/bataak/spellchecker/commit/4a4cc7a3b804cb62d635e41288f5e981d3a7aef1))
+* label template selector by purpose ([fe1d6e6](https://github.com/bataak/spellchecker/commit/fe1d6e6a7d0c49ab631390508c086271ab6e4bd3))
+* parse bold italic and strikethrough markup ([52c8e1d](https://github.com/bataak/spellchecker/commit/52c8e1d7281477cda28b95edfee8f831d69072df))
+* reveal layout control briefly on load ([83dbf84](https://github.com/bataak/spellchecker/commit/83dbf84af29dabada2dc3c5edfd3562af04085e8))
+
+
+### Bug Fixes
+
+* hang when a heading marker has no text ([4491070](https://github.com/bataak/spellchecker/commit/449107035199fcb1bcca2a8aecf052d376e2f91e))
+
 ## [1.72.0](https://github.com/bataak/spellchecker/compare/v1.71.0...v1.72.0) (2026-08-19)
 
 
