@@ -111,6 +111,12 @@
     max-width: none;
   }
 
+  .topbar > h1 {
+    display: flex;
+    align-items: center;
+    min-height: 34px;
+  }
+
   .md-bar .md-btn[data-role="h3"] {
     display: none;
   }
