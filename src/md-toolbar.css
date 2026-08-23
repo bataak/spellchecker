@@ -106,20 +106,9 @@
 
 @media (max-width: 700px) {
   .md-bar {
-    position: static;
-    order: -1;
-    flex: 0 0 100%;
-    width: 100%;
+    inset-block: 0 auto;
+    inset-inline: 0;
     max-width: none;
-    margin-bottom: 6px;
-  }
-
-  .topbar.has-mdbar {
-    flex-wrap: wrap;
-  }
-
-  .topbar.has-mdbar > h1 {
-    display: none;
   }
 
   .md-bar .md-btn[data-role="h3"] {
