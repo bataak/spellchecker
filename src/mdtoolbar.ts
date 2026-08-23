@@ -142,6 +142,36 @@ function loadTemplateId(): string {
   }
 }
 
+const DRAFT_PREFIX = "mdDraft:";
+
+const DRAFT_MAX = 200000;
+
+function loadDraft(id: string): string | null {
+  try {
+    return localStorage.getItem(DRAFT_PREFIX + id);
+  } catch (_) {
+    return null;
+  }
+}
+
+function saveDraft(id: string, text: string): void {
+  try {
+    if (text.trim() === "" || text.length > DRAFT_MAX)
+      localStorage.removeItem(DRAFT_PREFIX + id);
+    else localStorage.setItem(DRAFT_PREFIX + id, text);
+  } catch (_) {
+    /* хадгалах боломжгүй — алгасна */
+  }
+}
+
+function dropDraft(id: string): void {
+  try {
+    localStorage.removeItem(DRAFT_PREFIX + id);
+  } catch (_) {
+    /* алгасна */
+  }
+}
+
 function saveTemplateId(id: string): void {
   try {
     if (id === PLAIN) localStorage.removeItem(TEMPLATE_KEY);
@@ -309,16 +339,6 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     return templateId !== PLAIN || isMdFile();
   }
 
-  /**
-   * Заагч эхний мөрөнд байна уу. Загварын сонгогч энэ үед гарна —
-   * хэрэглэгч цэс хэрэгтэй болбол баримтын эхэнд очиж дуудна.
-   */
-  function atTop(): boolean {
-    const value = editor.value;
-    if (value.length === 0) return true;
-    return value.lastIndexOf("\n", editor.selectionStart - 1) < 0;
-  }
-
   function syncActive(): void {
     if (bar.hidden || group.hidden) return;
     const depth = headingDepthAt(editor.value, editor.selectionStart);
@@ -336,7 +356,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     const focus = document.activeElement;
     const focused = focus === editor || (focus !== null && bar.contains(focus));
     const on = active();
-    const show = ready && focused && (on || atTop());
+    const show = ready && focused;
 
     if (group.hidden !== !on) {
       group.hidden = !on;
@@ -353,17 +373,18 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   }
 
   function chooseTemplate(id: string): void {
+    if (id === templateId) return;
+
+    saveDraft(templateId, editor.value);
     templateId = id;
     saveTemplateId(id);
-    const template = findTemplate(id);
 
-    if (template && template.skeleton && editor.value.trim() === "") {
-      apply({
-        text: template.skeleton,
-        start: template.skeleton.length,
-        end: template.skeleton.length,
-      });
-    }
+    const stored = loadDraft(id);
+    const next = findTemplate(id);
+    const text = stored ?? next?.skeleton ?? "";
+
+    if (text !== editor.value)
+      apply({ text, start: text.length, end: text.length });
 
     if (options.onTemplate) options.onTemplate(id);
     syncVisible();
@@ -377,7 +398,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     }, FOCUS_SETTLE_MS);
   };
   const onSelectionChange = (): void => {
-    if (document.activeElement === editor) syncVisible();
+    if (!bar.hidden && document.activeElement === editor) syncActive();
   };
 
   const onPointerDown = (event: Event): void => {
@@ -456,8 +477,10 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     refresh: syncVisible,
     template: () => templateId,
     reset(): void {
+      dropDraft(templateId);
       templateId = PLAIN;
       saveTemplateId(PLAIN);
+      dropDraft(PLAIN);
       select.value = PLAIN;
       syncVisible();
     },
