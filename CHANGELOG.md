@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.74.0](https://github.com/bataak/spellchecker/compare/v1.73.0...v1.74.0) (2026-08-28)
+
+
+### Features
+
+* keep a draft per template and show the selector whenever the editor is focused ([0773426](https://github.com/bataak/spellchecker/commit/07734262ac7518ed9bcb296df77a1f255e1329d6))
+* select example blocks on tap ([1341dde](https://github.com/bataak/spellchecker/commit/1341dde336ab1d9e0c2059e51f9fac29ab3750f6))
+
+
+### Bug Fixes
+
+* allow horizontal scrolling of the toolbar on touch devices ([c3afca5](https://github.com/bataak/spellchecker/commit/c3afca5d1e3545a30d460c3cdd096e11841e8a9d))
+
 ## [1.73.0](https://github.com/bataak/spellchecker/compare/v1.72.0...v1.73.0) (2026-08-22)
 
 
