@@ -19,35 +19,16 @@ import {
   templateExamples,
 } from "./templates.ts";
 
-/**
- * Хөвөгч хэлбэржүүлэлтийн цэс.
- *
- * Логик бүхэлдээ `mdedit.ts`-д, энд зөвхөн DOM холболт.
- *
- * Харагдах дүрэм: засварлагч фокустай байхад л гарна. Хоосон бол зөвхөн
- * загварын сонгогч — хэрэглэгч энд баримтаа зарлана. Загвар сонгосон
- * буюу `.md` файл нээсэн үед хэлбэржүүлэлтийн товчнууд нэмэгдэнэ.
- * Энгийн бичвэр шалгуулж байгаа хүн юу ч харахгүй.
- */
-
 export interface MdToolbarOptions {
   readonly editor: HTMLTextAreaElement;
-  /** Одоо нээлттэй файл markdown эсэх. Нэрийн өргөтгөлөөр шийднэ. */
   readonly isMdFile: () => boolean;
-  /**
-   * Цэсийг байрлуулах эцэг. Ихэвчлэн `header.topbar` — цэс идэвхтэй үед
-   * гарчгийг орлоно. Заагаагүй бол засварлагчийн эцэг.
-   */
   readonly mount?: HTMLElement;
-  /** Загвар солигдоход мэдэгдэнэ — экспортод хэрэглэнэ. */
   readonly onTemplate?: (id: string) => void;
 }
 
 export interface MdToolbar {
   refresh: () => void;
-  /** Идэвхтэй загварын танигч. Сонгоогүй бол `plain`. */
   template: () => string;
-  /** Шинэ баримт эхлэхэд загварыг буцаана. */
   reset: () => void;
   destroy: () => void;
 }
@@ -72,12 +53,6 @@ interface ButtonSpec {
   readonly title: string;
 }
 
-/**
- * Тэмдэгтийн оронд SVG хэрэглэсэн шалтгаан: засварлагчийн фонт нь PT
- * Serif-ийн дэд олонлог тул `\u2022`, `\u275D` зэрэг тэмдэгт байхгүй байх
- * магадлалтай. Solbicson фонт гарч ирвэл товчнууд жигдэрхээ болино.
- * ASCII үсэг л шууд бичигдэнэ.
- */
 const ICON = {
   bullet:
     '<circle cx="3" cy="4" r="1.1" fill="currentColor" stroke="none"/>' +
@@ -129,10 +104,6 @@ const HEADING_DEPTH: Partial<Record<Role, 1 | 2 | 3>> = { h1: 1, h2: 2, h3: 3 };
 
 const TEMPLATE_KEY = "mdTemplate";
 
-/**
- * Сонгосон загварыг хадгална. Хуудас дахин ачаалахад ноорог сэргээгддэг
- * тул загвар нь ч сэргэх ёстой — эс бөгөөс баримт дундаа цэсээ алдана.
- */
 function loadTemplateId(): string {
   try {
     const raw = localStorage.getItem(TEMPLATE_KEY);
@@ -159,36 +130,24 @@ function saveDraft(id: string, text: string): void {
     if (text.trim() === "" || text.length > DRAFT_MAX)
       localStorage.removeItem(DRAFT_PREFIX + id);
     else localStorage.setItem(DRAFT_PREFIX + id, text);
-  } catch (_) {
-    /* хадгалах боломжгүй — алгасна */
-  }
+  } catch (_) {}
 }
 
 function dropDraft(id: string): void {
   try {
     localStorage.removeItem(DRAFT_PREFIX + id);
-  } catch (_) {
-    /* алгасна */
-  }
+  } catch (_) {}
 }
 
 function saveTemplateId(id: string): void {
   try {
     if (id === PLAIN) localStorage.removeItem(TEMPLATE_KEY);
     else localStorage.setItem(TEMPLATE_KEY, id);
-  } catch (_) {
-    /* хадгалах боломжгүй — алгасна */
-  }
+  } catch (_) {}
 }
 
-/** Ачаалсны дараа гарчгийг барих хугацаа. */
 const TITLE_HOLD_MS = 5000;
 
-/**
- * Фокус тогтох хүлээлт. Алдааны самбарт дарахад засварлагч фокусаа алдаад
- * програм түүнийг шууд буцаадаг — хоёр шилжилтийг нэгтгэхгүй бол цэс
- * гарчигтай анивчина.
- */
 const FOCUS_SETTLE_MS = 150;
 
 function escapeAttr(value: string): string {
@@ -215,7 +174,6 @@ function buildButtons(): string {
 }
 
 function buildPicker(): string {
-
   const option = (id: string): string => {
     const item = findTemplate(id);
     if (item === undefined) return "";
@@ -268,15 +226,9 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   const mount = options.mount ?? editor.parentElement;
   if (mount) mount.insertBefore(bar, mount.firstChild);
 
-  /**
-   * Эхний секундүүдэд толгойд програмын нэр байх тул цэс тэнд гарахгүй.
-   * Тэр хугацаанд засварлагчийн баруун дээд буланд «Загвар» товч харагдана
-   * — дарвал загварын жагсаалт нээгдэнэ. Товч нь сонгогчоос тусдаа: энэ нь
-   * үйлдэл санал болгож байгаа болохоос одоогийн утгыг харуулж байгаа юм
-   * биш. Хугацаа дуусахад товч устаж, сонгогч толгойн цэсэнд гарна.
-   */
   const select = bar.querySelector<HTMLSelectElement>(".md-template")!;
   const group = bar.querySelector<HTMLElement>(".md-group")!;
+  const picker = bar.querySelector<HTMLElement>(".md-select")!;
 
   let templateId = loadTemplateId();
   select.value = templateId;
@@ -357,6 +309,8 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     const focused = focus === editor || (focus !== null && bar.contains(focus));
     const on = active();
     const show = ready && focused;
+
+    picker.classList.toggle("is-plain", !on);
 
     if (group.hidden !== !on) {
       group.hidden = !on;
@@ -454,10 +408,6 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     }
   };
 
-  /**
-   * Ачаалах үед програмын нэрийг хэсэг харуулна — цэс шууд гарч ирвэл
-   * гарчгийг хэзээ ч харахгүй.
-   */
   const readyTimer = setTimeout(() => {
     ready = true;
     syncVisible();
@@ -468,7 +418,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   select.addEventListener("change", onSelect);
   editor.addEventListener("pointerup", onEditorPointerUp);
   editor.addEventListener("beforeinput", onBeforeInput);
-  editor.addEventListener("input", syncVisible);
+  editor.addEventListener("input", syncActive);
   document.addEventListener("focusin", onFocus);
   document.addEventListener("focusout", onFocus);
   document.addEventListener("selectionchange", onSelectionChange);
@@ -492,7 +442,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       document.removeEventListener("selectionchange", onSelectionChange);
       editor.removeEventListener("pointerup", onEditorPointerUp);
       editor.removeEventListener("beforeinput", onBeforeInput);
-      editor.removeEventListener("input", syncVisible);
+      editor.removeEventListener("input", syncActive);
       mount?.classList.remove("has-mdbar");
       bar.remove();
     },
