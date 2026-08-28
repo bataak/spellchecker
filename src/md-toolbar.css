@@ -144,3 +144,29 @@
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
   letter-spacing: -0.05em;
 }
+
+.md-select.is-plain .md-template {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  padding-inline: 0 15px;
+  font-weight: 600;
+}
+
+.md-select.is-plain::after {
+  inset-inline-end: 1px;
+  width: 5px;
+  height: 5px;
+  opacity: 0.5;
+}
+
+.md-select.is-plain .md-template {
+  padding-inline: 0 15px;
+}
+
+.md-select.is-plain::after {
+  inset-inline-end: 1px;
+  width: 5px;
+  height: 5px;
+  opacity: 0.5;
+}
