@@ -1,3 +1,4 @@
+import { isAbbrev } from "./textcheck.ts";
 import type {
   CheckResponse,
   DictFailure,
@@ -241,10 +242,6 @@ export interface RawToken {
 
 // Хаалт, хашилтын хаах тал. Монголд „…“ тул “ нь хаах тэмдэг.
 const CLOSING_DASH = /^[”“‘’«»‹›()[\]"]+-$/;
-
-function isAbbrev(word: string): boolean {
-  return /^[\u0400-\u04FF]{2,}$/u.test(word) && word === word.toUpperCase();
-}
 
 function isSuffix(word: string): boolean {
   return /^\p{Ll}+$/u.test(word);

@@ -33,10 +33,6 @@ export function isDashSuffix(
   );
 }
 
-// 10мг, 7.7мг, 25,5кг, оруулалтаар19 — тоо ба үг зайгүй наалдсан тохиолдол.
-// Тоог задлахгүй, тоо ба үсгийн заагаар л салгана.
-// Тоо түрүүлсэн бол аль ч бичгийн үсэг; үг түрүүлсэн бол зөвхөн кирилл, учир нь
-// латинаар MP3, COVID19 гэх мэт тоогоор төгссөн нэр хэвийн байдаг.
 const NUMBER = String.raw`\p{N}+(?:[.,]\p{N}+)*`;
 const LETTERS = String.raw`\p{L}[\p{L}\p{M}]*`;
 const CYRILLIC = String.raw`[\u0400-\u04FF][\u0400-\u04FF\p{M}]*`;
@@ -44,9 +40,7 @@ const NUMBER_FIRST = new RegExp(`^(${NUMBER})(${LETTERS})$`, "u");
 const WORD_FIRST = new RegExp(`^(${CYRILLIC})(${NUMBER})$`, "u");
 
 export interface NumberSplit {
-  // Толиос шалгах үсгэн хэсэг.
   word: string;
-  // Зайгаар салгаж санал болгох хэлбэр.
   split: string;
 }
 
@@ -68,7 +62,80 @@ export function splitNumberBoundary(input: string): NumberSplit | null {
   return null;
 }
 
-// Хоёр талдаа цифртэй цэг нь аравтын таслал тул хуваалтын цэг биш.
+const LONG_DASH = /[\u2010\u2011\u2012\u2013\u2014\u2015\u2212\uFF0D]/;
+const LONG_DASH_ALL = /[\u2010\u2011\u2012\u2013\u2014\u2015\u2212\uFF0D]/g;
+const CYRILLIC_LETTER = /[\u0400-\u04FF]/;
+
+export function isAbbrev(word: string): boolean {
+  return /^[\u0400-\u04FF]{2,}$/u.test(word) && word === word.toUpperCase();
+}
+
+function isCyrillicSuffix(word: string): boolean {
+  return (
+    /^[\u0400-\u04FF]+$/u.test(word) &&
+    word === word.toLowerCase() &&
+    word !== word.toUpperCase()
+  );
+}
+
+export function dashSpan(
+  text: string,
+  token: Pick<Token, "word" | "start">,
+): Token | null {
+  if (token.start < 3) return null;
+  if (!LONG_DASH.test(text.charAt(token.start - 1))) return null;
+  if (!isCyrillicSuffix(token.word)) return null;
+  let left = token.start - 1;
+  while (left > 0 && CYRILLIC_LETTER.test(text.charAt(left - 1))) left--;
+  const before = left > 0 ? text.charAt(left - 1) : "";
+  if (before !== "" && /[\p{L}\p{N}]/u.test(before)) return null;
+  const abbrev = text.slice(left, token.start - 1);
+  if (!isAbbrev(abbrev)) return null;
+  const end = token.start + token.word.length;
+  return { word: text.slice(left, end), start: left, end };
+}
+
+export function dashNormalized(word: string): string | null {
+  LONG_DASH_ALL.lastIndex = 0;
+  if (!LONG_DASH_ALL.test(word)) return null;
+  return word.replace(LONG_DASH_ALL, "-");
+}
+
+function isSpanBoundary(text: string, start: number, end: number): boolean {
+  const before = start > 0 ? text.charAt(start - 1) : "";
+  const after = end < text.length ? text.charAt(end) : "";
+  if (before !== "" && /[\p{L}\p{N}]/u.test(before)) return false;
+  if (after !== "" && /[\p{L}\p{M}\p{N}]/u.test(after)) return false;
+  return true;
+}
+
+export function dashNormalizeApply(
+  text: string,
+  token: Pick<Token, "word" | "start">,
+  replacement: string,
+): { text: string; caret: number } | null {
+  const normalized = dashNormalized(token.word);
+  if (normalized === null || normalized !== replacement) return null;
+  const end = token.start + token.word.length;
+  if (text.slice(token.start, end) !== token.word) return null;
+  let result = "";
+  let cursor = 0;
+  for (;;) {
+    const at = text.indexOf(token.word, cursor);
+    if (at < 0) break;
+    const stop = at + token.word.length;
+    if (isSpanBoundary(text, at, stop)) {
+      result += text.slice(cursor, at) + normalized;
+      cursor = stop;
+    } else {
+      result += text.slice(cursor, stop);
+      cursor = stop;
+    }
+  }
+  result += text.slice(cursor);
+  return { text: result, caret: end };
+}
+
 export function isDecimalPoint(left: string, right: string): boolean {
   return /\p{N}$/u.test(left) && /^\p{N}/u.test(right);
 }
