@@ -1,12 +1,42 @@
+/**
+ * Экспорт (Save As).
+ *
+ * Гурван замаар нээгдэнэ: `Ctrl+Alt+S`, хадгалах товчийг удаан дарах,
+ * `open()` дуудах. Формат бүр `FORMATS`-д нэг бичлэг — `.odt`, `.pdf`
+ * бэлэн болоход энэ цонхны код өөрчлөгдөхгүй.
+ *
+ * `Ctrl+S` -т хамаарахгүй: тэр нь одоогийн баримтаа шууд хадгална.
+ */
+
 export interface ExportFormat {
   readonly id: string;
   readonly name: string;
   readonly ext: string;
   readonly mime: string;
-  readonly build: (text: string) => BlobPart | Promise<BlobPart>;
+  readonly build: (
+    text: string,
+    templateId: string,
+  ) => BlobPart | Promise<BlobPart>;
 }
 
 export const FORMATS: readonly ExportFormat[] = [
+  {
+    id: "odt",
+    name: "OpenDocument",
+    ext: "odt",
+    mime: "application/vnd.oasis.opendocument.text",
+    build: async (text, templateId) => {
+      const [{ parse }, { findTemplate }, { applyTemplate }, { buildOdt }] =
+        await Promise.all([
+          import("./markdown.ts"),
+          import("./templates.ts"),
+          import("./office/apply.ts"),
+          import("./office/odt/create.ts"),
+        ]);
+      const template = findTemplate(templateId) ?? findTemplate("plain")!;
+      return buildOdt(applyTemplate(parse(text), template));
+    },
+  },
   {
     id: "md",
     name: "Markdown",
@@ -25,9 +55,12 @@ export const FORMATS: readonly ExportFormat[] = [
 
 export interface ExportOptions {
   readonly editor: HTMLTextAreaElement;
+  /** Нэрийн үндэс — нээлттэй файлын нэр, эсвэл `null`. */
   readonly baseName: () => string | null;
+  /** Экспорт хийж болохгүй төлөв (office горим). */
   readonly blocked?: () => boolean;
   readonly saveButton?: HTMLElement | null;
+  readonly template: () => string;
   readonly onDone?: (name: string) => void;
   readonly onBlocked?: () => void;
 }
@@ -77,8 +110,7 @@ async function deliverFile(
         await navigator.share({ files: [file] });
         return;
       } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError")
-          return;
+        if (error instanceof DOMException && error.name === "AbortError") return;
       }
     }
   }
@@ -161,10 +193,7 @@ export function initExport(options: ExportOptions): ExportControl {
     syncFormat();
     overlay.hidden = false;
     nameInput.focus();
-    nameInput.setSelectionRange(
-      0,
-      nameInput.value.length - chosen.ext.length - 1,
-    );
+    nameInput.setSelectionRange(0, nameInput.value.length - chosen.ext.length - 1);
   }
 
   function close(): void {
@@ -181,10 +210,11 @@ export function initExport(options: ExportOptions): ExportControl {
 
     close();
     try {
-      const data = await chosen.build(text);
+      const data = await chosen.build(text, options.template());
       await deliverFile(data, name, chosen.mime);
       options.onDone?.(name);
-    } catch (_) {
+    } catch (error) {
+      console.error("export:", error);
       options.onBlocked?.();
     }
   }
