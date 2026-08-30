@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.75.0](https://github.com/bataak/spellchecker/compare/v1.74.0...v1.75.0) (2026-08-30)
+
+
+### Features
+
+* export documents as ODT with template framing ([898e327](https://github.com/bataak/spellchecker/commit/898e327af40be40582f9fd2289bb0e768a701a32))
+* offer ASCII hyphen for long-dash abbreviation suffixes ([aa707c9](https://github.com/bataak/spellchecker/commit/aa707c9081b5c5a3243d6c5d348dfed1d28f35c6))
+
+
+### Bug Fixes
+
+* hold the app title for three seconds after clearing ([1a5227f](https://github.com/bataak/spellchecker/commit/1a5227f0a3fae4bbeefd2c34afef0650b73a367c))
+* keep the suggestion popover usable when it does not fit ([d47e572](https://github.com/bataak/spellchecker/commit/d47e572e38431fb07cc7c9858217fb7878448a13))
+
 ## [1.74.0](https://github.com/bataak/spellchecker/compare/v1.73.0...v1.74.0) (2026-08-28)
 
 
