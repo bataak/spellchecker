@@ -12,6 +12,7 @@ export interface FileIODeps {
   hidePopover: () => void;
   render: () => Promise<void> | void;
   saveText: () => void;
+  defaultExt: () => string;
   onFileOpened: (file: DraftFile | null) => void;
 }
 
@@ -33,6 +34,7 @@ export function initFileIO({
   hidePopover,
   render,
   saveText,
+  defaultExt,
   onFileOpened,
 }: FileIODeps): FileIOControl {
   const MAX_OPEN_BYTES = 10 * 1024 * 1024;
@@ -65,7 +67,7 @@ export function initFileIO({
       pad2(now.getMinutes());
     const isMobile =
       window.matchMedia && window.matchMedia("(max-width: 700px)").matches;
-    return (isMobile ? "" : "бичвэр-") + ts + ".txt";
+    return (isMobile ? "" : "бичвэр-") + ts + "." + defaultExt();
   }
 
   const OFFICE_EXT_RE = /\.(docx|pptx|odt|odp|pdf)$/i;
@@ -75,7 +77,7 @@ export function initFileIO({
   function ensureTextName(name: string): string {
     name = (name || "").trim();
     if (!name) return stampName();
-    return TEXT_EXT_RE.test(name) ? name : name + ".txt";
+    return TEXT_EXT_RE.test(name) ? name : name + "." + defaultExt();
   }
 
   function textMime(name: string): string {
@@ -100,6 +102,14 @@ export function initFileIO({
   const TXT_TYPES = [
     { description: "Текст файл", accept: { "text/plain": [".txt"] } },
   ];
+
+  const MD_TYPES = [
+    { description: "Markdown файл", accept: { "text/markdown": [".md"] } },
+  ];
+
+  function saveTypes() {
+    return defaultExt() === "md" ? MD_TYPES : TXT_TYPES;
+  }
 
   const PDF_MIME = "application/pdf";
 
@@ -191,7 +201,7 @@ export function initFileIO({
       try {
         const handle = await window.showSaveFilePicker!({
           suggestedName: stampName(),
-          types: TXT_TYPES,
+          types: saveTypes(),
         });
         const writableStream = await handle.createWritable();
         await writableStream.write(text);
