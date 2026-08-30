@@ -146,7 +146,7 @@ function saveTemplateId(id: string): void {
   } catch (_) {}
 }
 
-const TITLE_HOLD_MS = 5000;
+const TITLE_HOLD_MS = 3000;
 
 const FOCUS_SETTLE_MS = 150;
 
@@ -242,6 +242,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   let lastDepth = -1;
   let ready = false;
   let settle: ReturnType<typeof setTimeout> | null = null;
+  let readyTimer: ReturnType<typeof setTimeout> | null = null;
 
   function apply(edit: Edit): void {
     const patch = minimalDiff(editor.value, edit.text);
@@ -326,6 +327,17 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     syncActive();
   }
 
+  function holdTitle(): void {
+    if (readyTimer) clearTimeout(readyTimer);
+    ready = false;
+    syncVisible();
+    readyTimer = setTimeout(() => {
+      readyTimer = null;
+      ready = true;
+      syncVisible();
+    }, TITLE_HOLD_MS);
+  }
+
   function chooseTemplate(id: string): void {
     if (id === templateId) return;
 
@@ -408,10 +420,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     }
   };
 
-  const readyTimer = setTimeout(() => {
-    ready = true;
-    syncVisible();
-  }, TITLE_HOLD_MS);
+  holdTitle();
 
   bar.addEventListener("mousedown", onPointerDown);
   bar.addEventListener("click", onClick);
@@ -432,10 +441,10 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       saveTemplateId(PLAIN);
       dropDraft(PLAIN);
       select.value = PLAIN;
-      syncVisible();
+      holdTitle();
     },
     destroy(): void {
-      clearTimeout(readyTimer);
+      if (readyTimer) clearTimeout(readyTimer);
       if (settle) clearTimeout(settle);
       document.removeEventListener("focusin", onFocus);
       document.removeEventListener("focusout", onFocus);
