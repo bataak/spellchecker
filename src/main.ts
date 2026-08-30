@@ -203,7 +203,9 @@ async function ensureChecked(text: string): Promise<void> {
   for (const [word, correct] of results) cache.set(word, correct);
 }
 function nextFrame(): Promise<void> {
-  return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  return new Promise<void>((resolve) =>
+    requestAnimationFrame(() => resolve()),
+  );
 }
 async function correctNow(word: string): Promise<boolean> {
   if (cache.has(word)) return cache.get(word)!;
@@ -460,10 +462,13 @@ function tokenAtCaret() {
 let activeStart: number | null = null;
 let kbAdjustTimer: ReturnType<typeof setTimeout> | null = null;
 let popoverScrollTop = 0;
+let popoverFullH = 0;
+let popoverChromeH = 0;
 
 function hidePopover(): void {
   els.popover.hidden = true;
   activeStart = null;
+  popoverFullH = 0;
   if (kbAdjustTimer) clearTimeout(kbAdjustTimer);
 }
 
@@ -589,6 +594,55 @@ function scheduleKbAdjust(): void {
   kbAdjustTimer = setTimeout(run, delays[0]);
 }
 
+const MIN_POPOVER_H = 120;
+const reducedMotionMQ = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+function popList(): HTMLElement | null {
+  return els.popover.querySelector<HTMLElement>(".pop-list");
+}
+
+function measurePopover(): void {
+  const list = popList();
+  if (!list) return;
+  list.style.maxHeight = "";
+  list.style.overflowY = "";
+  popoverFullH = els.popover.offsetHeight;
+  popoverChromeH = popoverFullH - list.offsetHeight;
+}
+
+function updateScrollHint(): void {
+  const list = popList();
+  if (!list) return;
+  const down = els.popover.querySelector<HTMLElement>(".pop-more");
+  const up = els.popover.querySelector<HTMLElement>(".pop-less");
+  const rest = list.scrollHeight - list.scrollTop - list.clientHeight;
+  if (down) down.hidden = rest <= 2;
+  if (up) up.hidden = list.scrollTop <= 2;
+}
+
+function obscuredBy(btn: Element): number {
+  const rect = btn.getBoundingClientRect();
+  const up = els.popover.querySelector<HTMLElement>(".pop-less");
+  if (up && !up.hidden) {
+    const limit = up.getBoundingClientRect().bottom + 4;
+    if (rect.top < limit) return rect.top - limit;
+  }
+  const down = els.popover.querySelector<HTMLElement>(".pop-more");
+  if (down && !down.hidden) {
+    const limit = down.getBoundingClientRect().top - 4;
+    if (rect.bottom > limit) return rect.bottom - limit;
+  }
+  return 0;
+}
+
+function setStyle(
+  target: HTMLElement,
+  name: "top" | "left" | "maxHeight" | "overflowY",
+  value: string,
+): void {
+  if (target.style[name] !== value) target.style[name] = value;
+}
+
 function placePopover() {
   if (els.popover.hidden || activeStart == null) return;
   const mark = els.backdrop.querySelector(
@@ -608,27 +662,35 @@ function placePopover() {
   const viewH = vv ? vv.height : window.innerHeight;
   const viewBottom = viewTop + viewH;
 
-  const popH = els.popover.offsetHeight;
+  const popH = popoverFullH || els.popover.offsetHeight;
   const popW = els.popover.offsetWidth;
 
-  const spaceBelow = viewBottom - markRect.bottom;
-  const spaceAbove = markRect.top - viewTop;
+  const spaceBelow = viewBottom - markRect.bottom - margin * 2;
+  const spaceAbove = markRect.top - viewTop - margin * 2;
+  const below = spaceBelow >= spaceAbove;
+  const room = Math.max(MIN_POPOVER_H, below ? spaceBelow : spaceAbove);
+  const usedH = Math.min(popH, room);
+  const capped = usedH < popH;
 
-  let top;
-  if (spaceBelow >= popH + margin || spaceBelow >= spaceAbove) {
-    top = markRect.bottom + margin;
-  } else {
-    top = markRect.top - popH - margin;
+  const list = popList();
+  if (list) {
+    setStyle(list, "maxHeight", capped ? usedH - popoverChromeH + "px" : "");
+    setStyle(list, "overflowY", capped ? "auto" : "");
   }
 
-  top = Math.max(viewTop + margin, Math.min(top, viewBottom - popH - margin));
+  let top = below ? markRect.bottom + margin : markRect.top - usedH - margin;
+  top = Math.max(
+    viewTop + margin,
+    Math.min(top, viewBottom - usedH - margin),
+  );
   const left = Math.max(
     viewLeft + margin,
     Math.min(markRect.left, viewLeft + viewW - popW - margin),
   );
 
-  els.popover.style.top = window.scrollY + top + "px";
-  els.popover.style.left = window.scrollX + left + "px";
+  setStyle(els.popover, "top", window.scrollY + top + "px");
+  setStyle(els.popover, "left", window.scrollX + left + "px");
+  updateScrollHint();
 }
 
 const INITIAL_RE = /^\p{Lu}[\p{L}\p{M}]?$/u;
@@ -706,18 +768,22 @@ async function showPopoverFor(token: Token): Promise<void> {
   if (!mark) {
     await render();
     materializeMark(token.start);
-    mark = els.backdrop.querySelector('mark[data-start="' + token.start + '"]');
+    mark = els.backdrop.querySelector(
+      'mark[data-start="' + token.start + '"]',
+    );
   }
   if (!mark) {
     hidePopover();
     return;
   }
 
-  els.popover.innerHTML = '<div class="muted pop-empty">…</div>';
+  els.popover.innerHTML =
+    '<div class="pop-list"><div class="muted pop-empty">…</div></div>';
   activeStart = token.start;
   popoverScrollTop = els.editor.scrollTop;
   els.popover.hidden = false;
   bringWordIntoView();
+  measurePopover();
   placePopover();
   scheduleKbAdjust();
 
@@ -751,15 +817,52 @@ async function showPopoverFor(token: Token): Promise<void> {
         .join("")
     : '<div class="muted pop-empty">санал алга</div>';
   els.popover.innerHTML =
+    '<div class="pop-list">' +
     sgHtml +
-    '<button class="sg sg-ignore" type="button">Энэ үгийг алгасах</button>';
+    '<button class="sg sg-ignore" type="button">Энэ үгийг алгасах</button>' +
+    "</div>" +
+    '<div class="pop-less" hidden>' +
+    '<button class="pop-less-btn" type="button" aria-label="Дээш гүйлгэх">' +
+    "</button></div>" +
+    '<div class="pop-more" hidden>' +
+    '<button class="pop-more-btn" type="button" aria-label="Доош гүйлгэх">' +
+    "</button></div>";
+  const list = popList();
+  if (list) {
+    list.scrollTop = 0;
+    list.addEventListener("scroll", updateScrollHint, { passive: true });
+  }
+  measurePopover();
   placePopover();
 
   els.popover.querySelectorAll(".sg:not(.sg-ignore)").forEach((btn) => {
-    btn.addEventListener("click", () =>
-      applySuggestion(token, btn.textContent),
-    );
+    btn.addEventListener("click", () => {
+      const covered = obscuredBy(btn);
+      if (covered > 0 && list) {
+        list.scrollBy({
+          top: covered,
+          behavior: reducedMotionMQ.matches ? "auto" : "smooth",
+        });
+        return;
+      }
+      applySuggestion(token, btn.textContent);
+    });
   });
+  const pageBy = (sign: number) => {
+    if (!list) return;
+    list.scrollBy({
+      top: sign * Math.max(60, list.clientHeight - 48),
+      behavior: reducedMotionMQ.matches ? "auto" : "smooth",
+    });
+  };
+  els.popover
+    .querySelectorAll(".pop-more-btn, .pop-less-btn")
+    .forEach((btn) => {
+      btn.addEventListener("mousedown", (e) => e.preventDefault());
+      btn.addEventListener("click", () =>
+        pageBy(btn.classList.contains("pop-less-btn") ? -1 : 1),
+      );
+    });
   const ignoreBtn = els.popover.querySelector(".sg-ignore");
   if (ignoreBtn) {
     ignoreBtn.addEventListener("click", () => {
@@ -936,7 +1039,10 @@ function isSeparatorInput(e: InputEvent): boolean {
   if (it === "insertText")
     return e.data != null && /[\s\p{P}\p{S}]/u.test(e.data);
   if (it === "insertLineBreak" || it === "insertParagraph") return true;
-  if (it.indexOf("insertFromPaste") === 0 || it.indexOf("insertFromDrop") === 0)
+  if (
+    it.indexOf("insertFromPaste") === 0 ||
+    it.indexOf("insertFromDrop") === 0
+  )
     return true;
   return false;
 }
@@ -1137,7 +1243,8 @@ function editKind(event: Event): EditKind {
   const type = (event as InputEvent).inputType || "";
   if (type === "insertText" || type === "insertCompositionText")
     return "insert";
-  if (type === "insertLineBreak" || type === "insertParagraph") return "insert";
+  if (type === "insertLineBreak" || type === "insertParagraph")
+    return "insert";
   if (type === "insertFromPaste") return "insert";
   if (type.startsWith("delete")) return "delete";
   return "other";
@@ -1329,7 +1436,8 @@ els.editor.addEventListener("keyup", (e) => {
 let suppressNextClick = false;
 
 function markAtPoint(x: number, y: number): HTMLElement | null {
-  const marks = els.backdrop.querySelectorAll<HTMLElement>("mark[data-start]");
+  const marks =
+    els.backdrop.querySelectorAll<HTMLElement>("mark[data-start]");
   for (const mark of marks) {
     const rects = mark.getClientRects();
     for (const rect of rects) {
@@ -1821,7 +1929,8 @@ function restoreDraftFile(): void {
         : "";
       const editorFocused = document.activeElement === els.editor;
       const editorHasSelection =
-        editorFocused && els.editor.selectionStart !== els.editor.selectionEnd;
+        editorFocused &&
+        els.editor.selectionStart !== els.editor.selectionEnd;
       if (!pageSel && !editorHasSelection) {
         e.preventDefault();
         trigger("#copyBtn");
@@ -1832,7 +1941,10 @@ function restoreDraftFile(): void {
 
 async function requestDurableStorage() {
   try {
-    if (navigator.storage && typeof navigator.storage.persist === "function") {
+    if (
+      navigator.storage &&
+      typeof navigator.storage.persist === "function"
+    ) {
       const already = navigator.storage.persisted
         ? await navigator.storage.persisted()
         : false;
