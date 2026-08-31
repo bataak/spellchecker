@@ -778,7 +778,9 @@ async function showPopoverFor(token: Token): Promise<void> {
   }
 
   els.popover.innerHTML =
-    '<div class="pop-list"><div class="muted pop-empty">…</div></div>';
+    '<div class="pop-scroll">' +
+    '<div class="pop-list"><div class="muted pop-empty">…</div></div>' +
+    "</div>";
   activeStart = token.start;
   popoverScrollTop = els.editor.scrollTop;
   els.popover.hidden = false;
@@ -817,16 +819,18 @@ async function showPopoverFor(token: Token): Promise<void> {
         .join("")
     : '<div class="muted pop-empty">санал алга</div>';
   els.popover.innerHTML =
+    '<div class="pop-scroll">' +
     '<div class="pop-list">' +
     sgHtml +
-    '<button class="sg sg-ignore" type="button">Энэ үгийг алгасах</button>' +
     "</div>" +
     '<div class="pop-less" hidden>' +
     '<button class="pop-less-btn" type="button" aria-label="Дээш гүйлгэх">' +
     "</button></div>" +
     '<div class="pop-more" hidden>' +
     '<button class="pop-more-btn" type="button" aria-label="Доош гүйлгэх">' +
-    "</button></div>";
+    "</button></div>" +
+    "</div>" +
+    '<button class="sg sg-ignore" type="button">Энэ үгийг алгасах</button>';
   const list = popList();
   if (list) {
     list.scrollTop = 0;
