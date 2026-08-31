@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.76.0](https://github.com/bataak/spellchecker/compare/v1.75.1...v1.76.0) (2026-08-31)
+
+
+### Features
+
+* **dict:** update stems and add replacement pairs ([a0dfb3a](https://github.com/bataak/spellchecker/commit/a0dfb3a243c6d4a364c6f9da3bb34ef02597bcb8))
+
+
+### Bug Fixes
+
+* pin the ignore button below the suggestion list ([774af09](https://github.com/bataak/spellchecker/commit/774af0955442d6260ca0ae2181c52c50f1e3dbd3))
+
 ## [1.75.1](https://github.com/bataak/spellchecker/compare/v1.75.0...v1.75.1) (2026-08-31)
 
 
