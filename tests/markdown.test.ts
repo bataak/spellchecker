@@ -23,6 +23,19 @@ function stripLines(value: unknown): unknown {
   return value;
 }
 
+function paragraphOf(src: string): Extract<Block, { type: "paragraph" }> {
+  const b = parse(src)[0]!;
+  assert.equal(b.type, "paragraph", src);
+  return b as Extract<Block, { type: "paragraph" }>;
+}
+
+function plainText(src: string): string {
+  const p = paragraphOf(src);
+  assert.equal(p.children.length, 1, src);
+  assert.equal(p.children[0]!.type, "text", src);
+  return (p.children[0] as { value: string }).value;
+}
+
 const SAMPLES: Record<string, string> = {
   гарчиг: "# Гарчиг\n\nЭнгийн догол мөр.\n",
   жагсаалт: "- нэг\n- хоёр\n- гурав\n",
@@ -37,6 +50,9 @@ const SAMPLES: Record<string, string> = {
   escape: "Огноо 20XX \\- одоо, no\\_reply@example.mn\n",
   autolink: "Хаяг <https://aldaa.bichig.dev> болон <bat@example.mn>.\n",
   бишАвтолинк: "Тэнцэтгэл а < б бол зөв.\n",
+  зүүлт: "Ууган охин Нямаа* эмч, дараагийн охин Индра* багш.\n",
+  зүүлтТаслал: "Түүхч Б.Д.Цыбыков*, М.П.Хабаев* нар бичжээ.\n",
+  доогуурЗураас: "Файлууд mn_MN.aff болон hyph_mn_MN байна.\n",
 };
 
 for (const [name, src] of Object.entries(SAMPLES)) {
@@ -103,10 +119,7 @@ test("хүснэгт — урт нүдтэй үед тэгшитгэхгүй", (
 });
 
 test("escape — задлалтад алга болохгүй", () => {
-  const p = parse(SAMPLES.escape!)[0] as Extract<
-    Block,
-    { type: "paragraph" }
-  >;
+  const p = parse(SAMPLES.escape!)[0] as Extract<Block, { type: "paragraph" }>;
   const text = p.children.map((n) => ("value" in n ? n.value : "")).join("");
   assert.ok(text.includes("20XX - одоо"), text);
   assert.ok(text.includes("no_reply@example.mn"), text);
@@ -206,10 +219,102 @@ test("isMarkdown — жагсаалт дангаараа хангалтгүй", 
     "1. Эхлээд\n2. Дараа нь\n",
     SAMPLES.escape!,
     SAMPLES.бишАвтолинк!,
+    SAMPLES.зүүлт!,
+    SAMPLES.зүүлтТаслал!,
+    SAMPLES.доогуурЗураас!,
   ];
   for (const src of plain) assert.equal(isMarkdown(parse(src)), false, src);
 });
 
 test("isMarkdown — жагсаалтын доторх тэмдэглэгээ тоологдоно", () => {
   assert.ok(isMarkdown(parse("- **нэг**\n- хоёр\n")));
+});
+
+test("зүүлтийн од — бүхэлдээ текст хэвээр үлдэнэ", () => {
+  assert.equal(
+    plainText(SAMPLES.зүүлт!),
+    "Ууган охин Нямаа* эмч, дараагийн охин Индра* багш.",
+  );
+  assert.equal(
+    plainText(SAMPLES.зүүлтТаслал!),
+    "Түүхч Б.Д.Цыбыков*, М.П.Хабаев* нар бичжээ.",
+  );
+});
+
+test("үг доторх доогуур зураас онцлол болохгүй", () => {
+  assert.equal(
+    plainText(SAMPLES.доогуурЗураас!),
+    "Файлууд mn_MN.aff болон hyph_mn_MN байна.",
+  );
+});
+
+test("нээх тэмдэг — зайн өмнө хүчингүй", () => {
+  for (const src of [
+    "Энэ * зөв биш * бичиглэл.\n",
+    "Энэ ** зөв биш ** бичиглэл.\n",
+    "Энэ _ зөв биш _ бичиглэл.\n",
+    "Энэ ~~ зөв биш ~~ бичиглэл.\n",
+  ])
+    assert.equal(isMarkdown(parse(src)), false, src);
+});
+
+test("нээх тэмдэг — үгэнд наалдсан цэг таслалын өмнө хүчингүй", () => {
+  for (const src of [
+    "Тэмдэг*, дараагийн* үг.\n",
+    "Тэмдэг**, дараагийн** үг.\n",
+    "Хуудас13*; дараагийн* мөр.\n",
+  ])
+    assert.equal(isMarkdown(parse(src)), false, src);
+});
+
+test("нээх тэмдэг — зайн дараах хашилтын өмнө хүчинтэй", () => {
+  for (const src of [
+    "Ном **«Монголын нууц товчоо»** юм.\n",
+    "Тэр *(тодруулбал)* ийм.\n",
+  ])
+    assert.ok(isMarkdown(parse(src)), src);
+});
+
+test("онцлол — жинхэнэ тэмдэглэгээ хэвээр ажиллана", () => {
+  const cases: [string, string][] = [
+    ["Энэ *налуу* үг.\n", "<em>налуу</em>"],
+    ["Энэ **тод** үг.\n", "<strong>тод</strong>"],
+    ["Энэ ***хосолсон*** үг.\n", "<strong><em>хосолсон</em></strong>"],
+    ["Энэ ~~хассан~~ үг.\n", "<del>хассан</del>"],
+    ["Энэ _налуу_ үг.\n", "<em>налуу</em>"],
+    ["Энэ __тод__ үг.\n", "<strong>тод</strong>"],
+    ["Энэ ___хосолсон___ үг.\n", "<strong><em>хосолсон</em></strong>"],
+  ];
+  for (const [src, want] of cases) {
+    const html = toHtml(parse(src));
+    assert.ok(html.includes(want), `${src} → ${html}`);
+  }
+});
+
+test("хаах тэмдгийн өмнөх цэг таслал зөвшөөрөгдөнө", () => {
+  const html = toHtml(parse("**Гарчиг:** тайлбар.\n"));
+  assert.ok(html.includes("<strong>Гарчиг:</strong>"), html);
+});
+
+test("зэргэлдээ онцлолын гүйлт тусдаа задарна", () => {
+  const cases: [string, string][] = [
+    ["**нэг****хоёр**\n", "<strong>нэг</strong><strong>хоёр</strong>"],
+    ["__нэг____хоёр__\n", "<strong>нэг</strong><strong>хоёр</strong>"],
+    ["~~а~~~~б~~\n", "<del>а</del><del>б</del>"],
+    ["**нэг** **хоёр**\n", "<strong>нэг</strong> <strong>хоёр</strong>"],
+  ];
+  for (const [src, want] of cases) {
+    const html = toHtml(parse(src));
+    assert.ok(html.includes(want), `${src} → ${html}`);
+  }
+});
+
+test("бүтэн зүүлттэй бичвэр markdown болохгүй", () => {
+  const src =
+    "Дайны дараах сэргэлтийг Бямбын Ринчингүйгээр* төсөөлөх аргагүй.\n\n" +
+    "Ууган охин Нямаа* нүдний эмч, дараагийн охин Индра* багш, хүү Барсболд* палентологич.\n\n" +
+    "Үзэл суртал хариуцсан Д.Чимэддорж* уг өгүүллийг хэлэлцүүлэхийг тушаажээ.\n\n" +
+    "Зөвлөлт Буриадын түүхч Б.Д.Цыбыков*, М.П.Хабаев* нар баримтаар няцаажээ.\n\n" +
+    "Ю.Цэдэнбал. 1984 оны наймдугаар сарын 20. Москва хот[i].\n";
+  assert.equal(isMarkdown(parse(src)), false);
 });

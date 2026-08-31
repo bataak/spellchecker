@@ -74,8 +74,47 @@ function unmask(src: string, held: string[]): string {
   );
 }
 
-const TOKEN =
-  /(`+)([\s\S]*?)\1|~~([\s\S]+?)~~|\*\*\*([\s\S]+?)\*\*\*|___([\s\S]+?)___|\*\*([\s\S]+?)\*\*|__([\s\S]+?)__|\*([^*\n]+?)\*|_([^_\n]+?)_|\[([^\]]*)\]\(([^)\s]*)\)|<((?:[a-z][a-z0-9+.-]*:|[^\s<>@]+@)[^\s<>]+)>/i;
+const PUNCT = "\\p{P}\\p{S}";
+const WORD = "\\p{L}\\p{N}";
+
+const emphasis = (ch: string, n: number, body: string): string => {
+  const run = ch.repeat(n);
+  const opener =
+    "(?<!" +
+    ch +
+    ")" +
+    run +
+    "(?!" +
+    ch +
+    ")(?!\\s)(?:(?![" +
+    PUNCT +
+    "])|(?<![^\\s" +
+    PUNCT +
+    "]" +
+    run +
+    "))";
+  const closer = "(?<!\\s)" + run;
+  return opener + "(" + body + ")" + closer;
+};
+
+const wordBound = (pattern: string): string =>
+  "(?<![" + WORD + "])" + pattern + "(?![" + WORD + "])";
+
+const TOKEN = new RegExp(
+  [
+    "(`+)([\\s\\S]*?)\\1",
+    emphasis("~", 2, "[\\s\\S]+?"),
+    emphasis("\\*", 3, "[\\s\\S]+?"),
+    wordBound(emphasis("_", 3, "[\\s\\S]+?")),
+    emphasis("\\*", 2, "[\\s\\S]+?"),
+    wordBound(emphasis("_", 2, "[\\s\\S]+?")),
+    emphasis("\\*", 1, "[^*\\n]+?"),
+    wordBound(emphasis("_", 1, "[^_\\n]+?")),
+    "\\[([^\\]]*)\\]\\(([^)\\s]*)\\)",
+    "<((?:[a-z][a-z0-9+.-]*:|[^\\s<>@]+@)[^\\s<>]+)>",
+  ].join("|"),
+  "iu",
+);
 
 function parseInlineMasked(src: string, held: string[]): Inline[] {
   const out: Inline[] = [];
@@ -355,7 +394,8 @@ export function toHtml(blocks: readonly Block[]): string {
       out += `<blockquote${at}>${toHtml(b.children)}</blockquote>`;
     else if (b.type === "list") {
       const tag = b.ordered ? "ol" : "ul";
-      const startAttr = b.ordered && b.start !== 1 ? ` start="${b.start}"` : "";
+      const startAttr =
+        b.ordered && b.start !== 1 ? ` start="${b.start}"` : "";
       out +=
         `<${tag}${startAttr}${at}>` +
         b.items.map((it) => `<li>${inlineHtml(it)}</li>`).join("") +
@@ -408,7 +448,8 @@ function inlineMd(nodes: readonly Inline[], cell: boolean): string {
       const ticks = "`".repeat((n.value.match(/`+/g)?.[0]?.length ?? 0) + 1);
       const pad = n.value.startsWith("`") || n.value.endsWith("`") ? " " : "";
       out += ticks + pad + n.value + pad + ticks;
-    } else if (n.type === "strong") out += `**${inlineMd(n.children, cell)}**`;
+    } else if (n.type === "strong")
+      out += `**${inlineMd(n.children, cell)}**`;
     else if (n.type === "em") out += `*${inlineMd(n.children, cell)}*`;
     else if (n.type === "del") out += `~~${inlineMd(n.children, cell)}~~`;
     else if (n.auto) out += `<${n.url}>`;
@@ -473,7 +514,8 @@ function blockMd(b: Block): string {
         if (a === "left") return ":" + bar;
         return bar;
       });
-      const row = (r: string[]): string => "| " + r.map(pad).join(" | ") + " |";
+      const row = (r: string[]): string =>
+        "| " + r.map(pad).join(" | ") + " |";
       const [head, ...body] = cells;
       return [
         row(head ?? []),
