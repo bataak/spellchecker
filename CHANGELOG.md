@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.75.1](https://github.com/bataak/spellchecker/compare/v1.75.0...v1.75.1) (2026-08-31)
+
+
+### Bug Fixes
+
+* **markdown:** require flanking context for emphasis delimiters ([c1a58d5](https://github.com/bataak/spellchecker/commit/c1a58d572e2cda8f07d440f8dc6a66a3f9af4e6e))
+
 ## [1.75.0](https://github.com/bataak/spellchecker/compare/v1.74.0...v1.75.0) (2026-08-30)
 
 
