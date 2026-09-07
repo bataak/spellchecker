@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.1](https://github.com/bataak/spellchecker/compare/v1.76.0...v1.76.1) (2026-09-07)
+
+
+### Bug Fixes
+
+* read editor measure from a single source ([6e1cf89](https://github.com/bataak/spellchecker/commit/6e1cf89dbfb9a3d80e11f627bc4c02b85d426369))
+
 ## [1.76.0](https://github.com/bataak/spellchecker/compare/v1.75.1...v1.76.0) (2026-08-31)
 
 
