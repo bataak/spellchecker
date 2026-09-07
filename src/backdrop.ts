@@ -47,6 +47,7 @@ export function renderBackdrop(text: string, marks: Token[]): void {
     updateChunkText(node, text, bounds[i]!);
     line += node._lines;
   }
+  syncTrailer(text);
   activeEl = null;
   applyVisibleMarks();
   applyGutterWidth(line);
@@ -104,6 +105,12 @@ function splitChunks(text: string): ChunkBound[] {
     }
   }
   return bounds;
+}
+
+function syncTrailer(text: string): void {
+  if (!trailer) return;
+  const need = text === "" || text.endsWith("\n");
+  trailer.style.display = need ? "" : "none";
 }
 
 function syncChunkCount(count: number): void {
@@ -198,7 +205,8 @@ export function plainHtml(raw: string): string {
   for (;;) {
     const nl = body.indexOf("\n", cursor);
     const end = nl === -1 ? body.length : nl;
-    html += '<div class="bl">' + escapeHtml(body.slice(cursor, end)) + "</div>";
+    html +=
+      '<div class="bl">' + escapeHtml(body.slice(cursor, end)) + "</div>";
     if (nl === -1) break;
     cursor = nl + 1;
   }
