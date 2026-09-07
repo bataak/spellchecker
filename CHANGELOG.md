@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.77.0](https://github.com/bataak/spellchecker/compare/v1.76.1...v1.77.0) (2026-09-07)
+
+
+### Features
+
+* **dict:** add stems, шаах REP rules, and tighten N1 conditions ([b4ebfdb](https://github.com/bataak/spellchecker/commit/b4ebfdb17f2143a223a2585f253177831bcb380d))
+
 ## [1.76.1](https://github.com/bataak/spellchecker/compare/v1.76.0...v1.76.1) (2026-09-07)
 
 
