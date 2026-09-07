@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.77.1](https://github.com/bataak/spellchecker/compare/v1.77.0...v1.77.1) (2026-09-07)
+
+
+### Bug Fixes
+
+* hide the backdrop trailer unless the text ends in a newline ([3063c0e](https://github.com/bataak/spellchecker/commit/3063c0e1c63a886d687dd34db0edd0c776cd422f))
+
 ## [1.77.0](https://github.com/bataak/spellchecker/compare/v1.76.1...v1.77.0) (2026-09-07)
 
 
