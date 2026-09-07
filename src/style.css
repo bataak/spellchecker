@@ -21,7 +21,7 @@ html {
   --editor-pad-y: 20px;
 
   --editor-per: 9.07px;
-  --editor-measure: 70;
+  --editor-measure: 75;
 
   --gutter-digits: 2;
   --gutter-unit: 11px;
@@ -47,25 +47,24 @@ html {
   );
   --preview-ink: #2f7d54;
   --slots-w: 0px;
-  --page-base: calc(var(--editor-width) + var(--slots-w) + 2 * var(--page-pad));
+  --page-base: calc(
+    var(--editor-width) + var(--slots-w) + 2 * var(--page-pad)
+  );
   --gutter-pull: min(
     var(--gutter-w),
-    max(var(--page-pad), calc((100vw - var(--page-base)) / 2 + var(--page-pad)))
+    max(
+      var(--page-pad),
+      calc((100vw - var(--page-base)) / 2 + var(--page-pad))
+    )
   );
   --page-max: calc(var(--page-base) - var(--gutter-pull));
 
   --sans:
-    ui-sans-serif, system-ui, "Segoe UI", "Noto Sans", Roboto, Arial, sans-serif;
+    ui-sans-serif, system-ui, "Segoe UI", "Noto Sans", Roboto, Arial,
+    sans-serif;
   --serif:
-    "Bichig Serif", "PT Serif", "Noto Serif", "Liberation Serif", Georgia, serif;
-}
-
-:root[data-measure="b"] {
-  --editor-measure: 80;
-}
-
-:root[data-measure="c"] {
-  --editor-measure: 107;
+    "Bichig Serif", "PT Serif", "Noto Serif", "Liberation Serif", Georgia,
+    serif;
 }
 
 :root {
@@ -965,7 +964,11 @@ a.tbtn {
 .pop-more {
   bottom: 0;
   align-items: flex-end;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, var(--panel) 45%);
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0%,
+    var(--panel) 45%
+  );
 }
 .pop-less {
   top: 0;

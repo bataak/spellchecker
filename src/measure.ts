@@ -22,9 +22,9 @@ import {
 const STORAGE_KEY = "layout";
 
 const SAMPLE =
-  "Монгол хэлний үг залгамжлалт бүтэцтэй тул нэлээд урт болдог, " +
-  "үүнээс шалтгаалж мөрийн төгсгөлийн үлдэгдэл зай ихэсдэг. " +
-  "Тэгэхээр нэг тэмдэгтийн дундаж өргөнийг бодит бичвэрээр хэмжинэ.";
+  "Монгол хэлний үг залгамал бүтэцтэй тул нэлээд урт болдог, " +
+  "үүнээс шалтгаалж мөрийн төгсгөлийн үлдэгдэл зай ихэсдэг тул " +
+  "нэг тэмдэгтийн дундаж өргөнийг бодит бичвэрээр хэмжинэ.";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -263,6 +263,7 @@ export function mountMeasureControl(
 
   const apply = (l: Layout): void => {
     const root = document.documentElement;
+    root.style.setProperty("--editor-measure", String(MEASURES[l.measure]));
     if (l.measure === "a") delete root.dataset.measure;
     else root.dataset.measure = l.measure;
     if (l.panel) delete root.dataset.panel;
