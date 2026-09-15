@@ -23,6 +23,7 @@ export interface SuggestDeps {
   buildErrorList?: (tokens: Token[]) => ErrorEntry[];
   isDashSuffix?: (token: Token) => boolean;
   copyText?: (str: string) => Promise<void>;
+  checkKnown?: (words: string[]) => Promise<Record<string, boolean> | null>;
 }
 
 const ENDPOINT = "https://api.bichig.dev/suggest";
@@ -40,6 +41,8 @@ let busy = false;
 let words: string[] = [];
 let deps: SuggestDeps = {};
 let showingSubmitted = false;
+let session = 0;
+let pendingAdd: Promise<void> = Promise.resolve();
 
 const FORM_TITLE = "Шинэ буюу алдаатай үг мэдэгдэх";
 const SUBMITTED_TITLE = "Мэдэгдсэн үгс";
@@ -169,38 +172,49 @@ function prefillFromErrors(): void {
   for (const keptEntry of kept) words.push(keptEntry.token.word);
 }
 
-function addFromInput(commit: boolean): void {
-  const wordEl = overlay!.querySelector<HTMLInputElement>("#suggestWord")!;
-  const parts = wordEl.value.split(/[\s,\u3001\uFF0C]+/);
-  const tail = commit ? "" : (parts.pop() ?? "");
+function wordNote(word: string, text: string): void {
+  note("\u00AB" + word + "\u00BB \u2014 " + text, "err");
+}
+
+async function lookupKnown(
+  list: string[],
+): Promise<Record<string, boolean> | null> {
+  if (!list.length || !deps.checkKnown) return null;
+  try {
+    return await deps.checkKnown(list);
+  } catch (_) {
+    return null;
+  }
+}
+
+async function acceptWords(
+  candidates: string[],
+  current: number,
+): Promise<void> {
   const submitted = getSubmitted();
-  let added = false;
-  for (const rawPart of parts) {
-    const word = rawPart.trim();
-    if (!word) continue;
+  const valid: string[] = [];
+  for (const word of candidates) {
     if (!WORD_RE.test(word)) {
-      note(
-        "\u00AB" +
-          word +
-          "\u00BB \u2014 \u043A\u0438\u0440\u0438\u043B\u043B \u04AF\u0441\u0433\u044D\u044D\u0440, 2\u201350 \u0442\u044D\u043C\u0434\u044D\u0433\u0442 \u0431\u0430\u0439\u0445 \u0451\u0441\u0442\u043E\u0439",
-        "err",
-      );
+      wordNote(word, "кирилл үсгээр, 2–50 тэмдэгт байх ёстой");
       continue;
     }
     if (submitted.has(word.toLowerCase())) {
-      note(
-        "\u00AB" + word + "\u00BB \u2014 энэ үгийг аль хэдийн мэдэгдсэн байна",
-        "err",
-      );
+      wordNote(word, "энэ үгийг аль хэдийн мэдэгдсэн байна");
+      continue;
+    }
+    if (!valid.some((item) => item.toLowerCase() === word.toLowerCase()))
+      valid.push(word);
+  }
+  const known = await lookupKnown(valid);
+  if (current !== session) return;
+  let added = false;
+  for (const word of valid) {
+    if (known && known[word]) {
+      wordNote(word, "энэ үг толь бичигт байна");
       continue;
     }
     if (words.length >= MAX_WORDS) {
-      note(
-        "\u0425\u0430\u043C\u0433\u0438\u0439\u043D \u0438\u0445\u0434\u044D\u044D " +
-          MAX_WORDS +
-          " \u04AF\u0433",
-        "err",
-      );
+      note("Хамгийн ихдээ " + MAX_WORDS + " үг", "err");
       break;
     }
     if (
@@ -210,7 +224,6 @@ function addFromInput(commit: boolean): void {
       added = true;
     }
   }
-  wordEl.value = tail;
   if (added) {
     renderChips();
     if (
@@ -219,6 +232,22 @@ function addFromInput(commit: boolean): void {
     )
       note("");
   }
+}
+
+function addFromInput(commit: boolean): Promise<void> {
+  const wordEl = overlay!.querySelector<HTMLInputElement>("#suggestWord")!;
+  const parts = wordEl.value.split(/[\s,\u3001\uFF0C]+/);
+  const tail = commit ? "" : (parts.pop() ?? "");
+  wordEl.value = tail;
+  const candidates = parts
+    .map((part) => part.trim().normalize("NFC"))
+    .filter(Boolean);
+  if (!candidates.length) return pendingAdd;
+  const current = session;
+  pendingAdd = pendingAdd
+    .then(() => acceptWords(candidates, current))
+    .catch(() => undefined);
+  return pendingAdd;
 }
 
 function collectCopyWords(): string[] {
@@ -360,6 +389,7 @@ function attachHoldToCopy(el: HTMLElement): void {
 function closeForm(): void {
   if (!overlay || overlay.hidden) return;
   overlay.hidden = true;
+  session++;
   busy = false;
   const sendBtn = overlay.querySelector<HTMLButtonElement>(".suggest-send");
   if (sendBtn) sendBtn.disabled = false;
@@ -511,6 +541,7 @@ function build(): void {
 
 async function openForm(): Promise<void> {
   if (!overlay) build();
+  session++;
   overlay!.hidden = false;
   setSubmittedView(false);
   note("");
@@ -544,7 +575,11 @@ async function openForm(): Promise<void> {
 
 async function submit(): Promise<void> {
   if (busy || showingSubmitted) return;
-  addFromInput(true);
+  const current = session;
+  busy = true;
+  await addFromInput(true);
+  if (current !== session) return;
+  busy = false;
   const noteEl = overlay!.querySelector<HTMLTextAreaElement>("#suggestNote")!;
   const sendBtn = overlay!.querySelector<HTMLButtonElement>(".suggest-send")!;
 

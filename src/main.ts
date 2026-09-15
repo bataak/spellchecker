@@ -2281,6 +2281,10 @@ initSuggest({
   getBadTokens: () => badTokens,
   isDashSuffix: (token) => isDashSuffix(els.editor.value, token),
   copyText,
+  checkKnown: (list) =>
+    checker.ready && !checker.dead && checker.loadedIds.includes("mn_MN")
+      ? checker.checkWords(list)
+      : Promise.resolve(null),
 });
 
 initIgnoreList({

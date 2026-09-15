@@ -34,6 +34,7 @@ export interface CompleteResult {
 
 export interface SpellChecker {
   readonly ready: boolean;
+  readonly dead: boolean;
   readonly loadedIds: string[];
   readonly mnVersion: string | null;
   readonly source: string | null;
