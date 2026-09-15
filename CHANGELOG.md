@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.78.0](https://github.com/bataak/spellchecker/compare/v1.77.1...v1.78.0) (2026-09-15)
+
+
+### Features
+
+* **suggest:** skip words already accepted by the dictionary ([f919ccd](https://github.com/bataak/spellchecker/commit/f919ccd95eb1c7c268b9d9f5833d85b7f8a25983))
+
 ## [1.77.1](https://github.com/bataak/spellchecker/compare/v1.77.0...v1.77.1) (2026-09-07)
 
 
