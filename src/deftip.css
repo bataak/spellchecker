@@ -1,0 +1,89 @@
+.sg-row {
+  display: flex;
+  align-items: stretch;
+}
+
+.sg-row > .sg {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.sg-dot {
+  flex: 0 0 auto;
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sg-dot::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.4;
+}
+
+.sg-dot:hover::before,
+.sg-dot[aria-expanded="true"]::before {
+  opacity: 1;
+}
+
+.sg-dot:focus {
+  outline: none;
+}
+
+.sg-dot:focus-visible::before {
+  opacity: 1;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 35%, transparent);
+}
+
+@media (pointer: coarse) {
+  .sg-dot {
+    width: 44px;
+  }
+}
+
+.def-tip {
+  position: absolute;
+  z-index: 1000;
+  box-sizing: border-box;
+  max-width: min(20rem, calc(100vw - 16px));
+  max-height: 45vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, CanvasText 18%, transparent);
+  border-radius: 8px;
+  background: Canvas;
+  color: CanvasText;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
+  font-size: 0.9em;
+  line-height: 1.45;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.def-tip-entry + .def-tip-entry {
+  margin-top: 0.6em;
+}
+
+.def-tip-hw {
+  font-weight: 700;
+}
+
+.def-tip-source {
+  margin-top: 0.6em;
+  font-size: 0.8em;
+  opacity: 0.7;
+}
