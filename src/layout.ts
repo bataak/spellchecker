@@ -73,12 +73,12 @@ export function has(list: readonly Layout[], l: Layout): boolean {
 }
 
 export function editorWidth(m: Measure, x: Metrics): number {
-  return MEASURES[m] * x.per * x.scale + 2 * x.padX + x.gutterW;
+  return MEASURES[m] * x.per + 2 * x.padX + x.gutterW;
 }
 
 export function previewWidth(l: Layout, x: Metrics): number {
   if (!l.preview) return 0;
-  return PREVIEW_MEASURE * x.per * x.scale + 2 * x.previewPad;
+  return PREVIEW_MEASURE * x.per + 2 * x.previewPad;
 }
 
 export function contentWidth(l: Layout, x: Metrics): number {

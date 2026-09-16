@@ -45,7 +45,7 @@ test("ALL_LAYOUTS — 12 хослол, давхардалгүй", () => {
 
 test("харагдац нь тогтмол, measure-ээс хамаарахгүй", () => {
   for (const m of ["a", "b", "c"] as const) {
-    const want = PREVIEW_MEASURE * x.per * x.scale + 2 * x.previewPad;
+    const want = PREVIEW_MEASURE * x.per + 2 * x.previewPad;
     near(previewWidth(pv(m, false), x), want);
     assert.equal(previewWidth(off(m), x), 0);
     near(pageWidth(pv(m, false), x) - pageWidth(off(m), x), want + x.panelGap);
@@ -93,13 +93,41 @@ test("editorWidth — тэмдэгтийн тооноос гарна", () => {
   assert.ok(editorWidth("b", x) < editorWidth("c", x));
 });
 
-test("editorWidth — --editor-scale-ыг дагана", () => {
+test("editorWidth — --editor-scale-аас хамаарахгүй", () => {
   const big = { ...x, scale: 1.25 };
-  const text = MEASURES.a * x.per;
-  assert.equal(
-    Math.round(editorWidth("a", big)),
-    Math.round(text * 1.25 + 2 * x.padX + x.gutterW),
-  );
+  const small = { ...x, scale: 0.8 };
+  for (const m of ["a", "b", "c"] as const) {
+    near(editorWidth(m, big), editorWidth(m, x), m);
+    near(editorWidth(m, small), editorWidth(m, x), m);
+  }
+});
+
+test("previewWidth — --editor-scale-аас хамаарахгүй", () => {
+  const big = { ...x, scale: 1.25 };
+  for (const m of ["a", "b", "c"] as const) {
+    near(previewWidth(pv(m, false), big), previewWidth(pv(m, false), x), m);
+  }
+});
+
+test("available — font scale байрлалын сонголтыг өөрчлөхгүй", () => {
+  for (const scale of [0.8, 1.25, 1.5]) {
+    const s = { ...x, scale };
+    for (const vw of [800, 1280, 1440, 1606, 1920, 2560]) {
+      assert.deepEqual(
+        available(s, vw, []).map(key),
+        available(x, vw, []).map(key),
+        `scale=${scale} vw=${vw}`,
+      );
+    }
+  }
+});
+
+test("clamp — font томруулахад сонгосон байрлал хадгалагдана", () => {
+  const desired = on("c");
+  const prev = available(x, 1920, []);
+  assert.ok(same(clamp(desired, prev), desired));
+  const big = { ...x, scale: 1.25 };
+  assert.ok(same(clamp(desired, available(big, 1920, prev)), desired));
 });
 
 test("editorWidth — gutter байхгүй үед богиносно", () => {
