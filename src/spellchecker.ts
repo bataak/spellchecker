@@ -1,9 +1,9 @@
 import { isAbbrev } from "./textcheck.ts";
 import type {
-  CheckResponse,
+  DefineResponse,
   DictFailure,
   InitProgressMessage,
-  SuggestResponse,
+  RpcResponse,
   WorkerResponse,
 } from "./messages.ts";
 
@@ -45,6 +45,8 @@ export interface SpellChecker {
   whenComplete(): Promise<CompleteResult>;
   checkWords(words: string[]): Promise<Record<string, boolean>>;
   suggest(word: string): Promise<string[]>;
+  lookup?(words: string[]): Promise<Record<string, string> | null>;
+  define?(word: string): Promise<Omit<DefineResponse, "type" | "id">>;
   setActive(ids: string[]): void;
   refresh(): void;
 }
@@ -64,11 +66,11 @@ export async function checkWordsBatched(
   return results;
 }
 
-type RpcType = "check" | "suggest";
+type RpcType = "check" | "suggest" | "lookup" | "define";
 type RpcPayload = { words: string[] } | { word: string };
 
 interface PendingEntry {
-  resolve: (msg: CheckResponse | SuggestResponse) => void;
+  resolve: (msg: RpcResponse) => void;
   type: RpcType;
   payload: RpcPayload;
 }
@@ -113,16 +115,16 @@ export class MultiSpellChecker implements SpellChecker {
     this.worker.onmessageerror = () => this._fatal("worker message error");
   }
 
-  _deadResult(
-    type: RpcType,
-    payload: RpcPayload,
-  ): CheckResponse | SuggestResponse {
+  _deadResult(type: RpcType, payload: RpcPayload): RpcResponse {
     if (type === "check") {
       const results: Record<string, boolean> = {};
       const words = "words" in payload ? payload.words : [];
       for (const word of words) results[word] = true;
       return { type: "check", id: 0, results };
     }
+    if (type === "lookup") return { type: "lookup", id: 0, found: null };
+    if (type === "define")
+      return { type: "define", id: 0, source: "", entries: [] };
     return { type: "suggest", id: 0, suggestions: [] };
   }
 
@@ -146,7 +148,12 @@ export class MultiSpellChecker implements SpellChecker {
       if (this.onDictUpdated) this.onDictUpdated(msg.id, msg.version);
       return;
     }
-    if (msg.type === "check" || msg.type === "suggest") {
+    if (
+      msg.type === "check" ||
+      msg.type === "suggest" ||
+      msg.type === "lookup" ||
+      msg.type === "define"
+    ) {
       const pendingRequest = this._pending.get(msg.id);
       if (pendingRequest) {
         this._pending.delete(msg.id);
@@ -193,10 +200,7 @@ export class MultiSpellChecker implements SpellChecker {
     return this.restReady;
   }
 
-  _rpc(
-    type: RpcType,
-    payload: RpcPayload,
-  ): Promise<CheckResponse | SuggestResponse> {
+  _rpc(type: RpcType, payload: RpcPayload): Promise<RpcResponse> {
     if (this.dead) return Promise.resolve(this._deadResult(type, payload));
     const id = ++this._seq;
     return new Promise((resolve) => {
@@ -219,6 +223,20 @@ export class MultiSpellChecker implements SpellChecker {
     if (!this.ready || this.dead) return [];
     const msg = await this._rpc("suggest", { word });
     return msg.type === "suggest" ? msg.suggestions || [] : [];
+  }
+
+  async lookup(words: string[]): Promise<Record<string, string> | null> {
+    if (!this.ready || this.dead || !words.length) return null;
+    const msg = await this._rpc("lookup", { words });
+    return msg.type === "lookup" ? msg.found : null;
+  }
+
+  async define(word: string): Promise<Omit<DefineResponse, "type" | "id">> {
+    if (!this.ready || this.dead) return { source: "", entries: [] };
+    const msg = await this._rpc("define", { word });
+    return msg.type === "define"
+      ? { source: msg.source, entries: msg.entries }
+      : { source: "", entries: [] };
   }
 
   setActive(ids: string[]): void {
