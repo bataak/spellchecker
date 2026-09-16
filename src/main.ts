@@ -2,6 +2,7 @@ import "./style.css";
 import "./gutter.css";
 import "./md-toolbar.css";
 import "./export.css";
+import "./deftip.css";
 import {
   MultiSpellChecker,
   checkWordsBatched,
@@ -27,6 +28,14 @@ import { initPreview, type Preview } from "./preview.ts";
 
 let previewCtl: Preview | null = null;
 import { escapeHtml } from "./htmlutil.ts";
+import { sameRoot } from "./morphology.ts";
+import {
+  clipText,
+  displayHeadword,
+  pickDefinitionMarks,
+  placeTip,
+} from "./defmarks.ts";
+import type { DictEntry } from "./stardict.ts";
 import { inRanges, skipRanges } from "./codeskip.ts";
 import {
   checkable,
@@ -465,7 +474,174 @@ let popoverScrollTop = 0;
 let popoverFullH = 0;
 let popoverChromeH = 0;
 
+type Definition = { source: string; entries: DictEntry[] };
+
+const DEF_TEXT_LIMIT = 3000;
+const DEF_TIP_GRACE_MS = 250;
+let defTip: HTMLDivElement | null = null;
+let defTipAnchor: HTMLElement | null = null;
+let defTipHideTimer: ReturnType<typeof setTimeout> | null = null;
+let defCache = new Map<string, Promise<Definition>>();
+
+function cancelDefTipHide(): void {
+  if (defTipHideTimer) clearTimeout(defTipHideTimer);
+  defTipHideTimer = null;
+}
+
+function scheduleDefTipHide(): void {
+  cancelDefTipHide();
+  defTipHideTimer = setTimeout(() => {
+    defTipHideTimer = null;
+    hideDefTip();
+  }, DEF_TIP_GRACE_MS);
+}
+
+function hideDefTip(): void {
+  cancelDefTipHide();
+  if (defTipAnchor) defTipAnchor.setAttribute("aria-expanded", "false");
+  defTipAnchor = null;
+  if (defTip) defTip.hidden = true;
+}
+
+function definitionFor(word: string): Promise<Definition> {
+  let pending = defCache.get(word);
+  if (!pending) {
+    pending = checker.define
+      ? checker.define(word)
+      : Promise.resolve({ source: "", entries: [] });
+    defCache.set(word, pending);
+  }
+  return pending;
+}
+
+function fillDefTip(tip: HTMLElement, word: string, def: Definition): void {
+  tip.replaceChildren();
+  const labels = def.entries.map((entry) =>
+    displayHeadword(entry.headword, word),
+  );
+  const seen = new Map<string, number>();
+  def.entries.forEach((entry, position) => {
+    const label = labels[position]!;
+    const repeats = labels.filter((item) => item === label).length;
+    const nth = (seen.get(label) ?? 0) + 1;
+    seen.set(label, nth);
+    const block = document.createElement("div");
+    block.className = "def-tip-entry";
+    const head = document.createElement("div");
+    head.className = "def-tip-hw";
+    head.textContent = repeats > 1 ? label + " " + String(nth) : label;
+    block.appendChild(head);
+    const text = document.createElement("div");
+    text.className = "def-tip-text";
+    text.textContent = clipText(entry.text, DEF_TEXT_LIMIT);
+    block.appendChild(text);
+    tip.appendChild(block);
+  });
+  if (def.source) {
+    const credit = document.createElement("div");
+    credit.className = "def-tip-source";
+    credit.textContent = def.source;
+    tip.appendChild(credit);
+  }
+}
+
+function positionDefTip(): void {
+  if (!defTip || defTip.hidden || !defTipAnchor) return;
+  if (!defTipAnchor.isConnected) {
+    hideDefTip();
+    return;
+  }
+  const vv = window.visualViewport;
+  const place = placeTip(
+    defTipAnchor.getBoundingClientRect(),
+    els.popover.getBoundingClientRect(),
+    { width: defTip.offsetWidth, height: defTip.offsetHeight },
+    {
+      left: vv ? vv.offsetLeft : 0,
+      top: vv ? vv.offsetTop : 0,
+      width: vv ? vv.width : window.innerWidth,
+      height: vv ? vv.height : window.innerHeight,
+    },
+  );
+  defTip.style.left = window.scrollX + place.left + "px";
+  defTip.style.top = window.scrollY + place.top + "px";
+}
+
+async function showDefTip(anchor: HTMLElement, word: string): Promise<void> {
+  cancelDefTipHide();
+  if (defTipAnchor === anchor && defTip && !defTip.hidden) return;
+  if (defTipAnchor && defTipAnchor !== anchor)
+    defTipAnchor.setAttribute("aria-expanded", "false");
+  defTipAnchor = anchor;
+  const def = await definitionFor(word);
+  if (defTipAnchor !== anchor || !anchor.isConnected || els.popover.hidden)
+    return;
+  if (!def.entries.length) {
+    hideDefTip();
+    return;
+  }
+  if (!defTip) {
+    defTip = document.createElement("div");
+    defTip.id = "defTip";
+    defTip.className = "def-tip";
+    defTip.setAttribute("role", "tooltip");
+    defTip.hidden = true;
+    defTip.addEventListener("pointerenter", (e) => {
+      if (e.pointerType !== "touch") cancelDefTipHide();
+    });
+    defTip.addEventListener("pointerleave", (e) => {
+      if (e.pointerType !== "touch" && defTipAnchor) scheduleDefTipHide();
+    });
+    document.body.appendChild(defTip);
+  }
+  fillDefTip(defTip, word, def);
+  defTip.hidden = false;
+  defTip.scrollTop = 0;
+  anchor.setAttribute("aria-expanded", "true");
+  positionDefTip();
+}
+
+function bindDefDot(dot: HTMLElement): void {
+  const word = dot.previousElementSibling?.textContent ?? "";
+  if (!word) return;
+  let pointerKind = "";
+  const toggle = () => {
+    if (defTipAnchor === dot) hideDefTip();
+    else void showDefTip(dot, word);
+  };
+  dot.addEventListener("mousedown", (e) => e.preventDefault());
+  dot.addEventListener("pointerdown", (e) => {
+    pointerKind = e.pointerType;
+  });
+  dot.addEventListener("pointerenter", (e) => {
+    if (e.pointerType !== "touch") void showDefTip(dot, word);
+  });
+  dot.addEventListener("pointerleave", (e) => {
+    if (e.pointerType !== "touch" && defTipAnchor === dot)
+      scheduleDefTipHide();
+  });
+  dot.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const kind = pointerKind;
+    pointerKind = "";
+    if (kind === "mouse" || kind === "pen") return;
+    toggle();
+  });
+  dot.addEventListener("focus", () => {
+    if (!pointerKind) void showDefTip(dot, word);
+  });
+  dot.addEventListener("blur", () => {
+    if (defTipAnchor === dot) hideDefTip();
+  });
+}
+
+document.addEventListener("pointerdown", (e) => {
+  const target = e.target instanceof Element ? e.target : null;
+  if (!target?.closest(".sg-dot, .def-tip")) hideDefTip();
+});
+
 function hidePopover(): void {
+  hideDefTip();
   els.popover.hidden = true;
   activeStart = null;
   popoverFullH = 0;
@@ -691,6 +867,7 @@ function placePopover() {
   setStyle(els.popover, "top", window.scrollY + top + "px");
   setStyle(els.popover, "left", window.scrollX + left + "px");
   updateScrollHint();
+  positionDefTip();
 }
 
 const INITIAL_RE = /^\p{Lu}[\p{L}\p{M}]?$/u;
@@ -777,6 +954,8 @@ async function showPopoverFor(token: Token): Promise<void> {
     return;
   }
 
+  hideDefTip();
+  defCache = new Map();
   els.popover.innerHTML =
     '<div class="pop-scroll">' +
     '<div class="pop-list"><div class="muted pop-empty">…</div></div>' +
@@ -807,15 +986,29 @@ async function showPopoverFor(token: Token): Promise<void> {
     ...ahead,
     ...scoped.filter((item) => !ahead.includes(item)),
   ].slice(0, desktopMQ.matches ? 15 : 8);
+  const found =
+    checker.lookup && suggestions.length
+      ? await checker.lookup(suggestions)
+      : null;
   if (activeStart !== token.start || els.popover.hidden) return;
+  const marks = pickDefinitionMarks(suggestions, found, sameRoot);
   const sgHtml = suggestions.length
     ? suggestions
-        .map(
-          (suggestion) =>
+        .map((suggestion) => {
+          const button =
             '<button class="sg" type="button">' +
             escapeHtml(suggestion) +
-            "</button>",
-        )
+            "</button>";
+          if (!marks.has(suggestion)) return button;
+          return (
+            '<div class="sg-row">' +
+            button +
+            '<button class="sg-dot" type="button"' +
+            ' aria-expanded="false" aria-controls="defTip" aria-label="' +
+            escapeHtml(suggestion) +
+            ' — тайлбар"></button></div>'
+          );
+        })
         .join("")
     : '<div class="muted pop-empty">санал алга</div>';
   els.popover.innerHTML =
@@ -835,6 +1028,7 @@ async function showPopoverFor(token: Token): Promise<void> {
   if (list) {
     list.scrollTop = 0;
     list.addEventListener("scroll", updateScrollHint, { passive: true });
+    list.addEventListener("scroll", hideDefTip, { passive: true });
   }
   measurePopover();
   placePopover();
@@ -852,6 +1046,7 @@ async function showPopoverFor(token: Token): Promise<void> {
       applySuggestion(token, btn.textContent);
     });
   });
+  els.popover.querySelectorAll<HTMLElement>(".sg-dot").forEach(bindDefDot);
   const pageBy = (sign: number) => {
     if (!list) return;
     list.scrollBy({
@@ -1481,7 +1676,8 @@ els.editor.addEventListener("contextmenu", (e) => {
 });
 document.addEventListener("mousedown", (e) => {
   const target = e.target instanceof Element ? e.target : null;
-  if (!target?.closest("#popover") && target !== els.editor) hidePopover();
+  if (!target?.closest("#popover, .def-tip") && target !== els.editor)
+    hidePopover();
 });
 
 if (window.visualViewport) {
