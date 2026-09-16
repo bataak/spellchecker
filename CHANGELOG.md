@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.79.0](https://github.com/bataak/spellchecker/compare/v1.78.0...v1.79.0) (2026-09-16)
+
+
+### Features
+
+* **popover:** show dictionary definitions on suggestion dots ([f7df750](https://github.com/bataak/spellchecker/commit/f7df750d28feabd707baacc7a563d8afcdd835c2))
+* **stardict:** add StarDict parser and loader ([a26ad30](https://github.com/bataak/spellchecker/commit/a26ad3083557188526289b4f32a162c0b4091810))
+* **stardict:** derive infinitive headwords from verb stems ([c92e7ba](https://github.com/bataak/spellchecker/commit/c92e7badf8b408a4d33e03d84d9279911e63e103))
+* **worker:** add dictionary lookup and define RPCs ([a9510da](https://github.com/bataak/spellchecker/commit/a9510dae7a53e5f6c144e9c494bbc6d664e95e71))
+
+
+### Bug Fixes
+
+* keep layout width independent of editor font scale ([ae44af8](https://github.com/bataak/spellchecker/commit/ae44af8968f05fbe0cb412cc850fc23d64dff353))
+
 ## [1.78.0](https://github.com/bataak/spellchecker/compare/v1.77.1...v1.78.0) (2026-09-15)
 
 
