@@ -1,9 +1,22 @@
 import type { WorkerRequest, WorkerResponse, DictFailure } from "./messages.ts";
 import { fetchGzText, loadDictText } from "./dictrefresh.ts";
+import {
+  findHeadword,
+  findTaggedHeadword,
+  resolveDefinitions,
+  resolveTagged,
+  type LookupMode,
+  type DictEntry,
+  type StarDict,
+} from "./stardict.ts";
+import { loadStarDict } from "./stardictload.ts";
+import { lookupCandidates, parseAnalyses, type Analysis } from "./verbform.ts";
 
 export interface SpellerInstance {
   spell: (word: string) => boolean;
   suggest: (word: string) => string[];
+  stem?: (word: string) => string[];
+  analyze?: (word: string) => string[];
   dispose?: () => void;
 }
 
@@ -95,9 +108,17 @@ async function loadHunspellWasm(): Promise<SpellBackend> {
     label: "hunspell-wasm",
     build: async (aff, dic) => {
       const hunspellInstance = await create(aff, dic);
+      const canStem = typeof hunspellInstance.stemWord === "function";
+      const canAnalyze = typeof hunspellInstance.analyzeWord === "function";
       return {
         spell: (word) => hunspellInstance.testSpelling(word),
         suggest: (word) => hunspellInstance.getSpellingSuggestions(word),
+        ...(canStem
+          ? { stem: (word: string) => hunspellInstance.stemWord(word) }
+          : {}),
+        ...(canAnalyze
+          ? { analyze: (word: string) => hunspellInstance.analyzeWord(word) }
+          : {}),
         dispose: () => {
           if (hunspellInstance.dispose) hunspellInstance.dispose();
         },
@@ -228,6 +249,75 @@ async function refreshPrimary(): Promise<void> {
   }
 }
 
+let starDict: StarDict | null = null;
+let starDictLoading: Promise<void> | null = null;
+
+function startStarDict(): void {
+  if (starDictLoading) return;
+  starDictLoading = loadStarDict(asset("dict/stardict/mn"))
+    .then((dict) => {
+      starDict = dict;
+    })
+    .catch((err) => {
+      console.warn("StarDict ачаалагдсангүй:", err);
+    });
+}
+
+function stringList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function analysesOf(inst: SpellerInstance, word: string): Analysis[] {
+  if (inst.analyze) {
+    const parsed = parseAnalyses(stringList(inst.analyze(word)));
+    if (parsed.length) return parsed;
+  }
+  if (!inst.stem) return [];
+  return stringList(inst.stem(word)).map((stem) => ({ stem, verb: null }));
+}
+
+function analysesFor(word: string): Analysis[] {
+  const primary = instances.find((item) => item.id === PRIMARY)?.inst;
+  if (!primary) return [];
+  try {
+    return analysesOf(primary, word);
+  } catch (_) {
+    return [];
+  }
+}
+
+function stemsOf(word: string): string[] {
+  const primary = instances.find((item) => item.id === PRIMARY)?.inst;
+  if (!primary) return [];
+  try {
+    const analyses = analysesOf(primary, word);
+    return lookupCandidates(word, analyses, (candidate) => {
+      try {
+        return primary.spell(candidate);
+      } catch (_) {
+        return false;
+      }
+    });
+  } catch (_) {
+    return [];
+  }
+}
+
+const STARTS_UPPER = /^\p{Lu}/u;
+
+function lookupModeOf(word: string): LookupMode {
+  if (!STARTS_UPPER.test(word)) return "any";
+  const primary = instances.find((item) => item.id === PRIMARY)?.inst;
+  if (!primary) return "any";
+  try {
+    return primary.spell(word.toLowerCase()) ? "any" : "proper";
+  } catch (_) {
+    return "any";
+  }
+}
+
 function isCorrect(word: string): boolean {
   const list = activeInstances();
   if (!list.length) return true;
@@ -310,6 +400,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
           (result): result is { id: string; error: string } => !!result.error,
         ),
       });
+      startStarDict();
     } catch (err) {
       post({ type: "error", error: String(err) });
     }
@@ -338,6 +429,49 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
       }
     }
     post({ type: "check", id: msg.id, results: out });
+    return;
+  }
+
+  if (msg.type === "lookup") {
+    let found: Record<string, string> | null = null;
+    if (starDict) {
+      const dict = starDict;
+      found = {};
+      for (const word of msg.words) {
+        try {
+          const mode = lookupModeOf(word);
+          const headword = dict.info.posTagged
+            ? findTaggedHeadword(dict, word, () => analysesFor(word), mode)
+            : findHeadword(dict, word, () => stemsOf(word), mode);
+          if (headword != null) found[word] = headword;
+        } catch (_) {
+          /* энэ үгийг алгасна */
+        }
+      }
+    }
+    post({ type: "lookup", id: msg.id, found });
+    return;
+  }
+
+  if (msg.type === "define") {
+    let entries: DictEntry[] = [];
+    try {
+      const word = msg.word;
+      const dict = starDict;
+      const mode = lookupModeOf(word);
+      if (dict && dict.info.posTagged)
+        entries = resolveTagged(dict, word, () => analysesFor(word), mode);
+      else if (dict)
+        entries = resolveDefinitions(dict, word, () => stemsOf(word), mode);
+    } catch (_) {
+      entries = [];
+    }
+    post({
+      type: "define",
+      id: msg.id,
+      source: starDict ? starDict.info.bookname : "",
+      entries,
+    });
     return;
   }
 

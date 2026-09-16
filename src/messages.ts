@@ -1,3 +1,5 @@
+import type { DictEntry } from "./stardict.ts";
+
 export interface DictFailure {
   id: string;
   error: string;
@@ -20,6 +22,18 @@ export interface SuggestRequest {
   word: string;
 }
 
+export interface LookupRequest {
+  type: "lookup";
+  id: number;
+  words: string[];
+}
+
+export interface DefineRequest {
+  type: "define";
+  id: number;
+  word: string;
+}
+
 export interface SetActiveRequest {
   type: "setActive";
   ids: string[];
@@ -33,6 +47,8 @@ export type WorkerRequest =
   | InitRequest
   | CheckRequest
   | SuggestRequest
+  | LookupRequest
+  | DefineRequest
   | SetActiveRequest
   | RefreshRequest;
 
@@ -75,13 +91,31 @@ export interface SuggestResponse {
   suggestions: string[];
 }
 
+export interface LookupResponse {
+  type: "lookup";
+  id: number;
+  found: Record<string, string> | null;
+}
+
+export interface DefineResponse {
+  type: "define";
+  id: number;
+  source: string;
+  entries: DictEntry[];
+}
+
+export type RpcResponse =
+  | CheckResponse
+  | SuggestResponse
+  | LookupResponse
+  | DefineResponse;
+
 export type WorkerResponse =
   | ReadyResponse
   | CompleteResponse
   | ErrorResponse
   | DictUpdatedResponse
-  | CheckResponse
-  | SuggestResponse;
+  | RpcResponse;
 
 export type InitProgressMessage =
   | ReadyResponse
