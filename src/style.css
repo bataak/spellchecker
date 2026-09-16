@@ -35,36 +35,25 @@ html {
   --panel-gap: 14px;
   --page-pad: max(20px, env(safe-area-inset-left));
 
-  --editor-measure-w: calc(
-    var(--editor-measure) * var(--editor-per) * var(--editor-scale, 1)
-  );
+  --editor-measure-w: calc(var(--editor-measure) * var(--editor-per));
   --editor-width: calc(
     var(--editor-measure-w) + 2 * var(--editor-pad-x) + var(--gutter-w)
   );
   --preview-pad: 20px;
-  --preview-w: calc(
-    80 * var(--editor-per) * var(--editor-scale, 1) + 2 * var(--preview-pad)
-  );
+  --preview-w: calc(80 * var(--editor-per) + 2 * var(--preview-pad));
   --preview-ink: #2f7d54;
   --slots-w: 0px;
-  --page-base: calc(
-    var(--editor-width) + var(--slots-w) + 2 * var(--page-pad)
-  );
+  --page-base: calc(var(--editor-width) + var(--slots-w) + 2 * var(--page-pad));
   --gutter-pull: min(
     var(--gutter-w),
-    max(
-      var(--page-pad),
-      calc((100vw - var(--page-base)) / 2 + var(--page-pad))
-    )
+    max(var(--page-pad), calc((100vw - var(--page-base)) / 2 + var(--page-pad)))
   );
   --page-max: calc(var(--page-base) - var(--gutter-pull));
 
   --sans:
-    ui-sans-serif, system-ui, "Segoe UI", "Noto Sans", Roboto, Arial,
-    sans-serif;
+    ui-sans-serif, system-ui, "Segoe UI", "Noto Sans", Roboto, Arial, sans-serif;
   --serif:
-    "Bichig Serif", "PT Serif", "Noto Serif", "Liberation Serif", Georgia,
-    serif;
+    "Bichig Serif", "PT Serif", "Noto Serif", "Liberation Serif", Georgia, serif;
 }
 
 :root {
@@ -964,11 +953,7 @@ a.tbtn {
 .pop-more {
   bottom: 0;
   align-items: flex-end;
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0) 0%,
-    var(--panel) 45%
-  );
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, var(--panel) 45%);
 }
 .pop-less {
   top: 0;
