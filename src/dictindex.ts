@@ -74,7 +74,11 @@ export function applyOrder(
   order: string[],
 ): DictListEntry[] {
   return dicts
-    .map((dict, position) => ({ dict, position, rank: rankOf(dict.base, order) }))
+    .map((dict, position) => ({
+      dict,
+      position,
+      rank: rankOf(dict.base, order),
+    }))
     .sort((left, right) =>
       left.rank !== right.rank
         ? left.rank - right.rank

@@ -52,7 +52,8 @@ export function parseDictZip(head: Uint8Array): DictZip | null {
 
   const sizes = new Uint16Array(count);
   const starts = new Uint32Array(count);
-  for (let i = 0; i < count; i++) sizes[i] = view.getUint16(field + 6 + i * 2, true);
+  for (let i = 0; i < count; i++)
+    sizes[i] = view.getUint16(field + 6 + i * 2, true);
 
   let after = extraEnd;
   if ((flags & FNAME) !== 0) after = skipZeroTerminated(head, after);
@@ -116,7 +117,8 @@ export function createDictZipReader(
     if (size <= 0) return new Uint8Array(0);
     const first = chunkIndexAt(zip, offset);
     const last = chunkIndexAt(zip, offset + size - 1);
-    if (first < 0 || last >= zip.sizes.length) throw new Error("dz: муж гадуур");
+    if (first < 0 || last >= zip.sizes.length)
+      throw new Error("dz: муж гадуур");
     const out = new Uint8Array(size);
     let filled = 0;
     for (let index = first; index <= last; index++) {

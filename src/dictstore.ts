@@ -58,9 +58,7 @@ export async function writeStoredDict(
   value: StoredDict,
 ): Promise<boolean> {
   try {
-    await withStore("readwrite", (store) =>
-      request(store.put(value, key)),
-    );
+    await withStore("readwrite", (store) => request(store.put(value, key)));
     return true;
   } catch (_) {
     return false;
