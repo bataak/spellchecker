@@ -214,7 +214,9 @@ async function ensureChecked(text: string): Promise<void> {
   for (const [word, correct] of results) cache.set(word, correct);
 }
 function nextFrame(): Promise<void> {
-  return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  return new Promise<void>((resolve) =>
+    requestAnimationFrame(() => resolve()),
+  );
 }
 async function correctNow(word: string): Promise<boolean> {
   if (cache.has(word)) return cache.get(word)!;
@@ -630,7 +632,8 @@ function bindDefDot(dot: HTMLElement): void {
     if (e.pointerType !== "touch") void showDefTip(dot, word);
   });
   dot.addEventListener("pointerleave", (e) => {
-    if (e.pointerType !== "touch" && defTipAnchor === dot) scheduleDefTipHide();
+    if (e.pointerType !== "touch" && defTipAnchor === dot)
+      scheduleDefTipHide();
   });
   dot.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -703,7 +706,11 @@ document
     if (!checker.define) return;
     const span = wordAt(els.editor.value, els.editor.selectionStart);
     if (!span) {
-      holdStatus("Тайлбар харах үг дээрээ товшоод дахин дарна уу", 3000, false);
+      holdStatus(
+        "Тайлбар харах үг дээрээ товшоод дахин дарна уу",
+        3000,
+        false,
+      );
       return;
     }
     void openWordPanel(span);
@@ -770,6 +777,8 @@ async function openWordPanel(span: WordSpan): Promise<void> {
   if (!rangeRectAt(span.start, span.end)) return;
   hideDefTip();
   defCache = new Map();
+  const def = await definitionFor(span.word);
+  if (!def.entries.length) return;
   activeStart = null;
   wordPanelSpan = span;
   popoverScrollTop = els.editor.scrollTop;
@@ -977,7 +986,8 @@ function sheetMode(): boolean {
 }
 
 function popoverAnchorRect(): DOMRect | null {
-  if (wordPanelSpan) return rangeRectAt(wordPanelSpan.start, wordPanelSpan.end);
+  if (wordPanelSpan)
+    return rangeRectAt(wordPanelSpan.start, wordPanelSpan.end);
   if (activeStart == null) return null;
   const mark = els.backdrop.querySelector(
     'mark[data-start="' + activeStart + '"]',
@@ -1055,7 +1065,10 @@ function placePopover() {
   }
 
   let top = below ? markRect.bottom + margin : markRect.top - usedH - margin;
-  top = Math.max(viewTop + margin, Math.min(top, viewBottom - usedH - margin));
+  top = Math.max(
+    viewTop + margin,
+    Math.min(top, viewBottom - usedH - margin),
+  );
   const left = Math.max(
     viewLeft + margin,
     Math.min(markRect.left, viewLeft + viewW - popW - margin),
@@ -1142,7 +1155,9 @@ async function showPopoverFor(token: Token): Promise<void> {
   if (!mark) {
     await render();
     materializeMark(token.start);
-    mark = els.backdrop.querySelector('mark[data-start="' + token.start + '"]');
+    mark = els.backdrop.querySelector(
+      'mark[data-start="' + token.start + '"]',
+    );
   }
   if (!mark) {
     hidePopover();
@@ -1435,7 +1450,10 @@ function isSeparatorInput(e: InputEvent): boolean {
   if (it === "insertText")
     return e.data != null && /[\s\p{P}\p{S}]/u.test(e.data);
   if (it === "insertLineBreak" || it === "insertParagraph") return true;
-  if (it.indexOf("insertFromPaste") === 0 || it.indexOf("insertFromDrop") === 0)
+  if (
+    it.indexOf("insertFromPaste") === 0 ||
+    it.indexOf("insertFromDrop") === 0
+  )
     return true;
   return false;
 }
@@ -1636,7 +1654,8 @@ function editKind(event: Event): EditKind {
   const type = (event as InputEvent).inputType || "";
   if (type === "insertText" || type === "insertCompositionText")
     return "insert";
-  if (type === "insertLineBreak" || type === "insertParagraph") return "insert";
+  if (type === "insertLineBreak" || type === "insertParagraph")
+    return "insert";
   if (type === "insertFromPaste") return "insert";
   if (type.startsWith("delete")) return "delete";
   return "other";
@@ -1829,7 +1848,8 @@ els.editor.addEventListener("keyup", (e) => {
 let suppressNextClick = false;
 
 function markAtPoint(x: number, y: number): HTMLElement | null {
-  const marks = els.backdrop.querySelectorAll<HTMLElement>("mark[data-start]");
+  const marks =
+    els.backdrop.querySelectorAll<HTMLElement>("mark[data-start]");
   for (const mark of marks) {
     const rects = mark.getClientRects();
     for (const rect of rects) {
@@ -2322,7 +2342,8 @@ function restoreDraftFile(): void {
         : "";
       const editorFocused = document.activeElement === els.editor;
       const editorHasSelection =
-        editorFocused && els.editor.selectionStart !== els.editor.selectionEnd;
+        editorFocused &&
+        els.editor.selectionStart !== els.editor.selectionEnd;
       if (!pageSel && !editorHasSelection) {
         e.preventDefault();
         trigger("#copyBtn");
@@ -2333,7 +2354,10 @@ function restoreDraftFile(): void {
 
 async function requestDurableStorage() {
   try {
-    if (navigator.storage && typeof navigator.storage.persist === "function") {
+    if (
+      navigator.storage &&
+      typeof navigator.storage.persist === "function"
+    ) {
       const already = navigator.storage.persisted
         ? await navigator.storage.persisted()
         : false;
