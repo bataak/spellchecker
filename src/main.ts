@@ -718,7 +718,8 @@ document
       );
       return;
     }
-    void openWordPanel(span);
+    if (isTouch()) void openWordPanel(span);
+    else void showWordDefinition(span);
   });
 
 els.editor.addEventListener("keydown", (e) => {
