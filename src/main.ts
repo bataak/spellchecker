@@ -703,6 +703,11 @@ async function showWordDefinition(span: WordSpan): Promise<void> {
 document
   .querySelector<HTMLButtonElement>("#defineBtn")
   ?.addEventListener("click", () => {
+    const caretToken = tokenAtCaret();
+    if (caretToken) {
+      void showPopoverFor(caretToken);
+      return;
+    }
     if (!checker.define) return;
     const span = wordAt(els.editor.value, els.editor.selectionStart);
     if (!span) {
@@ -2226,6 +2231,7 @@ function restoreDraftFile(): void {
     ["#fontIncBtn", mod + "+"],
     ["#fontResetBtn", mod + "0"],
     ["#themeBtn", mod + shiftSym + "D"],
+    ["#defineBtn", mod + shiftSym + "Space"],
   ].forEach(([sel, combo]) => {
     const btn = document.querySelector(sel);
     if (!btn) return;
