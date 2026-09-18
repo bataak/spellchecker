@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { sameRoot } from "../src/morphology.ts";
 import {
   clipText,
   displayHeadword,
@@ -50,6 +51,33 @@ test("ижил толгой үгт хүрсэн хэлбэрүүдээс нэг�
     never,
   );
   assert.deepEqual([...marks], ["номын", "ус"]);
+});
+
+test("өөр толгой үгтэй хэлбэрүүд тус бүр тэмдэглэгдэнэ", () => {
+  const marks = pickDefinitionMarks(
+    ["номинд", "номд", "номойд"],
+    { номинд: "НОМИН", номд: "НОМ", номойд: "НОМОЙ" },
+    sameRoot,
+  );
+  assert.deepEqual([...marks], ["номинд", "номд", "номойд"]);
+});
+
+test("ижил толгой үгтэй хэлбэрүүд бодит sameRoot дээр ч нэгдэнэ", () => {
+  const marks = pickDefinitionMarks(
+    ["номд", "номонд", "номын"],
+    { номд: "НОМ", номонд: "НОМ", номын: "НОМ" },
+    sameRoot,
+  );
+  assert.deepEqual([...marks], ["номд"]);
+});
+
+test("толгой үггүй хэлбэрүүдэд л язгуурын бүлэглэлт ажиллана", () => {
+  const marks = pickDefinitionMarks(
+    ["номинд", "номд"],
+    { номинд: "номинд", номд: "НОМ" },
+    sameRoot,
+  );
+  assert.deepEqual([...marks], ["номинд", "номд"]);
 });
 
 test("displayHeadword нь ТОМ үсэгтэй толгой үгийг жижиг болгоно", () => {

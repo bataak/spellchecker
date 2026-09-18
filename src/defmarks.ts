@@ -24,22 +24,23 @@ export function pickDefinitionMarks(
 ): Set<string> {
   const marked = new Set<string>();
   if (!found) return marked;
-  const roots: { word: string; headword: string }[] = [];
+  const groups: { word: string; headword: string; self: boolean }[] = [];
   for (const suggestion of suggestions) {
     const headword = found[suggestion];
     if (headword == null) continue;
     const word = suggestion.toLowerCase();
     const head = headword.toLowerCase();
+    const self = head === word;
     if (
-      roots.some(
-        (root) =>
-          root.headword === head ||
-          root.word === word ||
-          sameRoot(root.word, word),
+      groups.some(
+        (group) =>
+          group.headword === head ||
+          group.word === word ||
+          (self && group.self && sameRoot(group.word, word)),
       )
     )
       continue;
-    roots.push({ word, headword: head });
+    groups.push({ word, headword: head, self });
     marked.add(suggestion);
   }
   return marked;
