@@ -154,9 +154,10 @@ test("яг таарахгүй бол язгуураар хайна", async () =>
     word === "номын" ? ["ном"] : word === "дэвтрийг" ? ["дэвтэр"] : [];
   assert.equal(findHeadword(dict, "номын", stems("номын")), "НОМ");
   assert.equal(findHeadword(dict, "ааа", stems("ааа")), null);
-  assert.deepEqual(await resolveDefinitions(dict, "дэвтрийг", stems("дэвтрийг")), [
-    { headword: "ДЭВТЭР", text: "цаас", pos: [] },
-  ]);
+  assert.deepEqual(
+    await resolveDefinitions(dict, "дэвтрийг", stems("дэвтрийг")),
+    [{ headword: "ДЭВТЭР", text: "цаас", pos: [] }],
+  );
 });
 
 test("яг таарсан үг байвал язгуурыг тооцохгүй", async () => {
@@ -182,9 +183,10 @@ test("оноосон нэрийг зөвхөн том үсгээр эхэлсэ�
   ]);
   const stems = () => ["зэрэг"];
   assert.equal(findHeadword(dict, "Зэрэгээр", stems, "proper"), "Зэрэг");
-  assert.deepEqual(await resolveDefinitions(dict, "Зэрэгээр", stems, "proper"), [
-    { headword: "Зэрэг", text: "газрын нэр", pos: [] },
-  ]);
+  assert.deepEqual(
+    await resolveDefinitions(dict, "Зэрэгээр", stems, "proper"),
+    [{ headword: "Зэрэг", text: "газрын нэр", pos: [] }],
+  );
   assert.equal(hasEntry(dict, "Ном", "proper"), false);
   assert.equal(hasEntry(dict, "Ном"), true);
 });

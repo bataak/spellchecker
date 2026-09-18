@@ -12,7 +12,15 @@ const DIR = "public/dict/stardict";
 const VIRTUAL_ID = "virtual:stardict-index";
 const RESOLVED_ID = "\0" + VIRTUAL_ID;
 const ORDER_FILE = "order.txt";
-const PARTS = [".ifo", ".idx", ".idx.gz", ".dict.dz", ".dict", ".syn", ".syn.gz"];
+const PARTS = [
+  ".ifo",
+  ".idx",
+  ".idx.gz",
+  ".dict.dz",
+  ".dict",
+  ".syn",
+  ".syn.gz",
+];
 
 function readText(path: string): string | null {
   try {

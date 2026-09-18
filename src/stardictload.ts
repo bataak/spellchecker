@@ -62,11 +62,7 @@ async function build(
   syn: Uint8Array | null,
   dict: Blob,
 ): Promise<StarDict> {
-  const bytes = await openDictBytes(
-    blobReader(dict),
-    dict.size,
-    inflateChunk,
-  );
+  const bytes = await openDictBytes(blobReader(dict), dict.size, inflateChunk);
   return openStarDict(ifoText, idx, bytes, syn);
 }
 
@@ -136,7 +132,10 @@ export async function loadStarDicts(
   for (const entry of list) {
     if (!safeBase(entry.base)) continue;
     try {
-      const dict = await loadStarDict(dir + encodeBase(entry.base), entry.version);
+      const dict = await loadStarDict(
+        dir + encodeBase(entry.base),
+        entry.version,
+      );
       if (dict) out.push(dict);
     } catch (_) {}
   }

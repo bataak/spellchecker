@@ -54,8 +54,14 @@ test("defineWord — async тайлбар буцаана", async () => {
 test("hasEntry, findHeadword синхрон хэвээр", () => {
   assert.equal(hasEntry(dict, "ном"), true);
   assert.equal(hasEntry(dict, "усан"), false);
-  assert.equal(findHeadword(dict, "ном", () => []), "НОМ");
-  assert.equal(findHeadword(dict, "номын", () => ["ном"]), "НОМ");
+  assert.equal(
+    findHeadword(dict, "ном", () => []),
+    "НОМ",
+  );
+  assert.equal(
+    findHeadword(dict, "номын", () => ["ном"]),
+    "НОМ",
+  );
 });
 
 test("resolveDefinitions — стемээр олно", async () => {

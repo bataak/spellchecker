@@ -13,7 +13,9 @@ import {
 const CHUNK = 64;
 
 const plain = new TextEncoder().encode(
-  Array.from({ length: 40 }, (_, i) => "мөр " + i + " номын тайлбар").join("\n"),
+  Array.from({ length: 40 }, (_, i) => "мөр " + i + " номын тайлбар").join(
+    "\n",
+  ),
 );
 const file = await buildDictZip(plain, CHUNK);
 

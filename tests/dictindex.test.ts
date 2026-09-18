@@ -24,7 +24,9 @@ test("collectDicts — бүрэн иж бүрдэлтэй толийг бүрт�
     "tuvshin.dict",
   ];
   assert.deepEqual(
-    collectDicts(names, (base) => ifo(base === "mn" ? "Монгол толь" : "Төвшин")),
+    collectDicts(names, (base) =>
+      ifo(base === "mn" ? "Монгол толь" : "Төвшин"),
+    ),
     [
       { base: "mn", label: "Монгол толь", version: "" },
       { base: "tuvshin", label: "Төвшин", version: "" },
@@ -58,19 +60,34 @@ test("safeBase — замын халдлагыг таслана", () => {
 });
 
 test("encodeBase — сегмент бүрийг тусад нь кодлоно", () => {
-  assert.equal(encodeBase("Mongolian Thesaurus/toli"), "Mongolian%20Thesaurus/toli");
+  assert.equal(
+    encodeBase("Mongolian Thesaurus/toli"),
+    "Mongolian%20Thesaurus/toli",
+  );
   assert.equal(encodeBase("mn"), "mn");
 });
 
 test("collectDicts — дутуу файлтай толийг алгасна", () => {
-  assert.deepEqual(collectDicts(["a.ifo", "a.idx"], () => null), []);
-  assert.deepEqual(collectDicts(["b.ifo", "b.dict.dz"], () => null), []);
-  assert.deepEqual(collectDicts(["c.idx", "c.dict"], () => null), []);
+  assert.deepEqual(
+    collectDicts(["a.ifo", "a.idx"], () => null),
+    [],
+  );
+  assert.deepEqual(
+    collectDicts(["b.ifo", "b.dict.dz"], () => null),
+    [],
+  );
+  assert.deepEqual(
+    collectDicts(["c.idx", "c.dict"], () => null),
+    [],
+  );
 });
 
 test("collectDicts — bookname байхгүй бол нэрийг нь хэрэглэнэ", () => {
   assert.deepEqual(
-    collectDicts(["x.ifo", "x.idx", "x.dict"], () => "StarDict's dict ifo file\n"),
+    collectDicts(
+      ["x.ifo", "x.idx", "x.dict"],
+      () => "StarDict's dict ifo file\n",
+    ),
     [{ base: "x", label: "x", version: "" }],
   );
   assert.deepEqual(
@@ -98,17 +115,19 @@ test("collectDicts — хувилбарын тэмдэг", () => {
   );
 });
 
-const entry = (base: string): { base: string; label: string; version: string } => ({
+const entry = (
+  base: string,
+): { base: string; label: string; version: string } => ({
   base,
   label: base,
   version: "",
 });
 
 test("parseOrder — тайлбар ба хоосон мөрийг хасна", () => {
-  assert.deepEqual(
-    parseOrder("# эрэмбэ\n\n toli \nmn # үндсэн\n"),
-    ["toli", "mn"],
-  );
+  assert.deepEqual(parseOrder("# эрэмбэ\n\n toli \nmn # үндсэн\n"), [
+    "toli",
+    "mn",
+  ]);
 });
 
 test("applyOrder — жагсаалтын дарааллаар эрэмбэлнэ", () => {

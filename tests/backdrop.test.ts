@@ -84,7 +84,11 @@ test("тэмдэглэгээ эх текстийг өөрчлөхгүй", () => 
     const raw = randomText(random, 1 + Math.floor(random() * 30));
     const marks = randomMarks(random, raw);
     const body = raw.replace(/\n$/, "");
-    assert.equal(unwrap(markedHtml(raw, 0, marks)), body, "давталт " + iteration);
+    assert.equal(
+      unwrap(markedHtml(raw, 0, marks)),
+      body,
+      "давталт " + iteration,
+    );
     assert.equal(unwrap(plainHtml(raw)), body, "давталт " + iteration);
   }
 });

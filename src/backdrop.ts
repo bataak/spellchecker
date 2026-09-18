@@ -205,8 +205,7 @@ export function plainHtml(raw: string): string {
   for (;;) {
     const nl = body.indexOf("\n", cursor);
     const end = nl === -1 ? body.length : nl;
-    html +=
-      '<div class="bl">' + escapeHtml(body.slice(cursor, end)) + "</div>";
+    html += '<div class="bl">' + escapeHtml(body.slice(cursor, end)) + "</div>";
     if (nl === -1) break;
     cursor = nl + 1;
   }
