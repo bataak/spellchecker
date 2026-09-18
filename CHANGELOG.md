@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.80.2](https://github.com/bataak/spellchecker/compare/v1.80.1...v1.80.2) (2026-09-18)
+
+
+### Bug Fixes
+
+* fit the mobile definition panel within the viewport ([da0f802](https://github.com/bataak/spellchecker/commit/da0f802ce5ecff9b743a23c91f14ba017b1bb750))
+
 ## [1.80.1](https://github.com/bataak/spellchecker/compare/v1.80.0...v1.80.1) (2026-09-18)
 
 
