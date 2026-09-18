@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.81.0](https://github.com/bataak/spellchecker/compare/v1.80.4...v1.81.0) (2026-09-18)
+
+
+### Features
+
+* show suggestions or definitions from the toolbar button ([6f256e9](https://github.com/bataak/spellchecker/commit/6f256e9445fa957959710ab862dd8fb0f1a1a454))
+
 ## [1.80.4](https://github.com/bataak/spellchecker/compare/v1.80.3...v1.80.4) (2026-09-18)
 
 
