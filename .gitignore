@@ -8,6 +8,3 @@ public/dict/dictionaries.zip
 public/dict/*.gz
 public/dict/dict-manifest.json
 
-# Туршилтын толь: нийтлэх эрхгүй тул deploy хийхгүй.
-# Өөрийн толийг нийтлэхдээ энэ мөрийг хасна (scripts/check-stardict.ts --help).
-public/dict/stardict/
