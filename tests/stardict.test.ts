@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { memoryBytes } from "../src/dictbytes.ts";
 import {
   defineWord,
   findHeadword,
@@ -85,7 +86,7 @@ function buildDict(
   return openStarDict(
     ifo,
     concat(idxChunks),
-    concat(dictChunks),
+    memoryBytes(concat(dictChunks)),
     synonyms.length ? concat(synChunks) : null,
   );
 }
@@ -114,16 +115,16 @@ test("stardictCompare нь ASCII-г том жижгээр ялгахгүй эр�
   assert.ok(stardictCompare("ном", "номын") < 0);
 });
 
-test("defineWord нь яг таарсан толгой үгийг олно", () => {
+test("defineWord нь яг таарсан толгой үгийг олно", async () => {
   const dict = buildDict([
     ["ном", "бичиг, судар"],
     ["номын", "номд холбогдох"],
     ["луу", "үлгэрийн амьтан"],
   ]);
-  assert.deepEqual(defineWord(dict, "ном"), [
+  assert.deepEqual(await defineWord(dict, "ном"), [
     { headword: "ном", text: "бичиг, судар", pos: [] },
   ]);
-  assert.deepEqual(defineWord(dict, "но"), []);
+  assert.deepEqual(await defineWord(dict, "но"), []);
 });
 
 test("том үсгээр эхэлсэн саналыг жижиг үсгээр хайна", () => {
@@ -132,19 +133,19 @@ test("том үсгээр эхэлсэн саналыг жижиг үсгээр 
   assert.equal(hasEntry(dict, "Номын"), false);
 });
 
-test("бүтэн том үсэгтэй толгой үгийг жижиг үсгээр олно", () => {
+test("бүтэн том үсэгтэй толгой үгийг жижиг үсгээр олно", async () => {
   const dict = buildDict([
     ["НОМ", "бичиг"],
     ["байх аргагүй", "хэлц"],
   ]);
   assert.equal(hasEntry(dict, "ном"), true);
   assert.equal(hasEntry(dict, "Ном"), true);
-  assert.deepEqual(defineWord(dict, "ном"), [
+  assert.deepEqual(await defineWord(dict, "ном"), [
     { headword: "НОМ", text: "бичиг", pos: [] },
   ]);
 });
 
-test("яг таарахгүй бол язгуураар хайна", () => {
+test("яг таарахгүй бол язгуураар хайна", async () => {
   const dict = buildDict([
     ["НОМ", "бичиг"],
     ["ДЭВТЭР", "цаас"],
@@ -153,12 +154,12 @@ test("яг таарахгүй бол язгуураар хайна", () => {
     word === "номын" ? ["ном"] : word === "дэвтрийг" ? ["дэвтэр"] : [];
   assert.equal(findHeadword(dict, "номын", stems("номын")), "НОМ");
   assert.equal(findHeadword(dict, "ааа", stems("ааа")), null);
-  assert.deepEqual(resolveDefinitions(dict, "дэвтрийг", stems("дэвтрийг")), [
+  assert.deepEqual(await resolveDefinitions(dict, "дэвтрийг", stems("дэвтрийг")), [
     { headword: "ДЭВТЭР", text: "цаас", pos: [] },
   ]);
 });
 
-test("яг таарсан үг байвал язгуурыг тооцохгүй", () => {
+test("яг таарсан үг байвал язгуурыг тооцохгүй", async () => {
   const dict = buildDict([
     ["НИСГЭГЧ", "жолооч"],
     ["НИСЭХ", "агаарт хөөрөх"],
@@ -169,11 +170,11 @@ test("яг таарсан үг байвал язгуурыг тооцохгүй"
     return ["нисэх"];
   };
   assert.equal(findHeadword(dict, "нисгэгч", stems), "НИСГЭГЧ");
-  assert.equal(resolveDefinitions(dict, "нисгэгч", stems).length, 1);
+  assert.equal((await resolveDefinitions(dict, "нисгэгч", stems)).length, 1);
   assert.equal(called, false);
 });
 
-test("оноосон нэрийг зөвхөн том үсгээр эхэлсэн толгой үгээс хайна", () => {
+test("оноосон нэрийг зөвхөн том үсгээр эхэлсэн толгой үгээс хайна", async () => {
   const dict = buildDict([
     ["ЗЭРЭГ", "хамт цуг"],
     ["Зэрэг", "газрын нэр"],
@@ -181,24 +182,24 @@ test("оноосон нэрийг зөвхөн том үсгээр эхэлсэ�
   ]);
   const stems = () => ["зэрэг"];
   assert.equal(findHeadword(dict, "Зэрэгээр", stems, "proper"), "Зэрэг");
-  assert.deepEqual(resolveDefinitions(dict, "Зэрэгээр", stems, "proper"), [
+  assert.deepEqual(await resolveDefinitions(dict, "Зэрэгээр", stems, "proper"), [
     { headword: "Зэрэг", text: "газрын нэр", pos: [] },
   ]);
   assert.equal(hasEntry(dict, "Ном", "proper"), false);
   assert.equal(hasEntry(dict, "Ном"), true);
 });
 
-test("давхардсан толгой үгийг бүгдийг нь буцаана", () => {
+test("давхардсан толгой үгийг бүгдийг нь буцаана", async () => {
   const dict = buildDict([
     ["хаан", "эзэн"],
     ["хаан", "шатрын хүү"],
   ]);
-  assert.equal(defineWord(dict, "хаан").length, 2);
+  assert.equal((await defineWord(dict, "хаан")).length, 2);
 });
 
-test("64 битийн offset-той idx-ийг уншина", () => {
+test("64 битийн offset-той idx-ийг уншина", async () => {
   const dict = buildDict([["тагтаа", "шувуу"]], { offsetBits: 64 });
-  assert.deepEqual(defineWord(dict, "тагтаа"), [
+  assert.deepEqual(await defineWord(dict, "тагтаа"), [
     { headword: "тагтаа", text: "шувуу", pos: [] },
   ]);
 });
@@ -257,36 +258,42 @@ function taggedDict() {
   );
 }
 
-test("tag-тай толь ifo-оос танигдаж, <gr>-ийг задална", () => {
+test("tag-тай толь ifo-оос танигдаж, <gr>-ийг задална", async () => {
   const dict = taggedDict();
   assert.equal(dict.info.posTagged, true);
-  assert.deepEqual(defineWord(dict, "орох"), [
+  assert.deepEqual(await defineWord(dict, "орох"), [
     { headword: "ОРОХ", text: "үйл. дотогш явах", pos: ["үйл."] },
   ]);
 });
 
-test("tag-тай толинд үйл үгийн язгуураар зөвхөн үйл үгийг авна", () => {
+test("tag-тай толинд үйл үгийн язгуураар зөвхөн үйл үгийг авна", async () => {
   const dict = taggedDict();
   const verb = () => [{ stem: "ор", verb: true }];
   const noun = () => [{ stem: "ор", verb: false }];
-  assert.equal(findTaggedHeadword(dict, "орсон", verb), "ОРОХ");
-  assert.equal(findTaggedHeadword(dict, "орыг", noun), "ОР");
+  assert.equal(await findTaggedHeadword(dict, "орсон", verb), "ОРОХ");
+  assert.equal(await findTaggedHeadword(dict, "орыг", noun), "ОР");
   assert.deepEqual(
-    resolveTagged(dict, "тэгшилсэн", () => [
-      { stem: "тэгшил", verb: true },
-    ]).map((entry) => entry.headword),
+    (
+      await resolveTagged(dict, "тэгшилсэн", () => [
+        { stem: "тэгшил", verb: true },
+      ])
+    ).map((entry) => entry.headword),
     ["ТЭГШЛЭХ"],
   );
 });
 
-test("tag-тай толинд үйл үгийн tag-гүй оруулгыг үйл үгэнд өгөхгүй", () => {
+test("tag-тай толинд үйл үгийн tag-гүй оруулгыг үйл үгэнд өгөхгүй", async () => {
   const dict = taggedDict();
   assert.equal(
-    findTaggedHeadword(dict, "нэрсэн", () => [{ stem: "ор", verb: false }]),
+    await findTaggedHeadword(dict, "нэрсэн", () => [
+      { stem: "ор", verb: false },
+    ]),
     "ОР",
   );
   assert.equal(
-    findTaggedHeadword(dict, "ааасан", () => [{ stem: "ааа", verb: true }]),
+    await findTaggedHeadword(dict, "ааасан", () => [
+      { stem: "ааа", verb: true },
+    ]),
     null,
   );
 });

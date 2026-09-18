@@ -9,7 +9,8 @@ import {
   type DictEntry,
   type StarDict,
 } from "./stardict.ts";
-import { loadStarDict } from "./stardictload.ts";
+import { loadStarDicts } from "./stardictload.ts";
+import stardictList from "virtual:stardict-index";
 import { lookupCandidates, parseAnalyses, type Analysis } from "./verbform.ts";
 
 export interface SpellerInstance {
@@ -249,18 +250,48 @@ async function refreshPrimary(): Promise<void> {
   }
 }
 
-let starDict: StarDict | null = null;
+let starDicts: StarDict[] = [];
 let starDictLoading: Promise<void> | null = null;
 
-function startStarDict(): void {
-  if (starDictLoading) return;
-  starDictLoading = loadStarDict(asset("dict/stardict/mn"))
-    .then((dict) => {
-      starDict = dict;
-    })
-    .catch((err) => {
-      console.warn("StarDict ачаалагдсангүй:", err);
-    });
+const MAX_DEFINITIONS = 12;
+
+function ensureStarDicts(): Promise<void> {
+  if (!starDictLoading) {
+    starDictLoading = loadStarDicts(asset("dict/stardict/"), stardictList)
+      .then((dicts) => {
+        starDicts = dicts;
+      })
+      .catch((err) => {
+        console.warn("StarDict ачаалагдсангүй:", err);
+      });
+  }
+  return starDictLoading;
+}
+
+function sourceOf(dict: StarDict): string {
+  return dict.info.bookname;
+}
+
+async function headwordIn(
+  dict: StarDict,
+  word: string,
+  mode: LookupMode,
+): Promise<string | null> {
+  return dict.info.posTagged
+    ? await findTaggedHeadword(dict, word, () => analysesFor(word), mode)
+    : findHeadword(dict, word, () => stemsOf(word), mode);
+}
+
+async function definitionsIn(
+  dict: StarDict,
+  word: string,
+  mode: LookupMode,
+): Promise<DictEntry[]> {
+  const found = dict.info.posTagged
+    ? await resolveTagged(dict, word, () => analysesFor(word), mode)
+    : await resolveDefinitions(dict, word, () => stemsOf(word), mode);
+  const label = sourceOf(dict);
+  return found.map((entry) => ({ ...entry, source: label }));
 }
 
 function stringList(value: unknown): string[] {
@@ -400,7 +431,6 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
           (result): result is { id: string; error: string } => !!result.error,
         ),
       });
-      startStarDict();
     } catch (err) {
       post({ type: "error", error: String(err) });
     }
@@ -433,19 +463,22 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   }
 
   if (msg.type === "lookup") {
+    await ensureStarDicts();
     let found: Record<string, string> | null = null;
-    if (starDict) {
-      const dict = starDict;
+    if (starDicts.length) {
       found = {};
       for (const word of msg.words) {
-        try {
-          const mode = lookupModeOf(word);
-          const headword = dict.info.posTagged
-            ? findTaggedHeadword(dict, word, () => analysesFor(word), mode)
-            : findHeadword(dict, word, () => stemsOf(word), mode);
-          if (headword != null) found[word] = headword;
-        } catch (_) {
-          /* энэ үгийг алгасна */
+        const mode = lookupModeOf(word);
+        for (const dict of starDicts) {
+          try {
+            const headword = await headwordIn(dict, word, mode);
+            if (headword != null) {
+              found[word] = headword;
+              break;
+            }
+          } catch (_) {
+            /* энэ толийг алгасна */
+          }
         }
       }
     }
@@ -454,22 +487,25 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   }
 
   if (msg.type === "define") {
-    let entries: DictEntry[] = [];
-    try {
-      const word = msg.word;
-      const dict = starDict;
-      const mode = lookupModeOf(word);
-      if (dict && dict.info.posTagged)
-        entries = resolveTagged(dict, word, () => analysesFor(word), mode);
-      else if (dict)
-        entries = resolveDefinitions(dict, word, () => stemsOf(word), mode);
-    } catch (_) {
-      entries = [];
+    await ensureStarDicts();
+    const entries: DictEntry[] = [];
+    const word = msg.word;
+    const mode = lookupModeOf(word);
+    for (const dict of starDicts) {
+      if (entries.length >= MAX_DEFINITIONS) break;
+      try {
+        for (const entry of await definitionsIn(dict, word, mode)) {
+          if (entries.length >= MAX_DEFINITIONS) break;
+          entries.push(entry);
+        }
+      } catch (_) {
+        /* энэ толийг алгасна */
+      }
     }
     post({
       type: "define",
       id: msg.id,
-      source: starDict ? starDict.info.bookname : "",
+      source: starDicts.length > 1 ? "" : (starDicts[0]?.info.bookname ?? ""),
       entries,
     });
     return;
