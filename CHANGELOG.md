@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.80.4](https://github.com/bataak/spellchecker/compare/v1.80.3...v1.80.4) (2026-09-18)
+
+
+### Bug Fixes
+
+* stay silent when a word has no definition ([8fefdaf](https://github.com/bataak/spellchecker/commit/8fefdaf74c9b9e138894b0c9496ad4d2f0dcbde9))
+
 ## [1.80.3](https://github.com/bataak/spellchecker/compare/v1.80.2...v1.80.3) (2026-09-18)
 
 
