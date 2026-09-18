@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.80.3](https://github.com/bataak/spellchecker/compare/v1.80.2...v1.80.3) (2026-09-18)
+
+
+### Bug Fixes
+
+* keep the mobile definition panel anchored and on screen ([a3303da](https://github.com/bataak/spellchecker/commit/a3303da5c135c62e56f7aecbd8809bac6bf1f1b1))
+
 ## [1.80.2](https://github.com/bataak/spellchecker/compare/v1.80.1...v1.80.2) (2026-09-18)
 
 
