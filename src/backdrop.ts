@@ -265,6 +265,71 @@ function stripChunkNewline(raw: string): string {
   return raw.endsWith("\n") ? raw.slice(0, -1) : raw;
 }
 
+export function rangeRectAt(start: number, end: number): DOMRect | null {
+  if (end <= start) return null;
+  const node = nodeAtOffset(start);
+  if (!node) return null;
+  applyChunkMarks(node);
+  const body = stripChunkNewline(node._src);
+  const from = start - node._start;
+  const to = Math.min(end - node._start, body.length);
+  if (from < 0 || to <= from) return null;
+  const head = locateInNode(node, body, from);
+  const tail = locateInNode(node, body, to);
+  if (!head || !tail) return null;
+  const range = document.createRange();
+  range.setStart(head.node, head.offset);
+  range.setEnd(tail.node, tail.offset);
+  for (const rect of range.getClientRects()) {
+    if (rect.width > 0.5) return rect;
+  }
+  const box = range.getBoundingClientRect();
+  return box.width > 0 ? box : null;
+}
+
+interface TextSpot {
+  node: Text;
+  offset: number;
+}
+
+function locateInNode(
+  node: ChunkNode,
+  body: string,
+  offset: number,
+): TextSpot | null {
+  if (!useBlocks) return spotIn(node, offset);
+  let lineStart = 0;
+  let index = 0;
+  for (;;) {
+    const nl = body.indexOf("\n", lineStart);
+    const lineEnd = nl === -1 ? body.length : nl;
+    if (offset <= lineEnd) {
+      const line = node.children[index] as HTMLElement | undefined;
+      if (!line) return null;
+      return spotIn(line, offset - lineStart);
+    }
+    if (nl === -1) return null;
+    lineStart = nl + 1;
+    index++;
+  }
+}
+
+function spotIn(host: Element, offset: number): TextSpot | null {
+  const walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
+  let seen = 0;
+  let last: Text | null = null;
+  for (;;) {
+    const text = walker.nextNode() as Text | null;
+    if (!text) break;
+    const len = text.data.length;
+    if (offset <= seen + len) return { node: text, offset: offset - seen };
+    seen += len;
+    last = text;
+  }
+  if (last && offset === seen) return { node: last, offset: last.data.length };
+  return null;
+}
+
 function nodeAtOffset(pos: number): ChunkNode | null {
   for (const node of nodes) {
     if (pos >= node._start && pos < node._start + node._src.length) {

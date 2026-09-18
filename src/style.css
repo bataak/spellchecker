@@ -35,25 +35,36 @@ html {
   --panel-gap: 14px;
   --page-pad: max(20px, env(safe-area-inset-left));
 
-  --editor-measure-w: calc(var(--editor-measure) * var(--editor-per));
+  --editor-measure-w: calc(
+    var(--editor-measure) * var(--editor-per)
+  );
   --editor-width: calc(
     var(--editor-measure-w) + 2 * var(--editor-pad-x) + var(--gutter-w)
   );
   --preview-pad: 20px;
-  --preview-w: calc(80 * var(--editor-per) + 2 * var(--preview-pad));
+  --preview-w: calc(
+    80 * var(--editor-per) + 2 * var(--preview-pad)
+  );
   --preview-ink: #2f7d54;
   --slots-w: 0px;
-  --page-base: calc(var(--editor-width) + var(--slots-w) + 2 * var(--page-pad));
+  --page-base: calc(
+    var(--editor-width) + var(--slots-w) + 2 * var(--page-pad)
+  );
   --gutter-pull: min(
     var(--gutter-w),
-    max(var(--page-pad), calc((100vw - var(--page-base)) / 2 + var(--page-pad)))
+    max(
+      var(--page-pad),
+      calc((100vw - var(--page-base)) / 2 + var(--page-pad))
+    )
   );
   --page-max: calc(var(--page-base) - var(--gutter-pull));
 
   --sans:
-    ui-sans-serif, system-ui, "Segoe UI", "Noto Sans", Roboto, Arial, sans-serif;
+    ui-sans-serif, system-ui, "Segoe UI", "Noto Sans", Roboto, Arial,
+    sans-serif;
   --serif:
-    "Bichig Serif", "PT Serif", "Noto Serif", "Liberation Serif", Georgia, serif;
+    "Bichig Serif", "PT Serif", "Noto Serif", "Liberation Serif", Georgia,
+    serif;
 }
 
 :root {
@@ -268,6 +279,15 @@ a.tbtn {
 .openctl {
   display: inline-flex;
   align-items: center;
+}
+.defctl {
+  display: none;
+}
+@media (pointer: coarse) {
+  .defctl {
+    display: inline-flex;
+    align-items: center;
+  }
 }
 .tbtn:focus-visible {
   outline: 2px solid var(--accent);
@@ -794,6 +814,12 @@ a.tbtn {
   transition: opacity 0.9s ease;
 }
 
+.word-anchor {
+  position: absolute;
+  pointer-events: none;
+  visibility: hidden;
+}
+
 .backdrop,
 .editor {
   position: absolute;
@@ -904,6 +930,58 @@ a.tbtn {
   overflow-x: hidden;
   overflow-anchor: none;
 }
+.popover[data-view="def"] .pop-scroll,
+.popover[data-view="def"] .sg-ignore {
+  display: none;
+}
+.pop-def {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+.pop-back {
+  align-self: flex-start;
+  max-width: 100%;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pop-back {
+  -webkit-tap-highlight-color: transparent;
+}
+.pop-back:focus {
+  outline: none;
+}
+.pop-back:hover {
+  background: var(--paper);
+  color: var(--ink);
+}
+.pop-back:focus-visible {
+  background: var(--paper);
+  color: var(--ink);
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.pop-def-body {
+  max-height: 55vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 8px 4px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
 .pop-empty {
   padding: 4px 8px;
   font-size: 0.9rem;
@@ -953,7 +1031,11 @@ a.tbtn {
 .pop-more {
   bottom: 0;
   align-items: flex-end;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, var(--panel) 45%);
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0%,
+    var(--panel) 45%
+  );
 }
 .pop-less {
   top: 0;

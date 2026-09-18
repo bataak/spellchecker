@@ -63,10 +63,10 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 8px 12px;
-  border: 1px solid color-mix(in srgb, CanvasText 18%, transparent);
+  border: 1px solid var(--line);
   border-radius: 8px;
-  background: Canvas;
-  color: CanvasText;
+  background: var(--panel);
+  color: var(--ink);
   box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
   font-size: 0.9em;
   line-height: 1.45;
@@ -82,8 +82,21 @@
   font-weight: 700;
 }
 
+.def-tip-num {
+  font-weight: 400;
+  opacity: 0.45;
+}
+
+:root[data-theme="dark"] .def-tip {
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.45);
+}
+
 .def-tip-source {
-  margin-top: 0.6em;
+  margin-top: 0.35em;
   font-size: 0.8em;
   opacity: 0.7;
+}
+
+.def-tip-source + .def-tip-entry {
+  margin-top: 0.75em;
 }
