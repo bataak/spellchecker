@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.80.0](https://github.com/bataak/spellchecker/compare/v1.79.0...v1.80.0) (2026-09-18)
+
+
+### Features
+
+* look up definitions for any word, on desktop and mobile ([01dbcd3](https://github.com/bataak/spellchecker/commit/01dbcd3552249e84960cce62186de267661dcee3))
+
+
+### Bug Fixes
+
+* group definition dots by dictionary headword ([75442f8](https://github.com/bataak/spellchecker/commit/75442f8603e1c0e9787b55b570caa9a6870b9424))
+
+
+### Performance Improvements
+
+* stream definitions from IndexedDB and load every StarDict ([9cfe588](https://github.com/bataak/spellchecker/commit/9cfe588c05eda70333c8252dcbc91c652ceacd79))
+
 ## [1.79.0](https://github.com/bataak/spellchecker/compare/v1.78.0...v1.79.0) (2026-09-16)
 
 
