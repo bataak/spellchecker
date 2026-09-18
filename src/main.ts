@@ -214,9 +214,7 @@ async function ensureChecked(text: string): Promise<void> {
   for (const [word, correct] of results) cache.set(word, correct);
 }
 function nextFrame(): Promise<void> {
-  return new Promise<void>((resolve) =>
-    requestAnimationFrame(() => resolve()),
-  );
+  return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 }
 async function correctNow(word: string): Promise<boolean> {
   if (cache.has(word)) return cache.get(word)!;
@@ -632,8 +630,7 @@ function bindDefDot(dot: HTMLElement): void {
     if (e.pointerType !== "touch") void showDefTip(dot, word);
   });
   dot.addEventListener("pointerleave", (e) => {
-    if (e.pointerType !== "touch" && defTipAnchor === dot)
-      scheduleDefTipHide();
+    if (e.pointerType !== "touch" && defTipAnchor === dot) scheduleDefTipHide();
   });
   dot.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -694,11 +691,23 @@ async function showWordDefinition(span: WordSpan): Promise<void> {
   hidePopover();
   const def = await definitionFor(span.word);
   if (!def.entries.length) {
-    setStatus("Тайлбар олдсонгүй: " + escapeHtml(span.word), false);
+    holdStatus("Тайлбар олдсонгүй: " + escapeHtml(span.word), 3000, false);
     return;
   }
   await showDefTip(anchorAtRect(rect), span.word);
 }
+
+document
+  .querySelector<HTMLButtonElement>("#defineBtn")
+  ?.addEventListener("click", () => {
+    if (!checker.define) return;
+    const span = wordAt(els.editor.value, els.editor.selectionStart);
+    if (!span) {
+      holdStatus("Тайлбар харах үг дээрээ товшоод дахин дарна уу", 3000, false);
+      return;
+    }
+    void openWordPanel(span);
+  });
 
 els.editor.addEventListener("keydown", (e) => {
   if (e.isComposing || !isLookupKey(e)) return;
@@ -716,6 +725,8 @@ els.editor.addEventListener("keydown", (e) => {
   void showWordDefinition(span);
 });
 
+let wordPanelSpan: WordSpan | null = null;
+
 function closeDefPanel(): void {
   els.popover.querySelector(".pop-def")?.remove();
   delete els.popover.dataset.view;
@@ -723,7 +734,10 @@ function closeDefPanel(): void {
   placePopover();
 }
 
-async function showDefPanel(word: string): Promise<void> {
+async function showDefPanel(
+  word: string,
+  onBack = closeDefPanel,
+): Promise<void> {
   const def = await definitionFor(word);
   if (els.popover.hidden) return;
   els.popover.querySelector(".pop-def")?.remove();
@@ -733,7 +747,7 @@ async function showDefPanel(word: string): Promise<void> {
   back.type = "button";
   back.className = "pop-back";
   back.textContent = "\u2190 " + word;
-  back.addEventListener("click", closeDefPanel);
+  back.addEventListener("click", onBack);
   panel.appendChild(back);
   const body = document.createElement("div");
   body.className = "pop-def-body";
@@ -749,11 +763,24 @@ async function showDefPanel(word: string): Promise<void> {
   els.popover.dataset.view = "def";
   measurePopover();
   placePopover();
-  back.focus();
+  if (!isTouch()) back.focus();
+}
+
+async function openWordPanel(span: WordSpan): Promise<void> {
+  if (!rangeRectAt(span.start, span.end)) return;
+  hideDefTip();
+  defCache = new Map();
+  activeStart = null;
+  wordPanelSpan = span;
+  popoverScrollTop = els.editor.scrollTop;
+  els.popover.innerHTML = "";
+  els.popover.hidden = false;
+  await showDefPanel(span.word, hidePopover);
 }
 
 function hidePopover(): void {
   hideDefTip();
+  wordPanelSpan = null;
   delete els.popover.dataset.view;
   els.popover.hidden = true;
   activeStart = null;
@@ -945,16 +972,63 @@ function setStyle(
   if (target.style[name] !== value) target.style[name] = value;
 }
 
-function placePopover() {
-  if (els.popover.hidden || activeStart == null) return;
+function sheetMode(): boolean {
+  return isTouch() && els.popover.dataset.view === "def";
+}
+
+function popoverAnchorRect(): DOMRect | null {
+  if (wordPanelSpan) return rangeRectAt(wordPanelSpan.start, wordPanelSpan.end);
+  if (activeStart == null) return null;
   const mark = els.backdrop.querySelector(
     'mark[data-start="' + activeStart + '"]',
   );
-  if (!mark) {
+  return mark ? mark.getBoundingClientRect() : null;
+}
+
+function placeSheet(): void {
+  const rect = popoverAnchorRect();
+  if (!rect) {
     hidePopover();
     return;
   }
-  const markRect = mark.getBoundingClientRect();
+  const margin = 8;
+  const vv = window.visualViewport;
+  const viewTop = vv ? vv.offsetTop : 0;
+  const viewH = vv ? vv.height : window.innerHeight;
+  const viewBottom = viewTop + viewH;
+  const popH = popoverFullH || els.popover.offsetHeight;
+  const spaceBelow = viewBottom - rect.bottom - margin * 2;
+  const spaceAbove = rect.top - viewTop - margin * 2;
+  const below = spaceBelow >= spaceAbove;
+  const room = Math.max(MIN_POPOVER_H, below ? spaceBelow : spaceAbove);
+  const usedH = Math.min(popH, room);
+  setStyle(els.popover, "maxHeight", usedH + "px");
+  const body = els.popover.querySelector<HTMLElement>(".pop-def-body");
+  if (body) {
+    setStyle(body, "maxHeight", "");
+    setStyle(body, "overflowY", "auto");
+  }
+  const wanted = below ? rect.bottom + margin : rect.top - usedH - margin;
+  const top = Math.max(
+    viewTop + margin,
+    Math.min(wanted, viewBottom - usedH - margin),
+  );
+  setStyle(els.popover, "top", top + "px");
+  setStyle(els.popover, "left", "");
+}
+
+function placePopover() {
+  if (els.popover.hidden) return;
+  if (sheetMode()) {
+    placeSheet();
+    return;
+  }
+  setStyle(els.popover, "maxHeight", "");
+  const markRect = popoverAnchorRect();
+  if (!markRect) {
+    hidePopover();
+    return;
+  }
   const margin = 6;
 
   const vv = window.visualViewport;
@@ -981,10 +1055,7 @@ function placePopover() {
   }
 
   let top = below ? markRect.bottom + margin : markRect.top - usedH - margin;
-  top = Math.max(
-    viewTop + margin,
-    Math.min(top, viewBottom - usedH - margin),
-  );
+  top = Math.max(viewTop + margin, Math.min(top, viewBottom - usedH - margin));
   const left = Math.max(
     viewLeft + margin,
     Math.min(markRect.left, viewLeft + viewW - popW - margin),
@@ -1071,9 +1142,7 @@ async function showPopoverFor(token: Token): Promise<void> {
   if (!mark) {
     await render();
     materializeMark(token.start);
-    mark = els.backdrop.querySelector(
-      'mark[data-start="' + token.start + '"]',
-    );
+    mark = els.backdrop.querySelector('mark[data-start="' + token.start + '"]');
   }
   if (!mark) {
     hidePopover();
@@ -1081,6 +1150,7 @@ async function showPopoverFor(token: Token): Promise<void> {
   }
 
   hideDefTip();
+  wordPanelSpan = null;
   delete els.popover.dataset.view;
   defCache = new Map();
   els.popover.innerHTML =
@@ -1365,10 +1435,7 @@ function isSeparatorInput(e: InputEvent): boolean {
   if (it === "insertText")
     return e.data != null && /[\s\p{P}\p{S}]/u.test(e.data);
   if (it === "insertLineBreak" || it === "insertParagraph") return true;
-  if (
-    it.indexOf("insertFromPaste") === 0 ||
-    it.indexOf("insertFromDrop") === 0
-  )
+  if (it.indexOf("insertFromPaste") === 0 || it.indexOf("insertFromDrop") === 0)
     return true;
   return false;
 }
@@ -1569,8 +1636,7 @@ function editKind(event: Event): EditKind {
   const type = (event as InputEvent).inputType || "";
   if (type === "insertText" || type === "insertCompositionText")
     return "insert";
-  if (type === "insertLineBreak" || type === "insertParagraph")
-    return "insert";
+  if (type === "insertLineBreak" || type === "insertParagraph") return "insert";
   if (type === "insertFromPaste") return "insert";
   if (type.startsWith("delete")) return "delete";
   return "other";
@@ -1763,8 +1829,7 @@ els.editor.addEventListener("keyup", (e) => {
 let suppressNextClick = false;
 
 function markAtPoint(x: number, y: number): HTMLElement | null {
-  const marks =
-    els.backdrop.querySelectorAll<HTMLElement>("mark[data-start]");
+  const marks = els.backdrop.querySelectorAll<HTMLElement>("mark[data-start]");
   for (const mark of marks) {
     const rects = mark.getClientRects();
     for (const rect of rects) {
@@ -2257,8 +2322,7 @@ function restoreDraftFile(): void {
         : "";
       const editorFocused = document.activeElement === els.editor;
       const editorHasSelection =
-        editorFocused &&
-        els.editor.selectionStart !== els.editor.selectionEnd;
+        editorFocused && els.editor.selectionStart !== els.editor.selectionEnd;
       if (!pageSel && !editorHasSelection) {
         e.preventDefault();
         trigger("#copyBtn");
@@ -2269,10 +2333,7 @@ function restoreDraftFile(): void {
 
 async function requestDurableStorage() {
   try {
-    if (
-      navigator.storage &&
-      typeof navigator.storage.persist === "function"
-    ) {
+    if (navigator.storage && typeof navigator.storage.persist === "function") {
       const already = navigator.storage.persisted
         ? await navigator.storage.persisted()
         : false;
