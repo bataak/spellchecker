@@ -3,6 +3,7 @@ import { VitePWA } from "vite-plugin-pwa";
 import { readFileSync, readdirSync, rmSync } from "node:fs";
 import { execSync } from "node:child_process";
 import type { Plugin, ResolvedConfig } from "vite";
+import { stardictIndex } from "./vite-stardict.ts";
 
 const pkg = JSON.parse(readFileSync("./package.json", "utf-8")) as {
   version: string;
@@ -57,6 +58,9 @@ function stripRawDicts(): Plugin {
 
 export default defineConfig({
   base,
+  worker: {
+    plugins: () => [stardictIndex()],
+  },
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __HUNSPELL_VERSION__: JSON.stringify(hunspellVersion),
@@ -76,6 +80,7 @@ export default defineConfig({
   server: { fs: { allow: [".", "../hunspell-wasm"] } },
   plugins: [
     packDict(),
+    stardictIndex(),
     VitePWA({
       registerType: "autoUpdate",
       injectRegister: "script",

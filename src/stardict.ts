@@ -19,7 +19,7 @@ export interface StarDict {
   info: StarDictInfo;
   index: StarDictIndex;
   syn: StarDictIndex | null;
-  dict: Uint8Array;
+  dict: DictBytes;
 }
 
 export interface DefinitionPart {
@@ -31,12 +31,15 @@ export interface DictEntry {
   headword: string;
   text: string;
   pos: string[];
+  source?: string;
 }
 
 export interface StemInfo {
   stem: string;
   verb: boolean | null;
 }
+
+import type { DictBytes } from "./dictbytes.ts";
 
 export const IFO_MAGIC = "StarDict's dict ifo file";
 export const POS_TAGGED_FIELD = "x-pos-tags";
@@ -125,7 +128,7 @@ function parseWordList(
 export function openStarDict(
   ifoText: string,
   idxBytes: Uint8Array,
-  dictBytes: Uint8Array,
+  dictBytes: DictBytes,
   synBytes: Uint8Array | null = null,
 ): StarDict {
   const info = parseIfo(ifoText);
@@ -386,18 +389,18 @@ function collect(
   }
 }
 
-export function resolveDefinitions(
+export async function resolveDefinitions(
   dict: StarDict,
   word: string,
   stems: () => string[],
   mode: LookupMode = "any",
-): DictEntry[] {
-  const exact = defineWord(dict, word, mode);
+): Promise<DictEntry[]> {
+  const exact = await defineWord(dict, word, mode);
   if (exact.length) return exact;
   const entries: DictEntry[] = [];
   const seen = new Set<string>();
   for (const stem of stemKeys(stems(), mode))
-    collect(entries, seen, defineWord(dict, stem, mode));
+    collect(entries, seen, await defineWord(dict, stem, mode));
   return entries;
 }
 
@@ -411,36 +414,38 @@ function acceptsPos(entry: DictEntry, verb: boolean | null): boolean {
   return verb ? isVerb : !isVerb;
 }
 
-export function resolveTagged(
+export async function resolveTagged(
   dict: StarDict,
   word: string,
   analyses: () => StemInfo[],
   mode: LookupMode = "any",
-): DictEntry[] {
-  const exact = defineWord(dict, word, mode);
+): Promise<DictEntry[]> {
+  const exact = await defineWord(dict, word, mode);
   if (exact.length) return exact;
   const entries: DictEntry[] = [];
   const seen = new Set<string>();
   for (const { stem, verb } of analyses()) {
     const key = mode === "proper" ? capitalizeFirst(stem) : stem;
+    const found = await defineWord(dict, key, mode);
     collect(
       entries,
       seen,
-      defineWord(dict, key, mode).filter((entry) => acceptsPos(entry, verb)),
+      found.filter((entry) => acceptsPos(entry, verb)),
     );
   }
   return entries;
 }
 
-export function findTaggedHeadword(
+export async function findTaggedHeadword(
   dict: StarDict,
   word: string,
   analyses: () => StemInfo[],
   mode: LookupMode = "any",
-): string | null {
+): Promise<string | null> {
   const exact = firstHeadword(dict, word, mode);
   if (exact != null) return exact;
-  return resolveTagged(dict, word, analyses, mode)[0]?.headword ?? null;
+  const tagged = await resolveTagged(dict, word, analyses, mode);
+  return tagged[0]?.headword ?? null;
 }
 
 const GR_RE = /<gr>([\s\S]*?)<\/gr>/gi;
@@ -459,11 +464,11 @@ export function extractPos(parts: DefinitionPart[]): string[] {
   return out;
 }
 
-export function defineWord(
+export async function defineWord(
   dict: StarDict,
   word: string,
   mode: LookupMode = "any",
-): DictEntry[] {
+): Promise<DictEntry[]> {
   const seen = new Set<number>();
   const entries: DictEntry[] = [];
   for (const key of lookupKeys(word, mode)) {
@@ -471,9 +476,9 @@ export function defineWord(
       if (seen.has(entry) || entries.length >= MAX_ENTRIES) continue;
       seen.add(entry);
       const { offset, size } = entryLocation(dict.index, entry);
-      if (offset + size > dict.dict.length) continue;
+      if (offset + size > dict.dict.size) continue;
       const parts = parseDefinition(
-        dict.dict.subarray(offset, offset + size),
+        await dict.dict.read(offset, size),
         dict.info.sametypesequence,
       );
       const text = definitionText(parts);
