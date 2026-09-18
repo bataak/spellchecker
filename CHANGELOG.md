@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.80.1](https://github.com/bataak/spellchecker/compare/v1.80.0...v1.80.1) (2026-09-18)
+
+
+### Bug Fixes
+
+* clear the missing-definition notice after a few seconds ([7aaeb84](https://github.com/bataak/spellchecker/commit/7aaeb84da0a811e83efcea59ea30403f2aa21803))
+
 ## [1.80.0](https://github.com/bataak/spellchecker/compare/v1.79.0...v1.80.0) (2026-09-18)
 
 
