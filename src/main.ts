@@ -694,7 +694,7 @@ async function showWordDefinition(span: WordSpan): Promise<void> {
   hidePopover();
   const def = await definitionFor(span.word);
   if (!def.entries.length) {
-    setStatus("Тайлбар олдсонгүй: " + escapeHtml(span.word), false);
+    holdStatus("Тайлбар олдсонгүй: " + escapeHtml(span.word), 3000, false);
     return;
   }
   await showDefTip(anchorAtRect(rect), span.word);
@@ -706,7 +706,11 @@ document
     if (!checker.define) return;
     const span = wordAt(els.editor.value, els.editor.selectionStart);
     if (!span) {
-      setStatus("Тайлбар харах үг дээрээ товшоод дахин дарна уу", false);
+      holdStatus(
+        "Тайлбар харах үг дээрээ товшоод дахин дарна уу",
+        3000,
+        false,
+      );
       return;
     }
     void openWordPanel(span);
@@ -737,7 +741,10 @@ function closeDefPanel(): void {
   placePopover();
 }
 
-async function showDefPanel(word: string, onBack = closeDefPanel): Promise<void> {
+async function showDefPanel(
+  word: string,
+  onBack = closeDefPanel,
+): Promise<void> {
   const def = await definitionFor(word);
   if (els.popover.hidden) return;
   els.popover.querySelector(".pop-def")?.remove();
@@ -969,7 +976,8 @@ function setStyle(
 }
 
 function popoverAnchorRect(): DOMRect | null {
-  if (wordPanelSpan) return rangeRectAt(wordPanelSpan.start, wordPanelSpan.end);
+  if (wordPanelSpan)
+    return rangeRectAt(wordPanelSpan.start, wordPanelSpan.end);
   if (activeStart == null) return null;
   const mark = els.backdrop.querySelector(
     'mark[data-start="' + activeStart + '"]',
