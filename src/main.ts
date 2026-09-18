@@ -62,9 +62,11 @@ import {
   renderBackdrop,
   refreshBackdropMarks,
   materializeMark,
+  rangeRectAt,
   setActiveLine,
   setLineBlocks,
 } from "./backdrop.ts";
+import { isLookupKey, wordAt, type WordSpan } from "./lookup.ts";
 import { rotateEmptyTips, syncEmptyTips } from "./emptytips.ts";
 import {
   initDictMenu,
@@ -529,15 +531,28 @@ function fillDefTip(tip: HTMLElement, word: string, def: Definition): void {
     block.className = "def-tip-entry";
     const head = document.createElement("div");
     head.className = "def-tip-hw";
-    head.textContent = repeats > 1 ? label + " " + String(nth) : label;
+    head.textContent = label;
+    if (repeats > 1) {
+      const num = document.createElement("span");
+      num.className = "def-tip-num";
+      num.textContent = " " + String(nth);
+      head.appendChild(num);
+    }
     block.appendChild(head);
     const text = document.createElement("div");
     text.className = "def-tip-text";
     text.textContent = clipText(entry.text, DEF_TEXT_LIMIT);
     block.appendChild(text);
     tip.appendChild(block);
+    const next = def.entries[position + 1];
+    if (entry.source && (!next || next.source !== entry.source)) {
+      const from = document.createElement("div");
+      from.className = "def-tip-source";
+      from.textContent = entry.source;
+      tip.appendChild(from);
+    }
   });
-  if (def.source) {
+  if (def.source && !def.entries.some((entry) => entry.source)) {
     const credit = document.createElement("div");
     credit.className = "def-tip-source";
     credit.textContent = def.source;
@@ -552,9 +567,10 @@ function positionDefTip(): void {
     return;
   }
   const vv = window.visualViewport;
+  const anchorRect = defTipAnchor.getBoundingClientRect();
   const place = placeTip(
-    defTipAnchor.getBoundingClientRect(),
-    els.popover.getBoundingClientRect(),
+    anchorRect,
+    els.popover.hidden ? anchorRect : els.popover.getBoundingClientRect(),
     { width: defTip.offsetWidth, height: defTip.offsetHeight },
     {
       left: vv ? vv.offsetLeft : 0,
@@ -574,8 +590,7 @@ async function showDefTip(anchor: HTMLElement, word: string): Promise<void> {
     defTipAnchor.setAttribute("aria-expanded", "false");
   defTipAnchor = anchor;
   const def = await definitionFor(word);
-  if (defTipAnchor !== anchor || !anchor.isConnected || els.popover.hidden)
-    return;
+  if (!tipWanted(anchor)) return;
   if (!def.entries.length) {
     hideDefTip();
     return;
@@ -625,6 +640,10 @@ function bindDefDot(dot: HTMLElement): void {
     const kind = pointerKind;
     pointerKind = "";
     if (kind === "mouse" || kind === "pen") return;
+    if (isTouch()) {
+      void showDefPanel(word);
+      return;
+    }
     toggle();
   });
   dot.addEventListener("focus", () => {
@@ -640,8 +659,129 @@ document.addEventListener("pointerdown", (e) => {
   if (!target?.closest(".sg-dot, .def-tip")) hideDefTip();
 });
 
+let wordAnchor: HTMLElement | null = null;
+
+function tipWanted(anchor: HTMLElement): boolean {
+  if (defTipAnchor !== anchor || !anchor.isConnected) return false;
+  return anchor === wordAnchor || !els.popover.hidden;
+}
+
+function anchorAtRect(rect: DOMRect): HTMLElement {
+  if (!wordAnchor) {
+    wordAnchor = document.createElement("div");
+    wordAnchor.className = "word-anchor";
+    document.body.appendChild(wordAnchor);
+  }
+  wordAnchor.style.left = window.scrollX + rect.left + "px";
+  wordAnchor.style.top = window.scrollY + rect.top + "px";
+  wordAnchor.style.width = rect.width + "px";
+  wordAnchor.style.height = rect.height + "px";
+  return wordAnchor;
+}
+
+function hideWordTip(): void {
+  if (defTipAnchor && defTipAnchor === wordAnchor) hideDefTip();
+}
+
+function visibleInEditor(rect: DOMRect): boolean {
+  const box = els.editor.getBoundingClientRect();
+  return rect.top >= box.top - 2 && rect.bottom <= box.bottom + 2;
+}
+
+async function showWordDefinition(span: WordSpan): Promise<void> {
+  const rect = rangeRectAt(span.start, span.end);
+  if (!rect || !visibleInEditor(rect)) return;
+  hidePopover();
+  const def = await definitionFor(span.word);
+  if (!def.entries.length) {
+    setStatus("Тайлбар олдсонгүй: " + escapeHtml(span.word), false);
+    return;
+  }
+  await showDefTip(anchorAtRect(rect), span.word);
+}
+
+document
+  .querySelector<HTMLButtonElement>("#defineBtn")
+  ?.addEventListener("click", () => {
+    if (!checker.define) return;
+    const span = wordAt(els.editor.value, els.editor.selectionStart);
+    if (!span) {
+      setStatus("Тайлбар харах үг дээрээ товшоод дахин дарна уу", false);
+      return;
+    }
+    void openWordPanel(span);
+  });
+
+els.editor.addEventListener("keydown", (e) => {
+  if (e.isComposing || !isLookupKey(e)) return;
+  if (els.editor.selectionStart !== els.editor.selectionEnd) return;
+  const caretToken = tokenAtCaret();
+  if (caretToken) {
+    e.preventDefault();
+    void showPopoverFor(caretToken);
+    return;
+  }
+  if (!checker.define) return;
+  const span = wordAt(els.editor.value, els.editor.selectionStart);
+  if (!span) return;
+  e.preventDefault();
+  void showWordDefinition(span);
+});
+
+let wordPanelSpan: WordSpan | null = null;
+
+function closeDefPanel(): void {
+  els.popover.querySelector(".pop-def")?.remove();
+  delete els.popover.dataset.view;
+  measurePopover();
+  placePopover();
+}
+
+async function showDefPanel(word: string, onBack = closeDefPanel): Promise<void> {
+  const def = await definitionFor(word);
+  if (els.popover.hidden) return;
+  els.popover.querySelector(".pop-def")?.remove();
+  const panel = document.createElement("div");
+  panel.className = "pop-def";
+  const back = document.createElement("button");
+  back.type = "button";
+  back.className = "pop-back";
+  back.textContent = "\u2190 " + word;
+  back.addEventListener("click", onBack);
+  panel.appendChild(back);
+  const body = document.createElement("div");
+  body.className = "pop-def-body";
+  if (def.entries.length) fillDefTip(body, word, def);
+  else {
+    const empty = document.createElement("div");
+    empty.className = "muted pop-empty";
+    empty.textContent = "Тайлбар олдсонгүй";
+    body.appendChild(empty);
+  }
+  panel.appendChild(body);
+  els.popover.appendChild(panel);
+  els.popover.dataset.view = "def";
+  measurePopover();
+  placePopover();
+  if (!isTouch()) back.focus();
+}
+
+async function openWordPanel(span: WordSpan): Promise<void> {
+  if (!rangeRectAt(span.start, span.end)) return;
+  hideDefTip();
+  defCache = new Map();
+  activeStart = null;
+  wordPanelSpan = span;
+  popoverScrollTop = els.editor.scrollTop;
+  els.popover.innerHTML = "";
+  els.popover.hidden = false;
+  await showDefPanel(span.word, hidePopover);
+}
+
 function hidePopover(): void {
   hideDefTip();
+  wordPanelSpan = null;
+  delete els.popover.dataset.view;
   els.popover.hidden = true;
   activeStart = null;
   popoverFullH = 0;
@@ -650,6 +790,15 @@ function hidePopover(): void {
 
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || e.isComposing) return;
+  if (!els.popover.hidden && els.popover.dataset.view === "def") {
+    closeDefPanel();
+    return;
+  }
+  if (defTipAnchor && defTipAnchor === wordAnchor) {
+    hideDefTip();
+    els.editor.focus({ preventScroll: true });
+    return;
+  }
   if (els.popover.hidden) return;
   const ae = document.activeElement;
   if (
@@ -819,16 +968,22 @@ function setStyle(
   if (target.style[name] !== value) target.style[name] = value;
 }
 
-function placePopover() {
-  if (els.popover.hidden || activeStart == null) return;
+function popoverAnchorRect(): DOMRect | null {
+  if (wordPanelSpan) return rangeRectAt(wordPanelSpan.start, wordPanelSpan.end);
+  if (activeStart == null) return null;
   const mark = els.backdrop.querySelector(
     'mark[data-start="' + activeStart + '"]',
   );
-  if (!mark) {
+  return mark ? mark.getBoundingClientRect() : null;
+}
+
+function placePopover() {
+  if (els.popover.hidden) return;
+  const markRect = popoverAnchorRect();
+  if (!markRect) {
     hidePopover();
     return;
   }
-  const markRect = mark.getBoundingClientRect();
   const margin = 6;
 
   const vv = window.visualViewport;
@@ -955,6 +1110,8 @@ async function showPopoverFor(token: Token): Promise<void> {
   }
 
   hideDefTip();
+  wordPanelSpan = null;
+  delete els.popover.dataset.view;
   defCache = new Map();
   els.popover.innerHTML =
     '<div class="pop-scroll">' +
@@ -1594,6 +1751,7 @@ els.editor.addEventListener("blur", () => {
 let marksRefreshQueued = false;
 els.editor.addEventListener("scroll", () => {
   syncScroll();
+  hideWordTip();
   if (!marksRefreshQueued) {
     marksRefreshQueued = true;
     requestAnimationFrame(() => {
