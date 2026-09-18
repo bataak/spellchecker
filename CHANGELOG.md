@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.81.1](https://github.com/bataak/spellchecker/compare/v1.81.0...v1.81.1) (2026-09-18)
+
+
+### Bug Fixes
+
+* match the toolbar button to the keyboard shortcut on desktop ([37a91f9](https://github.com/bataak/spellchecker/commit/37a91f9ff8d107399e9d9d700eb349786dec020c))
+
 ## [1.81.0](https://github.com/bataak/spellchecker/compare/v1.80.4...v1.81.0) (2026-09-18)
 
 
