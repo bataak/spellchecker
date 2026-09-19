@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  bareStemInfinitives,
   completiveRoot,
+  derivedRoots,
   connectingVowel,
   infinitiveCandidates,
   lookupCandidates,
@@ -25,7 +27,7 @@ test("эгшиг зохицлоор холбох эгшгийг сонгоно",
   assert.equal(connectingVowel("бич"), "и");
 });
 
-test("нэр үйлийн хэлбэрийг зөв дарааллаар үүсгэнэ", () => {
+test("үйлт нэрийн хэлбэрийг зөв дарааллаар үүсгэнэ", () => {
   assert.equal(infinitiveCandidates("ангижруул")[0], "ангижруулах");
   assert.equal(infinitiveCandidates("унш")[0], "унших");
   assert.deepEqual(infinitiveCandidates("хий"), ["хийх"]);
@@ -37,7 +39,7 @@ test("нэр үйлийн хэлбэрийг зөв дарааллаар үүс�
   ]);
 });
 
-test("зорь, гар, тэгшил язгуураас нэр үйл үүсгэнэ", () => {
+test("зорь, гар, тэгшил язгуураас үйлт нэр үүсгэнэ", () => {
   assert.deepEqual(infinitiveCandidates("зорь"), ["зорих"]);
   assert.deepEqual(infinitiveCandidates("гар"), [
     "гарах",
@@ -52,7 +54,7 @@ test("зорь, гар, тэгшил язгуураас нэр үйл үүсгэ
   ]);
 });
 
-test("үгийн эхэнд байгаа нэр үйлийг язгуураас өмнө тавина", () => {
+test("үгийн эхэнд байгаа үйлт нэрийг язгуураас өмнө тавина", () => {
   const valid = new Set(["орох", "ангижруулах", "явах"]);
   const isWord = (candidate: string) => valid.has(candidate);
   assert.deepEqual(lookupCandidates("орохыг", unknown("ор"), isWord), [
@@ -103,7 +105,7 @@ test("ижил язгуурын шинжилгээнүүдийг нэгтгэн�
   );
 });
 
-test("үйл үг гэж танигдсан язгуураар зөвхөн нэр үйлийг хайна", () => {
+test("үйл үг гэж танигдсан язгуураар зөвхөн үйлт нэрийг хайна", () => {
   const valid = new Set(["орох", "явах"]);
   const isWord = (candidate: string) => valid.has(candidate);
   assert.deepEqual(
@@ -138,7 +140,7 @@ test("-чих хэлбэрээс үйл үгийн язгуурыг салган
   assert.equal(completiveRoot("явсан"), null);
 });
 
-test("-чих хэлбэрээс зөвхөн эхний хүчинтэй нэр үйлийг хайна", () => {
+test("-чих хэлбэрээс зөвхөн эхний хүчинтэй үйлт нэрийг хайна", () => {
   const valid = new Set(["харах", "харих", "уух", "өөрчлөх", "үзэх"]);
   const isWord = (candidate: string) => valid.has(candidate);
   assert.deepEqual(lookupCandidates("харчхаад", [], isWord), ["харах"]);
@@ -195,5 +197,99 @@ test("нэр үгийн -ч язгуураас үйл үг хайхгүй", () =
   assert.deepEqual(
     lookupCandidates("малчид", [{ stem: "малч", verb: false }], isWord),
     ["малч"],
+  );
+});
+
+test("үйлдэхүйн болон үйлдүүлэх хэвийн залгаврыг хасна", () => {
+  assert.deepEqual(derivedRoots("чуулагд"), ["чуула"]);
+  assert.deepEqual(derivedRoots("хийгд"), ["хий"]);
+  assert.deepEqual(derivedRoots("бичигд"), ["бичи"]);
+  assert.deepEqual(derivedRoots("явуул"), ["яв"]);
+  assert.deepEqual(derivedRoots("хийлгэ"), ["хий"]);
+  assert.deepEqual(derivedRoots("хийлгэгд"), ["хийлгэ", "хий"]);
+  assert.deepEqual(derivedRoots("чуул"), []);
+  assert.deepEqual(derivedRoots("дуул"), []);
+});
+
+test("үүсмэл үйл үгээс үндсэн үйл үгийн тайлбарыг хайна", () => {
+  const valid = new Set([
+    "чуулагдах",
+    "чуулах",
+    "хийгдэх",
+    "хийх",
+    "бичигдэх",
+    "бичих",
+    "явуулах",
+    "явах",
+    "хийлгэх",
+  ]);
+  const isWord = (candidate: string) => valid.has(candidate);
+  const cases: [string, string, string[]][] = [
+    ["чуулагдсан", " st:чуулагд fl:F0", ["чуулагдах", "чуулах"]],
+    ["хийгдэх", " st:хийгд fl:F3", ["хийгдэх", "хийх"]],
+    ["бичигдсэн", " st:бичигд fl:F3", ["бичигдэх", "бичих"]],
+    ["явуулах", " st:явуул fl:F0", ["явуулах", "явах"]],
+    ["хийлгэсэн", " st:хийлгэ fl:F3", ["хийлгэх", "хийх"]],
+  ];
+  for (const [word, line, expected] of cases)
+    assert.deepEqual(
+      lookupCandidates(word, parseAnalyses([line]), isWord),
+      expected,
+    );
+});
+
+test("flag-гүй шинжилгээг үйл үг эсэх нь тодорхойгүй гэж үзнэ", () => {
+  assert.deepEqual(parseAnalysis(" st:чуул"), { stem: "чуул", verb: null });
+  assert.deepEqual(
+    parseAnalyses([" st:агуулах", " st:агуулах fl:B0", " st:агуул fl:F0"]),
+    [
+      { stem: "агуулах", verb: false },
+      { stem: "агуул", verb: true },
+    ],
+  );
+  assert.deepEqual(parseAnalyses([" st:ор", " st:ор fl:F0"]), [
+    { stem: "ор", verb: true },
+  ]);
+});
+
+test("язгуур хэлбэрээрээ бичигдсэн үйл үгийн тайлбарыг хайна", () => {
+  const valid = new Set(["чуулах", "агуулах"]);
+  const isWord = (candidate: string) => valid.has(candidate);
+  assert.deepEqual(
+    lookupCandidates("чуул", parseAnalyses([" st:чуул"]), isWord),
+    ["чуулах"],
+  );
+  assert.deepEqual(
+    lookupCandidates("агуул", parseAnalyses([" st:агуул"]), isWord),
+    ["агуулах"],
+  );
+});
+
+test("язгуур хэлбэрээрээ бичигдсэн үйл үгийн үйлт нэрийг олно", () => {
+  const valid = new Set(["агуулах", "орох", "гарах", "харих"]);
+  const isWord = (candidate: string) => valid.has(candidate);
+  assert.deepEqual(
+    bareStemInfinitives("агуул", parseAnalyses([" st:агуул"]), isWord),
+    ["агуулах"],
+  );
+  assert.deepEqual(
+    bareStemInfinitives("Ор", parseAnalyses([" st:ор"]), isWord),
+    ["орох"],
+  );
+  assert.deepEqual(
+    bareStemInfinitives("харь", parseAnalyses([" st:харь"]), isWord),
+    ["харих"],
+  );
+  assert.deepEqual(
+    bareStemInfinitives("ном", parseAnalyses([" st:ном"]), isWord),
+    [],
+  );
+  assert.deepEqual(
+    bareStemInfinitives("гар", [{ stem: "гар", verb: false }], isWord),
+    [],
+  );
+  assert.deepEqual(
+    bareStemInfinitives("гарсан", parseAnalyses([" st:гар fl:F0"]), isWord),
+    [],
   );
 });

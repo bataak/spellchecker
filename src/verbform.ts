@@ -51,15 +51,46 @@ export function completiveRoot(word: string): string | null {
   return root;
 }
 
-function completiveStemRoot(stem: string): string | null {
-  const lower = stem.toLowerCase();
-  const root = lower.endsWith("чих")
-    ? lower.slice(0, -3)
-    : lower.endsWith("ч")
-      ? lower.slice(0, -1)
-      : null;
-  if (!root || root.length < 2 || !HAS_VOWEL.test(root)) return null;
-  return root;
+const VOWEL_END = "[аэиоуөүяеёюый]";
+const DERIVATIONS: RegExp[] = [
+  /^(.+)чих$/,
+  /^(.+)ч$/,
+  new RegExp("^(.+" + VOWEL_END + ")гд$"),
+  new RegExp("^(.+[" + CONSONANT + "])(?:уул|үүл)$"),
+  new RegExp("^(.+" + VOWEL_END + ")лг[аэоө]$"),
+];
+
+export function derivedRoots(stem: string): string[] {
+  const roots: string[] = [];
+  let pending = [stem.toLowerCase()];
+  while (pending.length) {
+    const next: string[] = [];
+    for (const current of pending)
+      for (const pattern of DERIVATIONS) {
+        const root = current.match(pattern)?.[1];
+        if (!root || root.length < 2 || !HAS_VOWEL.test(root)) continue;
+        if (roots.includes(root)) continue;
+        roots.push(root);
+        next.push(root);
+      }
+    pending = next;
+  }
+  return roots;
+}
+
+export function bareStemInfinitives(
+  word: string,
+  analyses: Analysis[],
+  isWord: (candidate: string) => boolean,
+): string[] {
+  const lower = word.toLowerCase();
+  const bare = analyses.some(
+    ({ stem, verb }) => stem.toLowerCase() === lower && verb !== false,
+  );
+  if (!bare) return [];
+  return infinitiveCandidates(lower)
+    .filter((candidate) => candidate !== lower && isWord(candidate))
+    .slice(0, 1);
 }
 
 export interface Analysis {
@@ -75,6 +106,7 @@ export function parseAnalysis(line: string): Analysis | null {
   const flags = [...line.matchAll(/(?:^|\s)fl:(\S+)/g)].map(
     (match) => match[1]!,
   );
+  if (!flags.length) return { stem, verb: null };
   return { stem, verb: flags.some((flag) => VERB_FLAG.test(flag)) };
 }
 
@@ -85,7 +117,8 @@ export function parseAnalyses(lines: string[]): Analysis[] {
     if (!analysis) continue;
     const same = out.find((item) => item.stem === analysis.stem);
     if (!same) out.push(analysis);
-    else if (analysis.verb) same.verb = true;
+    else if (analysis.verb === true || same.verb === null)
+      same.verb = analysis.verb;
   }
   return out;
 }
@@ -113,12 +146,13 @@ export function lookupCandidates(
     if (stem !== word) ordered.push(stem);
     trailing.push(...infinitives.filter((item) => !early.includes(item)));
   }
+  const surface = completiveRoot(word);
   const roots = [
-    completiveRoot(word),
+    ...(surface ? [surface, ...derivedRoots(surface)] : []),
     ...analyses
       .filter(({ verb }) => verb !== false)
-      .map(({ stem }) => completiveStemRoot(stem)),
-  ].filter((root): root is string => root !== null);
+      .flatMap(({ stem }) => derivedRoots(stem)),
+  ];
   const completive = roots.flatMap((root) =>
     infinitiveCandidates(root)
       .filter((candidate) => isWord(candidate))

@@ -58,7 +58,8 @@ export function parseIfo(text: string): StarDictInfo | null {
   const fields = new Map<string, string>();
   for (const line of lines.slice(1)) {
     const eq = line.indexOf("=");
-    if (eq > 0) fields.set(line.slice(0, eq).trim(), line.slice(eq + 1).trim());
+    if (eq > 0)
+      fields.set(line.slice(0, eq).trim(), line.slice(eq + 1).trim());
   }
   const wordcount = Number(fields.get("wordcount"));
   if (!Number.isInteger(wordcount) || wordcount < 0) return null;
@@ -252,7 +253,10 @@ export function parseDefinition(
 
   if (sametypesequence) {
     for (let k = 0; k < sametypesequence.length && pos < data.length; k++)
-      readField(sametypesequence.charAt(k), k === sametypesequence.length - 1);
+      readField(
+        sametypesequence.charAt(k),
+        k === sametypesequence.length - 1,
+      );
     return parts;
   }
   while (pos < data.length) {
@@ -322,7 +326,11 @@ export function lookupKeys(word: string, mode: LookupMode = "any"): string[] {
   const normalized = word.normalize("NFC").trim();
   if (!normalized) return [];
   if (mode === "proper") return [normalized];
-  const keys = [normalized, normalized.toLowerCase(), normalized.toUpperCase()];
+  const keys = [
+    normalized,
+    normalized.toLowerCase(),
+    normalized.toUpperCase(),
+  ];
   return keys.filter((key, position) => keys.indexOf(key) === position);
 }
 
@@ -394,11 +402,17 @@ export async function resolveDefinitions(
   word: string,
   stems: () => string[],
   mode: LookupMode = "any",
+  alongside: () => string[] = () => [],
 ): Promise<DictEntry[]> {
-  const exact = await defineWord(dict, word, mode);
-  if (exact.length) return exact;
   const entries: DictEntry[] = [];
   const seen = new Set<string>();
+  const exact = await defineWord(dict, word, mode);
+  if (exact.length) {
+    collect(entries, seen, exact);
+    for (const extra of stemKeys(alongside(), mode))
+      collect(entries, seen, await defineWord(dict, extra, mode));
+    return entries;
+  }
   for (const stem of stemKeys(stems(), mode))
     collect(entries, seen, await defineWord(dict, stem, mode));
   return entries;

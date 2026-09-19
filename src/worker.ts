@@ -11,7 +11,12 @@ import {
 } from "./stardict.ts";
 import { loadStarDicts } from "./stardictload.ts";
 import stardictList from "virtual:stardict-index";
-import { lookupCandidates, parseAnalyses, type Analysis } from "./verbform.ts";
+import {
+  bareStemInfinitives,
+  lookupCandidates,
+  parseAnalyses,
+  type Analysis,
+} from "./verbform.ts";
 
 export interface SpellerInstance {
   spell: (word: string) => boolean;
@@ -289,7 +294,13 @@ async function definitionsIn(
 ): Promise<DictEntry[]> {
   const found = dict.info.posTagged
     ? await resolveTagged(dict, word, () => analysesFor(word), mode)
-    : await resolveDefinitions(dict, word, () => stemsOf(word), mode);
+    : await resolveDefinitions(
+        dict,
+        word,
+        () => stemsOf(word),
+        mode,
+        () => infinitivesOfStem(word),
+      );
   const label = sourceOf(dict);
   return found.map((entry) => ({ ...entry, source: label }));
 }
@@ -325,6 +336,22 @@ function stemsOf(word: string): string[] {
   try {
     const analyses = analysesOf(primary, word);
     return lookupCandidates(word, analyses, (candidate) => {
+      try {
+        return primary.spell(candidate);
+      } catch (_) {
+        return false;
+      }
+    });
+  } catch (_) {
+    return [];
+  }
+}
+
+function infinitivesOfStem(word: string): string[] {
+  const primary = instances.find((item) => item.id === PRIMARY)?.inst;
+  if (!primary) return [];
+  try {
+    return bareStemInfinitives(word, analysesOf(primary, word), (candidate) => {
       try {
         return primary.spell(candidate);
       } catch (_) {
