@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  completiveRoot,
   connectingVowel,
   infinitiveCandidates,
   lookupCandidates,
@@ -123,5 +124,76 @@ test("үйл үг гэж танигдсан язгуураар зөвхөн нэ
       isWord,
     ),
     ["орох", "орс"],
+  );
+});
+
+test("-чих хэлбэрээс үйл үгийн язгуурыг салгана", () => {
+  assert.equal(completiveRoot("харчхаад"), "хар");
+  assert.equal(completiveRoot("харчихаад"), "хар");
+  assert.equal(completiveRoot("харчих"), "хар");
+  assert.equal(completiveRoot("харьчхаад"), "харь");
+  assert.equal(completiveRoot("өөрчилчихөөд"), "өөрчил");
+  assert.equal(completiveRoot("ичих"), null);
+  assert.equal(completiveRoot("чих"), null);
+  assert.equal(completiveRoot("явсан"), null);
+});
+
+test("-чих хэлбэрээс зөвхөн эхний хүчинтэй нэр үйлийг хайна", () => {
+  const valid = new Set(["харах", "харих", "уух", "өөрчлөх", "үзэх"]);
+  const isWord = (candidate: string) => valid.has(candidate);
+  assert.deepEqual(lookupCandidates("харчхаад", [], isWord), ["харах"]);
+  assert.deepEqual(lookupCandidates("харьчхаад", [], isWord), ["харих"]);
+  assert.deepEqual(lookupCandidates("уучхаад", [], isWord), ["уух"]);
+  assert.deepEqual(lookupCandidates("үзчхээд", [], isWord), ["үзэх"]);
+  assert.deepEqual(lookupCandidates("өөрчилчихөөд", [], isWord), ["өөрчлөх"]);
+});
+
+test("-чих fallback нь hunspell-ийн язгуурын дараа орно", () => {
+  const valid = new Set(["харах"]);
+  const isWord = (candidate: string) => valid.has(candidate);
+  assert.deepEqual(
+    lookupCandidates("харчхаад", [{ stem: "харчхаад", verb: null }], isWord),
+    ["харах"],
+  );
+  assert.deepEqual(
+    lookupCandidates("харчих", [{ stem: "харч", verb: null }], isWord),
+    ["харч", "харах"],
+  );
+});
+
+test("hunspell-ийн -чих, -ч язгуураас үндсэн үйл үгийг олно", () => {
+  const valid = new Set(["харчих", "харах", "харих"]);
+  const isWord = (candidate: string) => valid.has(candidate);
+  const analyses = parseAnalyses([" st:харчих fl:F0", " st:харч fl:G0 fl:70"]);
+  for (const word of ["харчихад", "харчихдаа", "харчихаас"])
+    assert.deepEqual(lookupCandidates(word, analyses, isWord), [
+      "харчих",
+      "харах",
+    ]);
+  assert.deepEqual(
+    lookupCandidates("харчхаад", parseAnalyses([" st:харчих fl:F0"]), isWord),
+    ["харах"],
+  );
+});
+
+test("жинхэнэ -ч язгуурт илүүдэл candidate нэмэхгүй", () => {
+  const valid = new Set(["бичих", "очих"]);
+  const isWord = (candidate: string) => valid.has(candidate);
+  assert.deepEqual(
+    lookupCandidates("бичсэн", [{ stem: "бич", verb: true }], isWord),
+    ["бичих"],
+  );
+  assert.deepEqual(
+    lookupCandidates("очсон", [{ stem: "оч", verb: true }], isWord),
+    ["очих"],
+  );
+});
+
+test("нэр үгийн -ч язгуураас үйл үг хайхгүй", () => {
+  const valid = new Set(["малах"]);
+  const isWord = (candidate: string) => valid.has(candidate);
+  assert.deepEqual(
+    lookupCandidates("малчид", [{ stem: "малч", verb: false }], isWord),
+    ["малч"],
   );
 });

@@ -8,6 +8,7 @@ const FLEETING_VOWEL = new RegExp(
 );
 const FLEETING_I = new RegExp("^(.*[жчш])и([" + CONSONANT + "])$");
 const HAS_VOWEL = /[аэиоуөүяеёюы]/;
+const COMPLETIVE = /^(.+)чи?х(?:|аад|ээд|оод|өөд)$/;
 
 function dropFleetingVowel(stem: string): string | null {
   const match = stem.match(FLEETING_VOWEL) ?? stem.match(FLEETING_I);
@@ -42,6 +43,23 @@ export function infinitiveCandidates(stem: string): string[] {
       out.push(lower + other + "х");
   }
   return out.filter((item, position) => out.indexOf(item) === position);
+}
+
+export function completiveRoot(word: string): string | null {
+  const root = word.toLowerCase().match(COMPLETIVE)?.[1];
+  if (!root || root.length < 2 || !HAS_VOWEL.test(root)) return null;
+  return root;
+}
+
+function completiveStemRoot(stem: string): string | null {
+  const lower = stem.toLowerCase();
+  const root = lower.endsWith("чих")
+    ? lower.slice(0, -3)
+    : lower.endsWith("ч")
+      ? lower.slice(0, -1)
+      : null;
+  if (!root || root.length < 2 || !HAS_VOWEL.test(root)) return null;
+  return root;
 }
 
 export interface Analysis {
@@ -95,6 +113,17 @@ export function lookupCandidates(
     if (stem !== word) ordered.push(stem);
     trailing.push(...infinitives.filter((item) => !early.includes(item)));
   }
-  const all = [...leading, ...ordered, ...trailing];
+  const roots = [
+    completiveRoot(word),
+    ...analyses
+      .filter(({ verb }) => verb !== false)
+      .map(({ stem }) => completiveStemRoot(stem)),
+  ].filter((root): root is string => root !== null);
+  const completive = roots.flatMap((root) =>
+    infinitiveCandidates(root)
+      .filter((candidate) => isWord(candidate))
+      .slice(0, 1),
+  );
+  const all = [...leading, ...ordered, ...trailing, ...completive];
   return all.filter((item, position) => all.indexOf(item) === position);
 }
