@@ -28,7 +28,6 @@ import { initPreview, type Preview } from "./preview.ts";
 
 let previewCtl: Preview | null = null;
 import { escapeHtml } from "./htmlutil.ts";
-import { sameRoot } from "./morphology.ts";
 import {
   clipText,
   displayHeadword,
@@ -1209,7 +1208,7 @@ async function showPopoverFor(token: Token): Promise<void> {
       ? await checker.lookup(suggestions)
       : null;
   if (activeStart !== token.start || els.popover.hidden) return;
-  const marks = pickDefinitionMarks(suggestions, found, sameRoot);
+  const marks = pickDefinitionMarks(suggestions, found);
   const sgHtml = suggestions.length
     ? suggestions
         .map((suggestion) => {
