@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.83.0](https://github.com/bataak/spellchecker/compare/v1.82.0...v1.83.0) (2026-09-19)
+
+
+### Features
+
+* **stardict:** resolve derived verbs and bare stems to infinitive headwords ([0c73cd5](https://github.com/bataak/spellchecker/commit/0c73cd51460407f43263a2d48c70baf7024391ac))
+
 ## [1.82.0](https://github.com/bataak/spellchecker/compare/v1.81.1...v1.82.0) (2026-09-19)
 
 
