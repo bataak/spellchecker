@@ -20,27 +20,15 @@ export interface Size {
 export function pickDefinitionMarks(
   suggestions: string[],
   found: Record<string, string> | null,
-  sameRoot: (left: string, right: string) => boolean,
 ): Set<string> {
   const marked = new Set<string>();
   if (!found) return marked;
-  const groups: { word: string; headword: string; self: boolean }[] = [];
+  const seen = new Set<string>();
   for (const suggestion of suggestions) {
-    const headword = found[suggestion];
-    if (headword == null) continue;
+    if (found[suggestion] == null) continue;
     const word = suggestion.toLowerCase();
-    const head = headword.toLowerCase();
-    const self = head === word;
-    if (
-      groups.some(
-        (group) =>
-          group.headword === head ||
-          group.word === word ||
-          (self && group.self && sameRoot(group.word, word)),
-      )
-    )
-      continue;
-    groups.push({ word, headword: head, self });
+    if (seen.has(word)) continue;
+    seen.add(word);
     marked.add(suggestion);
   }
   return marked;
