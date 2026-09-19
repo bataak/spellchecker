@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.82.0](https://github.com/bataak/spellchecker/compare/v1.81.1...v1.82.0) (2026-09-19)
+
+
+### Features
+
+* **stardict:** resolve completive -чих forms to infinitive headwords ([e62e4ee](https://github.com/bataak/spellchecker/commit/e62e4ee55baf4ebd77596b211047cd2ebfc2f7c6))
+
+
+### Bug Fixes
+
+* **popover:** show definition dot on every suggestion with a definition ([ee37cab](https://github.com/bataak/spellchecker/commit/ee37cab73c67f18ef87052f2f2e5599e0a7fb820))
+
 ## [1.81.1](https://github.com/bataak/spellchecker/compare/v1.81.0...v1.81.1) (2026-09-18)
 
 
