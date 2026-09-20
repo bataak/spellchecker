@@ -93,6 +93,14 @@ export function bareStemInfinitives(
     .slice(0, 1);
 }
 
+const PLURAL_CHID = /^(.+)чид$/;
+
+export function singularCandidates(stem: string): string[] {
+  const base = stem.toLowerCase().match(PLURAL_CHID)?.[1];
+  if (!base || !HAS_VOWEL.test(base)) return [];
+  return [base + "чин", base + "ч"];
+}
+
 export interface Analysis {
   stem: string;
   verb: boolean | null;
@@ -144,6 +152,9 @@ export function lookupCandidates(
       continue;
     }
     if (stem !== word) ordered.push(stem);
+    ordered.push(
+      ...singularCandidates(stem).filter((candidate) => isWord(candidate)),
+    );
     trailing.push(...infinitives.filter((item) => !early.includes(item)));
   }
   const surface = completiveRoot(word);
