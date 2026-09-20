@@ -11,6 +11,7 @@ export interface Baseline {
 export const KEYBOARD_THRESHOLD = 150;
 export const APP_HEIGHT_VAR = "--app-height";
 export const KEYBOARD_CLASS = "kb-open";
+export const KEYBOARD_LAYOUT_EVENT = "keyboardlayout";
 
 export function nextBaseline(
   previous: Baseline | null,
@@ -115,6 +116,7 @@ export function initKeyboardToolbar(
     if (open !== fitted) {
       root.classList.toggle(KEYBOARD_CLASS, open);
       revealPending = open;
+      window.dispatchEvent(new Event(KEYBOARD_LAYOUT_EVENT));
     }
     fitted = open;
     if (!open || !revealPending) return;
@@ -139,4 +141,7 @@ export function initKeyboardToolbar(
   editor.addEventListener("focus", schedule);
   editor.addEventListener("blur", schedule);
   document.addEventListener("selectionchange", scheduleReveal);
+  document.querySelector(".toolbar")?.addEventListener("mousedown", (event) => {
+    if (fitted) event.preventDefault();
+  });
 }
