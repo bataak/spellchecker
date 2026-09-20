@@ -18,8 +18,45 @@ export interface ToolbarDeps {
   copyText: (str: string) => Promise<void>;
 }
 
+const SCROLL_KEY = "mn-spell:toolbar-scroll";
+const SCROLL_SAVE_MS = 250;
+
+export function parseSavedScroll(value: string | null): number | null {
+  if (value == null || value.trim() === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? Math.round(number) : null;
+}
+
+function readSavedScroll(): number | null {
+  try {
+    return parseSavedScroll(localStorage.getItem(SCROLL_KEY));
+  } catch (_) {
+    return null;
+  }
+}
+
+function initToolbarMemory(): void {
+  if (window.matchMedia("(min-width: 1024px)").matches) return;
+  const bar = document.querySelector<HTMLElement>(".toolbar");
+  if (!bar) return;
+  let saveTimer: ReturnType<typeof setTimeout> | undefined;
+  bar.addEventListener(
+    "scroll",
+    () => {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => {
+        try {
+          localStorage.setItem(SCROLL_KEY, String(Math.round(bar.scrollLeft)));
+        } catch (_) {}
+      }, SCROLL_SAVE_MS);
+    },
+    { passive: true },
+  );
+}
+
 export function initToolbar(deps: ToolbarDeps): void {
   initToolbarScroll();
+  initToolbarMemory();
   initToolbarSnap();
   initClippedReveal();
   initButtons(deps);
@@ -32,6 +69,11 @@ function initToolbarScroll(): void {
   if (!bar || !clearBtn) return;
   requestAnimationFrame(() => {
     if (bar.scrollWidth <= bar.clientWidth) return;
+    const saved = readSavedScroll();
+    if (saved != null) {
+      bar.scrollLeft = saved;
+      return;
+    }
     bar.scrollLeft +=
       clearBtn.getBoundingClientRect().left - bar.getBoundingClientRect().left;
   });
