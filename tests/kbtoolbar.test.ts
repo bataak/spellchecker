@@ -4,6 +4,7 @@ import {
   firstOpaque,
   isKeyboardOpen,
   keyboardInset,
+  nextBaseline,
 } from "../src/kbtoolbar.ts";
 
 test("гарын өндрийг visualViewport-оос тооцно", () => {
@@ -15,14 +16,23 @@ test("гарын өндрийг visualViewport-оос тооцно", () => {
 });
 
 test("хаягийн мөрийн өөрчлөлтийг гар гэж андуурахгүй", () => {
-  assert.equal(
-    isKeyboardOpen(keyboardInset(844, { height: 790, offsetTop: 0 })),
-    false,
-  );
-  assert.equal(
-    isKeyboardOpen(keyboardInset(844, { height: 508, offsetTop: 0 })),
-    true,
-  );
+  const baseline = { width: 390, height: 844 };
+  assert.equal(isKeyboardOpen(baseline, { height: 790, offsetTop: 0 }), false);
+  assert.equal(isKeyboardOpen(baseline, { height: 508, offsetTop: 0 }), true);
+});
+
+test("PWA-д layout viewport хамт жижгэрсэн ч гарыг таньна", () => {
+  let baseline = nextBaseline(null, 390, 844);
+  baseline = nextBaseline(baseline, 390, 508);
+  assert.deepEqual(baseline, { width: 390, height: 844 });
+  assert.equal(isKeyboardOpen(baseline, { height: 508, offsetTop: 0 }), true);
+  assert.equal(keyboardInset(508, { height: 508, offsetTop: 0 }), 0);
+});
+
+test("дэлгэц эргэхэд суурь өндрийг шинээр тогтооно", () => {
+  let baseline = nextBaseline(null, 390, 844);
+  baseline = nextBaseline(baseline, 844, 390);
+  assert.deepEqual(baseline, { width: 844, height: 390 });
 });
 
 test("тунгалаг биш эхний арын өнгийг сонгоно", () => {
@@ -30,9 +40,6 @@ test("тунгалаг биш эхний арын өнгийг сонгоно", 
     firstOpaque(["rgba(0, 0, 0, 0)", "transparent", "rgb(30, 27, 22)"]),
     "rgb(30, 27, 22)",
   );
-  assert.equal(
-    firstOpaque(["rgba(30, 27, 22, 0.9)"]),
-    "rgba(30, 27, 22, 0.9)",
-  );
+  assert.equal(firstOpaque(["rgba(30, 27, 22, 0.9)"]), "rgba(30, 27, 22, 0.9)");
   assert.equal(firstOpaque(["rgba(0, 0, 0, 0)", ""]), null);
 });
