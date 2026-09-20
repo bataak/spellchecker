@@ -720,6 +720,20 @@ async function showWordDefinition(span: WordSpan): Promise<void> {
   await showDefTip(anchorAtRect(rect), span.word);
 }
 
+const WORD_CHAR = /[\p{L}\p{M}\p{N}]/u;
+
+function wordForLookup(): WordSpan | null {
+  const { value, selectionStart, selectionEnd } = els.editor;
+  if (selectionStart === selectionEnd) return wordAt(value, selectionStart);
+  let start = selectionStart;
+  let end = selectionEnd;
+  while (start < end && !WORD_CHAR.test(value.charAt(start))) start++;
+  while (end > start && !WORD_CHAR.test(value.charAt(end - 1))) end--;
+  if (start >= end) return null;
+  const span = wordAt(value, start);
+  return span && span.start <= start && span.end >= end ? span : null;
+}
+
 document
   .querySelector<HTMLButtonElement>("#defineBtn")
   ?.addEventListener("click", () => {
@@ -729,7 +743,7 @@ document
       return;
     }
     if (!checker.define) return;
-    const span = wordAt(els.editor.value, els.editor.selectionStart);
+    const span = wordForLookup();
     if (!span) {
       holdStatus(
         "Тайлбар харах үг дээрээ товшоод дахин дарна уу",
@@ -744,7 +758,6 @@ document
 
 els.editor.addEventListener("keydown", (e) => {
   if (e.isComposing || !isLookupKey(e)) return;
-  if (els.editor.selectionStart !== els.editor.selectionEnd) return;
   const caretToken = tokenAtCaret();
   if (caretToken) {
     e.preventDefault();
@@ -752,7 +765,7 @@ els.editor.addEventListener("keydown", (e) => {
     return;
   }
   if (!checker.define) return;
-  const span = wordAt(els.editor.value, els.editor.selectionStart);
+  const span = wordForLookup();
   if (!span) return;
   e.preventDefault();
   void showWordDefinition(span);
