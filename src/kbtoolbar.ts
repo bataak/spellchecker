@@ -16,8 +16,25 @@ export function keyboardInset(
   );
 }
 
-export function isKeyboardOpen(inset: number): boolean {
-  return inset > KEYBOARD_THRESHOLD;
+export interface Baseline {
+  width: number;
+  height: number;
+}
+
+export function nextBaseline(
+  previous: Baseline | null,
+  width: number,
+  height: number,
+): Baseline {
+  if (!previous || previous.width !== width) return { width, height };
+  return { width, height: Math.max(previous.height, height) };
+}
+
+export function isKeyboardOpen(
+  baseline: Baseline,
+  viewport: ViewportLike,
+): boolean {
+  return baseline.height - viewport.height > KEYBOARD_THRESHOLD;
 }
 
 const TRANSPARENT = /^(transparent|rgba\([^)]*,\s*0(\.0+)?\))$/;
@@ -51,11 +68,18 @@ export function initKeyboardToolbar(editor: HTMLTextAreaElement): void {
   if (!viewport || !bar) return;
   let frame = 0;
   let floating = false;
+  let baseline: Baseline | null = null;
 
   const apply = (): void => {
     frame = 0;
+    baseline = nextBaseline(
+      baseline,
+      window.innerWidth,
+      Math.max(window.innerHeight, viewport.height),
+    );
     const inset = keyboardInset(window.innerHeight, viewport);
-    const next = document.activeElement === editor && isKeyboardOpen(inset);
+    const next =
+      document.activeElement === editor && isKeyboardOpen(baseline, viewport);
     if (next !== floating) {
       floating = next;
       bar.classList.toggle("kb-float", next);
@@ -78,6 +102,7 @@ export function initKeyboardToolbar(editor: HTMLTextAreaElement): void {
     if (!frame) frame = requestAnimationFrame(apply);
   };
 
+  apply();
   viewport.addEventListener("resize", schedule);
   viewport.addEventListener("scroll", schedule);
   editor.addEventListener("focus", schedule);
