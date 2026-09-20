@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.84.0](https://github.com/bataak/spellchecker/compare/v1.83.0...v1.84.0) (2026-09-20)
+
+
+### Features
+
+* **mobile:** float toolbar above on-screen keyboard while editing ([888f9bc](https://github.com/bataak/spellchecker/commit/888f9bc754dbed524a89e3959d122942c3484d1e))
+
 ## [1.83.0](https://github.com/bataak/spellchecker/compare/v1.82.0...v1.83.0) (2026-09-19)
 
 
