@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.87.1](https://github.com/bataak/spellchecker/compare/v1.87.0...v1.87.1) (2026-09-20)
+
+
+### Bug Fixes
+
+* **stardict:** ignore punctuation at the edges of a selected word ([313280e](https://github.com/bataak/spellchecker/commit/313280ef01aab86e52bfce411229f1b1d70550d8))
+
 ## [1.87.0](https://github.com/bataak/spellchecker/compare/v1.86.0...v1.87.0) (2026-09-20)
 
 
