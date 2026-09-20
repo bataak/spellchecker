@@ -41,3 +41,21 @@ Commit төрөл нь release-please-ийн хувилбарыг тодорхо
 `fix:` patch, `style:`/`docs:`/`test:`/`chore:` хувилбар ахиулахгүй.
 Push бүрд release PR автоматаар шинэчлэгдэнэ; хуримтлуулж байгаад PR-ыг
 squash merge хийхэд release гарна.
+
+## License
+
+Copyright © 2020–2026 Batmunkh Dorjgotov.
+
+This application is licensed under the
+[GNU Affero General Public License v3.0](LICENSE). If you run a modified
+version of this software as a network service, you must make the complete
+corresponding source code available to its users.
+
+The bundled `mn_MN` spelling dictionary is licensed separately under
+[MPL-2.0](https://github.com/bataak/dict-mn).
+
+`vendor/hunspell-wasm/` is third-party code distributed under its own
+license; see that directory for details.
+
+For commercial licensing without the AGPL obligations, contact
+bataak at gmail tseg com.
