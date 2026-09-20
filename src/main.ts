@@ -17,7 +17,7 @@ import {
 import type { SpellChecker } from "./spellchecker.ts";
 import { initFileIO } from "./fileio.ts";
 import { initToolbar } from "./toolbar.ts";
-import { initKeyboardToolbar } from "./kbtoolbar.ts";
+import { initKeyboardToolbar, KEYBOARD_LAYOUT_EVENT } from "./kbtoolbar.ts";
 import { initSuggest } from "./suggest.ts";
 import { initSurvey, surveyOnErrorCount } from "./survey.ts";
 import { isIgnored, addIgnored } from "./ignore.ts";
@@ -688,9 +688,29 @@ function visibleInEditor(rect: DOMRect): boolean {
   return rect.top >= box.top - 2 && rect.bottom <= box.bottom + 2;
 }
 
+let wordTipSpan: WordSpan | null = null;
+let keyboardShiftUntil = 0;
+
+window.addEventListener(KEYBOARD_LAYOUT_EVENT, () => {
+  keyboardShiftUntil = performance.now() + 500;
+});
+
+function followWordTip(): void {
+  const rect = wordTipSpan
+    ? rangeRectAt(wordTipSpan.start, wordTipSpan.end)
+    : null;
+  if (!rect || !visibleInEditor(rect)) {
+    hideWordTip();
+    return;
+  }
+  anchorAtRect(rect);
+  positionDefTip();
+}
+
 async function showWordDefinition(span: WordSpan): Promise<void> {
   const rect = rangeRectAt(span.start, span.end);
   if (!rect || !visibleInEditor(rect)) return;
+  wordTipSpan = span;
   hidePopover();
   const def = await definitionFor(span.word);
   if (!def.entries.length) {
@@ -1001,6 +1021,19 @@ function popoverAnchorRect(): DOMRect | null {
   return mark ? mark.getBoundingClientRect() : null;
 }
 
+let safeTopProbe: HTMLElement | null = null;
+
+function safeAreaTop(): number {
+  if (!safeTopProbe) {
+    safeTopProbe = document.createElement("div");
+    safeTopProbe.style.cssText =
+      "position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;" +
+      "pointer-events:none;padding-top:env(safe-area-inset-top)";
+    document.body.appendChild(safeTopProbe);
+  }
+  return parseFloat(getComputedStyle(safeTopProbe).paddingTop) || 0;
+}
+
 function placeSheet(): void {
   const rect = popoverAnchorRect();
   if (!rect) {
@@ -1009,8 +1042,9 @@ function placeSheet(): void {
   }
   const margin = 8;
   const vv = window.visualViewport;
-  const viewTop = vv ? vv.offsetTop : 0;
-  const viewH = vv ? vv.height : window.innerHeight;
+  const safeTop = safeAreaTop();
+  const viewTop = (vv ? vv.offsetTop : 0) + safeTop;
+  const viewH = (vv ? vv.height : window.innerHeight) - safeTop;
   const viewBottom = viewTop + viewH;
   const popH = popoverFullH || els.popover.offsetHeight;
   const spaceBelow = viewBottom - rect.bottom - margin * 2;
@@ -1048,10 +1082,11 @@ function placePopover() {
   const margin = 6;
 
   const vv = window.visualViewport;
-  const viewTop = vv ? vv.offsetTop : 0;
+  const safeTop = safeAreaTop();
+  const viewTop = (vv ? vv.offsetTop : 0) + safeTop;
   const viewLeft = vv ? vv.offsetLeft : 0;
   const viewW = vv ? vv.width : window.innerWidth;
-  const viewH = vv ? vv.height : window.innerHeight;
+  const viewH = (vv ? vv.height : window.innerHeight) - safeTop;
   const viewBottom = viewTop + viewH;
 
   const popH = popoverFullH || els.popover.offsetHeight;
@@ -1812,7 +1847,13 @@ els.editor.addEventListener("blur", () => {
 let marksRefreshQueued = false;
 els.editor.addEventListener("scroll", () => {
   syncScroll();
-  hideWordTip();
+  const keyboardShift = performance.now() < keyboardShiftUntil;
+  if (keyboardShift) {
+    followWordTip();
+    popoverScrollTop = els.editor.scrollTop;
+  } else {
+    hideWordTip();
+  }
   if (!marksRefreshQueued) {
     marksRefreshQueued = true;
     requestAnimationFrame(() => {
@@ -1877,6 +1918,7 @@ function tokenForMark(mark: HTMLElement): Token | null {
 }
 els.editor.addEventListener("pointerdown", (e) => {
   if (e.pointerType === "mouse") return;
+  suppressNextClick = false;
   const mark = markAtPoint(e.clientX, e.clientY);
   if (!mark) return;
   const markToken = tokenForMark(mark);
