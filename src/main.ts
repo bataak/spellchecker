@@ -2691,7 +2691,7 @@ initToolbar({
   getBadTokens: () => badTokens,
   copyText,
 });
-initKeyboardToolbar(els.editor);
+initKeyboardToolbar(els.editor, els.backdrop);
 
 initSuggest({
   buildErrorList,
