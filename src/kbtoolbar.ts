@@ -20,6 +20,31 @@ export function isKeyboardOpen(inset: number): boolean {
   return inset > KEYBOARD_THRESHOLD;
 }
 
+const TRANSPARENT = /^(transparent|rgba\([^)]*,\s*0(\.0+)?\))$/;
+
+export function firstOpaque(colors: string[]): string | null {
+  return (
+    colors.find((color) => color && !TRANSPARENT.test(color.trim())) ?? null
+  );
+}
+
+const FLOAT_STYLE: Record<string, string> = {
+  position: "fixed",
+  left: "0",
+  right: "0",
+  bottom: "0",
+  "z-index": "30",
+  margin: "0",
+  "box-sizing": "border-box",
+};
+
+function backgroundOf(bar: HTMLElement): string {
+  const chain: string[] = [];
+  for (let node: Element | null = bar; node; node = node.parentElement)
+    chain.push(getComputedStyle(node).backgroundColor);
+  return firstOpaque(chain) ?? "Canvas";
+}
+
 export function initKeyboardToolbar(editor: HTMLTextAreaElement): void {
   const viewport = window.visualViewport;
   const bar = document.querySelector<HTMLElement>(".toolbar");
@@ -34,11 +59,16 @@ export function initKeyboardToolbar(editor: HTMLTextAreaElement): void {
     if (next !== floating) {
       floating = next;
       bar.classList.toggle("kb-float", next);
-      if (next)
-        bar.style.backgroundColor = getComputedStyle(
-          document.body,
-        ).backgroundColor;
-      else bar.style.removeProperty("background-color");
+      if (next) {
+        const background = backgroundOf(bar);
+        for (const [name, value] of Object.entries(FLOAT_STYLE))
+          bar.style.setProperty(name, value);
+        bar.style.backgroundColor = background;
+      } else {
+        for (const name of Object.keys(FLOAT_STYLE))
+          bar.style.removeProperty(name);
+        bar.style.removeProperty("background-color");
+      }
     }
     if (next) bar.style.transform = `translateY(${-inset}px)`;
     else bar.style.removeProperty("transform");
