@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.86.0](https://github.com/bataak/spellchecker/compare/v1.85.0...v1.86.0) (2026-09-20)
+
+
+### Features
+
+* **toolbar:** remember horizontal scroll position across restarts ([532a4a6](https://github.com/bataak/spellchecker/commit/532a4a648109f5c847c56f2685c2281e70cf3e19))
+
+
+### Bug Fixes
+
+* **mobile:** keep keyboard open on toolbar taps and announce layout shifts ([b7bb0a4](https://github.com/bataak/spellchecker/commit/b7bb0a4c9588864c37df73ec51f962c11350ca3e))
+* **popover:** keep popovers stable across keyboard and touch interactions ([faa95e0](https://github.com/bataak/spellchecker/commit/faa95e0d4706b02879150668fdf2cbb85283ca6c))
+
 ## [1.85.0](https://github.com/bataak/spellchecker/compare/v1.84.0...v1.85.0) (2026-09-20)
 
 
