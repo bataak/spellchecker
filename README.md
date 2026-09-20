@@ -44,7 +44,7 @@ squash merge хийхэд release гарна.
 
 ## License
 
-Copyright © 2020–2026 Batmunkh Dorjgotov.
+Copyright © 2026 Batmunkh Dorjgotov.
 
 This application is licensed under the
 [GNU Affero General Public License v3.0](LICENSE). If you run a modified

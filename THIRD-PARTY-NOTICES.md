@@ -2,7 +2,7 @@
 
 The Mongolian spell checker (Монгол үгийн алдаа шалгагч) app
 (`bataak/spellchecker`) is licensed under AGPL-3.0.
-Copyright © 2020–2026 Batmunkh Dorjgotov.
+Copyright © 2026 Batmunkh Dorjgotov.
 
 This file lists the third-party components bundled with the application or
 used by the deployment, together with their licenses.
