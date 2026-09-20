@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.87.0](https://github.com/bataak/spellchecker/compare/v1.86.0...v1.87.0) (2026-09-20)
+
+
+### Features
+
+* **stardict:** look up singular headwords for -чид plural nouns ([ea37fc9](https://github.com/bataak/spellchecker/commit/ea37fc97f940b6dd6fbbbb1937120158627b6b77))
+
 ## [1.86.0](https://github.com/bataak/spellchecker/compare/v1.85.0...v1.86.0) (2026-09-20)
 
 
