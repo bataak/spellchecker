@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.85.0](https://github.com/bataak/spellchecker/compare/v1.84.0...v1.85.0) (2026-09-20)
+
+
+### Features
+
+* **mobile:** float toolbar above on-screen keyboard while editing ([dfa7f0f](https://github.com/bataak/spellchecker/commit/dfa7f0fa6d8b2254ef9f4570861a64d669c60e81))
+
+
+### Bug Fixes
+
+* **mobile:** detect keyboard in installed PWA where layout viewport shrinks ([ea143fd](https://github.com/bataak/spellchecker/commit/ea143fd9514db89025341e828d897382d192a516))
+* **mobile:** fit layout to the visual viewport while the keyboard is open ([c6af698](https://github.com/bataak/spellchecker/commit/c6af69802383d8fae1fa0c83a8d2bc821024a2e9))
+* **mobile:** keep keyboard toolbar usable in installed PWA ([401bf12](https://github.com/bataak/spellchecker/commit/401bf121522217056c74dfb4610f75a6d2eccf9e))
+
 ## [1.84.0](https://github.com/bataak/spellchecker/compare/v1.83.0...v1.84.0) (2026-09-20)
 
 
