@@ -4,6 +4,7 @@
   "version": "1.87.1",
   "type": "module",
   "description": "Монгол үгийн алдаа шалгагч — hunspell-wasm + nspell, GitHub Pages",
+  "license": "AGPL-3.0-only",
   "scripts": {
     "test": "tsc --noEmit && node --test \"tests/*.test.ts\"",
     "predev": "npm test",
