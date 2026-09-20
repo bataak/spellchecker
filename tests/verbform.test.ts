@@ -8,6 +8,7 @@ import {
   infinitiveCandidates,
   lookupCandidates,
   parseAnalyses,
+  singularCandidates,
   parseAnalysis,
   type Analysis,
 } from "../src/verbform.ts";
@@ -166,7 +167,10 @@ test("-чих fallback нь hunspell-ийн язгуурын дараа орно
 test("hunspell-ийн -чих, -ч язгуураас үндсэн үйл үгийг олно", () => {
   const valid = new Set(["харчих", "харах", "харих"]);
   const isWord = (candidate: string) => valid.has(candidate);
-  const analyses = parseAnalyses([" st:харчих fl:F0", " st:харч fl:G0 fl:70"]);
+  const analyses = parseAnalyses([
+    " st:харчих fl:F0",
+    " st:харч fl:G0 fl:70",
+  ]);
   for (const word of ["харчихад", "харчихдаа", "харчихаас"])
     assert.deepEqual(lookupCandidates(word, analyses, isWord), [
       "харчих",
@@ -291,5 +295,43 @@ test("язгуур хэлбэрээрээ бичигдсэн үйл үгийн �
   assert.deepEqual(
     bareStemInfinitives("гарсан", parseAnalyses([" st:гар fl:F0"]), isWord),
     [],
+  );
+});
+
+test("-чид олон тооноос ганц тооны хэлбэрийг үүсгэнэ", () => {
+  assert.deepEqual(singularCandidates("ажилчид"), ["ажилчин", "ажилч"]);
+  assert.deepEqual(singularCandidates("сурагчид"), ["сурагчин", "сурагч"]);
+  assert.deepEqual(singularCandidates("чид"), []);
+  assert.deepEqual(singularCandidates("ажилтан"), []);
+});
+
+test("олон тооны нэр үгээс ганц тооны тайлбарыг хайна", () => {
+  const valid = new Set(["ажилчин", "ажилч", "малчин", "сурагч", "үйлчлэгч"]);
+  const isWord = (candidate: string) => valid.has(candidate);
+  const cases: [string, string[], string[]][] = [
+    ["ажилчдын", [" st:ажилчид fl:C0"], ["ажилчин", "ажилч"]],
+    ["малчдын", [" st:малчид fl:C0"], ["малчин"]],
+    ["сурагчдын", [" st:сурагчид fl:C0"], ["сурагч"]],
+    ["үйлчлэгчдийн", [" st:үйлчлэгчид fl:C3"], ["үйлчлэгч"]],
+  ];
+  for (const [word, lines, expected] of cases)
+    assert.deepEqual(
+      lookupCandidates(word, parseAnalyses(lines), isWord).filter(
+        (candidate) => !candidate.endsWith("чид"),
+      ),
+      expected,
+    );
+});
+
+test("олон тооны нэр үгийн ганц тоо үйл үгийн язгуураас өмнө орно", () => {
+  const valid = new Set(["сурагч", "сурах"]);
+  const isWord = (candidate: string) => valid.has(candidate);
+  assert.deepEqual(
+    lookupCandidates(
+      "сурагчдын",
+      parseAnalyses([" st:сурагчид fl:C0", " st:сур fl:G0 fl:70"]),
+      isWord,
+    ),
+    ["сурагчид", "сурагч", "сурах"],
   );
 });
