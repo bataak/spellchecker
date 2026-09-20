@@ -17,6 +17,7 @@ import {
 import type { SpellChecker } from "./spellchecker.ts";
 import { initFileIO } from "./fileio.ts";
 import { initToolbar } from "./toolbar.ts";
+import { initKeyboardToolbar } from "./kbtoolbar.ts";
 import { initSuggest } from "./suggest.ts";
 import { initSurvey, surveyOnErrorCount } from "./survey.ts";
 import { isIgnored, addIgnored } from "./ignore.ts";
@@ -2690,6 +2691,7 @@ initToolbar({
   getBadTokens: () => badTokens,
   copyText,
 });
+initKeyboardToolbar(els.editor);
 
 initSuggest({
   buildErrorList,
