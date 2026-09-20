@@ -43,24 +43,17 @@ html {
   --preview-w: calc(80 * var(--editor-per) + 2 * var(--preview-pad));
   --preview-ink: #2f7d54;
   --slots-w: 0px;
-  --page-base: calc(
-    var(--editor-width) + var(--slots-w) + 2 * var(--page-pad)
-  );
+  --page-base: calc(var(--editor-width) + var(--slots-w) + 2 * var(--page-pad));
   --gutter-pull: min(
     var(--gutter-w),
-    max(
-      var(--page-pad),
-      calc((100vw - var(--page-base)) / 2 + var(--page-pad))
-    )
+    max(var(--page-pad), calc((100vw - var(--page-base)) / 2 + var(--page-pad)))
   );
   --page-max: calc(var(--page-base) - var(--gutter-pull));
 
   --sans:
-    ui-sans-serif, system-ui, "Segoe UI", "Noto Sans", Roboto, Arial,
-    sans-serif;
+    ui-sans-serif, system-ui, "Segoe UI", "Noto Sans", Roboto, Arial, sans-serif;
   --serif:
-    "Bichig Serif", "PT Serif", "Noto Serif", "Liberation Serif", Georgia,
-    serif;
+    "Bichig Serif", "PT Serif", "Noto Serif", "Liberation Serif", Georgia, serif;
 }
 
 :root {
@@ -117,7 +110,7 @@ html {
 body {
   margin: 0;
   height: 100vh;
-  height: 100dvh;
+  height: var(--app-height, 100dvh);
   overflow: hidden;
   overscroll-behavior: none;
   background: radial-gradient(
@@ -139,7 +132,7 @@ main {
     calc(14px + env(safe-area-inset-bottom))
     max(20px, env(safe-area-inset-left));
   height: 100vh;
-  height: 100dvh;
+  height: var(--app-height, 100dvh);
   display: flex;
   flex-direction: column;
 }
@@ -1046,11 +1039,7 @@ a.tbtn {
 .pop-more {
   bottom: 0;
   align-items: flex-end;
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0) 0%,
-    var(--panel) 45%
-  );
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, var(--panel) 45%);
 }
 .pop-less {
   top: 0;
@@ -1996,4 +1985,14 @@ html.booting .empty-state {
 
 .measure-btn.is-shown {
   opacity: 1;
+}
+
+:root.kb-open main {
+  padding-bottom: 6px;
+}
+:root.kb-open .topbar {
+  margin-bottom: 6px;
+}
+:root.kb-open .toolbar {
+  margin-top: 6px;
 }
