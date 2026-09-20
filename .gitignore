@@ -8,3 +8,4 @@ public/dict/dictionaries.zip
 public/dict/*.gz
 public/dict/dict-manifest.json
 
+public/dict/stardict/
