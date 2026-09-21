@@ -65,3 +65,8 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+.dict-manager .tbtn:focus-visible {
+  outline: none;
+  font-weight: inherit;
+  border-color: var(--accent);
+}
