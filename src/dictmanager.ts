@@ -39,9 +39,13 @@ function button(label: string, title: string): HTMLButtonElement {
 
 function createView(): DictManagerView {
   const dialog = document.createElement("dialog");
-  dialog.className = "dict-manager";
+  dialog.className = "suggest-overlay dict-overlay";
+  dialog.setAttribute("aria-labelledby", "dictManagerTitle");
+  const card = document.createElement("div");
+  card.className = "suggest-card dict-manager";
   const title = document.createElement("h2");
-  title.className = "dict-manager-title";
+  title.id = "dictManagerTitle";
+  title.className = "suggest-title";
   title.textContent = "Тайлбар толь";
   const list = document.createElement("ol");
   list.className = "dict-manager-list";
@@ -49,18 +53,19 @@ function createView(): DictManagerView {
   empty.className = "dict-manager-empty";
   empty.textContent = "Тайлбар толь алга";
   const actions = document.createElement("div");
-  actions.className = "dict-manager-actions";
+  actions.className = "suggest-actions ignore-actions";
   const add = button("Толь нэмэх", "StarDict толь эсвэл архив нэмэх");
   const close = button("Хаах", "Хаах");
   actions.append(add, close);
-  dialog.append(title, list, empty);
+  card.append(title, list, empty);
   if (!isCoarsePointer()) {
     const hint = document.createElement("p");
     hint.className = "dict-manager-hint";
-    hint.textContent = "Архив, файл эсвэл хавтсаа энэ цонх уруу чирч оруулж болно";
-    dialog.appendChild(hint);
+    hint.textContent = "Архив, файлууд эсвэл хавтсаар нь энд чирч оруулж болно";
+    card.appendChild(hint);
   }
-  dialog.appendChild(actions);
+  card.appendChild(actions);
+  dialog.appendChild(card);
   close.addEventListener("click", () => dialog.close());
   dialog.addEventListener("click", (event) => {
     if (event.target === dialog) dialog.close();
@@ -68,14 +73,14 @@ function createView(): DictManagerView {
   add.addEventListener("click", pickFiles);
   dialog.addEventListener("dragover", (event) => {
     event.preventDefault();
-    dialog.classList.add("dict-manager-dropping");
+    card.classList.add("dict-manager-dropping");
   });
   dialog.addEventListener("dragleave", (event) => {
-    if (event.target === dialog) dialog.classList.remove("dict-manager-dropping");
+    if (event.target === dialog) card.classList.remove("dict-manager-dropping");
   });
   dialog.addEventListener("drop", (event) => {
     event.preventDefault();
-    dialog.classList.remove("dict-manager-dropping");
+    card.classList.remove("dict-manager-dropping");
     void dropFiles(event.dataTransfer);
   });
   document.body.appendChild(dialog);
@@ -92,7 +97,7 @@ function row(dict: DictInfo, index: number): HTMLLIElement {
   meta.className = "dict-manager-meta";
   meta.textContent =
     dict.words.toLocaleString("mn-MN") +
-    " үг" +
+    " үгтэй" +
     (dict.user ? "" : " · суурилуулсан");
   label.appendChild(meta);
   const up = button("↑", "Дээш зөөх");
@@ -195,7 +200,7 @@ async function importFiles(files: File[]): Promise<void> {
   if (skipped.length) parts.push("Аль хэдийн байгаа: " + skipped.join(", "));
   if (incomplete.length)
     parts.push(
-      "Уншиж чадсангүй: *.ifo, *.idx.gz, *.dict.dz файлуудыг бүгдийг нь сонгоно уу",
+      "Уншиж чадсангүй, бүх файлыг сонгоно уу: *.ifo, *.idx.gz, *.dict.dz",
     );
   if (failed.length) parts.push("Уншиж чадсангүй: " + failed.join(", "));
   deps.status(parts.join(". ") || "StarDict файл олдсонгүй");
@@ -216,7 +221,9 @@ function pickFiles(): void {
   input.click();
 }
 
-function readEntries(reader: FileSystemDirectoryReader): Promise<FileSystemEntry[]> {
+function readEntries(
+  reader: FileSystemDirectoryReader,
+): Promise<FileSystemEntry[]> {
   return new Promise((resolve, reject) => {
     const out: FileSystemEntry[] = [];
     const next = (): void =>
