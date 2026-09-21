@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.89.0](https://github.com/bataak/spellchecker/compare/v1.88.0...v1.89.0) (2026-09-21)
+
+
+### Features
+
+* **stardict:** show the dictionary manager shortcut on the definition button ([616dec8](https://github.com/bataak/spellchecker/commit/616dec85a8626f1530cb76804a2f85ac2e0a13e7))
+* **toolbar:** describe long-press actions in button tooltips ([86db642](https://github.com/bataak/spellchecker/commit/86db64254ee19ea02f48865a799799fdd83e3083))
+
 ## [1.88.0](https://github.com/bataak/spellchecker/compare/v1.87.1...v1.88.0) (2026-09-21)
 
 
