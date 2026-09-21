@@ -20,6 +20,15 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Fetch StarDict data
+        run: |
+          git clone --depth 1 \
+            "https://x-access-token:${{ secrets.STARDICT_TOKEN }}@github.com/bataak/stardict-data.git" \
+            /tmp/stardict-data
+          rm -rf /tmp/stardict-data/.git
+          mkdir -p public/dict/stardict
+          cp -R /tmp/stardict-data/. public/dict/stardict/
+          ls -R public/dict/stardict
       - run: npm run build
         env:
           VITE_BASE: /
