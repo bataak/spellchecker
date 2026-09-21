@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.88.0](https://github.com/bataak/spellchecker/compare/v1.87.1...v1.88.0) (2026-09-21)
+
+
+### Features
+
+* **dictmenu:** open the spell-check dictionary menu with Ctrl+Shift+L ([4fdcae5](https://github.com/bataak/spellchecker/commit/4fdcae5f7175e3fe0b6f8df4e27323aa79b66abf))
+
+
+### Bug Fixes
+
+* **stardict:** shorten the missing dictionary files message ([7517792](https://github.com/bataak/spellchecker/commit/7517792c42292dac8c2a5ad86f74499377c55ff6))
+* **stardict:** style the dictionary manager like the other dialogs ([94a4882](https://github.com/bataak/spellchecker/commit/94a4882bdf327714e51a6aff30e214be47ae85fb))
+
 ## [1.87.1](https://github.com/bataak/spellchecker/compare/v1.87.0...v1.87.1) (2026-09-20)
 
 
