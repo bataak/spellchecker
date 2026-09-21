@@ -1996,3 +1996,9 @@ html.booting .empty-state {
 :root.kb-open .toolbar {
   margin-top: 6px;
 }
+
+#defineBtn {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}

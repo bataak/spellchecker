@@ -56,7 +56,7 @@ function validIfo(text: string): boolean {
   return text.replace(/^\uFEFF/, "").startsWith(IFO_MAGIC);
 }
 
-async function build(
+export async function buildStarDict(
   ifoText: string,
   idx: Uint8Array,
   syn: Uint8Array | null,
@@ -67,7 +67,7 @@ async function build(
 }
 
 function fromStored(stored: StoredDict): Promise<StarDict> {
-  return build(
+  return buildStarDict(
     stored.ifo,
     new Uint8Array(stored.idx),
     stored.syn ? new Uint8Array(stored.syn) : null,

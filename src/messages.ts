@@ -43,6 +43,10 @@ export interface RefreshRequest {
   type: "refresh";
 }
 
+export interface ReloadDictsRequest {
+  type: "reloadDicts";
+}
+
 export type WorkerRequest =
   | InitRequest
   | CheckRequest
@@ -50,7 +54,10 @@ export type WorkerRequest =
   | LookupRequest
   | DefineRequest
   | SetActiveRequest
-  | RefreshRequest;
+  | RefreshRequest
+  | ReloadDictsRequest
+  | ListDictsRequest
+  | ReorderDictsRequest;
 
 export interface ReadyResponse {
   type: "ready";
@@ -102,13 +109,15 @@ export interface DefineResponse {
   id: number;
   source: string;
   entries: DictEntry[];
+  dicts: number;
 }
 
 export type RpcResponse =
   | CheckResponse
   | SuggestResponse
   | LookupResponse
-  | DefineResponse;
+  | DefineResponse
+  | ListDictsResponse;
 
 export type WorkerResponse =
   | ReadyResponse
@@ -121,3 +130,26 @@ export type InitProgressMessage =
   | ReadyResponse
   | CompleteResponse
   | ErrorResponse;
+
+export interface DictInfo {
+  id: string;
+  name: string;
+  words: number;
+  digest: string;
+  user: boolean;
+}
+
+export interface ListDictsRequest {
+  type: "listDicts";
+  id: number;
+}
+
+export interface ReorderDictsRequest {
+  type: "reorderDicts";
+}
+
+export interface ListDictsResponse {
+  type: "listDicts";
+  id: number;
+  dicts: DictInfo[];
+}

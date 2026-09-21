@@ -10,6 +10,7 @@ import {
   type StarDict,
 } from "./stardict.ts";
 import { loadStarDicts } from "./stardictload.ts";
+import { loadDictOrder, loadUserDicts, sortByOrder, idxDigest } from "./userdicts.ts";
 import stardictList from "virtual:stardict-index";
 import {
   bareStemInfinitives,
@@ -258,13 +259,52 @@ async function refreshPrimary(): Promise<void> {
 let starDicts: StarDict[] = [];
 let starDictLoading: Promise<void> | null = null;
 
+interface LoadedDict {
+  id: string;
+  user: boolean;
+  digest: string;
+  dict: StarDict;
+}
+
+let loadedDicts: LoadedDict[] = [];
+
+function setLoadedDicts(list: LoadedDict[]): void {
+  loadedDicts = list;
+  starDicts = list.map((entry) => entry.dict);
+}
+
 const MAX_DEFINITIONS = 12;
 
 function ensureStarDicts(): Promise<void> {
   if (!starDictLoading) {
-    starDictLoading = loadStarDicts(asset("dict/stardict/"), stardictList)
-      .then((dicts) => {
-        starDicts = dicts;
+    starDictLoading = Promise.all([
+      loadStarDicts(asset("dict/stardict/"), stardictList).catch(() => []),
+      loadUserDicts().catch(() => []),
+      loadDictOrder().catch(() => []),
+    ])
+      .then(async ([bundled, user, order]) => {
+        const bundledEntries = await Promise.all(
+          bundled.map(async (dict) => ({
+            id: "bundled:" + dict.info.bookname,
+            user: false,
+            digest: await idxDigest(dict.index.bytes),
+            dict,
+          })),
+        );
+        setLoadedDicts(
+          sortByOrder(
+            [
+              ...bundledEntries,
+              ...user.map(({ name, digest, dict }) => ({
+                id: "user:" + name,
+                user: true,
+                digest,
+                dict,
+              })),
+            ],
+            order,
+          ),
+        );
       })
       .catch((err) => {
         console.warn("StarDict ачаалагдсангүй:", err);
@@ -464,6 +504,36 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
     return;
   }
 
+  if (msg.type === "reorderDicts") {
+    await ensureStarDicts();
+    const order = await loadDictOrder().catch(() => []);
+    setLoadedDicts(sortByOrder(loadedDicts, order));
+    return;
+  }
+
+  if (msg.type === "listDicts") {
+    await ensureStarDicts();
+    post({
+      type: "listDicts",
+      id: msg.id,
+      dicts: loadedDicts.map(({ id, user, digest, dict }) => ({
+        id,
+        digest,
+        name: dict.info.bookname,
+        words: dict.info.wordcount,
+        user,
+      })),
+    });
+    return;
+  }
+
+  if (msg.type === "reloadDicts") {
+    starDictLoading = null;
+    setLoadedDicts([]);
+    await ensureStarDicts();
+    return;
+  }
+
   if (msg.type === "refresh") {
     await refreshPrimary();
     return;
@@ -534,6 +604,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
       id: msg.id,
       source: starDicts.length > 1 ? "" : (starDicts[0]?.info.bookname ?? ""),
       entries,
+      dicts: starDicts.length,
     });
     return;
   }

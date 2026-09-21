@@ -67,6 +67,7 @@ import {
   setLineBlocks,
 } from "./backdrop.ts";
 import { isLookupKey, wordAt, type WordSpan } from "./lookup.ts";
+import { openDictManager } from "./dictmanager.ts";
 import { rotateEmptyTips, syncEmptyTips } from "./emptytips.ts";
 import {
   initDictMenu,
@@ -476,7 +477,8 @@ let popoverScrollTop = 0;
 let popoverFullH = 0;
 let popoverChromeH = 0;
 
-type Definition = { source: string; entries: DictEntry[] };
+type Definition = {
+  dicts: number; source: string; entries: DictEntry[] };
 
 const DEF_TEXT_LIMIT = 3000;
 const DEF_TIP_GRACE_MS = 250;
@@ -510,7 +512,7 @@ function definitionFor(word: string): Promise<Definition> {
   if (!pending) {
     pending = checker.define
       ? checker.define(word)
-      : Promise.resolve({ source: "", entries: [] });
+      : Promise.resolve({ source: "", entries: [], dicts: -1 });
     defCache.set(word, pending);
   }
   return pending;
@@ -734,27 +736,69 @@ function wordForLookup(): WordSpan | null {
   return span && span.start <= start && span.end >= end ? span : null;
 }
 
-document
-  .querySelector<HTMLButtonElement>("#defineBtn")
-  ?.addEventListener("click", () => {
-    const caretToken = tokenAtCaret();
-    if (caretToken) {
-      void showPopoverFor(caretToken);
-      return;
-    }
-    if (!checker.define) return;
-    const span = wordForLookup();
-    if (!span) {
-      holdStatus(
-        "Тайлбар харах үг дээрээ товшоод дахин дарна уу",
-        3000,
-        false,
-      );
-      return;
-    }
-    if (isTouch()) void openWordPanel(span);
-    else void showWordDefinition(span);
+const LONG_PRESS_MS = 550;
+const NO_DICT_MESSAGE =
+  "Толь нэмэхийн тулд Shift товчийг Үгийн тайлбар харах товчтой хамт дарна уу";
+const NO_DICT_TOUCH_MESSAGE =
+  "Толь нэмэхийн тулд Үгийн тайлбар харах товчийг удаан дарна уу";
+
+function manageDicts(): Promise<void> {
+  return openDictManager({
+    list: () => checker.listDicts?.() ?? Promise.resolve([]),
+    reload: () => checker.reloadDicts?.(),
+    reorder: () => checker.reorderDicts?.(),
+    changed: () => defCache.clear(),
+    status: (message) => holdStatus(message, 5000, false),
   });
+}
+
+const defineBtn = document.querySelector<HTMLButtonElement>("#defineBtn");
+let definePressTimer: ReturnType<typeof setTimeout> | undefined;
+let definePressArmed = false;
+
+defineBtn?.addEventListener("pointerdown", (event) => {
+  if (event.pointerType === "mouse") return;
+  definePressArmed = false;
+  clearTimeout(definePressTimer);
+  definePressTimer = setTimeout(() => {
+    definePressArmed = true;
+  }, LONG_PRESS_MS);
+});
+for (const type of ["pointerup", "pointercancel", "pointerleave"])
+  defineBtn?.addEventListener(type, () => clearTimeout(definePressTimer));
+defineBtn?.addEventListener("contextmenu", (event) => event.preventDefault());
+
+defineBtn?.addEventListener("click", async (event) => {
+  if (definePressArmed || event.shiftKey || event.ctrlKey || event.metaKey) {
+    definePressArmed = false;
+    void manageDicts();
+    return;
+  }
+  const caretToken = tokenAtCaret();
+  if (caretToken) {
+    void showPopoverFor(caretToken);
+    return;
+  }
+  if (!checker.define) return;
+  const span = wordForLookup();
+  if (!span) {
+    holdStatus("Тайлбар харах үг дээрээ товшоод дахин дарна уу", 3000, false);
+    return;
+  }
+  const definition = await definitionFor(
+    els.editor.value.slice(span.start, span.end),
+  );
+  if (definition.dicts === 0) {
+    holdStatus(
+      isTouch() ? NO_DICT_TOUCH_MESSAGE : NO_DICT_MESSAGE,
+      6000,
+      false,
+    );
+    return;
+  }
+  if (isTouch()) void openWordPanel(span);
+  else void showWordDefinition(span);
+});
 
 els.editor.addEventListener("keydown", (e) => {
   if (e.isComposing || !isLookupKey(e)) return;

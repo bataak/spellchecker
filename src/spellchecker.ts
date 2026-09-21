@@ -1,6 +1,7 @@
 import { isAbbrev } from "./textcheck.ts";
 import type {
   DefineResponse,
+  DictInfo,
   DictFailure,
   InitProgressMessage,
   RpcResponse,
@@ -47,6 +48,9 @@ export interface SpellChecker {
   suggest(word: string): Promise<string[]>;
   lookup?(words: string[]): Promise<Record<string, string> | null>;
   define?(word: string): Promise<Omit<DefineResponse, "type" | "id">>;
+  reloadDicts?(): void;
+  reorderDicts?(): void;
+  listDicts?(): Promise<DictInfo[]>;
   setActive(ids: string[]): void;
   refresh(): void;
 }
@@ -66,8 +70,8 @@ export async function checkWordsBatched(
   return results;
 }
 
-type RpcType = "check" | "suggest" | "lookup" | "define";
-type RpcPayload = { words: string[] } | { word: string };
+type RpcType = "check" | "suggest" | "lookup" | "define" | "listDicts";
+type RpcPayload = { words: string[] } | { word: string } | Record<string, never>;
 
 interface PendingEntry {
   resolve: (msg: RpcResponse) => void;
@@ -124,7 +128,8 @@ export class MultiSpellChecker implements SpellChecker {
     }
     if (type === "lookup") return { type: "lookup", id: 0, found: null };
     if (type === "define")
-      return { type: "define", id: 0, source: "", entries: [] };
+      return { type: "define", id: 0, source: "", entries: [], dicts: -1 };
+    if (type === "listDicts") return { type: "listDicts", id: 0, dicts: [] };
     return { type: "suggest", id: 0, suggestions: [] };
   }
 
@@ -152,7 +157,8 @@ export class MultiSpellChecker implements SpellChecker {
       msg.type === "check" ||
       msg.type === "suggest" ||
       msg.type === "lookup" ||
-      msg.type === "define"
+      msg.type === "define" ||
+      msg.type === "listDicts"
     ) {
       const pendingRequest = this._pending.get(msg.id);
       if (pendingRequest) {
@@ -232,11 +238,27 @@ export class MultiSpellChecker implements SpellChecker {
   }
 
   async define(word: string): Promise<Omit<DefineResponse, "type" | "id">> {
-    if (!this.ready || this.dead) return { source: "", entries: [] };
+    if (!this.ready || this.dead) return { source: "", entries: [], dicts: -1 };
     const msg = await this._rpc("define", { word });
     return msg.type === "define"
-      ? { source: msg.source, entries: msg.entries }
-      : { source: "", entries: [] };
+      ? { source: msg.source, entries: msg.entries, dicts: msg.dicts }
+      : { source: "", entries: [], dicts: -1 };
+  }
+
+  reloadDicts(): void {
+    if (this.dead) return;
+    this.worker.postMessage({ type: "reloadDicts" });
+  }
+
+  reorderDicts(): void {
+    if (this.dead) return;
+    this.worker.postMessage({ type: "reorderDicts" });
+  }
+
+  async listDicts(): Promise<DictInfo[]> {
+    if (!this.ready || this.dead) return [];
+    const msg = await this._rpc("listDicts", {});
+    return msg.type === "listDicts" ? msg.dicts : [];
   }
 
   setActive(ids: string[]): void {
