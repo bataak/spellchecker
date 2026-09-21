@@ -2341,10 +2341,13 @@ function restoreDraftFile(): void {
   [
     ["#clearBtn", mod + shiftSym + "⌫"],
     ["#pasteBtn", mod + "V"],
-    ["#copyBtn", mod + "C"],
+    [
+      "#copyBtn",
+      mod + "C" + "\nУдаан дарж алдаатай үгсийг хуулна · " + mod + "E",
+    ],
     ["#copyErrorsBtn", mod + "E"],
     ["#openBtn", mod + "O"],
-    ["#saveBtn", mod + "S"],
+    ["#saveBtn", mod + "S" + "\nУдаан дарж өргөтгөл сонгоно"],
     ["#fontDecBtn", mod + "-"],
     ["#fontIncBtn", mod + "+"],
     ["#fontResetBtn", mod + "0"],
