@@ -60,3 +60,8 @@
   opacity: 0.35;
   cursor: default;
 }
+.dict-manager-adders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

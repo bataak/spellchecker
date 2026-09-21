@@ -37,6 +37,51 @@ function button(label: string, title: string): HTMLButtonElement {
   return element;
 }
 
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+const ICONS: Record<string, [string, Record<string, string>][]> = {
+  up: [["polyline", { points: "18 15 12 9 6 15" }]],
+  down: [["polyline", { points: "6 9 12 15 18 9" }]],
+  rename: [
+    ["path", { d: "M12 20h9" }],
+    ["path", { d: "M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" }],
+  ],
+  remove: [
+    ["polyline", { points: "3 6 5 6 21 6" }],
+    ["path", { d: "M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" }],
+    ["path", { d: "M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" }],
+  ],
+};
+
+function iconButton(
+  icon: keyof typeof ICONS,
+  title: string,
+): HTMLButtonElement {
+  const element = button("", title);
+  element.classList.add("tbtn-icon");
+  const svg = document.createElementNS(SVG_NS, "svg");
+  for (const [name, value] of Object.entries({
+    width: "16",
+    height: "16",
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    "stroke-width": "2",
+    "stroke-linecap": "round",
+    "stroke-linejoin": "round",
+    "aria-hidden": "true",
+  }))
+    svg.setAttribute(name, value);
+  for (const [tag, attributes] of ICONS[icon]!) {
+    const shape = document.createElementNS(SVG_NS, tag);
+    for (const [name, value] of Object.entries(attributes))
+      shape.setAttribute(name, value);
+    svg.appendChild(shape);
+  }
+  element.appendChild(svg);
+  return element;
+}
+
 function createView(): DictManagerView {
   const dialog = document.createElement("dialog");
   dialog.className = "suggest-overlay dict-overlay";
@@ -54,9 +99,23 @@ function createView(): DictManagerView {
   empty.textContent = "Тайлбар толь алга";
   const actions = document.createElement("div");
   actions.className = "suggest-actions ignore-actions";
-  const add = button("Толь нэмэх", "StarDict толь эсвэл архив нэмэх");
+  const addFiles = button(
+    "Файл зааж нэмэх",
+    "StarDict файлууд эсвэл архив сонгох",
+  );
+  const adders = document.createElement("span");
+  adders.className = "dict-manager-adders";
+  adders.appendChild(addFiles);
+  if (supportsDirectoryPicker()) {
+    const addFolder = button(
+      "Хавтас зааж нэмэх",
+      "Задарсан толины хавтас сонгох",
+    );
+    addFolder.addEventListener("click", () => pickFiles(true));
+    adders.appendChild(addFolder);
+  }
   const close = button("Хаах", "Хаах");
-  actions.append(add, close);
+  actions.append(adders, close);
   card.append(title, list, empty);
   if (!isCoarsePointer()) {
     const hint = document.createElement("p");
@@ -70,7 +129,7 @@ function createView(): DictManagerView {
   dialog.addEventListener("click", (event) => {
     if (event.target === dialog) dialog.close();
   });
-  add.addEventListener("click", pickFiles);
+  addFiles.addEventListener("click", () => pickFiles(false));
   dialog.addEventListener("dragover", (event) => {
     event.preventDefault();
     card.classList.add("dict-manager-dropping");
@@ -100,17 +159,17 @@ function row(dict: DictInfo, index: number): HTMLLIElement {
     " үгтэй" +
     (dict.user ? "" : " · суурилуулсан");
   label.appendChild(meta);
-  const up = button("↑", "Дээш зөөх");
+  const up = iconButton("up", "Дээш зөөх");
   up.disabled = index === 0;
   up.addEventListener("click", () => void move(index, -1));
-  const down = button("↓", "Доош зөөх");
+  const down = iconButton("down", "Доош зөөх");
   down.disabled = index === current.length - 1;
   down.addEventListener("click", () => void move(index, 1));
   item.append(label, up, down);
   if (dict.user) {
-    const rename = button("✎", "Нэр солих");
+    const rename = iconButton("rename", "Нэр солих");
     rename.addEventListener("click", () => void renameAt(index));
-    const remove = button("✕", "Устгах");
+    const remove = iconButton("remove", "Устгах");
     remove.addEventListener("click", () => void removeAt(index));
     item.append(rename, remove);
   }
@@ -210,11 +269,16 @@ async function importFiles(files: File[]): Promise<void> {
   await refresh();
 }
 
-function pickFiles(): void {
+function supportsDirectoryPicker(): boolean {
+  return "webkitdirectory" in HTMLInputElement.prototype && !isCoarsePointer();
+}
+
+function pickFiles(directory = false): void {
   const input = document.createElement("input");
   input.type = "file";
   input.multiple = true;
-  if (!isCoarsePointer()) input.accept = DICT_ACCEPT;
+  if (directory && "webkitdirectory" in input) input.webkitdirectory = true;
+  else if (!isCoarsePointer()) input.accept = DICT_ACCEPT;
   input.addEventListener("change", () => {
     void importFiles([...(input.files ?? [])]);
   });
