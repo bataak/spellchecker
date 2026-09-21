@@ -2336,6 +2336,7 @@ function restoreDraftFile(): void {
       !/Windows|Android/i.test(navigator.userAgent || ""));
   const mod = isMac ? "⌘" : "Ctrl+";
   const shiftSym = isMac ? "⇧" : "Shift+";
+  const altSym = isMac ? "⌥" : "Alt+";
 
   [
     ["#clearBtn", mod + shiftSym + "⌫"],
@@ -2348,7 +2349,17 @@ function restoreDraftFile(): void {
     ["#fontIncBtn", mod + "+"],
     ["#fontResetBtn", mod + "0"],
     ["#themeBtn", mod + shiftSym + "D"],
-    ["#defineBtn", mod + shiftSym + "Space"],
+    [
+      "#defineBtn",
+      mod +
+        shiftSym +
+        "Space" +
+        "\nТоль нэмэх · " +
+        mod +
+        shiftSym +
+        altSym +
+        "Space",
+    ],
   ].forEach(([sel, combo]) => {
     const btn = document.querySelector(sel);
     if (!btn) return;
