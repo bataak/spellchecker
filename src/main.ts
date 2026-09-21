@@ -1044,6 +1044,7 @@ function measurePopover(): void {
   if (!list) return;
   list.style.maxHeight = "";
   list.style.overflowY = "";
+  els.popover.style.maxHeight = "";
   popoverFullH = els.popover.offsetHeight;
   popoverChromeH = popoverFullH - list.offsetHeight;
 }
