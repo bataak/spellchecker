@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.90.0](https://github.com/bataak/spellchecker/compare/v1.89.0...v1.90.0) (2026-09-21)
+
+
+### Features
+
+* **stardict:** separate file and folder buttons in the dictionary manager ([e060f25](https://github.com/bataak/spellchecker/commit/e060f253751056a13835db13407e3bd96db751eb))
+
+
+### Bug Fixes
+
+* **deftip:** keep the definition tip above the toolbar ([c490a7d](https://github.com/bataak/spellchecker/commit/c490a7da1094bf1b6fc4969e9e97774e4b9362e9))
+* **popover:** clear the popover height cap before measuring its content ([eb7074b](https://github.com/bataak/spellchecker/commit/eb7074b87e13dee23d69116a97623b6c79af388e))
+* **stardict:** use a subtle focus ring in the dictionary manager ([52d6d35](https://github.com/bataak/spellchecker/commit/52d6d35e57efd7cd450fff9a5f2103e80bf29ea7))
+
 ## [1.89.0](https://github.com/bataak/spellchecker/compare/v1.88.0...v1.89.0) (2026-09-21)
 
 
