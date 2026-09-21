@@ -565,6 +565,21 @@ function fillDefTip(tip: HTMLElement, word: string, def: Definition): void {
   }
 }
 
+function placeTipWithinEditor(
+  ...args: Parameters<typeof placeTip>
+): ReturnType<typeof placeTip> {
+  const [anchor, container, tip, view, gap] = args;
+  const editorBottom = els.editor.getBoundingClientRect().bottom;
+  const bottom = Math.min(view.top + view.height, editorBottom);
+  return placeTip(
+    anchor,
+    container,
+    tip,
+    { ...view, height: Math.max(0, bottom - view.top) },
+    gap,
+  );
+}
+
 function positionDefTip(): void {
   if (!defTip || defTip.hidden || !defTipAnchor) return;
   if (!defTipAnchor.isConnected) {
@@ -573,7 +588,7 @@ function positionDefTip(): void {
   }
   const vv = window.visualViewport;
   const anchorRect = defTipAnchor.getBoundingClientRect();
-  const place = placeTip(
+  const place = placeTipWithinEditor(
     anchorRect,
     els.popover.hidden ? anchorRect : els.popover.getBoundingClientRect(),
     { width: defTip.offsetWidth, height: defTip.offsetHeight },
