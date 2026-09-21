@@ -478,7 +478,10 @@ let popoverFullH = 0;
 let popoverChromeH = 0;
 
 type Definition = {
-  dicts: number; source: string; entries: DictEntry[] };
+  dicts: number;
+  source: string;
+  entries: DictEntry[];
+};
 
 const DEF_TEXT_LIMIT = 3000;
 const DEF_TIP_GRACE_MS = 250;
@@ -742,6 +745,15 @@ const NO_DICT_MESSAGE =
 const NO_DICT_TOUCH_MESSAGE =
   "Толь нэмэхийн тулд Үгийн тайлбар харах товчийг удаан дарна уу";
 
+function isDictManagerKey(event: KeyboardEvent): boolean {
+  return (
+    (event.ctrlKey || event.metaKey) &&
+    event.shiftKey &&
+    event.altKey &&
+    event.code === "Space"
+  );
+}
+
 function manageDicts(): Promise<void> {
   return openDictManager({
     list: () => checker.listDicts?.() ?? Promise.resolve([]),
@@ -801,6 +813,11 @@ defineBtn?.addEventListener("click", async (event) => {
 });
 
 els.editor.addEventListener("keydown", (e) => {
+  if (!e.isComposing && isDictManagerKey(e)) {
+    e.preventDefault();
+    void manageDicts();
+    return;
+  }
   if (e.isComposing || !isLookupKey(e)) return;
   const caretToken = tokenAtCaret();
   if (caretToken) {
@@ -2380,6 +2397,11 @@ function restoreDraftFile(): void {
     if (inOtherField) return;
 
     if (e.shiftKey) {
+      if (isLetter("l")) {
+        e.preventDefault();
+        openDictMenu();
+        return;
+      }
       if (isLetter("d")) {
         e.preventDefault();
         trigger("#themeBtn");
@@ -2524,8 +2546,14 @@ function dictStatusMessage(
       simple.push(name);
     }
   }
+  const dictShortcut = /Mac|iPhone|iPad|iPod/i.test(navigator.platform || "")
+    ? "⌘⇧L"
+    : "Ctrl+Shift+L";
   let msg =
-    '<span class="dict-toggle" role="button" tabindex="0" aria-haspopup="dialog" aria-label="Толь сонгох">' +
+    '<span class="dict-toggle" role="button" tabindex="0" aria-haspopup="dialog" aria-label="Толь сонгох"' +
+    ' aria-keyshortcuts="Control+Shift+L Meta+Shift+L" title="Толь сонгох · ' +
+    dictShortcut +
+    '">' +
     "Ашиглаж буй толь: <b>" +
     simple.join(", ") +
     "</b></span>";
@@ -2809,7 +2837,7 @@ initIgnoreList({
 
 initSurvey();
 
-initDictMenu({
+const openDictMenu = initDictMenu({
   statusEl: els.status,
   getEnabled: () => enabledEnglish,
   onApply: (next) => {

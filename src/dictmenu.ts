@@ -62,7 +62,7 @@ export interface DictMenuOptions {
   onClose?: () => void;
 }
 
-export function initDictMenu(opts: DictMenuOptions): void {
+export function initDictMenu(opts: DictMenuOptions): () => void {
   const { statusEl, getEnabled, onApply } = opts;
   let backdrop: HTMLElement | null = null;
   let dialog: HTMLElement | null = null;
@@ -188,4 +188,5 @@ export function initDictMenu(opts: DictMenuOptions): void {
   document.addEventListener("keydown", (e) => {
     if (e.code === "Escape" && dialog && !dialog.hidden) close();
   });
+  return open;
 }
