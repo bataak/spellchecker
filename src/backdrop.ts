@@ -78,9 +78,8 @@ export function setActiveLine(index: number): void {
 
 function applyGutterWidth(lines: number): void {
   if (!root) return;
-  const digits = String(Math.max(lines, 1)).length;
-  const host = root.parentElement ?? root;
-  host.style.setProperty("--gutter-digits", String(digits));
+  const digits = Math.max(2, String(Math.max(lines, 1)).length);
+  document.documentElement.style.setProperty("--gutter-digits", String(digits));
 }
 
 export function refreshBackdropMarks(): void {
