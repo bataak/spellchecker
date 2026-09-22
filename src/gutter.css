@@ -57,6 +57,8 @@
   line-height: calc(var(--gutter-lh) / var(--gutter-num));
   transform: translateY(var(--gutter-baseline));
   font-variant-numeric: lining-nums tabular-nums;
+  white-space: nowrap;
+  overflow-wrap: normal;
   color: var(--muted);
   opacity: 0.45;
   user-select: none;
