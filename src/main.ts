@@ -110,10 +110,19 @@ narrowMQ.addEventListener("change", () => {
   initBackdrop(els.backdrop);
   render();
 });
-els.editor.addEventListener("click", syncActiveLine);
-els.editor.addEventListener("keyup", syncActiveLine);
+let activeLineQueued = false;
+function syncActiveLineSoon(): void {
+  if (activeLineQueued) return;
+  activeLineQueued = true;
+  requestAnimationFrame(() => {
+    activeLineQueued = false;
+    syncActiveLine();
+  });
+}
+els.editor.addEventListener("click", syncActiveLineSoon);
+els.editor.addEventListener("keyup", syncActiveLineSoon);
 document.addEventListener("selectionchange", () => {
-  if (document.activeElement === els.editor) syncActiveLine();
+  if (document.activeElement === els.editor) syncActiveLineSoon();
 });
 
 const checker: SpellChecker = new MultiSpellChecker();
