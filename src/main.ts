@@ -65,6 +65,7 @@ import {
   rangeRectAt,
   setActiveLine,
   setLineBlocks,
+  backdropLineCount,
 } from "./backdrop.ts";
 import { isLookupKey, wordAt, type WordSpan } from "./lookup.ts";
 import { openDictManager } from "./dictmanager.ts";
@@ -372,28 +373,30 @@ let statWords = 0;
 let statBad = 0;
 let statChars = 0;
 
-function lineInfo(): string {
+function caretLineIndex(value: string): number {
+  const caret = Math.min(els.editor.selectionStart ?? 0, value.length);
+  let line = 0;
+  for (let i = 0; i < caret; i++) {
+    if (value.charCodeAt(i) === 10) line++;
+  }
+  return line;
+}
+
+function lineInfo(knownLine?: number): string {
   if (!narrowMQ.matches) return "";
 
   const value = els.editor.value;
   if (value === "") return "";
 
-  const caret = Math.min(els.editor.selectionStart ?? 0, value.length);
-  let line = 1;
-  let total = 1;
+  const line = (knownLine ?? caretLineIndex(value)) + 1;
+  const total = backdropLineCount() + (value.endsWith("\n") ? 1 : 0);
 
-  for (let i = 0; i < value.length; i++) {
-    if (value.charCodeAt(i) !== 10) continue;
-    total++;
-    if (i < caret) line++;
-  }
-
-  return ", Мөр: " + nf(line) + " / " + nf(total);
+  return ", Мөр: " + nf(line) + " / " + nf(Math.max(total, line));
 }
 
 let saveTitleBase: string | null = null;
 
-function statsBody(): string {
+function statsBody(knownLine?: number): string {
   if (desktopMQ.matches) {
     return "Үгийн тоо: " + nf(statWords) + ", Нийт тэмдэгт: " + nf(statChars);
   }
@@ -405,7 +408,7 @@ function statsBody(): string {
     nf(statBad) +
     "</b>, Нийт тэмдэгт: " +
     nf(statChars) +
-    lineInfo()
+    lineInfo(knownLine)
   );
 }
 
@@ -428,9 +431,9 @@ function syncSaveHint(): void {
       : saveTitleBase;
 }
 
-function statsMessage(): string {
+function statsMessage(knownLine?: number): string {
   const full = docx ? docx.fileName() : plainName;
-  if (!full) return statsBody();
+  if (!full) return statsBody(knownLine);
 
   const parts = splitName(full);
 
@@ -445,15 +448,15 @@ function statsMessage(): string {
     "</b>" +
     '<span class="doc-rest">' +
     ", " +
-    statsBody() +
+    statsBody(knownLine) +
     "</span>"
   );
 }
 
-function refreshLineInfo(): void {
+function refreshLineInfo(knownLine?: number): void {
   if (!ready || !narrowMQ.matches) return;
   if (!els.status.innerHTML.includes("Үгийн тоо:")) return;
-  setStatus(statsMessage(), false);
+  setStatus(statsMessage(knownLine), false);
 }
 
 function syncScroll() {
@@ -462,14 +465,9 @@ function syncScroll() {
 }
 
 function syncActiveLine() {
-  const value = els.editor.value;
-  const caret = Math.min(els.editor.selectionStart ?? 0, value.length);
-  let line = 0;
-  for (let i = 0; i < caret; i++) {
-    if (value.charCodeAt(i) === 10) line++;
-  }
+  const line = caretLineIndex(els.editor.value);
   setActiveLine(line);
-  refreshLineInfo();
+  refreshLineInfo(line);
 }
 
 function tokenAtCaret() {
