@@ -1599,6 +1599,19 @@ function isSeparatorInput(e: InputEvent): boolean {
 }
 const deferredCheck = debounce(() => recheck(), 1500);
 
+const LARGE_TEXT = 50_000;
+const LARGE_SETTLE_MS = 250;
+const settleLarge = debounce(() => {
+  void render();
+  saveText();
+}, LARGE_SETTLE_MS);
+
+async function recheckAfterSeparator(): Promise<void> {
+  if (els.editor.value.length <= LARGE_TEXT) return recheck();
+  await maybePropagateManual();
+  settleLarge();
+}
+
 let hadSelection = false;
 els.editor.addEventListener("beforeinput", () => {
   hadSelection = els.editor.selectionStart !== els.editor.selectionEnd;
@@ -1780,7 +1793,7 @@ els.editor.addEventListener("input", (e) => {
   hidePopover();
   syncEmptyState(els.editor.value);
   saveTextSoon();
-  if (isSeparatorInput(e)) recheck();
+  if (isSeparatorInput(e)) void recheckAfterSeparator();
   else {
     if (hadSelection || els.editor.value.length === 0 || isBulkDelete(e))
       render();
