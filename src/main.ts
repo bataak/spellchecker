@@ -68,6 +68,7 @@ import {
   backdropLineCount,
   marksAtY,
 } from "./backdrop.ts";
+import { shiftTokens, type TextEdit } from "./tokenshift.ts";
 import { isLookupKey, wordAt, type WordSpan } from "./lookup.ts";
 import { openDictManager } from "./dictmanager.ts";
 import { rotateEmptyTips, syncEmptyTips } from "./emptytips.ts";
@@ -232,6 +233,11 @@ async function ensureChecked(
     },
   );
   for (const [word, correct] of results) cache.set(word, correct);
+}
+function afterPaint(): Promise<void> {
+  return new Promise<void>((resolve) =>
+    requestAnimationFrame(() => setTimeout(resolve, 0)),
+  );
 }
 function nextFrame(): Promise<void> {
   return new Promise<void>((resolve) =>
@@ -1522,6 +1528,21 @@ function splitEveryOccurrence(
   return { text: next, caret };
 }
 
+async function commitReplacement(text: string, caret: number): Promise<void> {
+  hidePopover();
+  const top = els.editor.scrollTop;
+  const edit = setEditorText(text, caret);
+  els.editor.scrollTop = top;
+  if (edit) {
+    badTokens = shiftTokens(badTokens, edit);
+    renderBackdrop(text, badTokens);
+    syncScroll();
+    await afterPaint();
+  }
+  await render();
+  saveText();
+}
+
 async function applySuggestion(
   token: Token,
   replacement: string,
@@ -1531,12 +1552,7 @@ async function applySuggestion(
 
   const dashFix = dashNormalizeApply(editorText, token, replacement);
   if (dashFix) {
-    const top = els.editor.scrollTop;
-    setEditorText(dashFix.text, dashFix.caret);
-    els.editor.scrollTop = top;
-    hidePopover();
-    await render();
-    saveText();
+    await commitReplacement(dashFix.text, dashFix.caret);
     return;
   }
 
@@ -1549,12 +1565,7 @@ async function applySuggestion(
       token.start,
     );
     if (split) {
-      const top = els.editor.scrollTop;
-      setEditorText(split.text, split.caret);
-      els.editor.scrollTop = top;
-      hidePopover();
-      await render();
-      saveText();
+      await commitReplacement(split.text, split.caret);
       return;
     }
   }
@@ -1572,12 +1583,7 @@ async function applySuggestion(
     hidePopover();
     return;
   }
-  const top = els.editor.scrollTop;
-  setEditorText(nt, caret);
-  els.editor.scrollTop = top;
-  hidePopover();
-  await render();
-  saveText();
+  await commitReplacement(nt, caret);
 }
 
 const BULK_DELETE = new Set([
@@ -1716,13 +1722,16 @@ document.addEventListener("visibilitychange", () => {
 });
 
 let programmaticEdit = false;
-function setEditorText(newText: string, caret: number | null): void {
+function setEditorText(
+  newText: string,
+  caret: number | null,
+): TextEdit | null {
   pendingFix = null;
   previewCtl?.setSource(null);
   const old = els.editor.value;
   if (docx && old !== newText && !docx.sync(old, newText)) {
     holdStatus("Энэ өөрчлөлтийг docx файлд буулгах боломжгүй");
-    return;
+    return null;
   }
   els.editor.focus({ preventScroll: true });
   if (old === newText) {
@@ -1731,20 +1740,20 @@ function setEditorText(newText: string, caret: number | null): void {
         els.editor.setSelectionRange(caret, caret);
       } catch (_) {}
     }
-    return;
+    return null;
   }
   let commonPrefixLen = 0;
   const minLen = Math.min(old.length, newText.length);
   while (
     commonPrefixLen < minLen &&
-    old[commonPrefixLen] === newText[commonPrefixLen]
+    old.charCodeAt(commonPrefixLen) === newText.charCodeAt(commonPrefixLen)
   )
     commonPrefixLen++;
   let commonSuffixLen = 0;
   while (
     commonSuffixLen < minLen - commonPrefixLen &&
-    old[old.length - 1 - commonSuffixLen] ===
-      newText[newText.length - 1 - commonSuffixLen]
+    old.charCodeAt(old.length - 1 - commonSuffixLen) ===
+      newText.charCodeAt(newText.length - 1 - commonSuffixLen)
   )
     commonSuffixLen++;
   const oldEnd = old.length - commonSuffixLen;
@@ -1773,6 +1782,11 @@ function setEditorText(newText: string, caret: number | null): void {
     } catch (_) {}
   }
   syncDecodeBtn();
+  return {
+    start: commonPrefixLen,
+    oldEnd,
+    newEnd: newText.length - commonSuffixLen,
+  };
 }
 function insertEditorText(text: string, start: number, end: number): void {
   pendingFix = null;
