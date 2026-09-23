@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.90.1](https://github.com/bataak/spellchecker/compare/v1.90.0...v1.90.1) (2026-09-23)
+
+
+### Bug Fixes
+
+* **gutter:** scale line-number width with digit count ([c24f79b](https://github.com/bataak/spellchecker/commit/c24f79ba805b96ef7d527d2d629003c4ec39c187))
+
+
+### Performance Improvements
+
+* coalesce active-line updates per frame ([1c483f3](https://github.com/bataak/spellchecker/commit/1c483f3d37247e77ddf0dc83839ab1b8b7c542da))
+* defer backdrop marks until scroll settles ([ca37fcc](https://github.com/bataak/spellchecker/commit/ca37fccdf4135fa198d8f6505cd158d9114d09cc))
+* defer full recheck on large texts ([3924b4b](https://github.com/bataak/spellchecker/commit/3924b4b800af55652d643d16feb51418f11d7fd3))
+* hit-test only marks in the chunk under the pointer ([6ebdb98](https://github.com/bataak/spellchecker/commit/6ebdb98280aa7e3e694af8b9a8996f0e8fb6d9c6))
+* paint suggestion replacement before full recheck ([8f2511d](https://github.com/bataak/spellchecker/commit/8f2511d2077f05a7fefe20a3d3831d7bec379ced))
+* reuse caret line for narrow-screen line info ([3074737](https://github.com/bataak/spellchecker/commit/30747371761436ff671f258ce5efe5d1a0d0abf9))
+* skip redundant rebuild of mark-free chunks ([4e1dfb3](https://github.com/bataak/spellchecker/commit/4e1dfb3687605fbc1e9b370208a735f0ca375cde))
+* tokenize once per render ([cb49b71](https://github.com/bataak/spellchecker/commit/cb49b7165592cb1d0403cdbe80ea1cb504083a22))
+
 ## [1.90.0](https://github.com/bataak/spellchecker/compare/v1.89.0...v1.90.0) (2026-09-21)
 
 
