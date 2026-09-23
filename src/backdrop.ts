@@ -149,7 +149,7 @@ function updateChunkText(
   node._lines = countLines(raw);
   if (node._src === raw) return;
   node._src = raw;
-  node._markKey = null;
+  node._markKey = "";
   node.innerHTML = plainHtml(raw);
 }
 
