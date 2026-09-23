@@ -24,6 +24,7 @@ let lastMarks: Token[] = [];
 let activeLine = -1;
 let activeEl: HTMLElement | null = null;
 let useBlocks = true;
+let lineTotal = 1;
 
 export function initBackdrop(el: HTMLElement): void {
   root = el;
@@ -47,11 +48,16 @@ export function renderBackdrop(text: string, marks: Token[]): void {
     updateChunkText(node, text, bounds[i]!);
     line += node._lines;
   }
+  lineTotal = Math.max(line, 1);
   syncTrailer(text);
   activeEl = null;
   applyVisibleMarks();
   applyGutterWidth(line);
   if (activeLine >= 0) setActiveLine(activeLine);
+}
+
+export function backdropLineCount(): number {
+  return lineTotal;
 }
 
 export function setLineBlocks(on: boolean): void {
