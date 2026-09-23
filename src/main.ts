@@ -199,9 +199,17 @@ function isCorrect(word: string): boolean {
 }
 const CHECK_NOTICE_MIN = 2000;
 const CHECK_BATCH = 8000;
-async function ensureChecked(text: string): Promise<void> {
+type Tokenized =
+  ReturnType<typeof tokenize> extends Iterable<infer T> ? T : never;
+function tokenizeAll(text: string): Tokenized[] {
+  return Array.from(tokenize(text), (item) => ({ ...item }));
+}
+async function ensureChecked(
+  text: string,
+  tokens: Iterable<Tokenized> = tokenize(text),
+): Promise<void> {
   const need = new Set<string>();
-  for (const { word, joined } of tokenize(text)) {
+  for (const { word, joined } of tokens) {
     const probe = joined ?? word;
     if (checkable(word) && !cache.has(probe)) need.add(probe);
   }
@@ -248,11 +256,14 @@ function debounce<A extends unknown[]>(
   };
 }
 
-function computeBad(text: string): { bad: Token[]; total: number } {
+function computeBad(
+  text: string,
+  tokens: Iterable<Tokenized> = tokenize(text),
+): { bad: Token[]; total: number } {
   const bad: Token[] = [];
   const skip = skipRanges(text, { code: skipCode, links: skipLinks });
   let total = 0;
-  for (const { word, index, joined } of tokenize(text)) {
+  for (const { word, index, joined } of tokens) {
     total++;
     if (skip.length && inRanges(skip, index)) continue;
     if (!checkable(word) || isCorrect(joined ?? word) || isIgnored(word))
@@ -348,9 +359,10 @@ async function render() {
     return;
   }
 
-  await ensureChecked(text);
+  const tokens = tokenizeAll(text);
+  await ensureChecked(text, tokens);
   if (seq !== renderSeq) return;
-  const { bad, total } = computeBad(text);
+  const { bad, total } = computeBad(text, tokens);
   badTokens = bad;
 
   renderBackdrop(text, bad);
