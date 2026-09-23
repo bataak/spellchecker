@@ -66,6 +66,7 @@ import {
   setActiveLine,
   setLineBlocks,
   backdropLineCount,
+  marksAtY,
 } from "./backdrop.ts";
 import { isLookupKey, wordAt, type WordSpan } from "./lookup.ts";
 import { openDictManager } from "./dictmanager.ts";
@@ -2003,9 +2004,7 @@ els.editor.addEventListener("keyup", (e) => {
 let suppressNextClick = false;
 
 function markAtPoint(x: number, y: number): HTMLElement | null {
-  const marks =
-    els.backdrop.querySelectorAll<HTMLElement>("mark[data-start]");
-  for (const mark of marks) {
+  for (const mark of marksAtY(y)) {
     const rects = mark.getClientRects();
     for (const rect of rects) {
       if (

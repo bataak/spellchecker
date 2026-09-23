@@ -60,6 +60,18 @@ export function backdropLineCount(): number {
   return lineTotal;
 }
 
+export function marksAtY(y: number): HTMLElement[] {
+  const found: HTMLElement[] = [];
+  for (const node of nodes) {
+    const box = node.getBoundingClientRect();
+    if (box.bottom < y) continue;
+    if (box.top > y) break;
+    applyChunkMarks(node);
+    found.push(...node.querySelectorAll<HTMLElement>("mark[data-start]"));
+  }
+  return found;
+}
+
 export function setLineBlocks(on: boolean): void {
   useBlocks = on;
 }
