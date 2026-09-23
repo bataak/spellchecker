@@ -1956,7 +1956,11 @@ els.editor.addEventListener("blur", () => {
     end: els.editor.selectionEnd,
   };
 });
-let marksRefreshQueued = false;
+const MARKS_SETTLE_MS = 100;
+const refreshMarksSoon = debounce(
+  () => refreshBackdropMarks(),
+  MARKS_SETTLE_MS,
+);
 els.editor.addEventListener("scroll", () => {
   syncScroll();
   const keyboardShift = performance.now() < keyboardShiftUntil;
@@ -1966,13 +1970,7 @@ els.editor.addEventListener("scroll", () => {
   } else {
     hideWordTip();
   }
-  if (!marksRefreshQueued) {
-    marksRefreshQueued = true;
-    requestAnimationFrame(() => {
-      marksRefreshQueued = false;
-      refreshBackdropMarks();
-    });
-  }
+  refreshMarksSoon();
   if (
     !els.popover.hidden &&
     Math.abs(els.editor.scrollTop - popoverScrollTop) > 20
