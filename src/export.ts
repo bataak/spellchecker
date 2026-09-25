@@ -1,8 +1,8 @@
 /**
  * Экспорт (Save As).
  *
- * Гурван замаар нээгдэнэ: `Ctrl+Alt+S`, хадгалах товчийг удаан дарах,
- * `open()` дуудах. Формат бүр `FORMATS`-д нэг бичлэг — `.odt`, `.pdf`
+ * Нээгдэх замууд: `Ctrl+Alt+S`, хадгалах товчийг Shift-тэй эсвэл удаан
+ * дарах, `open()` дуудах. Формат бүр `FORMATS`-д нэг бичлэг — `.odt`, `.pdf`
  * бэлэн болоход энэ цонхны код өөрчлөгдөхгүй.
  *
  * `Ctrl+S` -т хамаарахгүй: тэр нь одоогийн баримтаа шууд хадгална.
@@ -386,10 +386,11 @@ export function initExport(options: ExportOptions): ExportControl {
     }, LONG_PRESS_MS);
   };
 
-  const onSaveClick = (event: Event): void => {
-    if (!held) return;
+  const onSaveClick = (event: MouseEvent): void => {
+    if (!held && !event.shiftKey) return;
     event.preventDefault();
     event.stopImmediatePropagation();
+    if (!held) open();
     held = false;
   };
 
