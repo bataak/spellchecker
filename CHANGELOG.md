@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.91.0](https://github.com/bataak/spellchecker/compare/v1.90.1...v1.91.0) (2026-09-25)
+
+
+### Features
+
+* **export:** add Beamer output for presentations ([a381198](https://github.com/bataak/spellchecker/commit/a38119801d943bdaa1e9abbebb54e3cda29702bc))
+* **export:** export documents as Word ([cd915e7](https://github.com/bataak/spellchecker/commit/cd915e7f8663ff84989ac78a57ea48382c291770))
+* **export:** export markdown documents as LaTeX source ([2ce6137](https://github.com/bataak/spellchecker/commit/2ce6137d2232aeccdaaa80c5f63e3152615c63d3))
+* **export:** export presentations as ODP and PPTX ([c8a9360](https://github.com/bataak/spellchecker/commit/c8a936069a4ba28066e18ac4e74bf4b68559aa6a))
+* open the export dialog with Shift+click on Save ([4fcd587](https://github.com/bataak/spellchecker/commit/4fcd5879d540429f33c1663e02bf09065780c69d))
+* reduce document templates to five slots ([d1524ff](https://github.com/bataak/spellchecker/commit/d1524ff89772733465c39cd8df4d407c448a8515))
+* **stardict:** look up -с plurals by their singular form ([189ca27](https://github.com/bataak/spellchecker/commit/189ca27ddedb62a7a809339454d8a92cce11a162))
+
+
+### Bug Fixes
+
+* **export:** set code blocks and page header to 12 pt ([da30a5b](https://github.com/bataak/spellchecker/commit/da30a5b4143de6685eab796ce6875e1e3a0b07e6))
+* **export:** use the complete ODT writer ([2cbb8c4](https://github.com/bataak/spellchecker/commit/2cbb8c4ebf72bb2b319ace3062173908d445532f))
+
 ## [1.90.1](https://github.com/bataak/spellchecker/compare/v1.90.0...v1.90.1) (2026-09-23)
 
 
