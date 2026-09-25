@@ -8,8 +8,11 @@
  * `Ctrl+S` -т хамаарахгүй: тэр нь одоогийн баримтаа шууд хадгална.
  */
 
+import { findTemplate, type Frame } from "./templates.ts";
+
 export interface ExportFormat {
   readonly id: string;
+  readonly frames: readonly Frame[];
   readonly name: string;
   readonly ext: string;
   readonly mime: string;
@@ -22,36 +25,40 @@ export interface ExportFormat {
 export const FORMATS: readonly ExportFormat[] = [
   {
     id: "odt",
+    frames: ["letter", "structured"],
     name: "OpenDocument",
     ext: "odt",
     mime: "application/vnd.oasis.opendocument.text",
     build: async (text, templateId) => {
-      const [{ parse }, { findTemplate }, { applyTemplate }, { buildOdt }] =
-        await Promise.all([
-          import("./markdown.ts"),
-          import("./templates.ts"),
-          import("./office/apply.ts"),
-          import("./office/odt/create.ts"),
-        ]);
+      const [{ parse }, { applyTemplate }, { buildOdt }] = await Promise.all([
+        import("./markdown.ts"),
+        import("./office/apply.ts"),
+        import("./office/odt/create.ts"),
+      ]);
       const template = findTemplate(templateId) ?? findTemplate("plain")!;
       return buildOdt(applyTemplate(parse(text), template));
     },
   },
   {
     id: "tex",
+    frames: ["letter", "structured", "slides"],
     name: "LaTeX",
     ext: "tex",
     mime: "application/x-tex;charset=utf-8",
-    build: async (text) => {
-      const [{ parse }, { toLatex }] = await Promise.all([
+    build: async (text, templateId) => {
+      const [{ parse }, { toBeamer, toLatex }] = await Promise.all([
         import("./markdown.ts"),
         import("./latex.ts"),
       ]);
-      return toLatex(parse(text));
+      const blocks = parse(text);
+      return findTemplate(templateId)?.frame === "slides"
+        ? toBeamer(blocks)
+        : toLatex(blocks);
     },
   },
   {
     id: "md",
+    frames: ["letter", "structured", "slides"],
     name: "Markdown",
     ext: "md",
     mime: "text/markdown;charset=utf-8",
@@ -59,6 +66,7 @@ export const FORMATS: readonly ExportFormat[] = [
   },
   {
     id: "txt",
+    frames: ["plain"],
     name: "Энгийн бичвэр",
     ext: "txt",
     mime: "text/plain;charset=utf-8",
@@ -123,7 +131,8 @@ async function deliverFile(
         await navigator.share({ files: [file] });
         return;
       } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
+        if (error instanceof DOMException && error.name === "AbortError")
+          return;
       }
     }
   }
@@ -187,6 +196,11 @@ export function initExport(options: ExportOptions): ExportControl {
     return stamp();
   }
 
+  function available(): ExportFormat[] {
+    const frame = findTemplate(options.template())?.frame ?? "plain";
+    return FORMATS.filter((format) => format.frames.includes(frame));
+  }
+
   function syncFormat(): void {
     for (const button of overlay.querySelectorAll<HTMLElement>(
       ".export-format",
@@ -202,11 +216,22 @@ export function initExport(options: ExportOptions): ExportControl {
       return;
     }
     restoreFocus = document.activeElement as HTMLElement | null;
+    const offered = available();
+    if (!offered.includes(chosen)) chosen = offered[0] ?? FORMATS[0]!;
+    for (const button of overlay.querySelectorAll<HTMLElement>(
+      ".export-format",
+    ))
+      button.hidden = !offered.some(
+        (item) => item.id === button.dataset.format,
+      );
     nameInput.value = baseFrom();
     syncFormat();
     overlay.hidden = false;
     nameInput.focus();
-    nameInput.setSelectionRange(0, nameInput.value.length - chosen.ext.length - 1);
+    nameInput.setSelectionRange(
+      0,
+      nameInput.value.length - chosen.ext.length - 1,
+    );
   }
 
   function close(): void {

@@ -56,6 +56,7 @@ import {
   loadDraftFile,
 } from "./storage.ts";
 import { initMdToolbar } from "./mdtoolbar.ts";
+import { isPlain } from "./templates.ts";
 import { initExport } from "./export.ts";
 import {
   initBackdrop,
@@ -2338,7 +2339,7 @@ const fileIO = initFileIO({
   hidePopover,
   render,
   saveText,
-  defaultExt: () => (mdBar.template() === "plain" ? "txt" : "md"),
+  defaultExt: () => (isPlain(mdBar.template()) ? "txt" : "md"),
   onFileOpened: (ref) => {
     plainName = ref ? ref.name : null;
     saveDraftFile(ref);

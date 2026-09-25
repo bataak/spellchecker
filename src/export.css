@@ -58,6 +58,10 @@
   gap: 6px;
 }
 
+.export-format[hidden] {
+  display: none;
+}
+
 .export-format.is-on {
   border-color: var(--accent);
   color: var(--accent);

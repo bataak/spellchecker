@@ -12,10 +12,12 @@ import {
 } from "./mdedit.ts";
 import type { Edit } from "./mdedit.ts";
 import {
+  LEGACY_TEMPLATES,
   PLAIN,
   TEMPLATE_GROUPS,
   TEMPLATES,
   findTemplate,
+  isPlain,
   templateExamples,
 } from "./templates.ts";
 
@@ -106,7 +108,8 @@ const TEMPLATE_KEY = "mdTemplate";
 
 function loadTemplateId(): string {
   try {
-    const raw = localStorage.getItem(TEMPLATE_KEY);
+    const stored = localStorage.getItem(TEMPLATE_KEY);
+    const raw = stored === null ? null : (LEGACY_TEMPLATES[stored] ?? stored);
     return raw !== null && findTemplate(raw) !== undefined ? raw : PLAIN;
   } catch (_) {
     return PLAIN;
@@ -137,6 +140,22 @@ function dropDraft(id: string): void {
   try {
     localStorage.removeItem(DRAFT_PREFIX + id);
   } catch (_) {}
+}
+
+export function migrateLegacyDrafts(active: string): string[] {
+  const pending: string[] = [];
+  for (const [legacy, target] of Object.entries(LEGACY_TEMPLATES)) {
+    const text = loadDraft(legacy);
+    if (text === null) continue;
+    if (target === active) {
+      pending.push(legacy);
+      continue;
+    }
+    const existing = loadDraft(target);
+    saveDraft(target, existing === null ? text : existing + "\n\n" + text);
+    dropDraft(legacy);
+  }
+  return pending;
 }
 
 function saveTemplateId(id: string): void {
@@ -186,12 +205,11 @@ function buildPicker(): string {
     );
   };
 
-  const grouped = new Set<string>([PLAIN]);
+  const grouped = new Set<string>();
   for (const group of TEMPLATE_GROUPS)
     for (const id of group.ids) grouped.add(id);
 
   const options =
-    option(PLAIN) +
     TEMPLATE_GROUPS.map(
       (group) =>
         '<optgroup label="' +
@@ -231,6 +249,13 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   const picker = bar.querySelector<HTMLElement>(".md-select")!;
 
   let templateId = loadTemplateId();
+  saveTemplateId(templateId);
+  let legacyPending = migrateLegacyDrafts(templateId);
+
+  function dropLegacyPending(): void {
+    for (const legacy of legacyPending) dropDraft(legacy);
+    legacyPending = [];
+  }
   select.value = templateId;
 
   const headingButtons: [HTMLButtonElement, number][] = [];
@@ -289,7 +314,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   }
 
   function active(): boolean {
-    return templateId !== PLAIN || isMdFile();
+    return !isPlain(templateId) || isMdFile();
   }
 
   function syncActive(): void {
@@ -341,7 +366,11 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   function chooseTemplate(id: string): void {
     if (id === templateId) return;
 
-    saveDraft(templateId, editor.value);
+    const parts = [editor.value, ...legacyPending.map(loadDraft)].filter(
+      (part): part is string => part !== null && part.trim() !== "",
+    );
+    saveDraft(templateId, parts.join("\n\n"));
+    dropLegacyPending();
     templateId = id;
     saveTemplateId(id);
 
@@ -437,10 +466,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     template: () => templateId,
     reset(): void {
       dropDraft(templateId);
-      templateId = PLAIN;
-      saveTemplateId(PLAIN);
-      dropDraft(PLAIN);
-      select.value = PLAIN;
+      dropLegacyPending();
       holdTitle();
     },
     destroy(): void {
