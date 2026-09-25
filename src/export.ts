@@ -38,6 +38,19 @@ export const FORMATS: readonly ExportFormat[] = [
     },
   },
   {
+    id: "tex",
+    name: "LaTeX",
+    ext: "tex",
+    mime: "application/x-tex;charset=utf-8",
+    build: async (text) => {
+      const [{ parse }, { toLatex }] = await Promise.all([
+        import("./markdown.ts"),
+        import("./latex.ts"),
+      ]);
+      return toLatex(parse(text));
+    },
+  },
+  {
     id: "md",
     name: "Markdown",
     ext: "md",
