@@ -1,13 +1,5 @@
-/**
- * Markdown → LaTeX.
- *
- * `markdown.ts`-ийн модноос шууд `.tex` бичвэр үүсгэнэ. Хөрвүүлэлт
- * (pdflatex) хэрэглэгчийн талд хийгдэнэ — энд зөвхөн эх код.
- */
-
 import type { Block, Inline } from "./markdown.ts";
 
-/** pdflatex-д зориулсан анхдагч толгой. */
 export const PREAMBLE = `\\documentclass[12pt,a4paper]{article}
 \\usepackage[T2A]{fontenc}
 \\usepackage[utf8]{inputenc}
@@ -33,7 +25,6 @@ export function escapeTex(s: string): string {
   return s.replace(/[\\{}$&%#_~^]/g, (c) => SPECIAL[c]!);
 }
 
-/** `\href`, `\url`-ийн аргументэд зөвхөн эдгээрийг хамгаална. */
 function escapeUrl(url: string): string {
   return url.replace(/[\\{}%#]/g, (c) => "\\" + c);
 }
@@ -57,9 +48,7 @@ function inline(nodes: readonly Inline[]): string {
     else if (n.type === "em") out += "\\emph{" + inline(n.children) + "}";
     else if (n.type === "del") out += "\\sout{" + inline(n.children) + "}";
     else if (n.auto) out += "\\url{" + escapeUrl(n.url) + "}";
-    else
-      out +=
-        "\\href{" + escapeUrl(n.url) + "}{" + inline(n.children) + "}";
+    else out += "\\href{" + escapeUrl(n.url) + "}{" + inline(n.children) + "}";
   }
   return out;
 }
@@ -75,7 +64,6 @@ function block(b: Block): string {
     case "rule":
       return "\\noindent\\rule{\\linewidth}{0.4pt}";
     case "codeblock":
-      // verbatim дотор `\end{verbatim}` байвал орчин эрт хаагдана.
       if (!b.value.includes("\\end{verbatim}"))
         return "\\begin{verbatim}\n" + b.value + "\n\\end{verbatim}";
       return b.value
@@ -131,7 +119,6 @@ function block(b: Block): string {
   }
 }
 
-/** Баримтын бие — толгойгүй, `\begin{document}`-гүй. */
 export function toLatexBody(blocks: readonly Block[]): string {
   return blocks.map(block).join("\n\n");
 }
@@ -146,4 +133,79 @@ export function toLatex(
     toLatexBody(blocks) +
     "\n\n\\end{document}\n"
   );
+}
+
+export const BEAMER_PREAMBLE = `\\documentclass{beamer}
+\\usepackage[T2A]{fontenc}
+\\usepackage[utf8]{inputenc}
+\\usepackage[mongolian]{babel}
+\\usepackage[normalem]{ulem}
+`;
+
+interface Slide {
+  title: string | null;
+  blocks: Block[];
+}
+
+function frame(slide: Slide): string {
+  const fragile = slide.blocks.some((b) => b.type === "codeblock");
+  const body = slide.blocks
+    .map((b) =>
+      b.type === "heading"
+        ? "\\textbf{" + inline(b.children) + "}\\par"
+        : block(b),
+    )
+    .join("\n\n");
+  return (
+    "\\begin{frame}" +
+    (fragile ? "[fragile]" : "") +
+    (slide.title === null ? "" : "{" + slide.title + "}") +
+    "\n" +
+    body +
+    "\n\\end{frame}"
+  );
+}
+
+export function toBeamer(
+  blocks: readonly Block[],
+  preamble: string = BEAMER_PREAMBLE,
+): string {
+  let title: string | null = null;
+  const slides: Slide[] = [];
+  let current: Slide | null = null;
+
+  for (const b of blocks) {
+    if (
+      b.type === "heading" &&
+      b.depth === 1 &&
+      title === null &&
+      !slides.length
+    ) {
+      title = inline(b.children);
+      continue;
+    }
+    if (b.type === "heading" && b.depth <= 2) {
+      current = { title: inline(b.children), blocks: [] };
+      slides.push(current);
+      continue;
+    }
+    if (b.type === "rule") {
+      current = { title: null, blocks: [] };
+      slides.push(current);
+      continue;
+    }
+    if (current === null) {
+      current = { title: null, blocks: [] };
+      slides.push(current);
+    }
+    current.blocks.push(b);
+  }
+
+  const parts = [preamble.replace(/\s*$/, "\n")];
+  if (title !== null) parts.push("\\title{" + title + "}\n");
+  parts.push("\\begin{document}\n");
+  if (title !== null) parts.push("\\begin{frame}\n\\titlepage\n\\end{frame}\n");
+  for (const slide of slides) parts.push(frame(slide) + "\n");
+  parts.push("\\end{document}\n");
+  return parts.join("\n");
 }
