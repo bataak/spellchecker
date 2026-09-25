@@ -94,11 +94,20 @@ export function bareStemInfinitives(
 }
 
 const PLURAL_CHID = /^(.+)чид$/;
+const PLURAL_S = /^(.+?)(и?)с$/;
+
+export function sPluralSingulars(stem: string): string[] {
+  const match = stem.toLowerCase().match(PLURAL_S);
+  if (!match) return [];
+  const [, base, linking] = match;
+  const out = linking ? [base! + linking, base!] : [base!];
+  return out.filter((item) => item.length > 1 && HAS_VOWEL.test(item));
+}
 
 export function singularCandidates(stem: string): string[] {
-  const base = stem.toLowerCase().match(PLURAL_CHID)?.[1];
-  if (!base || !HAS_VOWEL.test(base)) return [];
-  return [base + "чин", base + "ч"];
+  const chid = stem.toLowerCase().match(PLURAL_CHID)?.[1];
+  if (chid) return HAS_VOWEL.test(chid) ? [chid + "чин", chid + "ч"] : [];
+  return sPluralSingulars(stem);
 }
 
 export interface Analysis {

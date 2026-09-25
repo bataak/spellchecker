@@ -167,10 +167,7 @@ test("-чих fallback нь hunspell-ийн язгуурын дараа орно
 test("hunspell-ийн -чих, -ч язгуураас үндсэн үйл үгийг олно", () => {
   const valid = new Set(["харчих", "харах", "харих"]);
   const isWord = (candidate: string) => valid.has(candidate);
-  const analyses = parseAnalyses([
-    " st:харчих fl:F0",
-    " st:харч fl:G0 fl:70",
-  ]);
+  const analyses = parseAnalyses([" st:харчих fl:F0", " st:харч fl:G0 fl:70"]);
   for (const word of ["харчихад", "харчихдаа", "харчихаас"])
     assert.deepEqual(lookupCandidates(word, analyses, isWord), [
       "харчих",
@@ -303,6 +300,42 @@ test("-чид олон тооноос ганц тооны хэлбэрийг ү�
   assert.deepEqual(singularCandidates("сурагчид"), ["сурагчин", "сурагч"]);
   assert.deepEqual(singularCandidates("чид"), []);
   assert.deepEqual(singularCandidates("ажилтан"), []);
+});
+
+test("-с олон тооноос ганц тооны хэлбэрийг үүсгэнэ", () => {
+  assert.deepEqual(singularCandidates("зүйлс"), ["зүйл"]);
+  assert.deepEqual(singularCandidates("үгс"), ["үг"]);
+  assert.deepEqual(singularCandidates("цэцэгс"), ["цэцэг"]);
+  assert.deepEqual(singularCandidates("шуламс"), ["шулам"]);
+  assert.deepEqual(singularCandidates("навчис"), ["навчи", "навч"]);
+  assert.deepEqual(singularCandidates("лс"), []);
+  assert.deepEqual(singularCandidates("ис"), []);
+});
+
+test("-с олон тооны нэр үгийн тайлбарыг ганц тооноос хайна", () => {
+  const isWord = (candidate: string) => candidate === "зүйл";
+  for (const word of ["зүйлс", "зүйлсийн", "зүйлсэд"])
+    assert.deepEqual(
+      lookupCandidates(
+        word,
+        parseAnalyses([" st:зүйлс", " st:зүйлс fl:B3"]),
+        isWord,
+      ).filter((candidate) => candidate !== "зүйлс"),
+      ["зүйл"],
+    );
+  const valid = new Set(["навч", "шулам"]);
+  const known = (candidate: string) => valid.has(candidate);
+  const cases: [string, string, string][] = [
+    ["навчис", " st:навчис fl:E0", "навч"],
+    ["шуламсын", " st:шуламс fl:B0", "шулам"],
+  ];
+  for (const [word, line, expected] of cases)
+    assert.deepEqual(
+      lookupCandidates(word, parseAnalyses([line]), known).filter(
+        (candidate) => candidate !== word && !candidate.endsWith("с"),
+      ),
+      [expected],
+    );
 });
 
 test("олон тооны нэр үгээс ганц тооны тайлбарыг хайна", () => {

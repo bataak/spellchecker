@@ -40,6 +40,7 @@ export interface StemInfo {
 }
 
 import type { DictBytes } from "./dictbytes.ts";
+import { sPluralSingulars } from "./verbform.ts";
 
 export const IFO_MAGIC = "StarDict's dict ifo file";
 export const POS_TAGGED_FIELD = "x-pos-tags";
@@ -58,8 +59,7 @@ export function parseIfo(text: string): StarDictInfo | null {
   const fields = new Map<string, string>();
   for (const line of lines.slice(1)) {
     const eq = line.indexOf("=");
-    if (eq > 0)
-      fields.set(line.slice(0, eq).trim(), line.slice(eq + 1).trim());
+    if (eq > 0) fields.set(line.slice(0, eq).trim(), line.slice(eq + 1).trim());
   }
   const wordcount = Number(fields.get("wordcount"));
   if (!Number.isInteger(wordcount) || wordcount < 0) return null;
@@ -253,10 +253,7 @@ export function parseDefinition(
 
   if (sametypesequence) {
     for (let k = 0; k < sametypesequence.length && pos < data.length; k++)
-      readField(
-        sametypesequence.charAt(k),
-        k === sametypesequence.length - 1,
-      );
+      readField(sametypesequence.charAt(k), k === sametypesequence.length - 1);
     return parts;
   }
   while (pos < data.length) {
@@ -326,11 +323,7 @@ export function lookupKeys(word: string, mode: LookupMode = "any"): string[] {
   const normalized = word.normalize("NFC").trim();
   if (!normalized) return [];
   if (mode === "proper") return [normalized];
-  const keys = [
-    normalized,
-    normalized.toLowerCase(),
-    normalized.toUpperCase(),
-  ];
+  const keys = [normalized, normalized.toLowerCase(), normalized.toUpperCase()];
   return keys.filter((key, position) => keys.indexOf(key) === position);
 }
 
@@ -413,8 +406,15 @@ export async function resolveDefinitions(
       collect(entries, seen, await defineWord(dict, extra, mode));
     return entries;
   }
-  for (const stem of stemKeys(stems(), mode))
-    collect(entries, seen, await defineWord(dict, stem, mode));
+  const plurals: string[] = [];
+  for (const stem of stemKeys(stems(), mode)) {
+    const lower = stem.toLowerCase();
+    if (plurals.some((plural) => sPluralSingulars(plural).includes(lower)))
+      continue;
+    const found = await defineWord(dict, stem, mode);
+    if (found.length) plurals.push(lower);
+    collect(entries, seen, found);
+  }
   return entries;
 }
 

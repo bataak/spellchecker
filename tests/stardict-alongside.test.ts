@@ -36,6 +36,11 @@ const dict = buildDict([
   ["АГУУЛ", "агуулын тайлбар"],
   ["АГУУЛАХ", "агуулахын тайлбар"],
   ["ЧУУЛАХ", "чуулахын тайлбар"],
+  ["ЗҮЙЛ", "зүйлийн тайлбар"],
+  ["ЗҮЙЛС", "зүйлсийн тайлбар"],
+  ["НАВЧ", "навчийн тайлбар"],
+  ["АЖИЛЧИД", "ажилчдын тайлбар"],
+  ["АЖИЛЧИН", "ажилчны тайлбар"],
 ]);
 
 test("яг таарсан бичлэгийн араас үйлт нэрийн бичлэгийг нэмнэ", async () => {
@@ -71,5 +76,38 @@ test("нэмэлт үйлт нэр өгөөгүй бол өмнөх үйлдэл
   assert.deepEqual(
     entries.map((entry) => entry.headword),
     ["АГУУЛ"],
+  );
+});
+
+test("олон тоо нь тольд байвал ганц тоогоор хайхгүй", async () => {
+  const entries = await resolveDefinitions(dict, "зүйлсийн", () => [
+    "зүйлс",
+    "зүйл",
+  ]);
+  assert.deepEqual(
+    entries.map((entry) => entry.headword),
+    ["ЗҮЙЛС"],
+  );
+});
+
+test("олон тоо нь тольд байхгүй бол ганц тоогоор хайна", async () => {
+  const entries = await resolveDefinitions(dict, "навчисын", () => [
+    "навчис",
+    "навч",
+  ]);
+  assert.deepEqual(
+    entries.map((entry) => entry.headword),
+    ["НАВЧ"],
+  );
+});
+
+test("-чид олон тоо тольд байсан ч ганц тоог нь хайна", async () => {
+  const entries = await resolveDefinitions(dict, "ажилчдын", () => [
+    "ажилчид",
+    "ажилчин",
+  ]);
+  assert.deepEqual(
+    entries.map((entry) => entry.headword),
+    ["АЖИЛЧИД", "АЖИЛЧИН"],
   );
 });
