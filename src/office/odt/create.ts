@@ -90,8 +90,7 @@ function runStyle(key: string, base: string): string {
   const parts: string[] = [];
   if (key.includes("b")) parts.push('fo:font-weight="bold"');
   if (key.includes("i")) parts.push('fo:font-style="italic"');
-  if (key.includes("s"))
-    parts.push('style:text-line-through-style="solid"');
+  if (key.includes("s")) parts.push('style:text-line-through-style="solid"');
   if (key.includes("m"))
     parts.push(
       'style:font-name="Liberation Mono"',
@@ -176,7 +175,9 @@ function blockXml(block: IrBlock, index: number, doc: DocIr): string {
             "</text:p></text:list-item>",
         )
         .join("");
-      return '<text:list text:style-name="' + name + '">' + items + "</text:list>";
+      return (
+        '<text:list text:style-name="' + name + '">' + items + "</text:list>"
+      );
     }
 
     case "table": {
@@ -222,18 +223,18 @@ function blockXml(block: IrBlock, index: number, doc: DocIr): string {
 function contentXml(doc: DocIr): string {
   const keys = new Set<string>();
   for (const block of doc.blocks) {
-    if (block.kind === "para") for (const run of block.runs) keys.add(runKey(run));
+    if (block.kind === "para")
+      for (const run of block.runs) keys.add(runKey(run));
     else if (block.kind === "list")
-      for (const item of block.items) for (const run of item) keys.add(runKey(run));
+      for (const item of block.items)
+        for (const run of item) keys.add(runKey(run));
     else if (block.kind === "table")
       for (const row of block.rows)
         for (const cell of row) for (const run of cell) keys.add(runKey(run));
   }
   keys.delete("");
 
-  const spans = [...keys]
-    .map((key) => runStyle(key, doc.font.family))
-    .join("");
+  const spans = [...keys].map((key) => runStyle(key, doc.font.family)).join("");
 
   const first = doc.blocks[0];
   const opener =
@@ -295,7 +296,9 @@ function stylesXml(doc: DocIr): string {
     '<style:paragraph-properties fo:break-before="page"/></style:style>' +
     '<style:style style:name="Header" style:family="paragraph" style:parent-style-name="Standard">' +
     '<style:paragraph-properties fo:text-align="end"/>' +
-    '<style:text-properties fo:font-size="10pt" fo:font-family="' +
+    '<style:text-properties fo:font-size="' +
+    pt(doc.font.sizePt) +
+    '" fo:font-family="' +
     escAttr(base) +
     '"/></style:style>';
 
@@ -355,7 +358,7 @@ function stylesXml(doc: DocIr): string {
     "</style:page-layout-properties></style:page-layout>";
 
   const headerXml = doc.header
-    ? "<style:header><text:p text:style-name=\"Header\">" +
+    ? '<style:header><text:p text:style-name="Header">' +
       (doc.header.left === undefined
         ? '<text:chapter text:display="name" text:outline-level="1"/>'
         : esc(doc.header.left)) +
@@ -444,12 +447,7 @@ export function buildOdt(doc: DocIr): Uint8Array<ArrayBuffer> {
 
   const pkg: OdfPackage = {
     entries,
-    order: [
-      "META-INF/manifest.xml",
-      "content.xml",
-      "styles.xml",
-      "meta.xml",
-    ],
+    order: ["META-INF/manifest.xml", "content.xml", "styles.xml", "meta.xml"],
     mimetype: ODF_TEXT,
   };
 

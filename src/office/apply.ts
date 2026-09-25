@@ -19,7 +19,18 @@ const MONTH_WORD = [
   "дугаар",
 ];
 
-const DAY_SUFFIX = ["ны", "ний", "ны", "ны", "ний", "ны", "ны", "ны", "ны", "ний"];
+const DAY_SUFFIX = [
+  "ны",
+  "ний",
+  "ны",
+  "ны",
+  "ний",
+  "ны",
+  "ны",
+  "ны",
+  "ны",
+  "ний",
+];
 
 const pad = (n: number): string => String(n).padStart(2, "0");
 
@@ -97,7 +108,7 @@ const BASE: Readonly<Record<string, ParaStyle>> = {
     italic: true,
     lineHeightPercent: 130,
   },
-  [STYLE.code]: { mono: true, sizePt: 10, lineHeightPercent: 110 },
+  [STYLE.code]: { mono: true, lineHeightPercent: 110 },
   [STYLE.listItem]: { lineHeightPercent: 150 },
   [STYLE.tableHead]: { bold: true, align: "center" },
   [STYLE.tableCell]: {},
@@ -137,7 +148,10 @@ const SENTENCE_END = /[.!?\u2026]\s*$/;
 const DATE_LIKE = /\d{4}\s*оны\s+\d{1,2}/;
 
 function signatureLine(runs: readonly IrRun[]): IrRun[] | null {
-  const text = runs.map((r) => r.text).join("").trim();
+  const text = runs
+    .map((r) => r.text)
+    .join("")
+    .trim();
   const at = text.indexOf(":");
   if (at < 0) return null;
 
@@ -266,7 +280,10 @@ export function applyTemplate(
       const block = out[cut - 1]!;
       if (block.kind !== "para") break;
       if (block.style !== STYLE.body && block.style !== STYLE.bodyFirst) break;
-      const text = block.runs.map((r) => r.text).join("").trim();
+      const text = block.runs
+        .map((r) => r.text)
+        .join("")
+        .trim();
       if (!isSignatureLine(text)) break;
       if (DATE_LIKE.test(text)) hasDate = true;
       cut -= 1;
