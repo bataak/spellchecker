@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { parse } from "../src/markdown.ts";
-import { escapeTex, toLatex, toLatexBody } from "../src/latex.ts";
+import { escapeTex, toBeamer, toLatex, toLatexBody } from "../src/latex.ts";
 
 const body = (md: string): string => toLatexBody(parse(md));
 
@@ -65,10 +65,7 @@ test("хүснэгт", () => {
 });
 
 test("ишлэл ба кодын блок", () => {
-  assert.equal(
-    body("> ишлэл"),
-    "\\begin{quote}\nишлэл\n\\end{quote}",
-  );
+  assert.equal(body("> ишлэл"), "\\begin{quote}\nишлэл\n\\end{quote}");
   assert.equal(
     body("```\na_b % c\n```"),
     "\\begin{verbatim}\na_b % c\n\\end{verbatim}",
@@ -81,4 +78,29 @@ test("toLatex: толгой ба баримтын орчин", () => {
     tex,
     "\\documentclass{article}\n\n\\begin{document}\n\nСайн уу\n\n\\end{document}\n",
   );
+});
+
+test("toBeamer: эхний # гарчгийн слайд, ## бүр шинэ слайд", () => {
+  const tex = toBeamer(
+    parse("# Нэр\n\n## Нэг\n\n- а\n\n## Хоёр\n\nбичвэр"),
+    "\\documentclass{beamer}",
+  );
+  assert.equal(
+    tex,
+    [
+      "\\documentclass{beamer}\n",
+      "\\title{Нэр}\n",
+      "\\begin{document}\n",
+      "\\begin{frame}\n\\titlepage\n\\end{frame}\n",
+      "\\begin{frame}{Нэг}\n\\begin{itemize}\n  \\item а\n\\end{itemize}\n\\end{frame}\n",
+      "\\begin{frame}{Хоёр}\nбичвэр\n\\end{frame}\n",
+      "\\end{document}\n",
+    ].join("\n"),
+  );
+});
+
+test("toBeamer: --- гарчиггүй слайд, код fragile", () => {
+  const tex = toBeamer(parse("---\n\n```\nx\n```"), "");
+  assert.ok(tex.includes("\\begin{frame}[fragile]\n\\begin{verbatim}"));
+  assert.ok(!tex.includes("\\titlepage"));
 });
