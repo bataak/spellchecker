@@ -1,4 +1,5 @@
 import type { Block, Inline } from "./markdown.ts";
+import { splitSlides, type Slide } from "./slides.ts";
 
 export const PREAMBLE = `\\documentclass[12pt,a4paper]{article}
 \\usepackage[T2A]{fontenc}
@@ -142,11 +143,6 @@ export const BEAMER_PREAMBLE = `\\documentclass{beamer}
 \\usepackage[normalem]{ulem}
 `;
 
-interface Slide {
-  title: string | null;
-  blocks: Block[];
-}
-
 function frame(slide: Slide): string {
   const fragile = slide.blocks.some((b) => b.type === "codeblock");
   const body = slide.blocks
@@ -159,7 +155,7 @@ function frame(slide: Slide): string {
   return (
     "\\begin{frame}" +
     (fragile ? "[fragile]" : "") +
-    (slide.title === null ? "" : "{" + slide.title + "}") +
+    (slide.title === null ? "" : "{" + inline(slide.title) + "}") +
     "\n" +
     body +
     "\n\\end{frame}"
@@ -170,42 +166,19 @@ export function toBeamer(
   blocks: readonly Block[],
   preamble: string = BEAMER_PREAMBLE,
 ): string {
-  let title: string | null = null;
-  const slides: Slide[] = [];
-  let current: Slide | null = null;
-
-  for (const b of blocks) {
-    if (
-      b.type === "heading" &&
-      b.depth === 1 &&
-      title === null &&
-      !slides.length
-    ) {
-      title = inline(b.children);
-      continue;
-    }
-    if (b.type === "heading" && b.depth <= 2) {
-      current = { title: inline(b.children), blocks: [] };
-      slides.push(current);
-      continue;
-    }
-    if (b.type === "rule") {
-      current = { title: null, blocks: [] };
-      slides.push(current);
-      continue;
-    }
-    if (current === null) {
-      current = { title: null, blocks: [] };
-      slides.push(current);
-    }
-    current.blocks.push(b);
-  }
-
+  const deck = splitSlides(blocks);
   const parts = [preamble.replace(/\s*$/, "\n")];
-  if (title !== null) parts.push("\\title{" + title + "}\n");
+  if (deck.title !== null) {
+    let head = "\\title{" + inline(deck.title) + "}\n";
+    if (deck.subtitle.length)
+      head +=
+        "\\subtitle{" + deck.subtitle.map(inline).join(" \\\\ ") + "}\n";
+    parts.push(head);
+  }
   parts.push("\\begin{document}\n");
-  if (title !== null) parts.push("\\begin{frame}\n\\titlepage\n\\end{frame}\n");
-  for (const slide of slides) parts.push(frame(slide) + "\n");
+  if (deck.title !== null)
+    parts.push("\\begin{frame}\n\\titlepage\n\\end{frame}\n");
+  for (const slide of deck.slides) parts.push(frame(slide) + "\n");
   parts.push("\\end{document}\n");
   return parts.join("\n");
 }
