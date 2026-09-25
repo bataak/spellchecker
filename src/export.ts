@@ -40,6 +40,40 @@ export const FORMATS: readonly ExportFormat[] = [
     },
   },
   {
+    id: "odp",
+    frames: ["slides"],
+    name: "OpenDocument",
+    ext: "odp",
+    mime: "application/vnd.oasis.opendocument.presentation",
+    build: async (text) => {
+      const [{ parse }, { splitSlides }, { deckDoc }, { buildOdp }] =
+        await Promise.all([
+          import("./markdown.ts"),
+          import("./slides.ts"),
+          import("./office/deck.ts"),
+          import("./office/odp/create.ts"),
+        ]);
+      return buildOdp(deckDoc(splitSlides(parse(text))));
+    },
+  },
+  {
+    id: "pptx",
+    frames: ["slides"],
+    name: "PowerPoint",
+    ext: "pptx",
+    mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    build: async (text) => {
+      const [{ parse }, { splitSlides }, { deckDoc }, { buildPptx }] =
+        await Promise.all([
+          import("./markdown.ts"),
+          import("./slides.ts"),
+          import("./office/deck.ts"),
+          import("./office/pptx/create.ts"),
+        ]);
+      return buildPptx(deckDoc(splitSlides(parse(text))));
+    },
+  },
+  {
     id: "tex",
     frames: ["letter", "structured", "slides"],
     name: "LaTeX",
