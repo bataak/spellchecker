@@ -56,8 +56,28 @@ function paraProps(style: ParaStyle): string {
     parts.push('fo:margin-bottom="' + pt(style.spaceAfterPt) + '"');
   if (style.breakBefore) parts.push('fo:break-before="page"');
   if (style.keepWithNext) parts.push('fo:keep-with-next="always"');
+  if (style.borderBottom)
+    parts.push(
+      'fo:border-bottom="0.5pt solid #000000"',
+      'fo:padding-bottom="2pt"',
+    );
   parts.push('fo:orphans="2"', 'fo:widows="2"');
-  return "<style:paragraph-properties " + parts.join(" ") + "/>";
+
+  if (style.leaderTabCm === undefined)
+    return "<style:paragraph-properties " + parts.join(" ") + "/>";
+
+  return (
+    "<style:paragraph-properties " +
+    parts.join(" ") +
+    "><style:tab-stops><style:tab-stop " +
+    'style:position="' +
+    cm(style.leaderTabCm) +
+    '" style:type="' +
+    (style.rightTab ? "right" : "left") +
+    '" style:leader-style="solid" ' +
+    'style:leader-type="single" style:leader-width="0.5pt"/>' +
+    "</style:tab-stops></style:paragraph-properties>"
+  );
 }
 
 function textProps(style: ParaStyle, base: string): string {
@@ -109,6 +129,10 @@ function runStyle(key: string, base: string): string {
 function runsXml(runs: readonly IrRun[]): string {
   let out = "";
   for (const run of runs) {
+    if (run.tab) {
+      out += "<text:tab/>";
+      continue;
+    }
     if (!run.text) continue;
     const key = runKey(run);
     const body =
@@ -134,7 +158,13 @@ function styleName(name: string): string {
   return name.replace(/[^A-Za-z0-9_]/g, "_");
 }
 
-function paraXml(style: string, runs: readonly IrRun[], level: number): string {
+function paraXml(
+  style: string,
+  runs: readonly IrRun[],
+  level: number,
+  leader = false,
+): string {
+  const inner = leader && runs.length === 0 ? "<text:tab/>" : runsXml(runs);
   if (level > 0)
     return (
       '<text:h text:style-name="' +
@@ -142,15 +172,11 @@ function paraXml(style: string, runs: readonly IrRun[], level: number): string {
       '" text:outline-level="' +
       String(level) +
       '">' +
-      runsXml(runs) +
+      inner +
       "</text:h>"
     );
   return (
-    '<text:p text:style-name="' +
-    styleName(style) +
-    '">' +
-    runsXml(runs) +
-    "</text:p>"
+    '<text:p text:style-name="' + styleName(style) + '">' + inner + "</text:p>"
   );
 }
 
@@ -161,6 +187,7 @@ function blockXml(block: IrBlock, index: number, doc: DocIr): string {
         block.style,
         block.runs,
         doc.styles[block.style]?.outlineLevel ?? 0,
+        doc.styles[block.style]?.leaderTabCm !== undefined,
       );
 
     case "list": {
@@ -376,12 +403,15 @@ function stylesXml(doc: DocIr): string {
     ' office:version="1.3">' +
     "<office:styles>" +
     '<style:style style:name="Standard" style:family="paragraph">' +
-    '<style:paragraph-properties fo:margin-top="0cm" fo:margin-bottom="0cm"/>' +
+    '<style:paragraph-properties fo:margin-top="0cm" fo:margin-bottom="0cm" ' +
+    'fo:hyphenation-ladder-count="2" fo:orphans="2" fo:widows="2"/>' +
     '<style:text-properties fo:font-size="' +
     pt(doc.font.sizePt) +
     '" fo:font-family="' +
     escAttr(base) +
-    '" fo:language="mn" fo:country="MN"/></style:style>' +
+    '" fo:language="mn" fo:country="MN" fo:hyphenate="true" ' +
+    'fo:hyphenation-remain-char-count="3" ' +
+    'fo:hyphenation-push-char-count="3"/></style:style>' +
     paragraphs +
     extra +
     lists +
