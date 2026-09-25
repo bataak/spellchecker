@@ -39,7 +39,7 @@ test("шулуун хашилтыг монгол хашилт болгоно", (
 test("захидлын хүрээ эхний гарчгийг нэр болгоно", () => {
   const out = styles(
     "# Танаа өргөдөл гаргах нь:\n\nУрт догол " + "үг ".repeat(40),
-    "application",
+    "letter",
   );
   assert.equal(out[0], "Title");
   assert.equal(out[1], "BodyFirst");
@@ -50,14 +50,14 @@ test("төгсгөлийн богино мөрүүд гарын үсгийн б�
     "# Нэр\n\n" +
     "Урт догол ".repeat(12) +
     "\n\nӨргөдөл гаргасан: Б.Боролдой\n\nУтас: 99112233\n";
-  const out = styles(md, "application");
+  const out = styles(md, "letter");
   assert.deepEqual(out.slice(-3), ["Date", "SignLine", "Signature"]);
 });
 
 test("огноо гарын үсгийн өмнө орно", () => {
   const md =
     "# Нэр\n\n" + "Урт догол ".repeat(12) + "\n\nГаргасан: Б.Боролдой\n";
-  const out = styles(md, "application");
+  const out = styles(md, "letter");
   assert.equal(out.indexOf("Date") + 1, out.indexOf("SignLine"));
 });
 
@@ -75,7 +75,7 @@ test("бүтцийн хүрээ толгойн мөртэй", () => {
   );
   assert.equal(ir.header?.pageNumberRight, true);
   assert.equal(
-    applyTemplate(parse("# Нэр\n"), findTemplate("application")!, { now: AT })
+    applyTemplate(parse("# Нэр\n"), findTemplate("letter")!, { now: AT })
       .header,
     undefined,
   );
@@ -93,7 +93,7 @@ test("жагсаалт, хүснэгт, ишлэл хадгалагдана", ()
 
 test("цэгээр төгссөн богино өгүүлбэр гарын үсэг болохгүй", () => {
   const md = "# Нэр\n\n" + "Урт догол ".repeat(12) + "\n\nБаярлалаа.\n";
-  const out = styles(md, "application");
+  const out = styles(md, "letter");
   assert.equal(out.at(-1), "Date");
   assert.equal(out.includes("SignLine"), false);
 });
@@ -103,7 +103,7 @@ test("өөр үг хэллэгтэй гарын үсгийг таньна", () =
     "# Нэр\n\n" +
     "Урт догол ".repeat(12) +
     "\n\nХүсэлт гаргасан: Д.Дорж\n\nИ-мэйл: d@bichig.dev\n";
-  const out = styles(md, "application");
+  const out = styles(md, "letter");
   assert.deepEqual(out.slice(-2), ["SignLine", "Signature"]);
 });
 
@@ -112,13 +112,13 @@ test("огноо аль хэдийн байвал давхардуулахгүй
     "# Нэр\n\n" +
     "Урт догол ".repeat(12) +
     "\n\n2026 оны 08 сарын 21\n\nБ.Боролдой\n";
-  const out = styles(md, "application");
+  const out = styles(md, "letter");
   assert.equal(out.filter((s) => s === "Date").length, 0);
 });
 
 test("гарын үсэг байхгүй бол зураас нэмэхгүй", () => {
   const md = "# Нэр\n\n" + "Урт догол ".repeat(12) + "\n";
-  const out = styles(md, "application");
+  const out = styles(md, "letter");
   assert.equal(out.includes("SignRule"), false);
   assert.equal(out.at(-1), "Date");
 });
@@ -128,7 +128,7 @@ test("гарын үсгийн мөрийг зураас, налуу зураас
     "# Нэр\n\n" +
     "Урт догол ".repeat(12) +
     "\n\nӨргөдөл гаргасан: Б. Боролдой\n";
-  const ir = applyTemplate(parse(md), findTemplate("application")!, {
+  const ir = applyTemplate(parse(md), findTemplate("letter")!, {
     now: AT,
   });
   const line = ir.blocks.find(
@@ -144,13 +144,13 @@ test("гарын үсгийн мөрийг зураас, налуу зураас
 
 test("хоёр цэггүй мөр хуучин хэлбэрээр үлдэнэ", () => {
   const md = "# Нэр\n\n" + "Урт догол ".repeat(12) + "\n\nБ. Боролдой\n";
-  const out = styles(md, "application");
+  const out = styles(md, "letter");
   assert.deepEqual(out.slice(-2), ["SignRule", "SignatureTop"]);
 });
 
 test("нэр аль хэдийн налуу зураастай бол давхардуулахгүй", () => {
   const md = "# Нэр\n\n" + "Урт догол ".repeat(12) + "\n\nГаргасан: /Д.Дорж/\n";
-  const ir = applyTemplate(parse(md), findTemplate("application")!, {
+  const ir = applyTemplate(parse(md), findTemplate("letter")!, {
     now: AT,
   });
   const line = ir.blocks.find(
