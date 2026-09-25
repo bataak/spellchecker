@@ -2407,7 +2407,14 @@ function restoreDraftFile(): void {
     ],
     ["#copyErrorsBtn", mod + "E"],
     ["#openBtn", mod + "O"],
-    ["#saveBtn", mod + "S" + "\nУдаан дарж өргөтгөл сонгоно"],
+    [
+      "#saveBtn",
+      mod +
+        "S" +
+        "\n" +
+        (isMac ? "⇧" : "Shift") +
+        "-тэй эсвэл удаан дарж өргөтгөл сонгоно",
+    ],
     ["#fontDecBtn", mod + "-"],
     ["#fontIncBtn", mod + "+"],
     ["#fontResetBtn", mod + "0"],
