@@ -13,13 +13,19 @@ import { findTemplate, type Frame } from "./templates.ts";
 export interface ExportFormat {
   readonly id: string;
   readonly frames: readonly Frame[];
+  readonly preferred?: boolean;
   readonly name: string;
   readonly ext: string;
   readonly mime: string;
   readonly build: (
     text: string,
     templateId: string,
+    options: BuildOptions,
   ) => BlobPart | Promise<BlobPart>;
+}
+
+export interface BuildOptions {
+  readonly toc: boolean;
 }
 
 export const FORMATS: readonly ExportFormat[] = [
@@ -37,6 +43,25 @@ export const FORMATS: readonly ExportFormat[] = [
       ]);
       const template = findTemplate(templateId) ?? findTemplate("plain")!;
       return buildOdt(applyTemplate(parse(text), template));
+    },
+  },
+  {
+    id: "docx",
+    frames: ["letter", "structured"],
+    preferred: true,
+    name: "Word",
+    ext: "docx",
+    mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    build: async (text, templateId, options) => {
+      const [{ parse }, { applyTemplate }, { buildDocx }] = await Promise.all([
+        import("./markdown.ts"),
+        import("./office/apply.ts"),
+        import("./office/docx/create.ts"),
+      ]);
+      const template = findTemplate(templateId) ?? findTemplate("plain")!;
+      return buildDocx(applyTemplate(parse(text), template), {
+        toc: options.toc && template.frame === "structured",
+      });
     },
   },
   {
@@ -59,6 +84,7 @@ export const FORMATS: readonly ExportFormat[] = [
   {
     id: "pptx",
     frames: ["slides"],
+    preferred: true,
     name: "PowerPoint",
     ext: "pptx",
     mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -211,6 +237,9 @@ export function initExport(options: ExportOptions): ExportControl {
         "</span></button>",
     ).join("") +
     "</div>" +
+    '<label class="export-toc" hidden>' +
+    '<input class="export-toc-input" type="checkbox" checked /> Гарчгийн жагсаалт' +
+    "</label>" +
     '<div class="export-actions">' +
     '<button type="button" class="tbtn export-cancel">Болих</button>' +
     '<button type="button" class="tbtn export-confirm">Хадгалах</button>' +
@@ -220,8 +249,12 @@ export function initExport(options: ExportOptions): ExportControl {
   document.body.appendChild(overlay);
 
   const nameInput = overlay.querySelector<HTMLInputElement>(".export-name")!;
+  const tocField = overlay.querySelector<HTMLElement>(".export-toc")!;
+  const tocInput =
+    overlay.querySelector<HTMLInputElement>(".export-toc-input")!;
 
   let chosen = FORMATS[0]!;
+  let userPicked = false;
   let restoreFocus: HTMLElement | null = null;
 
   function baseFrom(): string {
@@ -241,6 +274,10 @@ export function initExport(options: ExportOptions): ExportControl {
     ))
       button.classList.toggle("is-on", button.dataset.format === chosen.id);
 
+    tocField.hidden =
+      chosen.id !== "docx" ||
+      findTemplate(options.template())?.frame !== "structured";
+
     nameInput.value = nameInput.value.replace(EXT_RE, "") + "." + chosen.ext;
   }
 
@@ -251,7 +288,9 @@ export function initExport(options: ExportOptions): ExportControl {
     }
     restoreFocus = document.activeElement as HTMLElement | null;
     const offered = available();
-    if (!offered.includes(chosen)) chosen = offered[0] ?? FORMATS[0]!;
+    if (!userPicked || !offered.includes(chosen))
+      chosen =
+        offered.find((item) => item.preferred) ?? offered[0] ?? FORMATS[0]!;
     for (const button of overlay.querySelectorAll<HTMLElement>(
       ".export-format",
     ))
@@ -282,7 +321,9 @@ export function initExport(options: ExportOptions): ExportControl {
 
     close();
     try {
-      const data = await chosen.build(text, options.template());
+      const data = await chosen.build(text, options.template(), {
+        toc: tocInput.checked,
+      });
       await deliverFile(data, name, chosen.mime);
       options.onDone?.(name);
     } catch (error) {
@@ -302,6 +343,7 @@ export function initExport(options: ExportOptions): ExportControl {
       const found = FORMATS.find((item) => item.id === picked.dataset.format);
       if (found) {
         chosen = found;
+        userPicked = true;
         syncFormat();
       }
       return;

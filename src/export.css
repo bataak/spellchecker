@@ -67,6 +67,18 @@
   color: var(--accent);
 }
 
+.export-toc {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+
+.export-toc[hidden] {
+  display: none;
+}
+
 .export-ext {
   opacity: 0.6;
 }
