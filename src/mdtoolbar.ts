@@ -370,6 +370,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     const show = ready && focused;
 
     picker.classList.toggle("is-plain", !on);
+    editor.parentElement?.classList.toggle("is-markdown", on);
 
     if (group.hidden !== !on) {
       group.hidden = !on;
@@ -541,6 +542,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       editor.removeEventListener("beforeinput", onBeforeInput);
       editor.removeEventListener("input", syncActive);
       mount?.classList.remove("has-mdbar");
+      editor.parentElement?.classList.remove("is-markdown");
       bar.remove();
     },
   };
