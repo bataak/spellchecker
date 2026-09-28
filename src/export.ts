@@ -36,13 +36,15 @@ export const FORMATS: readonly ExportFormat[] = [
     ext: "odt",
     mime: "application/vnd.oasis.opendocument.text",
     build: async (text, templateId) => {
-      const [{ parse }, { applyTemplate }, { buildOdt }] = await Promise.all([
-        import("./markdown.ts"),
-        import("./office/apply.ts"),
-        import("./office/odt/create.ts"),
-      ]);
+      const [{ parse }, { applyTemplate, letterSource }, { buildOdt }] =
+        await Promise.all([
+          import("./markdown.ts"),
+          import("./office/apply.ts"),
+          import("./office/odt/create.ts"),
+        ]);
       const template = findTemplate(templateId) ?? findTemplate("plain")!;
-      return buildOdt(applyTemplate(parse(text), template));
+      const source = template.frame === "letter" ? letterSource(text) : text;
+      return buildOdt(applyTemplate(parse(source), template));
     },
   },
   {
@@ -53,13 +55,15 @@ export const FORMATS: readonly ExportFormat[] = [
     ext: "docx",
     mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     build: async (text, templateId, options) => {
-      const [{ parse }, { applyTemplate }, { buildDocx }] = await Promise.all([
-        import("./markdown.ts"),
-        import("./office/apply.ts"),
-        import("./office/docx/create.ts"),
-      ]);
+      const [{ parse }, { applyTemplate, letterSource }, { buildDocx }] =
+        await Promise.all([
+          import("./markdown.ts"),
+          import("./office/apply.ts"),
+          import("./office/docx/create.ts"),
+        ]);
       const template = findTemplate(templateId) ?? findTemplate("plain")!;
-      return buildDocx(applyTemplate(parse(text), template), {
+      const source = template.frame === "letter" ? letterSource(text) : text;
+      return buildDocx(applyTemplate(parse(source), template), {
         toc: options.toc && template.frame === "structured",
       });
     },
@@ -106,14 +110,17 @@ export const FORMATS: readonly ExportFormat[] = [
     ext: "tex",
     mime: "application/x-tex;charset=utf-8",
     build: async (text, templateId) => {
-      const [{ parse }, { toBeamer, toLatex }] = await Promise.all([
-        import("./markdown.ts"),
-        import("./latex.ts"),
-      ]);
-      const blocks = parse(text);
-      return findTemplate(templateId)?.frame === "slides"
-        ? toBeamer(blocks)
-        : toLatex(blocks);
+      const [{ parse }, { toBeamer, toLatex }, { dropSignMarks, letterSource }] =
+        await Promise.all([
+          import("./markdown.ts"),
+          import("./latex.ts"),
+          import("./office/apply.ts"),
+        ]);
+      const frame = findTemplate(templateId)?.frame;
+      if (frame === "slides") return toBeamer(parse(text));
+      if (frame === "letter")
+        return toLatex(dropSignMarks(parse(letterSource(text))));
+      return toLatex(parse(text));
     },
   },
   {

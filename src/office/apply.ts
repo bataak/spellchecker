@@ -141,9 +141,50 @@ const BASE: Readonly<Record<string, ParaStyle>> = {
   Heading6: { sizePt: 12, italic: true, spaceBeforePt: 6, outlineLevel: 6 },
 };
 
-const SIGN_MAX = 60;
+const SIGN_MARK = /^гарын\s+үсэг\s*:?$/i;
 
-const SENTENCE_END = /[.!?\u2026]\s*$/;
+const FENCE_LINE = /^\s*(`{3,}|~{3,})/;
+
+const BLOCK_LINE = /^\s*(?:[-*+]\s|\d+[.)]\s|>|\||#{1,6}\s)/;
+
+export function letterSource(text: string): string {
+  const lines = text.replace(/\r\n?/g, "\n").split("\n");
+  let fence = "";
+  let mark = -1;
+  lines.forEach((line, i) => {
+    const open = FENCE_LINE.exec(line)?.[1];
+    if (open && (!fence || open[0] === fence[0])) fence = fence ? "" : open;
+    else if (!fence && SIGN_MARK.test(line.replace(/[*_]/g, "").trim()))
+      mark = i;
+  });
+  if (mark < 0) return text;
+
+  const out = lines.slice(0, mark);
+  if (out.length && out.at(-1)!.trim()) out.push("");
+  out.push(lines[mark]!.trim());
+  for (const line of lines.slice(mark + 1)) {
+    if (line.trim() && out.at(-1)!.trim() && !BLOCK_LINE.test(line))
+      out.push("");
+    out.push(line);
+  }
+  return out.join("\n");
+}
+
+function isSignMark(block: Block): boolean {
+  return (
+    block.type === "paragraph" &&
+    SIGN_MARK.test(
+      flatten(block.children)
+        .map((r) => r.text)
+        .join("")
+        .trim(),
+    )
+  );
+}
+
+export function dropSignMarks(blocks: readonly Block[]): Block[] {
+  return blocks.filter((block) => !isSignMark(block));
+}
 
 const DATE_LIKE = /\d{4}\s*оны\s+\d{1,2}/;
 
@@ -163,8 +204,13 @@ function signatureLine(runs: readonly IrRun[]): IrRun[] | null {
   return [{ text: label }, { text: "", tab: true }, { text: wrapped }];
 }
 
-function isSignatureLine(text: string): boolean {
-  return text.length <= SIGN_MAX && !SENTENCE_END.test(text);
+function plainText(block: IrBlock): string {
+  return block.kind === "para"
+    ? block.runs
+        .map((r) => r.text)
+        .join("")
+        .trim()
+    : "";
 }
 
 const PAGE = {
@@ -274,20 +320,33 @@ export function applyTemplate(
   }
 
   if (frame === "letter") {
+    const isBody = (block: IrBlock): boolean =>
+      block.kind === "para" &&
+      (block.style === STYLE.body || block.style === STYLE.bodyFirst);
+
+    const isMark = (block: IrBlock): boolean =>
+      isBody(block) && SIGN_MARK.test(plainText(block));
+
     let cut = out.length;
-    let hasDate = false;
-    while (cut > 0) {
-      const block = out[cut - 1]!;
-      if (block.kind !== "para") break;
-      if (block.style !== STYLE.body && block.style !== STYLE.bodyFirst) break;
-      const text = block.runs
-        .map((r) => r.text)
-        .join("")
-        .trim();
-      if (!isSignatureLine(text)) break;
-      if (DATE_LIKE.test(text)) hasDate = true;
-      cut -= 1;
+    for (let i = out.length - 1; i >= 0; i -= 1) {
+      if (!isMark(out[i]!)) continue;
+      if (cut === out.length) cut = i;
+      else cut -= 1;
+      out.splice(i, 1);
     }
+
+    const before = out[cut - 1];
+    const dateBefore =
+      before?.kind === "para" &&
+      isBody(before) &&
+      DATE_LIKE.test(plainText(before));
+    if (dateBefore) out[cut - 1] = { ...before, style: STYLE.date };
+
+    const hasDate =
+      dateBefore ||
+      out
+        .slice(cut)
+        .some((block) => isBody(block) && DATE_LIKE.test(plainText(block)));
 
     let inlineLine = false;
 
