@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.92.0](https://github.com/bataak/spellchecker/compare/v1.91.0...v1.92.0) (2026-09-28)
+
+
+### Features
+
+* **editor:** use a monospace font in markdown slots ([e31c8f5](https://github.com/bataak/spellchecker/commit/e31c8f5473a865c9453d9fc9d9e465e068ed8062))
+* **export:** richer markdown export with example documents ([9f693b9](https://github.com/bataak/spellchecker/commit/9f693b90bc817ae627c00e4195f3d8d768f62d0d))
+* **export:** save documents and presentations as PDF ([9e90a30](https://github.com/bataak/spellchecker/commit/9e90a3059da61cf8008bda233ba067282b074f21))
+* **letter:** mark the signature block with a «Гарын үсэг» line ([618585c](https://github.com/bataak/spellchecker/commit/618585c36b49f4000a3130248ea69cb5eb4039f9))
+* **markdown:** add H4 and letter case buttons to the toolbar ([07aedcc](https://github.com/bataak/spellchecker/commit/07aedcc53c339266628a50d28d99e8454f031c03))
+* **markdown:** give the toolbar the full title row when it needs it ([ead9b5c](https://github.com/bataak/spellchecker/commit/ead9b5ca3a05a1f4e2615c29313bbb4c27dfa50d))
+* **markdown:** mark fill-in lines with a run of underscores ([6d4b5fd](https://github.com/bataak/spellchecker/commit/6d4b5fdd103d147fa376a3a2eccfa788dd792587))
+* **markdown:** support math formulas and LaTeX environments ([28d337d](https://github.com/bataak/spellchecker/commit/28d337dbc0a3549f2bf5c34f9ad76fd50531a285))
+
+
+### Bug Fixes
+
+* align the footer toolbar with the editor panel ([b5da1bb](https://github.com/bataak/spellchecker/commit/b5da1bbaa42768bc0ed47b5877edcc9f0714facf))
+* align the page title with the editor panel ([188f356](https://github.com/bataak/spellchecker/commit/188f356fcd1bf4f30da1243329d9d59ef5196c98))
+* **export:** keep words whole in Word and ODT tables ([a7e3d93](https://github.com/bataak/spellchecker/commit/a7e3d93cff9ec2aa57c7084ca6ab69aa659492a0))
+* **export:** use the same page margins on every page ([fb186bb](https://github.com/bataak/spellchecker/commit/fb186bba0e6ca22dcbb6ae9445494874c6e8562f))
+* **markdown:** escape only what would change the meaning when tidying ([14222c9](https://github.com/bataak/spellchecker/commit/14222c99330fbdf8b7a84bd9e2b5e231cbc6d39b))
+
 ## [1.91.0](https://github.com/bataak/spellchecker/compare/v1.90.1...v1.91.0) (2026-09-25)
 
 
