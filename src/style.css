@@ -54,6 +54,9 @@ html {
     ui-sans-serif, system-ui, "Segoe UI", "Noto Sans", Roboto, Arial, sans-serif;
   --serif:
     "Bichig Serif", "PT Serif", "Noto Serif", "Liberation Serif", Georgia, serif;
+  --mono:
+    "Bichig Mono", ui-monospace, "DejaVu Sans Mono", "Liberation Mono", Consolas,
+    monospace;
 }
 
 :root {
@@ -940,6 +943,12 @@ a.tbtn {
   pointer-events: none;
   user-select: none;
 }
+
+.is-markdown > .backdrop,
+.is-markdown > .editor {
+  font-family: var(--mono);
+  font-size: calc(1.14rem * var(--editor-scale, 1) * var(--mono-fit, 0.85));
+}
 .backdrop mark {
   color: transparent;
   background: transparent;
@@ -1238,6 +1247,11 @@ a.tbtn {
   .backdrop,
   .editor {
     font-size: calc(1.06rem * var(--editor-scale, 1));
+  }
+
+  .is-markdown > .backdrop,
+  .is-markdown > .editor {
+    font-size: calc(1.06rem * var(--editor-scale, 1) * var(--mono-fit, 0.85));
   }
 }
 

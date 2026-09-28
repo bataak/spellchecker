@@ -44,12 +44,36 @@ function measureVar(host: HTMLElement, name: string, fallback: number): number {
   return Number.isFinite(w) && w >= 0 ? w : fallback;
 }
 
+function sampleWidth(
+  ctx: CanvasRenderingContext2D,
+  cs: CSSStyleDeclaration,
+  size: string,
+  family: string,
+): number {
+  ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${size} ${family}`;
+  return ctx.measureText(SAMPLE).width;
+}
+
+function fitMono(ctx: CanvasRenderingContext2D, cs: CSSStyleDeclaration): void {
+  const root = getComputedStyle(document.documentElement);
+  const serif = root.getPropertyValue("--serif").trim();
+  const mono = root.getPropertyValue("--mono").trim();
+  if (!serif || !mono) return;
+  const a = sampleWidth(ctx, cs, "100px", serif);
+  const b = sampleWidth(ctx, cs, "100px", mono);
+  if (!(a > 0 && b > 0)) return;
+  document.documentElement.style.setProperty(
+    "--mono-fit",
+    (a / b).toFixed(4),
+  );
+}
+
 function measurePer(el: HTMLElement): number {
-  const cs = getComputedStyle(el);
   const ctx = document.createElement("canvas").getContext("2d");
   if (!ctx) return DEFAULT_METRICS.per;
-  ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
-  const w = ctx.measureText(SAMPLE).width;
+  fitMono(ctx, getComputedStyle(el));
+  const cs = getComputedStyle(el);
+  const w = sampleWidth(ctx, cs, cs.fontSize, cs.fontFamily);
   if (!(w > 0)) return DEFAULT_METRICS.per;
   const ls = Number.parseFloat(cs.letterSpacing);
   return w / SAMPLE.length + (Number.isFinite(ls) ? ls : 0);
@@ -384,6 +408,7 @@ export function mountMeasureControl(
 
   const fonts = (document as Document & { fonts?: FontFaceSet }).fonts;
   void fonts?.ready.then(() => refresh());
+  void fonts?.load('16px "Bichig Mono"').then(() => refresh());
 
   refresh();
 
