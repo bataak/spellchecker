@@ -14,14 +14,16 @@ import { execFileSync } from "node:child_process";
 import { unzipSync, zipSync } from "fflate";
 
 import { parse, type Block } from "../../src/markdown.ts";
-import { toBeamer, toLatex } from "../../src/latex.ts";
+import { BEAMER_PREAMBLE, toBeamer, toLatex } from "../../src/latex.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "../..");
 const CACHE = join(HERE, ".cache");
 const ENGINE = join(CACHE, "swiftlatex");
-const OUT = join(ROOT, "public/tex");
-const MODULE = join(ROOT, "src/texbundle.ts");
+const OUT = process.env["TEX_OUT"] ?? join(ROOT, "public/tex");
+const MODULE = process.env["TEX_OUT"]
+  ? join(OUT, "texbundle.ts")
+  : join(ROOT, "src/texbundle.ts");
 
 const RELEASE =
   "https://github.com/SwiftLaTeX/SwiftLaTeX/releases/download/v20022022/20-02-2022.zip";
@@ -263,6 +265,58 @@ verbatim \\begin{itemize}
 \\end{proof}
 `;
 
+const META = `---
+title: "Гарчиг $x$"
+subtitle: "Дэд гарчиг"
+author: "Зохиогч"
+institute: "Байгууллага"
+date: "2026 оны 9-р сарын 28"
+---
+
+`;
+
+const FEATURES = `
+::: {.center}
+**Төвд тод**
+:::
+
+::: {.signature}
+Өргөдөл гаргасан: Бат\\
+Гарын үсэг: ________________
+:::
+
+::: {.right}
+Баруун мөр
+:::
+
+::: {.left}
+Зүүн мөр
+:::
+
+$\\mathbb{R}$, $\\mathcal{A}$, $\\mathfrak{g}$, ≈ ≤ ≥ ≠ ± × → ∞ ° € • ✓
+
+::: notes
+Илтгэгчийн **тэмдэглэл** $x^2$.
+:::
+
+:::::: {.columns}
+::: {.column width="40%"}
+Нэгдүгээр багана
+:::
+::: {.column width="60%"}
+- Хоёрдугаар багана
+:::
+::::::
+
+| Урт багана | Тоо |
+| ---------- | --: |
+| урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг урт үг  | 12345 12345 12345 12345 12345 12345 12345 12345 12345 12345 12345 12345 12345 12345 12345 12345 12345 12345 12345 12345  |
+
+## Дугааргүй {.unnumbered}
+
+Сүүлийн догол.
+`;
+
 const SHAPES = String.raw`
 \begin{center}
 \textbf{тод} \textit{налуу} \textbf{\textit{тод налуу}} \textsl{хазгай}
@@ -279,14 +333,45 @@ const SHAPES = String.raw`
 \end{flushleft}
 `;
 
+const SCRIPT_MATH = String.raw`a_{b_{c}}^{d^{e}} \infty^{\infty^{\infty}} -^{-^{-}}
+\mathbb{R}_{\mathbb{R}_{\mathbb{R}}} \mathcal{A}_{\mathcal{A}_{\mathcal{A}}}
+\mathfrak{g}_{\mathfrak{g}_{\mathfrak{g}}} \mathbf{v}_{\mathbf{v}_{\mathbf{v}}}
+\boldsymbol{x\nabla\to}_{\boldsymbol{x\nabla}_{\boldsymbol{x\nabla}}}
+\mathrm{d}_{\mathrm{d}_{\mathrm{d}}} \mathsf{s}_{\mathsf{s}_{\mathsf{s}}}
+\mathtt{t}_{\mathtt{t}_{\mathtt{t}}} \lesssim_{\lesssim_{\lesssim}}
+\square_{\square_{\square}} \sum_{\sum_{\sum}} \int_{\int}
+\sqrt{x}^{\sqrt{x}^{\sqrt{x}}} \left(\frac{1}{2}\right)^{\left(\frac{1}{2}\right)}
+\text{т}_{\text{т}_{\text{т}}} 1_{2_{3}} \sin_{\sin_{\sin}}
+\{\}_{\{\}_{\{\}}} \langle\rangle_{\langle\rangle} \pm_{\pm_{\pm}}
+\hat{a}_{\hat{a}_{\hat{a}}}`;
+
+const SCRIPT_TEXT = String.raw`\textbf{т} \textit{т} \textbf{\textit{т}} \textsl{т}
+\textsc{Тт} \texttt{т\textbf{т}\textit{т}}
+\textsf{т\textbf{т}\textit{т}\textbf{\textit{т}}} \emph{т}`;
+
+const SIZE_NAMES = String.raw`\tiny \scriptsize \footnotesize \small \normalsize
+\large \Large \LARGE \huge \Huge`.split(/\s+/);
+
+const SIZES = SIZE_NAMES.map(
+  (size) =>
+    "{" + size + " " + SCRIPT_TEXT + " $" + SCRIPT_MATH + "$ \\[ " +
+    SCRIPT_MATH + " \\]}\n\n",
+);
+
+const SLIDE_SIZES = SIZE_NAMES.map(
+  (size) => "{" + size + " " + SCRIPT_TEXT + " $" + SCRIPT_MATH + "$}\n",
+);
+
 function coverage(): string[] {
-  const blocks = parse(SAMPLE_MD);
+  const blocks = parse(META + SAMPLE_MD + FEATURES);
   const article = toLatex(blocks).replace(
     "\\end{document}",
-    SHAPES + "\n\\end{document}",
+    SHAPES + SIZES.join("") + "\n\\end{document}",
   );
-  const slides = toBeamer(
-    blocks
+  const [meta, ...rest] = blocks;
+  const deck: Block[] = [
+    meta!,
+    ...rest
       .filter((block) => !(block.type === "latex" && block.env === "abstract"))
       .flatMap((block): Block[] => [
         {
@@ -297,11 +382,23 @@ function coverage(): string[] {
         },
         block,
       ]),
-  ).replace(
-    "\\end{document}",
-    "\\begin{frame}" + SHAPES + "\\end{frame}\n\\end{document}",
-  );
-  return [article, slides];
+  ];
+  const withShapes = (tex: string): string =>
+    tex.replace(
+      "\\end{document}",
+      "\\begin{frame}" +
+        SHAPES +
+        "\\end{frame}\n" +
+        SLIDE_SIZES.map(
+          (size) => "\\begin{frame}" + size + "\\end{frame}\n",
+        ).join("") +
+        "\\end{document}",
+    );
+  return [
+    article,
+    withShapes(toBeamer(deck)),
+    withShapes(toBeamer(deck, BEAMER_PREAMBLE, { notesScreen: true })),
+  ];
 }
 
 function trimMap(map: string, fonts: ReadonlySet<string>): string {

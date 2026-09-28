@@ -1,6 +1,9 @@
+import { odfFont } from "../fonts.ts";
 import { ODF_TEXT, writeOdf } from "../odf/index.ts";
 import type { OdfPackage } from "../odf/index.ts";
+import { STYLE } from "../docir.ts";
 import type { DocIr, IrBlock, IrRun, ParaStyle } from "../docir.ts";
+import { OFFICE_METRICS, columnWidths } from "../table.ts";
 
 const encoder = new TextEncoder();
 
@@ -12,6 +15,9 @@ const NS =
   ' xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"' +
   ' xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"' +
   ' xmlns:xlink="http://www.w3.org/1999/xlink"';
+
+
+const MONO = odfFont("Courier New");
 
 function esc(value: string): string {
   return value
@@ -63,21 +69,7 @@ function paraProps(style: ParaStyle): string {
     );
   parts.push('fo:orphans="2"', 'fo:widows="2"');
 
-  if (style.leaderTabCm === undefined)
-    return "<style:paragraph-properties " + parts.join(" ") + "/>";
-
-  return (
-    "<style:paragraph-properties " +
-    parts.join(" ") +
-    "><style:tab-stops><style:tab-stop " +
-    'style:position="' +
-    cm(style.leaderTabCm) +
-    '" style:type="' +
-    (style.rightTab ? "right" : "left") +
-    '" style:leader-style="solid" ' +
-    'style:leader-type="single" style:leader-width="0.5pt"/>' +
-    "</style:tab-stops></style:paragraph-properties>"
-  );
+  return "<style:paragraph-properties " + parts.join(" ") + "/>";
 }
 
 function textProps(style: ParaStyle, base: string): string {
@@ -87,10 +79,7 @@ function textProps(style: ParaStyle, base: string): string {
   if (style.bold) parts.push('fo:font-weight="bold"');
   if (style.italic) parts.push('fo:font-style="italic"');
   if (style.mono)
-    parts.push(
-      'style:font-name="Liberation Mono"',
-      'fo:font-family="&apos;Liberation Mono&apos;"',
-    );
+    parts.push('fo:font-family="&apos;' + MONO + '&apos;"');
   else parts.push('fo:font-family="' + escAttr(base) + '"');
   if (parts.length === 0) return "";
   return "<style:text-properties " + parts.join(" ") + "/>";
@@ -112,10 +101,7 @@ function runStyle(key: string, base: string): string {
   if (key.includes("i")) parts.push('fo:font-style="italic"');
   if (key.includes("s")) parts.push('style:text-line-through-style="solid"');
   if (key.includes("m"))
-    parts.push(
-      'style:font-name="Liberation Mono"',
-      'fo:font-family="&apos;Liberation Mono&apos;"',
-    );
+    parts.push('fo:font-family="&apos;' + MONO + '&apos;"');
   else parts.push('fo:font-family="' + escAttr(base) + '"');
   return (
     '<style:style style:name="T_' +
@@ -135,14 +121,11 @@ function runsXml(runs: readonly IrRun[]): string {
     }
     if (!run.text) continue;
     const key = runKey(run);
+    const text = esc(run.text).replace(/\n/g, "<text:line-break/>");
     const body =
       key === ""
-        ? esc(run.text)
-        : '<text:span text:style-name="T_' +
-          key +
-          '">' +
-          esc(run.text) +
-          "</text:span>";
+        ? text
+        : '<text:span text:style-name="T_' + key + '">' + text + "</text:span>";
     out += run.href
       ? '<text:a xlink:type="simple" xlink:href="' +
         escAttr(run.href) +
@@ -162,9 +145,8 @@ function paraXml(
   style: string,
   runs: readonly IrRun[],
   level: number,
-  leader = false,
 ): string {
-  const inner = leader && runs.length === 0 ? "<text:tab/>" : runsXml(runs);
+  const inner = runsXml(runs);
   if (level > 0)
     return (
       '<text:h text:style-name="' +
@@ -180,14 +162,56 @@ function paraXml(
   );
 }
 
-function blockXml(block: IrBlock, index: number, doc: DocIr): string {
+const ODT_ALIGN: Readonly<Record<string, string>> = {
+  start: "start",
+  center: "center",
+  end: "end",
+  justify: "justify",
+};
+
+const TABLE_ALIGN: Readonly<Record<string, string>> = {
+  start: "left",
+  center: "center",
+  end: "right",
+  justify: "center",
+};
+
+const CELL_BORDERS: Readonly<Record<string, string>> = {
+  C_plain: "",
+  C_head: 'fo:border-top="1pt solid #000000" fo:border-bottom="0.5pt solid #000000" ',
+  C_only: 'fo:border-top="1pt solid #000000" fo:border-bottom="1pt solid #000000" ',
+  C_last: 'fo:border-bottom="1pt solid #000000" ',
+};
+
+function cellStyles(): string {
+  return Object.entries(CELL_BORDERS)
+    .map(
+      ([name, borders]) =>
+        '<style:style style:name="' +
+        name +
+        '" style:family="table-cell"><style:table-cell-properties ' +
+        borders +
+        'fo:padding-top="0.05cm" fo:padding-bottom="0.05cm" ' +
+        'fo:padding-left="0.1cm" fo:padding-right="0.1cm" ' +
+        'style:vertical-align="' +
+        (name === "C_head" || name === "C_only" ? "middle" : "top") +
+        '"/></style:style>',
+    )
+    .join("");
+}
+
+function blockXml(
+  block: IrBlock,
+  index: number,
+  doc: DocIr,
+  auto: Set<string>,
+): string {
   switch (block.kind) {
     case "para":
       return paraXml(
         block.style,
         block.runs,
         doc.styles[block.style]?.outlineLevel ?? 0,
-        doc.styles[block.style]?.leaderTabCm !== undefined,
       );
 
     case "list": {
@@ -208,32 +232,119 @@ function blockXml(block: IrBlock, index: number, doc: DocIr): string {
     }
 
     case "table": {
-      const width = Math.max(...block.rows.map((r) => r.length), 1);
+      const header = block.header !== false;
       const name = "Table" + String(index + 1);
-      const columns =
-        '<table:table-column table:number-columns-repeated="' +
-        String(width) +
-        '"/>';
+      const widths = columnWidths(
+        block.rows,
+        header,
+        doc.page.widthCm - doc.page.marginInnerCm - doc.page.marginOuterCm,
+        OFFICE_METRICS,
+      );
+      auto.add("cells");
+      auto.add(
+        '<style:style style:name="' +
+          name +
+          '" style:family="table"><style:table-properties style:width="' +
+          cm(widths.reduce((sum, width) => sum + width, 0)) +
+          '" table:align="' +
+          TABLE_ALIGN[block.placement ?? "center"] +
+          '"/></style:style>' +
+          widths
+            .map(
+              (width, i) =>
+                '<style:style style:name="' +
+                name +
+                ".C" +
+                String(i + 1) +
+                '" style:family="table-column"><style:table-column-properties style:column-width="' +
+                cm(width) +
+                '"/></style:style>',
+            )
+            .join(""),
+      );
+      const last = block.rows.length - 1;
       const rows = block.rows
         .map((row, rowIndex) => {
-          const cells = Array.from({ length: width }, (_, i) => {
-            const style = rowIndex === 0 ? "TableHead" : "TableCell";
-            return (
-              '<table:table-cell office:value-type="string"><text:p text:style-name="' +
-              style +
-              '">' +
-              runsXml(row[i] ?? []) +
-              "</text:p></table:table-cell>"
-            );
-          }).join("");
+          const head = header && rowIndex === 0;
+          const plainStyle = !header
+            ? "C_plain"
+            : head
+              ? rowIndex === last
+                ? "C_only"
+                : "C_head"
+              : rowIndex === last
+                ? "C_last"
+                : "C_plain";
+          const cells = widths
+            .map((_, i) => {
+              const fill = (row[i] ?? []).some((run) => run.fill);
+              const cellStyle = plainStyle;
+              const base = head ? "TableHead" : (block.cellStyle ?? "TableCell");
+              const align = block.align[i];
+              if (fill) {
+                const tab = Math.max(0, widths[i]! - 0.2);
+                const para = base + "_fill_" + String(Math.round(tab * 100));
+                auto.add(
+                  '<style:style style:name="' +
+                    para +
+                    '" style:family="paragraph" style:parent-style-name="' +
+                    base +
+                    '"><style:paragraph-properties><style:tab-stops>' +
+                    '<style:tab-stop style:position="' +
+                    cm(tab) +
+                    '" style:type="right" style:leader-style="solid" ' +
+                    'style:leader-type="single" style:leader-width="0.5pt"/>' +
+                    "</style:tab-stops></style:paragraph-properties></style:style>",
+                );
+                return (
+                  '<table:table-cell table:style-name="' +
+                  cellStyle +
+                  '" office:value-type="string"><text:p text:style-name="' +
+                  para +
+                  '"><text:tab/></text:p></table:table-cell>'
+                );
+              }
+              const para = align ? base + "_" + ODT_ALIGN[align] : base;
+              if (align)
+                auto.add(
+                  '<style:style style:name="' +
+                    para +
+                    '" style:family="paragraph" style:parent-style-name="' +
+                    base +
+                    '"><style:paragraph-properties fo:text-align="' +
+                    ODT_ALIGN[align] +
+                    '"/></style:style>',
+                );
+              return (
+                '<table:table-cell table:style-name="' +
+                cellStyle +
+                '" office:value-type="string"><text:p text:style-name="' +
+                para +
+                '">' +
+                runsXml(row[i] ?? []) +
+                "</text:p></table:table-cell>"
+              );
+            })
+            .join("");
           return "<table:table-row>" + cells + "</table:table-row>";
         })
         .join("");
       return (
         '<table:table table:name="' +
         name +
+        '" table:style-name="' +
+        name +
         '">' +
-        columns +
+        widths
+          .map(
+            (_, i) =>
+              '<table:table-column table:style-name="' +
+              name +
+              ".C" +
+              String(i + 1) +
+              '"/>',
+          )
+          .join("") +
         rows +
         "</table:table>"
       );
@@ -247,7 +358,55 @@ function blockXml(block: IrBlock, index: number, doc: DocIr): string {
   }
 }
 
-function contentXml(doc: DocIr): string {
+export interface OdtOptions {
+  readonly toc?: boolean;
+}
+
+const TOC_LEVELS = [1, 2, 3] as const;
+
+function tocXml(doc: DocIr): string {
+  const templates = TOC_LEVELS.map(
+    (level) =>
+      '<text:table-of-content-entry-template text:outline-level="' +
+      String(level) +
+      '" text:style-name="TOC_' +
+      String(level) +
+      '"><text:index-entry-link-start/><text:index-entry-text/>' +
+      '<text:index-entry-tab-stop style:type="right" style:leader-char="."/>' +
+      "<text:index-entry-page-number/><text:index-entry-link-end/>" +
+      "</text:table-of-content-entry-template>",
+  ).join("");
+  const entries = doc.blocks
+    .map((block) => {
+      if (block.kind !== "para") return "";
+      const level = doc.styles[block.style]?.outlineLevel ?? 0;
+      if (level < 1 || level > 3) return "";
+      return (
+        '<text:p text:style-name="TOC_' +
+        String(level) +
+        '">' +
+        esc(block.runs.map((run) => run.text).join("")) +
+        "<text:tab/></text:p>"
+      );
+    })
+    .join("");
+  return (
+    '<text:table-of-content text:protected="true" text:name="TOC">' +
+    '<text:table-of-content-source text:outline-level="3">' +
+    '<text:index-title-template text:style-name="TOC_Heading">Гарчиг' +
+    "</text:index-title-template>" +
+    templates +
+    "</text:table-of-content-source><text:index-body>" +
+    '<text:index-title text:name="TOC_Head">' +
+    '<text:p text:style-name="TOC_Heading">Гарчиг</text:p>' +
+    "</text:index-title>" +
+    entries +
+    "</text:index-body></text:table-of-content>" +
+    '<text:p text:style-name="PageBreak"/>'
+  );
+}
+
+function contentXml(doc: DocIr, options: OdtOptions): string {
   const keys = new Set<string>();
   for (const block of doc.blocks) {
     if (block.kind === "para")
@@ -263,26 +422,20 @@ function contentXml(doc: DocIr): string {
 
   const spans = [...keys].map((key) => runStyle(key, doc.font.family)).join("");
 
-  const first = doc.blocks[0];
-  const opener =
-    doc.header !== undefined && first !== undefined && first.kind === "para"
-      ? '<style:style style:name="P_open" style:family="paragraph" ' +
-        'style:parent-style-name="' +
-        styleName(first.style) +
-        '" style:master-page-name="First_Page"/>'
-      : "";
-
-  const body = doc.blocks
-    .map((block, index) =>
-      index === 0 && opener !== "" && block.kind === "para"
-        ? paraXml(
-            "P_open",
-            block.runs,
-            doc.styles[block.style]?.outlineLevel ?? 0,
-          )
-        : blockXml(block, index, doc),
-    )
-    .join("");
+  const auto = new Set<string>();
+  const parts = doc.blocks.map((block, index) =>
+    blockXml(block, index, doc, auto),
+  );
+  if (options.toc) {
+    const first = doc.blocks[0];
+    const titleFirst =
+      first !== undefined &&
+      first.kind === "para" &&
+      (first.style === STYLE.title ||
+        doc.styles[first.style]?.outlineLevel === 1);
+    parts.splice(titleFirst ? 1 : 0, 0, tocXml(doc));
+  }
+  const body = parts.join("");
 
   return (
     '<?xml version="1.0" encoding="UTF-8"?>' +
@@ -291,12 +444,17 @@ function contentXml(doc: DocIr): string {
     ' office:version="1.3">' +
     "<office:automatic-styles>" +
     spans +
-    opener +
+    (auto.delete("cells") ? cellStyles() : "") +
+    [...auto].join("") +
     "</office:automatic-styles>" +
     "<office:body><office:text>" +
     body +
     "</office:text></office:body></office:document-content>"
   );
+}
+
+function tocWidth(doc: DocIr): number {
+  return doc.page.widthCm - doc.page.marginInnerCm - doc.page.marginOuterCm;
 }
 
 function stylesXml(doc: DocIr): string {
@@ -319,10 +477,25 @@ function stylesXml(doc: DocIr): string {
     '<style:paragraph-properties fo:margin-top="6pt" fo:margin-bottom="6pt" ' +
     'fo:border-bottom="0.5pt solid #000000" fo:padding-bottom="2pt"/>' +
     "</style:style>" +
+    '<style:style style:name="TOC_Heading" style:family="paragraph" style:parent-style-name="Standard">' +
+    '<style:paragraph-properties fo:margin-bottom="12pt"/>' +
+    '<style:text-properties fo:font-size="17pt" fo:font-weight="bold"/></style:style>' +
+    TOC_LEVELS.map(
+      (level) =>
+        '<style:style style:name="TOC_' +
+        String(level) +
+        '" style:family="paragraph" style:parent-style-name="Standard">' +
+        '<style:paragraph-properties fo:margin-left="' +
+        cm(0.5 * (level - 1)) +
+        '" fo:margin-bottom="3pt"><style:tab-stops><style:tab-stop style:position="' +
+        cm(tocWidth(doc) - 0.5 * (level - 1)) +
+        '" style:type="right" style:leader-style="dotted" style:leader-text="."/>' +
+        "</style:tab-stops></style:paragraph-properties></style:style>",
+    ).join("") +
     '<style:style style:name="PageBreak" style:family="paragraph" style:parent-style-name="Standard">' +
     '<style:paragraph-properties fo:break-before="page"/></style:style>' +
-    '<style:style style:name="Header" style:family="paragraph" style:parent-style-name="Standard">' +
-    '<style:paragraph-properties fo:text-align="end"/>' +
+    '<style:style style:name="Footer" style:family="paragraph" style:parent-style-name="Standard">' +
+    '<style:paragraph-properties fo:text-align="center"/>' +
     '<style:text-properties fo:font-size="' +
     pt(doc.font.sizePt) +
     '" fo:font-family="' +
@@ -380,20 +553,14 @@ function stylesXml(doc: DocIr): string {
     '" style:page-usage="' +
     (page.mirrored ? "mirrored" : "all") +
     '">' +
-    '<style:header-style><style:header-footer-properties fo:min-height="1cm" ' +
-    'fo:margin-bottom="0.5cm"/></style:header-style>' +
+    '<style:footer-style><style:header-footer-properties fo:min-height="0.6cm" ' +
+    'fo:margin-top="0.4cm"/></style:footer-style>' +
     "</style:page-layout-properties></style:page-layout>";
 
-  const headerXml = doc.header
-    ? '<style:header><text:p text:style-name="Header">' +
-      (doc.header.left === undefined
-        ? '<text:chapter text:display="name" text:outline-level="1"/>'
-        : esc(doc.header.left)) +
-      "<text:tab/>" +
-      (doc.header.pageNumberRight === false
-        ? ""
-        : '<text:page-number text:select-page="current">1</text:page-number>') +
-      "</text:p></style:header>"
+  const footerXml = doc.pageNumbers
+    ? '<style:footer><text:p text:style-name="Footer">' +
+      '<text:page-number text:select-page="current">1</text:page-number>' +
+      "</text:p></style:footer>"
     : "";
 
   return (
@@ -420,10 +587,8 @@ function stylesXml(doc: DocIr): string {
     layout("Page_Body") +
     "</office:automatic-styles>" +
     "<office:master-styles>" +
-    '<style:master-page style:name="First_Page" style:page-layout-name="Page_Body" ' +
-    'style:next-style-name="Standard"/>' +
     '<style:master-page style:name="Standard" style:page-layout-name="Page_Body">' +
-    headerXml +
+    footerXml +
     "</style:master-page>" +
     "</office:master-styles></office:document-styles>"
   );
@@ -466,11 +631,15 @@ function manifestXml(): string {
   );
 }
 
-export function buildOdt(doc: DocIr): Uint8Array<ArrayBuffer> {
+export function buildOdt(
+  doc: DocIr,
+  options: OdtOptions = {},
+): Uint8Array<ArrayBuffer> {
+  doc = { ...doc, font: { ...doc.font, family: odfFont(doc.font.family) } };
   const entries: Record<string, Uint8Array> = {
     mimetype: encoder.encode(ODF_TEXT),
     "META-INF/manifest.xml": encoder.encode(manifestXml()),
-    "content.xml": encoder.encode(contentXml(doc)),
+    "content.xml": encoder.encode(contentXml(doc, options)),
     "styles.xml": encoder.encode(stylesXml(doc)),
     "meta.xml": encoder.encode(metaXml(doc)),
   };

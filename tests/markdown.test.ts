@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  fitBlanks,
   format,
   isMarkdown,
   parse,
@@ -105,6 +106,13 @@ test("хүснэгт — жижиг үед багана тэгшитгэнэ", (
     .split("\n")
     .map((l) => l.length);
   assert.equal(new Set(widths).size, 1, out);
+});
+
+test("хүснэгт — мөрийн нийт урт 100-аас бага бол тэгшитгэнэ", () => {
+  const src =
+    "|  |  |\n| --- | --- |\n| **Судалгааны хугацаа** | 2026.07.01 – 2026.09.25 (60 ажлын өдөр) |\n| **Нэр** | Утга |\n";
+  const lines = format(src).trim().split("\n");
+  assert.equal(new Set(lines.map((line) => line.length)).size, 1);
 });
 
 test("хүснэгт — урт нүдтэй үед тэгшитгэхгүй", () => {
@@ -532,4 +540,37 @@ test("мөр доторх 3+ доогуур зураас бөглөх зураа
     /<span class="blank" style="--blank:6"><\/span>/,
   );
   assert.equal(isMarkdown(parse("Нэр ______")), false);
+});
+
+test("____ гарын үсгийн зураас нэрийн урттай тэнцэнэ", () => {
+  const widths = (md: string): number[] => {
+    const found: number[] = [];
+    const walk = (blocks: Block[]): void => {
+      for (const block of blocks) {
+        if (block.type === "paragraph")
+          for (const node of block.children)
+            if (node.type === "blank") found.push(node.fit ?? node.width);
+        if (block.type === "div") walk(block.children);
+      }
+    };
+    walk(fitBlanks(parse(md)));
+    return found;
+  };
+  assert.deepEqual(
+    widths("::: {.signature}\nӨргөдөл гаргасан: С. Боролдой\\\nГарын үсэг: ____\\\nУтас: 99\n:::\n"),
+    [11],
+  );
+  assert.deepEqual(
+    widths("::: {.right}\nГаргасан: Б. Бат\n\nГарын үсэг: ____\n:::\n"),
+    [6],
+  );
+  assert.deepEqual(widths("Гарын үсэг: _____\\\nНэр: Урт урт нэр\n"), [5]);
+  assert.deepEqual(widths("Ганцаараа ____\n"), [4]);
+  assert.equal(format("Гарын үсэг: ____\\\nНэр: Бат\n"), "Гарын үсэг: ____\\\nНэр: Бат\n");
+});
+
+test("TeX лого: preview-д лого, \\LaTeXa гэх мэт бусад командыг хөндөхгүй", () => {
+  const html = toHtml(parse("\\LaTeX ба \\LaTeXa"));
+  assert.ok(html.includes('<span class="tex-logo">L<span class="tex-a">A</span>'), html);
+  assert.ok(html.includes("\\LaTeXa"), html);
 });

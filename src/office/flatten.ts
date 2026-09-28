@@ -1,4 +1,10 @@
-import { mathSource, type Inline } from "../markdown.ts";
+import {
+  LOGO_TEXT,
+  blankUnderscores,
+  mathSource,
+  withLogos,
+  type Inline,
+} from "../markdown.ts";
 import type { IrRun } from "./docir.ts";
 
 interface Marks {
@@ -50,7 +56,11 @@ function walk(nodes: readonly Inline[], marks: Marks, out: IrRun[]): void {
   for (const node of nodes) {
     switch (node.type) {
       case "text":
-        push(out, node.value, marks);
+        push(
+          out,
+          withLogos(node.value, (name) => LOGO_TEXT[name], (part) => part),
+          marks,
+        );
         break;
       case "code":
         push(out, node.value, { ...marks, mono: true });
@@ -59,7 +69,14 @@ function walk(nodes: readonly Inline[], marks: Marks, out: IrRun[]): void {
         push(out, mathSource(node.open, node.value), marks);
         break;
       case "blank":
-        push(out, "_".repeat(node.width), marks);
+        if (node.fill) out.push({ text: "", fill: true });
+        else push(out, "_".repeat(blankUnderscores(node)), marks);
+        break;
+      case "softbreak":
+        push(out, " ", marks);
+        break;
+      case "break":
+        push(out, "\n", marks);
         break;
       case "strong":
         walk(node.children, { ...marks, bold: true }, out);

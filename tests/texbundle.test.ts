@@ -34,3 +34,33 @@ test("PDF алдааны мессеж шалтгаан ба байршлыг М�
   );
   assert.equal(new PdfError("").message, "PDF үүсгэж чадсангүй.");
 });
+
+test("гарчгийн жагсаалт зөвхөн бүлэгтэй баримтад", async () => {
+  const { hasSections } = await import("../src/export.ts");
+  const { readFileSync } = await import("node:fs");
+  const ex = (name: string): string =>
+    readFileSync("src/examples/" + name + ".md", "utf8");
+  assert.equal(hasSections(ex("application"), "letter"), false);
+  assert.equal(hasSections(ex("minutes"), "letter"), true);
+  assert.equal(hasSections(ex("research"), "report"), true);
+  assert.equal(hasSections("# Ганц гарчиг\n\nДогол.\n", "report"), false);
+  assert.equal(hasSections(ex("presentation"), "slides"), false);
+});
+
+test("ODT гарчгийн жагсаалт сонголтоор", async () => {
+  const { FORMATS } = await import("../src/export.ts");
+  const { unzipSync, strFromU8 } = await import("fflate");
+  const odt = FORMATS.find((format) => format.id === "odt")!;
+  const md = "# Нэр\n\n## Нэг\n\nДогол.\n\n### Хоёр\n\nДогол.\n";
+  const content = async (toc: boolean): Promise<string> =>
+    strFromU8(
+      unzipSync((await odt.build(md, "report", { toc })) as Uint8Array)[
+        "content.xml"
+      ]!,
+    );
+  assert.ok(!(await content(false)).includes("text:table-of-content"));
+  const withToc = await content(true);
+  assert.ok(withToc.includes('<text:table-of-content-source text:outline-level="3">'));
+  assert.ok(withToc.includes('<text:p text:style-name="TOC_2">Нэг<text:tab/></text:p>'));
+  assert.ok(withToc.indexOf("table-of-content") > withToc.indexOf(">Нэр<"));
+});

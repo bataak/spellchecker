@@ -87,21 +87,34 @@ test("жагсаалт", () => {
   );
 });
 
-test("хүснэгт", () => {
+test("хүснэгт booktabs хэв маягтай", () => {
   assert.equal(
     body("| Нэр | Тоо |\n| :-- | --: |\n| ном | 3 |"),
     [
-      "\\begin{center}",
-      "\\begin{tabular}{|l|r|}",
-      "\\hline",
-      "Нэр & Тоо \\\\",
-      "\\hline",
+      "\\par\\addvspace{\\medskipamount}",
+      "{\\centering\\small",
+      "\\begin{tabular}{lr}",
+      "\\toprule",
+      "\\textbf{Нэр} & \\textbf{Тоо} \\\\",
+      "\\midrule",
       "ном & 3 \\\\",
-      "\\hline",
-      "\\end{tabular}",
-      "\\end{center}",
+      "\\bottomrule",
+      "\\end{tabular}\\par}",
+      "\\addvspace{\\medskipamount}",
     ].join("\n"),
   );
+});
+
+test("толгойгүй хүснэгт зураасгүй", () => {
+  const out = body("| | |\n| - | - |\n| А | Б |");
+  assert.ok(!out.includes("rule"));
+  assert.ok(out.includes("А & Б \\\\"));
+});
+
+test("өргөн хүснэгт хуудсанд багтахаар p{} баганатай", () => {
+  const long = "урт ".repeat(30).trim();
+  const out = body("| А | Б |\n| - | --: |\n| " + long + " | " + long + " |");
+  assert.match(out, /\\begin\{tabular\}\{>\{\\raggedright\\arraybackslash\}p\{[\d.]+cm\}>\{\\raggedleft\\arraybackslash\}p\{[\d.]+cm\}\}/);
 });
 
 test("ишлэл ба кодын блок", () => {
@@ -143,4 +156,48 @@ test("toBeamer: --- гарчиггүй слайд, код fragile", () => {
   const tex = toBeamer(parse("---\n\n```\nx\n```"), "");
   assert.ok(tex.includes("\\begin{frame}[fragile]\n\\begin{verbatim}"));
   assert.ok(!tex.includes("\\titlepage"));
+});
+
+test("хуудасны дугааргүй сонголт", () => {
+  assert.ok(!toLatex(parse("# А\n")).includes("\\pagestyle{empty}"));
+  assert.ok(
+    toLatex(parse("# А\n"), undefined, { pageNumbers: false }).includes(
+      "\\begin{document}\n\n\\pagestyle{empty}",
+    ),
+  );
+});
+
+test("гарчгийн жагсаалт сонголтоор", () => {
+  assert.ok(!toLatex(parse("# А\n")).includes("\\tableofcontents"));
+  assert.ok(
+    toLatex(parse("# А\n"), undefined, { toc: true }).includes(
+      "\\begin{document}\n\n\\tableofcontents",
+    ),
+  );
+});
+
+test("гарын үсгийн хүснэгтийн зураас баганын хамгийн урт утгын өргөнтэй", () => {
+  const out = body(
+    "::: {.signature}\n| | |\n| --: | :-- |\n| Гаргасан: | С. Боролдой |\n| Гарын үсэг: | ____ |\n:::\n",
+  );
+  assert.equal(
+    out,
+    [
+      "\\bigskip",
+      "\\begin{flushright}",
+      "\\renewcommand{\\arraystretch}{1.5}",
+      "\\begin{tabular}{rl}",
+      "Гаргасан: & С. Боролдой \\\\",
+      "Гарын үсэг: & \\hrulefill \\\\",
+      "\\end{tabular}",
+      "\\end{flushright}",
+    ].join("\n"),
+  );
+});
+
+test("TeX лого: текст дотор лого, томьёо дотор \\text болно", () => {
+  const tex = toLatex(parse("\\LaTeX2e, \\TeX ба \\LaTeXe.\n\n«$\\LaTeX 2e$»\n"));
+  assert.ok(tex.includes("\\LaTeX{}2e, \\TeX{} ба \\LaTeXe{}."), tex);
+  assert.ok(tex.includes("$\\text{\\LaTeX} 2e$"), tex);
+  assert.ok(!tex.includes("\\textbackslash{}LaTeX"), tex);
 });

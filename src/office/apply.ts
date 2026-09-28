@@ -1,55 +1,14 @@
-import type { Block, Inline } from "../markdown.ts";
+import {
+  fitBlanks,
+  isBlankRow,
+  parseInline,
+  type Block,
+  type Inline,
+} from "../markdown.ts";
 import type { Frame, Template } from "../templates.ts";
 import { A4, STYLE, headingStyle } from "./docir.ts";
 import type { Align, DocIr, IrBlock, IrRun, ParaStyle } from "./docir.ts";
 import { flatten, isBlank } from "./flatten.ts";
-
-const MONTH_WORD = [
-  "дүгээр",
-  "дугаар",
-  "дугаар",
-  "дүгээр",
-  "дугаар",
-  "дугаар",
-  "дугаар",
-  "дугаар",
-  "дүгээр",
-  "дугаар",
-  "дүгээр",
-  "дугаар",
-];
-
-const DAY_SUFFIX = [
-  "ны",
-  "ний",
-  "ны",
-  "ны",
-  "ний",
-  "ны",
-  "ны",
-  "ны",
-  "ны",
-  "ний",
-];
-
-const pad = (n: number): string => String(n).padStart(2, "0");
-
-export function mongolianDate(date: Date): string {
-  const month = date.getMonth();
-  const day = date.getDate();
-  return (
-    String(date.getFullYear()) +
-    " оны " +
-    pad(month + 1) +
-    " " +
-    MONTH_WORD[month] +
-    " сарын " +
-    pad(day) +
-    "-" +
-    DAY_SUFFIX[day % 10] +
-    " өдөр"
-  );
-}
 
 const PAIRS: readonly [RegExp, string][] = [
   [/"([^"]*)"/g, "«$1»"],
@@ -63,6 +22,29 @@ export function guillemets(text: string): string {
   return out;
 }
 
+const META_STYLE: Readonly<Record<string, string>> = {
+  title: STYLE.title,
+  subtitle: STYLE.center,
+  author: STYLE.center,
+  institute: STYLE.center,
+  date: STYLE.center,
+};
+
+const ALIGNABLE: ReadonlySet<string> = new Set([
+  STYLE.body,
+  STYLE.bodyFirst,
+  STYLE.signature,
+  STYLE.signatureTop,
+]);
+
+function divStyle(classes: readonly string[]): string | null {
+  if (classes.includes("signature")) return STYLE.signature;
+  if (classes.includes("right")) return STYLE.right;
+  if (classes.includes("center")) return STYLE.center;
+  if (classes.includes("left")) return STYLE.left;
+  return null;
+}
+
 function runsOf(children: readonly Inline[]): IrRun[] {
   return flatten(children).map((run) => ({
     ...run,
@@ -70,150 +52,117 @@ function runsOf(children: readonly Inline[]): IrRun[] {
   }));
 }
 
+const RUN_IN_DEPTH = 4;
+
+const PARA_GAP_PT = 6;
+
+const SIGNATURE_GAP_PT = 22;
+
 const BASE: Readonly<Record<string, ParaStyle>> = {
   [STYLE.body]: {
     align: "justify",
-    lineHeightPercent: 150,
-    firstLineIndentCm: 1.25,
+    lineHeightPercent: 115,
+    spaceAfterPt: PARA_GAP_PT,
   },
-  [STYLE.bodyFirst]: { align: "justify", lineHeightPercent: 150 },
+  [STYLE.bodyFirst]: {
+    align: "justify",
+    lineHeightPercent: 115,
+    spaceAfterPt: PARA_GAP_PT,
+  },
+  [STYLE.runIn]: {
+    align: "justify",
+    lineHeightPercent: 115,
+    spaceBeforePt: 14,
+    spaceAfterPt: PARA_GAP_PT,
+  },
   [STYLE.title]: {
     align: "center",
     bold: true,
-    sizePt: 14,
-    lineHeightPercent: 130,
+    sizePt: 17,
+    lineHeightPercent: 115,
     spaceAfterPt: 18,
     keepWithNext: true,
   },
-  [STYLE.recipient]: { align: "center", lineHeightPercent: 130 },
-  [STYLE.date]: { align: "start", spaceBeforePt: 30 },
   [STYLE.signature]: { align: "end", lineHeightPercent: 150 },
-  [STYLE.signatureTop]: { align: "end", lineHeightPercent: 150 },
-  [STYLE.signLine]: {
-    align: "start",
+  [STYLE.signatureTop]: {
+    align: "end",
     lineHeightPercent: 150,
-    spaceBeforePt: 42,
-    leaderTabCm: 16.5,
-    rightTab: true,
+    spaceBeforePt: SIGNATURE_GAP_PT,
   },
-  [STYLE.signRule]: {
-    marginLeftCm: 10,
-    spaceBeforePt: 54,
-    spaceAfterPt: 2,
-    leaderTabCm: 6.5,
+  [STYLE.right]: { align: "end", lineHeightPercent: 115 },
+  [STYLE.signatureGap]: {
+    sizePt: 1,
+    lineHeightPercent: 100,
+    spaceBeforePt: SIGNATURE_GAP_PT - 1,
   },
+  [STYLE.signCell]: { lineHeightPercent: 150 },
+  [STYLE.center]: { align: "center", lineHeightPercent: 115 },
+  [STYLE.left]: { align: "start", lineHeightPercent: 115 },
   [STYLE.quote]: {
+    align: "justify",
     marginLeftCm: 1.25,
     marginRightCm: 1.25,
-    italic: true,
-    lineHeightPercent: 130,
+    lineHeightPercent: 115,
+    spaceBeforePt: 6,
+    spaceAfterPt: 6,
   },
-  [STYLE.code]: { mono: true, lineHeightPercent: 110 },
-  [STYLE.listItem]: { lineHeightPercent: 150 },
-  [STYLE.tableHead]: { bold: true, align: "center" },
-  [STYLE.tableCell]: {},
+  [STYLE.code]: { mono: true, lineHeightPercent: 100 },
+  [STYLE.listItem]: { align: "justify", lineHeightPercent: 115 },
+  [STYLE.tableHead]: { bold: true, sizePt: 11, lineHeightPercent: 100 },
+  [STYLE.tableCell]: { sizePt: 11, lineHeightPercent: 100 },
+  [STYLE.tableGap]: { sizePt: 6, lineHeightPercent: 100 },
   Heading1: {
+    align: "center",
     sizePt: 14,
     bold: true,
-    spaceBeforePt: 18,
-    spaceAfterPt: 8,
+    spaceBeforePt: 28,
+    spaceAfterPt: 14,
     keepWithNext: true,
     outlineLevel: 1,
   },
   Heading2: {
     sizePt: 13,
     bold: true,
-    spaceBeforePt: 14,
-    spaceAfterPt: 6,
+    spaceBeforePt: 21,
+    spaceAfterPt: 10,
     keepWithNext: true,
     outlineLevel: 2,
   },
   Heading3: {
     sizePt: 12,
     bold: true,
-    spaceBeforePt: 12,
-    spaceAfterPt: 4,
+    spaceBeforePt: 14,
+    spaceAfterPt: 7,
     keepWithNext: true,
     outlineLevel: 3,
   },
-  Heading4: { sizePt: 12, italic: true, spaceBeforePt: 10, outlineLevel: 4 },
+  Heading4: { sizePt: 12, bold: true, spaceBeforePt: 14, outlineLevel: 4 },
   Heading5: { sizePt: 12, italic: true, spaceBeforePt: 8, outlineLevel: 5 },
   Heading6: { sizePt: 12, italic: true, spaceBeforePt: 6, outlineLevel: 6 },
 };
 
-const SIGN_MARK = /^гарын\s+үсэг\s*:?$/i;
-
-const FENCE_LINE = /^\s*(`{3,}|~{3,})/;
-
-const BLOCK_LINE = /^\s*(?:[-*+]\s|\d+[.)]\s|>|\||#{1,6}\s)/;
-
-export function letterSource(text: string): string {
-  const lines = text.replace(/\r\n?/g, "\n").split("\n");
-  let fence = "";
-  let mark = -1;
-  lines.forEach((line, i) => {
-    const open = FENCE_LINE.exec(line)?.[1];
-    if (open && (!fence || open[0] === fence[0])) fence = fence ? "" : open;
-    else if (!fence && SIGN_MARK.test(line.replace(/[*_]/g, "").trim()))
-      mark = i;
-  });
-  if (mark < 0) return text;
-
-  const out = lines.slice(0, mark);
-  if (out.length && out.at(-1)!.trim()) out.push("");
-  out.push(lines[mark]!.trim());
-  for (const line of lines.slice(mark + 1)) {
-    if (line.trim() && out.at(-1)!.trim() && !BLOCK_LINE.test(line))
-      out.push("");
-    out.push(line);
-  }
-  return out.join("\n");
-}
-
-function isSignMark(block: Block): boolean {
-  return (
-    block.type === "paragraph" &&
-    SIGN_MARK.test(
-      flatten(block.children)
-        .map((r) => r.text)
-        .join("")
-        .trim(),
-    )
-  );
-}
-
-export function dropSignMarks(blocks: readonly Block[]): Block[] {
-  return blocks.filter((block) => !isSignMark(block));
-}
-
-const BLANK = /_{3,}/;
-
-const DATE_LIKE = /\d{4}\s*оны\s+\d{1,2}/;
-
-function signatureLine(runs: readonly IrRun[]): IrRun[] | null {
-  const text = runs
-    .map((r) => r.text)
-    .join("")
-    .trim();
-  const at = text.indexOf(":");
-  if (at < 0) return null;
-
-  const label = text.slice(0, at + 1).trim();
-  const name = text.slice(at + 1).trim();
-  if (!label || !name) return null;
-
-  const wrapped = name.startsWith("/") ? name : "/" + name + "/";
-  return [{ text: label }, { text: "", tab: true }, { text: wrapped }];
-}
-
-function plainText(block: IrBlock): string {
-  return block.kind === "para"
-    ? block.runs
-        .map((r) => r.text)
-        .join("")
-        .trim()
-    : "";
-}
+const LETTER: Readonly<Record<string, ParaStyle>> = {
+  [STYLE.title]: {
+    align: "center",
+    bold: true,
+    sizePt: 14,
+    lineHeightPercent: 130,
+    spaceBeforePt: 18,
+    spaceAfterPt: 20,
+    keepWithNext: true,
+  },
+  [STYLE.signatureTop]: {
+    align: "end",
+    lineHeightPercent: 150,
+    spaceBeforePt: SIGNATURE_GAP_PT,
+    spaceAfterPt: 7,
+  },
+  [STYLE.signature]: {
+    align: "end",
+    lineHeightPercent: 150,
+    spaceAfterPt: 7,
+  },
+};
 
 const PAGE = {
   widthCm: A4.widthCm,
@@ -232,15 +181,13 @@ function alignOf(value: "left" | "right" | "center" | null): Align | null {
   return null;
 }
 
-export interface ApplyOptions {
-  readonly now?: Date;
-  readonly numberHeadings?: boolean;
+export function hasSections(blocks: readonly Block[]): boolean {
+  return blocks.filter((block) => block.type === "heading").length > 1;
 }
 
 export function applyTemplate(
   blocks: readonly Block[],
   template: Template,
-  options: ApplyOptions = {},
 ): DocIr {
   const frame: Frame = template.frame;
   const out: IrBlock[] = [];
@@ -248,12 +195,26 @@ export function applyTemplate(
   let seenHeading = false;
   let afterHeading = false;
 
-  for (const block of blocks) {
+  let runIn: IrRun[] | null = null;
+
+  const visit = (list: readonly Block[]): void => {
+  let index = -1;
+  for (const block of list) {
+    index += 1;
     switch (block.type) {
       case "heading": {
         const runs = runsOf(block.children);
         if (isBlank(runs)) break;
         const first = frame === "letter" && !seenHeading;
+        if (
+          !first &&
+          block.depth === RUN_IN_DEPTH &&
+          list[index + 1]?.type === "paragraph"
+        ) {
+          runIn = runs.map((run) => ({ ...run, bold: true }));
+          seenHeading = true;
+          break;
+        }
         out.push({
           kind: "para",
           style: first ? STYLE.title : headingStyle(block.depth),
@@ -267,9 +228,21 @@ export function applyTemplate(
       case "paragraph": {
         const runs = runsOf(block.children);
         if (isBlank(runs)) break;
-        let style: string = afterHeading ? STYLE.bodyFirst : STYLE.body;
-        if (frame === "letter" && !seenHeading) style = STYLE.recipient;
-        out.push({ kind: "para", style, runs });
+        if (runIn !== null) {
+          out.push({
+            kind: "para",
+            style: STYLE.runIn,
+            runs: [...runIn, { text: " " }, ...runs],
+          });
+          runIn = null;
+          afterHeading = false;
+          break;
+        }
+        out.push({
+          kind: "para",
+          style: afterHeading ? STYLE.bodyFirst : STYLE.body,
+          runs,
+        });
         afterHeading = false;
         break;
       }
@@ -285,14 +258,16 @@ export function applyTemplate(
         afterHeading = false;
         break;
 
-      case "quote":
-        for (const inner of applyTemplate(block.children, template, options)
-          .blocks)
-          out.push(
-            inner.kind === "para" ? { ...inner, style: STYLE.quote } : inner,
-          );
+      case "quote": {
+        const from = out.length;
+        visit(block.children);
+        for (let i = from; i < out.length; i += 1) {
+          const inner = out[i]!;
+          if (inner.kind === "para") out[i] = { ...inner, style: STYLE.quote };
+        }
         afterHeading = false;
         break;
+      }
 
       case "math":
       case "latex":
@@ -308,11 +283,21 @@ export function applyTemplate(
         break;
 
       case "table":
-        out.push({
-          kind: "table",
-          align: block.align.map(alignOf),
-          rows: block.rows.map((row) => row.map(runsOf)),
-        });
+        out.push(
+          isBlankRow(block.rows[0])
+            ? {
+                kind: "table",
+                align: block.align.map(alignOf),
+                rows: block.rows.slice(1).map((row) => row.map(runsOf)),
+                header: false,
+              }
+            : {
+                kind: "table",
+                align: block.align.map(alignOf),
+                rows: block.rows.map((row) => row.map(runsOf)),
+              },
+        );
+        out.push({ kind: "para", style: STYLE.tableGap, runs: [] });
         afterHeading = false;
         break;
 
@@ -320,88 +305,69 @@ export function applyTemplate(
         out.push({ kind: "rule" });
         afterHeading = false;
         break;
-    }
-  }
 
-  if (frame === "letter") {
-    const isBody = (block: IrBlock): boolean =>
-      block.kind === "para" &&
-      (block.style === STYLE.body || block.style === STYLE.bodyFirst);
-
-    const isMark = (block: IrBlock): boolean =>
-      isBody(block) && SIGN_MARK.test(plainText(block));
-
-    let cut = out.length;
-    for (let i = out.length - 1; i >= 0; i -= 1) {
-      if (!isMark(out[i]!)) continue;
-      if (cut === out.length) cut = i;
-      else cut -= 1;
-      out.splice(i, 1);
-    }
-
-    const before = out[cut - 1];
-    const dateBefore =
-      before?.kind === "para" &&
-      isBody(before) &&
-      DATE_LIKE.test(plainText(before));
-    if (dateBefore) out[cut - 1] = { ...before, style: STYLE.date };
-
-    const hasDate =
-      dateBefore ||
-      out
-        .slice(cut)
-        .some((block) => isBody(block) && DATE_LIKE.test(plainText(block)));
-
-    let inlineLine = false;
-
-    for (let i = cut; i < out.length; i += 1) {
-      const block = out[i]!;
-      if (block.kind !== "para") continue;
-
-      if (i === cut && BLANK.test(plainText(block))) {
-        out[i] = { ...block, style: STYLE.signatureTop };
-        inlineLine = true;
-        continue;
-      }
-
-      if (i === cut) {
-        const line = signatureLine(block.runs);
-        if (line !== null) {
-          out[i] = { kind: "para", style: STYLE.signLine, runs: line };
-          inlineLine = true;
-          continue;
+      case "meta":
+        for (const field of block.fields) {
+          if (!META_STYLE[field.key]) continue;
+          out.push({
+            kind: "para",
+            style: META_STYLE[field.key]!,
+            runs: runsOf(parseInline(field.value)),
+          });
         }
+        break;
+
+      case "div": {
+        if (block.classes.includes("notes")) break;
+        const from = out.length;
+        visit(block.children);
+        const style = divStyle(block.classes);
+        if (style === null) break;
+        for (let i = from; i < out.length; i += 1) {
+          const inner = out[i]!;
+          if (inner.kind === "table")
+            out[i] = {
+              ...inner,
+              placement: block.classes.includes("left")
+                ? "start"
+                : block.classes.includes("center")
+                  ? "center"
+                  : "end",
+              cellStyle: STYLE.signCell,
+            };
+          else if (inner.kind === "para" && ALIGNABLE.has(inner.style))
+            out[i] = {
+              ...inner,
+              style: i === from && block.classes.includes("signature")
+                ? STYLE.signatureTop
+                : style,
+            };
+        }
+        if (
+          block.classes.includes("signature") &&
+          out[from]?.kind === "table"
+        )
+          out.splice(from, 0, {
+            kind: "para",
+            style: STYLE.signatureGap,
+            runs: [],
+          });
+        afterHeading = false;
+        break;
       }
-
-      out[i] = {
-        ...block,
-        style: i === cut ? STYLE.signatureTop : STYLE.signature,
-      };
     }
-
-    const tail: IrBlock[] = [];
-    if (!hasDate)
-      tail.push({
-        kind: "para",
-        style: STYLE.date,
-        runs: [{ text: mongolianDate(options.now ?? new Date()) }],
-      });
-    if (cut < out.length && !inlineLine)
-      tail.push({ kind: "para", style: STYLE.signRule, runs: [] });
-    out.splice(cut, 0, ...tail);
   }
+  };
+  visit(fitBlanks(blocks));
 
   const title = out.find((b) => b.kind === "para" && b.style === STYLE.title);
 
   return {
     blocks: out,
-    styles: BASE,
+    styles: frame === "letter" ? { ...BASE, ...LETTER } : BASE,
     font: { family: "Times New Roman", sizePt: 12 },
     page: PAGE,
-    header:
-      frame === "structured"
-        ? { pageNumberRight: true, rule: false }
-        : undefined,
+    pageNumbers: frame !== "letter" || hasSections(blocks),
     title:
       title && title.kind === "para"
         ? title.runs.map((r) => r.text).join("")

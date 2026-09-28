@@ -677,6 +677,75 @@ a.tbtn {
   color: var(--muted);
 }
 
+.preview-body h4:has(+ p) {
+  display: inline;
+  margin: 0 0.4em 0 0;
+  font-size: 1em;
+}
+
+.preview-body h4:has(+ p) + p {
+  display: inline;
+}
+
+.preview-body h4:has(+ p) + p::after {
+  content: "";
+  display: block;
+  margin-bottom: 0.8em;
+}
+
+.preview-body .md-right,
+.preview-body .md-signature {
+  text-align: right;
+}
+
+.preview-body .md-signature {
+  margin-top: 2em;
+  line-height: 2.2;
+}
+
+.preview-body .md-center {
+  text-align: center;
+}
+
+.preview-body .md-left {
+  text-align: left;
+}
+
+.preview-body .md-meta {
+  margin-bottom: 1.2em;
+  text-align: center;
+}
+
+.preview-body .md-meta-title {
+  font-size: 1.4em;
+  font-weight: 700;
+}
+
+.preview-body .md-notes {
+  margin: 0 0 0.8em;
+  padding: 0.4em 0.8em;
+  border-inline-start: 3px solid var(--line);
+  color: var(--muted);
+  font-size: 0.9em;
+}
+
+.preview-body .md-columns {
+  display: flex;
+  gap: 1.5em;
+}
+
+.preview-body .md-column {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.preview-body .blank.fill {
+  display: block;
+  width: auto;
+  min-width: 4em;
+  height: 1.2em;
+}
+
 .preview-body .blank {
   display: inline-block;
   width: calc(var(--blank) * 0.5em);
@@ -698,28 +767,45 @@ a.tbtn {
   background: color-mix(in srgb, var(--muted) 12%, transparent);
 }
 
+.tex-logo {
+  white-space: nowrap;
+}
+.tex-logo .tex-a {
+  font-size: 0.72em;
+  vertical-align: 0.22em;
+  margin-inline: -0.36em -0.15em;
+}
+.tex-logo .tex-e {
+  vertical-align: -0.5ex;
+  margin-inline: -0.1667em -0.125em;
+}
+
 .preview-body code {
   font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   font-size: 0.9em;
 }
 
 .preview-body table {
-  width: 100%;
-  margin: 0 0 0.9em;
+  margin: 0 auto 0.9em;
   border-collapse: collapse;
   font-size: 0.92em;
 }
 
+.preview-body table:has(thead) {
+  border-top: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+}
+
 .preview-body th,
 .preview-body td {
-  padding: 6px 8px;
-  border: 1px solid var(--line);
+  padding: 4px 10px;
   text-align: start;
   vertical-align: top;
 }
 
 .preview-body th {
-  background: color-mix(in srgb, var(--muted) 10%, transparent);
+  border-bottom: 1px solid currentColor;
+  vertical-align: bottom;
   font-weight: 600;
 }
 

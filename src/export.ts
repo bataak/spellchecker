@@ -8,6 +8,7 @@
  * `Ctrl+S` -т хамаарахгүй: тэр нь одоогийн баримтаа шууд хадгална.
  */
 
+import { parse } from "./markdown.ts";
 import { findTemplate, type Frame } from "./templates.ts";
 
 export interface ExportFormat {
@@ -29,18 +30,43 @@ export interface BuildOptions {
   readonly toc: boolean;
 }
 
-async function latexFor(text: string, templateId: string): Promise<string> {
-  const [{ parse }, { toBeamer, toLatex }, { dropSignMarks, letterSource }] =
-    await Promise.all([
-      import("./markdown.ts"),
-      import("./latex.ts"),
-      import("./office/apply.ts"),
-    ]);
+const TOC_FRAMES: ReadonlySet<Frame> = new Set(["letter", "structured"]);
+
+const TOC_FORMATS: ReadonlySet<string> = new Set([
+  "odt",
+  "docx",
+  "tex",
+  "pdf",
+]);
+
+export function hasSections(text: string, templateId: string): boolean {
   const frame = findTemplate(templateId)?.frame;
-  if (frame === "slides") return toBeamer(parse(text));
-  if (frame === "letter")
-    return toLatex(dropSignMarks(parse(letterSource(text))));
-  return toLatex(parse(text));
+  if (frame === undefined || !TOC_FRAMES.has(frame)) return false;
+  const headings = parse(text).filter((block) => block.type === "heading");
+  return headings.length > 1;
+}
+
+function tocFor(
+  options: BuildOptions,
+  templateId: string,
+  text: string,
+): boolean {
+  return options.toc && hasSections(text, templateId);
+}
+
+async function latexFor(
+  text: string,
+  templateId: string,
+  options: BuildOptions,
+): Promise<string> {
+  const { PREAMBLE, toBeamer, toLatex } = await import("./latex.ts");
+  const frame = findTemplate(templateId)?.frame;
+  return frame === "slides"
+    ? toBeamer(parse(text))
+    : toLatex(parse(text), PREAMBLE, {
+        toc: tocFor(options, templateId, text),
+        pageNumbers: frame !== "letter" || hasSections(text, templateId),
+      });
 }
 
 export const FORMATS: readonly ExportFormat[] = [
@@ -50,16 +76,17 @@ export const FORMATS: readonly ExportFormat[] = [
     name: "OpenDocument",
     ext: "odt",
     mime: "application/vnd.oasis.opendocument.text",
-    build: async (text, templateId) => {
-      const [{ parse }, { applyTemplate, letterSource }, { buildOdt }] =
+    build: async (text, templateId, options) => {
+      const [{ parse }, { applyTemplate }, { buildOdt }] =
         await Promise.all([
           import("./markdown.ts"),
           import("./office/apply.ts"),
           import("./office/odt/create.ts"),
         ]);
       const template = findTemplate(templateId) ?? findTemplate("plain")!;
-      const source = template.frame === "letter" ? letterSource(text) : text;
-      return buildOdt(applyTemplate(parse(source), template));
+      return buildOdt(applyTemplate(parse(text), template), {
+        toc: tocFor(options, templateId, text),
+      });
     },
   },
   {
@@ -70,16 +97,15 @@ export const FORMATS: readonly ExportFormat[] = [
     ext: "docx",
     mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     build: async (text, templateId, options) => {
-      const [{ parse }, { applyTemplate, letterSource }, { buildDocx }] =
+      const [{ parse }, { applyTemplate }, { buildDocx }] =
         await Promise.all([
           import("./markdown.ts"),
           import("./office/apply.ts"),
           import("./office/docx/create.ts"),
         ]);
       const template = findTemplate(templateId) ?? findTemplate("plain")!;
-      const source = template.frame === "letter" ? letterSource(text) : text;
-      return buildDocx(applyTemplate(parse(source), template), {
-        toc: options.toc && template.frame === "structured",
+      return buildDocx(applyTemplate(parse(text), template), {
+        toc: tocFor(options, templateId, text),
       });
     },
   },
@@ -90,12 +116,12 @@ export const FORMATS: readonly ExportFormat[] = [
     ext: "pdf",
     mime: "application/pdf",
     slow: true,
-    build: async (text, templateId) => {
+    build: async (text, templateId, options) => {
       const [source, { compilePdf }] = await Promise.all([
-        latexFor(text, templateId),
+        latexFor(text, templateId, options),
         import("./texpdf.ts"),
       ]);
-      return compilePdf(source);
+      return compilePdf(source, tocFor(options, templateId, text) ? 2 : 1);
     },
   },
   {
@@ -264,7 +290,7 @@ export function initExport(options: ExportOptions): ExportControl {
     ).join("") +
     "</div>" +
     '<label class="export-toc" hidden>' +
-    '<input class="export-toc-input" type="checkbox" checked /> Гарчгийн жагсаалт' +
+    '<input class="export-toc-input" type="checkbox" /> Гарчгийн жагсаалт үүсгэх' +
     "</label>" +
     '<p class="export-error" role="alert" hidden></p>' +
     '<div class="export-actions">' +
@@ -303,8 +329,8 @@ export function initExport(options: ExportOptions): ExportControl {
       button.classList.toggle("is-on", button.dataset.format === chosen.id);
 
     tocField.hidden =
-      chosen.id !== "docx" ||
-      findTemplate(options.template())?.frame !== "structured";
+      !TOC_FORMATS.has(chosen.id) ||
+      !hasSections(editor.value, options.template());
 
     nameInput.value = nameInput.value.replace(EXT_RE, "") + "." + chosen.ext;
   }
@@ -316,6 +342,7 @@ export function initExport(options: ExportOptions): ExportControl {
     }
     restoreFocus = document.activeElement as HTMLElement | null;
     errorNote.hidden = true;
+    tocInput.checked = false;
     const offered = available();
     if (!userPicked || !offered.includes(chosen))
       chosen =

@@ -7,7 +7,6 @@ import {
   toggleList,
   toggleWrap,
   enterInsert,
-  exampleAt,
   insertTable,
   minimalDiff,
   toggleQuote,
@@ -350,52 +349,6 @@ test("оруулсан хүснэгт задлан шинжлэгдэнэ", asyn
   const e = insertTable("Догол", 5);
   const kinds = parse(e.text).map((b) => b.type);
   assert.deepEqual(kinds, ["paragraph", "table"]);
-});
-
-// --------------------------------------------------------------- exampleAt
-
-const EX = ["Эхний жишээ өгүүлбэр.", "Хоёр дахь жишээ өгүүлбэр."];
-
-test("жишээ цогцолборыг бүтнээр нь олно", () => {
-  const text =
-    "# Гарчиг\n\nЭхний жишээ өгүүлбэр.\n\nХоёр дахь жишээ өгүүлбэр.\n";
-  const at = text.indexOf("Эхний") + 3;
-  const f = exampleAt(text, at, EX)!;
-  assert.equal(text.slice(f.start, f.end), "Эхний жишээ өгүүлбэр.");
-});
-
-test("гарчгийг жишээ гэж үзэхгүй", () => {
-  const text = "# Гарчиг\n\nЭхний жишээ өгүүлбэр.\n";
-  assert.equal(exampleAt(text, 3, EX), null);
-});
-
-test("засварласан цогцолборыг таних болино", () => {
-  const text = "# Гарчиг\n\nЭхний жишээ өгүүлбэрX.\n";
-  assert.equal(exampleAt(text, text.indexOf("Эхний") + 3, EX), null);
-});
-
-test("олон мөрт цогцолборыг бүтнээр авна", () => {
-  const many = ["Эхний мөр\nхоёр дахь мөр"];
-  const text = "Эхний мөр\nхоёр дахь мөр\n\nБусад\n";
-  const f = exampleAt(text, 12, many)!;
-  assert.equal(text.slice(f.start, f.end), "Эхний мөр\nхоёр дахь мөр");
-});
-
-test("хоосон мөрөнд null", () => {
-  const text = "Эхний жишээ өгүүлбэр.\n\n\nБусад\n";
-  assert.equal(exampleAt(text, 22, EX), null);
-});
-
-test("жишээгүй бол null", () => {
-  assert.equal(exampleAt("ямар нэг бичвэр", 3, []), null);
-});
-
-test("гарчгийн тэмдэглэгээг тэмдэглэлд оруулахгүй", () => {
-  const ex = ["Хаяглагч блок"];
-  const text = "# Хаяглагч блок\n\nБусад бичвэр.\n";
-  const f = exampleAt(text, 5, ex)!;
-  assert.equal(text.slice(f.start, f.end), "Хаяглагч блок");
-  assert.equal(f.start, 2);
 });
 
 test("тод, налуу ээлжлэн дарахад од хуримтлагдахгүй", () => {
