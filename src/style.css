@@ -1296,6 +1296,20 @@ a.tbtn {
   :root[data-toolbar="wide"] .toolbar #fontDecBtn {
     margin-left: 0;
   }
+
+  :root[data-topbar="wide"] main:has(.editor-wrap) > .topbar {
+    box-sizing: border-box;
+    width: 100vw;
+    max-width: 100vw;
+    margin-inline: calc(50% - 50vw);
+    padding-inline: var(--topbar-start, var(--page-pad)) var(--page-pad);
+    justify-content: flex-start;
+  }
+
+  :root[data-topbar="wide"] .topbar #statusText {
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
 }
 
 @media (max-width: 700px) {
