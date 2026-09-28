@@ -1,12 +1,17 @@
-import type { Block, Inline } from "./markdown.ts";
+import { mathSource, type Block, type Inline } from "./markdown.ts";
 import { splitSlides, type Slide } from "./slides.ts";
 
 export const PREAMBLE = `\\documentclass[12pt,a4paper]{article}
 \\usepackage[T2A]{fontenc}
 \\usepackage[utf8]{inputenc}
 \\usepackage[mongolian]{babel}
-\\usepackage[normalem]{ulem}
+\\usepackage{amsmath}
+\\usepackage[OT1]{eulervm}
+\\usepackage{amsthm}
 \\usepackage{hyperref}
+\\newtheorem{theorem}{Теорем}
+\\theoremstyle{definition}
+\\newtheorem{definition}{Тодорхойлолт}
 `;
 
 const SPECIAL: Readonly<Record<string, string>> = {
@@ -38,6 +43,9 @@ const SECTION = [
   "subparagraph",
 ];
 
+const DISPLAY_ENV =
+  /^\\begin\{(?:equation|align|gather|multline|flalign|alignat|displaymath)\*?\}/;
+
 const COLUMN = { left: "l", center: "c", right: "r" } as const;
 
 function inline(nodes: readonly Inline[]): string {
@@ -47,7 +55,8 @@ function inline(nodes: readonly Inline[]): string {
     else if (n.type === "code") out += "\\texttt{" + escapeTex(n.value) + "}";
     else if (n.type === "strong") out += "\\textbf{" + inline(n.children) + "}";
     else if (n.type === "em") out += "\\emph{" + inline(n.children) + "}";
-    else if (n.type === "del") out += "\\sout{" + inline(n.children) + "}";
+    else if (n.type === "math") out += mathSource(n.open, n.value);
+    else if (n.type === "del") out += inline(n.children);
     else if (n.auto) out += "\\url{" + escapeUrl(n.url) + "}";
     else out += "\\href{" + escapeUrl(n.url) + "}{" + inline(n.children) + "}";
   }
@@ -62,6 +71,10 @@ function block(b: Block): string {
     }
     case "paragraph":
       return inline(b.children);
+    case "latex":
+      return b.value;
+    case "math":
+      return DISPLAY_ENV.test(b.value) ? b.value : "\\[\n" + b.value + "\n\\]";
     case "rule":
       return "\\noindent\\rule{\\linewidth}{0.4pt}";
     case "codeblock":
@@ -140,11 +153,18 @@ export const BEAMER_PREAMBLE = `\\documentclass{beamer}
 \\usepackage[T2A]{fontenc}
 \\usepackage[utf8]{inputenc}
 \\usepackage[mongolian]{babel}
-\\usepackage[normalem]{ulem}
+\\usepackage{amsmath}
+\\usepackage[OT1]{eulervm}
+\\usefonttheme[onlymath]{serif}
+\\deftranslation[to=mongolian]{Theorem}{Теорем}
+\\deftranslation[to=mongolian]{Definition}{Тодорхойлолт}
 `;
 
 function frame(slide: Slide): string {
-  const fragile = slide.blocks.some((b) => b.type === "codeblock");
+  const fragile = slide.blocks.some(
+    (b) =>
+      b.type === "codeblock" || (b.type === "latex" && b.env === "verbatim"),
+  );
   const body = slide.blocks
     .map((b) =>
       b.type === "heading"

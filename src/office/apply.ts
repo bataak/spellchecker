@@ -292,6 +292,8 @@ export function applyTemplate(
         afterHeading = false;
         break;
 
+      case "math":
+      case "latex":
       case "codeblock":
         out.push({
           kind: "para",

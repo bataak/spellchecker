@@ -75,6 +75,7 @@ All MIT licensed; see the `LICENSE` file inside each package.
 | `@napi-rs/canvas`                      | https://github.com/Brooooooklyn/canvas                          |
 | `fflate`                               | https://github.com/101arrowz/fflate                             |
 | `is-buffer`                            | https://github.com/feross/is-buffer                             |
+| `katex`                                | https://github.com/KaTeX/KaTeX                                  |
 | `node-readable-to-web-readable-stream` | https://github.com/Borewit/node-readable-to-web-readable-stream |
 
 ## Fonts

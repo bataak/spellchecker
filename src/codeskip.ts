@@ -5,6 +5,27 @@ export interface SkipRange {
 
 const FENCE = /^[ \t]{0,3}(`{3,}|~{3,})/;
 const HTML_BLOCK = /<(pre|code|kbd|samp|tt)\b[^>]*>[\s\S]*?<\/\1\s*>/gi;
+const NO_BLANK = String.raw`(?:(?!\n[ \t]*\n)[\s\S])*?`;
+const MATH_BLOCK = new RegExp(
+  String.raw`^[ \t]*(?:\\\[` +
+    NO_BLANK +
+    String.raw`\\\][ \t]*$|\\begin\{((?:equation|align|gather|multline|displaymath|flalign|alignat|aligned|gathered|split|cases|[pbBvV]?matrix|smallmatrix)\*?)\}` +
+    NO_BLANK +
+    String.raw`\\end\{\1\}|\\begin\{verbatim\}[\s\S]*?\\end\{verbatim\})`,
+  "gm",
+);
+const LATEX_COMMAND =
+  /\\(?:begin|end)\{[^}\n]*\}(?:\{[^}\n]*\}|\[[^\]\n]*\])*|\\[A-Za-z]+\*?/g;
+const MATH = new RegExp(
+  String.raw`\\\(` +
+    NO_BLANK +
+    String.raw`\\\)|\\begin\{math\}` +
+    NO_BLANK +
+    String.raw`\\end\{math\}|\$\$` +
+    NO_BLANK +
+    String.raw`\$\$|(?<![\\$])\$(?![\s$])(?:[^$\n\\]|\\.)*?[^\s$\\]\$(?![\d$])|(?<![\\$])\$(?![\s$])[^$\n\\]\$(?![\d$])`,
+  "g",
+);
 
 function lineBounds(text: string): number[] {
   const starts = [0];
@@ -231,7 +252,9 @@ export function codeRanges(text: string): SkipRange[] {
   if (
     text.indexOf("`") < 0 &&
     text.indexOf("~~~") < 0 &&
-    text.indexOf("<") < 0
+    text.indexOf("<") < 0 &&
+    text.indexOf("$") < 0 &&
+    text.indexOf("\\") < 0
   ) {
     return [];
   }
@@ -243,6 +266,13 @@ export function codeRanges(text: string): SkipRange[] {
     ...fenced,
     ...inlineRanges(text, fenced),
     ...htmlRanges(text),
+    ...[
+      ...collect(text, MATH),
+      ...collect(text, MATH_BLOCK),
+      ...collect(text, LATEX_COMMAND),
+    ].filter(
+      (range) => !covered(fenced, range.start),
+    ),
   ]);
 }
 

@@ -1,4 +1,4 @@
-import type { Inline } from "../markdown.ts";
+import { mathSource, type Inline } from "../markdown.ts";
 import type { IrRun } from "./docir.ts";
 
 interface Marks {
@@ -54,6 +54,9 @@ function walk(nodes: readonly Inline[], marks: Marks, out: IrRun[]): void {
         break;
       case "code":
         push(out, node.value, { ...marks, mono: true });
+        break;
+      case "math":
+        push(out, mathSource(node.open, node.value), marks);
         break;
       case "strong":
         walk(node.children, { ...marks, bold: true }, out);

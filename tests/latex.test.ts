@@ -24,8 +24,44 @@ test("гарчиг ба догол", () => {
 test("бичвэрийн хэлбэр", () => {
   assert.equal(
     body("**тод** *налуу* ~~зураас~~ `код`"),
-    "\\textbf{тод} \\emph{налуу} \\sout{зураас} \\texttt{код}",
+    "\\textbf{тод} \\emph{налуу} зураас \\texttt{код}",
   );
+});
+
+test("томьёо", () => {
+  assert.equal(
+    body("Талбай $S = \\pi r^2$ байна.\n\n$$\n\\frac{a}{b}\n$$"),
+    "Талбай $S = \\pi r^2$ байна.\n\n\\[\n\\frac{a}{b}\n\\]",
+  );
+});
+
+test("томьёоны орчныг \\[ \\]-д давхар ороохгүй", () => {
+  const align = "\\begin{align}\na &= b\n\\end{align}";
+  assert.equal(body("$$\n" + align + "\n$$"), align);
+  assert.equal(body(align), align);
+  assert.equal(
+    body("$$\n\\begin{aligned}\na\n\\end{aligned}\n$$"),
+    "\\[\n\\begin{aligned}\na\n\\end{aligned}\n\\]",
+  );
+  assert.equal(body("\\[ x = 1 \\]"), "\\[\nx = 1\n\\]");
+});
+
+test("томьёоны дотоод орчныг \\[ \\]-д ороож, бичвэрийн орчныг шууд гаргана", () => {
+  assert.equal(
+    body("\\begin{pmatrix}\n1\n\\end{pmatrix}"),
+    "\\[\n\\begin{pmatrix}\n1\n\\end{pmatrix}\n\\]",
+  );
+  const theorem = "\\begin{theorem}\nАгуулга $x$.\n\\end{theorem}";
+  assert.equal(body(theorem), theorem);
+});
+
+test("томьёоны хязгаарлагчийг хадгална", () => {
+  assert.equal(
+    body("$a$ \\(b\\) \\begin{math}c\\end{math} $$d$$"),
+    "$a$ \\(b\\) \\begin{math}c\\end{math} $$d$$",
+  );
+  const env = "\\begin{displaymath}\nx\n\\end{displaymath}";
+  assert.equal(body(env), env);
 });
 
 test("холбоос", () => {

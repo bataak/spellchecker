@@ -1,6 +1,20 @@
+export type MathOpen = "$" | "$$" | "\\(" | "\\begin{math}";
+
+const MATH_SHUT: Readonly<Record<MathOpen, string>> = {
+  $: "$",
+  $$: "$$",
+  "\\(": "\\)",
+  "\\begin{math}": "\\end{math}",
+};
+
+export function mathSource(open: MathOpen, value: string): string {
+  return open + value + MATH_SHUT[open];
+}
+
 export type Inline =
   | { type: "text"; value: string }
   | { type: "code"; value: string }
+  | { type: "math"; open: MathOpen; value: string }
   | { type: "strong"; children: Inline[] }
   | { type: "del"; children: Inline[] }
   | { type: "em"; children: Inline[] }
@@ -35,6 +49,18 @@ export interface CodeBlock {
   value: string;
   line: number;
 }
+export interface MathBlock {
+  type: "math";
+  fence: "$$" | "\\[" | "env";
+  value: string;
+  line: number;
+}
+export interface LatexBlock {
+  type: "latex";
+  env: string;
+  value: string;
+  line: number;
+}
 export interface Rule {
   type: "rule";
   line: number;
@@ -52,12 +78,19 @@ export type Block =
   | Quote
   | ListNode
   | CodeBlock
+  | MathBlock
+  | LatexBlock
   | Rule
   | Table;
 
 const HOLD = "\u0001";
 
-const ESCAPABLE = "\\`*_{}[]()#+-.!|~>";
+const MATH_HOLD = "\u0002";
+
+const MATH_SPAN =
+  /(`+)[\s\S]*?\1|\\begin\{math\}([\s\S]*?)\\end\{math\}|\\\(([\s\S]*?)\\\)|\$\$((?:[^$\\]|\\.)+?)\$\$|(?<![\\$])\$(?![\s$])((?:[^$\n\\]|\\.)*?[^\s$\\]|[^\s$\\])\$(?![\d$])/g;
+
+const ESCAPABLE = "\\`*_{}[]()#+-.!|~>$";
 
 function mask(src: string, held: string[]): string {
   return src.replace(/\\(.)/g, (whole, ch: string) => {
@@ -67,10 +100,9 @@ function mask(src: string, held: string[]): string {
   });
 }
 
-function unmask(src: string, held: string[]): string {
-  return src.replace(
-    new RegExp(HOLD + "(\\d+)" + HOLD, "g"),
-    (_, i: string) => held[Number(i)] ?? "",
+function unmask(src: string, held: string[], raw = false): string {
+  return src.replace(new RegExp(HOLD + "(\\d+)" + HOLD, "g"), (_, i: string) =>
+    held[Number(i)] === undefined ? "" : (raw ? "\\" : "") + held[Number(i)],
   );
 }
 
@@ -112,11 +144,16 @@ const TOKEN = new RegExp(
     wordBound(emphasis("_", 1, "[^_\\n]+?")),
     "\\[([^\\]]*)\\]\\(([^)\\s]*)\\)",
     "<((?:[a-z][a-z0-9+.-]*:|[^\\s<>@]+@)[^\\s<>]+)>",
+    MATH_HOLD + "(\\d+)" + MATH_HOLD,
   ].join("|"),
   "iu",
 );
 
-function parseInlineMasked(src: string, held: string[]): Inline[] {
+function parseInlineMasked(
+  src: string,
+  held: string[],
+  maths: readonly Inline[],
+): Inline[] {
   const out: Inline[] = [];
   let rest = src;
   const pushText = (s: string): void => {
@@ -132,29 +169,35 @@ function parseInlineMasked(src: string, held: string[]): Inline[] {
     if (!m) break;
     pushText(rest.slice(0, m.index));
     if (m[2] !== undefined) {
-      out.push({ type: "code", value: unmask(m[2].trim(), held) });
+      out.push({ type: "code", value: unmask(m[2].trim(), held, true) });
     } else if (m[3] !== undefined) {
-      out.push({ type: "del", children: parseInlineMasked(m[3], held) });
+      out.push({
+        type: "del",
+        children: parseInlineMasked(m[3], held, maths),
+      });
     } else if (m[4] ?? m[5]) {
       out.push({
         type: "strong",
         children: [
           {
             type: "em",
-            children: parseInlineMasked((m[4] ?? m[5])!, held),
+            children: parseInlineMasked((m[4] ?? m[5])!, held, maths),
           },
         ],
       });
     } else if (m[6] ?? m[7]) {
       out.push({
         type: "strong",
-        children: parseInlineMasked((m[6] ?? m[7])!, held),
+        children: parseInlineMasked((m[6] ?? m[7])!, held, maths),
       });
     } else if (m[8] ?? m[9]) {
       out.push({
         type: "em",
-        children: parseInlineMasked((m[8] ?? m[9])!, held),
+        children: parseInlineMasked((m[8] ?? m[9])!, held, maths),
       });
+    } else if (m[13] !== undefined) {
+      const math = maths[Number(m[13])];
+      if (math) out.push(math);
     } else if (m[12] !== undefined) {
       const url = unmask(m[12], held);
       out.push({
@@ -167,7 +210,7 @@ function parseInlineMasked(src: string, held: string[]): Inline[] {
       out.push({
         type: "link",
         url: unmask(m[11] ?? "", held),
-        children: parseInlineMasked(m[10] ?? "", held),
+        children: parseInlineMasked(m[10] ?? "", held, maths),
       });
     }
     rest = rest.slice(m.index + m[0].length);
@@ -178,7 +221,42 @@ function parseInlineMasked(src: string, held: string[]): Inline[] {
 
 export function parseInline(src: string): Inline[] {
   const held: string[] = [];
-  return parseInlineMasked(mask(src.split(HOLD).join(""), held), held);
+  const maths: Inline[] = [];
+  const lifted = src
+    .split(HOLD)
+    .join("")
+    .split(MATH_HOLD)
+    .join("")
+    .replace(
+      MATH_SPAN,
+      (
+        whole,
+        _ticks: string | undefined,
+        env: string | undefined,
+        paren: string | undefined,
+        double: string | undefined,
+        single: string | undefined,
+      ) => {
+        const open: MathOpen | null =
+          env !== undefined
+            ? "\\begin{math}"
+            : paren !== undefined
+              ? "\\("
+              : double !== undefined
+                ? "$$"
+                : single !== undefined
+                  ? "$"
+                  : null;
+        if (open === null) return whole;
+        maths.push({
+          type: "math",
+          open,
+          value: env ?? paren ?? double ?? single ?? "",
+        });
+        return MATH_HOLD + (maths.length - 1) + MATH_HOLD;
+      },
+    );
+  return parseInlineMasked(mask(lifted, held), held, maths);
 }
 
 const HEADING_RE = /^(#{1,6})\s+(.*)$/;
@@ -187,6 +265,120 @@ const BULLET_RE = /^(\s*)([-*+])\s+(.*)$/;
 const ORDERED_RE = /^(\s*)(\d+)[.)]\s+(.*)$/;
 const QUOTE_RE = /^\s*>\s?(.*)$/;
 const FENCE_RE = /^\s*(`{3,}|~{3,})\s*(\S*)\s*$/;
+const MATH_RE = /^\s*(?:\$\$|\\\[|\\begin\{[A-Za-z]+\*?\})/;
+
+const MATH_ENVS = new Set(
+  [
+    "equation",
+    "align",
+    "gather",
+    "multline",
+    "displaymath",
+    "flalign",
+    "alignat",
+    "aligned",
+    "gathered",
+    "split",
+    "cases",
+    "matrix",
+    "pmatrix",
+    "bmatrix",
+    "Bmatrix",
+    "vmatrix",
+    "Vmatrix",
+    "smallmatrix",
+  ].flatMap((name) => [name, name + "*"]),
+);
+
+const TEXT_ENVS = new Set([
+  "itemize",
+  "enumerate",
+  "description",
+  "tabular",
+  "table",
+  "figure",
+  "center",
+  "flushleft",
+  "flushright",
+  "quote",
+  "verbatim",
+  "abstract",
+  "proof",
+  "theorem",
+  "definition",
+]);
+
+const MATH_CLOSE = { $$: "$$", "\\[": "\\]" } as const;
+
+function envEnd(
+  lines: readonly string[],
+  start: number,
+  env: string,
+  math: boolean,
+): number {
+  const verbatim = env === "verbatim";
+  const edge = verbatim
+    ? /\\end\{verbatim\}/g
+    : new RegExp("\\\\(begin|end)\\{" + env.replace("*", "\\*") + "\\}", "g");
+  let depth = verbatim ? 1 : 0;
+  for (let i = start; i < lines.length; i += 1) {
+    const raw = lines[i]!;
+    const line = verbatim && i === start ? raw.slice(raw.indexOf("}") + 1) : raw;
+    if (math && i > start && !line.trim()) return -1;
+    for (const m of line.matchAll(edge)) {
+      depth += m[1] === "begin" ? 1 : -1;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
+function displayMath(
+  lines: readonly string[],
+  start: number,
+): { block: MathBlock | LatexBlock; next: number } | null {
+  const head = lines[start]!.trim();
+  const env = /^\\begin\{([A-Za-z]+\*?)\}/.exec(head)?.[1];
+  if (env !== undefined) {
+    const math = MATH_ENVS.has(env);
+    if (!math && !TEXT_ENVS.has(env)) return null;
+    const end = envEnd(lines, start, env, math);
+    if (end < 0) return null;
+    const value = lines
+      .slice(start, end + 1)
+      .join("\n")
+      .trim();
+    return {
+      block: math
+        ? { type: "math", fence: "env", value, line: start }
+        : { type: "latex", env, value, line: start },
+      next: end + 1,
+    };
+  }
+
+  const fence: "$$" | "\\[" = head.startsWith("$$") ? "$$" : "\\[";
+  const close = MATH_CLOSE[fence];
+  let body = head.slice(2);
+  const inner = body.indexOf(close);
+  if (inner >= 0 && inner + close.length < body.length) return null;
+
+  let i = start + 1;
+  while (!body.endsWith(close)) {
+    const line = lines[i]?.trimEnd();
+    if (line === undefined || !line.trim()) return null;
+    body += "\n" + line;
+    i += 1;
+  }
+  return {
+    block: {
+      type: "math",
+      fence,
+      value: body.slice(0, -close.length).trim(),
+      line: start,
+    },
+    next: i,
+  };
+}
 
 function splitCells(line: string): string[] {
   const cells = line.trim().split(/(?<!\\)\|/);
@@ -232,7 +424,8 @@ export function parse(src: string): Block[] {
         BULLET_RE.test(line) ||
         ORDERED_RE.test(line) ||
         QUOTE_RE.test(line) ||
-        FENCE_RE.test(line)
+        FENCE_RE.test(line) ||
+        (i > start && MATH_RE.test(line) && displayMath(lines, i))
       )
         break;
       buf.push(line.trim());
@@ -272,6 +465,13 @@ export function parse(src: string): Block[] {
         value: body.join("\n"),
         line: start,
       });
+      continue;
+    }
+
+    const math = MATH_RE.test(line) ? displayMath(lines, i) : null;
+    if (math) {
+      out.push(math.block);
+      i = math.next;
       continue;
     }
 
@@ -367,6 +567,10 @@ function inlineHtml(nodes: readonly Inline[]): string {
   for (const n of nodes) {
     if (n.type === "text") out += esc(n.value);
     else if (n.type === "code") out += `<code>${esc(n.value)}</code>`;
+    else if (n.type === "math")
+      out +=
+        `<span class="math${n.open === "$$" ? " math-display" : ""}">` +
+        `${esc(n.value)}</span>`;
     else if (n.type === "strong")
       out += `<strong>${inlineHtml(n.children)}</strong>`;
     else if (n.type === "em") out += `<em>${inlineHtml(n.children)}</em>`;
@@ -390,6 +594,10 @@ export function toHtml(blocks: readonly Block[]): string {
     else if (b.type === "rule") out += `<hr${at}>`;
     else if (b.type === "codeblock")
       out += `<pre${at}><code>${esc(b.value)}</code></pre>`;
+    else if (b.type === "math")
+      out += `<div class="math math-display"${at}>${esc(b.value)}</div>`;
+    else if (b.type === "latex")
+      out += `<pre class="latex"${at}><code>${esc(b.value)}</code></pre>`;
     else if (b.type === "quote")
       out += `<blockquote${at}>${toHtml(b.children)}</blockquote>`;
     else if (b.type === "list") {
@@ -443,12 +651,18 @@ function escapeLeading(s: string): string {
 function inlineMd(nodes: readonly Inline[], cell: boolean): string {
   let out = "";
   for (const n of nodes) {
-    if (n.type === "text") out += escapeText(n.value, cell);
+    if (n.type === "text") {
+      const text = escapeText(n.value, cell);
+      out += parseInline(text).some((m) => m.type === "math")
+        ? text.replace(/\$/g, "\\$")
+        : text;
+    }
     else if (n.type === "code") {
       const ticks = "`".repeat((n.value.match(/`+/g)?.[0]?.length ?? 0) + 1);
       const pad = n.value.startsWith("`") || n.value.endsWith("`") ? " " : "";
       out += ticks + pad + n.value + pad + ticks;
-    } else if (n.type === "strong")
+    } else if (n.type === "math") out += mathSource(n.open, n.value);
+    else if (n.type === "strong")
       out += `**${inlineMd(n.children, cell)}**`;
     else if (n.type === "em") out += `*${inlineMd(n.children, cell)}*`;
     else if (n.type === "del") out += `~~${inlineMd(n.children, cell)}~~`;
@@ -478,6 +692,11 @@ function blockMd(b: Block): string {
       const f = fenceFor(b.value);
       return f + b.lang + "\n" + b.value + "\n" + f;
     }
+    case "latex":
+      return b.value;
+    case "math":
+      if (b.fence === "env") return b.value;
+      return b.fence + "\n" + b.value + "\n" + MATH_CLOSE[b.fence];
     case "quote":
       return b.children
         .map(blockMd)
@@ -543,6 +762,8 @@ export function isMarkdown(blocks: readonly Block[]): boolean {
     switch (b.type) {
       case "heading":
       case "codeblock":
+      case "math":
+      case "latex":
       case "table":
       case "quote":
       case "rule":
