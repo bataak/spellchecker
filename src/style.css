@@ -677,6 +677,11 @@ a.tbtn {
   color: var(--muted);
 }
 
+.preview-body .math-display {
+  margin: 0 0 0.8em;
+  overflow-x: auto;
+}
+
 .preview-body pre {
   margin: 0 0 0.8em;
   padding: 10px 12px;

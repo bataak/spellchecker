@@ -18,6 +18,7 @@
   "dependencies": {
     "fflate": "^0.8.3",
     "hunspell-wasm": "file:vendor/hunspell-wasm",
+    "katex": "^0.18.9",
     "nspell": "^2.1.5",
     "pdfjs-dist": "5.4.624"
   },

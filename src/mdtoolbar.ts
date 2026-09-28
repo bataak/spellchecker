@@ -38,7 +38,6 @@ export interface MdToolbar {
 type Role =
   | "bold"
   | "italic"
-  | "strike"
   | "code"
   | "h1"
   | "h2"
@@ -90,7 +89,6 @@ function svg(body: string): string {
 const BUTTONS: readonly ButtonSpec[] = [
   { role: "bold", label: "B", title: "Тод" },
   { role: "italic", label: "I", title: "Налуу" },
-  { role: "strike", label: "S", title: "Дарж зурах" },
   { role: "h1", label: "H1", title: "Гарчиг" },
   { role: "h2", label: "H2", title: "Дэд гарчиг" },
   { role: "h3", label: "H3", title: "Дэдийн дэд гарчиг" },
@@ -302,7 +300,6 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     if (depth !== undefined) apply(toggleHeading(text, start, end, depth));
     else if (role === "bold") apply(toggleWrap(text, start, end, "**"));
     else if (role === "italic") apply(toggleWrap(text, start, end, "*"));
-    else if (role === "strike") apply(toggleWrap(text, start, end, "~~"));
     else if (role === "code") apply(toggleWrap(text, start, end, "`"));
     else if (role === "quote") apply(toggleQuote(text, start, end));
     else if (role === "link") apply(wrapLink(text, start, end));

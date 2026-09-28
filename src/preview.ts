@@ -130,6 +130,10 @@ export function initPreview(
     const blocks = text.trim() ? parse(text) : [];
     body.innerHTML = blocks.length ? toHtml(blocks) : "";
     body.classList.toggle("is-empty", !blocks.length);
+    if (body.querySelector(".math"))
+      void import("./mathview.ts")
+        .then((mod) => mod.renderMath(body))
+        .catch(() => undefined);
 
     tidied = null;
     const looksMd = isMdFile || isMarkdown(blocks);

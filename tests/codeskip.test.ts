@@ -259,3 +259,54 @@ test("inline code still works within one line", () => {
   assert.ok(inRanges(ranges, text.indexOf("npm")));
   assert.ok(!inRanges(ranges, text.indexOf("дараа")));
 });
+
+test("томьёог алгасна", () => {
+  assert.equal(skipped("Томьёо $\\alpha + бета$ энд.", "бета"), true);
+  assert.equal(skipped("$$\nгамма\n$$\nдараа", "гамма"), true);
+  assert.equal(skipped("$$\nгамма\n$$\nдараа", "дараа"), false);
+  assert.equal(skipped("Үнэ 100$ ба 200$ болно.", "ба"), false);
+});
+
+test("\\[ \\] ба томьёоны орчныг алгасна", () => {
+  assert.equal(skipped("\\[\nгамма\n\\]\nдараа", "гамма"), true);
+  assert.equal(skipped("\\[\nгамма\n\\]\nдараа", "дараа"), false);
+  assert.equal(
+    skipped("\\begin{align}\nдельта\n\\end{align}\nдараа", "дельта"),
+    true,
+  );
+  assert.equal(skipped("Үг \\[холбоос\\] энд", "холбоос"), false);
+});
+
+test("хаагдаагүй томьёо бусад бичвэрийг алгасуулахгүй", () => {
+  assert.equal(skipped("$$ хаагдаагүй\n\nдараа", "дараа"), false);
+  assert.equal(skipped("\\[1\\] ном\n\nдараа \\]", "дараа"), false);
+  assert.equal(skipped("\\[Нэр\\] ном", "Нэр"), false);
+});
+
+test("LaTeX командыг алгасаж, бичвэрийн орчны текстийг шалгана", () => {
+  const text = "\\begin{itemize}\n\\item Монгол үг\n\\end{itemize}";
+  assert.equal(skipped(text, "itemize"), true);
+  assert.equal(skipped(text, "item "), true);
+  assert.equal(skipped(text, "Монгол"), false);
+  assert.equal(
+    skipped("\\begin{verbatim}\nүг\n\\end{verbatim}", "үг"),
+    true,
+  );
+  assert.equal(
+    skipped("\\begin{pmatrix}\nабв\n\\end{pmatrix}", "абв"),
+    true,
+  );
+});
+
+test("бусад томьёоны хязгаарлагчийг алгасна", () => {
+  assert.equal(skipped("Үг \\(альфа\\) энд", "альфа"), true);
+  assert.equal(skipped("Үг \\(альфа\\) энд", "энд"), false);
+  assert.equal(
+    skipped("Үг \\begin{math}бета\\end{math} энд", "бета"),
+    true,
+  );
+  assert.equal(
+    skipped("\\begin{displaymath}\nгамма\n\\end{displaymath}", "гамма"),
+    true,
+  );
+});

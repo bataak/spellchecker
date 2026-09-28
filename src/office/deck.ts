@@ -54,7 +54,11 @@ function lines(blocks: readonly Block[]): DeckLine[] {
     else if (b.type === "quote")
       for (const line of lines(b.children))
         out.push({ ...line, runs: mark(line.runs, { italic: true }) });
-    else if (b.type === "codeblock")
+    else if (
+      b.type === "codeblock" ||
+      b.type === "math" ||
+      b.type === "latex"
+    )
       for (const text of b.value.split("\n"))
         out.push({ kind: "para", runs: [{ text, mono: true }] });
     else if (b.type === "table")
