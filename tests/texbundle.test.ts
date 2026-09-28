@@ -60,7 +60,11 @@ test("ODT гарчгийн жагсаалт сонголтоор", async () => {
     );
   assert.ok(!(await content(false)).includes("text:table-of-content"));
   const withToc = await content(true);
-  assert.ok(withToc.includes('<text:table-of-content-source text:outline-level="3">'));
-  assert.ok(withToc.includes('<text:p text:style-name="TOC_2">Нэг<text:tab/></text:p>'));
+  assert.ok(
+    withToc.includes('<text:table-of-content-source text:outline-level="3">'),
+  );
+  assert.ok(
+    withToc.includes('<text:p text:style-name="TOC_2">Нэг<text:tab/></text:p>'),
+  );
   assert.ok(withToc.indexOf("table-of-content") > withToc.indexOf(">Нэр<"));
 });

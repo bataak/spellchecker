@@ -72,7 +72,9 @@ export function untar(bytes: Uint8Array): ArchiveEntry[] {
     }
     if (type === 0x67) continue;
     const name =
-      longName ?? extendedName ?? (prefix ? prefix + "/" + shortName : shortName);
+      longName ??
+      extendedName ??
+      (prefix ? prefix + "/" + shortName : shortName);
     longName = null;
     extendedName = null;
     if (type === 0 || type === 0x30 || type === 0x37)

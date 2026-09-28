@@ -98,7 +98,12 @@ test("мөр шилжилт догол доторх мөрүүдийг хадг�
 test("илтгэгчийн тэмдэглэл баримтад орохгүй, YAML гарчиг болно", () => {
   const md =
     "---\ntitle: Судалгаа\nauthor: Бат\n---\n\n# Хэсэг\n\nДогол.\n\n::: notes\nНууц.\n:::\n";
-  assert.deepEqual(styles(md, "report"), ["Title", "Center", "Heading1", "BodyFirst"]);
+  assert.deepEqual(styles(md, "report"), [
+    "Title",
+    "Center",
+    "Heading1",
+    "BodyFirst",
+  ]);
   assert.equal(texts(md, "report").includes("Нууц."), false);
 });
 

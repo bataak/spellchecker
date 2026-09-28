@@ -118,7 +118,9 @@ function inline(nodes: readonly Inline[]): string {
     else if (n.type === "break") out += "\\\\\n";
     else if (n.type === "blank" && n.fit !== undefined)
       out +=
-        "\\rule[-0.3ex]{" + String(Math.round(blankEm(n) * 100) / 100) + "em}{0.4pt}";
+        "\\rule[-0.3ex]{" +
+        String(Math.round(blankEm(n) * 100) / 100) +
+        "em}{0.4pt}";
     else if (n.type === "blank")
       out += "\\rule[-0.3ex]{" + String(n.width / 2) + "em}{0.4pt}";
     else if (n.type === "del") out += inline(n.children);
@@ -146,13 +148,14 @@ function divBlock(b: DivBlock, beamer: boolean): string {
     blocks.map((inner) => block(inner, beamer, place)).join("\n\n");
   if (b.classes.includes("notes"))
     return beamer ? "\\note{" + body(b.children) + "}" : "";
-  const align = b.classes.includes("signature") || b.classes.includes("right")
-    ? "flushright"
-    : b.classes.includes("center")
-      ? "center"
-      : b.classes.includes("left")
-        ? "flushleft"
-        : null;
+  const align =
+    b.classes.includes("signature") || b.classes.includes("right")
+      ? "flushright"
+      : b.classes.includes("center")
+        ? "center"
+        : b.classes.includes("left")
+          ? "flushleft"
+          : null;
   if (align !== null)
     return (
       (b.classes.includes("signature") ? "\\bigskip\n" : "") +
@@ -261,7 +264,8 @@ function block(b: Block, beamer = false, place?: string): string {
       const rows = header ? b.rows : body;
       const cells = rows.map((r) => r.map((cell) => flatten(cell)));
       const natural = columnWidths(cells, false, Number.POSITIVE_INFINITY);
-      const wrap = natural.reduce((sum, width) => sum + width, 0) > TEXT_WIDTH_CM;
+      const wrap =
+        natural.reduce((sum, width) => sum + width, 0) > TEXT_WIDTH_CM;
       const widths = wrap
         ? columnWidths(cells, header, TEXT_WIDTH_CM)
         : natural;
@@ -270,7 +274,9 @@ function block(b: Block, beamer = false, place?: string): string {
           const a = b.align[i];
           if (!wrap) return a ? COLUMN[a] : "l";
           const size = Math.max(0.5, width - 0.42).toFixed(2);
-          return ">{" + RAGGED[a ?? "left"] + "\\arraybackslash}p{" + size + "cm}";
+          return (
+            ">{" + RAGGED[a ?? "left"] + "\\arraybackslash}p{" + size + "cm}"
+          );
         })
         .join("");
       const row = (r: readonly Inline[][], bold: boolean): string =>
@@ -293,9 +299,7 @@ function block(b: Block, beamer = false, place?: string): string {
         "\\par\\addvspace{\\medskipamount}",
         "{\\centering\\small",
         "\\begin{tabular}{" + spec + "}",
-        ...(header
-          ? ["\\toprule", row(head ?? [], true), "\\midrule"]
-          : []),
+        ...(header ? ["\\toprule", row(head ?? [], true), "\\midrule"] : []),
         ...body.map((r) => row(r, false)),
         ...(header ? ["\\bottomrule"] : []),
         "\\end{tabular}\\par}",
@@ -405,9 +409,7 @@ function frame(slide: Slide): string {
     .filter((text) => text !== "")
     .join("\n\n");
   const notes = slide.notes.length
-    ? "\n\\note{" +
-      slide.notes.map((b) => block(b, true)).join("\n\n") +
-      "}"
+    ? "\n\\note{" + slide.notes.map((b) => block(b, true)).join("\n\n") + "}"
     : "";
   return (
     "\\begin{frame}" +
@@ -436,8 +438,7 @@ export function toBeamer(
   if (deck.title !== null) {
     let head = "\\title{" + inline(deck.title) + "}\n";
     if (deck.subtitle.length)
-      head +=
-        "\\subtitle{" + deck.subtitle.map(inline).join(" \\\\ ") + "}\n";
+      head += "\\subtitle{" + deck.subtitle.map(inline).join(" \\\\ ") + "}\n";
     const author = metaText(deck.meta.author);
     const institute = metaText(deck.meta.institute);
     const date = metaText(deck.meta.date);

@@ -53,7 +53,12 @@ export function splitSlides(blocks: readonly Block[]): Deck {
       current = null;
       continue;
     }
-    if (b.type === "heading" && b.depth === 1 && title === null && !slides.length) {
+    if (
+      b.type === "heading" &&
+      b.depth === 1 &&
+      title === null &&
+      !slides.length
+    ) {
       title = b.children;
       continue;
     }
@@ -72,7 +77,12 @@ export function splitSlides(blocks: readonly Block[]): Deck {
       continue;
     }
     if (current === null) {
-      if (title !== null && !hasMeta && !slides.length && b.type === "paragraph") {
+      if (
+        title !== null &&
+        !hasMeta &&
+        !slides.length &&
+        b.type === "paragraph"
+      ) {
         subtitle.push(b.children);
         continue;
       }

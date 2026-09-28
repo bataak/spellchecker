@@ -59,7 +59,10 @@ test("deckDoc: жагсаалт, хүснэгтийн мөр", () => {
 
 test("buildOdp: хуудас бүр draw:page", () => {
   const out = files(buildOdp(deck(SAMPLE)));
-  assert.equal(out["mimetype"], "application/vnd.oasis.opendocument.presentation");
+  assert.equal(
+    out["mimetype"],
+    "application/vnd.oasis.opendocument.presentation",
+  );
   const content = out["content.xml"]!;
   assert.equal(content.match(/<draw:page /g)?.length, 4);
   assert.ok(content.includes('text:start-value="3"'));
@@ -69,13 +72,17 @@ test("buildOdp: хуудас бүр draw:page", () => {
 
 test("buildPptx: слайд, холбоосын харьцаа", () => {
   const out = files(buildPptx(deck(SAMPLE)));
-  const slides = Object.keys(out).filter((k) => /^ppt\/slides\/slide\d+\.xml$/.test(k));
+  const slides = Object.keys(out).filter((k) =>
+    /^ppt\/slides\/slide\d+\.xml$/.test(k),
+  );
   assert.equal(slides.length, 4);
   assert.equal(out["ppt/presentation.xml"]!.match(/<p:sldId /g)?.length, 4);
   assert.ok(out["ppt/slides/slide3.xml"]!.includes('startAt="3"'));
   const rels = out["ppt/slides/_rels/slide4.xml.rels"]!;
   assert.ok(rels.includes('Target="https://a.mn" TargetMode="External"'));
-  assert.ok(out["ppt/slides/slide4.xml"]!.includes('<a:hlinkClick r:id="rId2"/>'));
+  assert.ok(
+    out["ppt/slides/slide4.xml"]!.includes('<a:hlinkClick r:id="rId2"/>'),
+  );
 });
 
 test("deckDoc: YAML нүүр, бүлэг, багана, тэмдэглэл", () => {
@@ -89,13 +96,14 @@ test("deckDoc: YAML нүүр, бүлэг, багана, тэмдэглэл", () 
   assert.equal(text(doc.title ?? []), "Илтгэл");
   assert.deepEqual(doc.subtitle.map(text), ["Бат", "2026"]);
   assert.equal(doc.slides[0]?.section, true);
-  assert.deepEqual(doc.slides[1]?.lines.map((line) => text(line.runs)), [
-    "Нэг",
-    "Хоёр",
-  ]);
-  assert.deepEqual(doc.slides[1]?.notes.map((line) => text(line.runs)), [
-    "Тэмдэглэл",
-  ]);
+  assert.deepEqual(
+    doc.slides[1]?.lines.map((line) => text(line.runs)),
+    ["Нэг", "Хоёр"],
+  );
+  assert.deepEqual(
+    doc.slides[1]?.notes.map((line) => text(line.runs)),
+    ["Тэмдэглэл"],
+  );
 });
 
 test("илтгэлийн хүснэгт ODP, PPTX-д жинхэнэ хүснэгт болно", () => {

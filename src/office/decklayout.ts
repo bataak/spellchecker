@@ -48,7 +48,11 @@ function wrapped(
     );
 }
 
-function textHeight(lines: readonly DeckLine[], widthCm: number, pt: number): number {
+function textHeight(
+  lines: readonly DeckLine[],
+  widthCm: number,
+  pt: number,
+): number {
   const lineCm = pt * PT_CM * LINE;
   return (
     BOX_PAD_CM +
@@ -64,8 +68,17 @@ export interface TableLayout {
   readonly heights: readonly number[];
 }
 
-function tableLayout(table: DeckTable, widthCm: number, pt: number): TableLayout {
-  const widths = columnWidths(table.rows, table.header, widthCm, tableMetrics(pt));
+function tableLayout(
+  table: DeckTable,
+  widthCm: number,
+  pt: number,
+): TableLayout {
+  const widths = columnWidths(
+    table.rows,
+    table.header,
+    widthCm,
+    tableMetrics(pt),
+  );
   const lineCm = pt * PT_CM * LINE;
   const heights = table.rows.map(
     (row, r) =>
@@ -146,7 +159,8 @@ export function layoutSlide(
   let y = top;
   parts.forEach((part, i) => {
     const h = measured.heights[i]!;
-    if (part.kind === "text") placed.push({ kind: "text", lines: part.lines, y, h });
+    if (part.kind === "text")
+      placed.push({ kind: "text", lines: part.lines, y, h });
     else {
       const layout = measured.tables[i]!;
       const w = layout.widths.reduce((sum, width) => sum + width, 0);
@@ -162,6 +176,9 @@ export function layoutSlide(
   });
   const last = placed.at(-1);
   if (last?.kind === "text")
-    placed[placed.length - 1] = { ...last, h: Math.max(last.h, top + heightCm - last.y) };
+    placed[placed.length - 1] = {
+      ...last,
+      h: Math.max(last.h, top + heightCm - last.y),
+    };
   return { scale, parts: placed };
 }

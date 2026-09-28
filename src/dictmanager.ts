@@ -120,8 +120,7 @@ function createView(): DictManagerView {
   if (!isCoarsePointer()) {
     const hint = document.createElement("p");
     hint.className = "dict-manager-hint";
-    hint.textContent =
-      "Архив, файлууд эсвэл хавтсаар нь энд чирч оруулж болно";
+    hint.textContent = "Архив, файлууд эсвэл хавтсаар нь энд чирч оруулж болно";
     card.appendChild(hint);
   }
   card.appendChild(actions);
@@ -136,8 +135,7 @@ function createView(): DictManagerView {
     card.classList.add("dict-manager-dropping");
   });
   dialog.addEventListener("dragleave", (event) => {
-    if (event.target === dialog)
-      card.classList.remove("dict-manager-dropping");
+    if (event.target === dialog) card.classList.remove("dict-manager-dropping");
   });
   dialog.addEventListener("drop", (event) => {
     event.preventDefault();
@@ -251,8 +249,10 @@ function isCoarsePointer(): boolean {
 async function importFiles(files: File[]): Promise<void> {
   if (!files.length || !deps) return;
   deps.status("Толь нэмж байна…");
-  const { added, updated, skipped, incomplete, failed } =
-    await importDictFiles(files, current);
+  const { added, updated, skipped, incomplete, failed } = await importDictFiles(
+    files,
+    current,
+  );
   const parts: string[] = [];
   if (added.length) parts.push("Нэмэгдсэн: " + added.join(", "));
   if (updated.length) parts.push("Шинэчлэгдсэн: " + updated.join(", "));
@@ -270,9 +270,7 @@ async function importFiles(files: File[]): Promise<void> {
 }
 
 function supportsDirectoryPicker(): boolean {
-  return (
-    "webkitdirectory" in HTMLInputElement.prototype && !isCoarsePointer()
-  );
+  return "webkitdirectory" in HTMLInputElement.prototype && !isCoarsePointer();
 }
 
 function pickFiles(directory = false): void {

@@ -71,7 +71,10 @@ export async function checkWordsBatched(
 }
 
 type RpcType = "check" | "suggest" | "lookup" | "define" | "listDicts";
-type RpcPayload = { words: string[] } | { word: string } | Record<string, never>;
+type RpcPayload =
+  | { words: string[] }
+  | { word: string }
+  | Record<string, never>;
 
 interface PendingEntry {
   resolve: (msg: RpcResponse) => void;

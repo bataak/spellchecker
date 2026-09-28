@@ -94,7 +94,8 @@ function parts(blocks: readonly Block[]): DeckPart[] {
 function lines(blocks: readonly Block[]): DeckLine[] {
   const out: DeckLine[] = [];
   for (const b of blocks) {
-    if (b.type === "paragraph") out.push({ kind: "para", runs: runs(b.children) });
+    if (b.type === "paragraph")
+      out.push({ kind: "para", runs: runs(b.children) });
     else if (b.type === "heading")
       out.push({ kind: "para", runs: mark(runs(b.children), { bold: true }) });
     else if (b.type === "list")
@@ -114,11 +115,7 @@ function lines(blocks: readonly Block[]): DeckLine[] {
     } else if (b.type === "quote")
       for (const line of lines(b.children))
         out.push({ ...line, runs: mark(line.runs, { italic: true }) });
-    else if (
-      b.type === "codeblock" ||
-      b.type === "math" ||
-      b.type === "latex"
-    )
+    else if (b.type === "codeblock" || b.type === "math" || b.type === "latex")
       for (const text of b.value.split("\n"))
         out.push({ kind: "para", runs: [{ text, mono: true }] });
     else if (b.type === "table")

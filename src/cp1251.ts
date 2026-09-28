@@ -142,10 +142,7 @@ export function countMojibakeLetters(
   return count;
 }
 
-export function countMojibakeWords(
-  text: string,
-  variant: CyrVariant,
-): number {
+export function countMojibakeWords(text: string, variant: CyrVariant): number {
   const table = TABLES[variant];
   let words = 0;
   let run = 0;

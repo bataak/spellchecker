@@ -281,10 +281,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   saveTemplateId(templateId);
 
   bar.innerHTML =
-    buildPicker() +
-    '<span class="md-group">' +
-    buildButtons() +
-    "</span>";
+    buildPicker() + '<span class="md-group">' + buildButtons() + "</span>";
 
   const mount = options.mount ?? editor.parentElement;
   if (mount) mount.insertBefore(bar, mount.firstChild);
@@ -301,7 +298,6 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     legacyPending = [];
   }
   select.value = pickerValue(templateId);
-
 
   const headingButtons: [HTMLButtonElement, number][] = [];
   for (const button of group.querySelectorAll<HTMLButtonElement>(".md-btn")) {

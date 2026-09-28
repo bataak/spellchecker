@@ -362,15 +362,18 @@ test("томьёо: буцааж бичихэд хэвээр үлдэнэ", () =
 });
 
 test("томьёо: \\[ \\] ба орчин", () => {
-  assert.deepEqual(parse("Өмнө\n\\[ x^2 \\]\nДараа").map((b) => b.type), [
-    "paragraph",
-    "math",
-    "paragraph",
-  ]);
+  assert.deepEqual(
+    parse("Өмнө\n\\[ x^2 \\]\nДараа").map((b) => b.type),
+    ["paragraph", "math", "paragraph"],
+  );
   const env = "\\begin{align*}\na &= b \\\\\nc &= d\n\\end{align*}";
   assert.deepEqual(parse(env + "\n\nДогол."), [
     { type: "math", fence: "env", value: env, line: 0 },
-    { type: "paragraph", children: [{ type: "text", value: "Догол." }], line: 5 },
+    {
+      type: "paragraph",
+      children: [{ type: "text", value: "Догол." }],
+      line: 5,
+    },
   ]);
   assert.equal(format("\\[\nx\n\\]\n"), "\\[\nx\n\\]\n");
   assert.equal(format(env + "\n"), env + "\n");
@@ -398,17 +401,14 @@ test("LaTeX орчин: томьёоны ба бичвэрийн", () => {
     ),
     ["latex:itemize", "paragraph"],
   );
-  assert.deepEqual(
-    types("\\begin{proof}\nНэг.\n\nХоёр.\n\\end{proof}"),
-    ["latex:proof"],
-  );
+  assert.deepEqual(types("\\begin{proof}\nНэг.\n\nХоёр.\n\\end{proof}"), [
+    "latex:proof",
+  ]);
   assert.deepEqual(
     types("\\begin{verbatim}\n\\begin{itemize}\n\\end{verbatim}\nДогол."),
     ["latex:verbatim", "paragraph"],
   );
-  assert.deepEqual(types("\\begin{unknown}\nх\n\\end{unknown}"), [
-    "paragraph",
-  ]);
+  assert.deepEqual(types("\\begin{unknown}\nх\n\\end{unknown}"), ["paragraph"]);
   assert.deepEqual(types("\\begin{theorem}\nхаагдаагүй"), ["paragraph"]);
 });
 
@@ -418,8 +418,7 @@ test("LaTeX орчин буцааж бичихэд хэвээр үлдэнэ", (
 });
 
 test("томьёо: мөр доторх бүх хязгаарлагч", () => {
-  const src =
-    "$a$ \\(b\\) \\begin{math}c\\end{math} $$d$$ төгсгөл.";
+  const src = "$a$ \\(b\\) \\begin{math}c\\end{math} $$d$$ төгсгөл.";
   const [p] = parse(src);
   assert.ok(p && p.type === "paragraph");
   assert.deepEqual(
@@ -482,12 +481,21 @@ test("хэлбэржүүлэхэд шаардлагагүй escape хийхгү�
 });
 
 test("утга өөрчлөгдөх тохиолдолд escape хэвээр хийнэ", () => {
-  const cases = ["\\*тод биш\\*", "\\_налуу биш\\_", "\\[a\\](b)", "\\<https://a.mn\\>"];
+  const cases = [
+    "\\*тод биш\\*",
+    "\\_налуу биш\\_",
+    "\\[a\\](b)",
+    "\\<https://a.mn\\>",
+  ];
   for (const src of cases) {
     const out = format(src);
     assert.equal(
-      JSON.stringify(parse(out).map((b) => b.type === "paragraph" && b.children)),
-      JSON.stringify(parse(src).map((b) => b.type === "paragraph" && b.children)),
+      JSON.stringify(
+        parse(out).map((b) => b.type === "paragraph" && b.children),
+      ),
+      JSON.stringify(
+        parse(src).map((b) => b.type === "paragraph" && b.children),
+      ),
     );
   }
   const line = format("\\_\\_\\_\\_\n");
@@ -525,7 +533,12 @@ test("мөр доторх 3+ доогуур зураас бөглөх зураа
     { type: "blank", width: 10 },
     { type: "text", value: " Б.Бат" },
   ]);
-  for (const src of ["snake___case", "__ хоёр", "`код ____`", "\\_\\_\\_ текст"]) {
+  for (const src of [
+    "snake___case",
+    "__ хоёр",
+    "`код ____`",
+    "\\_\\_\\_ текст",
+  ]) {
     const [q] = parse(src);
     assert.ok(q && q.type === "paragraph");
     assert.equal(
@@ -557,7 +570,9 @@ test("____ гарын үсгийн зураас нэрийн урттай тэн
     return found;
   };
   assert.deepEqual(
-    widths("::: {.signature}\nӨргөдөл гаргасан: С. Боролдой\\\nГарын үсэг: ____\\\nУтас: 99\n:::\n"),
+    widths(
+      "::: {.signature}\nӨргөдөл гаргасан: С. Боролдой\\\nГарын үсэг: ____\\\nУтас: 99\n:::\n",
+    ),
     [11],
   );
   assert.deepEqual(
@@ -566,11 +581,17 @@ test("____ гарын үсгийн зураас нэрийн урттай тэн
   );
   assert.deepEqual(widths("Гарын үсэг: _____\\\nНэр: Урт урт нэр\n"), [5]);
   assert.deepEqual(widths("Ганцаараа ____\n"), [4]);
-  assert.equal(format("Гарын үсэг: ____\\\nНэр: Бат\n"), "Гарын үсэг: ____\\\nНэр: Бат\n");
+  assert.equal(
+    format("Гарын үсэг: ____\\\nНэр: Бат\n"),
+    "Гарын үсэг: ____\\\nНэр: Бат\n",
+  );
 });
 
 test("TeX лого: preview-д лого, \\LaTeXa гэх мэт бусад командыг хөндөхгүй", () => {
   const html = toHtml(parse("\\LaTeX ба \\LaTeXa"));
-  assert.ok(html.includes('<span class="tex-logo">L<span class="tex-a">A</span>'), html);
+  assert.ok(
+    html.includes('<span class="tex-logo">L<span class="tex-a">A</span>'),
+    html,
+  );
   assert.ok(html.includes("\\LaTeXa"), html);
 });

@@ -10,7 +10,12 @@ import {
   type StarDict,
 } from "./stardict.ts";
 import { loadStarDicts } from "./stardictload.ts";
-import { loadDictOrder, loadUserDicts, sortByOrder, idxDigest } from "./userdicts.ts";
+import {
+  loadDictOrder,
+  loadUserDicts,
+  sortByOrder,
+  idxDigest,
+} from "./userdicts.ts";
 import stardictList from "virtual:stardict-index";
 import {
   bareStemInfinitives,

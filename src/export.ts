@@ -77,12 +77,11 @@ export const FORMATS: readonly ExportFormat[] = [
     ext: "odt",
     mime: "application/vnd.oasis.opendocument.text",
     build: async (text, templateId, options) => {
-      const [{ parse }, { applyTemplate }, { buildOdt }] =
-        await Promise.all([
-          import("./markdown.ts"),
-          import("./office/apply.ts"),
-          import("./office/odt/create.ts"),
-        ]);
+      const [{ parse }, { applyTemplate }, { buildOdt }] = await Promise.all([
+        import("./markdown.ts"),
+        import("./office/apply.ts"),
+        import("./office/odt/create.ts"),
+      ]);
       const template = findTemplate(templateId) ?? findTemplate("plain")!;
       return buildOdt(applyTemplate(parse(text), template), {
         toc: tocFor(options, templateId, text),
@@ -97,12 +96,13 @@ export const FORMATS: readonly ExportFormat[] = [
     ext: "docx",
     mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     build: async (text, templateId, options) => {
-      const [{ parse }, { applyTemplate }, { buildDocx }] =
-        await Promise.all([
+      const [{ parse }, { applyTemplate }, { buildDocx }] = await Promise.all(
+        [
           import("./markdown.ts"),
           import("./office/apply.ts"),
           import("./office/docx/create.ts"),
-        ]);
+        ],
+      );
       const template = findTemplate(templateId) ?? findTemplate("plain")!;
       return buildDocx(applyTemplate(parse(text), template), {
         toc: tocFor(options, templateId, text),
@@ -396,7 +396,11 @@ export function initExport(options: ExportOptions): ExportControl {
     }
   }
 
-  function showError(format: ExportFormat, name: string, message: string): void {
+  function showError(
+    format: ExportFormat,
+    name: string,
+    message: string,
+  ): void {
     open();
     if (overlay.hidden) return;
     chosen = format;
