@@ -40,12 +40,16 @@ const OFFICE_PT = 11;
 
 const timesWidth = glyphWidth(TIMES_REGULAR, TIMES_BOLD);
 
-export const OFFICE_METRICS: TextMetrics = {
-  width: (text, bold) => timesWidth(text, bold, OFFICE_PT),
-  padCm: 0.3,
-  capCm: 8,
-  wrapHeader: false,
-};
+export function officeMetrics(pt: number): TextMetrics {
+  return {
+    width: (text, bold) => timesWidth(text, bold, pt),
+    padCm: 0.3,
+    capCm: 8,
+    wrapHeader: false,
+  };
+}
+
+export const OFFICE_METRICS: TextMetrics = officeMetrics(OFFICE_PT);
 
 const MIN_CM = 1;
 
@@ -79,7 +83,7 @@ function fullWidth(
       ),
     0,
   );
-  return Math.min(total, metrics.capCm);
+  return total;
 }
 
 export function columnWidths(
@@ -92,25 +96,31 @@ export function columnWidths(
   const size = (cm: number): number => Math.max(MIN_CM, cm + metrics.padCm);
   const minimum: number[] = [];
   const natural: number[] = [];
+  const open: number[] = [];
   for (let column = 0; column < count; column += 1) {
     let word = 0;
     let full = 0;
+    let whole = 0;
     rows.forEach((row, index) => {
       const runs = row[column] ?? [];
       const head = header && index === 0;
       const longest = longestWord(runs, head, metrics);
       word = Math.max(word, longest);
+      const line = fullWidth(runs, head, metrics);
       full = Math.max(
         full,
-        head && metrics.wrapHeader ? longest : fullWidth(runs, head, metrics),
+        head && metrics.wrapHeader ? longest : Math.min(line, metrics.capCm),
       );
+      whole = Math.max(whole, head && metrics.wrapHeader ? longest : line);
     });
     minimum.push(size(word));
     natural.push(size(Math.max(word, full)));
+    open.push(size(Math.max(word, whole)));
   }
   const sum = (list: readonly number[]): number =>
     list.reduce((total, width) => total + width, 0);
   const round = (width: number): number => Math.round(width * 100) / 100;
+  if (sum(open) <= availableCm) return open.map(round);
   if (sum(natural) <= availableCm) return natural.map(round);
   const floor = sum(minimum);
   if (floor >= availableCm)
