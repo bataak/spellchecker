@@ -88,9 +88,9 @@ const HOLD = "\u0001";
 const MATH_HOLD = "\u0002";
 
 const MATH_SPAN =
-  /(`+)[\s\S]*?\1|\\begin\{math\}([\s\S]*?)\\end\{math\}|\\\(([\s\S]*?)\\\)|\$\$((?:[^$\\]|\\.)+?)\$\$|(?<![\\$])\$(?![\s$])((?:[^$\n\\]|\\.)*?[^\s$\\]|[^\s$\\])\$(?![\d$])/g;
+  /(`+)[\s\S]*?\1|\\begin\{math\}([\s\S]*?)\\end\{math\}|\\\(([\s\S]*?)\\\)|\\[\s\S]|\$\$((?:[^$\\]|\\.)+?)\$\$|(?<!\$)\$(?![\s$])((?:[^$\n\\]|\\.)*?[^\s$\\]|[^\s$\\])\$(?![\d$])/g;
 
-const ESCAPABLE = "\\`*_{}[]()#+-.!|~>$";
+const ESCAPABLE = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
 
 function mask(src: string, held: string[]): string {
   return src.replace(/\\(.)/g, (whole, ch: string) => {
@@ -106,7 +106,7 @@ function unmask(src: string, held: string[], raw = false): string {
   );
 }
 
-const PUNCT = "\\p{P}\\p{S}";
+const PUNCT = "\\p{P}\\p{S}\\u0001\\u0002";
 const WORD = "\\p{L}\\p{N}";
 
 const emphasis = (ch: string, n: number, body: string): string => {
@@ -632,42 +632,60 @@ export function toHtml(blocks: readonly Block[]): string {
 
 const MAX_ALIGN_WIDTH = 40;
 
-function escapeText(s: string, cell: boolean): string {
+function escapeText(s: string, cell: boolean, full: boolean): string {
+  if (!full) return cell ? s.replace(/\|/g, "\\|") : s;
   let out = s
-    .replace(/([\\`*_[\]])/g, "\\$1")
-    .replace(/~~/g, "\\~~")
-    .replace(/<(?=[A-Za-z/!?])/g, "\\<");
+    .replace(/([\\`*_[\]$~<])/g, "\\$1");
   if (cell) out = out.replace(/\|/g, "\\|");
   return out;
 }
 
 function escapeLeading(s: string): string {
+  if (RULE_RE.test(s)) return s.replace(/^(\s*)/, "$1\\");
   return s.replace(
     /^(\s*)(>|#{1,6}\s|[-*+]\s|\d+[.)]\s)/,
     (_, space: string, marker: string) => space + "\\" + marker,
   );
 }
 
-function inlineMd(nodes: readonly Inline[], cell: boolean): string {
+function withoutLines(value: unknown): string {
+  return JSON.stringify(value, (key, item: unknown) =>
+    key === "line" ? undefined : item,
+  );
+}
+
+function inlineOut(
+  nodes: readonly Inline[],
+  cell: boolean,
+  full: boolean,
+): string {
+  if (!full) {
+    const light = inlineMd(nodes, cell, false);
+    if (withoutLines(parseInline(light)) === withoutLines(nodes)) return light;
+  }
+  return inlineMd(nodes, cell, true);
+}
+
+function inlineMd(
+  nodes: readonly Inline[],
+  cell: boolean,
+  full: boolean,
+): string {
   let out = "";
   for (const n of nodes) {
-    if (n.type === "text") {
-      const text = escapeText(n.value, cell);
-      out += parseInline(text).some((m) => m.type === "math")
-        ? text.replace(/\$/g, "\\$")
-        : text;
-    }
+    if (n.type === "text") out += escapeText(n.value, cell, full);
     else if (n.type === "code") {
       const ticks = "`".repeat((n.value.match(/`+/g)?.[0]?.length ?? 0) + 1);
       const pad = n.value.startsWith("`") || n.value.endsWith("`") ? " " : "";
       out += ticks + pad + n.value + pad + ticks;
     } else if (n.type === "math") out += mathSource(n.open, n.value);
     else if (n.type === "strong")
-      out += `**${inlineMd(n.children, cell)}**`;
-    else if (n.type === "em") out += `*${inlineMd(n.children, cell)}*`;
-    else if (n.type === "del") out += `~~${inlineMd(n.children, cell)}~~`;
+      out += `**${inlineMd(n.children, cell, full)}**`;
+    else if (n.type === "em") out += `*${inlineMd(n.children, cell, full)}*`;
+    else if (n.type === "del")
+      out += `~~${inlineMd(n.children, cell, full)}~~`;
     else if (n.auto) out += `<${n.url}>`;
-    else out += `[${inlineMd(n.children, cell)}](${n.url})`;
+    else out += `[${inlineMd(n.children, cell, full)}](${n.url})`;
   }
   return out;
 }
@@ -680,12 +698,12 @@ function fenceFor(value: string): string {
   return "`".repeat(Math.max(3, longest.length + 1));
 }
 
-function blockMd(b: Block): string {
+function blockMd(b: Block, full: boolean): string {
   switch (b.type) {
     case "heading":
-      return "#".repeat(b.depth) + " " + inlineMd(b.children, false);
+      return "#".repeat(b.depth) + " " + inlineOut(b.children, false, full);
     case "paragraph":
-      return escapeLeading(inlineMd(b.children, false));
+      return escapeLeading(inlineOut(b.children, false, full));
     case "rule":
       return "---";
     case "codeblock": {
@@ -696,10 +714,11 @@ function blockMd(b: Block): string {
       return b.value;
     case "math":
       if (b.fence === "env") return b.value;
+      if (!b.value) return b.fence + MATH_CLOSE[b.fence];
       return b.fence + "\n" + b.value + "\n" + MATH_CLOSE[b.fence];
     case "quote":
       return b.children
-        .map(blockMd)
+        .map((inner) => blockMd(inner, full))
         .join("\n\n")
         .split("\n")
         .map((l) => (l ? "> " + l : ">"))
@@ -708,13 +727,15 @@ function blockMd(b: Block): string {
       return b.items
         .map((it, i) => {
           const marker = b.ordered ? `${b.start + i}.` : "-";
-          return marker + " " + inlineMd(it, false);
+          return marker + " " + inlineOut(it, false, full);
         })
         .join("\n");
     case "table": {
       const width = Math.max(...b.rows.map((r) => r.length), 1);
       const cells = b.rows.map((r) =>
-        Array.from({ length: width }, (_, i) => inlineMd(r[i] ?? [], true)),
+        Array.from({ length: width }, (_, i) =>
+          inlineOut(r[i] ?? [], true, full),
+        ),
       );
       const natural = Array.from({ length: width }, (_, i) =>
         Math.max(3, ...cells.map((r) => r[i]!.length)),
@@ -745,12 +766,25 @@ function blockMd(b: Block): string {
   }
 }
 
-export function print(blocks: readonly Block[]): string {
-  return blocks.map(blockMd).join("\n\n") + (blocks.length ? "\n" : "");
+function render(blocks: readonly Block[], full: boolean): string {
+  return (
+    blocks.map((block) => blockMd(block, full)).join("\n\n") +
+    (blocks.length ? "\n" : "")
+  );
 }
 
-export function format(src: string): string {
-  return print(parse(src));
+export function print(blocks: readonly Block[]): string {
+  const light = render(blocks, false);
+  if (withoutLines(parse(light)) === withoutLines(blocks)) return light;
+  return render(blocks, true);
+}
+
+export function format(
+  src: string,
+  blocks: readonly Block[] = parse(src),
+): string {
+  const out = print(blocks);
+  return withoutLines(parse(out)) === withoutLines(blocks) ? out : src;
 }
 
 function hasInlineMarkup(nodes: readonly Inline[]): boolean {

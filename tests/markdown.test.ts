@@ -459,3 +459,52 @@ test("томьёо: escape хийсэн $ хэлбэржүүлэхэд томь�
   );
   assert.equal(format("100$ ба 200$ болно.\n"), "100$ ба 200$ болно.\n");
 });
+
+test("хэлбэржүүлэхэд шаардлагагүй escape хийхгүй", () => {
+  for (const src of [
+    "Захирал ____ Б.Бат",
+    "snake_case",
+    "2*3 = 6",
+    "a * b",
+    "[1] ном",
+    "100$ ба 200$",
+    "a < b > c",
+  ])
+    assert.equal(format(src), src + "\n");
+});
+
+test("утга өөрчлөгдөх тохиолдолд escape хэвээр хийнэ", () => {
+  const cases = ["\\*тод биш\\*", "\\_налуу биш\\_", "\\[a\\](b)", "\\<https://a.mn\\>"];
+  for (const src of cases) {
+    const out = format(src);
+    assert.equal(
+      JSON.stringify(parse(out).map((b) => b.type === "paragraph" && b.children)),
+      JSON.stringify(parse(src).map((b) => b.type === "paragraph" && b.children)),
+    );
+  }
+  const line = format("\\_\\_\\_\\_\n");
+  assert.deepEqual(
+    parse(line).map((b) => b.type),
+    ["paragraph"],
+  );
+});
+
+test("escape хийсэн тэмдэгт цэг таслал гэж тоологдоно", () => {
+  const [p] = parse("\\$~~(а|~~");
+  const [q] = parse("$~~(а|~~");
+  assert.ok(p && p.type === "paragraph" && q && q.type === "paragraph");
+  assert.deepEqual(p.children, [
+    { type: "text", value: "$" },
+    { type: "del", children: [{ type: "text", value: "(а|" }] },
+  ]);
+  assert.deepEqual(p.children, q.children);
+  assert.equal(format("\\\\(а\\\\)"), "\\\\(а\\\\)\n");
+});
+
+test("хоосон томьёо буцааж бичихэд хэвээр үлдэнэ", () => {
+  assert.equal(format("$$\n$$\n"), "$$$$\n");
+  assert.deepEqual(
+    parse("$$$$").map((b) => b.type),
+    ["math"],
+  );
+});
