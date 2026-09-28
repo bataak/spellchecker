@@ -242,3 +242,22 @@ test("албан бичгийн загвар гарын үсэгтэй", () => {
   const md = findTemplate("letter")!.skeleton;
   assert.deepEqual(letter(md).slice(-2), ["Date", "SignLine"]);
 });
+
+test("гарын үсгийн мөрөнд бичсэн зураасыг ашиглаж, автомат зураас нэмэхгүй", () => {
+  const md = "# Нэр\n\nДогол.\n\nГарын үсэг\nЗахирал: __________ /Б.Бат/\nУтас: 1\n";
+  const ir = applyTemplate(parse(letterSource(md)), findTemplate("letter")!, {
+    now: AT,
+  });
+  const tail = ir.blocks.slice(-2);
+  assert.deepEqual(
+    tail.map((b) => (b.kind === "para" ? b.style : b.kind)),
+    ["SignatureTop", "Signature"],
+  );
+  const [line] = tail;
+  assert.ok(line && line.kind === "para");
+  assert.equal(
+    line.runs.map((r) => r.text).join(""),
+    "Захирал: __________ /Б.Бат/",
+  );
+  assert.equal(letter(md).includes("SignRule"), false);
+});

@@ -64,6 +64,10 @@ test("томьёоны хязгаарлагчийг хадгална", () => {
   assert.equal(body(env), env);
 });
 
+test("бөглөх зураас", () => {
+  assert.equal(body("Нэр ______ /Б.Бат/"), "Нэр \\rule[-0.3ex]{3em}{0.4pt} /Б.Бат/");
+});
+
 test("холбоос", () => {
   assert.equal(
     body("[сайт](https://a.mn/x%20y#z) <https://b.mn>"),
