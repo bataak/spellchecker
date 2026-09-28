@@ -1,4 +1,5 @@
 import {
+  cycleCase,
   enterInsert,
   headingDepthAt,
   insertTable,
@@ -40,6 +41,8 @@ type Role =
   | "h1"
   | "h2"
   | "h3"
+  | "h4"
+  | "case"
   | "bullet"
   | "ordered"
   | "quote"
@@ -90,6 +93,8 @@ const BUTTONS: readonly ButtonSpec[] = [
   { role: "h1", label: "H1", title: "Гарчиг" },
   { role: "h2", label: "H2", title: "Дэд гарчиг" },
   { role: "h3", label: "H3", title: "Дэдийн дэд гарчиг" },
+  { role: "h4", label: "H4", title: "Догол доторх гарчиг" },
+  { role: "case", label: "Aa", title: "Том, жижиг үсэг ээлжлэх" },
   { role: "bullet", label: svg(ICON.bullet), title: "Цэгт жагсаалт" },
   { role: "ordered", label: svg(ICON.ordered), title: "Дугаарласан жагсаалт" },
   { role: "quote", label: svg(ICON.quote), title: "Ишлэл" },
@@ -98,7 +103,12 @@ const BUTTONS: readonly ButtonSpec[] = [
   { role: "link", label: svg(ICON.link), title: "Холбоос" },
 ];
 
-const HEADING_DEPTH: Partial<Record<Role, 1 | 2 | 3>> = { h1: 1, h2: 2, h3: 3 };
+const HEADING_DEPTH: Partial<Record<Role, 1 | 2 | 3 | 4>> = {
+  h1: 1,
+  h2: 2,
+  h3: 3,
+  h4: 4,
+};
 
 const TEMPLATE_KEY = "mdTemplate";
 
@@ -337,6 +347,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     else if (role === "bold") apply(toggleWrap(text, start, end, "**"));
     else if (role === "italic") apply(toggleWrap(text, start, end, "*"));
     else if (role === "code") apply(toggleWrap(text, start, end, "`"));
+    else if (role === "case") apply(cycleCase(text, start, end));
     else if (role === "quote") apply(toggleQuote(text, start, end));
     else if (role === "link") apply(wrapLink(text, start, end));
     else if (role === "table") apply(insertTable(text, start));

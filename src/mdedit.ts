@@ -233,6 +233,37 @@ export function toggleHeading(
   });
 }
 
+const WORD_CHAR = /[\p{L}\p{N}'’]/u;
+
+const TITLE_START = /(^|[\s\-–—(«"„/])(\p{L})/gu;
+
+export function cycleCase(text: string, start: number, end: number): Edit {
+  let s = start;
+  let e = end;
+  if (s === e) {
+    while (s > 0 && WORD_CHAR.test(text[s - 1]!)) s -= 1;
+    while (e < text.length && WORD_CHAR.test(text[e]!)) e += 1;
+  }
+  const part = text.slice(s, e);
+  const upper = part.toLocaleUpperCase("mn");
+  const lower = part.toLocaleLowerCase("mn");
+  const title = lower.replace(
+    TITLE_START,
+    (_, lead: string, letter: string) => lead + letter.toLocaleUpperCase("mn"),
+  );
+  const next =
+    part === lower && part !== upper
+      ? upper
+      : part === upper && part !== lower
+        ? title
+        : lower;
+  return {
+    text: text.slice(0, s) + next + text.slice(e),
+    start: s,
+    end: s + next.length,
+  };
+}
+
 /**
  * Жагсаалт болгох. Хамрагдсан бүх утга агуулсан мөр аль хэдийн тэр
  * төрлийн жагсаалт байвал тэмдэглэгээг авна.
