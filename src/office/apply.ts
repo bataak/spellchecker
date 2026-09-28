@@ -186,6 +186,8 @@ export function dropSignMarks(blocks: readonly Block[]): Block[] {
   return blocks.filter((block) => !isSignMark(block));
 }
 
+const BLANK = /_{3,}/;
+
 const DATE_LIKE = /\d{4}\s*оны\s+\d{1,2}/;
 
 function signatureLine(runs: readonly IrRun[]): IrRun[] | null {
@@ -355,6 +357,12 @@ export function applyTemplate(
     for (let i = cut; i < out.length; i += 1) {
       const block = out[i]!;
       if (block.kind !== "para") continue;
+
+      if (i === cut && BLANK.test(plainText(block))) {
+        out[i] = { ...block, style: STYLE.signatureTop };
+        inlineLine = true;
+        continue;
+      }
 
       if (i === cut) {
         const line = signatureLine(block.runs);

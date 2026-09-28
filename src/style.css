@@ -677,6 +677,14 @@ a.tbtn {
   color: var(--muted);
 }
 
+.preview-body .blank {
+  display: inline-block;
+  width: calc(var(--blank) * 0.5em);
+  height: 1em;
+  border-bottom: 1px solid currentColor;
+  vertical-align: -0.2em;
+}
+
 .preview-body .math-display {
   margin: 0 0 0.8em;
   overflow-x: auto;

@@ -58,6 +58,9 @@ function walk(nodes: readonly Inline[], marks: Marks, out: IrRun[]): void {
       case "math":
         push(out, mathSource(node.open, node.value), marks);
         break;
+      case "blank":
+        push(out, "_".repeat(node.width), marks);
+        break;
       case "strong":
         walk(node.children, { ...marks, bold: true }, out);
         break;

@@ -508,3 +508,28 @@ test("хоосон томьёо буцааж бичихэд хэвээр үлд�
     ["math"],
   );
 });
+
+test("мөр доторх 3+ доогуур зураас бөглөх зураас болно", () => {
+  const [p] = parse("Захирал __________ Б.Бат");
+  assert.ok(p && p.type === "paragraph");
+  assert.deepEqual(p.children, [
+    { type: "text", value: "Захирал " },
+    { type: "blank", width: 10 },
+    { type: "text", value: " Б.Бат" },
+  ]);
+  for (const src of ["snake___case", "__ хоёр", "`код ____`", "\\_\\_\\_ текст"]) {
+    const [q] = parse(src);
+    assert.ok(q && q.type === "paragraph");
+    assert.equal(
+      q.children.some((n) => n.type === "blank"),
+      false,
+      src,
+    );
+  }
+  assert.equal(format("Огноо:______\n"), "Огноо:______\n");
+  assert.match(
+    toHtml(parse("Нэр ______")),
+    /<span class="blank" style="--blank:6"><\/span>/,
+  );
+  assert.equal(isMarkdown(parse("Нэр ______")), false);
+});

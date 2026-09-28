@@ -57,6 +57,8 @@ function inline(nodes: readonly Inline[]): string {
     else if (n.type === "strong") out += "\\textbf{" + inline(n.children) + "}";
     else if (n.type === "em") out += "\\emph{" + inline(n.children) + "}";
     else if (n.type === "math") out += mathSource(n.open, n.value);
+    else if (n.type === "blank")
+      out += "\\rule[-0.3ex]{" + String(n.width / 2) + "em}{0.4pt}";
     else if (n.type === "del") out += inline(n.children);
     else if (n.auto) out += "\\url{" + escapeUrl(n.url) + "}";
     else out += "\\href{" + escapeUrl(n.url) + "}{" + inline(n.children) + "}";
