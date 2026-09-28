@@ -2,6 +2,7 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 
 import {
+  cycleCase,
   headingDepthAt,
   toggleHeading,
   toggleList,
@@ -389,4 +390,21 @@ test("дарж зурахыг тайлна", () => {
 test("кодыг тайлна", () => {
   const e = toggleWrap("энэ `үг` тод", 5, 7, "`");
   assert.equal(e.text, "энэ үг тод");
+});
+
+test("үсгийн хэлбэрийг ээлжлэх: жижиг, том, эхний том", () => {
+  let e = { text: "өргөдөл гаргах нь", start: 0, end: 17 };
+  e = cycleCase(e.text, e.start, e.end);
+  assert.equal(e.text, "ӨРГӨДӨЛ ГАРГАХ НЬ");
+  e = cycleCase(e.text, e.start, e.end);
+  assert.equal(e.text, "Өргөдөл Гаргах Нь");
+  e = cycleCase(e.text, e.start, e.end);
+  assert.equal(e.text, "өргөдөл гаргах нь");
+  assert.equal(e.text.slice(e.start, e.end), "өргөдөл гаргах нь");
+});
+
+test("сонголтгүй бол курсор дээрх үгийг хөрвүүлнэ", () => {
+  const e = cycleCase("энэ үгийг солино", 6, 6);
+  assert.equal(e.text, "энэ ҮГИЙГ солино");
+  assert.equal(e.text.slice(e.start, e.end), "ҮГИЙГ");
 });
