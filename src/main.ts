@@ -2368,6 +2368,17 @@ initExport({
   blocked: () => docx !== null,
   onDone: () => flash("#saveBtn", "Хадгаллаа"),
   onBlocked: () => flash("#saveBtn", "Экспорт хийх боломжгүй"),
+  onBusy: (busy) => {
+    const button = document.querySelector<HTMLElement>("#saveBtn");
+    if (!button) return;
+    if (busy) {
+      button.dataset.label = button.textContent ?? "";
+      button.textContent = "PDF бэлтгэж байна…";
+    } else {
+      button.textContent = button.dataset.label ?? "";
+    }
+    button.toggleAttribute("aria-busy", busy);
+  },
 });
 
 function restoreDraftFile(): void {

@@ -88,7 +88,7 @@ export default defineConfig({
         globPatterns: [
           "**/*.{js,mjs,css,html,ico,png,svg,webmanifest,wasm,gz,json,woff2}",
         ],
-        globIgnores: ["**/dict/stardict/**"],
+        globIgnores: ["**/dict/stardict/**", "**/tex/**"],
         navigateFallback: base + "index.html",
         cleanupOutdatedCaches: true,
         clientsClaim: true,

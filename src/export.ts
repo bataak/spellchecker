@@ -17,6 +17,7 @@ export interface ExportFormat {
   readonly name: string;
   readonly ext: string;
   readonly mime: string;
+  readonly slow?: boolean;
   readonly build: (
     text: string,
     templateId: string,
@@ -26,6 +27,20 @@ export interface ExportFormat {
 
 export interface BuildOptions {
   readonly toc: boolean;
+}
+
+async function latexFor(text: string, templateId: string): Promise<string> {
+  const [{ parse }, { toBeamer, toLatex }, { dropSignMarks, letterSource }] =
+    await Promise.all([
+      import("./markdown.ts"),
+      import("./latex.ts"),
+      import("./office/apply.ts"),
+    ]);
+  const frame = findTemplate(templateId)?.frame;
+  if (frame === "slides") return toBeamer(parse(text));
+  if (frame === "letter")
+    return toLatex(dropSignMarks(parse(letterSource(text))));
+  return toLatex(parse(text));
 }
 
 export const FORMATS: readonly ExportFormat[] = [
@@ -69,6 +84,21 @@ export const FORMATS: readonly ExportFormat[] = [
     },
   },
   {
+    id: "pdf",
+    frames: ["letter", "structured", "slides"],
+    name: "PDF",
+    ext: "pdf",
+    mime: "application/pdf",
+    slow: true,
+    build: async (text, templateId) => {
+      const [source, { compilePdf }] = await Promise.all([
+        latexFor(text, templateId),
+        import("./texpdf.ts"),
+      ]);
+      return compilePdf(source);
+    },
+  },
+  {
     id: "odp",
     frames: ["slides"],
     name: "OpenDocument",
@@ -109,19 +139,7 @@ export const FORMATS: readonly ExportFormat[] = [
     name: "LaTeX",
     ext: "tex",
     mime: "application/x-tex;charset=utf-8",
-    build: async (text, templateId) => {
-      const [{ parse }, { toBeamer, toLatex }, { dropSignMarks, letterSource }] =
-        await Promise.all([
-          import("./markdown.ts"),
-          import("./latex.ts"),
-          import("./office/apply.ts"),
-        ]);
-      const frame = findTemplate(templateId)?.frame;
-      if (frame === "slides") return toBeamer(parse(text));
-      if (frame === "letter")
-        return toLatex(dropSignMarks(parse(letterSource(text))));
-      return toLatex(parse(text));
-    },
+    build: latexFor,
   },
   {
     id: "md",
@@ -151,6 +169,7 @@ export interface ExportOptions {
   readonly template: () => string;
   readonly onDone?: (name: string) => void;
   readonly onBlocked?: () => void;
+  readonly onBusy?: (busy: boolean) => void;
 }
 
 export interface ExportControl {
@@ -247,6 +266,7 @@ export function initExport(options: ExportOptions): ExportControl {
     '<label class="export-toc" hidden>' +
     '<input class="export-toc-input" type="checkbox" checked /> Гарчгийн жагсаалт' +
     "</label>" +
+    '<p class="export-error" role="alert" hidden></p>' +
     '<div class="export-actions">' +
     '<button type="button" class="tbtn export-cancel">Болих</button>' +
     '<button type="button" class="tbtn export-confirm">Хадгалах</button>' +
@@ -259,6 +279,7 @@ export function initExport(options: ExportOptions): ExportControl {
   const tocField = overlay.querySelector<HTMLElement>(".export-toc")!;
   const tocInput =
     overlay.querySelector<HTMLInputElement>(".export-toc-input")!;
+  const errorNote = overlay.querySelector<HTMLElement>(".export-error")!;
 
   let chosen = FORMATS[0]!;
   let userPicked = false;
@@ -294,6 +315,7 @@ export function initExport(options: ExportOptions): ExportControl {
       return;
     }
     restoreFocus = document.activeElement as HTMLElement | null;
+    errorNote.hidden = true;
     const offered = available();
     if (!userPicked || !offered.includes(chosen))
       chosen =
@@ -327,16 +349,34 @@ export function initExport(options: ExportOptions): ExportControl {
     if (!EXT_RE.test(name)) name += "." + chosen.ext;
 
     close();
+    const format = chosen;
+    if (format.slow) options.onBusy?.(true);
     try {
-      const data = await chosen.build(text, options.template(), {
+      const data = await format.build(text, options.template(), {
         toc: tocInput.checked,
       });
-      await deliverFile(data, name, chosen.mime);
+      if (format.slow) options.onBusy?.(false);
+      await deliverFile(data, name, format.mime);
       options.onDone?.(name);
     } catch (error) {
+      if (format.slow) options.onBusy?.(false);
       console.error("export:", error);
+      if (error instanceof Error && error.name === "PdfError") {
+        showError(format, name, error.message);
+        return;
+      }
       options.onBlocked?.();
     }
+  }
+
+  function showError(format: ExportFormat, name: string, message: string): void {
+    open();
+    if (overlay.hidden) return;
+    chosen = format;
+    syncFormat();
+    nameInput.value = name;
+    errorNote.textContent = message;
+    errorNote.hidden = false;
   }
 
   const onOverlayClick = (event: Event): void => {
