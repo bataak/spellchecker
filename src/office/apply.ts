@@ -180,7 +180,7 @@ const PAGE = {
   marginBottomCm: 2,
   marginInnerCm: 3,
   marginOuterCm: 1.5,
-  mirrored: true,
+  mirrored: false,
 };
 
 function alignOf(value: "left" | "right" | "center" | null): Align | null {
