@@ -17,6 +17,10 @@ main:has(.editor-wrap.has-gutter) > .toolbar {
   padding-inline-start: calc(var(--gutter-w) - var(--gutter-pull));
 }
 
+main:has(.editor-wrap.has-gutter) > .topbar {
+  margin-inline-start: calc(var(--gutter-w) - var(--gutter-pull));
+}
+
 .editor-wrap.has-gutter::before {
   content: "";
   position: absolute;
@@ -86,6 +90,10 @@ main:has(.editor-wrap.has-gutter) > .toolbar {
 
   main:has(.editor-wrap.has-gutter) > .toolbar {
     padding-inline-start: 0;
+  }
+
+  main:has(.editor-wrap.has-gutter) > .topbar {
+    margin-inline-start: 0;
   }
 
   .editor-wrap.has-gutter::before {
