@@ -292,6 +292,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   const select = bar.querySelector<HTMLSelectElement>(".md-template")!;
   const group = bar.querySelector<HTMLElement>(".md-group")!;
   const picker = bar.querySelector<HTMLElement>(".md-select")!;
+  const wideQuery = window.matchMedia("(min-width: 701px)");
 
   let legacyPending = migrateLegacyDrafts(templateId);
 
@@ -394,8 +395,59 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       lastDepth = -1;
     }
 
+    syncWide();
     syncActive();
   }
+
+  function syncWide(): void {
+    const root = document.documentElement;
+    const host = mount?.parentElement;
+    const subtitle = mount?.querySelector<HTMLElement>(".subtitle") ?? null;
+    if (!mount || !host || bar.hidden || !wideQuery.matches) {
+      delete root.dataset.topbar;
+      return;
+    }
+    const cs = getComputedStyle(host);
+    const room =
+      host.clientWidth -
+      (Number.parseFloat(cs.paddingLeft) || 0) -
+      (Number.parseFloat(cs.paddingRight) || 0);
+    let text = 0;
+    if (subtitle) {
+      const wrap = subtitle.style.whiteSpace;
+      subtitle.style.whiteSpace = "nowrap";
+      const range = document.createRange();
+      range.selectNodeContents(subtitle);
+      text = Math.ceil(range.getBoundingClientRect().width);
+      subtitle.style.whiteSpace = wrap;
+    }
+    const gap = Number.parseFloat(getComputedStyle(mount).columnGap) || 0;
+    if (bar.scrollWidth + text + gap > room + 0.5) {
+      const start =
+        host.getBoundingClientRect().left +
+        (Number.parseFloat(cs.paddingLeft) || 0);
+      root.style.setProperty("--topbar-start", String(start) + "px");
+      root.dataset.topbar = "wide";
+    } else delete root.dataset.topbar;
+  }
+
+  let wideFrame = 0;
+  const queueWide = (): void => {
+    if (wideFrame) return;
+    wideFrame = requestAnimationFrame(() => {
+      wideFrame = 0;
+      syncWide();
+    });
+  };
+  const subtitleWatch = new MutationObserver(queueWide);
+  const watched = mount?.querySelector(".subtitle");
+  if (watched)
+    subtitleWatch.observe(watched, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+  window.addEventListener("resize", queueWide);
 
   function holdTitle(): void {
     if (readyTimer) clearTimeout(readyTimer);
@@ -550,6 +602,10 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       document.removeEventListener("focusin", onFocus);
       document.removeEventListener("focusout", onFocus);
       document.removeEventListener("selectionchange", onSelectionChange);
+      window.removeEventListener("resize", queueWide);
+      subtitleWatch.disconnect();
+      if (wideFrame) cancelAnimationFrame(wideFrame);
+      delete document.documentElement.dataset.topbar;
       editor.removeEventListener("beforeinput", onBeforeInput);
       editor.removeEventListener("input", syncActive);
       mount?.classList.remove("has-mdbar");
