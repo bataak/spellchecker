@@ -1,37 +1,20 @@
 import { strict as assert } from "node:assert";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { parse } from "../src/markdown.ts";
-import { findTemplate } from "../src/templates.ts";
-import {
-  applyTemplate,
-  dropSignMarks,
-  guillemets,
-  letterSource,
-  mongolianDate,
-} from "../src/office/apply.ts";
-
-const AT = new Date("2026-08-20T12:00:00Z");
+import { format, parse } from "../src/markdown.ts";
+import { TEMPLATES, findTemplate } from "../src/templates.ts";
+import { applyTemplate, guillemets } from "../src/office/apply.ts";
 
 const styles = (md: string, id: string): string[] =>
-  applyTemplate(parse(md), findTemplate(id)!, { now: AT }).blocks.map((b) =>
+  applyTemplate(parse(md), findTemplate(id)!).blocks.map((b) =>
     b.kind === "para" ? b.style : b.kind,
   );
 
-test("огноог монголоор бичнэ", () => {
-  assert.equal(
-    mongolianDate(new Date("2026-08-20T12:00:00Z")),
-    "2026 оны 08 дугаар сарын 20-ны өдөр",
+const texts = (md: string, id: string): string[] =>
+  applyTemplate(parse(md), findTemplate(id)!).blocks.map((b) =>
+    b.kind === "para" ? b.runs.map((r) => r.text).join("") : "",
   );
-  assert.equal(
-    mongolianDate(new Date("2026-09-01T12:00:00Z")),
-    "2026 оны 09 дүгээр сарын 01-ний өдөр",
-  );
-  assert.equal(
-    mongolianDate(new Date("2026-05-10T12:00:00Z")),
-    "2026 оны 05 дугаар сарын 10-ны өдөр",
-  );
-});
 
 test("шулуун хашилтыг монгол хашилт болгоно", () => {
   assert.equal(guillemets('"Хан Хурмаст" ХХК'), "«Хан Хурмаст» ХХК");
@@ -47,217 +30,133 @@ test("захидлын хүрээ эхний гарчгийг нэр болго�
   assert.equal(out[1], "BodyFirst");
 });
 
-test("төгсгөлийн богино мөрүүд гарын үсгийн блок болно", () => {
-  const md =
-    "# Нэр\n\n" +
-    "Урт догол ".repeat(12) +
-    "\n\nГарын үсэг\n\nӨргөдөл гаргасан: Б.Боролдой\n\nУтас: 99112233\n";
-  const out = styles(md, "letter");
-  assert.deepEqual(out.slice(-3), ["Date", "SignLine", "Signature"]);
+test("бүтцийн хүрээнд эхний гарчиг нэр болохгүй", () => {
+  assert.equal(styles("# Тайлан\n\nДогол.\n", "report")[0], "Heading1");
 });
 
-test("огноо гарын үсгийн өмнө орно", () => {
-  const md =
-    "# Нэр\n\n" + "Урт догол ".repeat(12) + "\n\nГарын үсэг\n\nГаргасан: Б.Боролдой\n";
-  const out = styles(md, "letter");
-  assert.equal(out.indexOf("Date") + 1, out.indexOf("SignLine"));
-});
-
-test("бүтцийн хүрээнд огноо нэмэхгүй", () => {
-  const out = styles("# Тайлан\n\nДогол.\n", "report");
-  assert.equal(out.includes("Date"), false);
-  assert.equal(out[0], "Heading1");
-});
-
-test("бүтцийн хүрээ толгойн мөртэй", () => {
-  const ir = applyTemplate(
-    parse("# Тайлан\n\nДогол.\n"),
-    findTemplate("report")!,
-    { now: AT },
-  );
-  assert.equal(ir.header?.pageNumberRight, true);
+test("хуудасны дугаар: тайлан, бүлэгтэй албан бичигт байна, өргөдөлд байхгүй", () => {
+  const pages = (md: string, id: string): boolean | undefined =>
+    applyTemplate(parse(md), findTemplate(id)!).pageNumbers;
+  assert.equal(pages("# Нэр\n\nДогол.\n", "report"), true);
+  assert.equal(pages("# Нэр\n\n## Бүлэг\n\nДогол.\n", "letter"), true);
+  assert.equal(pages("# Нэр\n\nДогол.\n", "letter"), false);
   assert.equal(
-    applyTemplate(parse("# Нэр\n"), findTemplate("letter")!, { now: AT })
-      .header,
-    undefined,
+    pages(readFileSync("src/examples/application.md", "utf8"), "letter"),
+    false,
   );
+});
+
+test("хүснэгтийн дараа зай авна", () => {
+  const out = styles("| a | b |\n| - | - |\n| 1 | 2 |\n\nДогол.\n", "report");
+  assert.deepEqual(out, ["table", "TableGap", "Body"]);
 });
 
 test("жагсаалт, хүснэгт, ишлэл хадгалагдана", () => {
   const md =
     "# Т\n\n- нэг\n- хоёр\n\n> иш\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n";
-  const kinds = applyTemplate(parse(md), findTemplate("report")!, {
-    now: AT,
-  }).blocks.map((b) => b.kind);
+  const kinds = applyTemplate(parse(md), findTemplate("report")!).blocks.map(
+    (b) => b.kind,
+  );
   assert.equal(kinds.includes("list"), true);
   assert.equal(kinds.includes("table"), true);
 });
 
-test("тэмдэглэгээгүй бол богино мөр гарын үсэг болохгүй", () => {
+test("далд дүрэмгүй: гарчгийн өмнөх догол, «Гарын үсэг», огноо энгийн бие", () => {
   const md =
-    "# Нэр\n\n" + "Урт догол ".repeat(12) + "\n\nГаргасан: Б.Боролдой\n";
-  const out = styles(md, "letter");
-  assert.deepEqual(out.slice(-2), ["Body", "Date"]);
-});
-
-test("тэмдэглэгээ мөр баримтад хэвлэгдэхгүй", () => {
-  const md =
-    "# Нэр\n\n" +
-    "Урт догол ".repeat(12) +
-    "\n\nгарын үсэг:\n\nГаргасан: Б.Боролдой\n";
-  const ir = applyTemplate(parse(md), findTemplate("letter")!, { now: AT });
-  const texts = ir.blocks.map((b) =>
-    b.kind === "para" ? b.runs.map((r) => r.text).join("") : "",
-  );
-  assert.equal(
-    texts.some((t) => /гарын үсэг/i.test(t)),
-    false,
-  );
-  assert.equal(styles(md, "letter").at(-1), "SignLine");
-});
-
-test("цэгээр төгссөн богино өгүүлбэр гарын үсэг болохгүй", () => {
-  const md = "# Нэр\n\n" + "Урт догол ".repeat(12) + "\n\nБаярлалаа.\n";
-  const out = styles(md, "letter");
-  assert.equal(out.at(-1), "Date");
-  assert.equal(out.includes("SignLine"), false);
-});
-
-test("өөр үг хэллэгтэй гарын үсгийг таньна", () => {
-  const md =
-    "# Нэр\n\n" +
-    "Урт догол ".repeat(12) +
-    "\n\nГарын үсэг\n\nХүсэлт гаргасан: Д.Дорж\n\nИ-мэйл: d@bichig.dev\n";
-  const out = styles(md, "letter");
-  assert.deepEqual(out.slice(-2), ["SignLine", "Signature"]);
-});
-
-test("огноо аль хэдийн байвал давхардуулахгүй", () => {
-  const md =
-    "# Нэр\n\n" +
-    "Урт догол ".repeat(12) +
-    "\n\n2026 оны 08 сарын 21\n\nГарын үсэг\n\nБ.Боролдой\n";
-  const ir = applyTemplate(parse(md), findTemplate("letter")!, { now: AT });
-  const dates = ir.blocks.filter(
-    (b) => b.kind === "para" && b.style === "Date",
-  );
-  assert.equal(dates.length, 1);
-  const [date] = dates;
-  assert.ok(date && date.kind === "para");
-  assert.equal(date.runs[0]?.text, "2026 оны 08 сарын 21");
-});
-
-test("гарын үсэг байхгүй бол зураас нэмэхгүй", () => {
-  const md = "# Нэр\n\n" + "Урт догол ".repeat(12) + "\n";
-  const out = styles(md, "letter");
-  assert.equal(out.includes("SignRule"), false);
-  assert.equal(out.at(-1), "Date");
-});
-
-test("гарын үсгийн мөрийг зураас, налуу зураастай нэр болгоно", () => {
-  const md =
-    "# Нэр\n\n" +
-    "Урт догол ".repeat(12) +
-    "\n\nГарын үсэг\n\nӨргөдөл гаргасан: Б. Боролдой\n";
-  const ir = applyTemplate(parse(md), findTemplate("letter")!, {
-    now: AT,
-  });
-  const line = ir.blocks.find(
-    (b) => b.kind === "para" && b.style === "SignLine",
-  );
-  assert.ok(line && line.kind === "para");
-  assert.deepEqual(line.runs, [
-    { text: "Өргөдөл гаргасан:" },
-    { text: "", tab: true },
-    { text: "/Б. Боролдой/" },
-  ]);
-});
-
-test("хоёр цэггүй мөр хуучин хэлбэрээр үлдэнэ", () => {
-  const md = "# Нэр\n\n" + "Урт догол ".repeat(12) + "\n\nГарын үсэг\n\nБ. Боролдой\n";
-  const out = styles(md, "letter");
-  assert.deepEqual(out.slice(-2), ["SignRule", "SignatureTop"]);
-});
-
-test("нэр аль хэдийн налуу зураастай бол давхардуулахгүй", () => {
-  const md = "# Нэр\n\n" + "Урт догол ".repeat(12) + "\n\nГарын үсэг\n\nГаргасан: /Д.Дорж/\n";
-  const ir = applyTemplate(parse(md), findTemplate("letter")!, {
-    now: AT,
-  });
-  const line = ir.blocks.find(
-    (b) => b.kind === "para" && b.style === "SignLine",
-  );
-  assert.ok(line && line.kind === "para");
-  assert.equal(line.runs.at(-1)?.text, "/Д.Дорж/");
-});
-
-const letter = (md: string): string[] => styles(letterSource(md), "letter");
-
-test("хоосон мөргүй гарын үсгийг мөр мөрөөр нь салгана", () => {
-  const md = "# Нэр\n\nДогол.\nГарын үсэг\nЗахирал: Б.Бат\nУтас: 9911\n";
-  assert.deepEqual(letter(md), [
+    "Хүлээн авагч\n\n# Нэр\n\nДогол.\n\n2026/09/28\n\nГарын үсэг\n\nЗахирал: Бат\n";
+  assert.deepEqual(styles(md, "letter"), [
+    "Body",
     "Title",
     "BodyFirst",
-    "Date",
-    "SignLine",
+    "Body",
+    "Body",
+    "Body",
+  ]);
+  assert.equal(texts(md, "letter").includes("Гарын үсэг"), true);
+});
+
+test("div-ийн класс зэрэгцүүлэлтийг тодорхойлно", () => {
+  const md =
+    "::: {.center}\nТөв\n:::\n\n# Нэр\n\nДогол.\n\n::: {.right}\nБаруун\n:::\n\n" +
+    "::: {.left}\nЗүүн\n:::\n\n::: {.signature}\nНэг\n\nХоёр\n:::\n";
+  assert.deepEqual(styles(md, "letter"), [
+    "Center",
+    "Title",
+    "BodyFirst",
+    "Right",
+    "Left",
+    "SignatureTop",
     "Signature",
   ]);
 });
 
-test("тод тэмдэглэгээг хоосон мөргүй үед ч таньна", () => {
-  const md = "# Нэр\n\nДогол.\n\n**Гарын үсэг**\nЗахирал: Б.Бат\nУтас: 1\n";
-  assert.deepEqual(letter(md).slice(-2), ["SignLine", "Signature"]);
+test("мөр шилжилт догол доторх мөрүүдийг хадгална", () => {
+  const md = "# Нэр\n\n::: {.right}\nНэг\\\nХоёр  \nГурав\n:::\n";
+  assert.deepEqual(texts(md, "letter").at(-1), "Нэг\nХоёр\nГурав");
 });
 
-test("кодын блок доторх тэмдэглэгээг үл тооно", () => {
-  const md = "# Нэр\n\n```\nГарын үсэг\nх\n```\n";
-  assert.equal(letterSource(md), md);
-});
-
-test("тэмдэглэгээний өмнөх огноо огнооны хэлбэртэй болно", () => {
+test("илтгэгчийн тэмдэглэл баримтад орохгүй, YAML гарчиг болно", () => {
   const md =
-    "# Нэр\n\nДогол.\n\n2026 оны 09 сарын 20\n\nГарын үсэг\n\nЗахирал: Б.Бат\n";
-  assert.deepEqual(letter(md).slice(-3), ["BodyFirst", "Date", "SignLine"]);
+    "---\ntitle: Судалгаа\nauthor: Бат\n---\n\n# Хэсэг\n\nДогол.\n\n::: notes\nНууц.\n:::\n";
+  assert.deepEqual(styles(md, "report"), ["Title", "Center", "Heading1", "BodyFirst"]);
+  assert.equal(texts(md, "report").includes("Нууц."), false);
 });
 
-test("давхар тэмдэглэгээ хэвлэгдэхгүй, сүүлийнх нь хүчинтэй", () => {
-  const md =
-    "# Нэр\n\nДогол.\n\nГарын үсэг\n\nА: Б\n\nГарын үсэг\n\nВ: Г\n";
-  const ir = applyTemplate(parse(letterSource(md)), findTemplate("letter")!, {
-    now: AT,
-  });
-  const texts = ir.blocks.map((b) =>
-    b.kind === "para" ? b.runs.map((r) => r.text).join("") : "",
-  );
-  assert.equal(texts.includes("Гарын үсэг"), false);
-  assert.deepEqual(letter(md).slice(-3), ["Body", "Date", "SignLine"]);
+test("ишлэл доторх гарчиг албан бичгийн нэр болохгүй", () => {
+  const out = styles("# Нэр\n\n> ## Ишлэл\n> Догол.\n", "letter");
+  assert.deepEqual(out, ["Title", "Quote", "Quote"]);
 });
 
-test("LaTeX-д тэмдэглэгээ мөрийг хасна", () => {
-  const blocks = dropSignMarks(parse("Догол.\n\nГарын үсэг:\n\nНэр\n"));
-  assert.equal(blocks.length, 2);
-});
-
-test("албан бичгийн загвар гарын үсэгтэй", () => {
-  const md = findTemplate("letter")!.skeleton;
-  assert.deepEqual(letter(md).slice(-2), ["Date", "SignLine"]);
-});
-
-test("гарын үсгийн мөрөнд бичсэн зураасыг ашиглаж, автомат зураас нэмэхгүй", () => {
-  const md = "# Нэр\n\nДогол.\n\nГарын үсэг\nЗахирал: __________ /Б.Бат/\nУтас: 1\n";
-  const ir = applyTemplate(parse(letterSource(md)), findTemplate("letter")!, {
-    now: AT,
-  });
-  const tail = ir.blocks.slice(-2);
+test("өргөдлийн жишээ: гарын үсгийн хүснэгт баруун тийш, зураас нүдийг дүүргэнэ", () => {
+  const md = readFileSync("src/examples/application.md", "utf8");
+  const ir = applyTemplate(parse(md), findTemplate("letter")!);
   assert.deepEqual(
-    tail.map((b) => (b.kind === "para" ? b.style : b.kind)),
-    ["SignatureTop", "Signature"],
+    ir.blocks.map((b) => (b.kind === "para" ? b.style : b.kind)),
+    ["Title", "BodyFirst", "Body", "SignatureGap", "table", "TableGap"],
   );
-  const [line] = tail;
-  assert.ok(line && line.kind === "para");
-  assert.equal(
-    line.runs.map((r) => r.text).join(""),
-    "Захирал: __________ /Б.Бат/",
+  const table = ir.blocks[4];
+  assert.ok(table && table.kind === "table");
+  assert.equal(table.placement, "end");
+  assert.equal(table.cellStyle, "SignCell");
+  assert.equal(table.header, false);
+  assert.deepEqual(table.rows[1]?.[1], [{ text: "", fill: true }]);
+  assert.equal(ir.styles["SignCell"]?.lineHeightPercent, 150);
+});
+
+test("жишээ бүр файлтай бөгөөд хэлбэржүүлэхэд хэвээр үлдэнэ", () => {
+  for (const template of TEMPLATES)
+    for (const example of template.examples ?? []) {
+      const md = readFileSync("src/examples/" + example.id + ".md", "utf8");
+      assert.ok(md.trim(), example.id);
+      assert.equal(format(md), md, example.id);
+    }
+});
+
+test("параграфыг догол мөргүй, 6pt зайгаар ялгана", () => {
+  for (const id of ["letter", "report"]) {
+    const ir = applyTemplate(parse("# Нэр\n\nДогол.\n"), findTemplate(id)!);
+    assert.equal(ir.styles["BodyFirst"]?.firstLineIndentCm, undefined, id);
+    assert.equal(ir.styles["Body"]?.firstLineIndentCm, undefined, id);
+    assert.equal(ir.styles["Body"]?.lineHeightPercent, 115, id);
+    assert.equal(ir.styles["Body"]?.spaceAfterPt, 6, id);
+  }
+  const letter = applyTemplate(parse("# Нэр\n"), findTemplate("letter")!);
+  assert.equal(letter.styles["SignatureTop"]?.spaceBeforePt, 22);
+  assert.equal(letter.styles["SignatureGap"]?.spaceBeforePt, 21);
+});
+
+test("#### гарчиг дараагийн доголтой нэг мөрөнд", () => {
+  const md = "# Нэр\n\n#### Үндэслэл.\n\nТекст.\n\n#### Зорилт.\n\n- нэг\n";
+  const ir = applyTemplate(parse(md), findTemplate("report")!);
+  assert.deepEqual(
+    ir.blocks.map((b) => (b.kind === "para" ? b.style : b.kind)),
+    ["Heading1", "RunIn", "Heading4", "list"],
   );
-  assert.equal(letter(md).includes("SignRule"), false);
+  const runIn = ir.blocks[1];
+  assert.ok(runIn && runIn.kind === "para");
+  assert.deepEqual(runIn.runs, [
+    { text: "Үндэслэл.", bold: true },
+    { text: " " },
+    { text: "Текст." },
+  ]);
 });

@@ -89,10 +89,7 @@ async function start(): Promise<Worker> {
   }
 }
 
-function compileOn(
-  worker: Worker,
-  tex: string,
-): Promise<Uint8Array<ArrayBuffer>> {
+function runOnce(worker: Worker): Promise<Uint8Array<ArrayBuffer>> {
   return new Promise((resolve, reject) => {
     worker.onmessage = (event: MessageEvent<EngineReply>) => {
       const reply = event.data;
@@ -107,20 +104,33 @@ function compileOn(
       }
       reject(new PdfError(reply.log ?? ""));
     };
-    worker.postMessage({ cmd: "flushcache" });
-    worker.postMessage({ cmd: "writefile", url: "main.tex", src: tex });
-    worker.postMessage({ cmd: "setmainfile", url: "main.tex" });
     worker.postMessage({ cmd: "compilelatex" });
   });
 }
 
-export function compilePdf(tex: string): Promise<Uint8Array<ArrayBuffer>> {
+async function compileOn(
+  worker: Worker,
+  tex: string,
+  passes: number,
+): Promise<Uint8Array<ArrayBuffer>> {
+  worker.postMessage({ cmd: "flushcache" });
+  worker.postMessage({ cmd: "writefile", url: "main.tex", src: tex });
+  worker.postMessage({ cmd: "setmainfile", url: "main.tex" });
+  let pdf = await runOnce(worker);
+  for (let pass = 1; pass < passes; pass += 1) pdf = await runOnce(worker);
+  return pdf;
+}
+
+export function compilePdf(
+  tex: string,
+  passes = 1,
+): Promise<Uint8Array<ArrayBuffer>> {
   const job = queue.then(async () => {
     engine ??= start().catch((error: unknown) => {
       engine = null;
       throw error;
     });
-    return compileOn(await engine, tex);
+    return compileOn(await engine, tex, passes);
   });
   queue = job.catch(() => undefined);
   return job;

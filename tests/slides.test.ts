@@ -77,3 +77,41 @@ test("buildPptx: слайд, холбоосын харьцаа", () => {
   assert.ok(rels.includes('Target="https://a.mn" TargetMode="External"'));
   assert.ok(out["ppt/slides/slide4.xml"]!.includes('<a:hlinkClick r:id="rId2"/>'));
 });
+
+test("deckDoc: YAML нүүр, бүлэг, багана, тэмдэглэл", () => {
+  const md =
+    "---\ntitle: Илтгэл\nauthor: Бат\ndate: 2026\n---\n\n# Бүлэг\n\n## Слайд\n\n" +
+    ":::::: {.columns}\n::: {.column}\nНэг\n:::\n::: {.column}\nХоёр\n:::\n::::::\n\n" +
+    "::: notes\nТэмдэглэл\n:::\n";
+  const doc = deckDoc(splitSlides(parse(md)));
+  const text = (runs: readonly { text: string }[]): string =>
+    runs.map((run) => run.text).join("");
+  assert.equal(text(doc.title ?? []), "Илтгэл");
+  assert.deepEqual(doc.subtitle.map(text), ["Бат", "2026"]);
+  assert.equal(doc.slides[0]?.section, true);
+  assert.deepEqual(doc.slides[1]?.lines.map((line) => text(line.runs)), [
+    "Нэг",
+    "Хоёр",
+  ]);
+  assert.deepEqual(doc.slides[1]?.notes.map((line) => text(line.runs)), [
+    "Тэмдэглэл",
+  ]);
+});
+
+test("илтгэлийн хүснэгт ODP, PPTX-д жинхэнэ хүснэгт болно", () => {
+  const md =
+    "## Слайд\n\nӨмнө\n\n| Машин | Тоо |\n| :-- | --: |\n| №1 | 702 |\n\nДараа\n";
+  const doc = deckDoc(splitSlides(parse(md)));
+  assert.deepEqual(
+    doc.slides[0]!.parts.map((part) => part.kind),
+    ["text", "table", "text"],
+  );
+  const odp = files(buildOdp(doc))["content.xml"]!;
+  assert.ok(odp.includes("<table:table>"), odp);
+  assert.equal(odp.match(/<table:table-row /g)?.length, 2);
+  assert.ok(odp.includes('fo:text-align="end"'));
+  const pptx = files(buildPptx(doc))["ppt/slides/slide1.xml"]!;
+  assert.ok(pptx.includes("<a:tbl>"), pptx);
+  assert.equal(pptx.match(/<a:tr /g)?.length, 2);
+  assert.ok(pptx.includes('<a:pPr algn="r"/>'));
+});

@@ -1,6 +1,5 @@
 import {
   enterInsert,
-  exampleAt,
   headingDepthAt,
   insertTable,
   minimalDiff,
@@ -18,7 +17,6 @@ import {
   TEMPLATES,
   findTemplate,
   isPlain,
-  templateExamples,
 } from "./templates.ts";
 
 export interface MdToolbarOptions {
@@ -114,6 +112,33 @@ function loadTemplateId(): string {
   }
 }
 
+const EXAMPLE_KEY = "mdExample:";
+
+function loadExampleChoice(slot: string): string | null {
+  try {
+    return localStorage.getItem(EXAMPLE_KEY + slot);
+  } catch (_) {
+    return null;
+  }
+}
+
+function saveExampleChoice(slot: string, example: string): void {
+  try {
+    localStorage.setItem(EXAMPLE_KEY + slot, example);
+  } catch (_) {}
+}
+
+function chosenExample(slot: string): string | undefined {
+  const list = findTemplate(slot)?.examples ?? [];
+  const saved = loadExampleChoice(slot);
+  return list.find((item) => item.id === saved)?.id ?? list[0]?.id;
+}
+
+function pickerValue(slot: string): string {
+  const example = chosenExample(slot);
+  return example === undefined ? slot : slot + ":" + example;
+}
+
 const DRAFT_PREFIX = "mdDraft:";
 
 const DRAFT_MAX = 200000;
@@ -190,40 +215,46 @@ function buildButtons(): string {
   ).join("");
 }
 
-function buildPicker(): string {
-  const option = (id: string): string => {
+function pickerOptions(): string {
+  const option = (value: string, label: string): string =>
+    '<option value="' +
+    escapeAttr(value) +
+    '">' +
+    escapeAttr(label) +
+    "</option>";
+  const slot = (id: string): string => {
     const item = findTemplate(id);
     if (item === undefined) return "";
-    return (
-      '<option value="' +
-      escapeAttr(item.id) +
-      '">' +
-      escapeAttr(item.name) +
-      "</option>"
-    );
+    if (!item.examples?.length) return option(item.id, item.name);
+    return item.examples
+      .map((example) => option(item.id + ":" + example.id, example.name))
+      .join("");
   };
 
   const grouped = new Set<string>();
   for (const group of TEMPLATE_GROUPS)
     for (const id of group.ids) grouped.add(id);
 
-  const options =
+  return (
     TEMPLATE_GROUPS.map(
       (group) =>
         '<optgroup label="' +
         escapeAttr(group.name) +
         '">' +
-        group.ids.map(option).join("") +
+        group.ids.map(slot).join("") +
         "</optgroup>",
     ).join("") +
     TEMPLATES.filter((item) => !grouped.has(item.id))
-      .map((item) => option(item.id))
-      .join("");
+      .map((item) => slot(item.id))
+      .join("")
+  );
+}
 
+function buildPicker(): string {
   return (
     '<span class="md-select"><select class="tbtn tbtn-icon md-template" ' +
     'aria-label="Баримтын загвар">' +
-    options +
+    pickerOptions() +
     "</select></span>"
   );
 }
@@ -236,8 +267,14 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   bar.hidden = true;
   bar.setAttribute("role", "toolbar");
   bar.setAttribute("aria-label", "Хэлбэржүүлэх");
+  let templateId = loadTemplateId();
+  saveTemplateId(templateId);
+
   bar.innerHTML =
-    buildPicker() + '<span class="md-group">' + buildButtons() + "</span>";
+    buildPicker() +
+    '<span class="md-group">' +
+    buildButtons() +
+    "</span>";
 
   const mount = options.mount ?? editor.parentElement;
   if (mount) mount.insertBefore(bar, mount.firstChild);
@@ -246,15 +283,14 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   const group = bar.querySelector<HTMLElement>(".md-group")!;
   const picker = bar.querySelector<HTMLElement>(".md-select")!;
 
-  let templateId = loadTemplateId();
-  saveTemplateId(templateId);
   let legacyPending = migrateLegacyDrafts(templateId);
 
   function dropLegacyPending(): void {
     for (const legacy of legacyPending) dropDraft(legacy);
     legacyPending = [];
   }
-  select.value = templateId;
+  select.value = pickerValue(templateId);
+
 
   const headingButtons: [HTMLButtonElement, number][] = [];
   for (const button of group.querySelectorAll<HTMLButtonElement>(".md-btn")) {
@@ -373,13 +409,46 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
 
     const stored = loadDraft(id);
     const next = findTemplate(id);
+    const first = chosenExample(id);
     const text = stored ?? next?.skeleton ?? "";
 
     if (text !== editor.value)
       apply({ text, start: text.length, end: text.length });
+    if (stored === null && first) void loadDefault(id, first);
 
     if (options.onTemplate) options.onTemplate(id);
+    select.value = pickerValue(templateId);
     syncVisible();
+  }
+
+  async function loadDefault(slot: string, example: string): Promise<void> {
+    const { exampleText } = await import("./examples.ts");
+    const text = exampleText(example);
+    if (text === undefined || templateId !== slot || editor.value.trim())
+      return;
+    apply({ text, start: 0, end: 0 });
+    editor.scrollTop = 0;
+  }
+
+  async function openExample(id: string): Promise<void> {
+    const { exampleText } = await import("./examples.ts");
+    const text = exampleText(id);
+    if (text === undefined) return;
+    const template = findTemplate(templateId);
+    const untouched = [
+      template?.skeleton ?? "",
+      ...(template?.examples ?? []).map((item) => exampleText(item.id) ?? ""),
+    ];
+    if (
+      editor.value.trim() !== "" &&
+      !untouched.includes(editor.value) &&
+      !window.confirm(
+        "Одоогийн бичвэрийг жишээгээр солих уу? Ctrl+Z дарж буцаах боломжтой.",
+      )
+    )
+      return;
+    apply({ text, start: 0, end: 0 });
+    editor.scrollTop = 0;
   }
 
   const onFocus = (): void => {
@@ -406,20 +475,18 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     if (role) run(role);
   };
 
-  const onEditorPointerUp = (): void => {
-    if (editor.selectionStart !== editor.selectionEnd) return;
-    const template = findTemplate(templateId);
-    if (template === undefined || !template.skeleton) return;
-    const field = exampleAt(
-      editor.value,
-      editor.selectionStart,
-      templateExamples(template.skeleton),
-    );
-    if (field) editor.setSelectionRange(field.start, field.end);
-  };
-
   const onSelect = (): void => {
-    chooseTemplate(select.value);
+    const value = select.value;
+    const [slot = "", example] = value.split(":");
+    if (example !== undefined) {
+      saveExampleChoice(slot, example);
+      chooseTemplate(slot);
+      select.value = pickerValue(slot);
+      void openExample(example);
+      editor.focus();
+      return;
+    }
+    chooseTemplate(value);
     editor.focus();
   };
 
@@ -451,7 +518,6 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   bar.addEventListener("mousedown", onPointerDown);
   bar.addEventListener("click", onClick);
   select.addEventListener("change", onSelect);
-  editor.addEventListener("pointerup", onEditorPointerUp);
   editor.addEventListener("beforeinput", onBeforeInput);
   editor.addEventListener("input", syncActive);
   document.addEventListener("focusin", onFocus);
@@ -472,7 +538,6 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       document.removeEventListener("focusin", onFocus);
       document.removeEventListener("focusout", onFocus);
       document.removeEventListener("selectionchange", onSelectionChange);
-      editor.removeEventListener("pointerup", onEditorPointerUp);
       editor.removeEventListener("beforeinput", onBeforeInput);
       editor.removeEventListener("input", syncActive);
       mount?.classList.remove("has-mdbar");

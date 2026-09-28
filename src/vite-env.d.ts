@@ -1,5 +1,10 @@
 declare module "*.css";
 
+declare module "*.md?raw" {
+  const text: string;
+  export default text;
+}
+
 interface ImportMetaEnv {
   readonly DEV: boolean;
   readonly BASE_URL: string;

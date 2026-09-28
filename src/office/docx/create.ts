@@ -2,6 +2,7 @@ import { zipSync } from "fflate";
 import type { Zippable } from "fflate";
 import { STYLE } from "../docir.ts";
 import type { Align, DocIr, IrBlock, IrRun, ParaStyle } from "../docir.ts";
+import { OFFICE_METRICS, columnWidths } from "../table.ts";
 
 export interface DocxOptions {
   readonly toc?: boolean;
@@ -85,13 +86,6 @@ function pPrInner(style: ParaStyle): string {
   if (style.borderBottom)
     out +=
       '<w:pBdr><w:bottom w:val="single" w:sz="4" w:space="1" w:color="000000"/></w:pBdr>';
-  if (style.leaderTabCm !== undefined)
-    out +=
-      '<w:tabs><w:tab w:val="' +
-      (style.rightTab ? "right" : "left") +
-      '" w:leader="underscore" w:pos="' +
-      String(twips(style.leaderTabCm)) +
-      '"/></w:tabs>';
   const spacing: string[] = [];
   if (style.spaceBeforePt !== undefined)
     spacing.push(
@@ -193,7 +187,7 @@ function stylesXml(doc: DocIr): string {
     Object.entries(doc.styles)
       .map(([name, style]) => styleXml(name, style))
       .join("") +
-    '<w:style w:type="paragraph" w:styleId="Header"><w:name w:val="header"/><w:basedOn w:val="Normal"/></w:style>' +
+    '<w:style w:type="paragraph" w:styleId="Footer"><w:name w:val="footer"/><w:basedOn w:val="Normal"/><w:pPr><w:jc w:val="center"/></w:pPr></w:style>' +
     '<w:style w:type="paragraph" w:styleId="TOCHeading"><w:name w:val="TOC Heading"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/>' +
     '<w:pPr><w:keepNext/><w:spacing w:after="240"/><w:jc w:val="center"/></w:pPr><w:rPr><w:b/><w:bCs/><w:sz w:val="28"/><w:szCs w:val="28"/></w:rPr></w:style>' +
     [1, 2, 3]
@@ -365,11 +359,7 @@ function blockXml(block: IrBlock, doc: DocIr, body: Body): string {
   switch (block.kind) {
     case "para": {
       const style = doc.styles[block.style];
-      const leader =
-        style?.leaderTabCm !== undefined && block.runs.length === 0;
-      const inner = leader
-        ? "<w:r><w:tab/></w:r>"
-        : runsXml(block.runs, body, block.style === STYLE.code);
+      const inner = runsXml(block.runs, body, block.style === STYLE.code);
       return paraXml(
         styled(block.style),
         headingBookmark(style?.outlineLevel ?? 0, body, inner),
@@ -393,39 +383,57 @@ function blockXml(block: IrBlock, doc: DocIr, body: Body): string {
         .join("");
     }
     case "table": {
-      const width = Math.max(...block.rows.map((r) => r.length), 1);
-      const text = twips(
+      const header = block.header !== false;
+      const widths = columnWidths(
+        block.rows,
+        header,
         doc.page.widthCm - doc.page.marginInnerCm - doc.page.marginOuterCm,
-      );
-      const col = Math.floor(text / width);
-      const border = (side: string): string =>
+        OFFICE_METRICS,
+      ).map(twips);
+      const rule = (side: string, size: number): string =>
         "<w:" +
         side +
-        ' w:val="single" w:sz="4" w:space="0" w:color="000000"/>';
+        ' w:val="single" w:sz="' +
+        String(size) +
+        '" w:space="0" w:color="000000"/>';
       const rows = block.rows
         .map((row, rowIndex) => {
-          const cells = Array.from({ length: width }, (_, i) => {
-            const align = block.align[i];
-            const style = rowIndex === 0 ? STYLE.tableHead : STYLE.tableCell;
-            return (
-              '<w:tc><w:tcPr><w:tcW w:w="' +
-              String(col) +
-              '" w:type="dxa"/></w:tcPr>' +
-              paraXml(
-                styled(
-                  style,
-                  align && rowIndex > 0
-                    ? '<w:jc w:val="' + JC[align] + '"/>'
-                    : "",
-                ),
-                runsXml(row[i] ?? [], body, false),
-              ) +
-              "</w:tc>"
-            );
-          }).join("");
+          const head = header && rowIndex === 0;
+          const cells = widths
+            .map((width, i) => {
+              const align = block.align[i];
+              const fill = (row[i] ?? []).some((run) => run.fill);
+              return (
+                '<w:tc><w:tcPr><w:tcW w:w="' +
+                String(width) +
+                '" w:type="dxa"/>' +
+                (head
+                  ? "<w:tcBorders>" + rule("bottom", 6) + "</w:tcBorders>"
+                  : "") +
+                (head ? '<w:vAlign w:val="center"/>' : "") +
+                "</w:tcPr>" +
+                paraXml(
+                  styled(
+                    head
+                      ? STYLE.tableHead
+                      : (block.cellStyle ?? STYLE.tableCell),
+                    fill
+                      ? '<w:tabs><w:tab w:val="right" w:leader="underscore" w:pos="' +
+                          String(Math.max(0, width - 216)) +
+                          '"/></w:tabs>'
+                      : align
+                        ? '<w:jc w:val="' + JC[align] + '"/>'
+                        : "",
+                  ),
+                  fill ? "<w:r><w:tab/></w:r>" : runsXml(row[i] ?? [], body, false),
+                ) +
+                "</w:tc>"
+              );
+            })
+            .join("");
           return (
             "<w:tr>" +
-            (rowIndex === 0 ? "<w:trPr><w:tblHeader/></w:trPr>" : "") +
+            (head ? "<w:trPr><w:tblHeader/></w:trPr>" : "") +
             cells +
             "</w:tr>"
           );
@@ -433,17 +441,23 @@ function blockXml(block: IrBlock, doc: DocIr, body: Body): string {
         .join("");
       return (
         '<w:tbl><w:tblPr><w:tblW w:w="' +
-        String(col * width) +
-        '" w:type="dxa"/><w:tblBorders>' +
-        ["top", "left", "bottom", "right", "insideH", "insideV"]
-          .map(border)
+        String(widths.reduce((sum, width) => sum + width, 0)) +
+        '" w:type="dxa"/><w:jc w:val="' +
+        JC[block.placement ?? "center"] +
+        '"/>' +
+        (header
+          ? "<w:tblBorders>" +
+            rule("top", 12) +
+            rule("bottom", 12) +
+            "</w:tblBorders>"
+          : "") +
+        '<w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="28" w:type="dxa"/><w:left w:w="57" w:type="dxa"/><w:bottom w:w="28" w:type="dxa"/><w:right w:w="57" w:type="dxa"/></w:tblCellMar><w:tblLook w:val="04A0"/></w:tblPr><w:tblGrid>' +
+        widths
+          .map((width) => '<w:gridCol w:w="' + String(width) + '"/>')
           .join("") +
-        '</w:tblBorders><w:tblLook w:val="04A0"/></w:tblPr><w:tblGrid>' +
-        ('<w:gridCol w:w="' + String(col) + '"/>').repeat(width) +
         "</w:tblGrid>" +
         rows +
-        "</w:tbl>" +
-        paraXml("", "")
+        "</w:tbl>"
       );
     }
     case "rule":
@@ -511,7 +525,7 @@ function documentXml(doc: DocIr, options: DocxOptions, body: Body): string {
   const top = twips(page.marginTopCm);
   const sect =
     "<w:sectPr>" +
-    (doc.header ? '<w:headerReference w:type="default" r:id="rId4"/>' : "") +
+    (doc.pageNumbers ? '<w:footerReference w:type="default" r:id="rId4"/>' : "") +
     '<w:pgSz w:w="' +
     String(twips(page.widthCm)) +
     '" w:h="' +
@@ -527,7 +541,6 @@ function documentXml(doc: DocIr, options: DocxOptions, body: Body): string {
     '" w:header="' +
     String(Math.max(360, top - 567)) +
     '" w:footer="567" w:gutter="0"/>' +
-    (doc.header ? "<w:titlePg/>" : "") +
     "</w:sectPr>";
   return (
     XML_HEAD +
@@ -542,36 +555,19 @@ function documentXml(doc: DocIr, options: DocxOptions, body: Body): string {
   );
 }
 
-function headerXml(doc: DocIr): string {
-  const page = doc.page;
-  const width = twips(page.widthCm - page.marginInnerCm - page.marginOuterCm);
-  const header = doc.header!;
-  const left =
-    header.left !== undefined
-      ? textRun(header.left, "")
-      : '<w:fldSimple w:instr=" STYLEREF &quot;heading 1&quot; "><w:r><w:t></w:t></w:r></w:fldSimple>';
-  const right =
-    header.pageNumberRight === false
-      ? ""
-      : '<w:r><w:tab/></w:r><w:fldSimple w:instr=" PAGE "><w:r><w:t>1</w:t></w:r></w:fldSimple>';
+function footerXml(): string {
   return (
     XML_HEAD +
-    "<w:hdr " +
+    "<w:ftr " +
     NS_W +
     " " +
     NS_R +
     ">" +
     paraXml(
-      '<w:pStyle w:val="Header"/>' +
-        (header.rule
-          ? '<w:pBdr><w:bottom w:val="single" w:sz="4" w:space="1" w:color="000000"/></w:pBdr>'
-          : "") +
-        '<w:tabs><w:tab w:val="right" w:pos="' +
-        String(width) +
-        '"/></w:tabs>',
-      left + right,
+      '<w:pStyle w:val="Footer"/>',
+      '<w:fldSimple w:instr=" PAGE "><w:r><w:t>1</w:t></w:r></w:fldSimple>',
     ) +
-    "</w:hdr>"
+    "</w:ftr>"
   );
 }
 
@@ -624,7 +620,8 @@ export function buildDocx(
       "application/vnd.openxmlformats-package.core-properties+xml",
     ],
   ];
-  if (doc.header) overrides.push(["/word/header1.xml", CT + "header+xml"]);
+  if (doc.pageNumbers)
+    overrides.push(["/word/footer1.xml", CT + "footer+xml"]);
 
   const files: Record<string, string> = {
     "[Content_Types].xml":
@@ -656,8 +653,8 @@ export function buildDocx(
       { id: "rId1", type: REL + "/styles", target: "styles.xml" },
       { id: "rId2", type: REL + "/settings", target: "settings.xml" },
       { id: "rId3", type: REL + "/numbering", target: "numbering.xml" },
-      ...(doc.header
-        ? [{ id: "rId4", type: REL + "/header", target: "header1.xml" }]
+      ...(doc.pageNumbers
+        ? [{ id: "rId4", type: REL + "/footer", target: "footer1.xml" }]
         : []),
       ...body.links,
     ]),
@@ -666,7 +663,7 @@ export function buildDocx(
     "word/numbering.xml": numberingXml(body.nums),
     "docProps/core.xml": coreXml(doc),
   };
-  if (doc.header) files["word/header1.xml"] = headerXml(doc);
+  if (doc.pageNumbers) files["word/footer1.xml"] = footerXml();
 
   const zippable: Zippable = {};
   for (const [name, xml] of Object.entries(files))

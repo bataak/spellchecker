@@ -1,4 +1,10 @@
-import { format, isMarkdown, parse, toHtml } from "./markdown.ts";
+import {
+  fitBlanks,
+  format,
+  isMarkdown,
+  parse,
+  toHtml,
+} from "./markdown.ts";
 
 const TIDY_LIMIT = 400_000;
 
@@ -124,16 +130,30 @@ export function initPreview(
   let sourceText = "";
   let pdfView: { destroy(): void } | null = null;
   let pdfAbort: AbortController | null = null;
+  let shownHtml: string | null = null;
+  let mathView: typeof import("./mathview.ts") | null = null;
 
   const renderMarkdown = (): void => {
     const text = area.value;
     const blocks = text.trim() ? parse(text) : [];
-    body.innerHTML = blocks.length ? toHtml(blocks) : "";
+    const html = blocks.length ? toHtml(fitBlanks(blocks)) : "";
+    if (html !== shownHtml) {
+      shownHtml = html;
+      const next = document.createElement("div");
+      next.innerHTML = html;
+      if (next.querySelector(".math")) {
+        if (mathView) mathView.renderMath(next);
+        else
+          void import("./mathview.ts")
+            .then((mod) => {
+              mathView = mod;
+              mod.renderMath(body);
+            })
+            .catch(() => undefined);
+      }
+      body.replaceChildren(...next.childNodes);
+    }
     body.classList.toggle("is-empty", !blocks.length);
-    if (body.querySelector(".math"))
-      void import("./mathview.ts")
-        .then((mod) => mod.renderMath(body))
-        .catch(() => undefined);
 
     tidied = null;
     const looksMd = isMdFile || isMarkdown(blocks);
@@ -155,6 +175,7 @@ export function initPreview(
     const controller = new AbortController();
     pdfAbort = controller;
     body.classList.remove("is-empty");
+    shownHtml = null;
     body.replaceChildren();
     try {
       const mod = await import("./pdfview.ts");
@@ -187,6 +208,7 @@ export function initPreview(
     const note = document.createElement("p");
     note.className = "preview-notice";
     note.textContent = text;
+    shownHtml = null;
     body.replaceChildren(note);
     body.classList.remove("is-empty");
     panel.classList.add("is-blank");
@@ -202,6 +224,7 @@ export function initPreview(
     if (!next) {
       title.textContent = HEAD_TEXT;
       panel.classList.remove("is-pdf");
+      shownHtml = null;
       body.replaceChildren();
       renderMarkdown();
       return;

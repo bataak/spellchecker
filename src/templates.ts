@@ -7,6 +7,12 @@ export interface Template {
   readonly name: string;
   readonly frame: Frame;
   readonly skeleton: string;
+  readonly examples?: readonly TemplateExample[];
+}
+
+export interface TemplateExample {
+  readonly id: string;
+  readonly name: string;
 }
 
 export const TEMPLATES: readonly Template[] = [
@@ -17,50 +23,27 @@ export const TEMPLATES: readonly Template[] = [
     id: "letter",
     frame: "letter",
     name: "Албан бичиг",
-    skeleton: `# Албан бичгийн утга
-
-Бичгийн зорилгыг эхний доголд тодорхой өгүүлнэ.
-
-Дэлгэрэнгүй тайлбар, шаардлагатай тоо баримтыг дараагийн доголд бичнэ.
-
-Хүлээгдэж буй хариу арга хэмжээг төгсгөлд дурдана.
-
-Гарын үсэг
-
-Албан тушаал: Овог Нэр
-`,
+    skeleton: "",
+    examples: [
+      { id: "minutes", name: "Хурлын тэмдэглэл" },
+      { id: "application", name: "Өргөдөл" },
+    ],
   },
 
   {
     id: "report",
     frame: "structured",
     name: "Тайлан",
-    skeleton: `# Тайлангийн нэр
-
-## Оршил
-
-## Үндсэн хэсэг
-
-## Дүгнэлт
-
-## Ном зүй
-`,
+    skeleton: "",
+    examples: [{ id: "research", name: "Судалгааны тайлан" }],
   },
 
   {
     id: "slides",
     frame: "slides",
     name: "Илтгэл",
-    skeleton: `# Илтгэлийн нэр
-
-## Танилцуулга
-
-- Гол санаа
-
-## Үр дүн
-
-## Дүгнэлт
-`,
+    skeleton: "",
+    examples: [{ id: "presentation", name: "Судалгааны илтгэл" }],
   },
 ];
 
@@ -71,7 +54,9 @@ export interface TemplateGroup {
 
 export const TEMPLATE_GROUPS: readonly TemplateGroup[] = [
   { name: "Алдаа шалгах", ids: [PLAIN, "plain2"] },
-  { name: "Баримт бичиг бэлтгэх", ids: ["letter", "report", "slides"] },
+  { name: "Албан бичиг", ids: ["letter"] },
+  { name: "Тайлан", ids: ["report"] },
+  { name: "Илтгэл", ids: ["slides"] },
 ];
 
 export function findTemplate(id: string): Template | undefined {

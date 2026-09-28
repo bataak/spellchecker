@@ -7,13 +7,12 @@ import { findTemplate } from "../src/templates.ts";
 import { applyTemplate } from "../src/office/apply.ts";
 import { buildDocx } from "../src/office/docx/create.ts";
 
-const AT = new Date("2026-08-20T12:00:00Z");
 
 const build = (md: string, id: string, toc = false): Record<string, string> =>
   Object.fromEntries(
     Object.entries(
       unzipSync(
-        buildDocx(applyTemplate(parse(md), findTemplate(id)!, { now: AT }), {
+        buildDocx(applyTemplate(parse(md), findTemplate(id)!), {
           toc,
         }),
       ),
@@ -33,9 +32,12 @@ test("buildDocx: үндсэн хэсгүүд", () => {
     "word/styles.xml",
     "word/numbering.xml",
     "word/settings.xml",
-    "word/header1.xml",
+    "word/footer1.xml",
   ])
     assert.ok(out[part], part);
+  assert.equal(out["word/header1.xml"], undefined);
+  assert.ok(out["word/footer1.xml"]!.includes(' PAGE '));
+  assert.ok(out["word/document.xml"]!.includes('<w:footerReference w:type="default" r:id="rId4"/>'));
   assert.ok(out["word/styles.xml"]!.includes('<w:name w:val="heading 2"/>'));
   assert.ok(out["word/styles.xml"]!.includes('<w:sz w:val="24"/>'));
 });
@@ -66,13 +68,11 @@ test("buildDocx: жагсаалтын эхлэл, холбоос", () => {
   assert.ok(out["word/document.xml"]!.includes('<w:hyperlink r:id="rId10"'));
 });
 
-test("buildDocx: албан бичигт толгойгүй, гарын үсгийн зураастай", () => {
+test("buildDocx: албан бичигт баруун блок мөр шилжилттэй", () => {
   const md =
-    "# Нэр\n\n" +
-    "Урт догол ".repeat(12) +
-    "\n\nГарын үсэг\n\nӨргөдөл гаргасан: Б. Боролдой\n";
+    "# Нэр\n\nДогол.\n\n::: {.signature}\nӨргөдөл гаргасан: Б. Боролдой\\\nУтас: 9911\n:::\n";
   const out = build(md, "letter");
-  assert.equal(out["word/header1.xml"], undefined);
-  assert.ok(out["word/styles.xml"]!.includes('w:leader="underscore"'));
-  assert.ok(out["word/document.xml"]!.includes("<w:r><w:tab/></w:r>"));
+  assert.ok(out["word/document.xml"]!.includes('<w:pStyle w:val="SignatureTop"/>'));
+  assert.ok(out["word/document.xml"]!.includes("<w:br/>"));
+  assert.ok(out["word/styles.xml"]!.includes('w:styleId="SignatureTop"'));
 });

@@ -1,11 +1,13 @@
+import { odfFont } from "../fonts.ts";
 import { ODF_PRESENTATION, writeOdf } from "../odf/index.ts";
-import type { DeckDoc, DeckLine } from "../deck.ts";
-import type { IrRun } from "../docir.ts";
+import type { DeckDoc, DeckLine, DeckTable } from "../deck.ts";
+import { TABLE_PT, TEXT_PT, layoutSlide, type TableLayout } from "../decklayout.ts";
+import type { Align, IrRun } from "../docir.ts";
 
 const encoder = new TextEncoder();
 
-const FONT = "Liberation Sans";
-const MONO = "Liberation Mono";
+const FONT = odfFont("Arial");
+const MONO = odfFont("Courier New");
 
 const PAGE = { width: 28, height: 15.75 };
 const MARGIN = 1.4;
@@ -18,6 +20,7 @@ const NS =
   ' xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0"' +
   ' xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"' +
   ' xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"' +
+  ' xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"' +
   ' xmlns:xlink="http://www.w3.org/1999/xlink"';
 
 function esc(value: string): string {
@@ -36,6 +39,13 @@ function cm(value: number): string {
 }
 
 function spaced(text: string): string {
+  return text
+    .split("\n")
+    .map(spacedLine)
+    .join("<text:line-break/>");
+}
+
+function spacedLine(text: string): string {
   return text
     .split(/( {2,}|^ |\t)/)
     .map((part) => {
@@ -97,7 +107,11 @@ function para(style: string, runs: readonly IrRun[], keys: Set<string>): string 
   return '<text:p text:style-name="' + style + '">' + runsXml(runs, keys) + "</text:p>";
 }
 
-function linesXml(lines: readonly DeckLine[], keys: Set<string>): string {
+function linesXml(
+  lines: readonly DeckLine[],
+  keys: Set<string>,
+  style = "P_body",
+): string {
   let out = "";
   let open: "bullet" | "number" | null = null;
   const close = (): void => {
@@ -107,7 +121,7 @@ function linesXml(lines: readonly DeckLine[], keys: Set<string>): string {
   for (const line of lines) {
     if (line.kind === "para") {
       close();
-      out += para("P_body", line.runs, keys);
+      out += para(style, line.runs, keys);
       continue;
     }
     if (open !== line.kind || line.start !== undefined) {
@@ -124,7 +138,7 @@ function linesXml(lines: readonly DeckLine[], keys: Set<string>): string {
         ? ' text:start-value="' + String(line.start) + '"'
         : "") +
       ">" +
-      para("P_body", line.runs, keys) +
+      para(style, line.runs, keys) +
       "</text:list-item>";
   }
   close();
@@ -156,20 +170,189 @@ function frame(
   );
 }
 
-function page(index: number, frames: string): string {
+function page(index: number, frames: string, notes = ""): string {
   return (
     '<draw:page draw:name="page' +
     String(index) +
     '" draw:style-name="dp1" draw:master-page-name="Default">' +
     frames +
+    (notes
+      ? "<presentation:notes>" +
+        frame("notes", "pr_body", { x: 2, y: 14, w: 17, h: 12 }, notes) +
+        "</presentation:notes>"
+      : "") +
     "</draw:page>"
   );
 }
 
 const WIDTH = PAGE.width - 2 * MARGIN;
 
+const ALIGN: Readonly<Record<Align, string>> = {
+  start: "start",
+  center: "center",
+  end: "end",
+  justify: "justify",
+};
+
+const RULE = { heavy: "1.5pt solid #000000", light: "0.75pt solid #000000" };
+
+interface Auto {
+  readonly styles: Map<string, string>;
+  tables: number;
+}
+
+function sizeName(pt: number): string {
+  return String(Math.round(pt * 10));
+}
+
+function bodyStyle(auto: Auto, pt: number): string {
+  const name = "P_body_" + sizeName(pt);
+  auto.styles.set(
+    name,
+    '<style:style style:name="' +
+      name +
+      '" style:family="paragraph">' +
+      '<style:paragraph-properties fo:margin-bottom="0.2cm"/>' +
+      '<style:text-properties fo:font-family="' +
+      FONT +
+      '" fo:font-size="' +
+      (Math.round(pt * 10) / 10).toFixed(1) +
+      'pt"/></style:style>',
+  );
+  return name;
+}
+
+function cellParaStyle(auto: Auto, align: Align | null, pt: number): string {
+  const name = "P_cell_" + (align ?? "none") + "_" + sizeName(pt);
+  auto.styles.set(
+    name,
+    '<style:style style:name="' +
+      name +
+      '" style:family="paragraph">' +
+      (align
+        ? '<style:paragraph-properties fo:text-align="' + ALIGN[align] + '"/>'
+        : "") +
+      '<style:text-properties fo:font-family="' +
+      FONT +
+      '" fo:font-size="' +
+      (Math.round(pt * 10) / 10).toFixed(1) +
+      'pt"/></style:style>',
+  );
+  return name;
+}
+
+function cellStyle(
+  auto: Auto,
+  top: string | null,
+  bottom: string | null,
+  middle: boolean,
+): string {
+  const key = (top ? "T" : "") + (bottom === RULE.heavy ? "B" : bottom ? "b" : "") + (middle ? "m" : "");
+  const name = "ce_" + (key || "plain");
+  const edge = (side: string, value: string | null): string =>
+    "fo:border-" + side + '="' + (value ?? "none") + '"';
+  auto.styles.set(
+    name,
+    '<style:style style:name="' +
+      name +
+      '" style:family="table-cell">' +
+      '<style:graphic-properties draw:fill="none" draw:textarea-vertical-align="' +
+      (middle ? "middle" : "top") +
+      '" fo:padding-top="0.12cm" fo:padding-bottom="0.12cm" ' +
+      'fo:padding-left="0.25cm" fo:padding-right="0.25cm"/>' +
+      "<style:paragraph-properties " +
+      edge("top", top) +
+      " " +
+      edge("bottom", bottom) +
+      ' fo:border-left="none" fo:border-right="none"/>' +
+      "</style:style>",
+  );
+  return name;
+}
+
+function tableXml(
+  auto: Auto,
+  keys: Set<string>,
+  table: DeckTable,
+  layout: TableLayout,
+  box: { x: number; y: number },
+  pt: number,
+): string {
+  auto.tables += 1;
+  const id = String(auto.tables);
+  const columns = layout.widths
+    .map((width, c) => {
+      const name = "co" + id + "_" + String(c);
+      auto.styles.set(
+        name,
+        '<style:style style:name="' +
+          name +
+          '" style:family="table-column"><style:table-column-properties style:column-width="' +
+          cm(width) +
+          '"/></style:style>',
+      );
+      return '<table:table-column table:style-name="' + name + '"/>';
+    })
+    .join("");
+  const last = table.rows.length - 1;
+  const rows = table.rows
+    .map((row, r) => {
+      const head = table.header && r === 0;
+      const rowName = "ro" + id + "_" + String(r);
+      auto.styles.set(
+        rowName,
+        '<style:style style:name="' +
+          rowName +
+          '" style:family="table-row"><style:table-row-properties style:row-height="' +
+          cm(layout.heights[r]!) +
+          '"/></style:style>',
+      );
+      const cells = layout.widths
+        .map((_, c) => {
+          const style = cellStyle(
+            auto,
+            r === 0 ? RULE.heavy : null,
+            r === last ? RULE.heavy : head ? RULE.light : null,
+            head,
+          );
+          const runs = (row[c] ?? []).map((run) =>
+            head ? { ...run, bold: true } : run,
+          );
+          return (
+            '<table:table-cell table:style-name="' +
+            style +
+            '">' +
+            para(cellParaStyle(auto, table.align[c] ?? null, pt), runs, keys) +
+            "</table:table-cell>"
+          );
+        })
+        .join("");
+      return (
+        '<table:table-row table:style-name="' + rowName + '">' + cells + "</table:table-row>"
+      );
+    })
+    .join("");
+  const width = layout.widths.reduce((a, b) => a + b, 0);
+  const height = layout.heights.reduce((a, b) => a + b, 0);
+  return (
+    '<draw:frame draw:style-name="gr_table" svg:x="' +
+    cm(box.x) +
+    '" svg:y="' +
+    cm(box.y) +
+    '" svg:width="' +
+    cm(width) +
+    '" svg:height="' +
+    cm(height) +
+    '"><table:table>' +
+    columns +
+    rows +
+    "</table:table></draw:frame>"
+  );
+}
+
 function contentXml(doc: DeckDoc): string {
   const keys = new Set<string>();
+  const auto: Auto = { styles: new Map(), tables: 0 };
   const pages: string[] = [];
 
   if (doc.title !== null) {
@@ -190,6 +373,22 @@ function contentXml(doc: DeckDoc): string {
   }
 
   for (const slide of doc.slides) {
+    const notes = slide.notes.length ? linesXml(slide.notes, keys) : "";
+    if (slide.section) {
+      pages.push(
+        page(
+          pages.length + 1,
+          frame(
+            "title",
+            "pr_title",
+            { x: MARGIN, y: 5.5, w: WIDTH, h: 3.2 },
+            para("P_cover", slide.title ?? [], keys),
+          ),
+          notes,
+        ),
+      );
+      continue;
+    }
     let frames = "";
     let top = MARGIN;
     if (slide.title !== null) {
@@ -201,14 +400,35 @@ function contentXml(doc: DeckDoc): string {
       );
       top = 3.2;
     }
-    if (slide.lines.length)
-      frames += frame(
-        "outline",
-        "pr_body",
-        { x: MARGIN, y: top, w: WIDTH, h: PAGE.height - top - 0.9 },
-        linesXml(slide.lines, keys),
-      );
-    pages.push(page(pages.length + 1, frames));
+    const layout = layoutSlide(
+      slide.parts,
+      MARGIN,
+      top,
+      WIDTH,
+      PAGE.height - top - 0.9,
+    );
+    for (const part of layout.parts)
+      frames +=
+        part.kind === "text"
+          ? frame(
+              "outline",
+              "pr_body",
+              { x: MARGIN, y: part.y, w: WIDTH, h: part.h },
+              linesXml(
+                part.lines,
+                keys,
+                bodyStyle(auto, TEXT_PT * layout.scale),
+              ),
+            )
+          : tableXml(
+              auto,
+              keys,
+              part.table,
+              part.layout,
+              part,
+              TABLE_PT * layout.scale,
+            );
+    pages.push(page(pages.length + 1, frames, notes));
   }
 
   const listLevel =
@@ -247,6 +467,10 @@ function contentXml(doc: DeckDoc): string {
     '<style:paragraph-properties fo:margin-bottom="0.2cm"/>' +
     '<style:text-properties fo:font-family="' + FONT + '" fo:font-size="20pt"/>' +
     "</style:style>" +
+    '<style:style style:name="gr_table" style:family="graphic">' +
+    '<style:graphic-properties draw:stroke="none" draw:fill="none"/>' +
+    "</style:style>" +
+    [...auto.styles.values()].join("") +
     [...keys].map(runStyle).join("") +
     '<text:list-style style:name="L_bullet">' +
     '<text:list-level-style-bullet text:level="1" text:bullet-char="•">' +
@@ -269,6 +493,14 @@ function stylesXml(): string {
     "<office:document-styles" +
     NS +
     ' office:version="1.3">' +
+    "<office:styles>" +
+    '<style:default-style style:family="graphic">' +
+    '<style:text-properties fo:font-family="' + FONT + '"/>' +
+    "</style:default-style>" +
+    '<style:default-style style:family="presentation">' +
+    '<style:text-properties fo:font-family="' + FONT + '"/>' +
+    "</style:default-style>" +
+    "</office:styles>" +
     "<office:automatic-styles>" +
     '<style:page-layout style:name="PM1">' +
     '<style:page-layout-properties fo:margin-top="0cm" fo:margin-bottom="0cm" ' +

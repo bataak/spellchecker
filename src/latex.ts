@@ -1,4 +1,20 @@
-import { mathSource, type Block, type Inline } from "./markdown.ts";
+import {
+  blankEm,
+  cellFills,
+  fitBlanks,
+  headingClasses,
+  isBlankRow,
+  mathSource,
+  metaValue,
+  parseInline,
+  textLogos,
+  withLogos,
+  type Block,
+  type DivBlock,
+  type Inline,
+} from "./markdown.ts";
+import { flatten } from "./office/flatten.ts";
+import { columnWidths } from "./office/table.ts";
 import { splitSlides, type Slide } from "./slides.ts";
 
 export const PREAMBLE = `\\documentclass[12pt,a4paper]{article}
@@ -7,12 +23,17 @@ export const PREAMBLE = `\\documentclass[12pt,a4paper]{article}
 \\usepackage[mongolian]{babel}
 \\usepackage{paratype}
 \\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{array}
+\\usepackage{booktabs}
 \\usepackage[OT1]{eulervm}
 \\usepackage{amsthm}
 \\usepackage{hyperref}
 \\newtheorem{theorem}{Теорем}
 \\theoremstyle{definition}
 \\newtheorem{definition}{Тодорхойлолт}
+\\setcounter{secnumdepth}{0}
+\\addto\\captionsmongolian{\\renewcommand{\\contentsname}{Гарчиг}}
 `;
 
 const SPECIAL: Readonly<Record<string, string>> = {
@@ -28,8 +49,36 @@ const SPECIAL: Readonly<Record<string, string>> = {
   "^": "\\textasciicircum{}",
 };
 
+const SYMBOL: Readonly<Record<string, string>> = {
+  "≈": "\\ensuremath{\\approx}",
+  "≠": "\\ensuremath{\\neq}",
+  "≤": "\\ensuremath{\\leq}",
+  "≥": "\\ensuremath{\\geq}",
+  "±": "\\ensuremath{\\pm}",
+  "×": "\\ensuremath{\\times}",
+  "÷": "\\ensuremath{\\div}",
+  "−": "\\ensuremath{-}",
+  "→": "\\ensuremath{\\rightarrow}",
+  "←": "\\ensuremath{\\leftarrow}",
+  "↑": "\\ensuremath{\\uparrow}",
+  "↓": "\\ensuremath{\\downarrow}",
+  "⇒": "\\ensuremath{\\Rightarrow}",
+  "∞": "\\ensuremath{\\infty}",
+  "·": "\\ensuremath{\\cdot}",
+  "√": "\\ensuremath{\\surd}",
+  "✓": "\\ensuremath{\\checkmark}",
+  "•": "\\textbullet{}",
+  "°": "\\textdegree{}",
+  "‰": "\\textperthousand{}",
+  "€": "\\texteuro{}",
+};
+
+const SYMBOL_RE = new RegExp("[" + Object.keys(SYMBOL).join("") + "]", "gu");
+
 export function escapeTex(s: string): string {
-  return s.replace(/[\\{}$&%#_~^]/g, (c) => SPECIAL[c]!);
+  return s
+    .replace(/[\\{}$&%#_~^]/g, (c) => SPECIAL[c]!)
+    .replace(SYMBOL_RE, (c) => SYMBOL[c]!);
 }
 
 function escapeUrl(url: string): string {
@@ -49,14 +98,27 @@ const DISPLAY_ENV =
 
 const COLUMN = { left: "l", center: "c", right: "r" } as const;
 
+const RAGGED = {
+  left: "\\raggedright",
+  center: "\\centering",
+  right: "\\raggedleft",
+} as const;
+
+const TEXT_WIDTH_CM = 13.7;
 function inline(nodes: readonly Inline[]): string {
   let out = "";
   for (const n of nodes) {
-    if (n.type === "text") out += escapeTex(n.value);
+    if (n.type === "text")
+      out += withLogos(n.value, (name) => "\\" + name + "{}", escapeTex);
     else if (n.type === "code") out += "\\texttt{" + escapeTex(n.value) + "}";
     else if (n.type === "strong") out += "\\textbf{" + inline(n.children) + "}";
     else if (n.type === "em") out += "\\emph{" + inline(n.children) + "}";
-    else if (n.type === "math") out += mathSource(n.open, n.value);
+    else if (n.type === "math") out += mathSource(n.open, textLogos(n.value));
+    else if (n.type === "softbreak") out += "\n";
+    else if (n.type === "break") out += "\\\\\n";
+    else if (n.type === "blank" && n.fit !== undefined)
+      out +=
+        "\\rule[-0.3ex]{" + String(Math.round(blankEm(n) * 100) / 100) + "em}{0.4pt}";
     else if (n.type === "blank")
       out += "\\rule[-0.3ex]{" + String(n.width / 2) + "em}{0.4pt}";
     else if (n.type === "del") out += inline(n.children);
@@ -66,18 +128,101 @@ function inline(nodes: readonly Inline[]): string {
   return out;
 }
 
-function block(b: Block): string {
+function columnWidth(div: DivBlock, count: number): string {
+  const percent = /^(\d+(?:\.\d+)?)%$/.exec(div.keys["width"] ?? "")?.[1];
+  const share = percent === undefined ? 1 / count : Number(percent) / 100;
+  return String(Math.round(share * 0.96 * 1000) / 1000) + "\\textwidth";
+}
+
+function divBlock(b: DivBlock, beamer: boolean): string {
+  const place = b.classes.includes("left")
+    ? "\\raggedright"
+    : b.classes.includes("center")
+      ? "\\centering"
+      : b.classes.some((name) => name === "right" || name === "signature")
+        ? "\\raggedleft"
+        : undefined;
+  const body = (blocks: readonly Block[]): string =>
+    blocks.map((inner) => block(inner, beamer, place)).join("\n\n");
+  if (b.classes.includes("notes"))
+    return beamer ? "\\note{" + body(b.children) + "}" : "";
+  const align = b.classes.includes("signature") || b.classes.includes("right")
+    ? "flushright"
+    : b.classes.includes("center")
+      ? "center"
+      : b.classes.includes("left")
+        ? "flushleft"
+        : null;
+  if (align !== null)
+    return (
+      (b.classes.includes("signature") ? "\\bigskip\n" : "") +
+      "\\begin{" +
+      align +
+      "}\n" +
+      (b.classes.includes("signature") &&
+      b.children.some((inner) => inner.type === "paragraph")
+        ? "\\linespread{1.25}\\selectfont\n"
+        : "") +
+      body(b.children) +
+      "\n\\end{" +
+      align +
+      "}"
+    );
+  if (!b.classes.includes("columns")) return body(b.children);
+  const columns = b.children.filter(
+    (inner): inner is DivBlock =>
+      inner.type === "div" && inner.classes.includes("column"),
+  );
+  if (!columns.length) return body(b.children);
+  if (beamer)
+    return (
+      "\\begin{columns}[T]\n" +
+      columns
+        .map(
+          (column) =>
+            "\\begin{column}{" +
+            columnWidth(column, columns.length) +
+            "}\n" +
+            body(column.children) +
+            "\n\\end{column}",
+        )
+        .join("\n") +
+      "\n\\end{columns}"
+    );
+  return (
+    "\\noindent\n" +
+    columns
+      .map(
+        (column) =>
+          "\\begin{minipage}[t]{" +
+          columnWidth(column, columns.length) +
+          "}\n" +
+          body(column.children) +
+          "\n\\end{minipage}",
+      )
+      .join("\\hfill\n")
+  );
+}
+
+function block(b: Block, beamer = false, place?: string): string {
   switch (b.type) {
     case "heading": {
       const cmd = SECTION[Math.min(b.depth, SECTION.length) - 1]!;
-      return "\\" + cmd + "{" + inline(b.children) + "}";
+      const star = headingClasses(b).includes("unnumbered") ? "*" : "";
+      return "\\" + cmd + star + "{" + inline(b.children) + "}";
     }
+    case "meta":
+      return "";
+    case "div":
+      return divBlock(b, beamer);
     case "paragraph":
       return inline(b.children);
     case "latex":
       return b.value;
     case "math":
-      return DISPLAY_ENV.test(b.value) ? b.value : "\\[\n" + b.value + "\n\\]";
+      return DISPLAY_ENV.test(b.value)
+        ? textLogos(b.value)
+        : "\\[\n" + textLogos(b.value) + "\n\\]";
     case "rule":
       return "\\noindent\\rule{\\linewidth}{0.4pt}";
     case "codeblock":
@@ -90,7 +235,7 @@ function block(b: Block): string {
     case "quote":
       return (
         "\\begin{quote}\n" +
-        b.children.map(block).join("\n\n") +
+        b.children.map((inner) => block(inner, beamer)).join("\n\n") +
         "\n\\end{quote}"
       );
     case "list": {
@@ -111,60 +256,142 @@ function block(b: Block): string {
       );
     }
     case "table": {
-      const width = Math.max(...b.rows.map((r) => r.length), 1);
-      const spec = Array.from({ length: width }, (_, i) => {
-        const a = b.align[i];
-        return a ? COLUMN[a] : "l";
-      }).join("|");
-      const row = (r: readonly Inline[][]): string =>
-        Array.from({ length: width }, (_, i) => inline(r[i] ?? [])).join(
-          " & ",
-        ) + " \\\\";
       const [head, ...body] = b.rows;
+      const header = !isBlankRow(head);
+      const rows = header ? b.rows : body;
+      const cells = rows.map((r) => r.map((cell) => flatten(cell)));
+      const natural = columnWidths(cells, false, Number.POSITIVE_INFINITY);
+      const wrap = natural.reduce((sum, width) => sum + width, 0) > TEXT_WIDTH_CM;
+      const widths = wrap
+        ? columnWidths(cells, header, TEXT_WIDTH_CM)
+        : natural;
+      const spec = widths
+        .map((width, i) => {
+          const a = b.align[i];
+          if (!wrap) return a ? COLUMN[a] : "l";
+          const size = Math.max(0.5, width - 0.42).toFixed(2);
+          return ">{" + RAGGED[a ?? "left"] + "\\arraybackslash}p{" + size + "cm}";
+        })
+        .join("");
+      const row = (r: readonly Inline[][], bold: boolean): string =>
+        widths
+          .map((_, i) => {
+            const cell = r[i] ?? [];
+            if (cellFills(cell)) return "\\hrulefill";
+            const text = inline(cell);
+            return bold && text ? "\\textbf{" + text + "}" : text;
+          })
+          .join(" & ") + " \\\\";
+      if (place !== undefined)
+        return [
+          "\\renewcommand{\\arraystretch}{1.5}",
+          "\\begin{tabular}{" + spec + "}",
+          ...rows.map((r) => row(r, false)),
+          "\\end{tabular}",
+        ].join("\n");
       return [
-        "\\begin{center}",
-        "\\begin{tabular}{|" + spec + "|}",
-        "\\hline",
-        row(head ?? []),
-        "\\hline",
-        ...body.map(row),
-        "\\hline",
-        "\\end{tabular}",
-        "\\end{center}",
+        "\\par\\addvspace{\\medskipamount}",
+        "{\\centering\\small",
+        "\\begin{tabular}{" + spec + "}",
+        ...(header
+          ? ["\\toprule", row(head ?? [], true), "\\midrule"]
+          : []),
+        ...body.map((r) => row(r, false)),
+        ...(header ? ["\\bottomrule"] : []),
+        "\\end{tabular}\\par}",
+        "\\addvspace{\\medskipamount}",
       ].join("\n");
     }
   }
 }
 
 export function toLatexBody(blocks: readonly Block[]): string {
-  return blocks.map(block).join("\n\n");
+  return fitBlanks(blocks)
+    .map((b) => block(b))
+    .filter((text) => text !== "")
+    .join("\n\n");
+}
+
+function metaText(value: string | undefined): string | null {
+  return value === undefined ? null : inline(parseInline(value));
+}
+
+function titleBlock(head: Block | undefined): string {
+  const title = metaText(metaValue(head, "title"));
+  if (title === null) return "";
+  const subtitle = metaText(metaValue(head, "subtitle"));
+  const author = [metaValue(head, "author"), metaValue(head, "institute")]
+    .map(metaText)
+    .filter((part): part is string => part !== null)
+    .join(" \\\\ ");
+  const date = metaText(metaValue(head, "date"));
+  return (
+    "\\title{" +
+    title +
+    (subtitle === null ? "" : " \\\\[0.5ex] \\large " + subtitle) +
+    "}\n\\author{" +
+    author +
+    "}\n\\date{" +
+    (date ?? "") +
+    "}\n"
+  );
+}
+
+export interface LatexOptions {
+  readonly toc?: boolean;
+  readonly pageNumbers?: boolean;
 }
 
 export function toLatex(
   blocks: readonly Block[],
   preamble: string = PREAMBLE,
+  options: LatexOptions = {},
 ): string {
+  const head = titleBlock(blocks[0]);
+  const plain = options.pageNumbers !== false;
   return (
     preamble.replace(/\s*$/, "\n") +
+    head +
     "\n\\begin{document}\n\n" +
+    (plain ? "" : "\\pagestyle{empty}\n\n") +
+    (head ? "\\maketitle\n\n" : "") +
+    (head && !plain ? "\\thispagestyle{empty}\n\n" : "") +
+    (options.toc ? "\\tableofcontents\n\n" : "") +
     toLatexBody(blocks) +
     "\n\n\\end{document}\n"
   );
 }
 
-export const BEAMER_PREAMBLE = `\\documentclass{beamer}
+export const BEAMER_PREAMBLE = `\\documentclass[aspectratio=169]{beamer}
 \\usepackage[T2A]{fontenc}
 \\usepackage[utf8]{inputenc}
 \\usepackage[mongolian]{babel}
 \\usepackage{paratype}
 \\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{array}
+\\usepackage{booktabs}
 \\usepackage[OT1]{eulervm}
+\\usepackage{graphicx}
+\\usepackage{listings}
 \\usefonttheme[onlymath]{serif}
 \\deftranslation[to=mongolian]{Theorem}{Теорем}
 \\deftranslation[to=mongolian]{Definition}{Тодорхойлолт}
+\\deftranslation[to=mongolian]{Section}{Бүлэг}
+\\deftranslation[to=mongolian]{Subsection}{Дэд бүлэг}
+`;
+
+const NOTES_SCREEN = `\\usepackage{pgfpages}
+\\setbeameroption{show notes on second screen=right}
 `;
 
 function frame(slide: Slide): string {
+  if (slide.section)
+    return (
+      "\\section{" +
+      inline(slide.title ?? []) +
+      "}\n\\begin{frame}\n\\sectionpage\n\\end{frame}"
+    );
   const fragile = slide.blocks.some(
     (b) =>
       b.type === "codeblock" || (b.type === "latex" && b.env === "verbatim"),
@@ -173,30 +400,50 @@ function frame(slide: Slide): string {
     .map((b) =>
       b.type === "heading"
         ? "\\textbf{" + inline(b.children) + "}\\par"
-        : block(b),
+        : block(b, true),
     )
+    .filter((text) => text !== "")
     .join("\n\n");
+  const notes = slide.notes.length
+    ? "\n\\note{" +
+      slide.notes.map((b) => block(b, true)).join("\n\n") +
+      "}"
+    : "";
   return (
     "\\begin{frame}" +
     (fragile ? "[fragile]" : "") +
     (slide.title === null ? "" : "{" + inline(slide.title) + "}") +
     "\n" +
     body +
+    notes +
     "\n\\end{frame}"
   );
+}
+
+export interface BeamerOptions {
+  readonly notesScreen?: boolean;
 }
 
 export function toBeamer(
   blocks: readonly Block[],
   preamble: string = BEAMER_PREAMBLE,
+  options: BeamerOptions = {},
 ): string {
   const deck = splitSlides(blocks);
-  const parts = [preamble.replace(/\s*$/, "\n")];
+  const parts = [
+    preamble.replace(/\s*$/, "\n") + (options.notesScreen ? NOTES_SCREEN : ""),
+  ];
   if (deck.title !== null) {
     let head = "\\title{" + inline(deck.title) + "}\n";
     if (deck.subtitle.length)
       head +=
         "\\subtitle{" + deck.subtitle.map(inline).join(" \\\\ ") + "}\n";
+    const author = metaText(deck.meta.author);
+    const institute = metaText(deck.meta.institute);
+    const date = metaText(deck.meta.date);
+    if (author !== null) head += "\\author{" + author + "}\n";
+    if (institute !== null) head += "\\institute{" + institute + "}\n";
+    if (date !== null) head += "\\date{" + date + "}\n";
     parts.push(head);
   }
   parts.push("\\begin{document}\n");

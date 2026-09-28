@@ -11,11 +11,48 @@ export function mathSource(open: MathOpen, value: string): string {
   return open + value + MATH_SHUT[open];
 }
 
+export type TexLogo = "TeX" | "LaTeX" | "LaTeXe";
+
+const TEX_LOGO = /\\(LaTeXe|LaTeX|TeX)(?![A-Za-z])(?:\{\})?/g;
+
+export function withLogos(
+  text: string,
+  logo: (name: TexLogo) => string,
+  plain: (part: string) => string,
+): string {
+  let out = "";
+  let from = 0;
+  for (const match of text.matchAll(TEX_LOGO)) {
+    out += plain(text.slice(from, match.index)) + logo(match[1] as TexLogo);
+    from = match.index + match[0].length;
+  }
+  return out + plain(text.slice(from));
+}
+
+export function textLogos(value: string): string {
+  return value.replace(TEX_LOGO, "\\text{\\$1}");
+}
+
+const LOGO_HTML: Readonly<Record<TexLogo, string>> = {
+  TeX: 'T<span class="tex-e">E</span>X',
+  LaTeX: 'L<span class="tex-a">A</span>T<span class="tex-e">E</span>X',
+  LaTeXe:
+    'L<span class="tex-a">A</span>T<span class="tex-e">E</span>X2<span class="tex-eps">ε</span>',
+};
+
+export const LOGO_TEXT: Readonly<Record<TexLogo, string>> = {
+  TeX: "TeX",
+  LaTeX: "LaTeX",
+  LaTeXe: "LaTeX2ε",
+};
+
 export type Inline =
   | { type: "text"; value: string }
   | { type: "code"; value: string }
   | { type: "math"; open: MathOpen; value: string }
-  | { type: "blank"; width: number }
+  | { type: "blank"; width: number; fit?: number; fill?: boolean }
+  | { type: "softbreak" }
+  | { type: "break" }
   | { type: "strong"; children: Inline[] }
   | { type: "del"; children: Inline[] }
   | { type: "em"; children: Inline[] }
@@ -25,6 +62,26 @@ export interface Heading {
   type: "heading";
   depth: number;
   children: Inline[];
+  attrs?: string;
+  line: number;
+}
+export interface MetaField {
+  readonly key: string;
+  readonly value: string;
+}
+export interface MetaBlock {
+  type: "meta";
+  fields: MetaField[];
+  raw: string;
+  line: number;
+}
+export interface DivBlock {
+  type: "div";
+  fence: string;
+  attrs: string;
+  classes: string[];
+  keys: Record<string, string>;
+  children: Block[];
   line: number;
 }
 export interface Paragraph {
@@ -81,6 +138,8 @@ export type Block =
   | CodeBlock
   | MathBlock
   | LatexBlock
+  | MetaBlock
+  | DivBlock
   | Rule
   | Table;
 
@@ -88,8 +147,10 @@ const HOLD = "\u0001";
 
 const MATH_HOLD = "\u0002";
 
+const HARD = "\u0003";
+
 const MATH_SPAN =
-  /(`+)[\s\S]*?\1|\\begin\{math\}([\s\S]*?)\\end\{math\}|\\\(([\s\S]*?)\\\)|\\[\s\S]|\$\$((?:[^$\\]|\\.)+?)\$\$|(?<!\$)\$(?![\s$])((?:[^$\n\\]|\\.)*?[^\s$\\]|[^\s$\\])\$(?![\d$])|(?<![\p{L}\p{N}_])(_{3,})(?![\p{L}\p{N}_])/gu;
+  /(`+)[\s\S]*?\1|\\begin\{math\}([\s\S]*?)\\end\{math\}|\\\(([\s\S]*?)\\\)|\\[\s\S]|\$\$((?:[^$\\]|\\.)+?)\$\$|(?<!\$)\$(?![\s$])((?:[^$\\]|\\.)*?[^\s$\\]|[^\s$\\])\$(?![\d$])|(?<![\p{L}\p{N}_])(_{3,})(?![\p{L}\p{N}_])/gu;
 
 const ESCAPABLE = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
 
@@ -141,8 +202,8 @@ const TOKEN = new RegExp(
     wordBound(emphasis("_", 3, "[\\s\\S]+?")),
     emphasis("\\*", 2, "[\\s\\S]+?"),
     wordBound(emphasis("_", 2, "[\\s\\S]+?")),
-    emphasis("\\*", 1, "[^*\\n]+?"),
-    wordBound(emphasis("_", 1, "[^_\\n]+?")),
+    emphasis("\\*", 1, "[^*]+?"),
+    wordBound(emphasis("_", 1, "[^_]+?")),
     "\\[([^\\]]*)\\]\\(([^)\\s]*)\\)",
     "<((?:[a-z][a-z0-9+.-]*:|[^\\s<>@]+@)[^\\s<>]+)>",
     MATH_HOLD + "(\\d+)" + MATH_HOLD,
@@ -159,10 +220,18 @@ function parseInlineMasked(
   let rest = src;
   const pushText = (s: string): void => {
     if (!s) return;
-    const value = unmask(s, held);
-    const last = out.at(-1);
-    if (last?.type === "text") last.value += value;
-    else out.push({ type: "text", value });
+    const parts = unmask(s, held).split("\n");
+    parts.forEach((part, index) => {
+      const hard = index < parts.length - 1 && part.endsWith(HARD);
+      const value = hard ? part.slice(0, -1) : part;
+      if (value) {
+        const last = out.at(-1);
+        if (last?.type === "text") last.value += value;
+        else out.push({ type: "text", value });
+      }
+      if (index < parts.length - 1)
+        out.push({ type: hard ? "break" : "softbreak" });
+    });
   };
 
   for (;;) {
@@ -170,7 +239,10 @@ function parseInlineMasked(
     if (!m) break;
     pushText(rest.slice(0, m.index));
     if (m[2] !== undefined) {
-      out.push({ type: "code", value: unmask(m[2].trim(), held, true) });
+      out.push({
+        type: "code",
+        value: unmask(m[2].replace(/\n/g, " ").trim(), held, true),
+      });
     } else if (m[3] !== undefined) {
       out.push({
         type: "del",
@@ -386,6 +458,221 @@ function displayMath(
   };
 }
 
+const AUTO_BLANK = 4;
+
+function plainInline(nodes: readonly Inline[]): string {
+  let out = "";
+  for (const node of nodes) {
+    if (node.type === "text" || node.type === "code" || node.type === "math")
+      out += node.value;
+    else if (node.type === "blank") out += "_".repeat(node.width);
+    else if (
+      node.type === "strong" ||
+      node.type === "em" ||
+      node.type === "del" ||
+      node.type === "link"
+    )
+      out += plainInline(node.children);
+  }
+  return out;
+}
+
+function splitLines(nodes: readonly Inline[]): Inline[][] {
+  const lines: Inline[][] = [[]];
+  for (const node of nodes)
+    if (node.type === "break" || node.type === "softbreak") lines.push([]);
+    else lines.at(-1)!.push(node);
+  return lines;
+}
+
+function hasAutoBlank(nodes: readonly Inline[]): boolean {
+  return nodes.some(
+    (node) =>
+      (node.type === "blank" &&
+        node.width === AUTO_BLANK &&
+        node.fit === undefined &&
+        !node.fill) ||
+      ("children" in node && hasAutoBlank(node.children)),
+  );
+}
+
+function valueWidth(lines: readonly Inline[][]): number | null {
+  let width = 0;
+  for (const line of lines) {
+    if (hasAutoBlank(line)) continue;
+    const text = plainInline(line);
+    const at = text.indexOf(":");
+    if (at >= 0) width = Math.max(width, text.slice(at + 1).trim().length);
+  }
+  return width > 0 ? width : null;
+}
+
+function resizeBlanks(nodes: readonly Inline[], width: number): Inline[] {
+  return nodes.map((node) => {
+    if (
+      node.type === "blank" &&
+      node.width === AUTO_BLANK &&
+      !node.fit &&
+      !node.fill
+    )
+      return width === 0
+        ? { type: "blank", width: AUTO_BLANK, fill: true }
+        : { type: "blank", width: AUTO_BLANK, fit: width };
+    if (
+      node.type === "strong" ||
+      node.type === "em" ||
+      node.type === "del" ||
+      node.type === "link"
+    )
+      return { ...node, children: resizeBlanks(node.children, width) };
+    return node;
+  });
+}
+
+export function fitBlanks(blocks: readonly Block[]): Block[] {
+  return blocks.map((block): Block => {
+    if (block.type === "paragraph") {
+      if (!hasAutoBlank(block.children)) return block;
+      const width = valueWidth(splitLines(block.children));
+      return width === null
+        ? block
+        : { ...block, children: resizeBlanks(block.children, width) };
+    }
+    if (block.type === "quote")
+      return { ...block, children: fitBlanks(block.children) };
+    if (block.type === "table")
+      return {
+        ...block,
+        rows: block.rows.map((row) =>
+          row.map((cell) =>
+            hasAutoBlank(cell) ? resizeBlanks(cell, 0) : cell,
+          ),
+        ),
+      };
+    if (block.type !== "div") return block;
+    const children = fitBlanks(block.children);
+    const width = valueWidth(
+      children.flatMap((child) =>
+        child.type === "paragraph" ? splitLines(child.children) : [],
+      ),
+    );
+    return {
+      ...block,
+      children:
+        width === null
+          ? children
+          : children.map((child) =>
+              child.type === "paragraph"
+                ? { ...child, children: resizeBlanks(child.children, width) }
+                : child,
+            ),
+    };
+  });
+}
+
+export function blankEm(blank: { width: number; fit?: number }): number {
+  return blank.fit === undefined ? blank.width / 2 : blank.fit * 0.55;
+}
+
+export function blankUnderscores(blank: {
+  width: number;
+  fit?: number;
+  fill?: boolean;
+}): number {
+  if (blank.fill) return 0;
+  return blank.fit === undefined ? blank.width : Math.round(blank.fit * 1.5);
+}
+
+export function cellFills(cell: readonly Inline[]): boolean {
+  return cell.some((node) => node.type === "blank" && node.fill === true);
+}
+
+export function isBlankRow(row: readonly Inline[][] | undefined): boolean {
+  return (row ?? []).every((cell) =>
+    cell.every((node) => node.type === "text" && !node.value.trim()),
+  );
+}
+
+const DIV_OPEN = /^\s{0,3}(:{3,})\s*(\{[^{}]*\}|[^\s{}:]+)\s*:*\s*$/;
+const DIV_CLOSE = /^\s{0,3}:{3,}\s*$/;
+const META_EDGE = /^(?:---|\.\.\.)$/;
+const META_FIELD = /^([A-Za-z][\w-]*):[ \t]*(.*)$/;
+const HEADING_ATTRS = /^(.*?)\s+(\{\s*(?:[.#-]|[\w-]+=)[^{}]*\})\s*$/;
+
+interface Attrs {
+  readonly classes: string[];
+  readonly keys: Record<string, string>;
+}
+
+function parseAttrs(text: string): Attrs {
+  const inner = text.startsWith("{") ? text.slice(1, -1) : "." + text;
+  const classes: string[] = [];
+  const keys: Record<string, string> = {};
+  const token = /\.([\w-]+)|#([\w-]+)|([\w-]+)=(?:"([^"]*)"|'([^']*)'|(\S+))|(^|\s)-(?=\s|$)/g;
+  for (const m of inner.matchAll(token)) {
+    if (m[1]) classes.push(m[1]);
+    else if (m[2]) keys["id"] = m[2];
+    else if (m[3]) keys[m[3]] = m[4] ?? m[5] ?? m[6] ?? "";
+    else classes.push("unnumbered");
+  }
+  return { classes, keys };
+}
+
+export function headingClasses(heading: Heading): string[] {
+  return heading.attrs ? parseAttrs(heading.attrs).classes : [];
+}
+
+function unquote(value: string): string {
+  const m = /^(["'])(.*)\1$/.exec(value);
+  return m ? m[2]!.replace(/\\(["'\\])/g, "$1") : value;
+}
+
+function metaBlock(lines: readonly string[]): { block: MetaBlock; next: number } | null {
+  if (lines[0]?.trim() !== "---") return null;
+  const fields: MetaField[] = [];
+  let i = 1;
+  while (i < lines.length && !META_EDGE.test(lines[i]!.trim())) {
+    const m = META_FIELD.exec(lines[i]!);
+    if (!m) return null;
+    fields.push({ key: m[1]!, value: unquote(m[2]!.trim()) });
+    i += 1;
+  }
+  if (i >= lines.length || !fields.length) return null;
+  return {
+    block: { type: "meta", fields, raw: lines.slice(0, i + 1).join("\n"), line: 0 },
+    next: i + 1,
+  };
+}
+
+function divEnd(lines: readonly string[], start: number): number {
+  let depth = 0;
+  let fence = "";
+  for (let i = start; i < lines.length; i += 1) {
+    const line = lines[i]!;
+    const code = FENCE_RE.exec(line);
+    if (code) {
+      if (!fence) fence = code[1]!;
+      else if (line.trim().startsWith(fence)) fence = "";
+      continue;
+    }
+    if (fence) continue;
+    if (DIV_OPEN.test(line)) depth += 1;
+    else if (DIV_CLOSE.test(line)) {
+      depth -= 1;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
+export function metaValue(
+  block: Block | undefined,
+  key: string,
+): string | undefined {
+  if (block?.type !== "meta") return undefined;
+  return block.fields.find((field) => field.key === key)?.value;
+}
+
 function splitCells(line: string): string[] {
   const cells = line.trim().split(/(?<!\\)\|/);
   if (cells[0]?.trim() === "") cells.shift();
@@ -414,9 +701,19 @@ function isDivider(line: string | undefined): boolean {
 }
 
 export function parse(src: string): Block[] {
+  return parseBlocks(src, true);
+}
+
+function parseBlocks(src: string, top: boolean): Block[] {
   const lines = src.replace(/\r\n?/g, "\n").split("\n");
   const out: Block[] = [];
   let i = 0;
+
+  const meta = top ? metaBlock(lines) : null;
+  if (meta) {
+    out.push(meta.block);
+    i = meta.next;
+  }
 
   const paragraph = (): void => {
     const start = i;
@@ -431,16 +728,27 @@ export function parse(src: string): Block[] {
         ORDERED_RE.test(line) ||
         QUOTE_RE.test(line) ||
         FENCE_RE.test(line) ||
-        (i > start && MATH_RE.test(line) && displayMath(lines, i))
+        (i > start && MATH_RE.test(line) && displayMath(lines, i)) ||
+        (DIV_OPEN.test(line) && divEnd(lines, i) >= 0)
       )
         break;
-      buf.push(line.trim());
+      buf.push(lines[i]!);
       i += 1;
     }
     if (buf.length)
       out.push({
         type: "paragraph",
-        children: parseInline(buf.join(" ")),
+        children: parseInline(
+          buf
+            .map((raw, index) => {
+              const text = raw.trim();
+              if (index === buf.length - 1) return text;
+              if (/ {2,}$/.test(raw)) return text + HARD;
+              const slashes = /\\+$/.exec(text)?.[0].length ?? 0;
+              return slashes % 2 === 1 ? text.slice(0, -1) + HARD : text;
+            })
+            .join("\n"),
+        ),
         line: start,
       });
   };
@@ -474,6 +782,22 @@ export function parse(src: string): Block[] {
       continue;
     }
 
+    const divOpen = DIV_OPEN.exec(line);
+    const divClose = divOpen ? divEnd(lines, i) : -1;
+    if (divOpen && divClose >= 0) {
+      const attrs = divOpen[2]!;
+      out.push({
+        type: "div",
+        fence: divOpen[1]!,
+        attrs,
+        ...parseAttrs(attrs),
+        children: parseBlocks(lines.slice(i + 1, divClose).join("\n"), false),
+        line: i,
+      });
+      i = divClose + 1;
+      continue;
+    }
+
     const math = MATH_RE.test(line) ? displayMath(lines, i) : null;
     if (math) {
       out.push(math.block);
@@ -497,10 +821,12 @@ export function parse(src: string): Block[] {
 
     const head = HEADING_RE.exec(line);
     if (head) {
+      const withAttrs = HEADING_ATTRS.exec(head[2]!);
       out.push({
         type: "heading",
         depth: head[1]!.length,
-        children: parseInline(head[2]!),
+        children: parseInline(withAttrs ? withAttrs[1]! : head[2]!),
+        ...(withAttrs ? { attrs: withAttrs[2]! } : {}),
         line: i,
       });
       i += 1;
@@ -522,7 +848,7 @@ export function parse(src: string): Block[] {
       }
       out.push({
         type: "quote",
-        children: parse(body.join("\n")),
+        children: parseBlocks(body.join("\n"), false),
         line: start,
       });
       continue;
@@ -571,14 +897,23 @@ function esc(s: string): string {
 function inlineHtml(nodes: readonly Inline[]): string {
   let out = "";
   for (const n of nodes) {
-    if (n.type === "text") out += esc(n.value);
+    if (n.type === "text")
+      out += withLogos(
+        n.value,
+        (name) => `<span class="tex-logo">${LOGO_HTML[name]}</span>`,
+        esc,
+      );
     else if (n.type === "code") out += `<code>${esc(n.value)}</code>`;
     else if (n.type === "math")
       out +=
         `<span class="math${n.open === "$$" ? " math-display" : ""}">` +
         `${esc(n.value)}</span>`;
     else if (n.type === "blank")
-      out += `<span class="blank" style="--blank:${n.width}"></span>`;
+      out += n.fill
+        ? `<span class="blank fill"></span>`
+        : `<span class="blank" style="--blank:${blankEm(n) * 2}"></span>`;
+    else if (n.type === "softbreak") out += "\n";
+    else if (n.type === "break") out += "<br>";
     else if (n.type === "strong")
       out += `<strong>${inlineHtml(n.children)}</strong>`;
     else if (n.type === "em") out += `<em>${inlineHtml(n.children)}</em>`;
@@ -606,6 +941,33 @@ export function toHtml(blocks: readonly Block[]): string {
       out += `<div class="math math-display"${at}>${esc(b.value)}</div>`;
     else if (b.type === "latex")
       out += `<pre class="latex"${at}><code>${esc(b.value)}</code></pre>`;
+    else if (b.type === "meta")
+      out +=
+        `<div class="md-meta"${at}>` +
+        b.fields
+          .map(
+            (field) =>
+              `<p class="md-meta-${esc(field.key)}">${esc(field.value)}</p>`,
+          )
+          .join("") +
+        `</div>`;
+    else if (b.type === "div") {
+      const width = /^\d+(?:\.\d+)?%$/.test(b.keys["width"] ?? "")
+        ? ` style="flex-basis:${b.keys["width"]}"`
+        : "";
+      const kind = b.classes.includes("notes")
+        ? "md-notes"
+        : b.classes.includes("columns")
+          ? "md-columns"
+          : b.classes.includes("column")
+            ? "md-column"
+            : "md-div";
+      const align = ["right", "center", "left", "signature"]
+        .filter((name) => b.classes.includes(name))
+        .map((name) => " md-" + name)
+        .join("");
+      out += `<div class="${kind}${align}"${width}${at}>${toHtml(b.children)}</div>`;
+    }
     else if (b.type === "quote")
       out += `<blockquote${at}>${toHtml(b.children)}</blockquote>`;
     else if (b.type === "list") {
@@ -621,11 +983,15 @@ export function toHtml(blocks: readonly Block[]): string {
       const style = (i: number): string =>
         b.align[i] ? ` style="text-align:${b.align[i]}"` : "";
       out +=
-        `<table${at}><thead><tr>` +
-        (header ?? [])
-          .map((c, i) => `<th${style(i)}>${inlineHtml(c)}</th>`)
-          .join("") +
-        `</tr></thead><tbody>` +
+        `<table${at}>` +
+        (isBlankRow(header)
+          ? ""
+          : `<thead><tr>` +
+            (header ?? [])
+              .map((c, i) => `<th${style(i)}>${inlineHtml(c)}</th>`)
+              .join("") +
+            `</tr></thead>`) +
+        `<tbody>` +
         body
           .map(
             (r) =>
@@ -638,7 +1004,7 @@ export function toHtml(blocks: readonly Block[]): string {
   return out;
 }
 
-const MAX_ALIGN_WIDTH = 40;
+const MAX_ALIGN_ROW = 100;
 
 function escapeText(s: string, cell: boolean, full: boolean): string {
   if (!full) return cell ? s.replace(/\|/g, "\\|") : s;
@@ -688,6 +1054,8 @@ function inlineMd(
       out += ticks + pad + n.value + pad + ticks;
     } else if (n.type === "math") out += mathSource(n.open, n.value);
     else if (n.type === "blank") out += "_".repeat(n.width);
+    else if (n.type === "softbreak") out += "\n";
+    else if (n.type === "break") out += "\\\n";
     else if (n.type === "strong")
       out += `**${inlineMd(n.children, cell, full)}**`;
     else if (n.type === "em") out += `*${inlineMd(n.children, cell, full)}*`;
@@ -710,9 +1078,17 @@ function fenceFor(value: string): string {
 function blockMd(b: Block, full: boolean): string {
   switch (b.type) {
     case "heading":
-      return "#".repeat(b.depth) + " " + inlineOut(b.children, false, full);
+      return (
+        "#".repeat(b.depth) +
+        " " +
+        inlineOut(b.children, false, full) +
+        (b.attrs ? " " + b.attrs : "")
+      );
     case "paragraph":
-      return escapeLeading(inlineOut(b.children, false, full));
+      return inlineOut(b.children, false, full)
+        .split("\n")
+        .map(escapeLeading)
+        .join("\n");
     case "rule":
       return "---";
     case "codeblock": {
@@ -721,6 +1097,18 @@ function blockMd(b: Block, full: boolean): string {
     }
     case "latex":
       return b.value;
+    case "meta":
+      return b.raw;
+    case "div":
+      return (
+        b.fence +
+        " " +
+        b.attrs +
+        "\n" +
+        b.children.map((inner) => blockMd(inner, full)).join("\n\n") +
+        "\n" +
+        b.fence
+      );
     case "math":
       if (b.fence === "env") return b.value;
       if (!b.value) return b.fence + MATH_CLOSE[b.fence];
@@ -749,10 +1137,20 @@ function blockMd(b: Block, full: boolean): string {
       const natural = Array.from({ length: width }, (_, i) =>
         Math.max(3, ...cells.map((r) => r[i]!.length)),
       );
-      const aligned = Math.max(...natural) <= MAX_ALIGN_WIDTH;
+      const aligned =
+        natural.reduce((sum, w) => sum + w + 3, 1) <= MAX_ALIGN_ROW;
       const widths = aligned ? natural : natural.map(() => 3);
-      const pad = (s: string, i: number): string =>
-        aligned ? s.padEnd(widths[i]!) : s;
+      const pad = (s: string, i: number): string => {
+        if (!aligned) return s;
+        const room = widths[i]! - s.length;
+        if (room <= 0) return s;
+        if (b.align[i] === "right") return s.padStart(widths[i]!);
+        if (b.align[i] === "center") {
+          const left = Math.floor(room / 2);
+          return " ".repeat(left) + s + " ".repeat(room - left);
+        }
+        return s.padEnd(widths[i]!);
+      };
       const divider = Array.from({ length: width }, (_, i) => {
         const a = b.align[i];
         const bar = "-".repeat(
@@ -797,7 +1195,9 @@ export function format(
 }
 
 function hasInlineMarkup(nodes: readonly Inline[]): boolean {
-  return nodes.some((n) => n.type !== "text" && n.type !== "blank");
+  return nodes.some(
+    (n) => n.type !== "text" && n.type !== "blank" && n.type !== "softbreak",
+  );
 }
 
 export function isMarkdown(blocks: readonly Block[]): boolean {
@@ -807,6 +1207,8 @@ export function isMarkdown(blocks: readonly Block[]): boolean {
       case "codeblock":
       case "math":
       case "latex":
+      case "meta":
+      case "div":
       case "table":
       case "quote":
       case "rule":

@@ -22,6 +22,8 @@ export interface IrRun {
   readonly mono?: boolean;
   readonly strike?: boolean;
   readonly href?: string;
+  /** Хүснэгтийн нүдийг доод зураасаар дүүргэнэ. */
+  readonly fill?: boolean;
 }
 
 /** Доголын хэв. Заагаагүй талбар нь баримтын анхдагчийг өвлөнө. */
@@ -44,8 +46,6 @@ export interface ParaStyle {
   /** Агуулга үүсгэхэд оролцох гарчгийн түвшин (1–6). */
   readonly outlineLevel?: number;
   readonly borderBottom?: boolean;
-  readonly leaderTabCm?: number;
-  readonly rightTab?: boolean;
 }
 
 export interface PageSpec {
@@ -57,14 +57,6 @@ export interface PageSpec {
   readonly marginInnerCm: number;
   readonly marginOuterCm: number;
   readonly mirrored: boolean;
-}
-
-export interface HeaderSpec {
-  /** Хуудасны толгойн зүүн талын бичвэр. Хоосон бол баримтын нэр. */
-  readonly left?: string;
-  readonly pageNumberRight?: boolean;
-  /** Толгойн доор нимгэн зураас. */
-  readonly rule?: boolean;
 }
 
 export type IrBlock =
@@ -80,6 +72,9 @@ export type IrBlock =
       readonly kind: "table";
       readonly align: readonly (Align | null)[];
       readonly rows: readonly (readonly (readonly IrRun[])[])[];
+      readonly header?: boolean;
+      readonly placement?: Align;
+      readonly cellStyle?: string;
     }
   | { readonly kind: "rule" }
   | { readonly kind: "break" };
@@ -89,7 +84,8 @@ export interface DocIr {
   readonly styles: Readonly<Record<string, ParaStyle>>;
   readonly font: { readonly family: string; readonly sizePt: number };
   readonly page: PageSpec;
-  readonly header?: HeaderSpec;
+  /** Хуудасны доод голд дугаар. */
+  readonly pageNumbers?: boolean;
   /** Файлын мета өгөгдөл ба толгойн анхдагч бичвэр. */
   readonly title?: string;
 }
@@ -103,24 +99,24 @@ export const STYLE = {
   body: "Body",
   /** Гарчгийн дараах эхний догол — эхний мөрийн догол хийхгүй. */
   bodyFirst: "BodyFirst",
+  /** Мөрийн эхэнд тод гарчигтай догол (LaTeX \\paragraph). */
+  runIn: "RunIn",
   /** Баримтын нэр (Өргөдөл, Тодорхойлолт). */
   title: "Title",
-  /** Хаяглагч блок. */
-  recipient: "Recipient",
-  /** Огнооны мөр. */
-  date: "Date",
   /** Гарын үсгийн мөр. */
   signature: "Signature",
   signatureTop: "SignatureTop",
-  signRule: "SignRule",
-  signLine: "SignLine",
-  /** Төгсгөлийн хэвшмэл өгүүлбэр. */
-  closing: "Closing",
+  signatureGap: "SignatureGap",
+  right: "Right",
+  signCell: "SignCell",
+  center: "Center",
+  left: "Left",
   quote: "Quote",
   code: "Code",
   listItem: "ListItem",
   tableHead: "TableHead",
   tableCell: "TableCell",
+  tableGap: "TableGap",
 } as const;
 
 export function headingStyle(depth: number): string {
