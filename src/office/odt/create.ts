@@ -3,7 +3,7 @@ import { ODF_TEXT, writeOdf } from "../odf/index.ts";
 import type { OdfPackage } from "../odf/index.ts";
 import { STYLE } from "../docir.ts";
 import type { DocIr, IrBlock, IrRun, ParaStyle } from "../docir.ts";
-import { OFFICE_METRICS, columnWidths } from "../table.ts";
+import { columnWidths, officeMetrics } from "../table.ts";
 
 const encoder = new TextEncoder();
 
@@ -81,6 +81,7 @@ function textProps(style: ParaStyle, base: string): string {
   if (style.mono)
     parts.push('fo:font-family="&apos;' + MONO + '&apos;"');
   else parts.push('fo:font-family="' + escAttr(base) + '"');
+  if (style.noHyphenation) parts.push('fo:hyphenate="false"');
   if (parts.length === 0) return "";
   return "<style:text-properties " + parts.join(" ") + "/>";
 }
@@ -238,7 +239,10 @@ function blockXml(
         block.rows,
         header,
         doc.page.widthCm - doc.page.marginInnerCm - doc.page.marginOuterCm,
-        OFFICE_METRICS,
+        officeMetrics(
+          doc.styles[block.cellStyle ?? STYLE.tableCell]?.sizePt ??
+            doc.font.sizePt,
+        ),
       );
       auto.add("cells");
       auto.add(

@@ -2,7 +2,7 @@ import { zipSync } from "fflate";
 import type { Zippable } from "fflate";
 import { STYLE } from "../docir.ts";
 import type { Align, DocIr, IrBlock, IrRun, ParaStyle } from "../docir.ts";
-import { OFFICE_METRICS, columnWidths } from "../table.ts";
+import { columnWidths, officeMetrics } from "../table.ts";
 
 export interface DocxOptions {
   readonly toc?: boolean;
@@ -388,7 +388,10 @@ function blockXml(block: IrBlock, doc: DocIr, body: Body): string {
         block.rows,
         header,
         doc.page.widthCm - doc.page.marginInnerCm - doc.page.marginOuterCm,
-        OFFICE_METRICS,
+        officeMetrics(
+          doc.styles[block.cellStyle ?? STYLE.tableCell]?.sizePt ??
+            doc.font.sizePt,
+        ),
       ).map(twips);
       const rule = (side: string, size: number): string =>
         "<w:" +

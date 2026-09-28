@@ -95,7 +95,7 @@ const BASE: Readonly<Record<string, ParaStyle>> = {
     lineHeightPercent: 100,
     spaceBeforePt: SIGNATURE_GAP_PT - 1,
   },
-  [STYLE.signCell]: { lineHeightPercent: 150 },
+  [STYLE.signCell]: { lineHeightPercent: 150, noHyphenation: true },
   [STYLE.center]: { align: "center", lineHeightPercent: 115 },
   [STYLE.left]: { align: "start", lineHeightPercent: 115 },
   [STYLE.quote]: {
@@ -108,8 +108,17 @@ const BASE: Readonly<Record<string, ParaStyle>> = {
   },
   [STYLE.code]: { mono: true, lineHeightPercent: 100 },
   [STYLE.listItem]: { align: "justify", lineHeightPercent: 115 },
-  [STYLE.tableHead]: { bold: true, sizePt: 11, lineHeightPercent: 100 },
-  [STYLE.tableCell]: { sizePt: 11, lineHeightPercent: 100 },
+  [STYLE.tableHead]: {
+    bold: true,
+    sizePt: 11,
+    lineHeightPercent: 100,
+    noHyphenation: true,
+  },
+  [STYLE.tableCell]: {
+    sizePt: 11,
+    lineHeightPercent: 100,
+    noHyphenation: true,
+  },
   [STYLE.tableGap]: { sizePt: 6, lineHeightPercent: 100 },
   Heading1: {
     align: "center",

@@ -21,3 +21,10 @@ test("тод үсэг энгийнээс өргөн хэмжигдэнэ", () =>
     OFFICE_METRICS.width("Машин", true) > OFFICE_METRICS.width("Машин", false),
   );
 });
+
+test("зай хүрэлцвэл урт нүдийг мөр таслахгүй", () => {
+  const long = "Захирлын зөвлөлийн хурал, 2026.09.28 (№ 06)";
+  const rows = [[cell("Танилцуулсан:"), cell(long)]];
+  const widths = columnWidths(rows, false, 16.5, OFFICE_METRICS);
+  assert.ok(widths[1]! > OFFICE_METRICS.width(long, false));
+});

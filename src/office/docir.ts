@@ -46,6 +46,7 @@ export interface ParaStyle {
   /** Агуулга үүсгэхэд оролцох гарчгийн түвшин (1–6). */
   readonly outlineLevel?: number;
   readonly borderBottom?: boolean;
+  readonly noHyphenation?: boolean;
 }
 
 export interface PageSpec {
