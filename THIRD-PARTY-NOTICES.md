@@ -59,6 +59,26 @@ used by the deployment, together with their licenses.
 - Source: https://github.com/wooorm/nspell
 - License: MIT
 
+### SwiftLaTeX (PDF export engine)
+
+- Source: https://github.com/SwiftLaTeX/SwiftLaTeX, release `v20022022`
+  (pdfTeX 1.40.21 compiled to WebAssembly)
+- License: AGPL-3.0; pdfTeX itself is GPL-2.0-or-later
+- Shipped in `public/tex/<hash>/`; `swiftlatexpdftex.js` is modified by
+  `tools/texlive/build.ts` so that it reads TeX files only from the bundle
+  loaded in memory instead of fetching them from the SwiftLaTeX server
+
+### TeX Live files (PDF export bundle)
+
+- Source: TeX Live 2026, collected by `tools/texlive/build.ts` into
+  `public/tex/texlive-<hash>.zip` (LaTeX kernel format, babel, amsmath,
+  amsthm, eulervm, hyperref, beamer, paratype and their dependencies)
+- License: each file keeps its own license, mostly the LaTeX Project Public
+  License 1.3c; see the header of each file inside the archive
+- Fonts: PT Serif / PT Sans / PT Mono (ParaType, SIL Open Font License 1.1),
+  Computer Modern, AMS and Euler Type 1 fonts (American Mathematical Society,
+  SIL Open Font License 1.1)
+
 ### pdfjs-dist (pdf.js)
 
 - Copyright: Mozilla Foundation

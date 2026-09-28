@@ -83,6 +83,17 @@
   opacity: 0.6;
 }
 
+.export-error {
+  margin: 0;
+  color: var(--proof);
+  font-size: 0.9em;
+  overflow-wrap: anywhere;
+}
+
+.export-error[hidden] {
+  display: none;
+}
+
 .export-actions {
   display: flex;
   justify-content: flex-end;

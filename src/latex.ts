@@ -5,6 +5,7 @@ export const PREAMBLE = `\\documentclass[12pt,a4paper]{article}
 \\usepackage[T2A]{fontenc}
 \\usepackage[utf8]{inputenc}
 \\usepackage[mongolian]{babel}
+\\usepackage{paratype}
 \\usepackage{amsmath}
 \\usepackage[OT1]{eulervm}
 \\usepackage{amsthm}
@@ -153,6 +154,7 @@ export const BEAMER_PREAMBLE = `\\documentclass{beamer}
 \\usepackage[T2A]{fontenc}
 \\usepackage[utf8]{inputenc}
 \\usepackage[mongolian]{babel}
+\\usepackage{paratype}
 \\usepackage{amsmath}
 \\usepackage[OT1]{eulervm}
 \\usefonttheme[onlymath]{serif}
