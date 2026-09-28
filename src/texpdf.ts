@@ -1,4 +1,4 @@
-import { unzip } from "fflate";
+import { unzipSync } from "fflate";
 import { TEX_BUNDLE, TEX_ENGINE } from "./texbundle.ts";
 
 interface EngineReply {
@@ -58,12 +58,6 @@ function asset(path: string): string {
   return import.meta.env.BASE_URL + path;
 }
 
-function unpack(bytes: Uint8Array): Promise<Record<string, Uint8Array>> {
-  return new Promise((resolve, reject) => {
-    unzip(bytes, (error, files) => (error ? reject(error) : resolve(files)));
-  });
-}
-
 async function start(): Promise<Worker> {
   const worker = new Worker(asset(TEX_ENGINE));
   try {
@@ -76,10 +70,8 @@ async function start(): Promise<Worker> {
     });
     const response = await fetch(asset(TEX_BUNDLE));
     if (!response.ok) throw new Error("TeX файлууд татагдсангүй");
-    const [files] = await Promise.all([
-      unpack(new Uint8Array(await response.arrayBuffer())),
-      booted,
-    ]);
+    const [bytes] = await Promise.all([response.arrayBuffer(), booted]);
+    const files = unzipSync(new Uint8Array(bytes));
     for (const [name, data] of Object.entries(files))
       worker.postMessage({ cmd: "writetex", name, src: data });
     return worker;
