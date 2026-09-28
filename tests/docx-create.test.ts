@@ -70,7 +70,7 @@ test("buildDocx: албан бичигт толгойгүй, гарын үсги
   const md =
     "# Нэр\n\n" +
     "Урт догол ".repeat(12) +
-    "\n\nӨргөдөл гаргасан: Б. Боролдой\n";
+    "\n\nГарын үсэг\n\nӨргөдөл гаргасан: Б. Боролдой\n";
   const out = build(md, "letter");
   assert.equal(out["word/header1.xml"], undefined);
   assert.ok(out["word/styles.xml"]!.includes('w:leader="underscore"'));
