@@ -50,7 +50,8 @@ class BitReader {
   read(count: number): number {
     let value = 0;
     for (let i = 0; i < count; i++) {
-      if (this.pos >= this.bytes.length) throw new Error("bzip2: өгөгдөл дутуу");
+      if (this.pos >= this.bytes.length)
+        throw new Error("bzip2: өгөгдөл дутуу");
       value = (value << 1) | ((this.bytes[this.pos]! >> (7 - this.bit)) & 1);
       if (++this.bit === 8) {
         this.bit = 0;
@@ -161,7 +162,8 @@ function decodeBlock(
     let len = reader.read(5);
     for (let sym = 0; sym < alphaSize; sym++) {
       while (reader.read(1)) len += reader.read(1) ? -1 : 1;
-      if (len < 1 || len > MAX_CODE_LEN) throw new Error("bzip2: кодын урт буруу");
+      if (len < 1 || len > MAX_CODE_LEN)
+        throw new Error("bzip2: кодын урт буруу");
       lengths[sym] = len;
     }
     tables.push(buildTable(lengths, alphaSize));
@@ -191,7 +193,8 @@ function decodeBlock(
 
   for (;;) {
     if (!groupLeft) {
-      if (selectorIndex >= selectorCount) throw new Error("bzip2: selector дууссан");
+      if (selectorIndex >= selectorCount)
+        throw new Error("bzip2: selector дууссан");
       table = tables[selectors[selectorIndex++]!]!;
       groupLeft = GROUP_SIZE;
     }
@@ -217,7 +220,8 @@ function decodeBlock(
   if (origPtr >= length) throw new Error("bzip2: origPtr буруу");
 
   const cumulative = new Int32Array(256);
-  for (let i = 1; i < 256; i++) cumulative[i] = cumulative[i - 1]! + counts[i - 1]!;
+  for (let i = 1; i < 256; i++)
+    cumulative[i] = cumulative[i - 1]! + counts[i - 1]!;
   for (let i = 0; i < length; i++) {
     const byte = tt[i]! & 0xff;
     tt[cumulative[byte]!]! |= i << 8;
@@ -246,7 +250,7 @@ function decodeBlock(
     out.push(byte);
     crc = (crc << 8) ^ CRC_TABLE[((crc >>> 24) ^ byte) & 0xff]!;
   }
-  if ((~crc >>> 0) !== expectedCrc) throw new Error("bzip2: CRC таарахгүй");
+  if (~crc >>> 0 !== expectedCrc) throw new Error("bzip2: CRC таарахгүй");
 }
 
 function isStreamHeader(bytes: Uint8Array, at: number): boolean {

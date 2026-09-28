@@ -7,7 +7,6 @@ import { findTemplate } from "../src/templates.ts";
 import { applyTemplate } from "../src/office/apply.ts";
 import { buildDocx } from "../src/office/docx/create.ts";
 
-
 const build = (md: string, id: string, toc = false): Record<string, string> =>
   Object.fromEntries(
     Object.entries(
@@ -36,8 +35,12 @@ test("buildDocx: үндсэн хэсгүүд", () => {
   ])
     assert.ok(out[part], part);
   assert.equal(out["word/header1.xml"], undefined);
-  assert.ok(out["word/footer1.xml"]!.includes(' PAGE '));
-  assert.ok(out["word/document.xml"]!.includes('<w:footerReference w:type="default" r:id="rId4"/>'));
+  assert.ok(out["word/footer1.xml"]!.includes(" PAGE "));
+  assert.ok(
+    out["word/document.xml"]!.includes(
+      '<w:footerReference w:type="default" r:id="rId4"/>',
+    ),
+  );
   assert.ok(out["word/styles.xml"]!.includes('<w:name w:val="heading 2"/>'));
   assert.ok(out["word/styles.xml"]!.includes('<w:sz w:val="24"/>'));
 });
@@ -72,7 +75,9 @@ test("buildDocx: албан бичигт баруун блок мөр шилжи
   const md =
     "# Нэр\n\nДогол.\n\n::: {.signature}\nӨргөдөл гаргасан: Б. Боролдой\\\nУтас: 9911\n:::\n";
   const out = build(md, "letter");
-  assert.ok(out["word/document.xml"]!.includes('<w:pStyle w:val="SignatureTop"/>'));
+  assert.ok(
+    out["word/document.xml"]!.includes('<w:pStyle w:val="SignatureTop"/>'),
+  );
   assert.ok(out["word/document.xml"]!.includes("<w:br/>"));
   assert.ok(out["word/styles.xml"]!.includes('w:styleId="SignatureTop"'));
 });

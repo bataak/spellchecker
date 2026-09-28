@@ -288,23 +288,14 @@ test("LaTeX командыг алгасаж, бичвэрийн орчны те�
   assert.equal(skipped(text, "itemize"), true);
   assert.equal(skipped(text, "item "), true);
   assert.equal(skipped(text, "Монгол"), false);
-  assert.equal(
-    skipped("\\begin{verbatim}\nүг\n\\end{verbatim}", "үг"),
-    true,
-  );
-  assert.equal(
-    skipped("\\begin{pmatrix}\nабв\n\\end{pmatrix}", "абв"),
-    true,
-  );
+  assert.equal(skipped("\\begin{verbatim}\nүг\n\\end{verbatim}", "үг"), true);
+  assert.equal(skipped("\\begin{pmatrix}\nабв\n\\end{pmatrix}", "абв"), true);
 });
 
 test("бусад томьёоны хязгаарлагчийг алгасна", () => {
   assert.equal(skipped("Үг \\(альфа\\) энд", "альфа"), true);
   assert.equal(skipped("Үг \\(альфа\\) энд", "энд"), false);
-  assert.equal(
-    skipped("Үг \\begin{math}бета\\end{math} энд", "бета"),
-    true,
-  );
+  assert.equal(skipped("Үг \\begin{math}бета\\end{math} энд", "бета"), true);
   assert.equal(
     skipped("\\begin{displaymath}\nгамма\n\\end{displaymath}", "гамма"),
     true,

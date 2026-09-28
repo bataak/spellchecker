@@ -1,7 +1,12 @@
 import { odfFont } from "../fonts.ts";
 import { ODF_PRESENTATION, writeOdf } from "../odf/index.ts";
 import type { DeckDoc, DeckLine, DeckTable } from "../deck.ts";
-import { TABLE_PT, TEXT_PT, layoutSlide, type TableLayout } from "../decklayout.ts";
+import {
+  TABLE_PT,
+  TEXT_PT,
+  layoutSlide,
+  type TableLayout,
+} from "../decklayout.ts";
 import type { Align, IrRun } from "../docir.ts";
 
 const encoder = new TextEncoder();
@@ -39,10 +44,7 @@ function cm(value: number): string {
 }
 
 function spaced(text: string): string {
-  return text
-    .split("\n")
-    .map(spacedLine)
-    .join("<text:line-break/>");
+  return text.split("\n").map(spacedLine).join("<text:line-break/>");
 }
 
 function spacedLine(text: string): string {
@@ -90,7 +92,11 @@ function runsXml(runs: readonly IrRun[], keys: Set<string>): string {
     const key = runKey(run);
     if (key) keys.add(key);
     const body = key
-      ? '<text:span text:style-name="T_' + key + '">' + spaced(run.text) + "</text:span>"
+      ? '<text:span text:style-name="T_' +
+        key +
+        '">' +
+        spaced(run.text) +
+        "</text:span>"
       : spaced(run.text);
     out += run.href
       ? '<text:a xlink:type="simple" xlink:href="' +
@@ -103,8 +109,18 @@ function runsXml(runs: readonly IrRun[], keys: Set<string>): string {
   return out;
 }
 
-function para(style: string, runs: readonly IrRun[], keys: Set<string>): string {
-  return '<text:p text:style-name="' + style + '">' + runsXml(runs, keys) + "</text:p>";
+function para(
+  style: string,
+  runs: readonly IrRun[],
+  keys: Set<string>,
+): string {
+  return (
+    '<text:p text:style-name="' +
+    style +
+    '">' +
+    runsXml(runs, keys) +
+    "</text:p>"
+  );
 }
 
 function linesXml(
@@ -247,7 +263,10 @@ function cellStyle(
   bottom: string | null,
   middle: boolean,
 ): string {
-  const key = (top ? "T" : "") + (bottom === RULE.heavy ? "B" : bottom ? "b" : "") + (middle ? "m" : "");
+  const key =
+    (top ? "T" : "") +
+    (bottom === RULE.heavy ? "B" : bottom ? "b" : "") +
+    (middle ? "m" : "");
   const name = "ce_" + (key || "plain");
   const edge = (side: string, value: string | null): string =>
     "fo:border-" + side + '="' + (value ?? "none") + '"';
@@ -328,7 +347,11 @@ function tableXml(
         })
         .join("");
       return (
-        '<table:table-row table:style-name="' + rowName + '">' + cells + "</table:table-row>"
+        '<table:table-row table:style-name="' +
+        rowName +
+        '">' +
+        cells +
+        "</table:table-row>"
       );
     })
     .join("");
@@ -433,7 +456,9 @@ function contentXml(doc: DeckDoc): string {
 
   const listLevel =
     '<style:list-level-properties text:space-before="0cm" text:min-label-width="0.9cm"/>' +
-    '<style:text-properties fo:font-family="' + FONT + '" fo:font-size="100%"/>';
+    '<style:text-properties fo:font-family="' +
+    FONT +
+    '" fo:font-size="100%"/>';
 
   return (
     '<?xml version="1.0" encoding="UTF-8"?>' +
@@ -453,19 +478,27 @@ function contentXml(doc: DeckDoc): string {
     "</style:style>" +
     '<style:style style:name="P_cover" style:family="paragraph">' +
     '<style:paragraph-properties fo:text-align="center"/>' +
-    '<style:text-properties fo:font-family="' + FONT + '" fo:font-size="36pt" fo:font-weight="bold"/>' +
+    '<style:text-properties fo:font-family="' +
+    FONT +
+    '" fo:font-size="36pt" fo:font-weight="bold"/>' +
     "</style:style>" +
     '<style:style style:name="P_title" style:family="paragraph">' +
     '<style:paragraph-properties fo:text-align="start"/>' +
-    '<style:text-properties fo:font-family="' + FONT + '" fo:font-size="30pt" fo:font-weight="bold"/>' +
+    '<style:text-properties fo:font-family="' +
+    FONT +
+    '" fo:font-size="30pt" fo:font-weight="bold"/>' +
     "</style:style>" +
     '<style:style style:name="P_sub" style:family="paragraph">' +
     '<style:paragraph-properties fo:text-align="center"/>' +
-    '<style:text-properties fo:font-family="' + FONT + '" fo:font-size="20pt"/>' +
+    '<style:text-properties fo:font-family="' +
+    FONT +
+    '" fo:font-size="20pt"/>' +
     "</style:style>" +
     '<style:style style:name="P_body" style:family="paragraph">' +
     '<style:paragraph-properties fo:margin-bottom="0.2cm"/>' +
-    '<style:text-properties fo:font-family="' + FONT + '" fo:font-size="20pt"/>' +
+    '<style:text-properties fo:font-family="' +
+    FONT +
+    '" fo:font-size="20pt"/>' +
     "</style:style>" +
     '<style:style style:name="gr_table" style:family="graphic">' +
     '<style:graphic-properties draw:stroke="none" draw:fill="none"/>' +
@@ -495,10 +528,14 @@ function stylesXml(): string {
     ' office:version="1.3">' +
     "<office:styles>" +
     '<style:default-style style:family="graphic">' +
-    '<style:text-properties fo:font-family="' + FONT + '"/>' +
+    '<style:text-properties fo:font-family="' +
+    FONT +
+    '"/>' +
     "</style:default-style>" +
     '<style:default-style style:family="presentation">' +
-    '<style:text-properties fo:font-family="' + FONT + '"/>' +
+    '<style:text-properties fo:font-family="' +
+    FONT +
+    '"/>' +
     "</style:default-style>" +
     "</office:styles>" +
     "<office:automatic-styles>" +

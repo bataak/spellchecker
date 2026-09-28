@@ -58,7 +58,11 @@ function walk(nodes: readonly Inline[], marks: Marks, out: IrRun[]): void {
       case "text":
         push(
           out,
-          withLogos(node.value, (name) => LOGO_TEXT[name], (part) => part),
+          withLogos(
+            node.value,
+            (name) => LOGO_TEXT[name],
+            (part) => part,
+          ),
           marks,
         );
         break;

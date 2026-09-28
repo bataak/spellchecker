@@ -207,165 +207,167 @@ export function applyTemplate(
   let runIn: IrRun[] | null = null;
 
   const visit = (list: readonly Block[]): void => {
-  let index = -1;
-  for (const block of list) {
-    index += 1;
-    switch (block.type) {
-      case "heading": {
-        const runs = runsOf(block.children);
-        if (isBlank(runs)) break;
-        const first = frame === "letter" && !seenHeading;
-        if (
-          !first &&
-          block.depth === RUN_IN_DEPTH &&
-          list[index + 1]?.type === "paragraph"
-        ) {
-          runIn = runs.map((run) => ({ ...run, bold: true }));
-          seenHeading = true;
-          break;
-        }
-        out.push({
-          kind: "para",
-          style: first ? STYLE.title : headingStyle(block.depth),
-          runs,
-        });
-        seenHeading = true;
-        afterHeading = true;
-        break;
-      }
-
-      case "paragraph": {
-        const runs = runsOf(block.children);
-        if (isBlank(runs)) break;
-        if (runIn !== null) {
+    let index = -1;
+    for (const block of list) {
+      index += 1;
+      switch (block.type) {
+        case "heading": {
+          const runs = runsOf(block.children);
+          if (isBlank(runs)) break;
+          const first = frame === "letter" && !seenHeading;
+          if (
+            !first &&
+            block.depth === RUN_IN_DEPTH &&
+            list[index + 1]?.type === "paragraph"
+          ) {
+            runIn = runs.map((run) => ({ ...run, bold: true }));
+            seenHeading = true;
+            break;
+          }
           out.push({
             kind: "para",
-            style: STYLE.runIn,
-            runs: [...runIn, { text: " " }, ...runs],
+            style: first ? STYLE.title : headingStyle(block.depth),
+            runs,
           });
-          runIn = null;
+          seenHeading = true;
+          afterHeading = true;
+          break;
+        }
+
+        case "paragraph": {
+          const runs = runsOf(block.children);
+          if (isBlank(runs)) break;
+          if (runIn !== null) {
+            out.push({
+              kind: "para",
+              style: STYLE.runIn,
+              runs: [...runIn, { text: " " }, ...runs],
+            });
+            runIn = null;
+            afterHeading = false;
+            break;
+          }
+          out.push({
+            kind: "para",
+            style: afterHeading ? STYLE.bodyFirst : STYLE.body,
+            runs,
+          });
           afterHeading = false;
           break;
         }
-        out.push({
-          kind: "para",
-          style: afterHeading ? STYLE.bodyFirst : STYLE.body,
-          runs,
-        });
-        afterHeading = false;
-        break;
-      }
 
-      case "list":
-        out.push({
-          kind: "list",
-          ordered: block.ordered,
-          start: block.start,
-          style: STYLE.listItem,
-          items: block.items.map(runsOf),
-        });
-        afterHeading = false;
-        break;
+        case "list":
+          out.push({
+            kind: "list",
+            ordered: block.ordered,
+            start: block.start,
+            style: STYLE.listItem,
+            items: block.items.map(runsOf),
+          });
+          afterHeading = false;
+          break;
 
-      case "quote": {
-        const from = out.length;
-        visit(block.children);
-        for (let i = from; i < out.length; i += 1) {
-          const inner = out[i]!;
-          if (inner.kind === "para") out[i] = { ...inner, style: STYLE.quote };
+        case "quote": {
+          const from = out.length;
+          visit(block.children);
+          for (let i = from; i < out.length; i += 1) {
+            const inner = out[i]!;
+            if (inner.kind === "para")
+              out[i] = { ...inner, style: STYLE.quote };
+          }
+          afterHeading = false;
+          break;
         }
-        afterHeading = false;
-        break;
-      }
 
-      case "math":
-      case "latex":
-      case "codeblock":
-        out.push({
-          kind: "para",
-          style: STYLE.code,
-          runs: block.value
-            .split("\n")
-            .map((line) => ({ text: line, mono: true })),
-        });
-        afterHeading = false;
-        break;
-
-      case "table":
-        out.push(
-          isBlankRow(block.rows[0])
-            ? {
-                kind: "table",
-                align: block.align.map(alignOf),
-                rows: block.rows.slice(1).map((row) => row.map(runsOf)),
-                header: false,
-              }
-            : {
-                kind: "table",
-                align: block.align.map(alignOf),
-                rows: block.rows.map((row) => row.map(runsOf)),
-              },
-        );
-        out.push({ kind: "para", style: STYLE.tableGap, runs: [] });
-        afterHeading = false;
-        break;
-
-      case "rule":
-        out.push({ kind: "rule" });
-        afterHeading = false;
-        break;
-
-      case "meta":
-        for (const field of block.fields) {
-          if (!META_STYLE[field.key]) continue;
+        case "math":
+        case "latex":
+        case "codeblock":
           out.push({
             kind: "para",
-            style: META_STYLE[field.key]!,
-            runs: runsOf(parseInline(field.value)),
+            style: STYLE.code,
+            runs: block.value
+              .split("\n")
+              .map((line) => ({ text: line, mono: true })),
           });
-        }
-        break;
+          afterHeading = false;
+          break;
 
-      case "div": {
-        if (block.classes.includes("notes")) break;
-        const from = out.length;
-        visit(block.children);
-        const style = divStyle(block.classes);
-        if (style === null) break;
-        for (let i = from; i < out.length; i += 1) {
-          const inner = out[i]!;
-          if (inner.kind === "table")
-            out[i] = {
-              ...inner,
-              placement: block.classes.includes("left")
-                ? "start"
-                : block.classes.includes("center")
-                  ? "center"
-                  : "end",
-              cellStyle: STYLE.signCell,
-            };
-          else if (inner.kind === "para" && ALIGNABLE.has(inner.style))
-            out[i] = {
-              ...inner,
-              style: i === from && block.classes.includes("signature")
-                ? STYLE.signatureTop
-                : style,
-            };
+        case "table":
+          out.push(
+            isBlankRow(block.rows[0])
+              ? {
+                  kind: "table",
+                  align: block.align.map(alignOf),
+                  rows: block.rows.slice(1).map((row) => row.map(runsOf)),
+                  header: false,
+                }
+              : {
+                  kind: "table",
+                  align: block.align.map(alignOf),
+                  rows: block.rows.map((row) => row.map(runsOf)),
+                },
+          );
+          out.push({ kind: "para", style: STYLE.tableGap, runs: [] });
+          afterHeading = false;
+          break;
+
+        case "rule":
+          out.push({ kind: "rule" });
+          afterHeading = false;
+          break;
+
+        case "meta":
+          for (const field of block.fields) {
+            if (!META_STYLE[field.key]) continue;
+            out.push({
+              kind: "para",
+              style: META_STYLE[field.key]!,
+              runs: runsOf(parseInline(field.value)),
+            });
+          }
+          break;
+
+        case "div": {
+          if (block.classes.includes("notes")) break;
+          const from = out.length;
+          visit(block.children);
+          const style = divStyle(block.classes);
+          if (style === null) break;
+          for (let i = from; i < out.length; i += 1) {
+            const inner = out[i]!;
+            if (inner.kind === "table")
+              out[i] = {
+                ...inner,
+                placement: block.classes.includes("left")
+                  ? "start"
+                  : block.classes.includes("center")
+                    ? "center"
+                    : "end",
+                cellStyle: STYLE.signCell,
+              };
+            else if (inner.kind === "para" && ALIGNABLE.has(inner.style))
+              out[i] = {
+                ...inner,
+                style:
+                  i === from && block.classes.includes("signature")
+                    ? STYLE.signatureTop
+                    : style,
+              };
+          }
+          if (
+            block.classes.includes("signature") &&
+            out[from]?.kind === "table"
+          )
+            out.splice(from, 0, {
+              kind: "para",
+              style: STYLE.signatureGap,
+              runs: [],
+            });
+          afterHeading = false;
+          break;
         }
-        if (
-          block.classes.includes("signature") &&
-          out[from]?.kind === "table"
-        )
-          out.splice(from, 0, {
-            kind: "para",
-            style: STYLE.signatureGap,
-            runs: [],
-          });
-        afterHeading = false;
-        break;
       }
     }
-  }
   };
   visit(fitBlanks(blocks));
 

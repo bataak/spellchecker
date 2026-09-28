@@ -1,10 +1,4 @@
-import {
-  fitBlanks,
-  format,
-  isMarkdown,
-  parse,
-  toHtml,
-} from "./markdown.ts";
+import { fitBlanks, format, isMarkdown, parse, toHtml } from "./markdown.ts";
 
 const TIDY_LIMIT = 400_000;
 

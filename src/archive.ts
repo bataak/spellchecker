@@ -7,7 +7,9 @@ const TAR_GZ = /\.(tar\.gz|tgz)$/i;
 const TAR_BZ2 = /\.(tar\.bz2|tbz2?|tb2)$/i;
 
 export function isArchiveName(name: string): boolean {
-  return ZIP.test(name) || TAR.test(name) || TAR_GZ.test(name) || TAR_BZ2.test(name);
+  return (
+    ZIP.test(name) || TAR.test(name) || TAR_GZ.test(name) || TAR_BZ2.test(name)
+  );
 }
 
 export function baseName(path: string): string {

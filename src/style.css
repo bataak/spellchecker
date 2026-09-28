@@ -55,8 +55,8 @@ html {
   --serif:
     "Bichig Serif", "PT Serif", "Noto Serif", "Liberation Serif", Georgia, serif;
   --mono:
-    "Bichig Mono", ui-monospace, "DejaVu Sans Mono", "Liberation Mono", Consolas,
-    monospace;
+    "Bichig Mono", ui-monospace, "DejaVu Sans Mono", "Liberation Mono",
+    Consolas, monospace;
 }
 
 :root {

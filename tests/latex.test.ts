@@ -65,7 +65,10 @@ test("томьёоны хязгаарлагчийг хадгална", () => {
 });
 
 test("бөглөх зураас", () => {
-  assert.equal(body("Нэр ______ /Б.Бат/"), "Нэр \\rule[-0.3ex]{3em}{0.4pt} /Б.Бат/");
+  assert.equal(
+    body("Нэр ______ /Б.Бат/"),
+    "Нэр \\rule[-0.3ex]{3em}{0.4pt} /Б.Бат/",
+  );
 });
 
 test("холбоос", () => {
@@ -114,7 +117,10 @@ test("толгойгүй хүснэгт зураасгүй", () => {
 test("өргөн хүснэгт хуудсанд багтахаар p{} баганатай", () => {
   const long = "урт ".repeat(30).trim();
   const out = body("| А | Б |\n| - | --: |\n| " + long + " | " + long + " |");
-  assert.match(out, /\\begin\{tabular\}\{>\{\\raggedright\\arraybackslash\}p\{[\d.]+cm\}>\{\\raggedleft\\arraybackslash\}p\{[\d.]+cm\}\}/);
+  assert.match(
+    out,
+    /\\begin\{tabular\}\{>\{\\raggedright\\arraybackslash\}p\{[\d.]+cm\}>\{\\raggedleft\\arraybackslash\}p\{[\d.]+cm\}\}/,
+  );
 });
 
 test("ишлэл ба кодын блок", () => {
@@ -196,7 +202,9 @@ test("гарын үсгийн хүснэгтийн зураас баганын �
 });
 
 test("TeX лого: текст дотор лого, томьёо дотор \\text болно", () => {
-  const tex = toLatex(parse("\\LaTeX2e, \\TeX ба \\LaTeXe.\n\n«$\\LaTeX 2e$»\n"));
+  const tex = toLatex(
+    parse("\\LaTeX2e, \\TeX ба \\LaTeXe.\n\n«$\\LaTeX 2e$»\n"),
+  );
   assert.ok(tex.includes("\\LaTeX{}2e, \\TeX{} ба \\LaTeXe{}."), tex);
   assert.ok(tex.includes("$\\text{\\LaTeX} 2e$"), tex);
   assert.ok(!tex.includes("\\textbackslash{}LaTeX"), tex);

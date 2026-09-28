@@ -1,7 +1,12 @@
 import { zipSync } from "fflate";
 import type { Zippable } from "fflate";
 import type { DeckDoc, DeckLine, DeckPart, DeckTable } from "../deck.ts";
-import { TABLE_PT, TEXT_PT, layoutSlide, type TableLayout } from "../decklayout.ts";
+import {
+  TABLE_PT,
+  TEXT_PT,
+  layoutSlide,
+  type TableLayout,
+} from "../decklayout.ts";
 import type { Align, IrRun } from "../docir.ts";
 
 const encoder = new TextEncoder();
@@ -21,7 +26,8 @@ const NS_P =
   'xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"';
 const NS_ALL = NS_A + " " + NS_R + " " + NS_P;
 
-const REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+const REL =
+  "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 const REL_PKG = "http://schemas.openxmlformats.org/package/2006/relationships";
 const CT = "application/vnd.openxmlformats-officedocument.presentationml.";
 
@@ -80,7 +86,12 @@ function runXml(run: IrRun, size: number, state: SlideState): string {
   let inner = '<a:latin typeface="' + (run.mono ? MONO : FONT) + '"/>';
   if (run.href) {
     const id = "rId" + String(state.links.length + 2);
-    state.links.push({ id, type: REL + "/hyperlink", target: run.href, external: true });
+    state.links.push({
+      id,
+      type: REL + "/hyperlink",
+      target: run.href,
+      external: true,
+    });
     inner += '<a:hlinkClick r:id="' + id + '"/>';
   }
   const rPr = "<a:rPr" + attrs + ">" + inner + "</a:rPr>";
@@ -114,7 +125,14 @@ function linePPr(line: DeckLine, start: number): string {
     return '<a:pPr marL="0" indent="0">' + SPACE_AFTER + "<a:buNone/></a:pPr>";
   const indent = ' marL="457200" indent="-457200"';
   if (line.kind === "bullet")
-    return "<a:pPr" + indent + ">" + SPACE_AFTER + BULLET_FONT + '<a:buChar char="•"/></a:pPr>';
+    return (
+      "<a:pPr" +
+      indent +
+      ">" +
+      SPACE_AFTER +
+      BULLET_FONT +
+      '<a:buChar char="•"/></a:pPr>'
+    );
   return (
     "<a:pPr" +
     indent +
@@ -135,7 +153,8 @@ function linesXml(
   let start = 1;
   return lines
     .map((line) => {
-      if (line.kind === "number" && line.start !== undefined) start = line.start;
+      if (line.kind === "number" && line.start !== undefined)
+        start = line.start;
       return paraXml(linePPr(line, start), line.runs, size, state);
     })
     .join("");
@@ -193,10 +212,7 @@ function tableXml(
             border("lnL", 0) +
             border("lnR", 0) +
             border("lnT", r === 0 ? RULE_HEAVY : 0) +
-            border(
-              "lnB",
-              r === last ? RULE_HEAVY : head ? RULE_LIGHT : 0,
-            ) +
+            border("lnB", r === last ? RULE_HEAVY : head ? RULE_LIGHT : 0) +
             "<a:noFill/></a:tcPr></a:tc>"
           );
         })
@@ -291,9 +307,19 @@ function sectionSlide(title: readonly IrRun[]): BuiltSlide {
   const state: SlideState = { links: [], shapeId: 2 };
   const shapes = shape(
     state,
-    { x: MARGIN, y: Math.round(HEIGHT * 0.35), w: BOX_WIDTH, h: Math.round(HEIGHT * 0.25) },
+    {
+      x: MARGIN,
+      y: Math.round(HEIGHT * 0.35),
+      w: BOX_WIDTH,
+      h: Math.round(HEIGHT * 0.25),
+    },
     "ctr",
-    paraXml(CENTER, title.map((run) => ({ ...run, bold: true })), 3600, state),
+    paraXml(
+      CENTER,
+      title.map((run) => ({ ...run, bold: true })),
+      3600,
+      state,
+    ),
   );
   return { xml: slideXml(shapes), links: state.links };
 }
@@ -302,14 +328,29 @@ function coverSlide(doc: DeckDoc, title: readonly IrRun[]): BuiltSlide {
   const state: SlideState = { links: [], shapeId: 2 };
   let shapes = shape(
     state,
-    { x: MARGIN, y: Math.round(HEIGHT * 0.25), w: BOX_WIDTH, h: Math.round(HEIGHT * 0.22) },
+    {
+      x: MARGIN,
+      y: Math.round(HEIGHT * 0.25),
+      w: BOX_WIDTH,
+      h: Math.round(HEIGHT * 0.22),
+    },
     "ctr",
-    paraXml(CENTER, title.map((run) => ({ ...run, bold: true })), 3600, state),
+    paraXml(
+      CENTER,
+      title.map((run) => ({ ...run, bold: true })),
+      3600,
+      state,
+    ),
   );
   if (doc.subtitle.length)
     shapes += shape(
       state,
-      { x: MARGIN, y: Math.round(HEIGHT * 0.5), w: BOX_WIDTH, h: Math.round(HEIGHT * 0.25) },
+      {
+        x: MARGIN,
+        y: Math.round(HEIGHT * 0.5),
+        w: BOX_WIDTH,
+        h: Math.round(HEIGHT * 0.25),
+      },
       "t",
       doc.subtitle.map((line) => paraXml(CENTER, line, 2000, state)).join(""),
     );
@@ -326,9 +367,19 @@ function contentSlide(
   if (title !== null) {
     shapes += shape(
       state,
-      { x: MARGIN, y: Math.round(0.6 * EMU_CM), w: BOX_WIDTH, h: Math.round(2.4 * EMU_CM) },
+      {
+        x: MARGIN,
+        y: Math.round(0.6 * EMU_CM),
+        w: BOX_WIDTH,
+        h: Math.round(2.4 * EMU_CM),
+      },
       "ctr",
-      paraXml("", title.map((run) => ({ ...run, bold: true })), 3000, state),
+      paraXml(
+        "",
+        title.map((run) => ({ ...run, bold: true })),
+        3000,
+        state,
+      ),
     );
     top = Math.round(3.4 * EMU_CM);
   }
@@ -351,7 +402,11 @@ function contentSlide(
               h: Math.round(part.h * EMU_CM),
             },
             "t",
-            linesXml(part.lines, state, Math.round(TEXT_PT * layout.scale * 100)),
+            linesXml(
+              part.lines,
+              state,
+              Math.round(TEXT_PT * layout.scale * 100),
+            ),
           )
         : tableXml(
             state,
@@ -383,14 +438,20 @@ const THEME =
   '<a:folHlink><a:srgbClr val="800080"/></a:folHlink>' +
   "</a:clrScheme>" +
   '<a:fontScheme name="Office">' +
-  '<a:majorFont><a:latin typeface="' + FONT + '"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont>' +
-  '<a:minorFont><a:latin typeface="' + FONT + '"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont>' +
+  '<a:majorFont><a:latin typeface="' +
+  FONT +
+  '"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont>' +
+  '<a:minorFont><a:latin typeface="' +
+  FONT +
+  '"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont>' +
   "</a:fontScheme>" +
   '<a:fmtScheme name="Office">' +
   "<a:fillStyleLst>" +
   '<a:solidFill><a:schemeClr val="phClr"/></a:solidFill>'.repeat(3) +
   "</a:fillStyleLst><a:lnStyleLst>" +
-  '<a:ln w="9525"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln>'.repeat(3) +
+  '<a:ln w="9525"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln>'.repeat(
+    3,
+  ) +
   "</a:lnStyleLst><a:effectStyleLst>" +
   "<a:effectStyle><a:effectLst/></a:effectStyle>".repeat(3) +
   "</a:effectStyleLst><a:bgFillStyleLst>" +
@@ -425,7 +486,8 @@ const LAYOUT =
 function presentationXml(count: number): string {
   let ids = "";
   for (let i = 0; i < count; i++)
-    ids += '<p:sldId id="' + String(256 + i) + '" r:id="rId' + String(i + 3) + '"/>';
+    ids +=
+      '<p:sldId id="' + String(256 + i) + '" r:id="rId' + String(i + 3) + '"/>';
   return (
     XML_HEAD +
     "<p:presentation " +
@@ -484,11 +546,19 @@ export function buildPptx(doc: DeckDoc): Uint8Array<ArrayBuffer> {
   const files: Record<string, string> = {
     "[Content_Types].xml": contentTypesXml(built.length),
     "_rels/.rels": relsXml([
-      { id: "rId1", type: REL + "/officeDocument", target: "ppt/presentation.xml" },
+      {
+        id: "rId1",
+        type: REL + "/officeDocument",
+        target: "ppt/presentation.xml",
+      },
     ]),
     "ppt/presentation.xml": presentationXml(built.length),
     "ppt/_rels/presentation.xml.rels": relsXml([
-      { id: "rId1", type: REL + "/slideMaster", target: "slideMasters/slideMaster1.xml" },
+      {
+        id: "rId1",
+        type: REL + "/slideMaster",
+        target: "slideMasters/slideMaster1.xml",
+      },
       { id: "rId2", type: REL + "/theme", target: "theme/theme1.xml" },
       ...built.map((_, i) => ({
         id: "rId" + String(i + 3),
@@ -498,12 +568,20 @@ export function buildPptx(doc: DeckDoc): Uint8Array<ArrayBuffer> {
     ]),
     "ppt/slideMasters/slideMaster1.xml": MASTER,
     "ppt/slideMasters/_rels/slideMaster1.xml.rels": relsXml([
-      { id: "rId1", type: REL + "/slideLayout", target: "../slideLayouts/slideLayout1.xml" },
+      {
+        id: "rId1",
+        type: REL + "/slideLayout",
+        target: "../slideLayouts/slideLayout1.xml",
+      },
       { id: "rId2", type: REL + "/theme", target: "../theme/theme1.xml" },
     ]),
     "ppt/slideLayouts/slideLayout1.xml": LAYOUT,
     "ppt/slideLayouts/_rels/slideLayout1.xml.rels": relsXml([
-      { id: "rId1", type: REL + "/slideMaster", target: "../slideMasters/slideMaster1.xml" },
+      {
+        id: "rId1",
+        type: REL + "/slideMaster",
+        target: "../slideMasters/slideMaster1.xml",
+      },
     ]),
     "ppt/theme/theme1.xml": THEME,
   };
@@ -512,12 +590,17 @@ export function buildPptx(doc: DeckDoc): Uint8Array<ArrayBuffer> {
     const name = "slide" + String(i + 1) + ".xml";
     files["ppt/slides/" + name] = slide.xml;
     files["ppt/slides/_rels/" + name + ".rels"] = relsXml([
-      { id: "rId1", type: REL + "/slideLayout", target: "../slideLayouts/slideLayout1.xml" },
+      {
+        id: "rId1",
+        type: REL + "/slideLayout",
+        target: "../slideLayouts/slideLayout1.xml",
+      },
       ...slide.links,
     ]);
   });
 
   const zippable: Zippable = {};
-  for (const [name, xml] of Object.entries(files)) zippable[name] = encoder.encode(xml);
+  for (const [name, xml] of Object.entries(files))
+    zippable[name] = encoder.encode(xml);
   return zipSync(zippable, { level: 6 }) as Uint8Array<ArrayBuffer>;
 }

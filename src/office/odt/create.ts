@@ -16,7 +16,6 @@ const NS =
   ' xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"' +
   ' xmlns:xlink="http://www.w3.org/1999/xlink"';
 
-
 const MONO = odfFont("Courier New");
 
 function esc(value: string): string {
@@ -78,8 +77,7 @@ function textProps(style: ParaStyle, base: string): string {
     parts.push('fo:font-size="' + pt(style.sizePt) + '"');
   if (style.bold) parts.push('fo:font-weight="bold"');
   if (style.italic) parts.push('fo:font-style="italic"');
-  if (style.mono)
-    parts.push('fo:font-family="&apos;' + MONO + '&apos;"');
+  if (style.mono) parts.push('fo:font-family="&apos;' + MONO + '&apos;"');
   else parts.push('fo:font-family="' + escAttr(base) + '"');
   if (style.noHyphenation) parts.push('fo:hyphenate="false"');
   if (parts.length === 0) return "";
@@ -142,11 +140,7 @@ function styleName(name: string): string {
   return name.replace(/[^A-Za-z0-9_]/g, "_");
 }
 
-function paraXml(
-  style: string,
-  runs: readonly IrRun[],
-  level: number,
-): string {
+function paraXml(style: string, runs: readonly IrRun[], level: number): string {
   const inner = runsXml(runs);
   if (level > 0)
     return (
@@ -179,8 +173,10 @@ const TABLE_ALIGN: Readonly<Record<string, string>> = {
 
 const CELL_BORDERS: Readonly<Record<string, string>> = {
   C_plain: "",
-  C_head: 'fo:border-top="1pt solid #000000" fo:border-bottom="0.5pt solid #000000" ',
-  C_only: 'fo:border-top="1pt solid #000000" fo:border-bottom="1pt solid #000000" ',
+  C_head:
+    'fo:border-top="1pt solid #000000" fo:border-bottom="0.5pt solid #000000" ',
+  C_only:
+    'fo:border-top="1pt solid #000000" fo:border-bottom="1pt solid #000000" ',
   C_last: 'fo:border-bottom="1pt solid #000000" ',
 };
 
@@ -283,7 +279,9 @@ function blockXml(
             .map((_, i) => {
               const fill = (row[i] ?? []).some((run) => run.fill);
               const cellStyle = plainStyle;
-              const base = head ? "TableHead" : (block.cellStyle ?? "TableCell");
+              const base = head
+                ? "TableHead"
+                : (block.cellStyle ?? "TableCell");
               const align = block.align[i];
               if (fill) {
                 const tab = Math.max(0, widths[i]! - 0.2);

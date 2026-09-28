@@ -187,7 +187,10 @@ export function getUserDict(name: string): Promise<UserDict | undefined> {
   );
 }
 
-export async function renameUserDict(name: string, label: string): Promise<void> {
+export async function renameUserDict(
+  name: string,
+  label: string,
+): Promise<void> {
   const record = await getUserDict(name);
   if (!record) throw new Error("Толь олдсонгүй: " + name);
   const trimmed = label.trim();
@@ -230,7 +233,8 @@ export function sortByOrder<T extends { id: string }>(
   return items
     .map((item, index) => ({ item, index, rank: rank.get(item.id) }))
     .sort((left, right) => {
-      if (left.rank != null && right.rank != null) return left.rank - right.rank;
+      if (left.rank != null && right.rank != null)
+        return left.rank - right.rank;
       if (left.rank != null) return -1;
       if (right.rank != null) return 1;
       return left.index - right.index;
@@ -240,7 +244,12 @@ export function sortByOrder<T extends { id: string }>(
 
 export function moveItem<T>(items: T[], index: number, delta: number): T[] {
   const target = index + delta;
-  if (index < 0 || index >= items.length || target < 0 || target >= items.length)
+  if (
+    index < 0 ||
+    index >= items.length ||
+    target < 0 ||
+    target >= items.length
+  )
     return items.slice();
   const out = items.slice();
   const [item] = out.splice(index, 1);

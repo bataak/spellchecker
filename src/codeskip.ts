@@ -270,9 +270,7 @@ export function codeRanges(text: string): SkipRange[] {
       ...collect(text, MATH),
       ...collect(text, MATH_BLOCK),
       ...collect(text, LATEX_COMMAND),
-    ].filter(
-      (range) => !covered(fenced, range.start),
-    ),
+    ].filter((range) => !covered(fenced, range.start)),
   ]);
 }
 

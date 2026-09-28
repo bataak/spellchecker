@@ -62,10 +62,7 @@ function fitMono(ctx: CanvasRenderingContext2D, cs: CSSStyleDeclaration): void {
   const a = sampleWidth(ctx, cs, "100px", serif);
   const b = sampleWidth(ctx, cs, "100px", mono);
   if (!(a > 0 && b > 0)) return;
-  document.documentElement.style.setProperty(
-    "--mono-fit",
-    (a / b).toFixed(4),
-  );
+  document.documentElement.style.setProperty("--mono-fit", (a / b).toFixed(4));
 }
 
 function measurePer(el: HTMLElement): number {

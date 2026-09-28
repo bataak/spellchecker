@@ -401,7 +401,8 @@ function envEnd(
   let depth = verbatim ? 1 : 0;
   for (let i = start; i < lines.length; i += 1) {
     const raw = lines[i]!;
-    const line = verbatim && i === start ? raw.slice(raw.indexOf("}") + 1) : raw;
+    const line =
+      verbatim && i === start ? raw.slice(raw.indexOf("}") + 1) : raw;
     if (math && i > start && !line.trim()) return -1;
     for (const m of line.matchAll(edge)) {
       depth += m[1] === "begin" ? 1 : -1;
@@ -608,7 +609,8 @@ function parseAttrs(text: string): Attrs {
   const inner = text.startsWith("{") ? text.slice(1, -1) : "." + text;
   const classes: string[] = [];
   const keys: Record<string, string> = {};
-  const token = /\.([\w-]+)|#([\w-]+)|([\w-]+)=(?:"([^"]*)"|'([^']*)'|(\S+))|(^|\s)-(?=\s|$)/g;
+  const token =
+    /\.([\w-]+)|#([\w-]+)|([\w-]+)=(?:"([^"]*)"|'([^']*)'|(\S+))|(^|\s)-(?=\s|$)/g;
   for (const m of inner.matchAll(token)) {
     if (m[1]) classes.push(m[1]);
     else if (m[2]) keys["id"] = m[2];
@@ -627,7 +629,9 @@ function unquote(value: string): string {
   return m ? m[2]!.replace(/\\(["'\\])/g, "$1") : value;
 }
 
-function metaBlock(lines: readonly string[]): { block: MetaBlock; next: number } | null {
+function metaBlock(
+  lines: readonly string[],
+): { block: MetaBlock; next: number } | null {
   if (lines[0]?.trim() !== "---") return null;
   const fields: MetaField[] = [];
   let i = 1;
@@ -639,7 +643,12 @@ function metaBlock(lines: readonly string[]): { block: MetaBlock; next: number }
   }
   if (i >= lines.length || !fields.length) return null;
   return {
-    block: { type: "meta", fields, raw: lines.slice(0, i + 1).join("\n"), line: 0 },
+    block: {
+      type: "meta",
+      fields,
+      raw: lines.slice(0, i + 1).join("\n"),
+      line: 0,
+    },
     next: i + 1,
   };
 }
@@ -967,13 +976,11 @@ export function toHtml(blocks: readonly Block[]): string {
         .map((name) => " md-" + name)
         .join("");
       out += `<div class="${kind}${align}"${width}${at}>${toHtml(b.children)}</div>`;
-    }
-    else if (b.type === "quote")
+    } else if (b.type === "quote")
       out += `<blockquote${at}>${toHtml(b.children)}</blockquote>`;
     else if (b.type === "list") {
       const tag = b.ordered ? "ol" : "ul";
-      const startAttr =
-        b.ordered && b.start !== 1 ? ` start="${b.start}"` : "";
+      const startAttr = b.ordered && b.start !== 1 ? ` start="${b.start}"` : "";
       out +=
         `<${tag}${startAttr}${at}>` +
         b.items.map((it) => `<li>${inlineHtml(it)}</li>`).join("") +
@@ -1008,8 +1015,7 @@ const MAX_ALIGN_ROW = 100;
 
 function escapeText(s: string, cell: boolean, full: boolean): string {
   if (!full) return cell ? s.replace(/\|/g, "\\|") : s;
-  let out = s
-    .replace(/([\\`*_[\]$~<])/g, "\\$1");
+  let out = s.replace(/([\\`*_[\]$~<])/g, "\\$1");
   if (cell) out = out.replace(/\|/g, "\\|");
   return out;
 }
@@ -1059,8 +1065,7 @@ function inlineMd(
     else if (n.type === "strong")
       out += `**${inlineMd(n.children, cell, full)}**`;
     else if (n.type === "em") out += `*${inlineMd(n.children, cell, full)}*`;
-    else if (n.type === "del")
-      out += `~~${inlineMd(n.children, cell, full)}~~`;
+    else if (n.type === "del") out += `~~${inlineMd(n.children, cell, full)}~~`;
     else if (n.auto) out += `<${n.url}>`;
     else out += `[${inlineMd(n.children, cell, full)}](${n.url})`;
   }
@@ -1161,8 +1166,7 @@ function blockMd(b: Block, full: boolean): string {
         if (a === "left") return ":" + bar;
         return bar;
       });
-      const row = (r: string[]): string =>
-        "| " + r.map(pad).join(" | ") + " |";
+      const row = (r: string[]): string => "| " + r.map(pad).join(" | ") + " |";
       const [head, ...body] = cells;
       return [
         row(head ?? []),

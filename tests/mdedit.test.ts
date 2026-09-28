@@ -14,7 +14,6 @@ import {
   wrapLink,
 } from "../src/mdedit.ts";
 
-/** Тэмдэглэлийг `|` тэмдгээр илэрхийлсэн товч бичлэг. */
 function at(marked: string): { text: string; start: number; end: number } {
   const start = marked.indexOf("|");
   const rest = marked.slice(0, start) + marked.slice(start + 1);
@@ -49,8 +48,6 @@ function list(marked: string, ordered: boolean): string {
   return show(toggleList(text, start, end, ordered));
 }
 
-// ---------------------------------------------------------------- toggleWrap
-
 test("тэмдэглэсэн үгийг тодруулна", () => {
   assert.equal(wrap("энэ |үг| тод", "**"), "энэ **|үг|** тод");
 });
@@ -76,7 +73,6 @@ test("хоосон тэмдэглэл маркерын дунд байвал т�
 });
 
 test("налуу нь тодын маркерыг хазахгүй", () => {
-  // `*`-аар тайлах гэж `**`-ийн хагасыг авахгүй байх ёстой
   assert.equal(wrap("энэ **|үг|** тод", "*"), "энэ ***|үг|*** тод");
 });
 
@@ -88,8 +84,6 @@ test("налуу маркер тусад нь ажиллана", () => {
   assert.equal(wrap("энэ |үг| налуу", "*"), "энэ *|үг|* налуу");
   assert.equal(wrap("энэ *|үг|* налуу", "*"), "энэ |үг| налуу");
 });
-
-// ------------------------------------------------------------- toggleHeading
 
 test("доголыг гарчиг болгоно", () => {
   assert.equal(heading("Оршил|", 1), "# Оршил|");
@@ -134,8 +128,6 @@ test("сүүлийн мөрөнд үйлчлэхэд өмнөх мөр хөнд�
   assert.equal(heading("Эхний мөр\nХоёр|", 1), "Эхний мөр\n# Хоёр|");
 });
 
-// ---------------------------------------------------------------- toggleList
-
 test("цэгт жагсаалт болгоно", () => {
   assert.equal(list("Нэг|", false), "- Нэг|");
 });
@@ -156,8 +148,6 @@ test("дугаарлалт хоосон мөрийг тоолохгүй", () => 
   assert.equal(list("|Нэг\n\nХоёр|", true), "|1. Нэг\n\n2. Хоёр|");
 });
 
-// ------------------------------------------------------------ headingDepthAt
-
 test("гарчгийн түвшинг заана", () => {
   assert.equal(headingDepthAt("## Оршил", 4), 2);
   assert.equal(headingDepthAt("Оршил", 2), 0);
@@ -171,9 +161,6 @@ test("олон мөрт зөв мөрийг үзнэ", () => {
   assert.equal(headingDepthAt(text, 16), 3);
 });
 
-// ---------------------------------------------------------------- enterInsert
-
-/** Хүснэгтийн мөр өөрөө `|` агуулдаг тул энд заагчийг `\u2038` тэмдгээр заана. */
 function ins(marked: string): string {
   const start = marked.indexOf("\u2038");
   return enterInsert(marked.slice(0, start) + marked.slice(start + 1), start);
@@ -239,8 +226,6 @@ test("гарчгийн дараа хоёр мөр", () => {
   assert.equal(ins("# Оршил\u2038"), "\n\n");
 });
 
-// --------------------------------------------------------------- minimalDiff
-
 test("ижил бичвэрт өөрчлөлт байхгүй", () => {
   assert.equal(minimalDiff("нэг", "нэг"), null);
 });
@@ -285,8 +270,6 @@ test("хоосноос эхлэх", () => {
   assert.deepEqual(minimalDiff("", "шинэ"), { from: 0, to: 0, insert: "шинэ" });
 });
 
-// --------------------------------------------------------------- toggleQuote
-
 test("доголыг ишлэл болгоно", () => {
   const { text, start, end } = at("Иш татсан үг|");
   assert.equal(show(toggleQuote(text, start, end)), "> Иш татсан үг|");
@@ -306,8 +289,6 @@ test("зарим мөр ишлэлгүй бол бүгдийг ишлэнэ", ()
   const { text, start, end } = at("|> Нэг\nХоёр|");
   assert.equal(show(toggleQuote(text, start, end)), "|> Нэг\n> Хоёр|");
 });
-
-// ------------------------------------------------------------------ wrapLink
 
 test("тэмдэглэсэн үгийг холбоосын нэр болгоно", () => {
   const { text, start, end } = at("энэ |нэр| холбоос");
@@ -330,8 +311,6 @@ test("хоосон тэмдэглэлд араг яс оруулна", () => {
   assert.equal(e.text, "энэ []()");
   assert.equal(e.start, 5);
 });
-
-// ---------------------------------------------------------------- insertTable
 
 test("хоосон мөрөнд хүснэгт оруулна", () => {
   const e = insertTable("", 0);

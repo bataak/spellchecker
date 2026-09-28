@@ -428,7 +428,9 @@ function blockXml(block: IrBlock, doc: DocIr, body: Body): string {
                         ? '<w:jc w:val="' + JC[align] + '"/>'
                         : "",
                   ),
-                  fill ? "<w:r><w:tab/></w:r>" : runsXml(row[i] ?? [], body, false),
+                  fill
+                    ? "<w:r><w:tab/></w:r>"
+                    : runsXml(row[i] ?? [], body, false),
                 ) +
                 "</w:tc>"
               );
@@ -528,7 +530,9 @@ function documentXml(doc: DocIr, options: DocxOptions, body: Body): string {
   const top = twips(page.marginTopCm);
   const sect =
     "<w:sectPr>" +
-    (doc.pageNumbers ? '<w:footerReference w:type="default" r:id="rId4"/>' : "") +
+    (doc.pageNumbers
+      ? '<w:footerReference w:type="default" r:id="rId4"/>'
+      : "") +
     '<w:pgSz w:w="' +
     String(twips(page.widthCm)) +
     '" w:h="' +
@@ -623,8 +627,7 @@ export function buildDocx(
       "application/vnd.openxmlformats-package.core-properties+xml",
     ],
   ];
-  if (doc.pageNumbers)
-    overrides.push(["/word/footer1.xml", CT + "footer+xml"]);
+  if (doc.pageNumbers) overrides.push(["/word/footer1.xml", CT + "footer+xml"]);
 
   const files: Record<string, string> = {
     "[Content_Types].xml":
