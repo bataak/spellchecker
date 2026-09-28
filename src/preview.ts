@@ -1,4 +1,4 @@
-import { isMarkdown, parse, print, toHtml } from "./markdown.ts";
+import { format, isMarkdown, parse, toHtml } from "./markdown.ts";
 
 const TIDY_LIMIT = 400_000;
 
@@ -138,7 +138,7 @@ export function initPreview(
     tidied = null;
     const looksMd = isMdFile || isMarkdown(blocks);
     if (onFormat && looksMd && text.length <= TIDY_LIMIT) {
-      const next = print(blocks);
+      const next = format(text, blocks);
       if (next !== text) tidied = next;
     }
     tidy.hidden = tidied === null;
