@@ -25,6 +25,7 @@ export interface MdToolbarOptions {
   readonly isMdFile: () => boolean;
   readonly mount?: HTMLElement;
   readonly onTemplate?: (id: string) => void;
+  readonly onExample?: () => void;
 }
 
 export interface MdToolbar {
@@ -488,6 +489,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       return;
     apply({ text, start: 0, end: 0 });
     editor.scrollTop = 0;
+    options.onExample?.();
   }
 
   async function openExample(id: string): Promise<void> {
@@ -509,6 +511,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       return;
     apply({ text, start: 0, end: 0 });
     editor.scrollTop = 0;
+    options.onExample?.();
   }
 
   const onFocus = (): void => {
