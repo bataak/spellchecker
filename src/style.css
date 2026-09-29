@@ -1306,6 +1306,11 @@ a.tbtn {
     justify-content: flex-start;
   }
 
+  :root[data-topbar="pull"] main:has(.editor-wrap) > .topbar {
+    margin-inline-start: var(--topbar-pull, 0px);
+    max-width: none;
+  }
+
   :root[data-topbar="wide"] .topbar #statusText {
     white-space: nowrap;
     flex: 0 0 auto;
