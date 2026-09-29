@@ -2157,6 +2157,8 @@ function copyText(str: string): Promise<void> {
 }
 
 const reloadEl = document.querySelector<HTMLElement>("#appReloadBtn");
+let freshEntry: string | null = null;
+let appUpdating = false;
 if (reloadEl) {
   reloadEl.addEventListener("click", () => {
     reloadEl.hidden = true;
@@ -2180,26 +2182,61 @@ function swSettled(worker: ServiceWorker): Promise<void> {
   });
 }
 
+async function fetchFreshEntry(): Promise<string | null> {
+  try {
+    const swUrl = new URL(import.meta.env.BASE_URL + "sw.js", location.href);
+    swUrl.searchParams.set("fresh", String(Date.now()));
+    const res = await fetch(swUrl.href, { cache: "no-store" });
+    if (!res.ok) return null;
+    const m = (await res.text()).match(/assets\/index-[\w-]+\.js/);
+    return m ? m[0] : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function servesEntry(entry: string): Promise<boolean> {
+  try {
+    const res = await fetch(
+      new URL(import.meta.env.BASE_URL, location.href).href,
+      { cache: "no-store" },
+    );
+    return res.ok && (await res.text()).includes(entry);
+  } catch (_) {
+    return false;
+  }
+}
+
+function waitMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)));
+}
+
 async function reloadToLatest(): Promise<void> {
-  let done = false;
-  const reload = (): void => {
-    if (done) return;
-    done = true;
-    location.reload();
-  };
-  const timer = setTimeout(reload, 8000);
+  appUpdating = true;
+  const deadline = Date.now() + 2 * 60 * 1000;
   try {
     const reg = navigator.serviceWorker
       ? await navigator.serviceWorker.getRegistration()
       : null;
-    if (reg) {
-      await reg.update();
-      const fresh = reg.installing || reg.waiting;
-      if (fresh) await swSettled(fresh);
+    const entry = freshEntry ?? (await fetchFreshEntry());
+    if (reg && entry) {
+      while (Date.now() < deadline) {
+        const pending = reg.installing || reg.waiting;
+        if (pending && pending.state !== "redundant") {
+          await Promise.race([
+            swSettled(pending),
+            waitMs(deadline - Date.now()),
+          ]);
+          continue;
+        }
+        if (await servesEntry(entry)) break;
+        await reg.update().catch(() => undefined);
+        const next = reg.installing || reg.waiting;
+        if (!next || next.state === "redundant") await waitMs(5000);
+      }
     }
   } catch (_) {}
-  clearTimeout(timer);
-  reload();
+  location.reload();
 }
 
 const verEl = document.querySelector<HTMLElement>("#appVersion");
@@ -2712,17 +2749,12 @@ const DICT_REFRESH_GAP_MS = 24 * 60 * 60 * 1000;
 const DICT_REFRESH_POLL_MS = 3 * 60 * 60 * 1000;
 
 async function checkAppFreshness(): Promise<void> {
-  if (!reloadEl || !reloadEl.hidden) return;
-  try {
-    const swUrl = new URL(import.meta.env.BASE_URL + "sw.js", location.href);
-    swUrl.searchParams.set("fresh", String(Date.now()));
-    const res = await fetch(swUrl.href, { cache: "no-store" });
-    if (!res.ok) return;
-    const text = await res.text();
-    const selfName = import.meta.url.split("/").pop();
-    if (!selfName || text.includes(selfName)) return;
-    reloadEl.hidden = false;
-  } catch (_) {}
+  if (!reloadEl || !reloadEl.hidden || appUpdating) return;
+  const selfName = import.meta.url.split("/").pop();
+  const entry = await fetchFreshEntry();
+  if (!selfName || !entry || entry.endsWith("/" + selfName)) return;
+  freshEntry = entry;
+  reloadEl.hidden = false;
 }
 
 function maybeRefreshDict(): void {
