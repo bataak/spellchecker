@@ -165,10 +165,10 @@ export function openHint(target: () => HTMLElement | null): Hint {
     id: "open",
     target,
     html: isTouch()
-      ? "txt, md, docx, pptx, odt, odp, pdf файлыг нээж алдааг нь шалгана."
-      : "txt, md, docx, pptx, odt, odp, pdf файлыг нээж алдааг нь шалгана (" +
+      ? "txt, md, docx, pptx, odt, odp, pdf файлууд дахь бичвэрийн алдааг шалгана."
+      : "txt, md, docx, pptx, odt, odp, pdf файлууд дахь бичвэрийн алдааг шалгана (" +
         kbd("Ctrl+O", "⌘O") +
-        "). Файлаа бичвэрийн талбар руу чирж оруулж ч болно.",
+        "). Файлаа бичвэрийн талбар уруу чирч оруулж болно.",
   };
 }
 
