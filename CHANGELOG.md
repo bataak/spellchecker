@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.94.0](https://github.com/bataak/spellchecker/compare/v1.93.0...v1.94.0) (2026-09-29)
+
+
+### Features
+
+* **print:** print documents in the ODT layout and break headings with a backslash ([4105031](https://github.com/bataak/spellchecker/commit/410503131dcc222671d614078ae7063825b8a7a5))
+
+
+### Bug Fixes
+
+* **layout:** align the markdown toolbar with the bottom toolbar ([395c377](https://github.com/bataak/spellchecker/commit/395c377b27dce4fc68783287028562bff9a7a59d))
+* **preview:** keep the preview closed when returning to markdown mode ([57c9a86](https://github.com/bataak/spellchecker/commit/57c9a86a0cc8f28e7cf4298a4be5ee6870473fe2))
+* **update:** wait for the new version before reloading ([88c35a3](https://github.com/bataak/spellchecker/commit/88c35a36d9d5e966e44866ccafc427cb081b8a72))
+
 ## [1.93.0](https://github.com/bataak/spellchecker/compare/v1.92.0...v1.93.0) (2026-09-29)
 
 
