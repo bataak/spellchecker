@@ -387,7 +387,12 @@ function tocXml(doc: DocIr): string {
         '<text:p text:style-name="TOC_' +
         String(level) +
         '">' +
-        esc(block.runs.map((run) => run.text).join("")) +
+        esc(
+          block.runs
+            .map((run) => run.text)
+            .join("")
+            .replace(/\s*\n\s*/g, " "),
+        ) +
         "<text:tab/></text:p>"
       );
     })

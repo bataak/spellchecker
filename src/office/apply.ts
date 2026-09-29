@@ -381,7 +381,10 @@ export function applyTemplate(
     pageNumbers: frame !== "letter" || hasSections(blocks),
     title:
       title && title.kind === "para"
-        ? title.runs.map((r) => r.text).join("")
+        ? title.runs
+            .map((r) => r.text)
+            .join("")
+            .replace(/\s*\n\s*/g, " ")
         : undefined,
   };
 }

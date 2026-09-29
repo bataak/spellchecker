@@ -292,7 +292,13 @@ function parseInlineMasked(
   return out;
 }
 
+const INLINE_BREAK = /(`+)[\s\S]*?\1|\s*\\(?:\s+|(?=\p{L})(?![A-Za-z])|\s*$)/gu;
+
 export function parseInline(src: string): Inline[] {
+  return inlineOf(src, false);
+}
+
+function inlineOf(src: string, breaks: boolean): Inline[] {
   const held: string[] = [];
   const lifted: Inline[] = [];
   const source = src
@@ -334,7 +340,22 @@ export function parseInline(src: string): Inline[] {
         return MATH_HOLD + (lifted.length - 1) + MATH_HOLD;
       },
     );
-  return parseInlineMasked(mask(source, held), held, lifted);
+  const masked = mask(source, held);
+  return parseInlineMasked(
+    breaks
+      ? masked.replace(
+          INLINE_BREAK,
+          (whole, ticks: string | undefined, at: number, all: string) =>
+            ticks !== undefined
+              ? whole
+              : at + whole.length === all.length
+                ? ""
+                : HARD + "\n",
+        )
+      : masked,
+    held,
+    lifted,
+  );
 }
 
 const HEADING_RE = /^(#{1,6})\s+(.*)$/;
@@ -598,7 +619,7 @@ const DIV_OPEN = /^\s{0,3}(:{3,})\s*(\{[^{}]*\}|[^\s{}:]+)\s*:*\s*$/;
 const DIV_CLOSE = /^\s{0,3}:{3,}\s*$/;
 const META_EDGE = /^(?:---|\.\.\.)$/;
 const META_FIELD = /^([A-Za-z][\w-]*):[ \t]*(.*)$/;
-const HEADING_ATTRS = /^(.*?)\s+(\{\s*(?:[.#-]|[\w-]+=)[^{}]*\})\s*$/;
+const HEADING_ATTRS = /^([\s\S]*?)\s+(\{\s*(?:[.#-]|[\w-]+=)[^{}]*\})\s*$/;
 
 interface Attrs {
   readonly classes: string[];
@@ -698,6 +719,21 @@ function alignOf(cell: string): "left" | "right" | "center" | null {
   if (right) return "right";
   if (left) return "left";
   return null;
+}
+
+function headingContinues(line: string | undefined): boolean {
+  if (line === undefined || !line.trim()) return false;
+  const text = line.trimEnd();
+  return !(
+    HEADING_RE.test(text) ||
+    RULE_RE.test(text) ||
+    BULLET_RE.test(text) ||
+    ORDERED_RE.test(text) ||
+    QUOTE_RE.test(text) ||
+    FENCE_RE.test(text) ||
+    MATH_RE.test(text) ||
+    DIV_OPEN.test(text)
+  );
 }
 
 function isDivider(line: string | undefined): boolean {
@@ -830,13 +866,22 @@ function parseBlocks(src: string, top: boolean): Block[] {
 
     const head = HEADING_RE.exec(line);
     if (head) {
-      const withAttrs = HEADING_ATTRS.exec(head[2]!);
+      const start = i;
+      let text = head[2]!;
+      while (
+        (/\\+$/.exec(text)?.[0].length ?? 0) % 2 === 1 &&
+        headingContinues(lines[i + 1])
+      ) {
+        i += 1;
+        text = text.slice(0, -1) + HARD + "\n" + lines[i]!.trim();
+      }
+      const withAttrs = HEADING_ATTRS.exec(text);
       out.push({
         type: "heading",
         depth: head[1]!.length,
-        children: parseInline(withAttrs ? withAttrs[1]! : head[2]!),
+        children: inlineOf(withAttrs ? withAttrs[1]! : text, true),
         ...(withAttrs ? { attrs: withAttrs[2]! } : {}),
-        line: i,
+        line: start,
       });
       i += 1;
       continue;
@@ -1086,7 +1131,7 @@ function blockMd(b: Block, full: boolean): string {
       return (
         "#".repeat(b.depth) +
         " " +
-        inlineOut(b.children, false, full) +
+        inlineOut(b.children, false, full).replace(/\\\n/g, " \\ ") +
         (b.attrs ? " " + b.attrs : "")
       );
     case "paragraph":

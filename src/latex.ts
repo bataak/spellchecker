@@ -118,6 +118,14 @@ const RAGGED = {
 } as const;
 
 const TEXT_WIDTH_CM = 13.7;
+function oneLine(nodes: readonly Inline[]): string {
+  return inline(
+    nodes.map((n): Inline =>
+      n.type === "break" ? { type: "text", value: " " } : n,
+    ),
+  );
+}
+
 function inline(nodes: readonly Inline[]): string {
   let out = "";
   for (const n of nodes) {
@@ -225,7 +233,7 @@ function block(b: Block, beamer = false, place?: string): string {
     case "heading": {
       const cmd = SECTION[Math.min(b.depth, SECTION.length) - 1]!;
       const star = headingClasses(b).includes("unnumbered") ? "*" : "";
-      return "\\" + cmd + star + "{" + inline(b.children) + "}";
+      return "\\" + cmd + star + "{" + oneLine(b.children) + "}";
     }
     case "meta":
       return "";
@@ -407,7 +415,7 @@ function frame(slide: Slide): string {
   if (slide.section)
     return (
       "\\section{" +
-      inline(slide.title ?? []) +
+      oneLine(slide.title ?? []) +
       "}\n\\begin{frame}\n\\sectionpage\n\\end{frame}"
     );
   const fragile = slide.blocks.some(
@@ -417,7 +425,7 @@ function frame(slide: Slide): string {
   const body = slide.blocks
     .map((b) =>
       b.type === "heading"
-        ? "\\textbf{" + inline(b.children) + "}\\par"
+        ? "\\textbf{" + oneLine(b.children) + "}\\par"
         : block(b, true),
     )
     .filter((text) => text !== "")
@@ -428,7 +436,7 @@ function frame(slide: Slide): string {
   return (
     "\\begin{frame}" +
     (fragile ? "[fragile]" : "") +
-    (slide.title === null ? "" : "{" + inline(slide.title) + "}") +
+    (slide.title === null ? "" : "{" + oneLine(slide.title) + "}") +
     "\n" +
     body +
     notes +
@@ -450,7 +458,7 @@ export function toBeamer(
     preamble.replace(/\s*$/, "\n") + (options.notesScreen ? NOTES_SCREEN : ""),
   ];
   if (deck.title !== null) {
-    let head = "\\title{" + inline(deck.title) + "}\n";
+    let head = "\\title{" + oneLine(deck.title) + "}\n";
     if (deck.subtitle.length)
       head += "\\subtitle{" + deck.subtitle.map(inline).join(" \\\\ ") + "}\n";
     const author = metaText(deck.meta.author);
