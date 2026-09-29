@@ -32,6 +32,8 @@ export interface BuildOptions {
 
 const TOC_FRAMES: ReadonlySet<Frame> = new Set(["letter", "structured"]);
 
+const PRINT_FRAMES: ReadonlySet<Frame> = new Set(["letter", "structured"]);
+
 const TOC_FORMATS: ReadonlySet<string> = new Set(["odt", "docx", "tex", "pdf"]);
 
 export function hasSections(text: string, templateId: string): boolean {
@@ -185,6 +187,7 @@ export interface ExportOptions {
   /** Экспорт хийж болохгүй төлөв (office горим). */
   readonly blocked?: () => boolean;
   readonly saveButton?: HTMLElement | null;
+  readonly printButton?: HTMLElement | null;
   readonly template: () => string;
   readonly onDone?: (name: string) => void;
   readonly onBlocked?: () => void;
@@ -193,6 +196,7 @@ export interface ExportOptions {
 
 export interface ExportControl {
   open: () => void;
+  syncPrint: () => void;
   destroy: () => void;
 }
 
@@ -432,7 +436,50 @@ export function initExport(options: ExportOptions): ExportControl {
     }
   };
 
+  async function print(): Promise<void> {
+    const template = findTemplate(options.template())!;
+    const [{ applyTemplate }, { printDoc }] = await Promise.all([
+      import("./office/apply.ts"),
+      import("./office/print.ts"),
+    ]);
+    await printDoc(applyTemplate(parse(editor.value), template));
+  }
+
+  function printable(): boolean {
+    if (options.blocked?.()) return false;
+    const frame = findTemplate(options.template())?.frame;
+    return frame !== undefined && PRINT_FRAMES.has(frame);
+  }
+
+  function startPrint(): void {
+    print().catch((error: unknown) => {
+      console.error("print:", error);
+      options.onBlocked?.();
+    });
+  }
+
+  const printButton = options.printButton;
+
+  function syncPrint(): void {
+    if (printButton) printButton.hidden = !printable();
+  }
+
+  const onPrintClick = (): void => {
+    if (printable()) startPrint();
+  };
+
   const onKeyDown = (event: KeyboardEvent): void => {
+    if (
+      (event.ctrlKey || event.metaKey) &&
+      !event.altKey &&
+      !event.shiftKey &&
+      (event.code === "KeyP" || event.key.toLowerCase() === "p") &&
+      printable()
+    ) {
+      event.preventDefault();
+      startPrint();
+      return;
+    }
     if (!event.altKey || !(event.ctrlKey || event.metaKey)) return;
     if (event.code !== "KeyS" && event.key.toLowerCase() !== "s") return;
     event.preventDefault();
@@ -473,6 +520,9 @@ export function initExport(options: ExportOptions): ExportControl {
   overlay.addEventListener("keydown", onOverlayKey);
   document.addEventListener("keydown", onKeyDown);
 
+  printButton?.addEventListener("click", onPrintClick);
+  syncPrint();
+
   const saveButton = options.saveButton;
   if (saveButton) {
     saveButton.addEventListener("pointerdown", onPressStart);
@@ -485,8 +535,10 @@ export function initExport(options: ExportOptions): ExportControl {
 
   return {
     open,
+    syncPrint,
     destroy(): void {
       cancelPress();
+      printButton?.removeEventListener("click", onPrintClick);
       document.removeEventListener("keydown", onKeyDown);
       if (saveButton) {
         saveButton.removeEventListener("pointerdown", onPressStart);

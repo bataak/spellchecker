@@ -549,7 +549,8 @@ a.tbtn {
 }
 
 @media (pointer: coarse) {
-  .measure-ctl {
+  .measure-ctl,
+  #printBtn {
     display: none;
   }
 }

@@ -73,7 +73,11 @@ function run(
     worker.on("message", (message) => {
       if (message.result === "ok" && message.cmd === undefined) {
         if (source !== undefined) {
-          worker.postMessage({ cmd: "writefile", url: "main.tex", src: source });
+          worker.postMessage({
+            cmd: "writefile",
+            url: "main.tex",
+            src: source,
+          });
           worker.postMessage({ cmd: "setmainfile", url: "main.tex" });
         }
         worker.postMessage({ cmd });
@@ -354,13 +358,45 @@ const SIZE_NAMES = String.raw`\tiny \scriptsize \footnotesize \small \normalsize
 
 const SIZES = SIZE_NAMES.map(
   (size) =>
-    "{" + size + " " + SCRIPT_TEXT + " $" + SCRIPT_MATH + "$ \\[ " +
-    SCRIPT_MATH + " \\]}\n\n",
+    "{" +
+    size +
+    " " +
+    SCRIPT_TEXT +
+    " $" +
+    SCRIPT_MATH +
+    "$ \\[ " +
+    SCRIPT_MATH +
+    " \\]}\n\n",
 );
 
 const SLIDE_SIZES = SIZE_NAMES.map(
   (size) => "{" + size + " " + SCRIPT_TEXT + " $" + SCRIPT_MATH + "$}\n",
 );
+
+const TEXT_MATH = String.raw`\ensuremath{a_{b_{c}}^{d^{e}} \approx \leq \geq \neq \pm
+\times \div - \rightarrow \leftarrow \infty \sum_{\sum} \int}
+\begin{tabular}{rl} а & б \\ \end{tabular}`;
+
+const TEXT_SIZES = SIZE_NAMES.map(
+  (size) => "{" + size + " " + SCRIPT_TEXT + " " + TEXT_MATH + "}\n\n",
+);
+
+const LETTER_MD = `# Тэнхимд\\
+Өргөдөл гаргах нь:
+
+Энгийн **тод**, *налуу* ≈ ≤ ≥ ≠ ± × → ° €.
+
+| Нэр | Тоо |
+| :-- | --: |
+| А | 1 |
+
+::: {.signature}
+|                   |             |
+| ----------------: | :---------- |
+| Өргөдөл гаргасан: | Бат         |
+|       Гарын үсэг: | ____        |
+:::
+`;
 
 function coverage(): string[] {
   const blocks = parse(META + SAMPLE_MD + FEATURES);
@@ -394,8 +430,15 @@ function coverage(): string[] {
         ).join("") +
         "\\end{document}",
     );
+  const letter = toLatex(parse(LETTER_MD)).replace(
+    "\\end{document}",
+    SHAPES.replace(/\$[^$]*\$/g, "") +
+      TEXT_SIZES.join("") +
+      "\n\\end{document}",
+  );
   return [
     article,
+    letter,
     withShapes(toBeamer(deck)),
     withShapes(toBeamer(deck, BEAMER_PREAMBLE, { notesScreen: true })),
   ];
@@ -497,13 +540,13 @@ function patchEngine(js: string): string {
   if (start < 0 || end < start) throw new Error("patch anchor: kpse");
   js =
     js.slice(0, start) +
-    "const KPSE_EXT={3:\".tfm\",10:\".fmt\",11:\".map\",26:\".tex\",32:\".pfb\",33:\".vf\",44:\".enc\"};" +
+    'const KPSE_EXT={3:".tfm",10:".fmt",11:".map",26:".tex",32:".pfb",33:".vf",44:".enc"};' +
     "function kpse_find_file_impl(nameptr,format,_mustexist){" +
-    "const reqname=UTF8ToString(nameptr);if(reqname.includes(\"/\")){return 0}" +
+    'const reqname=UTF8ToString(nameptr);if(reqname.includes("/")){return 0}' +
     "const ext=KPSE_EXT[format];" +
     "const names=ext&&!reqname.endsWith(ext)?[reqname,reqname+ext]:[reqname];" +
-    "for(const name of names){const path=TEXCACHEROOT+\"/\"+name;" +
-    "if(FS.analyzePath(path).exists){return allocate(intArrayFromString(path),\"i8\",ALLOC_NORMAL)}}" +
+    'for(const name of names){const path=TEXCACHEROOT+"/"+name;' +
+    'if(FS.analyzePath(path).exists){return allocate(intArrayFromString(path),"i8",ALLOC_NORMAL)}}' +
     "return 0}" +
     "function kpse_find_pk_impl(nameptr,dpi){return 0}" +
     js.slice(end);

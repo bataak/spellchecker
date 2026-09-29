@@ -66,7 +66,7 @@ import {
   templateHint,
 } from "./hint.ts";
 import { isPlain } from "./templates.ts";
-import { initExport } from "./export.ts";
+import { initExport, type ExportControl } from "./export.ts";
 import {
   initBackdrop,
   renderBackdrop,
@@ -2340,6 +2340,7 @@ async function openDocxFile(file: File): Promise<boolean> {
   previewCtl?.setSource({ kind: "office", name: file.name });
   document.body.classList.add("docx-mode");
   syncSaveHint();
+  exportCtl?.syncPrint();
   hidePopover();
   syncDecodeBtn();
   await render();
@@ -2352,6 +2353,7 @@ function closeDocx(): void {
   els.editor.readOnly = false;
   document.body.classList.remove("docx-mode");
   syncSaveHint();
+  exportCtl?.syncPrint();
 }
 
 async function docxSave(): Promise<void> {
@@ -2428,14 +2430,18 @@ const nudgeHints = initHints(() => {
 enterMdMode(!isPlain(mdBar.template()));
 els.editor.addEventListener("input", nudgeHints);
 
+let exportCtl: ExportControl | null = null;
+
 function enterMdMode(on: boolean): void {
   measureCtl?.setPreviewMode(on);
+  exportCtl?.syncPrint();
   nudgeHints();
 }
 
-initExport({
+exportCtl = initExport({
   editor: els.editor,
   saveButton: document.querySelector<HTMLElement>("#saveBtn"),
+  printButton: document.querySelector<HTMLElement>("#printBtn"),
   template: () => mdBar.template(),
   baseName: () => fileIO.targetName() ?? plainName,
   blocked: () => docx !== null,
@@ -2499,6 +2505,7 @@ function restoreDraftFile(): void {
         (isMac ? "⇧" : "Shift") +
         "-тэй эсвэл удаан дарж өргөтгөл сонгоно",
     ],
+    ["#printBtn", mod + "P"],
     ["#fontDecBtn", mod + "-"],
     ["#fontIncBtn", mod + "+"],
     ["#fontResetBtn", mod + "0"],

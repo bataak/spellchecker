@@ -604,3 +604,71 @@ test("TeX лого: preview-д лого, \\LaTeXa гэх мэт бусад ко�
   );
   assert.ok(html.includes("\\LaTeXa"), html);
 });
+
+test("parse: гарчиг `\\` -аар төгсвөл дараагийн мөрөнд үргэлжилнэ", () => {
+  const blocks = parse("# Тэнхимд\\\nӨргөдөл гаргах нь:\n\nБие");
+  assert.equal(blocks.length, 2);
+  const h = blocks[0] as Extract<Block, { type: "heading" }>;
+  assert.equal(h.type, "heading");
+  assert.equal(h.line, 0);
+  assert.deepEqual(stripLines(h.children), [
+    { type: "text", value: "Тэнхимд" },
+    { type: "break" },
+    { type: "text", value: "Өргөдөл гаргах нь:" },
+  ]);
+  assert.equal(blocks[1]!.line, 3);
+  assert.match(toHtml(blocks), /<h1[^>]*>Тэнхимд<br>Өргөдөл гаргах нь:<\/h1>/);
+  assert.equal(print(blocks), "# Тэнхимд \\ Өргөдөл гаргах нь:\n\nБие\n");
+});
+
+test("parse: гарчгийн үргэлжлэл шинэ блок эсвэл хоосон мөрийг залгихгүй", () => {
+  assert.equal(parse("# А\\\n\nБ")[0]!.type, "heading");
+  assert.equal(parse("# А\\\n\nБ").length, 2);
+  assert.equal(parse("# А\\\n## Б").length, 2);
+  assert.equal(parse("# А\\\\\nБ").length, 2);
+  const attrs = parse("# А\\\nБ {.unnumbered}")[0] as Extract<
+    Block,
+    { type: "heading" }
+  >;
+  assert.equal(attrs.attrs, "{.unnumbered}");
+});
+
+test("parse: гарчиг доторх дан `\\` мөр таслана", () => {
+  const blocks = parse("# Тэнхимд \\ Өргөдөл гаргах нь:");
+  const h = blocks[0] as Extract<Block, { type: "heading" }>;
+  assert.deepEqual(stripLines(h.children), [
+    { type: "text", value: "Тэнхимд" },
+    { type: "break" },
+    { type: "text", value: "Өргөдөл гаргах нь:" },
+  ]);
+  assert.equal(print(blocks), "# Тэнхимд \\ Өргөдөл гаргах нь:\n");
+  assert.deepEqual(stripLines(parse("# А\\ Б")), stripLines(parse("# А \\ Б")));
+  const literal = parse("# `a \\ b` \\\\ в $x \\ y$")[0] as Extract<
+    Block,
+    { type: "heading" }
+  >;
+  assert.equal(
+    literal.children.some((n) => n.type === "break"),
+    false,
+  );
+  const para = parse("А \\ Б")[0] as Extract<Block, { type: "paragraph" }>;
+  assert.equal(
+    para.children.some((n) => n.type === "break"),
+    false,
+  );
+});
+
+test("parse: гарчгийн `\\` зайгүй ч таслана, төгсгөлийнх хасагдана", () => {
+  const expected = stripLines(parse("# А \\ Б"));
+  assert.deepEqual(stripLines(parse("# А\\Б")), expected);
+  assert.deepEqual(stripLines(parse("# А\u00a0\\ Б")), expected);
+  assert.deepEqual(stripLines(parse("# А \\")), stripLines(parse("# А")));
+  const logo = parse("# Тэнхим \\LaTeX")[0] as Extract<
+    Block,
+    { type: "heading" }
+  >;
+  assert.equal(
+    logo.children.some((n) => n.type === "break"),
+    false,
+  );
+});
