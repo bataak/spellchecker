@@ -9,6 +9,7 @@ import {
   editorWidth,
   key,
   parseLayout,
+  previewLayout,
   previewWidth,
   rowKey,
   has,
@@ -238,6 +239,7 @@ function describe(l: Layout): string {
 
 export interface MeasureControl {
   refresh(): void;
+  setPreviewMode(on: boolean): void;
   destroy(): void;
 }
 
@@ -279,6 +281,7 @@ export function mountMeasureControl(
   }, 5000);
 
   let desired: Layout = load();
+  let previewMode = false;
   let prev: Layout[] = [];
   let metrics: Metrics = { ...DEFAULT_METRICS };
 
@@ -301,6 +304,7 @@ export function mountMeasureControl(
 
   const pick = (l: Layout): void => {
     desired = l;
+    previewMode = false;
     save(l);
     close();
     refresh();
@@ -365,7 +369,8 @@ export function mountMeasureControl(
     const avail = available(metrics, viewport, prev);
     prev = avail;
 
-    const active = clamp(desired, avail);
+    const base = clamp(desired, avail);
+    const active = (previewMode && previewLayout(base, avail)) || base;
     apply(active);
 
     syncToolbar();
@@ -411,6 +416,11 @@ export function mountMeasureControl(
 
   return {
     refresh,
+    setPreviewMode(on) {
+      if (on === previewMode) return;
+      previewMode = on;
+      refresh();
+    },
     destroy() {
       ro.disconnect();
       document.removeEventListener("pointerdown", onDocPointer);

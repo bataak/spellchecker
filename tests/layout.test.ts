@@ -18,6 +18,7 @@ import {
   key,
   pageWidth,
   parseLayout,
+  previewLayout,
   same,
   serializeLayout,
   showsControl,
@@ -219,4 +220,25 @@ test("parseLayout — хог утгыг анхдагч болгоно", () => {
   for (const v of ["", "z--", "a", "a*-", "abcd", null, undefined, 3]) {
     assert.ok(same(parseLayout(v), DEFAULT_LAYOUT));
   }
+});
+
+test("previewLayout — багтвал харагдац + алдааны талбар, одоогийн өргөнөөр", () => {
+  assert.deepEqual(previewLayout(on("b"), ALL_LAYOUTS), pv("b", true));
+});
+
+test("previewLayout — алдааны талбар багтахгүй бол зөвхөн харагдац", () => {
+  const avail = [on("a"), off("a"), pv("a", false), pv("b", false)];
+  assert.deepEqual(previewLayout(on("c"), avail), pv("b", false));
+});
+
+test("previewLayout — харагдац багтахгүй бол null", () => {
+  assert.equal(previewLayout(DEFAULT_LAYOUT, [on("a"), off("a")]), null);
+});
+
+test("previewLayout — бодит өргөнөөс хамаарна", () => {
+  const narrow = available(x, pageWidth(pv("a", false), x) + HYSTERESIS);
+  assert.deepEqual(previewLayout(DEFAULT_LAYOUT, narrow), pv("a", false));
+  const wide = available(x, pageWidth(pv("c", true), x) + HYSTERESIS);
+  assert.deepEqual(previewLayout(DEFAULT_LAYOUT, wide), pv("a", true));
+  assert.equal(previewLayout(DEFAULT_LAYOUT, available(x, 400)), null);
 });

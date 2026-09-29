@@ -118,6 +118,20 @@ export function clamp(desired: Layout, avail: readonly Layout[]): Layout {
   return has(avail, desired) ? desired : { ...DEFAULT_LAYOUT };
 }
 
+export function previewLayout(
+  current: Layout,
+  avail: readonly Layout[],
+): Layout | null {
+  for (const panel of [true, false]) {
+    const row = avail.filter((l) => l.preview && l.panel === panel);
+    if (row.length === 0) continue;
+    return (
+      row.find((l) => l.measure === current.measure) ?? row[row.length - 1]!
+    );
+  }
+  return null;
+}
+
 export function showsControl(avail: readonly Layout[]): boolean {
   return avail.length > 1;
 }
