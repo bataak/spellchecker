@@ -32,12 +32,7 @@ export interface BuildOptions {
 
 const TOC_FRAMES: ReadonlySet<Frame> = new Set(["letter", "structured"]);
 
-const TOC_FORMATS: ReadonlySet<string> = new Set([
-  "odt",
-  "docx",
-  "tex",
-  "pdf",
-]);
+const TOC_FORMATS: ReadonlySet<string> = new Set(["odt", "docx", "tex", "pdf"]);
 
 export function hasSections(text: string, templateId: string): boolean {
   const frame = findTemplate(templateId)?.frame;
@@ -59,11 +54,11 @@ async function latexFor(
   templateId: string,
   options: BuildOptions,
 ): Promise<string> {
-  const { PREAMBLE, toBeamer, toLatex } = await import("./latex.ts");
+  const { toBeamer, toLatex } = await import("./latex.ts");
   const frame = findTemplate(templateId)?.frame;
   return frame === "slides"
     ? toBeamer(parse(text))
-    : toLatex(parse(text), PREAMBLE, {
+    : toLatex(parse(text), undefined, {
         toc: tocFor(options, templateId, text),
         pageNumbers: frame !== "letter" || hasSections(text, templateId),
       });
@@ -96,13 +91,11 @@ export const FORMATS: readonly ExportFormat[] = [
     ext: "docx",
     mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     build: async (text, templateId, options) => {
-      const [{ parse }, { applyTemplate }, { buildDocx }] = await Promise.all(
-        [
-          import("./markdown.ts"),
-          import("./office/apply.ts"),
-          import("./office/docx/create.ts"),
-        ],
-      );
+      const [{ parse }, { applyTemplate }, { buildDocx }] = await Promise.all([
+        import("./markdown.ts"),
+        import("./office/apply.ts"),
+        import("./office/docx/create.ts"),
+      ]);
       const template = findTemplate(templateId) ?? findTemplate("plain")!;
       return buildDocx(applyTemplate(parse(text), template), {
         toc: tocFor(options, templateId, text),

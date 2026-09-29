@@ -17,24 +17,37 @@ import { flatten } from "./office/flatten.ts";
 import { columnWidths } from "./office/table.ts";
 import { splitSlides, type Slide } from "./slides.ts";
 
-export const PREAMBLE = `\\documentclass[12pt,a4paper]{article}
+const BASE_PREAMBLE = `\\documentclass[12pt,a4paper]{article}
 \\usepackage[T2A]{fontenc}
 \\usepackage[utf8]{inputenc}
 \\usepackage[mongolian]{babel}
 \\usepackage{paratype}
-\\usepackage{amsmath}
-\\usepackage{amssymb}
-\\usepackage{array}
-\\usepackage{booktabs}
-\\usepackage[OT1]{eulervm}
-\\usepackage{amsthm}
-\\usepackage{hyperref}
-\\newtheorem{theorem}{Теорем}
-\\theoremstyle{definition}
-\\newtheorem{definition}{Тодорхойлолт}
-\\setcounter{secnumdepth}{0}
-\\addto\\captionsmongolian{\\renewcommand{\\contentsname}{Гарчиг}}
 `;
+
+const MATH_RE =
+  /(?<!\\)\$|(?<!\\)\\[[(]|\\begin\{(?:math|displaymath|equation|align|gather|multline|flalign)\b/;
+
+export function preambleFor(tex: string): string {
+  const math = MATH_RE.test(tex);
+  const theorem = tex.includes("\\begin{theorem}");
+  const definition = tex.includes("\\begin{definition}");
+  const lines = [
+    math && "\\usepackage{amsmath}",
+    (math || tex.includes("\\checkmark")) && "\\usepackage{amssymb}",
+    tex.includes("\\arraybackslash") && "\\usepackage{array}",
+    tex.includes("\\toprule") && "\\usepackage{booktabs}",
+    math && "\\usepackage[OT1]{eulervm}",
+    (theorem || definition || tex.includes("\\begin{proof}")) &&
+      "\\usepackage{amsthm}",
+    /\\(?:href|url)\{/.test(tex) && "\\usepackage{hyperref}",
+    theorem && "\\newtheorem{theorem}{Теорем}",
+    definition && "\\theoremstyle{definition}",
+    definition && "\\newtheorem{definition}{Тодорхойлолт}",
+  ];
+  return (
+    BASE_PREAMBLE + lines.filter((line) => typeof line === "string").join("\n")
+  );
+}
 
 const SPECIAL: Readonly<Record<string, string>> = {
   "\\": "\\textbackslash{}",
@@ -348,20 +361,21 @@ export interface LatexOptions {
 
 export function toLatex(
   blocks: readonly Block[],
-  preamble: string = PREAMBLE,
+  preamble?: string,
   options: LatexOptions = {},
 ): string {
   const head = titleBlock(blocks[0]);
   const plain = options.pageNumbers !== false;
+  const body = toLatexBody(blocks);
   return (
-    preamble.replace(/\s*$/, "\n") +
+    (preamble ?? preambleFor(head + body)).replace(/\s*$/, "\n") +
     head +
     "\n\\begin{document}\n\n" +
     (plain ? "" : "\\pagestyle{empty}\n\n") +
     (head ? "\\maketitle\n\n" : "") +
     (head && !plain ? "\\thispagestyle{empty}\n\n" : "") +
     (options.toc ? "\\tableofcontents\n\n" : "") +
-    toLatexBody(blocks) +
+    body +
     "\n\n\\end{document}\n"
   );
 }
