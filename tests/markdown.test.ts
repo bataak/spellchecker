@@ -234,6 +234,15 @@ test("isMarkdown — жагсаалт дангаараа хангалтгүй", 
   for (const src of plain) assert.equal(isMarkdown(parse(src)), false, src);
 });
 
+test("isMarkdown — мөрийн төгсгөлийн хоёр зай хангалтгүй", () => {
+  const plain = [
+    "Эцэг эхчүүд ярив.  \nskip-share\n",
+    "Эхний мөр\\\nДараагийн мөр\n",
+    "- нэг  \n  хоёр\n",
+  ];
+  for (const src of plain) assert.equal(isMarkdown(parse(src)), false, src);
+});
+
 test("isMarkdown — жагсаалтын доторх тэмдэглэгээ тоологдоно", () => {
   assert.ok(isMarkdown(parse("- **нэг**\n- хоёр\n")));
 });

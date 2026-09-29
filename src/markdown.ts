@@ -1200,7 +1200,11 @@ export function format(
 
 function hasInlineMarkup(nodes: readonly Inline[]): boolean {
   return nodes.some(
-    (n) => n.type !== "text" && n.type !== "blank" && n.type !== "softbreak",
+    (n) =>
+      n.type !== "text" &&
+      n.type !== "blank" &&
+      n.type !== "softbreak" &&
+      n.type !== "break",
   );
 }
 
