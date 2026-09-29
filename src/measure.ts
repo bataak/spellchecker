@@ -21,6 +21,7 @@ import {
 } from "./layout.ts";
 
 const STORAGE_KEY = "layout";
+const MD_PREVIEW_KEY = "md-preview";
 
 const SAMPLE =
   "Монгол хэлний үг залгамал бүтэцтэй тул нэлээд урт болдог, " +
@@ -155,6 +156,21 @@ function save(l: Layout): void {
   } catch {}
 }
 
+function loadMdPreview(): boolean {
+  try {
+    return localStorage.getItem(MD_PREVIEW_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+
+function saveMdPreview(on: boolean): void {
+  try {
+    if (on) localStorage.removeItem(MD_PREVIEW_KEY);
+    else localStorage.setItem(MD_PREVIEW_KEY, "off");
+  } catch {}
+}
+
 function rect(svg: SVGSVGElement, x: number, w: number, cls: string): void {
   const r = document.createElementNS(SVG_NS, "rect");
   r.setAttribute("x", (x + 1).toFixed(2));
@@ -282,6 +298,8 @@ export function mountMeasureControl(
 
   let desired: Layout = load();
   let previewMode = false;
+  let mdMode = false;
+  let mdPreview = loadMdPreview();
   let prev: Layout[] = [];
   let metrics: Metrics = { ...DEFAULT_METRICS };
 
@@ -305,6 +323,10 @@ export function mountMeasureControl(
   const pick = (l: Layout): void => {
     desired = l;
     previewMode = false;
+    if (mdMode && l.preview !== mdPreview) {
+      mdPreview = l.preview;
+      saveMdPreview(mdPreview);
+    }
     save(l);
     close();
     refresh();
@@ -417,8 +439,9 @@ export function mountMeasureControl(
   return {
     refresh,
     setPreviewMode(on) {
-      if (on === previewMode) return;
-      previewMode = on;
+      if (on === mdMode) return;
+      mdMode = on;
+      previewMode = on && mdPreview;
       refresh();
     },
     destroy() {
