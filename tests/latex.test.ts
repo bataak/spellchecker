@@ -209,3 +209,38 @@ test("TeX лого: текст дотор лого, томьёо дотор \\te
   assert.ok(tex.includes("$\\text{\\LaTeX} 2e$"), tex);
   assert.ok(!tex.includes("\\textbackslash{}LaTeX"), tex);
 });
+
+test("преамбулд зөвхөн хэрэгтэй багцууд орно", () => {
+  const plain = toLatex(parse("# А\n\nҮнэ \\$5\n"));
+  for (const name of [
+    "amsmath",
+    "amssymb",
+    "array",
+    "booktabs",
+    "eulervm",
+    "amsthm",
+    "hyperref",
+    "newtheorem",
+    "secnumdepth",
+    "contentsname",
+  ])
+    assert.ok(!plain.includes(name), name);
+  const full = toLatex(
+    parse(
+      "[а](http://x)\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n$x$\n\n\\begin{definition}\nт\n\\end{definition}\n",
+    ),
+    undefined,
+    { toc: true },
+  );
+  for (const line of [
+    "\\usepackage{amsmath}",
+    "\\usepackage{booktabs}",
+    "\\usepackage{hyperref}",
+    "\\usepackage{amsthm}",
+    "\\theoremstyle{definition}",
+    "\\newtheorem{definition}{Тодорхойлолт}",
+  ])
+    assert.ok(full.includes(line), line);
+  assert.ok(!full.includes("\\newtheorem{theorem}"));
+  assert.ok(!full.includes("contentsname"));
+});
