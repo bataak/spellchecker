@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.93.0](https://github.com/bataak/spellchecker/compare/v1.92.0...v1.93.0) (2026-09-29)
+
+
+### Features
+
+* open preview for md templates and add one-time onboarding hints ([28bb327](https://github.com/bataak/spellchecker/commit/28bb327a6ba65aa243f0819a3a1e5a247f053f5b))
+
+
+### Bug Fixes
+
+* **export:** add LaTeX preamble packages only when the document uses them ([eb956d9](https://github.com/bataak/spellchecker/commit/eb956d9a109382120f37f8ff7e7be78c8ec8b64e))
+* **export:** unpack the TeX bundle without a blob worker ([2697343](https://github.com/bataak/spellchecker/commit/269734303e4910694129dedf78b0dc63835df30e))
+* **hint:** reword the open file hint ([1ec2105](https://github.com/bataak/spellchecker/commit/1ec210565454d340aa6e11e047beaf4bc4d5faa5))
+* **markdown:** do not treat a line break alone as markdown ([013962c](https://github.com/bataak/spellchecker/commit/013962c4edec785871cab4f7982ed09d675d96e8))
+
 ## [1.92.0](https://github.com/bataak/spellchecker/compare/v1.91.0...v1.92.0) (2026-09-28)
 
 
