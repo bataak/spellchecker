@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.95.1](https://github.com/bataak/spellchecker/compare/v1.95.0...v1.95.1) (2026-09-30)
+
+
+### Bug Fixes
+
+* **office:** split wide edits into word hunks across mixed-format runs ([6bd4565](https://github.com/bataak/spellchecker/commit/6bd45654d34cfdbc35ac31f4a87ad1662ab3f633))
+
 ## [1.95.0](https://github.com/bataak/spellchecker/compare/v1.94.0...v1.95.0) (2026-09-30)
 
 
