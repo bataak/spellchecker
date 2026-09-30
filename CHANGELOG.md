@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.95.0](https://github.com/bataak/spellchecker/compare/v1.94.0...v1.95.0) (2026-09-30)
+
+
+### Features
+
+* **export:** save markdown without fenced div lines ([060be95](https://github.com/bataak/spellchecker/commit/060be95b7bbbb91a8f5ce61bd2e9272ae8f364f6))
+* **markdown:** render \today as the current date ([0051a5a](https://github.com/bataak/spellchecker/commit/0051a5a831281e8cc230ddde57243c5cbcbb65da))
+* **print:** print presentations with two slides per A4 page ([369cb19](https://github.com/bataak/spellchecker/commit/369cb198254aa509cdd16cbdc38b35fca19f5ebb))
+* **toolbar:** add align and signature buttons to the markdown toolbar ([05423c2](https://github.com/bataak/spellchecker/commit/05423c2ab7764591c89336d82cb1baa7ce0a9005))
+
+
+### Bug Fixes
+
+* **export:** initialize the export control before entering markdown mode ([8d9c1dc](https://github.com/bataak/spellchecker/commit/8d9c1dcc341de31fbd63d6a48dfd8b43588a44d6))
+* **export:** keep paragraph and line spacing in aligned blocks ([a8ba544](https://github.com/bataak/spellchecker/commit/a8ba54424e780b5c47bffac33c1f34d110941d48))
+* **toolbar:** keep a separate draft and caret for each template example ([d70df3c](https://github.com/bataak/spellchecker/commit/d70df3c91b3fa4acc7352177d2ccd6d65d3f2bd8))
+
 ## [1.94.0](https://github.com/bataak/spellchecker/compare/v1.93.0...v1.94.0) (2026-09-29)
 
 
