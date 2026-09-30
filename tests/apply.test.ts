@@ -100,7 +100,7 @@ test("илтгэгчийн тэмдэглэл баримтад орохгүй, Y
     "---\ntitle: Судалгаа\nauthor: Бат\n---\n\n# Хэсэг\n\nДогол.\n\n::: notes\nНууц.\n:::\n";
   assert.deepEqual(styles(md, "report"), [
     "Title",
-    "Center",
+    "Meta",
     "Heading1",
     "BodyFirst",
   ]);

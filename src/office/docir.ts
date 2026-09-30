@@ -85,6 +85,7 @@ export const STYLE = {
   signCell: "SignCell",
   center: "Center",
   left: "Left",
+  meta: "Meta",
   quote: "Quote",
   code: "Code",
   listItem: "ListItem",

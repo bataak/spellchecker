@@ -24,10 +24,10 @@ export function guillemets(text: string): string {
 
 const META_STYLE: Readonly<Record<string, string>> = {
   title: STYLE.title,
-  subtitle: STYLE.center,
-  author: STYLE.center,
-  institute: STYLE.center,
-  date: STYLE.center,
+  subtitle: STYLE.meta,
+  author: STYLE.meta,
+  institute: STYLE.meta,
+  date: STYLE.meta,
 };
 
 const ALIGNABLE: ReadonlySet<string> = new Set([
@@ -89,15 +89,28 @@ const BASE: Readonly<Record<string, ParaStyle>> = {
     lineHeightPercent: 150,
     spaceBeforePt: SIGNATURE_GAP_PT,
   },
-  [STYLE.right]: { align: "end", lineHeightPercent: 115 },
+  [STYLE.right]: {
+    align: "end",
+    lineHeightPercent: 115,
+    spaceAfterPt: PARA_GAP_PT,
+  },
   [STYLE.signatureGap]: {
     sizePt: 1,
     lineHeightPercent: 100,
     spaceBeforePt: SIGNATURE_GAP_PT - 1,
   },
   [STYLE.signCell]: { lineHeightPercent: 150, noHyphenation: true },
-  [STYLE.center]: { align: "center", lineHeightPercent: 115 },
-  [STYLE.left]: { align: "start", lineHeightPercent: 115 },
+  [STYLE.center]: {
+    align: "center",
+    lineHeightPercent: 115,
+    spaceAfterPt: PARA_GAP_PT,
+  },
+  [STYLE.left]: {
+    align: "start",
+    lineHeightPercent: 115,
+    spaceAfterPt: PARA_GAP_PT,
+  },
+  [STYLE.meta]: { align: "center", lineHeightPercent: 115 },
   [STYLE.quote]: {
     align: "justify",
     marginLeftCm: 1.25,

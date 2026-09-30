@@ -244,3 +244,14 @@ test("преамбулд зөвхөн хэрэгтэй багцууд орно",
   assert.ok(!full.includes("\\newtheorem{theorem}"));
   assert.ok(!full.includes("contentsname"));
 });
+
+test("зэрэгцүүлэх div догол мөрийн болон мөр хоорондын зайг өөрчлөхгүй", () => {
+  assert.equal(
+    body("::: {.left}\nНэг\n\nХоёр\n:::\n"),
+    "{\\setlength{\\parindent}{0pt}\\raggedright\nНэг\n\nХоёр\\par}",
+  );
+  assert.equal(
+    body("::: {.right}\nНэг\n:::\n"),
+    "{\\setlength{\\parindent}{0pt}\\raggedleft\nНэг\\par}",
+  );
+});

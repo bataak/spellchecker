@@ -120,8 +120,8 @@ const RAGGED = {
 const TEXT_WIDTH_CM = 13.7;
 function oneLine(nodes: readonly Inline[]): string {
   return inline(
-    nodes.map((n): Inline =>
-      n.type === "break" ? { type: "text", value: " " } : n,
+    nodes.map(
+      (n): Inline => (n.type === "break" ? { type: "text", value: " " } : n),
     ),
   );
 }
@@ -169,28 +169,22 @@ function divBlock(b: DivBlock, beamer: boolean): string {
     blocks.map((inner) => block(inner, beamer, place)).join("\n\n");
   if (b.classes.includes("notes"))
     return beamer ? "\\note{" + body(b.children) + "}" : "";
-  const align =
-    b.classes.includes("signature") || b.classes.includes("right")
-      ? "flushright"
-      : b.classes.includes("center")
-        ? "center"
-        : b.classes.includes("left")
-          ? "flushleft"
-          : null;
-  if (align !== null)
+  if (b.classes.includes("signature"))
     return (
-      (b.classes.includes("signature") ? "\\bigskip\n" : "") +
-      "\\begin{" +
-      align +
-      "}\n" +
-      (b.classes.includes("signature") &&
-      b.children.some((inner) => inner.type === "paragraph")
+      "\\bigskip\n\\begin{flushright}\n" +
+      (b.children.some((inner) => inner.type === "paragraph")
         ? "\\linespread{1.25}\\selectfont\n"
         : "") +
       body(b.children) +
-      "\n\\end{" +
-      align +
-      "}"
+      "\n\\end{flushright}"
+    );
+  if (place !== undefined)
+    return (
+      "{\\setlength{\\parindent}{0pt}" +
+      place +
+      "\n" +
+      body(b.children) +
+      "\\par}"
     );
   if (!b.classes.includes("columns")) return body(b.children);
   const columns = b.children.filter(
