@@ -32,9 +32,18 @@ export interface BuildOptions {
 
 const TOC_FRAMES: ReadonlySet<Frame> = new Set(["letter", "structured"]);
 
-const PRINT_FRAMES: ReadonlySet<Frame> = new Set(["letter", "structured"]);
+const PRINT_FRAMES: ReadonlySet<Frame> = new Set([
+  "letter",
+  "structured",
+  "slides",
+]);
 
-const TOC_FORMATS: ReadonlySet<string> = new Set(["odt", "docx", "tex", "pdf"]);
+const TOC_FORMATS: ReadonlySet<string> = new Set([
+  "odt",
+  "docx",
+  "tex",
+  "pdf",
+]);
 
 export function hasSections(text: string, templateId: string): boolean {
   const frame = findTemplate(templateId)?.frame;
@@ -93,11 +102,13 @@ export const FORMATS: readonly ExportFormat[] = [
     ext: "docx",
     mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     build: async (text, templateId, options) => {
-      const [{ parse }, { applyTemplate }, { buildDocx }] = await Promise.all([
-        import("./markdown.ts"),
-        import("./office/apply.ts"),
-        import("./office/docx/create.ts"),
-      ]);
+      const [{ parse }, { applyTemplate }, { buildDocx }] = await Promise.all(
+        [
+          import("./markdown.ts"),
+          import("./office/apply.ts"),
+          import("./office/docx/create.ts"),
+        ],
+      );
       const template = findTemplate(templateId) ?? findTemplate("plain")!;
       return buildDocx(applyTemplate(parse(text), template), {
         toc: tocFor(options, templateId, text),
@@ -446,6 +457,17 @@ export function initExport(options: ExportOptions): ExportControl {
 
   async function print(): Promise<void> {
     const template = findTemplate(options.template())!;
+    if (template.frame === "slides") {
+      const [{ splitSlides }, { deckDoc }, { printDeck }] = await Promise.all(
+        [
+          import("./slides.ts"),
+          import("./office/deck.ts"),
+          import("./office/deckprint.ts"),
+        ],
+      );
+      await printDeck(deckDoc(splitSlides(parse(editor.value))));
+      return;
+    }
     const [{ applyTemplate }, { printDoc }] = await Promise.all([
       import("./office/apply.ts"),
       import("./office/print.ts"),
