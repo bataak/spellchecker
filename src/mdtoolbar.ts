@@ -1,16 +1,19 @@
 import {
+  alignAt,
   cycleCase,
   enterInsert,
   headingDepthAt,
+  insertSignature,
   insertTable,
   minimalDiff,
+  toggleAlign,
   toggleHeading,
   toggleList,
   toggleQuote,
   toggleWrap,
   wrapLink,
 } from "./mdedit.ts";
-import type { Edit } from "./mdedit.ts";
+import type { AlignKind, Edit } from "./mdedit.ts";
 import {
   LEGACY_TEMPLATES,
   PLAIN,
@@ -44,6 +47,10 @@ type Role =
   | "h3"
   | "h4"
   | "case"
+  | "left"
+  | "center"
+  | "right"
+  | "signature"
   | "bullet"
   | "ordered"
   | "quote"
@@ -57,6 +64,12 @@ interface ButtonSpec {
 }
 
 const ICON = {
+  left: '<path d="M1.5 3h13M1.5 6.3h8.5M1.5 9.7h13M1.5 13h8.5"/>',
+  center: '<path d="M1.5 3h13M4 6.3h8M1.5 9.7h13M4 13h8"/>',
+  right: '<path d="M1.5 3h13M6 6.3h8.5M1.5 9.7h13M6 13h8.5"/>',
+  signature:
+    '<path d="M1.5 14h13M2.3 9.2l2.6 2.6M4.9 9.2l-2.6 2.6"/>' +
+    '<path d="M8 11.5l.6-2.3 5.1-5.1a1.2 1.2 0 0 1 1.7 1.7l-5.1 5.1z"/>',
   bullet:
     '<circle cx="3" cy="4" r="1.1" fill="currentColor" stroke="none"/>' +
     '<circle cx="3" cy="8" r="1.1" fill="currentColor" stroke="none"/>' +
@@ -96,6 +109,10 @@ const BUTTONS: readonly ButtonSpec[] = [
   { role: "h3", label: "H3", title: "Дэдийн дэд гарчиг" },
   { role: "h4", label: "H4", title: "Догол доторх гарчиг" },
   { role: "case", label: "Aa", title: "Том, жижиг үсэг ээлжлэх" },
+  { role: "left", label: svg(ICON.left), title: "Зүүн тийш зэрэгцүүлэх" },
+  { role: "center", label: svg(ICON.center), title: "Голлуулах" },
+  { role: "right", label: svg(ICON.right), title: "Баруун тийш зэрэгцүүлэх" },
+  { role: "signature", label: svg(ICON.signature), title: "Гарын үсэг" },
   { role: "bullet", label: svg(ICON.bullet), title: "Цэгт жагсаалт" },
   {
     role: "ordered",
@@ -113,6 +130,13 @@ const HEADING_DEPTH: Partial<Record<Role, 1 | 2 | 3 | 4>> = {
   h2: 2,
   h3: 3,
   h4: 4,
+};
+
+const ALIGN_ROLE: Partial<Record<Role, AlignKind>> = {
+  left: "left",
+  center: "center",
+  right: "right",
+  signature: "signature",
 };
 
 const TEMPLATE_KEY = "mdTemplate";
@@ -310,7 +334,13 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     if (want !== undefined) headingButtons.push([button, want]);
   }
 
-  let lastDepth = -1;
+  const alignButtons: [HTMLButtonElement, AlignKind][] = [];
+  for (const button of group.querySelectorAll<HTMLButtonElement>(".md-btn")) {
+    const kind = ALIGN_ROLE[button.dataset.role as Role];
+    if (kind !== undefined) alignButtons.push([button, kind]);
+  }
+
+  let lastState = "";
   let ready = false;
   let settle: ReturnType<typeof setTimeout> | null = null;
   let readyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -344,8 +374,15 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     const start = editor.selectionStart;
     const end = editor.selectionEnd;
     const depth = HEADING_DEPTH[role];
+    const kind = ALIGN_ROLE[role];
 
     if (depth !== undefined) apply(toggleHeading(text, start, end, depth));
+    else if (kind !== undefined)
+      apply(
+        (kind === "signature" && start === end
+          ? insertSignature(text, start, new Date())
+          : null) ?? toggleAlign(text, start, end, kind),
+      );
     else if (role === "bold") apply(toggleWrap(text, start, end, "**"));
     else if (role === "italic") apply(toggleWrap(text, start, end, "*"));
     else if (role === "code") apply(toggleWrap(text, start, end, "`"));
@@ -355,7 +392,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     else if (role === "table") apply(insertTable(text, start));
     else apply(toggleList(text, start, end, role === "ordered"));
 
-    lastDepth = -1;
+    lastState = "";
     syncActive();
   }
 
@@ -366,10 +403,14 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   function syncActive(): void {
     if (bar.hidden || group.hidden) return;
     const depth = headingDepthAt(editor.value, editor.selectionStart);
-    if (depth === lastDepth) return;
-    lastDepth = depth;
+    const align = alignAt(editor.value, editor.selectionStart);
+    const state = String(depth) + ":" + String(align);
+    if (state === lastState) return;
+    lastState = state;
     for (const [button, want] of headingButtons)
       button.classList.toggle("is-on", want === depth);
+    for (const [button, kind] of alignButtons)
+      button.classList.toggle("is-on", kind === align);
   }
 
   function syncVisible(): void {
@@ -378,8 +419,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       settle = null;
     }
     const focus = document.activeElement;
-    const focused =
-      focus === editor || (focus !== null && bar.contains(focus));
+    const focused = focus === editor || (focus !== null && bar.contains(focus));
     const on = active();
     const show = ready && focused;
 
@@ -388,13 +428,13 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
 
     if (group.hidden !== !on) {
       group.hidden = !on;
-      lastDepth = -1;
+      lastState = "";
     }
 
     if (bar.hidden !== !show) {
       bar.hidden = !show;
       mount?.classList.toggle("has-mdbar", show);
-      lastDepth = -1;
+      lastState = "";
     }
 
     syncWide();
