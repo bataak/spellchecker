@@ -296,6 +296,15 @@ export function printHtml(doc: DocIr, fontBase = "fonts/"): string {
 let current: HTMLIFrameElement | null = null;
 
 export function printDoc(doc: DocIr): Promise<void> {
+  return printPage(
+    printHtml(
+      doc,
+      new URL(import.meta.env.BASE_URL + "fonts/", location.href).href,
+    ),
+  );
+}
+
+export function printPage(html: string): Promise<void> {
   current?.remove();
   const frame = document.createElement("iframe");
   current = frame;
@@ -303,10 +312,7 @@ export function printDoc(doc: DocIr): Promise<void> {
   frame.tabIndex = -1;
   frame.style.cssText =
     "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
-  frame.srcdoc = printHtml(
-    doc,
-    new URL(import.meta.env.BASE_URL + "fonts/", location.href).href,
-  );
+  frame.srcdoc = html;
   return new Promise((resolve, reject) => {
     frame.addEventListener(
       "load",
