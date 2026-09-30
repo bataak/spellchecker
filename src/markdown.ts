@@ -714,6 +714,50 @@ function divEnd(lines: readonly string[], start: number): number {
   return -1;
 }
 
+export function withoutDivs(src: string): string {
+  const lines = src.split("\n");
+  const drop = new Set<number>();
+  let fence = "";
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i]!;
+    const code = FENCE_RE.exec(line);
+    if (code) {
+      if (!fence) fence = code[1]!;
+      else if (line.trim().startsWith(fence)) fence = "";
+      continue;
+    }
+    if (fence || drop.has(i)) continue;
+    const open = DIV_OPEN.exec(line);
+    if (!open) continue;
+    const end = divEnd(lines, i);
+    if (end < 0) continue;
+    if (parseAttrs(open[2]!).classes.includes("notes")) {
+      for (let j = i; j <= end; j += 1) drop.add(j);
+      i = end;
+    } else {
+      drop.add(i);
+      drop.add(end);
+    }
+  }
+  const out: string[] = [];
+  let gap = false;
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i]!;
+    if (drop.has(i)) {
+      gap = true;
+      continue;
+    }
+    const blank = !line.trim();
+    if (gap && !blank && out.length > 0 && out.at(-1)!.trim()) out.push("");
+    if (!(gap && blank && (out.length === 0 || !out.at(-1)!.trim())))
+      out.push(line);
+    gap = false;
+  }
+  while (out.length > 0 && !out.at(-1)!.trim() && lines.at(-1)!.trim())
+    out.pop();
+  return out.join("\n");
+}
+
 export function metaValue(
   block: Block | undefined,
   key: string,

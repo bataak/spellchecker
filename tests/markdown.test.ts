@@ -9,6 +9,7 @@ import {
   print,
   toHtml,
   todayText,
+  withoutDivs,
   type Block,
 } from "../src/markdown.ts";
 
@@ -685,4 +686,29 @@ test("\\today нь өнөөдрийн огноо болж, \\todayx-ийг хө�
   );
   assert.equal(todayText(new Date(2026, 0, 5)), "2026/01/05");
   assert.equal(format("Огноо: \\today\n"), "Огноо: \\today\n");
+});
+
+test("цэвэр MD: ::: мөрүүдийг хасч, агуулгыг үлдээнэ", () => {
+  assert.equal(
+    withoutDivs("Текст\n::: {.right}\nБаруун \\today\n:::\n\nДараа\n"),
+    "Текст\n\nБаруун \\today\n\nДараа\n",
+  );
+  assert.equal(
+    withoutDivs("А\n\n::: {.signature}\n::: {.center}\nБ\n:::\n:::\n\nВ"),
+    "А\n\nБ\n\nВ",
+  );
+});
+
+test("цэвэр MD: илтгэгчийн тэмдэглэлийг бүхэлд нь хасна", () => {
+  assert.equal(
+    withoutDivs("# Слайд\n\nТекст.\n\n::: notes\nНууц.\n:::\n"),
+    "# Слайд\n\nТекст.\n",
+  );
+  assert.equal(withoutDivs("А\n\n::: notes\nН\n:::"), "А");
+});
+
+test("цэвэр MD: код блок болон хаагдаагүй ::: мөрийг хөндөхгүй", () => {
+  const code = "```\n::: {.left}\nх\n:::\n```\n";
+  assert.equal(withoutDivs(code), code);
+  assert.equal(withoutDivs("::: {.left}\nх"), "::: {.left}\nх");
 });
