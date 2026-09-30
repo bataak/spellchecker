@@ -2427,10 +2427,10 @@ const nudgeHints = initHints(() => {
     template,
   ];
 });
+let exportCtl: ExportControl | null = null;
+
 enterMdMode(!isPlain(mdBar.template()));
 els.editor.addEventListener("input", nudgeHints);
-
-let exportCtl: ExportControl | null = null;
 
 function enterMdMode(on: boolean): void {
   measureCtl?.setPreviewMode(on);
