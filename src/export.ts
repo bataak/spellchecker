@@ -171,6 +171,14 @@ export const FORMATS: readonly ExportFormat[] = [
     build: (text) => text,
   },
   {
+    id: "md-plain",
+    frames: ["letter", "structured", "slides"],
+    name: "Markdown (цэвэр)",
+    ext: "md",
+    mime: "text/markdown;charset=utf-8",
+    build: async (text) => (await import("./markdown.ts")).withoutDivs(text),
+  },
+  {
     id: "txt",
     frames: ["plain"],
     name: "Энгийн бичвэр",
