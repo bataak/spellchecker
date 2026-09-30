@@ -7,17 +7,11 @@ import {
   MultiSpellChecker,
   checkWordsBatched,
   tokenize,
-  DICTIONARIES,
 } from "./spellchecker.ts";
-import {
-  detectVariant,
-  hasMojibake,
-  repairCyrillicDetailed,
-} from "./cp1251.ts";
 import type { SpellChecker } from "./spellchecker.ts";
 import { initFileIO } from "./fileio.ts";
 import { initToolbar } from "./toolbar.ts";
-import { initKeyboardToolbar, KEYBOARD_LAYOUT_EVENT } from "./kbtoolbar.ts";
+import { initKeyboardToolbar } from "./kbtoolbar.ts";
 import { initSuggest } from "./suggest.ts";
 import { initSurvey, surveyOnErrorCount } from "./survey.ts";
 import { isIgnored, addIgnored } from "./ignore.ts";
@@ -29,32 +23,16 @@ import { initPreview, type Preview } from "./preview.ts";
 
 let previewCtl: Preview | null = null;
 import { escapeHtml } from "./htmlutil.ts";
-import {
-  clipText,
-  displayHeadword,
-  pickDefinitionMarks,
-  placeTip,
-} from "./defmarks.ts";
-import type { DictEntry } from "./stardict.ts";
+import { pickDefinitionMarks } from "./defmarks.ts";
 import { inRanges, skipRanges } from "./codeskip.ts";
 import {
   checkable,
   isDashSuffix,
   buildErrorList,
-  isDecimalPoint,
-  splitNumberBoundary,
   dashSpan,
-  dashNormalized,
   dashNormalizeApply,
 } from "./textcheck.ts";
-import {
-  initDraftStorage,
-  saveDraft,
-  flushDraft,
-  loadDraft,
-  saveDraftFile,
-  loadDraftFile,
-} from "./storage.ts";
+import { saveDraftFile, loadDraftFile } from "./storage.ts";
 import { initMdToolbar } from "./mdtoolbar.ts";
 import {
   defineHint,
@@ -72,13 +50,12 @@ import {
   renderBackdrop,
   refreshBackdropMarks,
   materializeMark,
-  rangeRectAt,
   setActiveLine,
   setLineBlocks,
   backdropLineCount,
   marksAtY,
 } from "./backdrop.ts";
-import { shiftTokens, type TextEdit } from "./tokenshift.ts";
+import { shiftTokens } from "./tokenshift.ts";
 import { isLookupKey, wordAt, type WordSpan } from "./lookup.ts";
 import { openDictManager } from "./dictmanager.ts";
 import { rotateEmptyTips, syncEmptyTips } from "./emptytips.ts";
@@ -89,15 +66,36 @@ import {
   visibleIds,
 } from "./dictmenu.ts";
 import { splitName } from "./office/filename.ts";
-import {
-  applyCase,
-  caseRank,
-  casePattern,
-  irregularCase,
-  rankToPattern,
-} from "./caseform.ts";
+import { casePattern } from "./caseform.ts";
 import type { CasePattern } from "./caseform.ts";
 import type { OfficeMode } from "./office/mode.ts";
+import { initStatus, nf } from "./status.ts";
+import { isBulkDelete, isSeparatorInput, isTouch } from "./input.ts";
+import { copyText, flash } from "./clipboard.ts";
+import {
+  dashFixes,
+  numberSplits,
+  periodSplitDot,
+  periodSplits,
+  replaceAllWord,
+  scopeToSuffix,
+  splitEveryOccurrence,
+  wordAtCaret,
+} from "./wordfix.ts";
+import { initEditorText } from "./editortext.ts";
+import { initDraftText } from "./drafttext.ts";
+import { initDecode } from "./decode.ts";
+import { initAppUpdate } from "./appupdate.ts";
+import {
+  dictStatusMessage,
+  isOfflineReady,
+  offlineCapable,
+  requestDurableStorage,
+} from "./offline.ts";
+import { initShortcuts } from "./shortcuts.ts";
+import { initDefTip } from "./deftip.ts";
+import { initPopover } from "./popover.ts";
+import { initErrorPanel } from "./errorpanel.ts";
 
 document.body.classList.add("ready");
 
@@ -109,11 +107,6 @@ const els = {
   emptyState: document.querySelector<HTMLElement>("#emptyState"),
 };
 
-const panelEls = {
-  list: document.querySelector<HTMLElement>("#errorList"),
-  copy: document.querySelector<HTMLButtonElement>("#copyErrorsBtn"),
-  title: document.querySelector<HTMLElement>("#errorPanelTitle"),
-};
 const desktopMQ = window.matchMedia("(min-width: 1024px)");
 const narrowMQ = window.matchMedia("(max-width: 700px)");
 setLineBlocks(!narrowMQ.matches);
@@ -151,7 +144,6 @@ let ready = false;
 let badTokens: Token[] = [];
 let baseStatus = "";
 let offlineIndicatorActive = false;
-let verBase = "";
 let lastDictRefresh = 0;
 let pendingFix: PendingFix | null = null;
 let enabledEnglish = loadEnabledEnglish();
@@ -161,23 +153,13 @@ let docx: OfficeMode | null = null;
 let plainName: string | null = null;
 let skipCode = true;
 let skipLinks = true;
+let lastCaret: { start: number; end: number } | null = null;
 
-const labelOf = (id: string): string =>
-  DICTIONARIES.find((dict) => dict.id === id)?.label || id;
-const nf = (num: number): string => num.toLocaleString("en-US");
-let statusHoldUntil = 0;
-let statusHoldTimer: number | null = null;
+const status = initStatus(els.status, () => restoreStatus());
+const setStatus = status.set;
+const holdStatus = status.hold;
+const releaseStatusHold = status.release;
 
-const setStatus = (html: string, animate = true): void => {
-  if (statusHoldUntil > 0 && Date.now() < statusHoldUntil) return;
-  els.status.innerHTML = html;
-  els.status.classList.remove("status-reveal");
-  if (!animate) return;
-  void els.status.offsetWidth;
-  els.status.classList.add("status-reveal");
-};
-
-const STATUS_HOLD_MS = 6000;
 const PREPARE_HOLD_MS = 3000;
 
 function restoreStatus(): void {
@@ -187,23 +169,6 @@ function restoreStatus(): void {
     return;
   }
   setStatus(statsMessage(), false);
-}
-
-function holdStatus(html: string, ms = STATUS_HOLD_MS, animate = true): void {
-  if (statusHoldTimer) clearTimeout(statusHoldTimer);
-  statusHoldUntil = 0;
-  setStatus(html, animate);
-  statusHoldUntil = Date.now() + ms;
-  statusHoldTimer = window.setTimeout(() => {
-    statusHoldTimer = null;
-    statusHoldUntil = 0;
-    restoreStatus();
-  }, ms);
-}
-function releaseStatusHold(): void {
-  if (statusHoldTimer) clearTimeout(statusHoldTimer);
-  statusHoldTimer = null;
-  statusHoldUntil = 0;
 }
 function isCorrect(word: string): boolean {
   return cache.has(word) ? cache.get(word)! : true;
@@ -295,57 +260,6 @@ function computeBad(
   return { bad, total };
 }
 
-function replaceAllWord(
-  text: string,
-  originalLower: string,
-  baseRepl: string,
-  caretOffset: number,
-  primaryPattern: CasePattern,
-  onlyAt?: number | null,
-): { text: string; caret: number } {
-  baseRepl = baseRepl.replace(/\s+$/, "");
-  const verbatim = irregularCase(baseRepl);
-  const corrRank = caseRank(casePattern(baseRepl));
-  const primRank = caseRank(primaryPattern || "lower");
-  const floor = corrRank > primRank ? corrRank : 0;
-  const targetLower = originalLower.replace(/\s+$/, "");
-  let result = "";
-  let cursor = 0;
-  let caret = caretOffset;
-  for (const { word, index } of tokenize(text)) {
-    const trail = (word.match(/\s+$/) || [""])[0];
-    const core = trail ? word.slice(0, word.length - trail.length) : word;
-    if (
-      core.toLowerCase() === targetLower &&
-      (onlyAt == null || index === onlyAt)
-    ) {
-      result += text.slice(cursor, index);
-      let rep;
-      if (verbatim) {
-        rep = baseRepl;
-      } else {
-        const resolvedRank = Math.max(caseRank(casePattern(core)), floor);
-        rep = applyCase(rankToPattern(resolvedRank), baseRepl);
-      }
-      if (caretOffset != null && index + word.length <= caretOffset) {
-        caret += rep.length - core.length;
-      }
-      result += rep + trail;
-      cursor = index + word.length;
-    }
-  }
-  result += text.slice(cursor);
-  return { text: result, caret };
-}
-function wordAtCaret(text: string, pos: number): Token | null {
-  for (const { word, index } of tokenize(text)) {
-    if (pos >= index && pos <= index + word.length) {
-      return { word, start: index, end: index + word.length };
-    }
-  }
-  return null;
-}
-
 function syncEmptyState(text: string): void {
   if (!els.emptyState) return;
   const empty = text.length === 0;
@@ -367,11 +281,7 @@ async function render() {
     badTokens = [];
     renderBackdrop(text, []);
     syncScroll();
-    if (panelEls.list) panelEls.list.innerHTML = "";
-    if (panelEls.copy) panelEls.copy.disabled = true;
-    if (panelEls.title && text.trim() !== "" && desktopMQ.matches) {
-      panelEls.title.textContent = "Тооцоолж байна…";
-    }
+    errorPanel.clear(text.trim() !== "");
     return;
   }
 
@@ -383,7 +293,7 @@ async function render() {
 
   renderBackdrop(text, bad);
   syncScroll();
-  renderErrorPanel();
+  errorPanel.render();
   surveyOnErrorCount(bad.length, text.trim() !== "");
 
   if (ready) {
@@ -507,274 +417,39 @@ function tokenAtCaret() {
   return null;
 }
 
-let activeStart: number | null = null;
-let kbAdjustTimer: ReturnType<typeof setTimeout> | null = null;
-let popoverScrollTop = 0;
-let popoverFullH = 0;
-let popoverChromeH = 0;
-
-type Definition = {
-  dicts: number;
-  source: string;
-  entries: DictEntry[];
-};
-
-const DEF_TEXT_LIMIT = 3000;
-const DEF_TIP_GRACE_MS = 250;
-let defTip: HTMLDivElement | null = null;
-let defTipAnchor: HTMLElement | null = null;
-let defTipHideTimer: ReturnType<typeof setTimeout> | null = null;
-let defCache = new Map<string, Promise<Definition>>();
-
-function cancelDefTipHide(): void {
-  if (defTipHideTimer) clearTimeout(defTipHideTimer);
-  defTipHideTimer = null;
-}
-
-function scheduleDefTipHide(): void {
-  cancelDefTipHide();
-  defTipHideTimer = setTimeout(() => {
-    defTipHideTimer = null;
-    hideDefTip();
-  }, DEF_TIP_GRACE_MS);
-}
-
-function hideDefTip(): void {
-  cancelDefTipHide();
-  if (defTipAnchor) defTipAnchor.setAttribute("aria-expanded", "false");
-  defTipAnchor = null;
-  if (defTip) defTip.hidden = true;
-}
-
-function definitionFor(word: string): Promise<Definition> {
-  let pending = defCache.get(word);
-  if (!pending) {
-    pending = checker.define
-      ? checker.define(word)
-      : Promise.resolve({ source: "", entries: [], dicts: -1 });
-    defCache.set(word, pending);
-  }
-  return pending;
-}
-
-function fillDefTip(tip: HTMLElement, word: string, def: Definition): void {
-  tip.replaceChildren();
-  const labels = def.entries.map((entry) =>
-    displayHeadword(entry.headword, word),
-  );
-  const seen = new Map<string, number>();
-  def.entries.forEach((entry, position) => {
-    const label = labels[position]!;
-    const repeats = labels.filter((item) => item === label).length;
-    const nth = (seen.get(label) ?? 0) + 1;
-    seen.set(label, nth);
-    const block = document.createElement("div");
-    block.className = "def-tip-entry";
-    const head = document.createElement("div");
-    head.className = "def-tip-hw";
-    head.textContent = label;
-    if (repeats > 1) {
-      const num = document.createElement("span");
-      num.className = "def-tip-num";
-      num.textContent = " " + String(nth);
-      head.appendChild(num);
-    }
-    block.appendChild(head);
-    const text = document.createElement("div");
-    text.className = "def-tip-text";
-    text.textContent = clipText(entry.text, DEF_TEXT_LIMIT);
-    block.appendChild(text);
-    tip.appendChild(block);
-    const next = def.entries[position + 1];
-    if (entry.source && (!next || next.source !== entry.source)) {
-      const from = document.createElement("div");
-      from.className = "def-tip-source";
-      from.textContent = entry.source;
-      tip.appendChild(from);
-    }
-  });
-  if (def.source && !def.entries.some((entry) => entry.source)) {
-    const credit = document.createElement("div");
-    credit.className = "def-tip-source";
-    credit.textContent = def.source;
-    tip.appendChild(credit);
-  }
-}
-
-function placeTipWithinEditor(
-  ...args: Parameters<typeof placeTip>
-): ReturnType<typeof placeTip> {
-  const [anchor, container, tip, view, gap] = args;
-  const editorBottom = els.editor.getBoundingClientRect().bottom;
-  const bottom = Math.min(view.top + view.height, editorBottom);
-  return placeTip(
-    anchor,
-    container,
-    tip,
-    { ...view, height: Math.max(0, bottom - view.top) },
-    gap,
-  );
-}
-
-function positionDefTip(): void {
-  if (!defTip || defTip.hidden || !defTipAnchor) return;
-  if (!defTipAnchor.isConnected) {
-    hideDefTip();
-    return;
-  }
-  const vv = window.visualViewport;
-  const anchorRect = defTipAnchor.getBoundingClientRect();
-  const place = placeTipWithinEditor(
-    anchorRect,
-    els.popover.hidden ? anchorRect : els.popover.getBoundingClientRect(),
-    { width: defTip.offsetWidth, height: defTip.offsetHeight },
-    {
-      left: vv ? vv.offsetLeft : 0,
-      top: vv ? vv.offsetTop : 0,
-      width: vv ? vv.width : window.innerWidth,
-      height: vv ? vv.height : window.innerHeight,
-    },
-  );
-  defTip.style.left = window.scrollX + place.left + "px";
-  defTip.style.top = window.scrollY + place.top + "px";
-}
-
-async function showDefTip(anchor: HTMLElement, word: string): Promise<void> {
-  cancelDefTipHide();
-  if (defTipAnchor === anchor && defTip && !defTip.hidden) return;
-  if (defTipAnchor && defTipAnchor !== anchor)
-    defTipAnchor.setAttribute("aria-expanded", "false");
-  defTipAnchor = anchor;
-  const def = await definitionFor(word);
-  if (!tipWanted(anchor)) return;
-  if (!def.entries.length) {
-    hideDefTip();
-    return;
-  }
-  if (!defTip) {
-    defTip = document.createElement("div");
-    defTip.id = "defTip";
-    defTip.className = "def-tip";
-    defTip.setAttribute("role", "tooltip");
-    defTip.hidden = true;
-    defTip.addEventListener("pointerenter", (e) => {
-      if (e.pointerType !== "touch") cancelDefTipHide();
-    });
-    defTip.addEventListener("pointerleave", (e) => {
-      if (e.pointerType !== "touch" && defTipAnchor) scheduleDefTipHide();
-    });
-    document.body.appendChild(defTip);
-  }
-  fillDefTip(defTip, word, def);
-  defTip.hidden = false;
-  defTip.scrollTop = 0;
-  anchor.setAttribute("aria-expanded", "true");
-  positionDefTip();
-}
-
-function bindDefDot(dot: HTMLElement): void {
-  const word = dot.previousElementSibling?.textContent ?? "";
-  if (!word) return;
-  let pointerKind = "";
-  const toggle = () => {
-    if (defTipAnchor === dot) hideDefTip();
-    else void showDefTip(dot, word);
-  };
-  dot.addEventListener("mousedown", (e) => e.preventDefault());
-  dot.addEventListener("pointerdown", (e) => {
-    pointerKind = e.pointerType;
-  });
-  dot.addEventListener("pointerenter", (e) => {
-    if (e.pointerType !== "touch") void showDefTip(dot, word);
-  });
-  dot.addEventListener("pointerleave", (e) => {
-    if (e.pointerType !== "touch" && defTipAnchor === dot)
-      scheduleDefTipHide();
-  });
-  dot.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const kind = pointerKind;
-    pointerKind = "";
-    if (kind === "mouse" || kind === "pen") return;
-    if (isTouch()) {
-      void showDefPanel(word);
-      return;
-    }
-    toggle();
-  });
-  dot.addEventListener("focus", () => {
-    if (!pointerKind) void showDefTip(dot, word);
-  });
-  dot.addEventListener("blur", () => {
-    if (defTipAnchor === dot) hideDefTip();
-  });
-}
-
-document.addEventListener("pointerdown", (e) => {
-  const target = e.target instanceof Element ? e.target : null;
-  if (!target?.closest(".sg-dot, .def-tip")) hideDefTip();
+const defTip = initDefTip({
+  editor: els.editor,
+  popover: els.popover,
+  define: checker.define ? (word) => checker.define!(word) : undefined,
+  showPanel: (word) => void pop.showDefPanel(word),
+  hidePopover: () => pop.hide(),
+  holdStatus,
 });
 
-let wordAnchor: HTMLElement | null = null;
-
-function tipWanted(anchor: HTMLElement): boolean {
-  if (defTipAnchor !== anchor || !anchor.isConnected) return false;
-  return anchor === wordAnchor || !els.popover.hidden;
-}
-
-function anchorAtRect(rect: DOMRect): HTMLElement {
-  if (!wordAnchor) {
-    wordAnchor = document.createElement("div");
-    wordAnchor.className = "word-anchor";
-    document.body.appendChild(wordAnchor);
-  }
-  wordAnchor.style.left = window.scrollX + rect.left + "px";
-  wordAnchor.style.top = window.scrollY + rect.top + "px";
-  wordAnchor.style.width = rect.width + "px";
-  wordAnchor.style.height = rect.height + "px";
-  return wordAnchor;
-}
-
-function hideWordTip(): void {
-  if (defTipAnchor && defTipAnchor === wordAnchor) hideDefTip();
-}
-
-function visibleInEditor(rect: DOMRect): boolean {
-  const box = els.editor.getBoundingClientRect();
-  return rect.top >= box.top - 2 && rect.bottom <= box.bottom + 2;
-}
-
-let wordTipSpan: WordSpan | null = null;
-let keyboardShiftUntil = 0;
-
-window.addEventListener(KEYBOARD_LAYOUT_EVENT, () => {
-  keyboardShiftUntil = performance.now() + 500;
+const pop = initPopover({
+  editor: els.editor,
+  backdrop: els.backdrop,
+  popover: els.popover,
+  defTip,
+  syncScroll,
 });
+const hidePopover = pop.hide;
 
-function followWordTip(): void {
-  const rect = wordTipSpan
-    ? rangeRectAt(wordTipSpan.start, wordTipSpan.end)
-    : null;
-  if (!rect || !visibleInEditor(rect)) {
-    hideWordTip();
-    return;
-  }
-  anchorAtRect(rect);
-  positionDefTip();
-}
-
-async function showWordDefinition(span: WordSpan): Promise<void> {
-  const rect = rangeRectAt(span.start, span.end);
-  if (!rect || !visibleInEditor(rect)) return;
-  wordTipSpan = span;
-  hidePopover();
-  const def = await definitionFor(span.word);
-  if (!def.entries.length) {
-    holdStatus("Тайлбар олдсонгүй: " + escapeHtml(span.word), 3000, false);
-    return;
-  }
-  await showDefTip(anchorAtRect(rect), span.word);
-}
+const errorPanel = initErrorPanel({
+  editor: els.editor,
+  backdrop: els.backdrop,
+  desktopMQ,
+  badTokens: () => badTokens,
+  lastCaret: () => lastCaret,
+  setLastCaret: (caret) => {
+    lastCaret = caret;
+  },
+  onPick: () => {
+    pendingFix = null;
+  },
+  syncScroll,
+  showPopoverFor: (token) => void showPopoverFor(token),
+});
 
 const WORD_CHAR = /[\p{L}\p{M}\p{N}]/u;
 
@@ -810,7 +485,7 @@ function manageDicts(): Promise<void> {
     list: () => checker.listDicts?.() ?? Promise.resolve([]),
     reload: () => checker.reloadDicts?.(),
     reorder: () => checker.reorderDicts?.(),
-    changed: () => defCache.clear(),
+    changed: () => defTip.resetDefinitions(),
     status: (message) => holdStatus(message, 5000, false),
   });
 }
@@ -848,7 +523,7 @@ defineBtn?.addEventListener("click", async (event) => {
     holdStatus("Тайлбар харах үг дээрээ товшоод дахин дарна уу", 3000, false);
     return;
   }
-  const definition = await definitionFor(
+  const definition = await defTip.definitionFor(
     els.editor.value.slice(span.start, span.end),
   );
   if (definition.dicts === 0) {
@@ -859,8 +534,8 @@ defineBtn?.addEventListener("click", async (event) => {
     );
     return;
   }
-  if (isTouch()) void openWordPanel(span);
-  else void showWordDefinition(span);
+  if (isTouch()) void pop.openWordPanel(span);
+  else void defTip.showWordDefinition(span);
 });
 
 els.editor.addEventListener("keydown", (e) => {
@@ -880,439 +555,12 @@ els.editor.addEventListener("keydown", (e) => {
   const span = wordForLookup();
   if (!span) return;
   e.preventDefault();
-  void showWordDefinition(span);
+  void defTip.showWordDefinition(span);
 });
 
-let wordPanelSpan: WordSpan | null = null;
+const checkWords = (words: string[]) => checker.checkWords(words);
 
-function closeDefPanel(): void {
-  els.popover.querySelector(".pop-def")?.remove();
-  delete els.popover.dataset.view;
-  measurePopover();
-  placePopover();
-}
-
-async function showDefPanel(
-  word: string,
-  onBack = closeDefPanel,
-): Promise<void> {
-  const def = await definitionFor(word);
-  if (els.popover.hidden) return;
-  els.popover.querySelector(".pop-def")?.remove();
-  const panel = document.createElement("div");
-  panel.className = "pop-def";
-  const back = document.createElement("button");
-  back.type = "button";
-  back.className = "pop-back";
-  back.textContent = "\u2190 " + word;
-  back.addEventListener("click", onBack);
-  panel.appendChild(back);
-  const body = document.createElement("div");
-  body.className = "pop-def-body";
-  if (def.entries.length) fillDefTip(body, word, def);
-  else {
-    const empty = document.createElement("div");
-    empty.className = "muted pop-empty";
-    empty.textContent = "Тайлбар олдсонгүй";
-    body.appendChild(empty);
-  }
-  panel.appendChild(body);
-  els.popover.appendChild(panel);
-  els.popover.dataset.view = "def";
-  measurePopover();
-  placePopover();
-  if (!isTouch()) back.focus();
-}
-
-async function openWordPanel(span: WordSpan): Promise<void> {
-  if (!rangeRectAt(span.start, span.end)) return;
-  hideDefTip();
-  defCache = new Map();
-  const def = await definitionFor(span.word);
-  if (!def.entries.length) return;
-  activeStart = null;
-  wordPanelSpan = span;
-  popoverScrollTop = els.editor.scrollTop;
-  els.popover.innerHTML = "";
-  els.popover.hidden = false;
-  await showDefPanel(span.word, hidePopover);
-}
-
-function hidePopover(): void {
-  hideDefTip();
-  wordPanelSpan = null;
-  delete els.popover.dataset.view;
-  els.popover.hidden = true;
-  activeStart = null;
-  popoverFullH = 0;
-  if (kbAdjustTimer) clearTimeout(kbAdjustTimer);
-}
-
-document.addEventListener("keydown", (e) => {
-  if (e.key !== "Escape" || e.isComposing) return;
-  if (!els.popover.hidden && els.popover.dataset.view === "def") {
-    closeDefPanel();
-    return;
-  }
-  if (defTipAnchor && defTipAnchor === wordAnchor) {
-    hideDefTip();
-    els.editor.focus({ preventScroll: true });
-    return;
-  }
-  if (els.popover.hidden) return;
-  const ae = document.activeElement;
-  if (
-    ae &&
-    ae !== document.body &&
-    ae !== els.editor &&
-    !els.popover.contains(ae)
-  )
-    return;
-  hidePopover();
-  els.editor.focus({ preventScroll: true });
-});
-
-const isTouch = () => window.matchMedia("(pointer: coarse)").matches;
-
-function bringWordIntoView() {
-  if (els.popover.hidden || activeStart == null) return;
-  if (!isTouch()) return;
-  const mark = els.backdrop.querySelector(
-    'mark[data-start="' + activeStart + '"]',
-  );
-  if (!mark) return;
-
-  const vv = window.visualViewport;
-  const editorRect = els.editor.getBoundingClientRect();
-  const vTop = vv ? vv.offsetTop : 0;
-  const vBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
-  const visTop = Math.max(editorRect.top, vTop);
-  const visBottom = Math.min(editorRect.bottom, vBottom);
-  const visH = visBottom - visTop;
-  if (visH <= 60) return;
-
-  const markRect = mark.getBoundingClientRect();
-  if (markRect.top >= visTop + 8 && markRect.bottom <= visBottom - 8) return;
-
-  const targetY = visTop + Math.max(60, Math.min(visH * 0.3, 150));
-  const maxScroll = els.editor.scrollHeight - els.editor.clientHeight;
-  const next = Math.max(
-    0,
-    Math.min(els.editor.scrollTop + (markRect.top - targetY), maxScroll),
-  );
-  if (Math.abs(next - els.editor.scrollTop) > 2) {
-    els.editor.scrollTop = next;
-    syncScroll();
-  }
-}
-
-function scrollMarkIntoView(start: number): void {
-  materializeMark(start);
-  const mark = els.backdrop.querySelector('mark[data-start="' + start + '"]');
-  if (!mark) return;
-  const editorRect = els.editor.getBoundingClientRect();
-  const markRect = mark.getBoundingClientRect();
-  const pad = 24;
-  if (
-    markRect.top >= editorRect.top + pad &&
-    markRect.bottom <= editorRect.bottom - pad
-  )
-    return;
-  const targetY =
-    editorRect.top + Math.max(pad, Math.min(editorRect.height * 0.3, 160));
-  const maxScroll = els.editor.scrollHeight - els.editor.clientHeight;
-  const next = Math.max(
-    0,
-    Math.min(els.editor.scrollTop + (markRect.top - targetY), maxScroll),
-  );
-  els.editor.scrollTop = next;
-  syncScroll();
-}
-
-function renderErrorPanel() {
-  if (!panelEls.list) return;
-  if (!desktopMQ.matches) return;
-  const items = buildErrorList(badTokens);
-  if (!items.length) {
-    if (panelEls.title) panelEls.title.textContent = "Алдаагүй";
-    panelEls.list.innerHTML = "";
-    if (panelEls.copy) panelEls.copy.disabled = true;
-    return;
-  }
-  if (panelEls.title)
-    panelEls.title.textContent = "Нийт алдаатай үг: " + nf(badTokens.length);
-  if (panelEls.copy) panelEls.copy.disabled = false;
-  panelEls.list.innerHTML = items
-    .map((item) => {
-      const repeatCountLabel = item.count > 99 ? "99+" : item.count;
-      const badge =
-        item.count >= 2
-          ? '<span class="ew-count">' + repeatCountLabel + "</span>"
-          : "";
-      return (
-        '<button class="ew" type="button" data-start="' +
-        item.start +
-        '">' +
-        escapeHtml(item.word) +
-        badge +
-        "</button>"
-      );
-    })
-    .join("");
-}
-
-function scheduleKbAdjust(): void {
-  if (kbAdjustTimer) clearTimeout(kbAdjustTimer);
-  const delays = [100, 250, 450, 650];
-  let delayIndex = 0;
-  const run = () => {
-    if (els.popover.hidden) return;
-    bringWordIntoView();
-    placePopover();
-    delayIndex++;
-    if (delayIndex < delays.length)
-      kbAdjustTimer = setTimeout(
-        run,
-        delays[delayIndex] - delays[delayIndex - 1],
-      );
-  };
-  kbAdjustTimer = setTimeout(run, delays[0]);
-}
-
-const MIN_POPOVER_H = 120;
 const reducedMotionMQ = window.matchMedia("(prefers-reduced-motion: reduce)");
-
-function popList(): HTMLElement | null {
-  return els.popover.querySelector<HTMLElement>(".pop-list");
-}
-
-function popScroller(): HTMLElement | null {
-  return popList() ?? els.popover.querySelector<HTMLElement>(".pop-def-body");
-}
-
-function measurePopover(): void {
-  const list = popScroller();
-  if (!list) return;
-  list.style.maxHeight = "";
-  list.style.overflowY = "";
-  els.popover.style.maxHeight = "";
-  popoverFullH = els.popover.offsetHeight;
-  popoverChromeH = popoverFullH - list.offsetHeight;
-}
-
-function updateScrollHint(): void {
-  const list = popList();
-  if (!list) return;
-  const down = els.popover.querySelector<HTMLElement>(".pop-more");
-  const up = els.popover.querySelector<HTMLElement>(".pop-less");
-  const rest = list.scrollHeight - list.scrollTop - list.clientHeight;
-  if (down) down.hidden = rest <= 2;
-  if (up) up.hidden = list.scrollTop <= 2;
-}
-
-function obscuredBy(btn: Element): number {
-  const rect = btn.getBoundingClientRect();
-  const up = els.popover.querySelector<HTMLElement>(".pop-less");
-  if (up && !up.hidden) {
-    const limit = up.getBoundingClientRect().bottom + 4;
-    if (rect.top < limit) return rect.top - limit;
-  }
-  const down = els.popover.querySelector<HTMLElement>(".pop-more");
-  if (down && !down.hidden) {
-    const limit = down.getBoundingClientRect().top - 4;
-    if (rect.bottom > limit) return rect.bottom - limit;
-  }
-  return 0;
-}
-
-function setStyle(
-  target: HTMLElement,
-  name: "top" | "left" | "maxHeight" | "overflowY",
-  value: string,
-): void {
-  if (target.style[name] !== value) target.style[name] = value;
-}
-
-function sheetMode(): boolean {
-  return isTouch() && els.popover.dataset.view === "def";
-}
-
-function popoverAnchorRect(): DOMRect | null {
-  if (wordPanelSpan)
-    return rangeRectAt(wordPanelSpan.start, wordPanelSpan.end);
-  if (activeStart == null) return null;
-  const mark = els.backdrop.querySelector(
-    'mark[data-start="' + activeStart + '"]',
-  );
-  return mark ? mark.getBoundingClientRect() : null;
-}
-
-let safeTopProbe: HTMLElement | null = null;
-
-function safeAreaTop(): number {
-  if (!safeTopProbe) {
-    safeTopProbe = document.createElement("div");
-    safeTopProbe.style.cssText =
-      "position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;" +
-      "pointer-events:none;padding-top:env(safe-area-inset-top)";
-    document.body.appendChild(safeTopProbe);
-  }
-  return parseFloat(getComputedStyle(safeTopProbe).paddingTop) || 0;
-}
-
-function placeSheet(): void {
-  const rect = popoverAnchorRect();
-  if (!rect) {
-    hidePopover();
-    return;
-  }
-  const margin = 8;
-  const vv = window.visualViewport;
-  const safeTop = safeAreaTop();
-  const viewTop = (vv ? vv.offsetTop : 0) + safeTop;
-  const viewH = (vv ? vv.height : window.innerHeight) - safeTop;
-  const viewBottom = viewTop + viewH;
-  const popH = popoverFullH || els.popover.offsetHeight;
-  const spaceBelow = viewBottom - rect.bottom - margin * 2;
-  const spaceAbove = rect.top - viewTop - margin * 2;
-  const below = spaceBelow >= spaceAbove;
-  const room = Math.max(MIN_POPOVER_H, below ? spaceBelow : spaceAbove);
-  const usedH = Math.min(popH, room);
-  setStyle(els.popover, "maxHeight", usedH + "px");
-  const body = els.popover.querySelector<HTMLElement>(".pop-def-body");
-  if (body) {
-    setStyle(body, "maxHeight", "");
-    setStyle(body, "overflowY", "auto");
-  }
-  const wanted = below ? rect.bottom + margin : rect.top - usedH - margin;
-  const top = Math.max(
-    viewTop + margin,
-    Math.min(wanted, viewBottom - usedH - margin),
-  );
-  setStyle(els.popover, "top", top + "px");
-  setStyle(els.popover, "left", "");
-}
-
-function placePopover() {
-  if (els.popover.hidden) return;
-  if (sheetMode()) {
-    placeSheet();
-    return;
-  }
-  setStyle(els.popover, "maxHeight", "");
-  const markRect = popoverAnchorRect();
-  if (!markRect) {
-    hidePopover();
-    return;
-  }
-  const margin = 6;
-
-  const vv = window.visualViewport;
-  const safeTop = safeAreaTop();
-  const viewTop = (vv ? vv.offsetTop : 0) + safeTop;
-  const viewLeft = vv ? vv.offsetLeft : 0;
-  const viewW = vv ? vv.width : window.innerWidth;
-  const viewH = (vv ? vv.height : window.innerHeight) - safeTop;
-  const viewBottom = viewTop + viewH;
-
-  const popH = popoverFullH || els.popover.offsetHeight;
-  const popW = els.popover.offsetWidth;
-
-  const spaceBelow = viewBottom - markRect.bottom - margin * 2;
-  const spaceAbove = markRect.top - viewTop - margin * 2;
-  const below = spaceBelow >= spaceAbove;
-  const room = Math.max(MIN_POPOVER_H, below ? spaceBelow : spaceAbove);
-  const usedH = Math.min(popH, room);
-  const capped = usedH < popH;
-
-  const list = popScroller();
-  if (list) {
-    setStyle(list, "maxHeight", capped ? usedH - popoverChromeH + "px" : "");
-    setStyle(list, "overflowY", capped ? "auto" : "");
-  }
-
-  let top = below ? markRect.bottom + margin : markRect.top - usedH - margin;
-  top = Math.max(
-    viewTop + margin,
-    Math.min(top, viewBottom - usedH - margin),
-  );
-  const left = Math.max(
-    viewLeft + margin,
-    Math.min(markRect.left, viewLeft + viewW - popW - margin),
-  );
-
-  setStyle(els.popover, "top", window.scrollY + top + "px");
-  setStyle(els.popover, "left", window.scrollX + left + "px");
-  updateScrollHint();
-  positionDefTip();
-}
-
-const INITIAL_RE = /^\p{Lu}[\p{L}\p{M}]?$/u;
-const AFTER_INITIAL_RE = /^\p{Lu}/u;
-
-function looksLikeInitial(left: string, right: string): boolean {
-  return INITIAL_RE.test(left) && AFTER_INITIAL_RE.test(right);
-}
-
-async function periodSplits(word: string): Promise<string[]> {
-  const parts: Array<{ left: string; right: string }> = [];
-
-  for (let index = 1; index < word.length - 1; index++) {
-    if (word[index] !== ".") continue;
-    const left = word.slice(0, index);
-    const right = word.slice(index + 1);
-    if (right.length < 2) continue;
-    if (isDecimalPoint(left, right)) continue;
-    parts.push({ left, right });
-  }
-
-  if (parts.length === 0) return [];
-
-  const need = new Set<string>();
-  for (const part of parts) {
-    if (looksLikeInitial(part.left, part.right)) continue;
-    if (checkable(part.left)) need.add(part.left);
-    if (checkable(part.right)) need.add(part.right);
-  }
-
-  const known = need.size
-    ? await checker.checkWords([...need])
-    : ({} as Record<string, boolean>);
-  const good = (piece: string): boolean =>
-    !checkable(piece) || known[piece] === true;
-
-  return parts
-    .filter(
-      (part) =>
-        looksLikeInitial(part.left, part.right) ||
-        (good(part.left) && good(part.right)),
-    )
-    .map((part) => part.left + ". " + part.right);
-}
-
-async function numberSplits(word: string): Promise<string[]> {
-  const split = splitNumberBoundary(word);
-  if (!split || !checkable(split.word)) return [];
-  const known = await checker.checkWords([split.word]);
-  if (known[split.word] !== true) return [];
-  return [split.split];
-}
-
-async function dashFixes(token: Token): Promise<string[]> {
-  const normalized = dashNormalized(token.word);
-  if (normalized === null) return [];
-  const known = await checker.checkWords([normalized]);
-  if (known[normalized] !== true) return [];
-  return [normalized];
-}
-
-function scopeToSuffix(token: Token, offered: string[]): string[] {
-  if (!token.joined) return offered;
-  const head = token.joined.slice(0, token.joined.length - token.word.length);
-  return offered
-    .filter((item) => item.startsWith(head) && item.length > head.length)
-    .map((item) => item.slice(head.length));
-}
 
 async function showPopoverFor(token: Token): Promise<void> {
   materializeMark(token.start);
@@ -1331,26 +579,12 @@ async function showPopoverFor(token: Token): Promise<void> {
     return;
   }
 
-  hideDefTip();
-  wordPanelSpan = null;
-  delete els.popover.dataset.view;
-  defCache = new Map();
-  els.popover.innerHTML =
-    '<div class="pop-scroll">' +
-    '<div class="pop-list"><div class="muted pop-empty">…</div></div>' +
-    "</div>";
-  activeStart = token.start;
-  popoverScrollTop = els.editor.scrollTop;
-  els.popover.hidden = false;
-  bringWordIntoView();
-  measurePopover();
-  placePopover();
-  scheduleKbAdjust();
+  pop.open(token.start);
 
   const [dashes, splits, numbers, offered] = await Promise.all([
-    dashFixes(token),
-    periodSplits(token.word),
-    numberSplits(token.word),
+    dashFixes(token, checkWords),
+    periodSplits(token.word, checkWords),
+    numberSplits(token.word, checkWords),
     checker.suggest(token.joined ?? token.word),
   ]);
   const scoped = scopeToSuffix(token, offered);
@@ -1369,7 +603,7 @@ async function showPopoverFor(token: Token): Promise<void> {
     checker.lookup && suggestions.length
       ? await checker.lookup(suggestions)
       : null;
-  if (activeStart !== token.start || els.popover.hidden) return;
+  if (!pop.isOpenAt(token.start)) return;
   const marks = pickDefinitionMarks(suggestions, found);
   const sgHtml = suggestions.length
     ? suggestions
@@ -1403,18 +637,18 @@ async function showPopoverFor(token: Token): Promise<void> {
     "</button></div>" +
     "</div>" +
     '<button class="sg sg-ignore" type="button">Энэ үгийг алгасах</button>';
-  const list = popList();
+  const list = pop.list();
   if (list) {
     list.scrollTop = 0;
-    list.addEventListener("scroll", updateScrollHint, { passive: true });
-    list.addEventListener("scroll", hideDefTip, { passive: true });
+    list.addEventListener("scroll", pop.updateScrollHint, { passive: true });
+    list.addEventListener("scroll", defTip.hide, { passive: true });
   }
-  measurePopover();
-  placePopover();
+  pop.measure();
+  pop.place();
 
   els.popover.querySelectorAll(".sg:not(.sg-ignore)").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const covered = obscuredBy(btn);
+      const covered = pop.obscuredBy(btn);
       if (covered > 0 && list) {
         list.scrollBy({
           top: covered,
@@ -1425,7 +659,9 @@ async function showPopoverFor(token: Token): Promise<void> {
       applySuggestion(token, btn.textContent);
     });
   });
-  els.popover.querySelectorAll<HTMLElement>(".sg-dot").forEach(bindDefDot);
+  els.popover
+    .querySelectorAll<HTMLElement>(".sg-dot")
+    .forEach(defTip.bindDot);
   const pageBy = (sign: number) => {
     if (!list) return;
     list.scrollBy({
@@ -1458,7 +694,7 @@ function suggestAtCaret() {
     hidePopover();
     return;
   }
-  if (!els.popover.hidden && activeStart === caretToken.start) return;
+  if (pop.isOpenAt(caretToken.start)) return;
   showPopoverFor(caretToken);
 }
 
@@ -1506,36 +742,6 @@ async function recheck() {
   await render();
   await maybePropagateManual();
   saveText();
-}
-
-function periodSplitDot(word: string, replacement: string): number {
-  if (!replacement.includes(". ")) return -1;
-  if (replacement.split(". ").join(".") !== word) return -1;
-  return replacement.indexOf(". ");
-}
-
-function splitEveryOccurrence(
-  text: string,
-  word: string,
-  dot: number,
-  tokenStart: number,
-): { text: string; caret: number } | null {
-  const target = word.toLowerCase();
-  const hits: number[] = [];
-  for (const item of tokenize(text)) {
-    if (item.word.toLowerCase() === target) hits.push(item.index);
-  }
-  if (hits.length === 0) return null;
-
-  let next = text;
-  for (let index = hits.length - 1; index >= 0; index--) {
-    const at = hits[index]! + dot + 1;
-    next = next.slice(0, at) + " " + next.slice(at);
-  }
-
-  const before = hits.filter((start) => start < tokenStart).length;
-  const caret = tokenStart + before + word.length + 1;
-  return { text: next, caret };
 }
 
 async function commitReplacement(text: string, caret: number): Promise<void> {
@@ -1596,34 +802,6 @@ async function applySuggestion(
   await commitReplacement(nt, caret);
 }
 
-const BULK_DELETE = new Set([
-  "deleteWordBackward",
-  "deleteWordForward",
-  "deleteSoftLineBackward",
-  "deleteSoftLineForward",
-  "deleteHardLineBackward",
-  "deleteHardLineForward",
-  "deleteByCut",
-  "deleteByDrag",
-  "deleteContent",
-]);
-
-function isBulkDelete(e: InputEvent): boolean {
-  return BULK_DELETE.has(e.inputType || "");
-}
-
-function isSeparatorInput(e: InputEvent): boolean {
-  const it = e.inputType || "";
-  if (it === "insertText")
-    return e.data != null && /[\s\p{P}\p{S}]/u.test(e.data);
-  if (it === "insertLineBreak" || it === "insertParagraph") return true;
-  if (
-    it.indexOf("insertFromPaste") === 0 ||
-    it.indexOf("insertFromDrop") === 0
-  )
-    return true;
-  return false;
-}
 const deferredCheck = debounce(() => recheck(), 1500);
 
 const LARGE_TEXT = 50_000;
@@ -1642,7 +820,7 @@ async function recheckAfterSeparator(): Promise<void> {
 let hadSelection = false;
 els.editor.addEventListener("beforeinput", () => {
   hadSelection = els.editor.selectionStart !== els.editor.selectionEnd;
-  if (programmaticEdit) return;
+  if (editorText.programmatic()) return;
   const caretToken = tokenAtCaret();
   pendingFix = caretToken
     ? {
@@ -1654,327 +832,58 @@ els.editor.addEventListener("beforeinput", () => {
     : null;
 });
 
-const CARET_KEY = "mn-spell:caret";
-let storageWarned = false;
-function warnStorageFailure() {
-  if (storageWarned) return;
-  storageWarned = true;
-  setStatus(
-    "Анхаар: бичвэр автоматаар хадгалагдсангүй — " +
-      "хаахаасаа өмнө файл болгож хадгална уу",
-  );
-}
-initDraftStorage({ onError: warnStorageFailure });
-function saveText() {
-  saveDraft(els.editor.value);
-  try {
-    const selectionStart = els.editor.selectionStart;
-    const selectionEnd = els.editor.selectionEnd;
-    if (selectionStart != null)
-      localStorage.setItem(
-        CARET_KEY,
-        selectionStart + "," + selectionEnd + "," + els.editor.scrollTop,
-      );
-  } catch (_) {}
-}
-let bootScroll: number | null = null;
-
-function restoreBootScroll(): void {
-  if (bootScroll == null) return;
-  const max = els.editor.scrollHeight - els.editor.clientHeight;
-  els.editor.scrollTop = Math.min(bootScroll, Math.max(0, max));
-}
-
-function dropBootScroll(): void {
-  bootScroll = null;
-}
-
-async function loadText() {
-  try {
-    const draftText = await loadDraft();
-    if (draftText != null) {
-      els.editor.value = draftText;
-      syncDecodeBtn();
+const editorText = initEditorText({
+  editor: els.editor,
+  onEdit: () => {
+    pendingFix = null;
+  },
+  onReplace: () => previewCtl?.setSource(null),
+  accept: (old, next) => {
+    if (docx && !docx.sync(old, next)) {
+      holdStatus("Энэ өөрчлөлтийг docx файлд буулгах боломжгүй");
+      return false;
     }
-    const savedCaretRaw = localStorage.getItem(CARET_KEY);
-    if (savedCaretRaw != null) {
-      const parts = savedCaretRaw.split(",");
-      const len = els.editor.value.length;
-      const start = Math.min(Math.max(0, parseInt(parts[0], 10) || 0), len);
-      const end = Math.min(
-        Math.max(start, parseInt(parts[1], 10) || start),
-        len,
-      );
-      try {
-        els.editor.setSelectionRange(start, end);
-      } catch (_) {}
-      lastCaret = { start, end };
-      const top = parseFloat(parts[2] ?? "");
-      if (Number.isFinite(top) && top > 0) bootScroll = top;
-    }
-  } catch (_) {}
-}
-
-let saveTimer: ReturnType<typeof setTimeout> | null = null;
-function saveTextSoon(): void {
-  if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(saveText, 400);
-}
-window.addEventListener("pagehide", () => {
-  saveText();
-  flushDraft();
+    return true;
+  },
+  onReplaced: () => decode.sync(),
 });
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden") {
-    saveText();
-    flushDraft();
-  }
+const setEditorText = editorText.set;
+const insertEditorText = editorText.insert;
+
+const decode = initDecode({
+  editor: els.editor,
+  setEditorText,
+  refresh: () => {
+    cache.clear();
+    return render();
+  },
+  saveText: () => saveText(),
 });
 
-let programmaticEdit = false;
-function setEditorText(
-  newText: string,
-  caret: number | null,
-): TextEdit | null {
-  pendingFix = null;
-  previewCtl?.setSource(null);
-  const old = els.editor.value;
-  if (docx && old !== newText && !docx.sync(old, newText)) {
-    holdStatus("Энэ өөрчлөлтийг docx файлд буулгах боломжгүй");
-    return null;
-  }
-  els.editor.focus({ preventScroll: true });
-  if (old === newText) {
-    if (caret != null) {
-      try {
-        els.editor.setSelectionRange(caret, caret);
-      } catch (_) {}
-    }
-    return null;
-  }
-  let commonPrefixLen = 0;
-  const minLen = Math.min(old.length, newText.length);
-  while (
-    commonPrefixLen < minLen &&
-    old.charCodeAt(commonPrefixLen) === newText.charCodeAt(commonPrefixLen)
-  )
-    commonPrefixLen++;
-  let commonSuffixLen = 0;
-  while (
-    commonSuffixLen < minLen - commonPrefixLen &&
-    old.charCodeAt(old.length - 1 - commonSuffixLen) ===
-      newText.charCodeAt(newText.length - 1 - commonSuffixLen)
-  )
-    commonSuffixLen++;
-  const oldEnd = old.length - commonSuffixLen;
-  const slice = newText.slice(
-    commonPrefixLen,
-    newText.length - commonSuffixLen,
-  );
-  try {
-    els.editor.setSelectionRange(commonPrefixLen, oldEnd);
-  } catch (_) {}
-  let ok = false;
-  programmaticEdit = true;
-  try {
-    ok =
-      slice === ""
-        ? document.execCommand("delete", false)
-        : document.execCommand("insertText", false, slice);
-  } catch (_) {
-    ok = false;
-  }
-  programmaticEdit = false;
-  if (!ok || els.editor.value !== newText) els.editor.value = newText;
-  if (caret != null) {
-    try {
-      els.editor.setSelectionRange(caret, caret);
-    } catch (_) {}
-  }
-  syncDecodeBtn();
-  return {
-    start: commonPrefixLen,
-    oldEnd,
-    newEnd: newText.length - commonSuffixLen,
-  };
-}
-function insertEditorText(text: string, start: number, end: number): void {
-  pendingFix = null;
-  els.editor.focus({ preventScroll: true });
-  try {
-    els.editor.setSelectionRange(start, end);
-  } catch (_) {}
-  let ok = false;
-  programmaticEdit = true;
-  try {
-    ok = document.execCommand("insertText", false, text);
-  } catch (_) {
-    ok = false;
-  }
-  programmaticEdit = false;
-  if (!ok) {
-    const editorText = els.editor.value;
-    els.editor.value =
-      editorText.slice(0, start) + text + editorText.slice(end);
-    const pos = start + text.length;
-    try {
-      els.editor.setSelectionRange(pos, pos);
-    } catch (_) {}
-  }
-}
+const draft = initDraftText({
+  editor: els.editor,
+  setStatus,
+  onLoaded: () => decode.sync(),
+  onCaret: (caret) => {
+    lastCaret = caret;
+  },
+});
+const saveText = draft.save;
+
 els.editor.addEventListener("input", (e) => {
-  if (programmaticEdit) return;
+  if (editorText.programmatic()) return;
   if (!(e instanceof InputEvent)) return;
   hidePopover();
   syncEmptyState(els.editor.value);
-  saveTextSoon();
+  draft.saveSoon();
   if (isSeparatorInput(e)) void recheckAfterSeparator();
   else {
     if (hadSelection || els.editor.value.length === 0 || isBulkDelete(e))
       render();
     deferredCheck();
   }
-  updateDecodeBtnAfterInput(e);
+  decode.afterInput(e);
 });
-type EditKind = "insert" | "delete" | "other";
-
-function editKind(event: Event): EditKind {
-  const type = (event as InputEvent).inputType || "";
-  if (type === "insertText" || type === "insertCompositionText")
-    return "insert";
-  if (type === "insertLineBreak" || type === "insertParagraph")
-    return "insert";
-  if (type === "insertFromPaste") return "insert";
-  if (type.startsWith("delete")) return "delete";
-  return "other";
-}
-
-const decodeBtn = document.querySelector<HTMLButtonElement>("#decodeBtn");
-const DECODE_CHECK_DELAY = 500;
-let decodeCheckTimer: number | null = null;
-
-const DECODE_LABEL = "Үсэг таниулах";
-
-function syncDecodeBtn(): void {
-  if (!decodeBtn) return;
-  if (decodeBtn.classList.contains("is-done")) return;
-  decodeBtn.hidden = !hasMojibake(els.editor.value);
-}
-
-const DECODE_DONE_HOLD = 1400;
-const DECODE_DONE_FADE = 900;
-let decodeDoneTimer: number | null = null;
-
-function showDecodeMessage(message: string): void {
-  const button = decodeBtn;
-  if (!button) return;
-  if (decodeDoneTimer) clearTimeout(decodeDoneTimer);
-  button.hidden = false;
-  button.disabled = true;
-  button.textContent = message;
-  button.classList.remove("is-fading");
-  button.classList.add("is-done");
-  decodeDoneTimer = window.setTimeout(() => {
-    button.classList.add("is-fading");
-    decodeDoneTimer = window.setTimeout(() => {
-      decodeDoneTimer = null;
-      button.classList.remove("is-done", "is-fading");
-      button.disabled = false;
-      button.textContent = DECODE_LABEL;
-      syncDecodeBtn();
-    }, DECODE_DONE_FADE);
-  }, DECODE_DONE_HOLD);
-}
-
-function syncDecodeBtnSoon(): void {
-  if (!decodeBtn) return;
-  if (decodeCheckTimer) clearTimeout(decodeCheckTimer);
-  decodeCheckTimer = window.setTimeout(() => {
-    decodeCheckTimer = null;
-    syncDecodeBtn();
-  }, DECODE_CHECK_DELAY);
-}
-
-const DECODE_TYPING_WINDOW = 64;
-
-function revealDecodeBtn(): void {
-  if (!decodeBtn) return;
-  if (decodeBtn.classList.contains("is-done")) return;
-  decodeBtn.hidden = false;
-}
-
-function checkDecodeNearCaret(): void {
-  const caret = els.editor.selectionStart;
-  const value = els.editor.value;
-  const from = Math.max(0, caret - DECODE_TYPING_WINDOW);
-  const to = Math.min(value.length, caret + DECODE_TYPING_WINDOW);
-  if (hasMojibake(value.slice(from, to))) revealDecodeBtn();
-}
-
-function checkDecodeInPasted(text: string): boolean {
-  if (!text || !decodeBtn || !decodeBtn.hidden) return false;
-  if (!hasMojibake(text)) return false;
-  revealDecodeBtn();
-  return true;
-}
-
-let decodeSkipNextInput = false;
-
-els.editor.addEventListener("paste", (event) => {
-  const pasted = event.clipboardData?.getData("text") ?? "";
-  if (checkDecodeInPasted(pasted)) decodeSkipNextInput = true;
-});
-
-function updateDecodeBtnAfterInput(event: Event): void {
-  if (!decodeBtn) return;
-  if (decodeSkipNextInput) {
-    decodeSkipNextInput = false;
-    return;
-  }
-  const kind = editKind(event);
-  if (decodeBtn.hidden) {
-    if (kind === "other") syncDecodeBtnSoon();
-    else if (kind === "insert" && isSeparatorInput(event as InputEvent))
-      checkDecodeNearCaret();
-    return;
-  }
-  if (kind === "insert") return;
-  syncDecodeBtnSoon();
-}
-
-if (decodeBtn) {
-  decodeBtn.addEventListener("mousedown", (event) => event.preventDefault());
-  decodeBtn.addEventListener("click", () => {
-    const full = els.editor.value;
-    if (!full) return;
-    const start = els.editor.selectionStart;
-    const end = els.editor.selectionEnd;
-    const selected = end > start;
-    const variant = detectVariant(full);
-    const target = selected ? full.slice(start, end) : full;
-    const result = repairCyrillicDetailed(target, variant);
-    if (result.text === target) {
-      showDecodeMessage("Хөрвүүлэх үг олдсонгүй");
-      return;
-    }
-    const next = selected
-      ? full.slice(0, start) + result.text + full.slice(end)
-      : result.text;
-    const caret = selected ? start + result.text.length : start;
-    const scrollTop = els.editor.scrollTop;
-    const scrollLeft = els.editor.scrollLeft;
-    const restoreView = (): void => {
-      els.editor.scrollTop = scrollTop;
-      els.editor.scrollLeft = scrollLeft;
-    };
-    setEditorText(next, caret);
-    restoreView();
-    cache.clear();
-    void Promise.resolve(render()).then(restoreView);
-    saveText();
-    showDecodeMessage("Хөрвүүлэв — " + result.words + " үг");
-  });
-}
 
 const clearBtnEl = document.querySelector("#clearBtn");
 if (clearBtnEl) {
@@ -1983,7 +892,6 @@ if (clearBtnEl) {
     rotateEmptyTips();
   });
 }
-let lastCaret: { start: number; end: number } | null = null;
 els.editor.addEventListener("blur", () => {
   pendingFix = null;
   lastCaret = {
@@ -1998,22 +906,8 @@ const refreshMarksSoon = debounce(
 );
 els.editor.addEventListener("scroll", () => {
   syncScroll();
-  const keyboardShift = performance.now() < keyboardShiftUntil;
-  if (keyboardShift) {
-    followWordTip();
-    popoverScrollTop = els.editor.scrollTop;
-  } else {
-    hideWordTip();
-  }
+  pop.followScroll();
   refreshMarksSoon();
-  if (
-    !els.popover.hidden &&
-    Math.abs(els.editor.scrollTop - popoverScrollTop) > 20
-  ) {
-    hidePopover();
-  } else {
-    placePopover();
-  }
 });
 els.editor.addEventListener("click", () => {
   pendingFix = null;
@@ -2078,20 +972,6 @@ els.editor.addEventListener("contextmenu", (e) => {
     showPopoverFor(caretToken);
   }
 });
-document.addEventListener("mousedown", (e) => {
-  const target = e.target instanceof Element ? e.target : null;
-  if (!target?.closest("#popover, .def-tip") && target !== els.editor)
-    hidePopover();
-});
-
-if (window.visualViewport) {
-  window.visualViewport.addEventListener("resize", () => {
-    bringWordIntoView();
-    placePopover();
-  });
-  window.visualViewport.addEventListener("scroll", placePopover);
-}
-window.addEventListener("resize", placePopover);
 
 initAppearance();
 
@@ -2116,145 +996,8 @@ if (editorWrap) {
   });
 }
 
-function flash(sel: string, msg: string): void {
-  const flashBtn = document.querySelector<HTMLElement>(sel);
-  if (!flashBtn) return;
-  const old = flashBtn.dataset.label || flashBtn.textContent || "";
-  flashBtn.dataset.label = old;
-  flashBtn.textContent = msg;
-  setTimeout(() => {
-    flashBtn.textContent = flashBtn.dataset.label ?? "";
-  }, 1100);
-}
+const appUpdate = initAppUpdate(setStatus, import.meta.url);
 
-function copyText(str: string): Promise<void> {
-  if (
-    navigator.clipboard &&
-    navigator.clipboard.writeText &&
-    window.isSecureContext
-  ) {
-    return navigator.clipboard.writeText(str);
-  }
-  return new Promise<void>((resolve, reject) => {
-    try {
-      const ta = document.createElement("textarea");
-      ta.value = str;
-      ta.setAttribute("readonly", "");
-      ta.style.position = "fixed";
-      ta.style.top = "-1000px";
-      ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.focus();
-      ta.select();
-      ta.setSelectionRange(0, str.length);
-      const ok = document.execCommand("copy");
-      document.body.removeChild(ta);
-      ok ? resolve() : reject(new Error("exec"));
-    } catch (e) {
-      reject(e);
-    }
-  });
-}
-
-const reloadEl = document.querySelector<HTMLElement>("#appReloadBtn");
-let freshEntry: string | null = null;
-let appUpdating = false;
-if (reloadEl) {
-  reloadEl.addEventListener("click", () => {
-    reloadEl.hidden = true;
-    setStatus("Шинэ хувилбарыг ачаалж байна…");
-    void reloadToLatest();
-  });
-}
-
-function swSettled(worker: ServiceWorker): Promise<void> {
-  return new Promise<void>((resolve) => {
-    const check = (): void => {
-      if (worker.state === "installed")
-        worker.postMessage({ type: "SKIP_WAITING" });
-      if (worker.state === "activated" || worker.state === "redundant") {
-        worker.removeEventListener("statechange", check);
-        resolve();
-      }
-    };
-    worker.addEventListener("statechange", check);
-    check();
-  });
-}
-
-async function fetchFreshEntry(): Promise<string | null> {
-  try {
-    const swUrl = new URL(import.meta.env.BASE_URL + "sw.js", location.href);
-    swUrl.searchParams.set("fresh", String(Date.now()));
-    const res = await fetch(swUrl.href, { cache: "no-store" });
-    if (!res.ok) return null;
-    const m = (await res.text()).match(/assets\/index-[\w-]+\.js/);
-    return m ? m[0] : null;
-  } catch (_) {
-    return null;
-  }
-}
-
-async function servesEntry(entry: string): Promise<boolean> {
-  try {
-    const res = await fetch(
-      new URL(import.meta.env.BASE_URL, location.href).href,
-      { cache: "no-store" },
-    );
-    return res.ok && (await res.text()).includes(entry);
-  } catch (_) {
-    return false;
-  }
-}
-
-function waitMs(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)));
-}
-
-async function reloadToLatest(): Promise<void> {
-  appUpdating = true;
-  const deadline = Date.now() + 2 * 60 * 1000;
-  try {
-    const reg = navigator.serviceWorker
-      ? await navigator.serviceWorker.getRegistration()
-      : null;
-    const entry = freshEntry ?? (await fetchFreshEntry());
-    if (reg && entry) {
-      while (Date.now() < deadline) {
-        const pending = reg.installing || reg.waiting;
-        if (pending && pending.state !== "redundant") {
-          await Promise.race([
-            swSettled(pending),
-            waitMs(deadline - Date.now()),
-          ]);
-          continue;
-        }
-        if (await servesEntry(entry)) break;
-        await reg.update().catch(() => undefined);
-        const next = reg.installing || reg.waiting;
-        if (!next || next.state === "redundant") await waitMs(5000);
-      }
-    }
-  } catch (_) {}
-  location.reload();
-}
-
-const verEl = document.querySelector<HTMLElement>("#appVersion");
-if (verEl) {
-  const av = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "";
-  const hv =
-    typeof __HUNSPELL_VERSION__ !== "undefined" ? __HUNSPELL_VERSION__ : "";
-  verEl.dataset.short = av ? "v" + av : "";
-  verBase = (av ? "v" + av : "") + (hv ? " · hunspell " + hv : "");
-  verEl.dataset.full = verBase;
-  verEl.textContent = verEl.dataset.short;
-  verEl.style.cursor = "pointer";
-  verEl.addEventListener("click", () => {
-    const expanded = verEl.textContent !== verEl.dataset.short;
-    verEl.textContent =
-      (expanded ? verEl.dataset.short : verEl.dataset.full) ?? "";
-  });
-}
 function isPdfFile(file: File): boolean {
   return file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
 }
@@ -2342,7 +1085,7 @@ async function openDocxFile(file: File): Promise<boolean> {
   syncSaveHint();
   exportCtl?.syncPrint();
   hidePopover();
-  syncDecodeBtn();
+  decode.sync();
   await render();
   return true;
 }
@@ -2472,297 +1215,14 @@ function restoreDraftFile(): void {
   syncSaveHint();
 }
 
-(function setupShortcuts() {
-  const isDesktop =
-    window.matchMedia && window.matchMedia("(pointer: fine)").matches;
-  if (!isDesktop) return;
-
-  const uaData = navigator.userAgentData;
-  const uaPlat = (uaData && uaData.platform) || "";
-  const isMac =
-    /mac/i.test(uaPlat) ||
-    /Mac|iPhone|iPad|iPod/i.test(navigator.platform || "") ||
-    (/Mac OS X/i.test(navigator.userAgent || "") &&
-      !/Windows|Android/i.test(navigator.userAgent || ""));
-  const mod = isMac ? "⌘" : "Ctrl+";
-  const shiftSym = isMac ? "⇧" : "Shift+";
-  const altSym = isMac ? "⌥" : "Alt+";
-
-  [
-    ["#clearBtn", mod + shiftSym + "⌫"],
-    ["#pasteBtn", mod + "V"],
-    [
-      "#copyBtn",
-      mod + "C" + "\nУдаан дарж алдаатай үгсийг хуулна · " + mod + "E",
-    ],
-    ["#copyErrorsBtn", mod + "E"],
-    ["#openBtn", mod + "O"],
-    [
-      "#saveBtn",
-      mod +
-        "S" +
-        "\n" +
-        (isMac ? "⇧" : "Shift") +
-        "-тэй эсвэл удаан дарж өргөтгөл сонгоно",
-    ],
-    ["#printBtn", mod + "P"],
-    ["#fontDecBtn", mod + "-"],
-    ["#fontIncBtn", mod + "+"],
-    ["#fontResetBtn", mod + "0"],
-    ["#themeBtn", mod + shiftSym + "D"],
-    [
-      "#defineBtn",
-      mod +
-        shiftSym +
-        "Space" +
-        "\nТоль нэмэх · " +
-        mod +
-        shiftSym +
-        altSym +
-        "Space",
-    ],
-  ].forEach(([sel, combo]) => {
-    const btn = document.querySelector(sel);
-    if (!btn) return;
-    const base = btn.getAttribute("title") || "";
-    btn.setAttribute("title", base ? base + " · " + combo : combo);
-  });
-
-  function trigger(sel: string, doClick = true): void {
-    const btn = document.querySelector<HTMLButtonElement>(sel);
-    if (!btn || btn.disabled) return;
-    if (doClick) btn.click();
-    btn.classList.add("kbd-active");
-    const kbdBtn = btn as HTMLButtonElement & {
-      _kbdTimer?: ReturnType<typeof setTimeout>;
-    };
-    if (kbdBtn._kbdTimer) clearTimeout(kbdBtn._kbdTimer);
-    kbdBtn._kbdTimer = setTimeout(
-      () => btn.classList.remove("kbd-active"),
-      260,
-    );
-  }
-
-  window.addEventListener("keydown", (e) => {
-    const hasPrimaryModifier = isMac
-      ? e.metaKey && !e.ctrlKey
-      : e.ctrlKey && !e.metaKey;
-    if (!hasPrimaryModifier || e.altKey) return;
-
-    const key = e.key;
-    const lowerKey = key.toLowerCase();
-    const isLetter = (letter: string): boolean =>
-      lowerKey === letter || e.code === "Key" + letter.toUpperCase();
-
-    const ae = document.activeElement;
-    const inOtherField =
-      !!ae &&
-      ae !== els.editor &&
-      (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA");
-
-    if (isLetter("s") && !e.shiftKey) {
-      e.preventDefault();
-      if (!inOtherField) trigger("#saveBtn");
-      return;
-    }
-
-    if (inOtherField) return;
-
-    if (e.shiftKey) {
-      if (isLetter("l")) {
-        e.preventDefault();
-        openDictMenu();
-        return;
-      }
-      if (isLetter("d")) {
-        e.preventDefault();
-        trigger("#themeBtn");
-        return;
-      }
-      if (key === "Backspace") {
-        e.preventDefault();
-        trigger("#clearBtn");
-        return;
-      }
-      if (key === "+" || e.code === "Equal") {
-        e.preventDefault();
-        trigger("#fontIncBtn");
-        return;
-      }
-      return;
-    }
-
-    if (key === "-" || key === "Subtract" || e.code === "Minus") {
-      e.preventDefault();
-      trigger("#fontDecBtn");
-      return;
-    }
-    if (key === "+" || key === "=" || key === "Add" || e.code === "Equal") {
-      e.preventDefault();
-      trigger("#fontIncBtn");
-      return;
-    }
-    if (key === "0" || key === "Numpad0" || e.code === "Digit0") {
-      e.preventDefault();
-      trigger("#fontResetBtn");
-      return;
-    }
-
-    if (isLetter("o")) {
-      if (!window.showOpenFilePicker) {
-        const openFileEl =
-          document.querySelector<HTMLInputElement>("#openFile");
-        if (openFileEl) openFileEl.click();
-        e.preventDefault();
-        trigger("#openBtn", false);
-      } else {
-        e.preventDefault();
-        trigger("#openBtn");
-      }
-    } else if (isLetter("e")) {
-      e.preventDefault();
-      trigger("#copyErrorsBtn");
-    } else if (isLetter("v")) {
-      if (document.activeElement !== els.editor) {
-        els.editor.focus({ preventScroll: true });
-        if (lastCaret) {
-          try {
-            els.editor.setSelectionRange(
-              lastCaret.start,
-              lastCaret.end,
-              "forward",
-            );
-          } catch (_) {}
-        }
-      }
-      trigger("#pasteBtn", false);
-    } else if (lowerKey === "c") {
-      const pageSel = window.getSelection
-        ? (window.getSelection()?.toString() ?? "")
-        : "";
-      const editorFocused = document.activeElement === els.editor;
-      const editorHasSelection =
-        editorFocused &&
-        els.editor.selectionStart !== els.editor.selectionEnd;
-      if (!pageSel && !editorHasSelection) {
-        e.preventDefault();
-        trigger("#copyBtn");
-      }
-    }
-  });
-})();
-
-async function requestDurableStorage() {
-  try {
-    if (
-      navigator.storage &&
-      typeof navigator.storage.persist === "function"
-    ) {
-      const already = navigator.storage.persisted
-        ? await navigator.storage.persisted()
-        : false;
-      if (!already) await navigator.storage.persist();
-    }
-  } catch (_) {}
-}
-
-function offlineCapable() {
-  return "serviceWorker" in navigator && "caches" in window;
-}
-
-async function isOfflineReady() {
-  try {
-    const base = import.meta.env.BASE_URL;
-    const resolveAppUrl = (path: string): string =>
-      new URL(base + path, location.href).href;
-    const opt = { ignoreSearch: true };
-    const reg =
-      navigator.serviceWorker &&
-      (await navigator.serviceWorker.getRegistration());
-    if (!reg || !reg.active) return false;
-    const shell =
-      (await caches.match(resolveAppUrl("index.html"), opt)) ||
-      (await caches.match(resolveAppUrl(""), opt));
-    if (!shell) return false;
-    const manRes = await caches.match(
-      resolveAppUrl("dict/dict-manifest.json"),
-      opt,
-    );
-    if (!manRes) return false;
-    const man = (await manRes.clone().json()) as {
-      dicts?: { id: string; dic: string }[];
-    };
-    const mn = (man.dicts || []).find((dict) => dict.id === "mn_MN");
-    if (!mn) return false;
-    return !!(await caches.match(resolveAppUrl("dict/" + mn.dic), opt));
-  } catch (_) {
-    return false;
-  }
-}
-
-function dictStatusMessage(
-  loaded: string[],
-  failed: { id: string; error: string }[] | null,
-  fallbackReason: string | null,
-): string {
-  const seenName = new Set<string>();
-  const simple: string[] = [];
-  for (const id of loaded) {
-    const name = id.startsWith("mn")
-      ? "монгол"
-      : id.startsWith("en")
-        ? "англи"
-        : labelOf(id);
-    if (!seenName.has(name)) {
-      seenName.add(name);
-      simple.push(name);
-    }
-  }
-  const dictShortcut = /Mac|iPhone|iPad|iPod/i.test(navigator.platform || "")
-    ? "⌘⇧L"
-    : "Ctrl+Shift+L";
-  let msg =
-    '<span class="dict-toggle" role="button" tabindex="0" aria-haspopup="dialog" aria-label="Толь сонгох"' +
-    ' aria-keyshortcuts="Control+Shift+L Meta+Shift+L" title="Толь сонгох · ' +
-    dictShortcut +
-    '">' +
-    "Ашиглаж буй толь: <b>" +
-    simple.join(", ") +
-    "</b></span>";
-  if (failed && failed.length) {
-    msg +=
-      ' <span class="muted">(олдсонгүй: ' +
-      failed.map((fail) => escapeHtml(String(fail.id))).join(", ") +
-      ")</span>";
-  }
-  if (fallbackReason) {
-    msg +=
-      '<br><span class="muted">hunspell-wasm амжилтгүй (nspell ашиглаж байна): ' +
-      escapeHtml(fallbackReason) +
-      "</span>";
-  }
-  return msg;
-}
-
-function setDictVersionLabel(version: string | null): void {
-  if (!verEl) return;
-  const full = verBase + (version ? " · mn_MN " + version : "");
-  const wasExpanded = verEl.textContent === verEl.dataset.full;
-  verEl.dataset.full = full;
-  if (wasExpanded) verEl.textContent = full;
-}
+initShortcuts({
+  editor: els.editor,
+  openDictMenu: () => openDictMenu(),
+  lastCaret: () => lastCaret,
+});
 
 const DICT_REFRESH_GAP_MS = 24 * 60 * 60 * 1000;
 const DICT_REFRESH_POLL_MS = 3 * 60 * 60 * 1000;
-
-async function checkAppFreshness(): Promise<void> {
-  if (!reloadEl || !reloadEl.hidden || appUpdating) return;
-  const selfName = import.meta.url.split("/").pop();
-  const entry = await fetchFreshEntry();
-  if (!selfName || !entry || entry.endsWith("/" + selfName)) return;
-  freshEntry = entry;
-  reloadEl.hidden = false;
-}
 
 function maybeRefreshDict(): void {
   if (import.meta.env.DEV) return;
@@ -2771,7 +1231,7 @@ function maybeRefreshDict(): void {
   if (lastDictRefresh && now - lastDictRefresh < DICT_REFRESH_GAP_MS) return;
   lastDictRefresh = now;
   checker.refresh();
-  void checkAppFreshness();
+  void appUpdate.checkFreshness();
 }
 
 async function runOfflineReadyIndicator() {
@@ -2814,25 +1274,25 @@ async function boot() {
     );
   };
   setStatus("Hunspell ачаалж байна…");
-  await loadText();
+  await draft.load();
   restoreDraftFile();
   render();
   document.documentElement.classList.remove("booting");
   els.editor.focus();
-  restoreBootScroll();
+  draft.restoreBootScroll();
   void document.fonts?.ready.then(() => {
-    restoreBootScroll();
-    dropBootScroll();
+    draft.restoreBootScroll();
+    draft.dropBootScroll();
   });
   for (const type of ["pointerdown", "wheel", "keydown", "touchstart"])
-    els.editor.addEventListener(type, dropBootScroll, { once: true });
+    els.editor.addEventListener(type, draft.dropBootScroll, { once: true });
   try {
     const { loaded, failed, fallbackReason, mnVersion } = await checker.init(
       import.meta.env.BASE_URL,
     );
     ready = true;
     checker.setActive(activeIds(enabledEnglish));
-    setDictVersionLabel(mnVersion);
+    appUpdate.setDictVersion(mnVersion);
     cache.clear();
     await render();
     if (loaded.length) {
@@ -2852,7 +1312,7 @@ async function boot() {
 
     checker.onDictUpdated = (id) => {
       if (id !== "mn_MN") return;
-      setDictVersionLabel(checker.mnVersion);
+      appUpdate.setDictVersion(checker.mnVersion);
       cache.clear();
       void render();
     };
@@ -2882,84 +1342,9 @@ async function boot() {
   }
 }
 
-if (panelEls.list) {
-  const ancestorOf = (node: HTMLElement, other: HTMLElement): HTMLElement => {
-    for (
-      let current: HTMLElement | null = node;
-      current;
-      current = current.parentElement
-    )
-      if (current.contains(other)) return current;
-    return node;
-  };
-  const panel = panelEls.title
-    ? ancestorOf(panelEls.list, panelEls.title)
-    : panelEls.list;
-
-  panel.addEventListener("click", (e) => {
-    const target = e.target instanceof Element ? e.target : null;
-    if (!target || target.closest("#copyErrorsBtn")) return;
-    const btn = target.closest(".ew");
-    if (!btn) {
-      els.editor.focus({ preventScroll: true });
-      if (lastCaret) {
-        try {
-          els.editor.setSelectionRange(
-            lastCaret.start,
-            lastCaret.end,
-            "forward",
-          );
-        } catch (_) {}
-      }
-      return;
-    }
-    const start = Number(btn.getAttribute("data-start"));
-    const clickedToken = badTokens.find((token) => token.start === start);
-    if (!clickedToken) return;
-    pendingFix = null;
-    els.editor.focus({ preventScroll: true });
-    try {
-      els.editor.setSelectionRange(
-        clickedToken.start,
-        clickedToken.end,
-        "forward",
-      );
-    } catch (_) {}
-    lastCaret = { start: clickedToken.end, end: clickedToken.end };
-    scrollMarkIntoView(clickedToken.start);
-    showPopoverFor(clickedToken);
-  });
-}
-
-if (panelEls.copy) {
-  const copyIcon = panelEls.copy.innerHTML;
-  const checkIcon =
-    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" ' +
-    'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
-    'stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
-  let copyTimer: ReturnType<typeof setTimeout> | null = null;
-  const copyBtn = panelEls.copy;
-  if (copyBtn) {
-    copyBtn.addEventListener("click", async () => {
-      const words = buildErrorList(badTokens).map((token) => token.word);
-      if (!words.length) return;
-      try {
-        await copyText(words.join("\n"));
-        copyBtn.classList.add("copied");
-        copyBtn.innerHTML = checkIcon;
-        if (copyTimer) clearTimeout(copyTimer);
-        copyTimer = setTimeout(() => {
-          copyBtn.classList.remove("copied");
-          copyBtn.innerHTML = copyIcon;
-        }, 1100);
-      } catch (_) {}
-    });
-  }
-}
-
 desktopMQ.addEventListener("change", () => {
   hidePopover();
-  renderErrorPanel();
+  errorPanel.render();
 });
 
 boot();
