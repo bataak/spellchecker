@@ -2,17 +2,21 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 
 import {
+  alignAt,
   cycleCase,
   headingDepthAt,
+  toggleAlign,
   toggleHeading,
   toggleList,
   toggleWrap,
   enterInsert,
+  insertSignature,
   insertTable,
   minimalDiff,
   toggleQuote,
   wrapLink,
 } from "../src/mdedit.ts";
+import type { AlignKind } from "../src/mdedit.ts";
 
 function at(marked: string): { text: string; start: number; end: number } {
   const start = marked.indexOf("|");
@@ -386,4 +390,99 @@ test("сонголтгүй бол курсор дээрх үгийг хөрвү�
   const e = cycleCase("энэ үгийг солино", 6, 6);
   assert.equal(e.text, "энэ ҮГИЙГ солино");
   assert.equal(e.text.slice(e.start, e.end), "ҮГИЙГ");
+});
+
+function align(marked: string, kind: AlignKind): string {
+  const { text, start, end } = at(marked);
+  return show(toggleAlign(text, start, end, kind));
+}
+
+test("зэрэгцүүлэх товч курсортой доголыг div-ээр бүрхэнэ", () => {
+  assert.equal(
+    align("Өмнө\n\nНэг\nХо|ёр\n\nДараа", "left"),
+    "Өмнө\n\n::: {.left}\nНэг\nХо|ёр\n:::\n\nДараа",
+  );
+  assert.equal(align("|Нэг", "right"), "::: {.right}\n|Нэг\n:::");
+  assert.equal(align("Нэг|", "center"), "::: {.center}\nНэг|\n:::");
+});
+
+test("зэрэгцүүлэх товч сонгосон хэдэн доголыг нэг div-ээр бүрхэнэ", () => {
+  assert.equal(
+    align("|Нэг\n\nХоёр|", "center"),
+    "::: {.center}\n|Нэг\n\nХоёр|\n:::",
+  );
+});
+
+test("ижил товчийг дахин дарвал div арилна", () => {
+  assert.equal(
+    align("А\n\n::: {.left}\nНэ|г\n:::\n\nБ", "left"),
+    "А\n\nНэ|г\n\nБ",
+  );
+  assert.equal(align("::: {.right}\nНэг|\n:::", "right"), "Нэг|");
+  assert.equal(align(":::right\nНэг|\n:::", "right"), "Нэг|");
+});
+
+test("өөр товч дарвал зэрэгцүүлэлтийг сольж, дотоод div-ийг хадгална", () => {
+  assert.equal(
+    align("::: {.left}\nНэ|г\n:::", "right"),
+    "::: {.right}\nНэ|г\n:::",
+  );
+  assert.equal(
+    align("::: {.left}\n::: notes\nН\n:::\n\nХо|ёр\n:::", "center"),
+    "::: {.center}\n::: notes\nН\n:::\n\nХо|ёр\n:::",
+  );
+});
+
+test("зэрэгцүүлэлтгүй div доторх доголыг бүрхэнэ", () => {
+  assert.equal(
+    align("::: notes\nНэ|г\n:::", "left"),
+    "::: notes\n::: {.left}\nНэ|г\n:::\n:::",
+  );
+});
+
+test("alignAt курсорын байрлах зэрэгцүүлэлтийг олно", () => {
+  const text = "А\n\n::: {.center}\nБ\n:::\n\nВ";
+  assert.equal(alignAt(text, text.indexOf("Б")), "center");
+  assert.equal(alignAt(text, text.indexOf("В")), null);
+  assert.equal(alignAt(text, 0), null);
+});
+
+test("гарын үсгийн товч signature div-ээр бүрхэж, дахин дарвал арилгана", () => {
+  assert.equal(
+    align("Захирал: Бат|", "signature"),
+    "::: {.signature}\nЗахирал: Бат|\n:::",
+  );
+  assert.equal(align("::: {.signature}\nБ|\n:::", "signature"), "Б|");
+  assert.equal(
+    align("::: {.right}\nБ|\n:::", "signature"),
+    "::: {.signature}\nБ|\n:::",
+  );
+});
+
+test("хоосон мөрөнд гарын үсгийн бэлэн хүснэгт оруулж, нэрийг сонгоно", () => {
+  const { text, start } = at("Догол.\n|\nДараа");
+  const e = insertSignature(text, start, new Date(2026, 8, 28))!;
+  assert.equal(
+    e.text,
+    [
+      "Догол.",
+      "",
+      "::: {.signature}",
+      "|                   |            |",
+      "| ----------------: | :--------- |",
+      "| Өргөдөл гаргасан: | Овог Нэр   |",
+      "|       Гарын үсэг: | ____       |",
+      "|             Утас: | ____       |",
+      "|                   | 2026/09/28 |",
+      ":::",
+      "",
+      "Дараа",
+    ].join("\n"),
+  );
+  assert.equal(e.text.slice(e.start, e.end), "Овог Нэр");
+});
+
+test("текстэй мөр эсвэл div дотор гарын үсгийн хүснэгт оруулахгүй", () => {
+  assert.equal(insertSignature("Нэг", 1, new Date()), null);
+  assert.equal(insertSignature("::: {.right}\n\n:::", 13, new Date()), null);
 });
