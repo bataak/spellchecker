@@ -8,6 +8,7 @@ import {
   parse,
   print,
   toHtml,
+  todayText,
   type Block,
 } from "../src/markdown.ts";
 
@@ -671,4 +672,17 @@ test("parse: гарчгийн `\\` зайгүй ч таслана, төгсгө�
     logo.children.some((n) => n.type === "break"),
     false,
   );
+});
+
+test("\\today нь өнөөдрийн огноо болж, \\todayx-ийг хөндөхгүй", () => {
+  assert.equal(
+    toHtml(parse("Огноо: \\today, \\today{} \\todayx")),
+    '<p data-line="0">Огноо: ' +
+      todayText() +
+      ", " +
+      todayText() +
+      " \\todayx</p>",
+  );
+  assert.equal(todayText(new Date(2026, 0, 5)), "2026/01/05");
+  assert.equal(format("Огноо: \\today\n"), "Огноо: \\today\n");
 });

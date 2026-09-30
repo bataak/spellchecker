@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { parse } from "../src/markdown.ts";
+import { parse, todayText } from "../src/markdown.ts";
 import { escapeTex, toBeamer, toLatex, toLatexBody } from "../src/latex.ts";
 
 const body = (md: string): string => toLatexBody(parse(md));
@@ -254,4 +254,8 @@ test("зэрэгцүүлэх div догол мөрийн болон мөр хо�
     body("::: {.right}\nНэг\n:::\n"),
     "{\\setlength{\\parindent}{0pt}\\raggedleft\nНэг\\par}",
   );
+});
+
+test("\\today LaTeX-д системийн огноогоор бичигдэнэ", () => {
+  assert.equal(body("Огноо: \\today"), "Огноо: " + todayText());
 });
