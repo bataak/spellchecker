@@ -114,6 +114,18 @@ test("refuses to merge runs whose formatting differs", () => {
   assert.equal(plan.skipped[0].reason, "mixed-format");
 });
 
+test("splits a wide edit into word hunks when runs differ in format", () => {
+  const xml = doc(
+    `<w:p>${run("ийн талаар ", "<w:rPr><w:b/></w:rPr>")}${run("гараашийг буулгалгүй", "<w:rPr><w:i/></w:rPr>")}</w:p>`,
+  );
+  const out = rewrite(xml, [edit(4, 31, "талаарх гаражийг буулгалгүй")]);
+  assert.equal(textOf(out), "ийн талаарх гаражийг буулгалгүй");
+  assert.ok(
+    out.includes(`<w:b/></w:rPr><w:t xml:space="preserve">ийн талаарх </w:t>`),
+  );
+  assert.ok(out.includes("<w:i/></w:rPr><w:t>гаражийг буулгалгүй</w:t>"));
+});
+
 test("ignores proofing language when comparing run formatting", () => {
   const mn = '<w:rPr><w:lang w:val="mn-MN"/></w:rPr>';
   const en = '<w:rPr><w:noProof/><w:lang w:val="en-US"/></w:rPr>';

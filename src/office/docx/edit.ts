@@ -65,6 +65,70 @@ export function narrowEdit(
   };
 }
 
+const TOKEN = /[\p{L}\p{N}\p{M}\u00ad]+|\s+|[^]/gu;
+
+export function splitEdit(
+  oldText: string,
+  newText: string,
+  start: number,
+): ParagraphEdit[] {
+  const before = oldText.match(TOKEN) ?? [];
+  const after = newText.match(TOKEN) ?? [];
+  const rows = before.length + 1;
+  const cols = after.length + 1;
+  const table = new Uint32Array(rows * cols);
+
+  for (let i = before.length - 1; i >= 0; i -= 1) {
+    for (let j = after.length - 1; j >= 0; j -= 1) {
+      table[i * cols + j] =
+        before[i] === after[j]
+          ? table[(i + 1) * cols + j + 1] + 1
+          : Math.max(table[(i + 1) * cols + j], table[i * cols + j + 1]);
+    }
+  }
+
+  const hunks: ParagraphEdit[] = [];
+  let i = 0;
+  let j = 0;
+  let oldPos = 0;
+  let hunkOld = -1;
+  let hunkText = "";
+
+  const flush = (): void => {
+    if (hunkOld < 0) return;
+    hunks.push(
+      narrowEdit(oldText.slice(hunkOld, oldPos), hunkText, start + hunkOld),
+    );
+    hunkOld = -1;
+    hunkText = "";
+  };
+
+  while (i < before.length || j < after.length) {
+    if (i < before.length && j < after.length && before[i] === after[j]) {
+      flush();
+      oldPos += before[i].length;
+      i += 1;
+      j += 1;
+      continue;
+    }
+    if (hunkOld < 0) hunkOld = oldPos;
+    if (
+      j >= after.length ||
+      (i < before.length &&
+        table[(i + 1) * cols + j] >= table[i * cols + j + 1])
+    ) {
+      oldPos += before[i].length;
+      i += 1;
+    } else {
+      hunkText += after[j];
+      j += 1;
+    }
+  }
+  flush();
+
+  return hunks;
+}
+
 function coveredNodes(
   paragraph: Paragraph,
   start: number,
@@ -86,7 +150,11 @@ function coveredNodes(
   });
 }
 
-function isContiguous(nodes: TextNode[], start: number, end: number): boolean {
+function isContiguous(
+  nodes: TextNode[],
+  start: number,
+  end: number,
+): boolean {
   let cursor = start;
 
   for (const node of nodes) {
@@ -155,6 +223,24 @@ function nodeEdits(node: TextNode, next: string): RawEdit[] {
   return edits;
 }
 
+function placePiece(
+  paragraph: Paragraph,
+  piece: ParagraphEdit,
+): SkipReason | null {
+  const nodes = coveredNodes(paragraph, piece.start, piece.end);
+
+  if (nodes.length === 0 || !isContiguous(nodes, piece.start, piece.end))
+    return "crosses-boundary";
+
+  if (nodes.length > 1) {
+    const signature = normalizeRunProps(nodes[0].runProps);
+    if (nodes.some((node) => normalizeRunProps(node.runProps) !== signature))
+      return "mixed-format";
+  }
+
+  return null;
+}
+
 export function planParagraph(
   paragraph: Paragraph,
   edits: ParagraphEdit[],
@@ -194,39 +280,38 @@ export function planParagraph(
       continue;
     }
 
-    const nodes = coveredNodes(paragraph, narrowed.start, narrowed.end);
+    let pieces = [narrowed];
+    let failure = placePiece(paragraph, narrowed);
 
-    if (
-      nodes.length === 0 ||
-      !isContiguous(nodes, narrowed.start, narrowed.end)
-    ) {
-      skipped.push({ edit, reason: "crosses-boundary" });
-      continue;
-    }
-
-    if (nodes.length > 1) {
-      const signature = normalizeRunProps(nodes[0].runProps);
-      const mixed = nodes.some(
-        (node) => normalizeRunProps(node.runProps) !== signature,
-      );
-      if (mixed) {
-        skipped.push({ edit, reason: "mixed-format" });
-        continue;
+    if (failure === "mixed-format") {
+      pieces = splitEdit(current, edit.text, edit.start);
+      failure = null;
+      for (const piece of pieces) {
+        failure = placePiece(paragraph, piece);
+        if (failure !== null) break;
       }
     }
 
-    for (let index = 0; index < nodes.length; index += 1) {
-      const node = nodes[index];
-      const nodeEnd = node.textStart + node.text.length;
-      const operation = {
-        start: Math.max(narrowed.start, node.textStart) - node.textStart,
-        end: Math.min(narrowed.end, nodeEnd) - node.textStart,
-        text: index === 0 ? narrowed.text : "",
-      };
+    if (failure !== null) {
+      skipped.push({ edit, reason: failure });
+      continue;
+    }
 
-      const existing = pending.get(node);
-      if (existing === undefined) pending.set(node, [operation]);
-      else existing.push(operation);
+    for (const piece of pieces) {
+      const nodes = coveredNodes(paragraph, piece.start, piece.end);
+      for (let index = 0; index < nodes.length; index += 1) {
+        const node = nodes[index];
+        const nodeEnd = node.textStart + node.text.length;
+        const operation = {
+          start: Math.max(piece.start, node.textStart) - node.textStart,
+          end: Math.min(piece.end, nodeEnd) - node.textStart,
+          text: index === 0 ? piece.text : "",
+        };
+
+        const existing = pending.get(node);
+        if (existing === undefined) pending.set(node, [operation]);
+        else existing.push(operation);
+      }
     }
 
     guard = Math.max(guard, edit.end);
