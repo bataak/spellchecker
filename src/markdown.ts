@@ -15,6 +15,18 @@ export type TexLogo = "TeX" | "LaTeX" | "LaTeXe";
 
 const TEX_LOGO = /\\(LaTeXe|LaTeX|TeX)(?![A-Za-z])(?:\{\})?/g;
 
+const TEXT_TOKEN = /\\(LaTeXe|LaTeX|TeX|today)(?![A-Za-z])(?:\{\})?/g;
+
+export function todayText(date: Date = new Date()): string {
+  return (
+    String(date.getFullYear()) +
+    "/" +
+    String(date.getMonth() + 1).padStart(2, "0") +
+    "/" +
+    String(date.getDate()).padStart(2, "0")
+  );
+}
+
 export function withLogos(
   text: string,
   logo: (name: TexLogo) => string,
@@ -22,11 +34,18 @@ export function withLogos(
 ): string {
   let out = "";
   let from = 0;
-  for (const match of text.matchAll(TEX_LOGO)) {
-    out += plain(text.slice(from, match.index)) + logo(match[1] as TexLogo);
+  let pending = "";
+  for (const match of text.matchAll(TEXT_TOKEN)) {
+    pending += text.slice(from, match.index);
     from = match.index + match[0].length;
+    if (match[1] === "today") {
+      pending += todayText();
+      continue;
+    }
+    out += plain(pending) + logo(match[1] as TexLogo);
+    pending = "";
   }
-  return out + plain(text.slice(from));
+  return out + plain(pending + text.slice(from));
 }
 
 export function textLogos(value: string): string {
