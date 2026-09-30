@@ -220,6 +220,46 @@ export function migrateLegacyDrafts(active: string): string[] {
   return pending;
 }
 
+function migrateSlotDrafts(): void {
+  for (const template of TEMPLATES) {
+    if (!template.examples?.length) continue;
+    const text = loadDraft(template.id);
+    if (text === null) continue;
+    const key = pickerValue(template.id);
+    if (loadDraft(key) === null) saveDraft(key, text);
+    dropDraft(template.id);
+  }
+}
+
+const CARET_PREFIX = "mdCaret:";
+
+interface Caret {
+  readonly start: number;
+  readonly end: number;
+  readonly scroll: number;
+}
+
+function loadCaret(key: string): Caret | null {
+  try {
+    const raw = localStorage.getItem(CARET_PREFIX + key);
+    const [start, end, scroll] = (raw ?? "").split(",").map(Number);
+    if (raw === null || [start, end, scroll].some((n) => !Number.isFinite(n)))
+      return null;
+    return { start: start!, end: end!, scroll: scroll! };
+  } catch (_) {
+    return null;
+  }
+}
+
+function saveCaret(key: string, caret: Caret): void {
+  try {
+    localStorage.setItem(
+      CARET_PREFIX + key,
+      caret.start + "," + caret.end + "," + caret.scroll,
+    );
+  } catch (_) {}
+}
+
 function saveTemplateId(id: string): void {
   try {
     if (id === PLAIN) localStorage.removeItem(TEMPLATE_KEY);
@@ -321,6 +361,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   const wideQuery = window.matchMedia("(min-width: 701px)");
 
   let legacyPending = migrateLegacyDrafts(templateId);
+  migrateSlotDrafts();
 
   function dropLegacyPending(): void {
     for (const legacy of legacyPending) dropDraft(legacy);
@@ -419,7 +460,8 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       settle = null;
     }
     const focus = document.activeElement;
-    const focused = focus === editor || (focus !== null && bar.contains(focus));
+    const focused =
+      focus === editor || (focus !== null && bar.contains(focus));
     const on = active();
     const show = ready && focused;
 
@@ -528,56 +570,58 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     }, TITLE_HOLD_MS);
   }
 
-  function chooseTemplate(id: string): void {
-    if (id === templateId) return;
+  function chooseTemplate(id: string, example?: string): void {
+    const from = pickerValue(templateId);
+    if (
+      id === templateId &&
+      (example === undefined || example === chosenExample(id))
+    )
+      return;
 
     const parts = [editor.value, ...legacyPending.map(loadDraft)].filter(
       (part): part is string => part !== null && part.trim() !== "",
     );
-    saveDraft(templateId, parts.join("\n\n"));
+    saveDraft(from, parts.join("\n\n"));
+    saveCaret(from, {
+      start: editor.selectionStart,
+      end: editor.selectionEnd,
+      scroll: editor.scrollTop,
+    });
     dropLegacyPending();
     templateId = id;
     saveTemplateId(id);
+    if (example !== undefined) saveExampleChoice(id, example);
 
-    const stored = loadDraft(id);
-    const next = findTemplate(id);
+    const key = pickerValue(id);
+    const stored = loadDraft(key);
+    const text = stored ?? findTemplate(id)?.skeleton ?? "";
+    const caret = stored === null ? null : loadCaret(key);
+    const start = Math.min(caret?.start ?? text.length, text.length);
+    const end = Math.min(caret?.end ?? text.length, text.length);
+
+    if (text !== editor.value) apply({ text, start, end });
+    else editor.setSelectionRange(start, end);
+    if (caret !== null) {
+      editor.scrollTop = caret.scroll;
+      requestAnimationFrame(() => {
+        if (pickerValue(templateId) === key) editor.scrollTop = caret.scroll;
+      });
+    }
     const first = chosenExample(id);
-    const text = stored ?? next?.skeleton ?? "";
-
-    if (text !== editor.value)
-      apply({ text, start: text.length, end: text.length });
-    if (stored === null && first) void loadDefault(id, first);
+    if (stored === null && first) void loadDefault(key, first);
 
     if (options.onTemplate) options.onTemplate(id);
-    select.value = pickerValue(templateId);
+    select.value = key;
     syncVisible();
   }
 
-  async function loadDefault(slot: string, example: string): Promise<void> {
+  async function loadDefault(key: string, example: string): Promise<void> {
     const { exampleText } = await import("./examples.ts");
     const text = exampleText(example);
-    if (text === undefined || templateId !== slot || editor.value.trim())
-      return;
-    apply({ text, start: 0, end: 0 });
-    editor.scrollTop = 0;
-    options.onExample?.();
-  }
-
-  async function openExample(id: string): Promise<void> {
-    const { exampleText } = await import("./examples.ts");
-    const text = exampleText(id);
-    if (text === undefined) return;
-    const template = findTemplate(templateId);
-    const untouched = [
-      template?.skeleton ?? "",
-      ...(template?.examples ?? []).map((item) => exampleText(item.id) ?? ""),
-    ];
     if (
-      editor.value.trim() !== "" &&
-      !untouched.includes(editor.value) &&
-      !window.confirm(
-        "Одоогийн бичвэрийг жишээгээр солих уу? Ctrl+Z дарж буцаах боломжтой.",
-      )
+      text === undefined ||
+      pickerValue(templateId) !== key ||
+      editor.value.trim()
     )
       return;
     apply({ text, start: 0, end: 0 });
@@ -613,10 +657,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     const value = select.value;
     const [slot = "", example] = value.split(":");
     if (example !== undefined) {
-      saveExampleChoice(slot, example);
-      chooseTemplate(slot);
-      select.value = pickerValue(slot);
-      void openExample(example);
+      chooseTemplate(slot, example);
       editor.focus();
       return;
     }
@@ -662,7 +703,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     refresh: syncVisible,
     template: () => templateId,
     reset(): void {
-      dropDraft(templateId);
+      dropDraft(pickerValue(templateId));
       dropLegacyPending();
       holdTitle();
     },
