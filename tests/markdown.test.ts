@@ -755,3 +755,10 @@ test("зураг: шинжгүй бол энгийн бичлэгээр үлдэ
   assert.equal(print(blocks), "Өмнө ![](a.png) ард\n");
   assert.equal(isMarkdown(blocks), true);
 });
+
+test("toHtml — -- ба --- зураасыг хувиргана, кодыг хөндөхгүй", () => {
+  assert.equal(
+    toHtml(parse("1990--2000 --- `a--b`\n")),
+    '<p data-line="0">1990–2000 — <code>a--b</code></p>',
+  );
+});
