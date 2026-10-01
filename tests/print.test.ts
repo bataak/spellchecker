@@ -47,3 +47,7 @@ test("printHtml: гарын үсгийн зураасны доор тайлба�
     /<span class="fill"><\/span><br>\(нэр, албан тушаал, огноо\)<\/p>/,
   );
 });
+
+test("printHtml: хуудас таслалт", () => {
+  assert.match(letter("А\n\n\\newpage\n\nБ"), /<p class="page-break"><\/p>/);
+});

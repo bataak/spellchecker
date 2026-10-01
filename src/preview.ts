@@ -1,3 +1,4 @@
+import { imageUrl, onImagesChange, pickImage, putImage } from "./images.ts";
 import { fitBlanks, format, isMarkdown, parse, toHtml } from "./markdown.ts";
 
 const TIDY_LIMIT = 400_000;
@@ -48,9 +49,35 @@ function contrastGlyph(): SVGSVGElement {
   return svg;
 }
 
+function displayPath(src: string): string {
+  try {
+    return decodeURIComponent(src);
+  } catch {
+    return src;
+  }
+}
+
+function resolveImages(root: HTMLElement): void {
+  for (const img of root.querySelectorAll<HTMLImageElement>("img.md-image")) {
+    const src = img.dataset.src ?? "";
+    const url = imageUrl(src);
+    if (url) {
+      img.src = url;
+      continue;
+    }
+    const missing = document.createElement("button");
+    missing.type = "button";
+    missing.className = "md-image-missing";
+    missing.dataset.src = src;
+    missing.style.cssText = img.style.cssText;
+    missing.title = "Зургийг сонгох";
+    missing.textContent = displayPath(src);
+    img.replaceWith(missing);
+  }
+}
+
 export type PreviewSource =
-  | { kind: "pdf"; file: File }
-  | { kind: "office"; name: string };
+  { kind: "pdf"; file: File } | { kind: "office"; name: string };
 
 const MD_NAME = /\.(md|markdown|mdown|mkd)$/i;
 
@@ -135,6 +162,7 @@ export function initPreview(
       shownHtml = html;
       const next = document.createElement("div");
       next.innerHTML = html;
+      resolveImages(next);
       if (next.querySelector(".math")) {
         if (mathView) mathView.renderMath(next);
         else
@@ -241,6 +269,23 @@ export function initPreview(
     if (onFormat && tidied !== null) onFormat(tidied);
   });
 
+  body.addEventListener("click", (event) => {
+    const missing = (event.target as Element).closest<HTMLElement>(
+      ".md-image-missing",
+    );
+    if (!missing) return;
+    const src = missing.dataset.src ?? "";
+    void pickImage().then((file) => {
+      if (file) putImage(src, file);
+    });
+  });
+
+  const offImages = onImagesChange(() => {
+    if (source) return;
+    shownHtml = null;
+    update();
+  });
+
   area.addEventListener("input", update);
   update();
 
@@ -256,6 +301,7 @@ export function initPreview(
     destroy() {
       if (raf) cancelAnimationFrame(raf);
       dropPdf();
+      offImages();
       area.removeEventListener("input", update);
       tidy.remove();
       panel.remove();

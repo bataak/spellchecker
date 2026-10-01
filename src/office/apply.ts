@@ -333,6 +333,11 @@ export function applyTemplate(
           afterHeading = false;
           break;
 
+        case "pagebreak":
+          out.push({ kind: "break" });
+          afterHeading = false;
+          break;
+
         case "meta":
           for (const field of block.fields) {
             if (!META_STYLE[field.key]) continue;

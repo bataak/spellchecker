@@ -259,3 +259,7 @@ test("зэрэгцүүлэх div догол мөрийн болон мөр хо�
 test("\\today LaTeX-д системийн огноогоор бичигдэнэ", () => {
   assert.equal(body("Огноо: \\today"), "Огноо: " + todayText());
 });
+
+test("toLatexBody: хуудас таслалт", () => {
+  assert.equal(body("А\n\n\\newpage\n\nБ"), "А\n\n\\newpage\n\nБ");
+});

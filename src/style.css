@@ -763,6 +763,56 @@ a.tbtn {
   vertical-align: -0.2em;
 }
 
+.preview-body .md-image {
+  max-width: 100%;
+  height: auto;
+  vertical-align: bottom;
+}
+
+.preview-body .md-image[data-rotate="90"] {
+  transform: rotate(90deg);
+}
+
+.preview-body .md-image[data-rotate="180"] {
+  transform: rotate(180deg);
+}
+
+.preview-body .md-image[data-rotate="270"] {
+  transform: rotate(270deg);
+}
+
+.preview-body .md-image-missing {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 8em;
+  max-width: 100%;
+  min-height: 6em;
+  padding: 0.6em;
+  border: 1px dashed var(--muted);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85em;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.preview-body .md-image-missing::before {
+  content: "+";
+  margin-inline-end: 0.4em;
+  font-size: 1.4em;
+  line-height: 1;
+}
+
+.preview-body .md-image-missing:hover,
+.preview-body .md-image-missing:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .preview-body .math-display {
   margin: 0 0 0.8em;
   overflow-x: auto;
@@ -889,6 +939,11 @@ a.tbtn {
   margin: 1.2em 0;
   border: 0;
   border-top: 1px solid var(--line);
+}
+
+.preview-body hr.page-break {
+  margin: 1.6em calc(-1 * var(--preview-pad));
+  border-top: 1px dashed var(--muted);
 }
 
 .decode-btn.is-done {

@@ -67,7 +67,7 @@ export function splitSlides(blocks: readonly Block[]): Deck {
       slides.push(current);
       continue;
     }
-    if (b.type === "rule") {
+    if (b.type === "rule" || b.type === "pagebreak") {
       current = { title: null, blocks: [], notes: [] };
       slides.push(current);
       continue;

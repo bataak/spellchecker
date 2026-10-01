@@ -301,3 +301,12 @@ test("бусад томьёоны хязгаарлагчийг алгасна", 
     true,
   );
 });
+
+test("зургийн зам болон шинжийг алгасна", () => {
+  const text = "![Лого](logo.png){width=40% rotate=90} үг";
+  const ranges = skipRanges(text);
+  assert.equal(inRanges(ranges, text.indexOf("logo")), true);
+  assert.equal(inRanges(ranges, text.indexOf("rotate")), true);
+  assert.equal(inRanges(ranges, text.indexOf("Лого")), false);
+  assert.equal(inRanges(ranges, text.indexOf("үг")), false);
+});

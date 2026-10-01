@@ -75,7 +75,14 @@ export type Inline =
   | { type: "strong"; children: Inline[] }
   | { type: "del"; children: Inline[] }
   | { type: "em"; children: Inline[] }
-  | { type: "link"; url: string; children: Inline[]; auto?: boolean };
+  | { type: "link"; url: string; children: Inline[]; auto?: boolean }
+  | {
+      type: "image";
+      alt: string;
+      src: string;
+      width?: number;
+      rotate?: number;
+    };
 
 export interface Heading {
   type: "heading";
@@ -142,6 +149,10 @@ export interface Rule {
   type: "rule";
   line: number;
 }
+export interface PageBreak {
+  type: "pagebreak";
+  line: number;
+}
 export interface Table {
   type: "table";
   align: (("left" | "right" | "center") | null)[];
@@ -160,6 +171,7 @@ export type Block =
   | MetaBlock
   | DivBlock
   | Rule
+  | PageBreak
   | Table;
 
 const HOLD = "\u0001";
@@ -226,9 +238,32 @@ const TOKEN = new RegExp(
     "\\[([^\\]]*)\\]\\(([^)\\s]*)\\)",
     "<((?:[a-z][a-z0-9+.-]*:|[^\\s<>@]+@)[^\\s<>]+)>",
     MATH_HOLD + "(\\d+)" + MATH_HOLD,
+    "!\\[([^\\]]*)\\]\\(([^)\\s]+)\\)(?:\\{([^{}]*)\\})?",
   ].join("|"),
   "iu",
 );
+
+function imageNode(alt: string, src: string, attrs: string): Inline {
+  const { keys } = parseAttrs("{" + attrs + "}");
+  const node: Inline & { type: "image" } = { type: "image", alt, src };
+  const width = /^(\d+(?:\.\d+)?)%$/.exec(keys["width"] ?? "")?.[1];
+  if (width !== undefined && Number(width) > 0)
+    node.width = Math.min(100, Number(width));
+  const rotate = (((Number(keys["rotate"]) || 0) % 360) + 360) % 360;
+  if (rotate % 90 === 0 && rotate !== 0) node.rotate = rotate;
+  return node;
+}
+
+export function imageAttrs(node: {
+  readonly width?: number;
+  readonly rotate?: number;
+}): string {
+  const parts = [
+    node.width === undefined ? "" : "width=" + String(node.width) + "%",
+    node.rotate === undefined ? "" : "rotate=" + String(node.rotate),
+  ].filter(Boolean);
+  return parts.length ? "{" + parts.join(" ") + "}" : "";
+}
 
 function parseInlineMasked(
   src: string,
@@ -287,6 +322,14 @@ function parseInlineMasked(
         type: "em",
         children: parseInlineMasked((m[8] ?? m[9])!, held, lifted),
       });
+    } else if (m[15] !== undefined) {
+      out.push(
+        imageNode(
+          unmask(m[14] ?? "", held),
+          unmask(m[15], held),
+          m[16] === undefined ? "" : unmask(m[16], held),
+        ),
+      );
     } else if (m[13] !== undefined) {
       const math = lifted[Number(m[13])];
       if (math) out.push(math);
@@ -379,6 +422,7 @@ function inlineOf(src: string, breaks: boolean): Inline[] {
 
 const HEADING_RE = /^(#{1,6})\s+(.*)$/;
 const RULE_RE = /^\s*([-*_])(\s*\1){2,}\s*$/;
+const PAGEBREAK_RE = /^\s*\\newpage\s*$/;
 const BULLET_RE = /^(\s*)([-*+])\s+(.*)$/;
 const ORDERED_RE = /^(\s*)(\d+)[.)]\s+(.*)$/;
 const QUOTE_RE = /^\s*>\s?(.*)$/;
@@ -507,6 +551,7 @@ function plainInline(nodes: readonly Inline[]): string {
     if (node.type === "text" || node.type === "code" || node.type === "math")
       out += node.value;
     else if (node.type === "blank") out += "_".repeat(node.width);
+    else if (node.type === "image") out += node.alt;
     else if (
       node.type === "strong" ||
       node.type === "em" ||
@@ -950,6 +995,12 @@ function parseBlocks(src: string, top: boolean): Block[] {
       continue;
     }
 
+    if (PAGEBREAK_RE.test(line)) {
+      out.push({ type: "pagebreak", line: i });
+      i += 1;
+      continue;
+    }
+
     if (RULE_RE.test(line)) {
       out.push({ type: "rule", line: i });
       i += 1;
@@ -1035,6 +1086,12 @@ function inlineHtml(nodes: readonly Inline[]): string {
       out += `<strong>${inlineHtml(n.children)}</strong>`;
     else if (n.type === "em") out += `<em>${inlineHtml(n.children)}</em>`;
     else if (n.type === "del") out += `<del>${inlineHtml(n.children)}</del>`;
+    else if (n.type === "image")
+      out +=
+        `<img class="md-image" data-src="${esc(n.src)}" alt="${esc(n.alt)}"` +
+        (n.width === undefined ? "" : ` style="width:${n.width}%"`) +
+        (n.rotate === undefined ? "" : ` data-rotate="${n.rotate}"`) +
+        `>`;
     else
       out +=
         `<a href="${esc(n.url)}" rel="noopener noreferrer" target="_blank">` +
@@ -1052,6 +1109,7 @@ export function toHtml(blocks: readonly Block[]): string {
     else if (b.type === "paragraph")
       out += `<p${at}>${inlineHtml(b.children)}</p>`;
     else if (b.type === "rule") out += `<hr${at}>`;
+    else if (b.type === "pagebreak") out += `<hr class="page-break"${at}>`;
     else if (b.type === "codeblock")
       out += `<pre${at}><code>${esc(b.value)}</code></pre>`;
     else if (b.type === "math")
@@ -1174,6 +1232,8 @@ function inlineMd(
       out += `**${inlineMd(n.children, cell, full)}**`;
     else if (n.type === "em") out += `*${inlineMd(n.children, cell, full)}*`;
     else if (n.type === "del") out += `~~${inlineMd(n.children, cell, full)}~~`;
+    else if (n.type === "image")
+      out += `![${escapeText(n.alt, cell, full)}](${n.src})${imageAttrs(n)}`;
     else if (n.auto) out += `<${n.url}>`;
     else out += `[${inlineMd(n.children, cell, full)}](${n.url})`;
   }
@@ -1204,6 +1264,8 @@ function blockMd(b: Block, full: boolean): string {
         .join("\n");
     case "rule":
       return "---";
+    case "pagebreak":
+      return "\\newpage";
     case "codeblock": {
       const f = fenceFor(b.value);
       return f + b.lang + "\n" + b.value + "\n" + f;
@@ -1328,6 +1390,7 @@ export function isMarkdown(blocks: readonly Block[]): boolean {
       case "table":
       case "quote":
       case "rule":
+      case "pagebreak":
         return true;
       case "list":
         if (b.items.some(hasInlineMarkup)) return true;
