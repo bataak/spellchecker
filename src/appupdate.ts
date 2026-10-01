@@ -1,6 +1,7 @@
 export interface AppUpdate {
   readonly setDictVersion: (version: string | null) => void;
   readonly checkFreshness: () => Promise<void>;
+  readonly recoverStale: () => Promise<boolean>;
 }
 
 function swSettled(worker: ServiceWorker): Promise<void> {
@@ -126,5 +127,24 @@ export function initAppUpdate(
     reloadEl.hidden = false;
   }
 
-  return { setDictVersion, checkFreshness };
+  async function recoverStale(): Promise<boolean> {
+    if (appUpdating) return true;
+    const selfName = entryUrl.split("/").pop();
+    const entry = await fetchFreshEntry();
+    if (!selfName || !entry || entry.endsWith("/" + selfName)) return false;
+    const key = "staleReload:" + entry;
+    try {
+      if (sessionStorage.getItem(key)) return false;
+      sessionStorage.setItem(key, "1");
+    } catch (_) {
+      return false;
+    }
+    freshEntry = entry;
+    if (reloadEl) reloadEl.hidden = true;
+    setStatus("Шинэ хувилбарыг ачаалж байна…");
+    void reloadToLatest();
+    return true;
+  }
+
+  return { setDictVersion, checkFreshness, recoverStale };
 }
