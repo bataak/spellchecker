@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.96.0](https://github.com/bataak/spellchecker/compare/v1.95.1...v1.96.0) (2026-10-01)
+
+
+### Features
+
+* **export:** embed images in DOCX, ODT, LaTeX and PDF exports ([cd78c1b](https://github.com/bataak/spellchecker/commit/cd78c1bd2cab811e94faa745d78631f1af6edf37))
+* **hint:** hide onboarding hints on touch devices ([80ea161](https://github.com/bataak/spellchecker/commit/80ea161402124a11a2f2ca3ae4b7a4189bfd2fb3))
+* **markdown:** add a page break button that inserts \newpage ([003506d](https://github.com/bataak/spellchecker/commit/003506d45b65ab421110b9e41bff9d3f254aace0))
+* **markdown:** show images in the preview from in-memory picks ([003506d](https://github.com/bataak/spellchecker/commit/003506d45b65ab421110b9e41bff9d3f254aace0))
+* **preview:** resize images from their corners and rotate them in place ([40eb5d6](https://github.com/bataak/spellchecker/commit/40eb5d6a659602d26b8b04bcc9aad2c8ee009260))
+* **print:** print markdown images, rotated and sized as written ([ccd8b7c](https://github.com/bataak/spellchecker/commit/ccd8b7c2d237e0e56b89a52d729337f224b6c51e))
+* **slides:** place images on PPTX, ODP and printed slides ([7147604](https://github.com/bataak/spellchecker/commit/71476042aada1d63822468f89cf42d562d21a6eb))
+* **toolbar:** list the application example before the minutes ([6fb54ac](https://github.com/bataak/spellchecker/commit/6fb54aca42153b56cf51c358efcd58c6fe011cc1))
+* **toolbar:** rename list buttons and space list items like paragraphs ([d70bb97](https://github.com/bataak/spellchecker/commit/d70bb972e3f524b936f379644577f14c60dcda4f))
+
+
+### Bug Fixes
+
+* **export:** keep the caption after a signature fill line ([47b89d7](https://github.com/bataak/spellchecker/commit/47b89d78e6082df3ecfdfc6f95a921ad5b8e51bc))
+
 ## [1.95.1](https://github.com/bataak/spellchecker/compare/v1.95.0...v1.95.1) (2026-09-30)
 
 
