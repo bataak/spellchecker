@@ -27,6 +27,10 @@ export function todayText(date: Date = new Date()): string {
   );
 }
 
+export function dashes(text: string): string {
+  return text.replaceAll("---", "\u2014").replaceAll("--", "\u2013");
+}
+
 export function withLogos(
   text: string,
   logo: (name: TexLogo) => string,
@@ -1076,7 +1080,7 @@ function inlineHtml(nodes: readonly Inline[]): string {
   for (const n of nodes) {
     if (n.type === "text")
       out += withLogos(
-        n.value,
+        dashes(n.value),
         (name) => `<span class="tex-logo">${LOGO_HTML[name]}</span>`,
         esc,
       );

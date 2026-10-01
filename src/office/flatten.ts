@@ -1,6 +1,7 @@
 import {
   LOGO_TEXT,
   blankUnderscores,
+  dashes,
   mathSource,
   withLogos,
   type Inline,
@@ -64,7 +65,7 @@ function walk(nodes: readonly Inline[], marks: Marks, out: IrRun[]): void {
         push(
           out,
           withLogos(
-            node.value,
+            dashes(node.value),
             (name) => LOGO_TEXT[name],
             (part) => part,
           ),
