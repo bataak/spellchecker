@@ -243,15 +243,24 @@ const TOKEN = new RegExp(
   "iu",
 );
 
-function imageNode(alt: string, src: string, attrs: string): Inline {
+export interface ImageSize {
+  width?: number;
+  rotate?: number;
+}
+
+export function parseImageAttrs(attrs: string): ImageSize {
   const { keys } = parseAttrs("{" + attrs + "}");
-  const node: Inline & { type: "image" } = { type: "image", alt, src };
+  const out: ImageSize = {};
   const width = /^(\d+(?:\.\d+)?)%$/.exec(keys["width"] ?? "")?.[1];
   if (width !== undefined && Number(width) > 0)
-    node.width = Math.min(100, Number(width));
+    out.width = Math.min(100, Number(width));
   const rotate = (((Number(keys["rotate"]) || 0) % 360) + 360) % 360;
-  if (rotate % 90 === 0 && rotate !== 0) node.rotate = rotate;
-  return node;
+  if (rotate % 90 === 0 && rotate !== 0) out.rotate = rotate;
+  return out;
+}
+
+function imageNode(alt: string, src: string, attrs: string): Inline {
+  return { type: "image", alt, src, ...parseImageAttrs(attrs) };
 }
 
 export function imageAttrs(node: {
@@ -260,7 +269,7 @@ export function imageAttrs(node: {
 }): string {
   const parts = [
     node.width === undefined ? "" : "width=" + String(node.width) + "%",
-    node.rotate === undefined ? "" : "rotate=" + String(node.rotate),
+    node.rotate ? "rotate=" + String(node.rotate) : "",
   ].filter(Boolean);
   return parts.length ? "{" + parts.join(" ") + "}" : "";
 }

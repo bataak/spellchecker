@@ -10,6 +10,14 @@ const REMOTE = /^(?:https?:|data:|blob:)/i;
 
 const store = new Map<string, Stored>();
 const listeners = new Set<() => void>();
+const prepared = new Map<string, Promise<PreparedImage | null>>();
+let owned: string[] = [];
+
+function dropPrepared(): void {
+  for (const url of owned) URL.revokeObjectURL(url);
+  owned = [];
+  prepared.clear();
+}
 
 function notify(): void {
   for (const listener of listeners) listener();
@@ -31,14 +39,16 @@ export function imageBlob(src: string): Blob | null {
 export function putImage(src: string, blob: Blob): void {
   const old = store.get(src);
   if (old) URL.revokeObjectURL(old.url);
+  dropPrepared();
   store.set(src, { blob, url: URL.createObjectURL(blob) });
   notify();
 }
 
 export function clearImages(): void {
-  if (!store.size) return;
+  if (!store.size && !prepared.size) return;
   for (const { url } of store.values()) URL.revokeObjectURL(url);
   store.clear();
+  dropPrepared();
   notify();
 }
 
@@ -47,11 +57,9 @@ export function onImagesChange(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-let prepared: string[] = [];
-
 function own(blob: Blob): string {
   const url = URL.createObjectURL(blob);
-  prepared.push(url);
+  owned.push(url);
   return url;
 }
 
@@ -112,18 +120,24 @@ async function prepareOne(image: IrImage): Promise<PreparedImage | null> {
   return { url: own(turnedBlob), blob: turnedBlob, widthPx, heightPx };
 }
 
+export function prepareImage(image: IrImage): Promise<PreparedImage | null> {
+  const key = imageKey(image);
+  let ready = prepared.get(key);
+  if (!ready) {
+    ready = prepareOne(image);
+    prepared.set(key, ready);
+  }
+  return ready;
+}
+
 export async function prepareImages(
   images: readonly IrImage[],
 ): Promise<ImageSet> {
-  for (const url of prepared) URL.revokeObjectURL(url);
-  prepared = [];
-  const unique = new Map<string, IrImage>();
-  for (const image of images) unique.set(imageKey(image), image);
   const out = new Map<string, PreparedImage>();
   await Promise.all(
-    [...unique].map(async ([key, image]) => {
-      const ready = await prepareOne(image);
-      if (ready) out.set(key, ready);
+    images.map(async (image) => {
+      const ready = await prepareImage(image);
+      if (ready) out.set(imageKey(image), ready);
     }),
   );
   return out;

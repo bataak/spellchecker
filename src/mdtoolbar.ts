@@ -1,5 +1,6 @@
 import {
   alignAt,
+  applyEdit,
   cycleCase,
   enterInsert,
   headingDepthAt,
@@ -7,7 +8,6 @@ import {
   insertPageBreak,
   insertSignature,
   insertTable,
-  minimalDiff,
   toggleAlign,
   toggleHeading,
   toggleList,
@@ -397,27 +397,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   let readyTimer: ReturnType<typeof setTimeout> | null = null;
 
   function apply(edit: Edit): void {
-    const patch = minimalDiff(editor.value, edit.text);
-
-    if (patch) {
-      editor.focus();
-      editor.setSelectionRange(patch.from, patch.to);
-      let ok = false;
-      try {
-        ok =
-          patch.insert === ""
-            ? document.execCommand("delete")
-            : document.execCommand("insertText", false, patch.insert);
-      } catch (_) {
-        ok = false;
-      }
-      if (!ok) {
-        editor.setRangeText(patch.insert, patch.from, patch.to, "end");
-        editor.dispatchEvent(new Event("input", { bubbles: true }));
-      }
-    }
-
-    editor.setSelectionRange(edit.start, edit.end);
+    applyEdit(editor, edit);
   }
 
   function run(role: Role): void {

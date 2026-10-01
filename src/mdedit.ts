@@ -1,4 +1,6 @@
 import { codeRanges, inRanges } from "./codeskip.ts";
+import { imageAttrs, parseImageAttrs } from "./markdown.ts";
+import type { ImageSize } from "./markdown.ts";
 
 export interface Edit {
   readonly text: string;
@@ -418,6 +420,46 @@ export function insertImage(text: string, caret: number, src: string): Edit {
   return insertBlock(text, caret, "![](" + src + ")");
 }
 
+const IMAGE_TOKEN = /!\[[^\]\n]*\]\([^)\s]+\)(?:\{([^{}\n]*)\})?/g;
+
+export function imageSizeAt(text: string, index: number): ImageSize | null {
+  const found = nthImage(text, index);
+  return found ? parseImageAttrs(found[1] ?? "") : null;
+}
+
+function nthImage(text: string, index: number): RegExpExecArray | null {
+  const code = codeRanges(text);
+  let n = -1;
+  IMAGE_TOKEN.lastIndex = 0;
+  for (;;) {
+    const m = IMAGE_TOKEN.exec(text);
+    if (!m) return null;
+    if (inRanges(code, m.index) || text[m.index - 1] === "\\") continue;
+    n += 1;
+    if (n === index) return m;
+  }
+}
+
+export function setImageSize(
+  text: string,
+  index: number,
+  change: ImageSize,
+  caret: number,
+): Edit | null {
+  const m = nthImage(text, index);
+  if (!m) return null;
+  const end = m.index + m[0].length;
+  const from = end - (m[1] === undefined ? 0 : m[1].length + 2);
+  const attrs = imageAttrs({ ...parseImageAttrs(m[1] ?? ""), ...change });
+  const delta = attrs.length - (end - from);
+  const at = caret >= end ? caret + delta : caret;
+  return {
+    text: text.slice(0, from) + attrs + text.slice(end),
+    start: at,
+    end: at,
+  };
+}
+
 export type AlignKind = "left" | "center" | "right" | "signature";
 
 const FENCE_OPEN = /^\s{0,3}(:{3,})\s*(\{[^{}]*\}|[^\s{}:]+)\s*:*\s*$/;
@@ -631,4 +673,32 @@ export function insertSignature(
     start: at,
     end: at + NAME_HOLDER.length,
   };
+}
+
+export function applyEdit(
+  editor: HTMLTextAreaElement,
+  edit: Edit,
+  options: FocusOptions = {},
+): void {
+  const patch = minimalDiff(editor.value, edit.text);
+
+  if (patch) {
+    editor.focus(options);
+    editor.setSelectionRange(patch.from, patch.to);
+    let ok = false;
+    try {
+      ok =
+        patch.insert === ""
+          ? document.execCommand("delete")
+          : document.execCommand("insertText", false, patch.insert);
+    } catch (_) {
+      ok = false;
+    }
+    if (!ok) {
+      editor.setRangeText(patch.insert, patch.from, patch.to, "end");
+      editor.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  }
+
+  editor.setSelectionRange(edit.start, edit.end);
 }

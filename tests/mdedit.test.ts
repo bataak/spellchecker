@@ -10,7 +10,9 @@ import {
   toggleList,
   toggleWrap,
   enterInsert,
+  imageSizeAt,
   insertImage,
+  setImageSize,
   insertPageBreak,
   insertSignature,
   insertTable,
@@ -505,4 +507,25 @@ test("зургийг тусдаа догол болгон оруулна", () =>
   const e = insertImage("Хавсралт:", 9, "id.jpg");
   assert.equal(e.text, "Хавсралт:\n\n![](id.jpg)\n\n");
   assert.equal(e.start, e.text.length);
+});
+
+test("n дахь зургийн хэмжээг өөрчилж, кодын доторхийг тоолохгүй", () => {
+  const text = "`![](code.png)` ![](a.png)\n\n![Б](b.png){width=30%} үг";
+  const e = setImageSize(text, 1, { width: 55 }, text.length);
+  assert.equal(
+    e?.text,
+    "`![](code.png)` ![](a.png)\n\n![Б](b.png){width=55%} үг",
+  );
+  assert.equal(e?.start, e!.text.length);
+  assert.deepEqual(imageSizeAt(e!.text, 1), { width: 55 });
+});
+
+test("эргэлтийг нэмж, 0 болоход шинжийг арилгана", () => {
+  const turned = setImageSize("![](a.png)", 0, { rotate: 90 }, 0)!;
+  assert.equal(turned.text, "![](a.png){rotate=90}");
+  assert.equal(
+    setImageSize(turned.text, 0, { rotate: 0 }, 0)!.text,
+    "![](a.png)",
+  );
+  assert.equal(setImageSize("![](a.png)", 3, { width: 10 }, 0), null);
 });
