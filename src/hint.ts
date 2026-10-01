@@ -95,6 +95,7 @@ function display(hint: Hint, button: HTMLElement, onHide: () => void): void {
 }
 
 export function initHints(source: () => readonly Hint[]): () => void {
+  if (isTouch()) return () => {};
   let showing = false;
   let readyAt = 0;
   let lastActive = 0;
@@ -150,13 +151,12 @@ export function exportHint(target: () => HTMLElement | null): Hint {
   return {
     id: "export",
     target,
-    html: isTouch()
-      ? "PDF, DOCX зэрэг файл болгох бол <b>Хадгалах</b> товчийг удаан дарна."
-      : "PDF, DOCX зэрэг файл болгох бол " +
-        kbd("Ctrl+Shift+Alt+S", "⌘⇧⌥S") +
-        " эсвэл " +
-        kbd("Shift", "⇧") +
-        " дарж байгаад <b>Хадгалах</b> товчийг дарна.",
+    html:
+      "PDF, DOCX зэрэг файл болгох бол " +
+      kbd("Ctrl+Shift+Alt+S", "⌘⇧⌥S") +
+      " эсвэл " +
+      kbd("Shift", "⇧") +
+      " дарж байгаад <b>Хадгалах</b> товчийг дарна.",
   };
 }
 
@@ -164,11 +164,10 @@ export function openHint(target: () => HTMLElement | null): Hint {
   return {
     id: "open",
     target,
-    html: isTouch()
-      ? "txt, md, docx, pptx, odt, odp, pdf файлууд дахь бичвэрийн алдааг шалгана."
-      : "txt, md, docx, pptx, odt, odp, pdf файлууд дахь бичвэрийн алдааг шалгана (" +
-        kbd("Ctrl+O", "⌘O") +
-        "). Файлаа бичвэрийн талбар уруу чирч оруулж болно.",
+    html:
+      "txt, md, docx, pptx, odt, odp, pdf файлууд дахь бичвэрийн алдааг шалгана (" +
+      kbd("Ctrl+O", "⌘O") +
+      "). Файлаа бичвэрийн талбар уруу чирч оруулж болно.",
   };
 }
 
@@ -176,14 +175,12 @@ export function defineHint(target: () => HTMLElement | null): Hint {
   return {
     id: "define",
     target,
-    html: isTouch()
-      ? "Үгэн дээр товшоод энэ товчийг дарвал үгийн тайлбар харагдана. " +
-        "Удаан дарвал тайлбар толинуудыг удирдана."
-      : "Үгэн дээр заагчаа байрлуулаад энэ товчийг дарвал үгийн тайлбар харагдана (" +
-        kbd("Ctrl+Shift+Space", "⌘⇧Space") +
-        "). " +
-        kbd("Shift", "⇧") +
-        " товчтой дарвал тайлбар толинуудыг удирдана.",
+    html:
+      "Үгэн дээр заагчаа байрлуулаад энэ товчийг дарвал үгийн тайлбар харагдана (" +
+      kbd("Ctrl+Shift+Space", "⌘⇧Space") +
+      "). " +
+      kbd("Shift", "⇧") +
+      " товчтой дарвал тайлбар толинуудыг удирдана.",
   };
 }
 
@@ -191,11 +188,10 @@ export function spellDictHint(target: () => HTMLElement | null): Hint {
   return {
     id: "spelldict",
     target,
-    html: isTouch()
-      ? "Монгол, англи алдаа шалгах толинуудаа эндээс товшиж сонгоно."
-      : "Монгол, англи алдаа шалгах толинуудаа эндээс сонгоно (" +
-        kbd("Ctrl+Shift+L", "⌘⇧L") +
-        ").",
+    html:
+      "Монгол, англи алдаа шалгах толинуудаа эндээс сонгоно (" +
+      kbd("Ctrl+Shift+L", "⌘⇧L") +
+      ").",
   };
 }
 
