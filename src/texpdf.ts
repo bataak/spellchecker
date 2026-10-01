@@ -104,8 +104,11 @@ async function compileOn(
   worker: Worker,
   tex: string,
   passes: number,
+  files: Readonly<Record<string, Uint8Array>>,
 ): Promise<Uint8Array<ArrayBuffer>> {
   worker.postMessage({ cmd: "flushcache" });
+  for (const [url, src] of Object.entries(files))
+    worker.postMessage({ cmd: "writefile", url, src });
   worker.postMessage({ cmd: "writefile", url: "main.tex", src: tex });
   worker.postMessage({ cmd: "setmainfile", url: "main.tex" });
   let pdf = await runOnce(worker);
@@ -116,13 +119,14 @@ async function compileOn(
 export function compilePdf(
   tex: string,
   passes = 1,
+  files: Readonly<Record<string, Uint8Array>> = {},
 ): Promise<Uint8Array<ArrayBuffer>> {
   const job = queue.then(async () => {
     engine ??= start().catch((error: unknown) => {
       engine = null;
       throw error;
     });
-    return compileOn(await engine, tex, passes);
+    return compileOn(await engine, tex, passes, files);
   });
   queue = job.catch(() => undefined);
   return job;

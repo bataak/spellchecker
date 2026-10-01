@@ -1,23 +1,38 @@
 import { zipSync } from "fflate";
 import type { Zippable } from "fflate";
-import { STYLE } from "../docir.ts";
-import type { Align, DocIr, IrBlock, IrRun, ParaStyle } from "../docir.ts";
+import { STYLE, imageKey, imageSizeCm } from "../docir.ts";
+import type {
+  Align,
+  DocIr,
+  ImageFiles,
+  IrBlock,
+  IrImage,
+  IrRun,
+  PageSpec,
+  ParaStyle,
+} from "../docir.ts";
 import { tabFills } from "../flatten.ts";
 import { columnWidths, officeMetrics } from "../table.ts";
 
 export interface DocxOptions {
   readonly toc?: boolean;
+  readonly images?: ImageFiles;
 }
 
 const encoder = new TextEncoder();
 
 const MONO = "Courier New";
 const TWIP_CM = 567;
+const EMU_CM = 360000;
 
 const NS_W =
   'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
 const NS_R =
   'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+const NS_WP =
+  'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"';
+const DRAWING = "http://schemas.openxmlformats.org/drawingml/2006/main";
+const PICTURE = "http://schemas.openxmlformats.org/drawingml/2006/picture";
 
 const REL =
   "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
@@ -266,6 +281,65 @@ interface Body {
   readonly links: Rel[];
   readonly nums: { ordered: boolean; start: number }[];
   bookmark: number;
+  drawing: number;
+  readonly page: PageSpec;
+  readonly images: ImageFiles;
+  readonly media: Map<string, { readonly id: string; readonly name: string }>;
+}
+
+function drawingXml(image: IrImage, body: Body): string {
+  const key = imageKey(image);
+  const file = body.images.get(key);
+  if (!file) return "";
+  let media = body.media.get(key);
+  if (!media) {
+    media = {
+      id: "rId" + String(body.links.length + 10),
+      name: "image" + String(body.media.size + 1) + "." + file.ext,
+    };
+    body.links.push({
+      id: media.id,
+      type: REL + "/image",
+      target: "media/" + media.name,
+    });
+    body.media.set(key, media);
+  }
+  const size = imageSizeCm(image, file, body.page);
+  const extent =
+    'cx="' +
+    String(Math.round(size.widthCm * EMU_CM)) +
+    '" cy="' +
+    String(Math.round(size.heightCm * EMU_CM)) +
+    '"';
+  body.drawing += 1;
+  const id = String(body.drawing);
+  return (
+    '<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0">' +
+    "<wp:extent " +
+    extent +
+    '/><wp:docPr id="' +
+    id +
+    '" name="Picture ' +
+    id +
+    '"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="' +
+    DRAWING +
+    '" noChangeAspect="1"/></wp:cNvGraphicFramePr>' +
+    '<a:graphic xmlns:a="' +
+    DRAWING +
+    '"><a:graphicData uri="' +
+    PICTURE +
+    '"><pic:pic xmlns:pic="' +
+    PICTURE +
+    '"><pic:nvPicPr><pic:cNvPr id="0" name="' +
+    media.name +
+    '"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="' +
+    media.id +
+    '"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>' +
+    '<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext ' +
+    extent +
+    '/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>' +
+    "</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>"
+  );
 }
 
 function textRun(text: string, rPr: string): string {
@@ -288,6 +362,10 @@ function runsXml(
     if (lineBreaks && index > 0) out += "<w:r><w:br/></w:r>";
     if (run.tab) {
       out += "<w:r><w:tab/></w:r>";
+      return;
+    }
+    if (run.image) {
+      out += drawingXml(run.image, body);
       return;
     }
     if (!run.text) return;
@@ -554,6 +632,8 @@ function documentXml(doc: DocIr, options: DocxOptions, body: Body): string {
     NS_W +
     " " +
     NS_R +
+    " " +
+    NS_WP +
     "><w:body>" +
     blocks.join("") +
     sect +
@@ -613,7 +693,15 @@ export function buildDocx(
   doc: DocIr,
   options: DocxOptions = {},
 ): Uint8Array<ArrayBuffer> {
-  const body: Body = { links: [], nums: [], bookmark: 0 };
+  const body: Body = {
+    links: [],
+    nums: [],
+    bookmark: 0,
+    drawing: 0,
+    page: doc.page,
+    images: options.images ?? new Map(),
+    media: new Map(),
+  };
   const document = documentXml(doc, options, body);
 
   const overrides = [
@@ -634,6 +722,16 @@ export function buildDocx(
       '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
       '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
       '<Default Extension="xml" ContentType="application/xml"/>' +
+      [...new Set([...body.media.values()].map((m) => m.name.split(".")[1]))]
+        .map(
+          (ext) =>
+            '<Default Extension="' +
+            ext +
+            '" ContentType="image/' +
+            ext +
+            '"/>',
+        )
+        .join("") +
       overrides
         .map(
           ([part, type]) =>
@@ -673,5 +771,7 @@ export function buildDocx(
   const zippable: Zippable = {};
   for (const [name, xml] of Object.entries(files))
     zippable[name] = encoder.encode(xml);
+  for (const [key, media] of body.media)
+    zippable["word/media/" + media.name] = body.images.get(key)!.bytes;
   return zipSync(zippable, { level: 6 }) as Uint8Array<ArrayBuffer>;
 }

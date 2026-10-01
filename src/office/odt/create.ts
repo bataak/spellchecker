@@ -1,8 +1,16 @@
 import { odfFont } from "../fonts.ts";
 import { ODF_TEXT, writeOdf } from "../odf/index.ts";
 import type { OdfPackage } from "../odf/index.ts";
-import { STYLE } from "../docir.ts";
-import type { DocIr, IrBlock, IrRun, ParaStyle } from "../docir.ts";
+import { STYLE, imageKey, imageSizeCm } from "../docir.ts";
+import type {
+  DocIr,
+  ImageFiles,
+  IrBlock,
+  IrImage,
+  IrRun,
+  PageSpec,
+  ParaStyle,
+} from "../docir.ts";
 import { tabFills } from "../flatten.ts";
 import { columnWidths, officeMetrics } from "../table.ts";
 
@@ -15,7 +23,42 @@ const NS =
   ' xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"' +
   ' xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"' +
   ' xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"' +
-  ' xmlns:xlink="http://www.w3.org/1999/xlink"';
+  ' xmlns:xlink="http://www.w3.org/1999/xlink"' +
+  ' xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"';
+
+interface Media {
+  readonly images: ImageFiles;
+  readonly page: PageSpec;
+  readonly used: Map<string, string>;
+  frames: number;
+}
+
+let media: Media | null = null;
+
+function frameXml(image: IrImage): string {
+  const key = imageKey(image);
+  const file = media?.images.get(key);
+  if (!media || !file) return "";
+  let path = media.used.get(key);
+  if (path === undefined) {
+    path = "Pictures/image" + String(media.used.size + 1) + "." + file.ext;
+    media.used.set(key, path);
+  }
+  const size = imageSizeCm(image, file, media.page);
+  media.frames += 1;
+  return (
+    '<draw:frame draw:style-name="Fimage" draw:name="Image' +
+    String(media.frames) +
+    '" text:anchor-type="as-char" svg:width="' +
+    cm(size.widthCm) +
+    '" svg:height="' +
+    cm(size.heightCm) +
+    '" draw:z-index="0"><draw:image xlink:href="' +
+    path +
+    '" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad"/>' +
+    "</draw:frame>"
+  );
+}
 
 const MONO = odfFont("Courier New");
 
@@ -117,6 +160,10 @@ function runsXml(runs: readonly IrRun[]): string {
   for (const run of runs) {
     if (run.tab) {
       out += "<text:tab/>";
+      continue;
+    }
+    if (run.image) {
+      out += frameXml(run.image);
       continue;
     }
     if (!run.text) continue;
@@ -365,6 +412,7 @@ function blockXml(
 
 export interface OdtOptions {
   readonly toc?: boolean;
+  readonly images?: ImageFiles;
 }
 
 const TOC_LEVELS = [1, 2, 3] as const;
@@ -453,6 +501,12 @@ function contentXml(doc: DocIr, options: OdtOptions): string {
     NS +
     ' office:version="1.3">' +
     "<office:automatic-styles>" +
+    (media?.frames
+      ? '<style:style style:name="Fimage" style:family="graphic">' +
+        '<style:graphic-properties style:vertical-pos="top" ' +
+        'style:vertical-rel="baseline" fo:border="none" fo:padding="0cm"/>' +
+        "</style:style>"
+      : "") +
     spans +
     (auto.delete("cells") ? cellStyles() : "") +
     [...auto].join("") +
@@ -622,7 +676,7 @@ function metaXml(doc: DocIr): string {
   );
 }
 
-function manifestXml(): string {
+function manifestXml(pictures: readonly string[] = []): string {
   const entry = (path: string, type: string): string =>
     '<manifest:file-entry manifest:full-path="' +
     path +
@@ -637,6 +691,11 @@ function manifestXml(): string {
     entry("content.xml", "text/xml") +
     entry("styles.xml", "text/xml") +
     entry("meta.xml", "text/xml") +
+    pictures
+      .map((path) =>
+        entry(path, "image/" + path.slice(path.lastIndexOf(".") + 1)),
+      )
+      .join("") +
     "</manifest:manifest>"
   );
 }
@@ -646,17 +705,39 @@ export function buildOdt(
   options: OdtOptions = {},
 ): Uint8Array<ArrayBuffer> {
   doc = { ...doc, font: { ...doc.font, family: odfFont(doc.font.family) } };
+  const used = new Map<string, string>();
+  media = {
+    images: options.images ?? new Map(),
+    page: doc.page,
+    used,
+    frames: 0,
+  };
+  let content: string;
+  try {
+    content = contentXml(doc, options);
+  } finally {
+    media = null;
+  }
+  const pictures = [...used.values()];
   const entries: Record<string, Uint8Array> = {
     mimetype: encoder.encode(ODF_TEXT),
-    "META-INF/manifest.xml": encoder.encode(manifestXml()),
-    "content.xml": encoder.encode(contentXml(doc, options)),
+    "META-INF/manifest.xml": encoder.encode(manifestXml(pictures)),
+    "content.xml": encoder.encode(content),
     "styles.xml": encoder.encode(stylesXml(doc)),
     "meta.xml": encoder.encode(metaXml(doc)),
   };
+  for (const [key, path] of used)
+    entries[path] = options.images!.get(key)!.bytes;
 
   const pkg: OdfPackage = {
     entries,
-    order: ["META-INF/manifest.xml", "content.xml", "styles.xml", "meta.xml"],
+    order: [
+      "META-INF/manifest.xml",
+      "content.xml",
+      "styles.xml",
+      "meta.xml",
+      ...pictures,
+    ],
     mimetype: ODF_TEXT,
   };
 

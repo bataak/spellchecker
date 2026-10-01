@@ -1109,7 +1109,7 @@ function inlineHtml(nodes: readonly Inline[]): string {
   return out;
 }
 
-function isFigure(nodes: readonly Inline[]): boolean {
+export function isFigure(nodes: readonly Inline[]): boolean {
   return (
     nodes.some((n) => n.type === "image") &&
     nodes.every(
@@ -1119,6 +1119,25 @@ function isFigure(nodes: readonly Inline[]): boolean {
         (n.type === "text" && !n.value.trim()),
     )
   );
+}
+
+export function blockImages(
+  blocks: readonly Block[],
+): (Inline & { type: "image" })[] {
+  const out: (Inline & { type: "image" })[] = [];
+  const walk = (nodes: readonly Inline[]): void => {
+    for (const node of nodes)
+      if (node.type === "image") out.push(node);
+      else if ("children" in node) walk(node.children);
+  };
+  for (const b of blocks) {
+    if (b.type === "paragraph" || b.type === "heading") walk(b.children);
+    else if (b.type === "list") b.items.forEach(walk);
+    else if (b.type === "table") for (const row of b.rows) row.forEach(walk);
+    else if (b.type === "quote" || b.type === "div")
+      out.push(...blockImages(b.children));
+  }
+  return out;
 }
 
 export function toHtml(blocks: readonly Block[]): string {

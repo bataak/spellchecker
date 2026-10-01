@@ -4,6 +4,7 @@ import {
   fitBlanks,
   headingClasses,
   isBlankRow,
+  isFigure,
   mathSource,
   metaValue,
   parseInline,
@@ -36,6 +37,7 @@ export function preambleFor(tex: string): string {
     (math || tex.includes("\\checkmark")) && "\\usepackage{amssymb}",
     tex.includes("\\arraybackslash") && "\\usepackage{array}",
     tex.includes("\\toprule") && "\\usepackage{booktabs}",
+    tex.includes("\\includegraphics") && "\\usepackage{graphicx}",
     math && "\\usepackage[OT1]{eulervm}",
     (theorem || definition || tex.includes("\\begin{proof}")) &&
       "\\usepackage{amsthm}",
@@ -126,6 +128,14 @@ function oneLine(nodes: readonly Inline[]): string {
   );
 }
 
+export function texImagePath(src: string): string {
+  let path = src;
+  try {
+    path = decodeURIComponent(src);
+  } catch {}
+  return path.replace(/[{}%#\\]/g, "_");
+}
+
 function inline(nodes: readonly Inline[]): string {
   let out = "";
   for (const n of nodes) {
@@ -145,7 +155,15 @@ function inline(nodes: readonly Inline[]): string {
     else if (n.type === "blank")
       out += "\\rule[-0.3ex]{" + String(n.width / 2) + "em}{0.4pt}";
     else if (n.type === "del") out += inline(n.children);
-    else if (n.type === "image") continue;
+    else if (n.type === "image")
+      out +=
+        "\\includegraphics[" +
+        (n.rotate ? "angle=" + String(n.rotate) + "," : "") +
+        "width=" +
+        (n.width === undefined ? "" : String(n.width / 100)) +
+        "\\linewidth,height=0.85\\textheight,keepaspectratio]{" +
+        texImagePath(n.src) +
+        "}";
     else if (n.auto) out += "\\url{" + escapeUrl(n.url) + "}";
     else out += "\\href{" + escapeUrl(n.url) + "}{" + inline(n.children) + "}";
   }
@@ -235,7 +253,9 @@ function block(b: Block, beamer = false, place?: string): string {
     case "div":
       return divBlock(b, beamer);
     case "paragraph":
-      return inline(b.children);
+      return isFigure(b.children)
+        ? "\\begin{center}\n" + inline(b.children).trim() + "\n\\end{center}"
+        : inline(b.children);
     case "latex":
       return b.value;
     case "math":
