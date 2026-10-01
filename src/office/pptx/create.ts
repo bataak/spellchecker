@@ -5,9 +5,15 @@ import {
   TABLE_PT,
   TEXT_PT,
   layoutSlide,
+  type PlacedImage,
   type TableLayout,
 } from "../decklayout.ts";
-import type { Align, IrRun } from "../docir.ts";
+import { imageKey } from "../docir.ts";
+import type { Align, ImageFiles, IrRun } from "../docir.ts";
+
+export interface PptxOptions {
+  readonly images?: ImageFiles;
+}
 
 const encoder = new TextEncoder();
 
@@ -357,11 +363,64 @@ function coverSlide(doc: DeckDoc, title: readonly IrRun[]): BuiltSlide {
   return { xml: slideXml(shapes), links: state.links };
 }
 
+interface Media {
+  readonly images: ImageFiles;
+  readonly names: Map<string, string>;
+}
+
+function pictureXml(
+  state: SlideState,
+  media: Media,
+  embeds: Map<string, string>,
+  placed: PlacedImage,
+): string {
+  const key = imageKey(placed.image);
+  const file = media.images.get(key);
+  if (!file) return "";
+  let name = media.names.get(key);
+  if (name === undefined) {
+    name = "image" + String(media.names.size + 1) + "." + file.ext;
+    media.names.set(key, name);
+  }
+  let rid = embeds.get(key);
+  if (rid === undefined) {
+    rid = "rId" + String(state.links.length + 2);
+    state.links.push({
+      id: rid,
+      type: REL + "/image",
+      target: "../media/" + name,
+    });
+    embeds.set(key, rid);
+  }
+  const id = state.shapeId++;
+  return (
+    '<p:pic><p:nvPicPr><p:cNvPr id="' +
+    String(id) +
+    '" name="Picture ' +
+    String(id) +
+    '"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>' +
+    '<p:blipFill><a:blip r:embed="' +
+    rid +
+    '"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>' +
+    '<p:spPr><a:xfrm><a:off x="' +
+    String(Math.round(placed.x * EMU_CM)) +
+    '" y="' +
+    String(Math.round(placed.y * EMU_CM)) +
+    '"/><a:ext cx="' +
+    String(Math.round(placed.w * EMU_CM)) +
+    '" cy="' +
+    String(Math.round(placed.h * EMU_CM)) +
+    '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>'
+  );
+}
+
 function contentSlide(
   title: readonly IrRun[] | null,
   parts: readonly DeckPart[],
+  media: Media,
 ): BuiltSlide {
   const state: SlideState = { links: [], shapeId: 2 };
+  const embeds = new Map<string, string>();
   let shapes = "";
   let top = MARGIN;
   if (title !== null) {
@@ -389,32 +448,37 @@ function contentSlide(
     top / EMU_CM,
     BOX_WIDTH / EMU_CM,
     (HEIGHT - top) / EMU_CM - 1,
+    (image) => media.images.get(imageKey(image)),
   );
   for (const part of layout.parts)
     shapes +=
-      part.kind === "text"
-        ? shape(
-            state,
-            {
-              x: MARGIN,
-              y: Math.round(part.y * EMU_CM),
-              w: BOX_WIDTH,
-              h: Math.round(part.h * EMU_CM),
-            },
-            "t",
-            linesXml(
-              part.lines,
+      part.kind === "image"
+        ? part.items
+            .map((item) => pictureXml(state, media, embeds, item))
+            .join("")
+        : part.kind === "text"
+          ? shape(
               state,
-              Math.round(TEXT_PT * layout.scale * 100),
-            ),
-          )
-        : tableXml(
-            state,
-            part.table,
-            part.layout,
-            part,
-            Math.round(TABLE_PT * layout.scale * 100),
-          );
+              {
+                x: MARGIN,
+                y: Math.round(part.y * EMU_CM),
+                w: BOX_WIDTH,
+                h: Math.round(part.h * EMU_CM),
+              },
+              "t",
+              linesXml(
+                part.lines,
+                state,
+                Math.round(TEXT_PT * layout.scale * 100),
+              ),
+            )
+          : tableXml(
+              state,
+              part.table,
+              part.layout,
+              part,
+              Math.round(TABLE_PT * layout.scale * 100),
+            );
   return { xml: slideXml(shapes), links: state.links };
 }
 
@@ -504,7 +568,7 @@ function presentationXml(count: number): string {
   );
 }
 
-function contentTypesXml(count: number): string {
+function contentTypesXml(count: number, exts: readonly string[]): string {
   let slides = "";
   for (let i = 1; i <= count; i++)
     slides +=
@@ -518,6 +582,12 @@ function contentTypesXml(count: number): string {
     '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
     '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
     '<Default Extension="xml" ContentType="application/xml"/>' +
+    exts
+      .map(
+        (ext) =>
+          '<Default Extension="' + ext + '" ContentType="image/' + ext + '"/>',
+      )
+      .join("") +
     '<Override PartName="/ppt/presentation.xml" ContentType="' +
     CT +
     'presentation.main+xml"/>' +
@@ -533,18 +603,27 @@ function contentTypesXml(count: number): string {
   );
 }
 
-export function buildPptx(doc: DeckDoc): Uint8Array<ArrayBuffer> {
+export function buildPptx(
+  doc: DeckDoc,
+  options: PptxOptions = {},
+): Uint8Array<ArrayBuffer> {
+  const media: Media = {
+    images: options.images ?? new Map(),
+    names: new Map(),
+  };
   const built: BuiltSlide[] = [];
   if (doc.title !== null) built.push(coverSlide(doc, doc.title));
   for (const slide of doc.slides)
     built.push(
       slide.section
         ? sectionSlide(slide.title ?? [])
-        : contentSlide(slide.title, slide.parts),
+        : contentSlide(slide.title, slide.parts, media),
     );
 
   const files: Record<string, string> = {
-    "[Content_Types].xml": contentTypesXml(built.length),
+    "[Content_Types].xml": contentTypesXml(built.length, [
+      ...new Set([...media.names.values()].map((name) => name.split(".")[1]!)),
+    ]),
     "_rels/.rels": relsXml([
       {
         id: "rId1",
@@ -602,5 +681,7 @@ export function buildPptx(doc: DeckDoc): Uint8Array<ArrayBuffer> {
   const zippable: Zippable = {};
   for (const [name, xml] of Object.entries(files))
     zippable[name] = encoder.encode(xml);
+  for (const [key, name] of media.names)
+    zippable["ppt/media/" + name] = media.images.get(key)!.bytes;
   return zipSync(zippable, { level: 6 }) as Uint8Array<ArrayBuffer>;
 }

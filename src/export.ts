@@ -174,14 +174,19 @@ export const FORMATS: readonly ExportFormat[] = [
     ext: "odp",
     mime: "application/vnd.oasis.opendocument.presentation",
     build: async (text) => {
-      const [{ parse }, { splitSlides }, { deckDoc }, { buildOdp }] =
-        await Promise.all([
-          import("./markdown.ts"),
-          import("./slides.ts"),
-          import("./office/deck.ts"),
-          import("./office/odp/create.ts"),
-        ]);
-      return buildOdp(deckDoc(splitSlides(parse(text))));
+      const [
+        { parse },
+        { splitSlides },
+        { deckDoc, deckImages },
+        { buildOdp },
+      ] = await Promise.all([
+        import("./markdown.ts"),
+        import("./slides.ts"),
+        import("./office/deck.ts"),
+        import("./office/odp/create.ts"),
+      ]);
+      const deck = deckDoc(splitSlides(parse(text)));
+      return buildOdp(deck, { images: await imageFiles(deckImages(deck)) });
     },
   },
   {
@@ -192,14 +197,19 @@ export const FORMATS: readonly ExportFormat[] = [
     ext: "pptx",
     mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     build: async (text) => {
-      const [{ parse }, { splitSlides }, { deckDoc }, { buildPptx }] =
-        await Promise.all([
-          import("./markdown.ts"),
-          import("./slides.ts"),
-          import("./office/deck.ts"),
-          import("./office/pptx/create.ts"),
-        ]);
-      return buildPptx(deckDoc(splitSlides(parse(text))));
+      const [
+        { parse },
+        { splitSlides },
+        { deckDoc, deckImages },
+        { buildPptx },
+      ] = await Promise.all([
+        import("./markdown.ts"),
+        import("./slides.ts"),
+        import("./office/deck.ts"),
+        import("./office/pptx/create.ts"),
+      ]);
+      const deck = deckDoc(splitSlides(parse(text)));
+      return buildPptx(deck, { images: await imageFiles(deckImages(deck)) });
     },
   },
   {
@@ -495,14 +505,14 @@ export function initExport(options: ExportOptions): ExportControl {
   async function print(): Promise<void> {
     const template = findTemplate(options.template())!;
     if (template.frame === "slides") {
-      const [{ splitSlides }, { deckDoc }, { printDeck }] = await Promise.all(
-        [
+      const [{ splitSlides }, { deckDoc, deckImages }, { printDeck }] =
+        await Promise.all([
           import("./slides.ts"),
           import("./office/deck.ts"),
           import("./office/deckprint.ts"),
-        ],
-      );
-      await printDeck(deckDoc(splitSlides(parse(editor.value))));
+        ]);
+      const deck = deckDoc(splitSlides(parse(editor.value)));
+      await printDeck(deck, await prepareImages(deckImages(deck)));
       return;
     }
     const [{ applyTemplate }, { printDoc }] = await Promise.all([

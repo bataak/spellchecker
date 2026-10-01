@@ -1,12 +1,13 @@
 import {
   isBlankRow,
+  isFigure,
   parseInline,
   type Block,
   type Inline,
 } from "../markdown.ts";
 import type { Deck } from "../slides.ts";
 import { guillemets } from "./apply.ts";
-import type { Align, IrRun } from "./docir.ts";
+import type { Align, IrImage, IrRun } from "./docir.ts";
 import { flatten } from "./flatten.ts";
 
 export type LineKind = "para" | "bullet" | "number";
@@ -25,7 +26,8 @@ export interface DeckTable {
 
 export type DeckPart =
   | { readonly kind: "text"; readonly lines: readonly DeckLine[] }
-  | { readonly kind: "table"; readonly table: DeckTable };
+  | { readonly kind: "table"; readonly table: DeckTable }
+  | { readonly kind: "image"; readonly images: readonly IrImage[] };
 
 export interface DeckSlide {
   readonly title: readonly IrRun[] | null;
@@ -81,6 +83,14 @@ function parts(blocks: readonly Block[]): DeckPart[] {
       if (b.type === "table") {
         flush();
         out.push({ kind: "table", table: deckTable(b) });
+      } else if (b.type === "paragraph" && isFigure(b.children)) {
+        flush();
+        out.push({
+          kind: "image",
+          images: flatten(b.children).flatMap((run) =>
+            run.image ? [run.image] : [],
+          ),
+        });
       } else if (b.type === "div" && !b.classes.includes("notes"))
         visit(b.children);
       else pending.push(b);
@@ -133,6 +143,12 @@ function lines(blocks: readonly Block[]): DeckLine[] {
       });
   }
   return out;
+}
+
+export function deckImages(doc: DeckDoc): IrImage[] {
+  return doc.slides.flatMap((slide) =>
+    slide.parts.flatMap((part) => (part.kind === "image" ? part.images : [])),
+  );
 }
 
 export function deckDoc(deck: Deck): DeckDoc {
