@@ -19,6 +19,37 @@ export function imageKey(image: IrImage): string {
   return String(image.rotate ?? 0) + "|" + image.src;
 }
 
+export interface EmbeddedImage {
+  readonly bytes: Uint8Array;
+  readonly ext: "png" | "jpeg";
+  readonly widthPx: number;
+  readonly heightPx: number;
+}
+
+export type ImageFiles = ReadonlyMap<string, EmbeddedImage>;
+
+export function imageSizeCm(
+  image: IrImage,
+  file: { readonly widthPx: number; readonly heightPx: number },
+  page: PageSpec,
+): { widthCm: number; heightCm: number } {
+  const textWidth = page.widthCm - page.marginInnerCm - page.marginOuterCm;
+  const textHeight = page.heightCm - page.marginTopCm - page.marginBottomCm - 1;
+  let widthCm = Math.min(
+    textWidth,
+    image.widthPercent !== undefined
+      ? (textWidth * image.widthPercent) / 100
+      : (file.widthPx / 96) * 2.54,
+  );
+  let heightCm =
+    file.widthPx > 0 ? (widthCm * file.heightPx) / file.widthPx : widthCm;
+  if (heightCm > textHeight) {
+    widthCm *= textHeight / heightCm;
+    heightCm = textHeight;
+  }
+  return { widthCm, heightCm };
+}
+
 export function docImages(doc: DocIr): IrImage[] {
   const out: IrImage[] = [];
   const take = (runs: readonly IrRun[]): void => {

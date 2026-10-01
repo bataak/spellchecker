@@ -8,9 +8,9 @@
  * `Ctrl+S` -т хамаарахгүй: тэр нь одоогийн баримтаа шууд хадгална.
  */
 
-import { prepareImages } from "./images.ts";
-import { parse } from "./markdown.ts";
-import { docImages } from "./office/docir.ts";
+import { imageFiles, prepareImages } from "./images.ts";
+import { blockImages, parse } from "./markdown.ts";
+import { docImages, imageKey } from "./office/docir.ts";
 import { findTemplate, type Frame } from "./templates.ts";
 
 export interface ExportFormat {
@@ -77,6 +77,35 @@ async function latexFor(
       });
 }
 
+async function pdfImages(
+  text: string,
+  source: string,
+  texImagePath: (src: string) => string,
+): Promise<{ tex: string; files: Record<string, Uint8Array> }> {
+  const sources = [...new Set(blockImages(parse(text)).map((n) => n.src))];
+  const ready = await imageFiles(sources.map((src) => ({ src })));
+  const names = new Map<string, string>();
+  const files: Record<string, Uint8Array> = {};
+  for (const src of sources) {
+    const file = ready.get(imageKey({ src }));
+    if (!file) continue;
+    const name =
+      "image" +
+      String(names.size + 1) +
+      (file.ext === "jpeg" ? ".jpg" : ".png");
+    names.set(texImagePath(src), name);
+    files[name] = file.bytes;
+  }
+  const tex = source.replace(
+    /\\includegraphics\[([^\]]*)\]\{([^}]*)\}/g,
+    (_, opts: string, path: string) => {
+      const name = names.get(path);
+      return name ? "\\includegraphics[" + opts + "]{" + name + "}" : "";
+    },
+  );
+  return { tex, files };
+}
+
 export const FORMATS: readonly ExportFormat[] = [
   {
     id: "odt",
@@ -91,8 +120,10 @@ export const FORMATS: readonly ExportFormat[] = [
         import("./office/odt/create.ts"),
       ]);
       const template = findTemplate(templateId) ?? findTemplate("plain")!;
-      return buildOdt(applyTemplate(parse(text), template), {
+      const doc = applyTemplate(parse(text), template);
+      return buildOdt(doc, {
         toc: tocFor(options, templateId, text),
+        images: await imageFiles(docImages(doc)),
       });
     },
   },
@@ -112,8 +143,10 @@ export const FORMATS: readonly ExportFormat[] = [
         ],
       );
       const template = findTemplate(templateId) ?? findTemplate("plain")!;
-      return buildDocx(applyTemplate(parse(text), template), {
+      const doc = applyTemplate(parse(text), template);
+      return buildDocx(doc, {
         toc: tocFor(options, templateId, text),
+        images: await imageFiles(docImages(doc)),
       });
     },
   },
@@ -125,11 +158,13 @@ export const FORMATS: readonly ExportFormat[] = [
     mime: "application/pdf",
     slow: true,
     build: async (text, templateId, options) => {
-      const [source, { compilePdf }] = await Promise.all([
+      const [source, { compilePdf }, { texImagePath }] = await Promise.all([
         latexFor(text, templateId, options),
         import("./texpdf.ts"),
+        import("./latex.ts"),
       ]);
-      return compilePdf(source, tocFor(options, templateId, text) ? 2 : 1);
+      const { tex, files } = await pdfImages(text, source, texImagePath);
+      return compilePdf(tex, tocFor(options, templateId, text) ? 2 : 1, files);
     },
   },
   {

@@ -1,5 +1,11 @@
 import { imageKey } from "./office/docir.ts";
-import type { ImageSet, IrImage, PreparedImage } from "./office/docir.ts";
+import type {
+  EmbeddedImage,
+  ImageFiles,
+  ImageSet,
+  IrImage,
+  PreparedImage,
+} from "./office/docir.ts";
 
 interface Stored {
   readonly blob: Blob;
@@ -138,6 +144,52 @@ export async function prepareImages(
     images.map(async (image) => {
       const ready = await prepareImage(image);
       if (ready) out.set(imageKey(image), ready);
+    }),
+  );
+  return out;
+}
+
+async function encodable(
+  blob: Blob,
+  drawn: boolean,
+): Promise<{ blob: Blob; ext: "png" | "jpeg" } | null> {
+  const jpeg = blob.type === "image/jpeg";
+  if (blob.type === "image/png") return { blob, ext: "png" };
+  if (jpeg && drawn) return { blob, ext: "jpeg" };
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(blob);
+  } catch {
+    return null;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  canvas.getContext("2d")?.drawImage(bitmap, 0, 0);
+  bitmap.close();
+  const ext = jpeg ? "jpeg" : "png";
+  const out = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, "image/" + ext, 0.92),
+  );
+  return out ? { blob: out, ext } : null;
+}
+
+export async function imageFiles(
+  images: readonly IrImage[],
+): Promise<ImageFiles> {
+  const out = new Map<string, EmbeddedImage>();
+  await Promise.all(
+    images.map(async (image) => {
+      const ready = await prepareImage(image);
+      if (!ready?.blob) return;
+      const file = await encodable(ready.blob, !!image.rotate);
+      if (!file) return;
+      out.set(imageKey(image), {
+        bytes: new Uint8Array(await file.blob.arrayBuffer()),
+        ext: file.ext,
+        widthPx: ready.widthPx,
+        heightPx: ready.heightPx,
+      });
     }),
   );
   return out;
