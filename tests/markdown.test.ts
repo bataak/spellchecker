@@ -741,7 +741,7 @@ test("зураг: зам, өргөн, эргэлтийг задлаад буца
   ]);
   assert.equal(
     toHtml(blocks),
-    '<p data-line="0"><img class="md-image" data-src="images/logo%20mn.png" ' +
+    '<p class="md-figure" data-line="0"><img class="md-image" data-src="images/logo%20mn.png" ' +
       'alt="Лого" style="width:40%" data-rotate="90"></p>',
   );
   assert.equal(

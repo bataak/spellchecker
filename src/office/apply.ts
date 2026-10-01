@@ -8,7 +8,7 @@ import {
 import type { Frame, Template } from "../templates.ts";
 import { A4, STYLE, headingStyle } from "./docir.ts";
 import type { Align, DocIr, IrBlock, IrRun, ParaStyle } from "./docir.ts";
-import { flatten, isBlank } from "./flatten.ts";
+import { flatten, isBlank, onlyImages } from "./flatten.ts";
 
 const PAIRS: readonly [RegExp, string][] = [
   [/"([^"]*)"/g, "«$1»"],
@@ -120,6 +120,11 @@ const BASE: Readonly<Record<string, ParaStyle>> = {
     spaceAfterPt: 6,
   },
   [STYLE.code]: { mono: true, lineHeightPercent: 100 },
+  [STYLE.figure]: {
+    align: "center",
+    lineHeightPercent: 100,
+    spaceAfterPt: PARA_GAP_PT,
+  },
   [STYLE.listItem]: {
     align: "justify",
     lineHeightPercent: 115,
@@ -266,7 +271,11 @@ export function applyTemplate(
           }
           out.push({
             kind: "para",
-            style: afterHeading ? STYLE.bodyFirst : STYLE.body,
+            style: onlyImages(runs)
+              ? STYLE.figure
+              : afterHeading
+                ? STYLE.bodyFirst
+                : STYLE.body,
             runs,
           });
           afterHeading = false;

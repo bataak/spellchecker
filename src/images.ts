@@ -1,3 +1,6 @@
+import { imageKey } from "./office/docir.ts";
+import type { ImageSet, IrImage, PreparedImage } from "./office/docir.ts";
+
 interface Stored {
   readonly blob: Blob;
   readonly url: string;
@@ -42,6 +45,88 @@ export function clearImages(): void {
 export function onImagesChange(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
+}
+
+let prepared: string[] = [];
+
+function own(blob: Blob): string {
+  const url = URL.createObjectURL(blob);
+  prepared.push(url);
+  return url;
+}
+
+async function sourceBlob(src: string): Promise<Blob | null> {
+  const stored = imageBlob(src);
+  if (stored) return stored;
+  if (!isRemoteImage(src)) return null;
+  try {
+    const response = await fetch(src);
+    return response.ok ? await response.blob() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function prepareOne(image: IrImage): Promise<PreparedImage | null> {
+  const blob = await sourceBlob(image.src);
+  if (!blob)
+    return isRemoteImage(image.src)
+      ? { url: image.src, blob: null, widthPx: 0, heightPx: 0 }
+      : null;
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(blob);
+  } catch {
+    return null;
+  }
+  const rotate = image.rotate ?? 0;
+  const turned = rotate === 90 || rotate === 270;
+  const widthPx = turned ? bitmap.height : bitmap.width;
+  const heightPx = turned ? bitmap.width : bitmap.height;
+  if (!rotate) {
+    bitmap.close();
+    return {
+      url: imageUrl(image.src) ?? own(blob),
+      blob,
+      widthPx,
+      heightPx,
+    };
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = widthPx;
+  canvas.height = heightPx;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    bitmap.close();
+    return null;
+  }
+  context.translate(widthPx / 2, heightPx / 2);
+  context.rotate((rotate * Math.PI) / 180);
+  context.drawImage(bitmap, -bitmap.width / 2, -bitmap.height / 2);
+  bitmap.close();
+  const type = blob.type === "image/jpeg" ? "image/jpeg" : "image/png";
+  const turnedBlob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, type, 0.92),
+  );
+  if (!turnedBlob) return null;
+  return { url: own(turnedBlob), blob: turnedBlob, widthPx, heightPx };
+}
+
+export async function prepareImages(
+  images: readonly IrImage[],
+): Promise<ImageSet> {
+  for (const url of prepared) URL.revokeObjectURL(url);
+  prepared = [];
+  const unique = new Map<string, IrImage>();
+  for (const image of images) unique.set(imageKey(image), image);
+  const out = new Map<string, PreparedImage>();
+  await Promise.all(
+    [...unique].map(async ([key, image]) => {
+      const ready = await prepareOne(image);
+      if (ready) out.set(key, ready);
+    }),
+  );
+  return out;
 }
 
 export function imagePath(name: string): string {

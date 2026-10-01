@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import { parse } from "../src/markdown.ts";
 import { applyTemplate } from "../src/office/apply.ts";
+import { docImages, imageKey } from "../src/office/docir.ts";
 import { printHtml } from "../src/office/print.ts";
 import { findTemplate } from "../src/templates.ts";
 
@@ -50,4 +51,27 @@ test("printHtml: гарын үсгийн зураасны доор тайлба�
 
 test("printHtml: хуудас таслалт", () => {
   assert.match(letter("А\n\n\\newpage\n\nБ"), /<p class="page-break"><\/p>/);
+});
+
+test("printHtml: бэлтгэсэн зургийг голлуулсан догол болгон гаргана", () => {
+  const template = findTemplate("letter")!;
+  const doc = applyTemplate(
+    parse("Хавсралт:\n\n![](id.jpg){width=60% rotate=90}\n\n![](x.png)"),
+    template,
+  );
+  const [shown, missing] = docImages(doc);
+  assert.deepEqual(shown, { src: "id.jpg", widthPercent: 60, rotate: 90 });
+  const images = new Map([
+    [
+      imageKey(shown!),
+      { url: "blob:id", blob: null, widthPx: 300, heightPx: 400 },
+    ],
+  ]);
+  const html = printHtml(doc, "fonts/", images);
+  assert.match(
+    html,
+    /<p class="s-Figure"><img class="image" src="blob:id" alt="" style="width:60%"><\/p>/,
+  );
+  assert.equal(missing?.src, "x.png");
+  assert.match(html, /<p class="s-Figure"><br><\/p>/);
 });
