@@ -1269,7 +1269,8 @@ async function runOfflineReadyIndicator() {
 
 async function boot() {
   requestDurableStorage();
-  checker.onFatal = (reason) => {
+  checker.onFatal = async (reason) => {
+    if (await appUpdate.recoverStale()) return;
     setStatus(
       "Алдаа шалгагч зогслоо: " +
         escapeHtml(String(reason)) +
@@ -1338,6 +1339,7 @@ async function boot() {
       maybeRefreshDict();
     });
   } catch (e) {
+    if (await appUpdate.recoverStale()) return;
     setStatus(
       "Ачаалахад алдаа гарлаа: " +
         escapeHtml(e instanceof Error ? e.message : String(e)),
