@@ -25,8 +25,8 @@ export const TEMPLATES: readonly Template[] = [
     name: "Албан бичиг",
     skeleton: "",
     examples: [
-      { id: "minutes", name: "Хурлын тэмдэглэл" },
       { id: "application", name: "Өргөдөл" },
+      { id: "minutes", name: "Хурлын тэмдэглэл" },
     ],
   },
 
