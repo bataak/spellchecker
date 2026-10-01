@@ -1,4 +1,11 @@
-import { imageUrl, onImagesChange, pickImage, putImage } from "./images.ts";
+import { initImageEdit } from "./imageedit.ts";
+import {
+  imageUrl,
+  onImagesChange,
+  pickImage,
+  prepareImage,
+  putImage,
+} from "./images.ts";
 import { fitBlanks, format, isMarkdown, parse, toHtml } from "./markdown.ts";
 
 const TIDY_LIMIT = 400_000;
@@ -61,6 +68,13 @@ function resolveImages(root: HTMLElement): void {
   for (const img of root.querySelectorAll<HTMLImageElement>("img.md-image")) {
     const src = img.dataset.src ?? "";
     const url = imageUrl(src);
+    const rotate = Number(img.dataset.rotate) || 0;
+    if (url && rotate) {
+      void prepareImage({ src, rotate }).then((ready) => {
+        if (ready) img.src = ready.url;
+      });
+      continue;
+    }
     if (url) {
       img.src = url;
       continue;
@@ -130,6 +144,7 @@ export function initPreview(
 
   applyInvert();
   panel.append(head, body);
+  const imageEdit = initImageEdit(body, area);
   wrap.after(panel);
 
   const tidy = document.createElement("button");
@@ -174,6 +189,7 @@ export function initPreview(
             .catch(() => undefined);
       }
       body.replaceChildren(...next.childNodes);
+      imageEdit.refresh();
     }
     body.classList.toggle("is-empty", !blocks.length);
 
@@ -302,6 +318,7 @@ export function initPreview(
       if (raf) cancelAnimationFrame(raf);
       dropPdf();
       offImages();
+      imageEdit.destroy();
       area.removeEventListener("input", update);
       tidy.remove();
       panel.remove();
