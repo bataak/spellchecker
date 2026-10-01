@@ -5,9 +5,45 @@ import {
   TABLE_PT,
   TEXT_PT,
   layoutSlide,
+  type PlacedImage,
   type TableLayout,
 } from "../decklayout.ts";
-import type { Align, IrRun } from "../docir.ts";
+import { imageKey } from "../docir.ts";
+import type { Align, ImageFiles, IrRun } from "../docir.ts";
+
+export interface OdpOptions {
+  readonly images?: ImageFiles;
+}
+
+interface Media {
+  readonly images: ImageFiles;
+  readonly paths: Map<string, string>;
+}
+
+function imageXml(media: Media, placed: PlacedImage): string {
+  const key = imageKey(placed.image);
+  const file = media.images.get(key);
+  if (!file) return "";
+  let path = media.paths.get(key);
+  if (path === undefined) {
+    path = "Pictures/image" + String(media.paths.size + 1) + "." + file.ext;
+    media.paths.set(key, path);
+  }
+  return (
+    '<draw:frame draw:style-name="gr_img" svg:x="' +
+    cm(placed.x) +
+    '" svg:y="' +
+    cm(placed.y) +
+    '" svg:width="' +
+    cm(placed.w) +
+    '" svg:height="' +
+    cm(placed.h) +
+    '"><draw:image xlink:href="' +
+    path +
+    '" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad"/>' +
+    "</draw:frame>"
+  );
+}
 
 const encoder = new TextEncoder();
 
@@ -373,7 +409,7 @@ function tableXml(
   );
 }
 
-function contentXml(doc: DeckDoc): string {
+function contentXml(doc: DeckDoc, media: Media): string {
   const keys = new Set<string>();
   const auto: Auto = { styles: new Map(), tables: 0 };
   const pages: string[] = [];
@@ -429,28 +465,31 @@ function contentXml(doc: DeckDoc): string {
       top,
       WIDTH,
       PAGE.height - top - 0.9,
+      (image) => media.images.get(imageKey(image)),
     );
     for (const part of layout.parts)
       frames +=
-        part.kind === "text"
-          ? frame(
-              "outline",
-              "pr_body",
-              { x: MARGIN, y: part.y, w: WIDTH, h: part.h },
-              linesXml(
-                part.lines,
+        part.kind === "image"
+          ? part.items.map((item) => imageXml(media, item)).join("")
+          : part.kind === "text"
+            ? frame(
+                "outline",
+                "pr_body",
+                { x: MARGIN, y: part.y, w: WIDTH, h: part.h },
+                linesXml(
+                  part.lines,
+                  keys,
+                  bodyStyle(auto, TEXT_PT * layout.scale),
+                ),
+              )
+            : tableXml(
+                auto,
                 keys,
-                bodyStyle(auto, TEXT_PT * layout.scale),
-              ),
-            )
-          : tableXml(
-              auto,
-              keys,
-              part.table,
-              part.layout,
-              part,
-              TABLE_PT * layout.scale,
-            );
+                part.table,
+                part.layout,
+                part,
+                TABLE_PT * layout.scale,
+              );
     pages.push(page(pages.length + 1, frames, notes));
   }
 
@@ -467,6 +506,11 @@ function contentXml(doc: DeckDoc): string {
     ' office:version="1.3">' +
     "<office:automatic-styles>" +
     '<style:style style:name="dp1" style:family="drawing-page"/>' +
+    (media.paths.size
+      ? '<style:style style:name="gr_img" style:family="graphic">' +
+        '<style:graphic-properties draw:stroke="none" draw:fill="none"/>' +
+        "</style:style>"
+      : "") +
     '<style:style style:name="pr_title" style:family="presentation">' +
     '<style:graphic-properties draw:stroke="none" draw:fill="none" ' +
     'draw:auto-grow-height="false" draw:textarea-vertical-align="middle"/>' +
@@ -558,7 +602,7 @@ function stylesXml(): string {
   );
 }
 
-function manifestXml(): string {
+function manifestXml(pictures: readonly string[]): string {
   const entry = (path: string, type: string): string =>
     '<manifest:file-entry manifest:full-path="' +
     path +
@@ -572,19 +616,36 @@ function manifestXml(): string {
     entry("/", ODF_PRESENTATION) +
     entry("content.xml", "text/xml") +
     entry("styles.xml", "text/xml") +
+    pictures
+      .map((path) =>
+        entry(path, "image/" + path.slice(path.lastIndexOf(".") + 1)),
+      )
+      .join("") +
     "</manifest:manifest>"
   );
 }
 
-export function buildOdp(doc: DeckDoc): Uint8Array<ArrayBuffer> {
+export function buildOdp(
+  doc: DeckDoc,
+  options: OdpOptions = {},
+): Uint8Array<ArrayBuffer> {
+  const media: Media = {
+    images: options.images ?? new Map(),
+    paths: new Map(),
+  };
+  const content = contentXml(doc, media);
+  const pictures = [...media.paths.values()];
+  const entries: Record<string, Uint8Array> = {
+    mimetype: encoder.encode(ODF_PRESENTATION),
+    "META-INF/manifest.xml": encoder.encode(manifestXml(pictures)),
+    "content.xml": encoder.encode(content),
+    "styles.xml": encoder.encode(stylesXml()),
+  };
+  for (const [key, path] of media.paths)
+    entries[path] = media.images.get(key)!.bytes;
   return writeOdf({
-    entries: {
-      mimetype: encoder.encode(ODF_PRESENTATION),
-      "META-INF/manifest.xml": encoder.encode(manifestXml()),
-      "content.xml": encoder.encode(contentXml(doc)),
-      "styles.xml": encoder.encode(stylesXml()),
-    },
-    order: ["META-INF/manifest.xml", "content.xml", "styles.xml"],
+    entries,
+    order: ["META-INF/manifest.xml", "content.xml", "styles.xml", ...pictures],
     mimetype: ODF_PRESENTATION,
   });
 }

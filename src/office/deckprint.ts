@@ -3,9 +3,11 @@ import {
   TABLE_PT,
   TEXT_PT,
   layoutSlide,
+  type PlacedImage,
   type TableLayout,
 } from "./decklayout.ts";
-import type { Align, IrRun } from "./docir.ts";
+import { imageKey } from "./docir.ts";
+import type { Align, ImageSet, IrRun } from "./docir.ts";
 import { printPage } from "./print.ts";
 
 const SLIDE_W = 12192000 / 360000;
@@ -221,9 +223,28 @@ function sectionSlide(title: readonly IrRun[]): string {
   );
 }
 
+function imageHtml(images: ImageSet, placed: PlacedImage): string {
+  const ready = images.get(imageKey(placed.image));
+  if (!ready) return "";
+  return (
+    '<img class="img" alt="" src="' +
+    esc(ready.url) +
+    '" style="left:' +
+    cm(placed.x) +
+    ";top:" +
+    cm(placed.y) +
+    ";width:" +
+    cm(placed.w) +
+    ";height:" +
+    cm(placed.h) +
+    '">'
+  );
+}
+
 function contentSlide(
   title: readonly IrRun[] | null,
   parts: readonly DeckPart[],
+  images: ImageSet,
 ): string {
   let out = "";
   let top = MARGIN;
@@ -231,36 +252,45 @@ function contentSlide(
     out += box(MARGIN, 0.6, BOX_W, 2.4, true, para(title, 30, { bold: true }));
     top = 3.4;
   }
-  const layout = layoutSlide(parts, MARGIN, top, BOX_W, SLIDE_H - top - 1);
+  const layout = layoutSlide(
+    parts,
+    MARGIN,
+    top,
+    BOX_W,
+    SLIDE_H - top - 1,
+    (image) => images.get(imageKey(image)),
+  );
   for (const part of layout.parts)
     out +=
-      part.kind === "text"
-        ? box(
-            MARGIN,
-            part.y,
-            BOX_W,
-            part.h,
-            false,
-            linesHtml(part.lines, TEXT_PT * layout.scale),
-          )
-        : tableHtml(
-            part.table,
-            part.layout,
-            part.x,
-            part.y,
-            TABLE_PT * layout.scale,
-          );
+      part.kind === "image"
+        ? part.items.map((item) => imageHtml(images, item)).join("")
+        : part.kind === "text"
+          ? box(
+              MARGIN,
+              part.y,
+              BOX_W,
+              part.h,
+              false,
+              linesHtml(part.lines, TEXT_PT * layout.scale),
+            )
+          : tableHtml(
+              part.table,
+              part.layout,
+              part.x,
+              part.y,
+              TABLE_PT * layout.scale,
+            );
   return out;
 }
 
-function slidesOf(doc: DeckDoc): string[] {
+function slidesOf(doc: DeckDoc, images: ImageSet): string[] {
   const out: string[] = [];
   if (doc.title !== null) out.push(coverSlide(doc, doc.title));
   for (const slide of doc.slides)
     out.push(
       slide.section
         ? sectionSlide(slide.title ?? [])
-        : contentSlide(slide.title, slide.parts),
+        : contentSlide(slide.title, slide.parts, images),
     );
   return out;
 }
@@ -269,8 +299,11 @@ function frame(slide: string): string {
   return '<div class="frame"><div class="slide">' + slide + "</div></div>";
 }
 
-export function deckPrintHtml(doc: DeckDoc): string {
-  const slides = slidesOf(doc);
+export function deckPrintHtml(
+  doc: DeckDoc,
+  images: ImageSet = new Map(),
+): string {
+  const slides = slidesOf(doc, images);
   const pages: string[] = [];
   for (let i = 0; i < slides.length; i += SLIDES_PER_PAGE)
     pages.push(
@@ -323,6 +356,7 @@ export function deckPrintHtml(doc: DeckDoc): string {
     MONO +
     "}" +
     "a{color:#00f}" +
+    ".img{position:absolute;object-fit:contain}" +
     "table{position:absolute;border-collapse:collapse;table-layout:fixed}" +
     "td{box-sizing:border-box;padding:0.12cm 0.25cm;vertical-align:top;line-height:1.2}" +
     "td.h{vertical-align:middle}" +
@@ -342,6 +376,6 @@ export function deckPrintHtml(doc: DeckDoc): string {
   );
 }
 
-export function printDeck(doc: DeckDoc): Promise<void> {
-  return printPage(deckPrintHtml(doc));
+export function printDeck(doc: DeckDoc, images?: ImageSet): Promise<void> {
+  return printPage(deckPrintHtml(doc, images));
 }
