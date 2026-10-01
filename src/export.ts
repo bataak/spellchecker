@@ -8,7 +8,9 @@
  * `Ctrl+S` -т хамаарахгүй: тэр нь одоогийн баримтаа шууд хадгална.
  */
 
+import { prepareImages } from "./images.ts";
 import { parse } from "./markdown.ts";
+import { docImages } from "./office/docir.ts";
 import { findTemplate, type Frame } from "./templates.ts";
 
 export interface ExportFormat {
@@ -472,7 +474,8 @@ export function initExport(options: ExportOptions): ExportControl {
       import("./office/apply.ts"),
       import("./office/print.ts"),
     ]);
-    await printDoc(applyTemplate(parse(editor.value), template));
+    const doc = applyTemplate(parse(editor.value), template);
+    await printDoc(doc, await prepareImages(docImages(doc)));
   }
 
   function printable(): boolean {

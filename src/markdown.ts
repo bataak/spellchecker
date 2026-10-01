@@ -1100,6 +1100,18 @@ function inlineHtml(nodes: readonly Inline[]): string {
   return out;
 }
 
+function isFigure(nodes: readonly Inline[]): boolean {
+  return (
+    nodes.some((n) => n.type === "image") &&
+    nodes.every(
+      (n) =>
+        n.type === "image" ||
+        n.type === "softbreak" ||
+        (n.type === "text" && !n.value.trim()),
+    )
+  );
+}
+
 export function toHtml(blocks: readonly Block[]): string {
   let out = "";
   for (const b of blocks) {
@@ -1107,7 +1119,7 @@ export function toHtml(blocks: readonly Block[]): string {
     if (b.type === "heading")
       out += `<h${b.depth}${at}>${inlineHtml(b.children)}</h${b.depth}>`;
     else if (b.type === "paragraph")
-      out += `<p${at}>${inlineHtml(b.children)}</p>`;
+      out += `<p${isFigure(b.children) ? ' class="md-figure"' : ""}${at}>${inlineHtml(b.children)}</p>`;
     else if (b.type === "rule") out += `<hr${at}>`;
     else if (b.type === "pagebreak") out += `<hr class="page-break"${at}>`;
     else if (b.type === "codeblock")

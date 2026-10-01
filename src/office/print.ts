@@ -1,5 +1,13 @@
-import { STYLE } from "./docir.ts";
-import type { DocIr, IrBlock, IrRun, ParaStyle } from "./docir.ts";
+import { STYLE, imageKey } from "./docir.ts";
+import type {
+  DocIr,
+  ImageSet,
+  IrBlock,
+  IrImage,
+  IrRun,
+  ParaStyle,
+  PreparedImage,
+} from "./docir.ts";
 import { odfFont } from "./fonts.ts";
 import { columnWidths, officeMetrics } from "./table.ts";
 
@@ -83,9 +91,30 @@ function styleCss(style: ParaStyle): string {
   return parts.join(";");
 }
 
-function runsHtml(runs: readonly IrRun[]): string {
+function imageHtml(image: IrImage, prepared: PreparedImage): string {
+  const width =
+    image.widthPercent !== undefined
+      ? "width:" + String(image.widthPercent) + "%"
+      : prepared.widthPx > 0
+        ? "width:" + String(prepared.widthPx) + "px"
+        : "";
+  return (
+    '<img class="image" src="' +
+    esc(prepared.url) +
+    '" alt=""' +
+    (width ? ' style="' + width + '"' : "") +
+    ">"
+  );
+}
+
+function runsHtml(runs: readonly IrRun[], images: ImageSet): string {
   let out = "";
   for (const run of runs) {
+    if (run.image) {
+      const prepared = images.get(imageKey(run.image));
+      if (prepared) out += imageHtml(run.image, prepared);
+      continue;
+    }
     if (run.tab) {
       out += '<span class="tab"></span>';
       continue;
@@ -106,9 +135,13 @@ function runsHtml(runs: readonly IrRun[]): string {
   return out;
 }
 
-function para(style: string, runs: readonly IrRun[]): string {
+function para(style: string, runs: readonly IrRun[], images: ImageSet): string {
   return (
-    '<p class="' + className(style) + '">' + (runsHtml(runs) || "<br>") + "</p>"
+    '<p class="' +
+    className(style) +
+    '">' +
+    (runsHtml(runs, images) || "<br>") +
+    "</p>"
   );
 }
 
@@ -118,10 +151,10 @@ function cellClass(header: boolean, row: number, last: number): string {
   return row === last ? "c-last" : "c-plain";
 }
 
-function blockHtml(block: IrBlock, doc: DocIr): string {
+function blockHtml(block: IrBlock, doc: DocIr, images: ImageSet): string {
   switch (block.kind) {
     case "para":
-      return para(block.style, block.runs);
+      return para(block.style, block.runs, images);
 
     case "list": {
       const tag = block.ordered ? "ol" : "ul";
@@ -135,7 +168,7 @@ function blockHtml(block: IrBlock, doc: DocIr): string {
         start +
         ">" +
         block.items
-          .map((item) => "<li>" + para(block.style, item) + "</li>")
+          .map((item) => "<li>" + para(block.style, item, images) + "</li>")
           .join("") +
         "</" +
         tag +
@@ -175,7 +208,7 @@ function blockHtml(block: IrBlock, doc: DocIr): string {
                 '"' +
                 style +
                 ">" +
-                (runsHtml(row[i] ?? []) || "<br>") +
+                (runsHtml(row[i] ?? [], images) || "<br>") +
                 "</p></td>"
               );
             })
@@ -226,7 +259,11 @@ function fontFaces(fontBase: string): string {
   );
 }
 
-export function printHtml(doc: DocIr, fontBase = "fonts/"): string {
+export function printHtml(
+  doc: DocIr,
+  fontBase = "fonts/",
+  images: ImageSet = new Map(),
+): string {
   const page = doc.page;
   const base = doc.font.family;
   const styles = Object.entries(doc.styles)
@@ -280,6 +317,9 @@ export function printHtml(doc: DocIr, fontBase = "fonts/"): string {
     ".tab{display:inline-block;width:1.25cm}" +
     ".rule{margin:6pt 0;border-bottom:0.5pt solid #000;padding-bottom:2pt}" +
     ".page-break{break-before:page}" +
+    ".image{max-width:100%;max-height:" +
+    cm(page.heightCm - page.marginTopCm - page.marginBottomCm - 1) +
+    ";height:auto;object-fit:contain;vertical-align:bottom}" +
     styles;
   return (
     '<!doctype html><html lang="mn"><head><meta charset="utf-8">' +
@@ -288,18 +328,19 @@ export function printHtml(doc: DocIr, fontBase = "fonts/"): string {
     "</title><style>" +
     css +
     "</style></head><body>" +
-    doc.blocks.map((block) => blockHtml(block, doc)).join("") +
+    doc.blocks.map((block) => blockHtml(block, doc, images)).join("") +
     "</body></html>"
   );
 }
 
 let current: HTMLIFrameElement | null = null;
 
-export function printDoc(doc: DocIr): Promise<void> {
+export function printDoc(doc: DocIr, images?: ImageSet): Promise<void> {
   return printPage(
     printHtml(
       doc,
       new URL(import.meta.env.BASE_URL + "fonts/", location.href).href,
+      images,
     ),
   );
 }
@@ -334,8 +375,10 @@ export function printPage(html: string): Promise<void> {
           },
           { once: true },
         );
-        void Promise.all([...inner.fonts].map((face) => face.load()))
-          .catch(() => undefined)
+        void Promise.allSettled([
+          ...[...inner.fonts].map((face) => face.load()),
+          ...[...inner.images].map((img) => img.decode()),
+        ])
           .then(() => inner.fonts.ready)
           .then(() => {
             win.focus();

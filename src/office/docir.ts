@@ -1,5 +1,38 @@
 export type Align = "start" | "center" | "end" | "justify";
 
+export interface IrImage {
+  readonly src: string;
+  readonly widthPercent?: number;
+  readonly rotate?: number;
+}
+
+export interface PreparedImage {
+  readonly url: string;
+  readonly blob: Blob | null;
+  readonly widthPx: number;
+  readonly heightPx: number;
+}
+
+export type ImageSet = ReadonlyMap<string, PreparedImage>;
+
+export function imageKey(image: IrImage): string {
+  return String(image.rotate ?? 0) + "|" + image.src;
+}
+
+export function docImages(doc: DocIr): IrImage[] {
+  const out: IrImage[] = [];
+  const take = (runs: readonly IrRun[]): void => {
+    for (const run of runs) if (run.image) out.push(run.image);
+  };
+  for (const block of doc.blocks) {
+    if (block.kind === "para") take(block.runs);
+    else if (block.kind === "list") block.items.forEach(take);
+    else if (block.kind === "table")
+      for (const row of block.rows) row.forEach(take);
+  }
+  return out;
+}
+
 export interface IrRun {
   readonly text: string;
   readonly tab?: boolean;
@@ -9,6 +42,7 @@ export interface IrRun {
   readonly strike?: boolean;
   readonly href?: string;
   readonly fill?: boolean;
+  readonly image?: IrImage;
 }
 
 export interface ParaStyle {
@@ -89,6 +123,7 @@ export const STYLE = {
   quote: "Quote",
   code: "Code",
   listItem: "ListItem",
+  figure: "Figure",
   tableHead: "TableHead",
   tableCell: "TableCell",
   tableGap: "TableGap",

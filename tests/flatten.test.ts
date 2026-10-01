@@ -85,3 +85,12 @@ test("дарлага доторх тод хоёуланг хадгална", () 
     { text: "тод", bold: true, strike: true },
   ]);
 });
+
+test("зургийн ард байгаа бичвэр зурагт нийлэхгүй", () => {
+  const out = runs("![](a.png) ард");
+  assert.deepEqual(out, [
+    { text: "", image: { src: "a.png" } },
+    { text: " ард" },
+  ]);
+  assert.equal(isBlank(runs("![](a.png)")), false);
+});

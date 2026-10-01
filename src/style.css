@@ -763,6 +763,10 @@ a.tbtn {
   vertical-align: -0.2em;
 }
 
+.preview-body .md-figure {
+  text-align: center;
+}
+
 .preview-body .md-image {
   max-width: 100%;
   height: auto;

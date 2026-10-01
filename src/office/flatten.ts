@@ -50,7 +50,7 @@ function push(out: IrRun[], text: string, marks: Marks): void {
     return;
   }
   if (!text) return;
-  if (last && sameMarks(last, marks)) {
+  if (last && !last.image && sameMarks(last, marks)) {
     out[out.length - 1] = { ...last, text: last.text + text };
     return;
   }
@@ -80,6 +80,16 @@ function walk(nodes: readonly Inline[], marks: Marks, out: IrRun[]): void {
       case "blank":
         if (node.fill) out.push({ text: "", fill: true });
         else push(out, "_".repeat(blankUnderscores(node)), marks);
+        break;
+      case "image":
+        out.push({
+          text: "",
+          image: {
+            src: node.src,
+            ...(node.width === undefined ? {} : { widthPercent: node.width }),
+            ...(node.rotate === undefined ? {} : { rotate: node.rotate }),
+          },
+        });
         break;
       case "softbreak":
         push(out, " ", marks);
@@ -113,10 +123,17 @@ export function tabFills(runs: readonly IrRun[]): IrRun[] {
   return runs.map((run) => (run.fill ? { text: "", tab: true } : run));
 }
 
+export function onlyImages(runs: readonly IrRun[]): boolean {
+  return (
+    runs.some((run) => run.image) &&
+    runs.every((run) => run.image || !run.text.trim())
+  );
+}
+
 export function runsText(runs: readonly IrRun[]): string {
   return runs.map((run) => run.text).join("");
 }
 
 export function isBlank(runs: readonly IrRun[]): boolean {
-  return runsText(runs).trim() === "";
+  return !runs.some((run) => run.image) && runsText(runs).trim() === "";
 }
