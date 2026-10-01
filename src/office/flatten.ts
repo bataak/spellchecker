@@ -43,8 +43,13 @@ function withMarks(text: string, marks: Marks): IrRun {
 }
 
 function push(out: IrRun[], text: string, marks: Marks): void {
-  if (!text) return;
   const last = out.at(-1);
+  if (last?.fill) {
+    text = text.trimStart();
+    if (text) out.push(withMarks("\n" + text, marks));
+    return;
+  }
+  if (!text) return;
   if (last && sameMarks(last, marks)) {
     out[out.length - 1] = { ...last, text: last.text + text };
     return;
@@ -102,6 +107,10 @@ export function flatten(nodes: readonly Inline[]): IrRun[] {
   const out: IrRun[] = [];
   walk(nodes, {}, out);
   return out;
+}
+
+export function tabFills(runs: readonly IrRun[]): IrRun[] {
+  return runs.map((run) => (run.fill ? { text: "", tab: true } : run));
 }
 
 export function runsText(runs: readonly IrRun[]): string {

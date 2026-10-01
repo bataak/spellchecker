@@ -37,3 +37,13 @@ test("printHtml: хүснэгт, жагсаалт, тэмдэгт", () => {
     /<td class="c-last"><p class="s-TableCell" style="text-align:right">2<\/p><\/td>/,
   );
 });
+
+test("printHtml: гарын үсгийн зураасны доор тайлбар гарна", () => {
+  const html = letter(
+    "Бие.\n\n::: {.signature}\n| | |\n| -: | :- |\n| Хүлээн авсан: | ____ (нэр, албан тушаал, огноо) |\n:::",
+  );
+  assert.match(
+    html,
+    /<span class="fill"><\/span><br>\(нэр, албан тушаал, огноо\)<\/p>/,
+  );
+});
