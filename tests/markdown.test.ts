@@ -712,3 +712,46 @@ test("цэвэр MD: код блок болон хаагдаагүй ::: мөр�
   assert.equal(withoutDivs(code), code);
   assert.equal(withoutDivs("::: {.left}\nх"), "::: {.left}\nх");
 });
+
+test("\\newpage мөр хуудас таслалт болж, буцаад хэвээр хэвлэгдэнэ", () => {
+  const blocks = parse("А\n\n\\newpage\n\nБ");
+  assert.deepEqual(
+    blocks.map((b) => b.type),
+    ["paragraph", "pagebreak", "paragraph"],
+  );
+  assert.match(toHtml(blocks), /<hr class="page-break" data-line="2">/);
+  assert.equal(print(blocks), "А\n\n\\newpage\n\nБ\n");
+});
+
+test("зураг: зам, өргөн, эргэлтийг задлаад буцаан хэвлэнэ", () => {
+  const blocks = parse("![Лого](images/logo%20mn.png){width=40% rotate=450}");
+  assert.deepEqual(stripLines(blocks), [
+    {
+      type: "paragraph",
+      children: [
+        {
+          type: "image",
+          alt: "Лого",
+          src: "images/logo%20mn.png",
+          width: 40,
+          rotate: 90,
+        },
+      ],
+    },
+  ]);
+  assert.equal(
+    toHtml(blocks),
+    '<p data-line="0"><img class="md-image" data-src="images/logo%20mn.png" ' +
+      'alt="Лого" style="width:40%" data-rotate="90"></p>',
+  );
+  assert.equal(
+    print(blocks),
+    "![Лого](images/logo%20mn.png){width=40% rotate=90}\n",
+  );
+});
+
+test("зураг: шинжгүй бол энгийн бичлэгээр үлдэнэ", () => {
+  const blocks = parse("Өмнө ![](a.png) ард");
+  assert.equal(print(blocks), "Өмнө ![](a.png) ард\n");
+  assert.equal(isMarkdown(blocks), true);
+});

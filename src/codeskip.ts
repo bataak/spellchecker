@@ -164,6 +164,7 @@ export function mergeRanges(ranges: SkipRange[]): SkipRange[] {
 const BARE_URL = /\b(?:https?|ftps?|mailto|file):\/*[^\s<>()[\]"'`]+/gi;
 const WWW_URL = /\bwww\.[^\s<>()[\]"'`]+/gi;
 const MD_TARGET = /\]\(\s*([^)]*)\)/g;
+const MD_ATTRS = /\]\([^)]*\)(\{[^{}\n]*\})/g;
 const MD_DEFINITION = /^[ \t]{0,3}\[[^\]]+\]:[ \t]*(\S+)/gm;
 const AUTOLINK = /<[^\s<>]*(?::\/\/|@)[^\s<>]*>/g;
 const TLD =
@@ -219,6 +220,7 @@ function urlLikeLabels(text: string): SkipRange[] {
 export function linkRanges(text: string): SkipRange[] {
   return mergeRanges([
     ...collect(text, MD_TARGET, 1),
+    ...collect(text, MD_ATTRS, 1),
     ...collect(text, DOMAIN),
     ...urlLikeLabels(text),
     ...collect(text, MD_DEFINITION, 1),

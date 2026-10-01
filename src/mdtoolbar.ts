@@ -3,6 +3,8 @@ import {
   cycleCase,
   enterInsert,
   headingDepthAt,
+  insertImage,
+  insertPageBreak,
   insertSignature,
   insertTable,
   minimalDiff,
@@ -13,6 +15,7 @@ import {
   toggleWrap,
   wrapLink,
 } from "./mdedit.ts";
+import { imagePath, pickImage, putImage } from "./images.ts";
 import type { AlignKind, Edit } from "./mdedit.ts";
 import {
   LEGACY_TEMPLATES,
@@ -55,6 +58,8 @@ type Role =
   | "ordered"
   | "quote"
   | "table"
+  | "pagebreak"
+  | "image"
   | "link";
 
 interface ButtonSpec {
@@ -86,6 +91,13 @@ const ICON = {
   table:
     '<rect x="3" y="3" width="10" height="10" rx="1.2"/>' +
     '<path d="M3 8h10M8 3v10"/>',
+  pagebreak:
+    '<path d="M3.5 1.5v4h9v-4M3.5 14.5v-4h9v4"/>' +
+    '<path d="M1.5 8h2M5.5 8h2M9.5 8h2M13.5 8h1"/>',
+  image:
+    '<rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/>' +
+    '<circle cx="5.5" cy="6.3" r="1.3"/>' +
+    '<path d="M1.5 11.5l3.8-3.6 2.7 2.5 2.2-2 4.3 4"/>',
   link:
     '<path d="M6.9 9.1a3.1 3.1 0 0 0 4.4.3l1.9-1.9a3.1 3.1 0 0 0-4.4-4.4l-1 1"/>' +
     '<path d="M9.1 6.9a3.1 3.1 0 0 0-4.4-.3l-1.9 1.9a3.1 3.1 0 0 0 4.4 4.4l1-1"/>',
@@ -118,6 +130,8 @@ const BUTTONS: readonly ButtonSpec[] = [
   { role: "quote", label: svg(ICON.quote), title: "Ишлэл" },
   { role: "code", label: "&lt;&gt;", title: "Код" },
   { role: "table", label: svg(ICON.table), title: "Хүснэгт" },
+  { role: "image", label: svg(ICON.image), title: "Зураг" },
+  { role: "pagebreak", label: svg(ICON.pagebreak), title: "Хуудас таслах" },
   { role: "link", label: svg(ICON.link), title: "Холбоос" },
 ];
 
@@ -427,6 +441,17 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     else if (role === "quote") apply(toggleQuote(text, start, end));
     else if (role === "link") apply(wrapLink(text, start, end));
     else if (role === "table") apply(insertTable(text, start));
+    else if (role === "pagebreak") apply(insertPageBreak(text, start));
+    else if (role === "image")
+      void pickImage().then((file) => {
+        if (!file) return;
+        const src = imagePath(file.name);
+        putImage(src, file);
+        apply(
+          insertImage(editor.value, Math.min(start, editor.value.length), src),
+        );
+        syncActive();
+      });
     else apply(toggleList(text, start, end, role === "ordered"));
 
     lastState = "";

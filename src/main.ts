@@ -10,6 +10,7 @@ import {
 } from "./spellchecker.ts";
 import type { SpellChecker } from "./spellchecker.ts";
 import { initFileIO } from "./fileio.ts";
+import { clearImages } from "./images.ts";
 import { initToolbar } from "./toolbar.ts";
 import { initKeyboardToolbar } from "./kbtoolbar.ts";
 import { initSuggest } from "./suggest.ts";
@@ -261,8 +262,9 @@ function computeBad(
 }
 
 function syncEmptyState(text: string): void {
-  if (!els.emptyState) return;
   const empty = text.length === 0;
+  if (empty) clearImages();
+  if (!els.emptyState) return;
   els.emptyState.style.opacity = empty ? "" : "0";
   els.emptyState.setAttribute("aria-hidden", empty ? "false" : "true");
   document.body.classList.toggle("has-text", !empty);
@@ -1133,6 +1135,7 @@ const fileIO = initFileIO({
   saveText,
   defaultExt: () => (isPlain(mdBar.template()) ? "txt" : "md"),
   onFileOpened: (ref) => {
+    clearImages();
     plainName = ref ? ref.name : null;
     saveDraftFile(ref);
     syncSaveHint();

@@ -10,6 +10,8 @@ import {
   toggleList,
   toggleWrap,
   enterInsert,
+  insertImage,
+  insertPageBreak,
   insertSignature,
   insertTable,
   minimalDiff,
@@ -485,4 +487,22 @@ test("хоосон мөрөнд гарын үсгийн бэлэн хүснэг�
 test("текстэй мөр эсвэл div дотор гарын үсгийн хүснэгт оруулахгүй", () => {
   assert.equal(insertSignature("Нэг", 1, new Date()), null);
   assert.equal(insertSignature("::: {.right}\n\n:::", 13, new Date()), null);
+});
+
+test("хуудас таслалтыг мөрийн ард хоосон мөрөөр тусгаарлан оруулна", () => {
+  const e = insertPageBreak("Өргөдөл\nБие", 3);
+  assert.equal(e.text, "Өргөдөл\n\n\\newpage\n\nБие");
+  assert.equal(e.start, e.text.indexOf("Бие"));
+});
+
+test("хоосон бичвэрт хуудас таслалт оруулна", () => {
+  const e = insertPageBreak("", 0);
+  assert.equal(e.text, "\\newpage\n\n");
+  assert.equal(e.start, e.text.length);
+});
+
+test("зургийг тусдаа догол болгон оруулна", () => {
+  const e = insertImage("Хавсралт:", 9, "id.jpg");
+  assert.equal(e.text, "Хавсралт:\n\n![](id.jpg)\n\n");
+  assert.equal(e.start, e.text.length);
 });

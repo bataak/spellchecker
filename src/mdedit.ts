@@ -399,6 +399,25 @@ export function insertTable(
   };
 }
 
+function insertBlock(text: string, caret: number, block: string): Edit {
+  const to = lineEndAt(text, caret);
+  const line = text.slice(lineStartAt(text, caret), to);
+  const head = text.slice(0, to) + (line.trim() ? "\n\n" : "") + block + "\n\n";
+  return {
+    text: head + text.slice(to).replace(/^\n+/, ""),
+    start: head.length,
+    end: head.length,
+  };
+}
+
+export function insertPageBreak(text: string, caret: number): Edit {
+  return insertBlock(text, caret, "\\newpage");
+}
+
+export function insertImage(text: string, caret: number, src: string): Edit {
+  return insertBlock(text, caret, "![](" + src + ")");
+}
+
 export type AlignKind = "left" | "center" | "right" | "signature";
 
 const FENCE_OPEN = /^\s{0,3}(:{3,})\s*(\{[^{}]*\}|[^\s{}:]+)\s*:*\s*$/;

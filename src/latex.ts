@@ -145,6 +145,7 @@ function inline(nodes: readonly Inline[]): string {
     else if (n.type === "blank")
       out += "\\rule[-0.3ex]{" + String(n.width / 2) + "em}{0.4pt}";
     else if (n.type === "del") out += inline(n.children);
+    else if (n.type === "image") continue;
     else if (n.auto) out += "\\url{" + escapeUrl(n.url) + "}";
     else out += "\\href{" + escapeUrl(n.url) + "}{" + inline(n.children) + "}";
   }
@@ -243,6 +244,8 @@ function block(b: Block, beamer = false, place?: string): string {
         : "\\[\n" + textLogos(b.value) + "\n\\]";
     case "rule":
       return "\\noindent\\rule{\\linewidth}{0.4pt}";
+    case "pagebreak":
+      return "\\newpage";
     case "codeblock":
       if (!b.value.includes("\\end{verbatim}"))
         return "\\begin{verbatim}\n" + b.value + "\n\\end{verbatim}";
