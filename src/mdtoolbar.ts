@@ -306,11 +306,12 @@ function buildButtons(): string {
 
 function pickerOptions(): string {
   const option = (value: string, label: string): string =>
-    '<option value="' +
+    '<button type="button" class="md-menu-item" role="menuitemradio" ' +
+    'aria-checked="false" data-value="' +
     escapeAttr(value) +
     '">' +
     escapeAttr(label) +
-    "</option>";
+    "</button>";
   const slot = (id: string): string => {
     const item = findTemplate(id);
     if (item === undefined) return "";
@@ -327,11 +328,10 @@ function pickerOptions(): string {
   return (
     TEMPLATE_GROUPS.map(
       (group) =>
-        '<optgroup label="' +
+        '<div class="md-menu-group" role="presentation">' +
         escapeAttr(group.name) +
-        '">' +
-        group.ids.map(slot).join("") +
-        "</optgroup>",
+        "</div>" +
+        group.ids.map(slot).join(""),
     ).join("") +
     TEMPLATES.filter((item) => !grouped.has(item.id))
       .map((item) => slot(item.id))
@@ -341,10 +341,9 @@ function pickerOptions(): string {
 
 function buildPicker(): string {
   return (
-    '<span class="md-select"><select class="tbtn tbtn-icon md-template" ' +
-    'aria-label="Баримтын загвар">' +
-    pickerOptions() +
-    "</select></span>"
+    '<span class="md-select"><button type="button" ' +
+    'class="tbtn tbtn-icon md-template" aria-haspopup="menu" ' +
+    'aria-expanded="false" aria-label="Баримтын загвар"></button></span>'
   );
 }
 
@@ -365,7 +364,15 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   const mount = options.mount ?? editor.parentElement;
   if (mount) mount.insertBefore(bar, mount.firstChild);
 
-  const select = bar.querySelector<HTMLSelectElement>(".md-template")!;
+  const select = bar.querySelector<HTMLButtonElement>(".md-template")!;
+  const menu = document.createElement("div");
+  menu.className = "md-menu";
+  menu.setAttribute("role", "menu");
+  menu.setAttribute("aria-label", "Баримтын загвар");
+  menu.hidden = true;
+  menu.innerHTML = pickerOptions();
+  document.body.append(menu);
+  const items = [...menu.querySelectorAll<HTMLButtonElement>(".md-menu-item")];
   const group = bar.querySelector<HTMLElement>(".md-group")!;
   const picker = bar.querySelector<HTMLElement>(".md-select")!;
   const wideQuery = window.matchMedia("(min-width: 701px)");
@@ -377,7 +384,45 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     for (const legacy of legacyPending) dropDraft(legacy);
     legacyPending = [];
   }
-  select.value = pickerValue(templateId);
+  function setPicked(key: string): void {
+    for (const item of items) {
+      const on = item.dataset.value === key;
+      item.setAttribute("aria-checked", String(on));
+      if (on) select.textContent = item.textContent;
+    }
+  }
+
+  function placeMenu(): void {
+    const rect = select.getBoundingClientRect();
+    const view = window.visualViewport;
+    const bottom = view ? view.offsetTop + view.height : window.innerHeight;
+    const right = document.documentElement.clientWidth;
+    menu.style.top = rect.bottom + 4 + "px";
+    menu.style.maxHeight = Math.max(120, bottom - rect.bottom - 12) + "px";
+    menu.style.minWidth = rect.width + "px";
+    menu.style.left =
+      Math.max(8, Math.min(rect.left, right - menu.offsetWidth - 8)) + "px";
+  }
+
+  function closeMenu(refocus: boolean): void {
+    if (menu.hidden) return;
+    menu.hidden = true;
+    select.setAttribute("aria-expanded", "false");
+    if (refocus) select.focus();
+  }
+
+  function openMenu(): void {
+    menu.hidden = false;
+    select.setAttribute("aria-expanded", "true");
+    placeMenu();
+    const checked =
+      items.find((item) => item.getAttribute("aria-checked") === "true") ??
+      items[0];
+    checked?.focus({ preventScroll: true });
+    checked?.scrollIntoView({ block: "nearest" });
+  }
+
+  setPicked(pickerValue(templateId));
 
   const headingButtons: [HTMLButtonElement, number][] = [];
   for (const button of group.querySelectorAll<HTMLButtonElement>(".md-btn")) {
@@ -461,7 +506,9 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       settle = null;
     }
     const focus = document.activeElement;
-    const focused = focus === editor || (focus !== null && bar.contains(focus));
+    const focused =
+      focus === editor ||
+      (focus !== null && (bar.contains(focus) || menu.contains(focus)));
     const on = active();
     const show = ready && focused;
 
@@ -611,7 +658,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     if (stored === null && first) void loadDefault(key, first);
 
     if (options.onTemplate) options.onTemplate(id);
-    select.value = key;
+    setPicked(key);
     syncVisible();
   }
 
@@ -653,8 +700,8 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     if (role) run(role);
   };
 
-  const onSelect = (): void => {
-    const value = select.value;
+  const onSelect = (value: string): void => {
+    closeMenu(false);
     const [slot = "", example] = value.split(":");
     if (example !== undefined) {
       chooseTemplate(slot, example);
@@ -692,7 +739,46 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
 
   bar.addEventListener("mousedown", onPointerDown);
   bar.addEventListener("click", onClick);
-  select.addEventListener("change", onSelect);
+  select.addEventListener("click", () => {
+    if (menu.hidden) openMenu();
+    else closeMenu(true);
+  });
+  menu.addEventListener("click", (event) => {
+    const item = (event.target as HTMLElement | null)?.closest<HTMLElement>(
+      ".md-menu-item",
+    );
+    if (item?.dataset.value !== undefined) onSelect(item.dataset.value);
+  });
+  menu.addEventListener("keydown", (event) => {
+    const at = items.indexOf(document.activeElement as HTMLButtonElement);
+    let next = -1;
+    if (event.key === "ArrowDown") next = (at + 1) % items.length;
+    else if (event.key === "ArrowUp")
+      next = (at - 1 + items.length) % items.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = items.length - 1;
+    else if (event.key === "Escape" || event.key === "Tab") {
+      event.preventDefault();
+      closeMenu(true);
+      return;
+    }
+    if (next < 0) return;
+    event.preventDefault();
+    items[next]?.focus();
+  });
+  const onMenuPointer = (event: Event): void => {
+    const target = event.target as Node;
+    if (!menu.contains(target) && !select.contains(target)) closeMenu(false);
+  };
+  const onMenuViewport = (event: Event): void => {
+    if (menu.hidden) return;
+    if (event.target instanceof Node && menu.contains(event.target)) return;
+    placeMenu();
+  };
+  document.addEventListener("pointerdown", onMenuPointer);
+  window.addEventListener("resize", onMenuViewport);
+  window.addEventListener("scroll", onMenuViewport, true);
+  window.visualViewport?.addEventListener("resize", onMenuViewport);
   editor.addEventListener("beforeinput", onBeforeInput);
   editor.addEventListener("input", syncActive);
   document.addEventListener("focusin", onFocus);
@@ -713,6 +799,11 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       document.removeEventListener("focusin", onFocus);
       document.removeEventListener("focusout", onFocus);
       document.removeEventListener("selectionchange", onSelectionChange);
+      document.removeEventListener("pointerdown", onMenuPointer);
+      window.removeEventListener("resize", onMenuViewport);
+      window.removeEventListener("scroll", onMenuViewport, true);
+      window.visualViewport?.removeEventListener("resize", onMenuViewport);
+      menu.remove();
       window.removeEventListener("resize", queueWide);
       subtitleWatch.disconnect();
       toolbarWatch.disconnect();
