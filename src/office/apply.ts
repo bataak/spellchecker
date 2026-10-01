@@ -120,7 +120,11 @@ const BASE: Readonly<Record<string, ParaStyle>> = {
     spaceAfterPt: 6,
   },
   [STYLE.code]: { mono: true, lineHeightPercent: 100 },
-  [STYLE.listItem]: { align: "justify", lineHeightPercent: 115 },
+  [STYLE.listItem]: {
+    align: "justify",
+    lineHeightPercent: 115,
+    spaceAfterPt: PARA_GAP_PT,
+  },
   [STYLE.tableHead]: {
     bold: true,
     sizePt: 11,

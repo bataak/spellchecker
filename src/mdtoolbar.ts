@@ -113,12 +113,8 @@ const BUTTONS: readonly ButtonSpec[] = [
   { role: "center", label: svg(ICON.center), title: "Голлуулах" },
   { role: "right", label: svg(ICON.right), title: "Баруун тийш зэрэгцүүлэх" },
   { role: "signature", label: svg(ICON.signature), title: "Гарын үсэг" },
-  { role: "bullet", label: svg(ICON.bullet), title: "Цэгт жагсаалт" },
-  {
-    role: "ordered",
-    label: svg(ICON.ordered),
-    title: "Дугаарласан жагсаалт",
-  },
+  { role: "bullet", label: svg(ICON.bullet), title: "Зүйлчлэх" },
+  { role: "ordered", label: svg(ICON.ordered), title: "Дугаарлах" },
   { role: "quote", label: svg(ICON.quote), title: "Ишлэл" },
   { role: "code", label: "&lt;&gt;", title: "Код" },
   { role: "table", label: svg(ICON.table), title: "Хүснэгт" },
@@ -460,8 +456,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       settle = null;
     }
     const focus = document.activeElement;
-    const focused =
-      focus === editor || (focus !== null && bar.contains(focus));
+    const focused = focus === editor || (focus !== null && bar.contains(focus));
     const on = active();
     const show = ready && focused;
 
