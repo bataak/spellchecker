@@ -3,6 +3,7 @@ import { ODF_TEXT, writeOdf } from "../odf/index.ts";
 import type { OdfPackage } from "../odf/index.ts";
 import { STYLE } from "../docir.ts";
 import type { DocIr, IrBlock, IrRun, ParaStyle } from "../docir.ts";
+import { tabFills } from "../flatten.ts";
 import { columnWidths, officeMetrics } from "../table.ts";
 
 const encoder = new TextEncoder();
@@ -303,7 +304,9 @@ function blockXml(
                   cellStyle +
                   '" office:value-type="string"><text:p text:style-name="' +
                   para +
-                  '"><text:tab/></text:p></table:table-cell>'
+                  '">' +
+                  runsXml(tabFills(row[i] ?? [])) +
+                  "</text:p></table:table-cell>"
                 );
               }
               const para = align ? base + "_" + ODT_ALIGN[align] : base;

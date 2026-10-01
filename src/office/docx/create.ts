@@ -2,6 +2,7 @@ import { zipSync } from "fflate";
 import type { Zippable } from "fflate";
 import { STYLE } from "../docir.ts";
 import type { Align, DocIr, IrBlock, IrRun, ParaStyle } from "../docir.ts";
+import { tabFills } from "../flatten.ts";
 import { columnWidths, officeMetrics } from "../table.ts";
 
 export interface DocxOptions {
@@ -428,9 +429,7 @@ function blockXml(block: IrBlock, doc: DocIr, body: Body): string {
                         ? '<w:jc w:val="' + JC[align] + '"/>'
                         : "",
                   ),
-                  fill
-                    ? "<w:r><w:tab/></w:r>"
-                    : runsXml(row[i] ?? [], body, false),
+                  runsXml(tabFills(row[i] ?? []), body, false),
                 ) +
                 "</w:tc>"
               );
