@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.97.0](https://github.com/bataak/spellchecker/compare/v1.96.0...v1.97.0) (2026-10-02)
+
+
+### Features
+
+* flag long dashes inside hyphenated dictionary names ([6d0f1ed](https://github.com/bataak/spellchecker/commit/6d0f1ed842e8ea649f7248288f20ad36a54d130b))
+* **markdown:** turn -- and --- into en and em dashes in preview and office export ([ac95a66](https://github.com/bataak/spellchecker/commit/ac95a66db434f2f59a981a50c63cc2a4a12b3252))
+
+
+### Bug Fixes
+
+* **mobile:** stop iOS from zooming in when the editor gets focus ([0084d6d](https://github.com/bataak/spellchecker/commit/0084d6dbdcb0913228fa485503ddb55080f03e2f))
+* **shortcuts:** copy with Ctrl+ё and flash the copy button on selection ([230c543](https://github.com/bataak/spellchecker/commit/230c543703e432412b6cc141295e1caa438a35d3))
+* **toolbar:** open the template menu below its button on every screen ([549b4fd](https://github.com/bataak/spellchecker/commit/549b4fd4ddbce57ffa47d54eb6cc3126a0331d0f))
+* **update:** reload to the latest version when a stale worker fails to load ([172eae2](https://github.com/bataak/spellchecker/commit/172eae258e80fbde5fcbee73d3ffc657a43f4d64))
+
 ## [1.96.0](https://github.com/bataak/spellchecker/compare/v1.95.1...v1.96.0) (2026-10-01)
 
 
