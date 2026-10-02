@@ -101,6 +101,28 @@ export function dashNormalized(word: string): string | null {
   return word.replace(LONG_DASH_ALL, "-");
 }
 
+const COMPOUND_DASH = /[\u2012\u2013\u2014\u2015\u2212]/;
+
+export function dashCompound(
+  text: string,
+  left: { word: string; index: number },
+  right: { word: string; index: number },
+): Token | null {
+  const dashAt = left.index + left.word.length;
+  if (right.index !== dashAt + 1) return null;
+  if (!COMPOUND_DASH.test(text.charAt(dashAt))) return null;
+  if (!/[\p{L}\p{M}]$/u.test(left.word) || !/^\p{L}/u.test(right.word))
+    return null;
+  const end = right.index + right.word.length;
+  return { word: text.slice(left.index, end), start: left.index, end };
+}
+
+export function isLexicalHyphen(analyses: string[]): boolean {
+  return analyses.some(
+    (line) => !/(?:^|\s)pa:/.test(line) && /(?:^|\s)st:\S*-/.test(line),
+  );
+}
+
 function isSpanBoundary(text: string, start: number, end: number): boolean {
   const before = start > 0 ? text.charAt(start - 1) : "";
   const after = end < text.length ? text.charAt(end) : "";

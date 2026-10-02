@@ -23,6 +23,7 @@ import {
   parseAnalyses,
   type Analysis,
 } from "./verbform.ts";
+import { dashNormalized, isLexicalHyphen } from "./textcheck.ts";
 
 export interface SpellerInstance {
   spell: (word: string) => boolean;
@@ -421,7 +422,15 @@ function lookupModeOf(word: string): LookupMode {
   }
 }
 
+function isLexicalCompound(word: string): boolean {
+  const primary = instances.find((item) => item.id === PRIMARY)?.inst;
+  if (!primary?.analyze || !primary.spell(word)) return false;
+  return isLexicalHyphen(stringList(primary.analyze(word)));
+}
+
 function isCorrect(word: string): boolean {
+  const hyphened = dashNormalized(word);
+  if (hyphened !== null) return !isLexicalCompound(hyphened);
   const list = activeInstances();
   if (!list.length) return true;
   const cyr = /[\u0400-\u04FF\u1800-\u18AF]/.test(word);
