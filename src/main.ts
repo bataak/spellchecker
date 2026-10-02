@@ -31,6 +31,7 @@ import {
   isDashSuffix,
   buildErrorList,
   dashSpan,
+  dashCompound,
   dashNormalizeApply,
 } from "./textcheck.ts";
 import { saveDraftFile, loadDraftFile } from "./storage.ts";
@@ -186,9 +187,14 @@ async function ensureChecked(
   tokens: Iterable<Tokenized> = tokenize(text),
 ): Promise<void> {
   const need = new Set<string>();
-  for (const { word, joined } of tokens) {
+  let prev: Tokenized | null = null;
+  for (const token of tokens) {
+    const { word, joined } = token;
     const probe = joined ?? word;
     if (checkable(word) && !cache.has(probe)) need.add(probe);
+    const compound = prev && dashCompound(text, prev, token);
+    if (compound && !cache.has(compound.word)) need.add(compound.word);
+    prev = token;
   }
   if (!need.size) return;
   const words = [...need];
@@ -245,9 +251,21 @@ function computeBad(
   const bad: Token[] = [];
   const skip = skipRanges(text, { code: skipCode, links: skipLinks });
   let total = 0;
-  for (const { word, index, joined } of tokens) {
+  let prev: Tokenized | null = null;
+  for (const token of tokens) {
+    const { word, index, joined } = token;
+    const left = prev;
+    prev = token;
     total++;
     if (skip.length && inRanges(skip, index)) continue;
+    const compound =
+      left && !inRanges(skip, left.index) && dashCompound(text, left, token);
+    if (compound && !isCorrect(compound.word) && !isIgnored(compound.word)) {
+      if (bad[bad.length - 1]?.start === compound.start) bad.pop();
+      bad.push(compound);
+      prev = null;
+      continue;
+    }
     if (!checkable(word) || isCorrect(joined ?? word) || isIgnored(word))
       continue;
     const span = dashSpan(text, { word, start: index });

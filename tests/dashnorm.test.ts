@@ -5,6 +5,8 @@ import {
   dashNormalized,
   dashNormalizeApply,
   isAbbrev,
+  dashCompound,
+  isLexicalHyphen,
 } from "../src/textcheck.ts";
 
 test("span covers abbreviation, dash and suffix", () => {
@@ -139,4 +141,67 @@ test("isAbbrev keeps its previous behaviour", () => {
   assert.equal(isAbbrev("Ажил"), false);
   assert.equal(isAbbrev("А"), false);
   assert.equal(isAbbrev("NASA"), false);
+});
+
+test("compound span covers both words and the dash", () => {
+  const text = "Говь–Алтайд очсон";
+  assert.deepEqual(
+    dashCompound(
+      text,
+      { word: "Говь", index: 0 },
+      { word: "Алтайд", index: 5 },
+    ),
+    { word: "Говь–Алтайд", start: 0, end: 11 },
+  );
+});
+
+test("compound span accepts an em dash", () => {
+  const text = "Баян—Өлгий";
+  assert.equal(
+    dashCompound(text, { word: "Баян", index: 0 }, { word: "Өлгий", index: 5 })
+      ?.word,
+    "Баян—Өлгий",
+  );
+});
+
+test("no compound span across a spaced dash", () => {
+  const text = "Говь – Алтай";
+  assert.equal(
+    dashCompound(text, { word: "Говь", index: 0 }, { word: "Алтай", index: 7 }),
+    null,
+  );
+});
+
+test("no compound span for a Unicode hyphen", () => {
+  const text = "Говь‐Алтай";
+  assert.equal(
+    dashCompound(text, { word: "Говь", index: 0 }, { word: "Алтай", index: 5 }),
+    null,
+  );
+});
+
+test("no compound span for a number range", () => {
+  const text = "2–8";
+  assert.equal(
+    dashCompound(text, { word: "2", index: 0 }, { word: "8", index: 2 }),
+    null,
+  );
+});
+
+test("a dictionary headword with a hyphen is lexical", () => {
+  assert.equal(isLexicalHyphen([" st:Говь-Алтай fl:N0"]), true);
+});
+
+test("a hyphen compound built from two words is not lexical", () => {
+  assert.equal(
+    isLexicalHyphen([
+      " pa:Монгол st:Монгол pa:- st:- pa:Оросын  st:Орос fl:N1",
+    ]),
+    false,
+  );
+});
+
+test("a stem without a hyphen is not lexical", () => {
+  assert.equal(isLexicalHyphen([" st:Монгол"]), false);
+  assert.equal(isLexicalHyphen([]), false);
 });
