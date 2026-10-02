@@ -166,7 +166,7 @@ export function initShortcuts(deps: ShortcutDeps): void {
         }
       }
       trigger("#pasteBtn", false);
-    } else if (lowerKey === "c") {
+    } else if (isLetter("c") || lowerKey === "ё") {
       const pageSel = window.getSelection
         ? (window.getSelection()?.toString() ?? "")
         : "";
@@ -176,6 +176,8 @@ export function initShortcuts(deps: ShortcutDeps): void {
       if (!pageSel && !editorHasSelection) {
         e.preventDefault();
         trigger("#copyBtn");
+      } else {
+        trigger("#copyBtn", false);
       }
     }
   });
