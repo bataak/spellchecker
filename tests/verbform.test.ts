@@ -368,3 +368,32 @@ test("олон тооны нэр үгийн ганц тоо үйл үгийн я
     ["сурагчид", "сурагч", "сурах"],
   );
 });
+
+test("үйл үгийн язгуураас -гч үйлдэгч нэрийг хайна", () => {
+  const valid = new Set(["зорчигч", "зорчих", "үйлдвэрлэгч", "үйлдвэрлэх"]);
+  const isWord = (candidate: string) => valid.has(candidate);
+  assert.deepEqual(
+    lookupCandidates("зорчигчид", parseAnalyses([" st:зорч fl:G1"]), isWord),
+    ["зорчигч", "зорчих"],
+  );
+  assert.deepEqual(
+    lookupCandidates(
+      "зорчигчдын",
+      parseAnalyses([" st:зорч fl:G1 fl:71"]),
+      isWord,
+    ),
+    ["зорчигч", "зорчих"],
+  );
+  assert.deepEqual(
+    lookupCandidates(
+      "үйлдвэрлэгчдийн",
+      parseAnalyses([" st:үйлдвэрлэ fl:F3 fl:73"]),
+      isWord,
+    ),
+    ["үйлдвэрлэгч", "үйлдвэрлэх"],
+  );
+  assert.deepEqual(
+    lookupCandidates("зорчигч", parseAnalyses([" st:зорч fl:G1"]), isWord),
+    ["зорчих"],
+  );
+});

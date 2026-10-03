@@ -93,6 +93,18 @@ export function bareStemInfinitives(
     .slice(0, 1);
 }
 
+const AGENT_NOUN = /^[аэоөи]?гч/;
+
+function agentNoun(word: string, stem: string): string | null {
+  const lower = word.toLowerCase();
+  const root = stem.toLowerCase();
+  if (!lower.startsWith(root)) return null;
+  const suffix = lower.slice(root.length).match(AGENT_NOUN)?.[0];
+  if (!suffix) return null;
+  const noun = root + suffix;
+  return noun === lower ? null : noun;
+}
+
 const PLURAL_CHID = /^(.+)чид$/;
 const PLURAL_S = /^(.+?)(и?)с$/;
 
@@ -150,6 +162,8 @@ export function lookupCandidates(
   const ordered: string[] = [];
   const trailing: string[] = [];
   for (const { stem, verb } of analyses) {
+    const agent = verb === false ? null : agentNoun(word, stem);
+    if (agent && isWord(agent)) ordered.push(agent);
     const infinitives =
       verb === false
         ? []
