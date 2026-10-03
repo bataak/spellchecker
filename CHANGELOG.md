@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.97.1](https://github.com/bataak/spellchecker/compare/v1.97.0...v1.97.1) (2026-10-03)
+
+
+### Bug Fixes
+
+* **lookup:** look up -гч agent nouns derived from verb stems ([e34e7f2](https://github.com/bataak/spellchecker/commit/e34e7f208ea1a37da8c0e7da542daba29a649574))
+* **lookup:** look up -гч agent nouns derived from verb stems ([5ec1328](https://github.com/bataak/spellchecker/commit/5ec1328a5ff955c0a9c8a1a28bc5c5355f6099bc))
+
 ## [1.97.0](https://github.com/bataak/spellchecker/compare/v1.96.0...v1.97.0) (2026-10-02)
 
 
