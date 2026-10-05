@@ -310,3 +310,53 @@ test("зургийн зам болон шинжийг алгасна", () => {
   assert.equal(inRanges(ranges, text.indexOf("Лого")), false);
   assert.equal(inRanges(ranges, text.indexOf("үг")), false);
 });
+
+function texSkipped(text: string, word: string): boolean {
+  return inRanges(skipRanges(text, { latex: true }), text.indexOf(word));
+}
+
+test("latex: skips the preamble and the closing tail", () => {
+  const text =
+    "\\documentclass{article}\n\\usepackage[mongolian]{babel}\n\\title{Гарчиг}\n\\begin{document}\nЭнгийн бичвэр.\n\\end{document}\nхаягдал";
+
+  assert.ok(texSkipped(text, "mongolian"));
+  assert.ok(texSkipped(text, "Гарчиг"));
+  assert.ok(texSkipped(text, "хаягдал"));
+  assert.ok(!texSkipped(text, "Энгийн"));
+});
+
+test("latex: skips comments but not escaped percent", () => {
+  const text = "Хувь 50\\% байна. % тайлбар мөр\nДараах.";
+
+  assert.ok(texSkipped(text, "тайлбар"));
+  assert.ok(!texSkipped(text, "байна"));
+  assert.ok(!texSkipped(text, "Дараах"));
+});
+
+test("latex: skips key arguments but keeps prose arguments", () => {
+  const text =
+    "\\section{Оршил}\\label{sec:orshil} Зураг \\ref{fig:neg} харна уу \\cite[х.~5]{bat2020}. \\textcolor{red}{Улаан} \\href{https://x.mn}{Холбоос}";
+
+  assert.ok(!texSkipped(text, "Оршил"));
+  assert.ok(texSkipped(text, "orshil"));
+  assert.ok(texSkipped(text, "neg"));
+  assert.ok(texSkipped(text, "bat2020"));
+  assert.ok(texSkipped(text, "red"));
+  assert.ok(!texSkipped(text, "Улаан"));
+  assert.ok(!texSkipped(text, "Холбоос"));
+});
+
+test("latex: skips verbatim-like environments and \\verb", () => {
+  const text =
+    "Код:\n\\begin{lstlisting}\nбуруу_нэр = 1\n\\end{lstlisting}\nМөн \\verb|алдаа| гэж.";
+
+  assert.ok(texSkipped(text, "буруу_нэр"));
+  assert.ok(texSkipped(text, "алдаа"));
+  assert.ok(!texSkipped(text, "Мөн"));
+});
+
+test("latex: plain skipRanges leaves comments alone", () => {
+  const text = "Хувь % тайлбар";
+
+  assert.ok(!inRanges(skipRanges(text), text.indexOf("тайлбар")));
+});

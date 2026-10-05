@@ -71,8 +71,9 @@ export function initFileIO({
   }
 
   const OFFICE_EXT_RE = /\.(docx|pptx|odt|odp|pdf)$/i;
-  const TEXT_EXT_RE = /\.(txt|md|markdown|mdown|text)$/i;
+  const TEXT_EXT_RE = /\.(txt|md|markdown|mdown|text|tex|ltx)$/i;
   const MD_EXT_RE = /\.(md|markdown|mdown)$/i;
+  const TEX_EXT_RE = /\.(tex|ltx)$/i;
 
   function ensureTextName(name: string): string {
     name = (name || "").trim();
@@ -81,6 +82,7 @@ export function initFileIO({
   }
 
   function textMime(name: string): string {
+    if (TEX_EXT_RE.test(name)) return "text/x-tex;charset=utf-8";
     return MD_EXT_RE.test(name)
       ? "text/markdown;charset=utf-8"
       : "text/plain;charset=utf-8";
@@ -127,6 +129,10 @@ export function initFileIO({
     {
       description: "Текст файл",
       accept: { "text/plain": [".txt", ".md", ".markdown", ".text"] },
+    },
+    {
+      description: "LaTeX файл",
+      accept: { "text/x-tex": [".tex", ".ltx"] },
     },
     {
       description: "Баримт",
@@ -329,7 +335,7 @@ export function initFileIO({
     return (
       !!file &&
       ((file.type && file.type.indexOf("text/") === 0) ||
-        /\.(txt|md|markdown|mdown|text)$/i.test(file.name) ||
+        TEXT_EXT_RE.test(file.name) ||
         !file.type)
     );
   }

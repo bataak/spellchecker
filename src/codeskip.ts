@@ -231,9 +231,57 @@ export function linkRanges(text: string): SkipRange[] {
   ]);
 }
 
+const TEX_COMMENT = /(?<!\\)%[^\n]*/g;
+const TEX_VERBATIM =
+  /\\begin\{((?:verbatim|Verbatim|lstlisting|minted|comment|tikzpicture|pspicture|filecontents|alltt)\*?)\}[\s\S]*?\\end\{\1\}/g;
+const TEX_VERB = /\\verb\*?([^A-Za-z\s*])[^\n]*?\1/g;
+const TEX_ARG = String.raw`\{(?:[^{}]|\{[^{}]*\})*\}`;
+const TEX_KEY_ARG = new RegExp(
+  String.raw`\\(?:label|ref|eqref|pageref|autoref|nameref|[cC]ref|cite[pt]?|nocite|usepackage|RequirePackage|documentclass|includegraphics|includepdf|input|include|bibliography|bibliographystyle|addbibresource|url|href|hypersetup|setlength|addtolength|setcounter|addtocounter|newcounter|pagestyle|thispagestyle|numberwithin|newtheorem|theoremstyle|color|textcolor|colorbox|definecolor|lstinputlisting|graphicspath|usetheme|usecolortheme|usefonttheme|setbeamertemplate|setbeamercolor|newcommand|renewcommand|providecommand|newenvironment|renewenvironment|vspace|hspace|vskip|hskip|geometry|selectlanguage|foreignlanguage)\*?(?:\s*\[[^\]\n]*\])*\s*` +
+    TEX_ARG +
+    String.raw`(?:\s*\[[^\]\n]*\])*`,
+  "g",
+);
+const TEX_BREAK = /\\\\\*?\[[^\]\n]*\]/g;
+const TEX_BEGIN_DOC = /\\begin\{document\}/;
+const TEX_END_DOC = /\\end\{document\}/;
+
+export function looksLatex(text: string): boolean {
+  return /\\documentclass\b|\\begin\{document\}/.test(text);
+}
+
+export function latexRanges(text: string): SkipRange[] {
+  if (text.indexOf("\\") < 0 && text.indexOf("%") < 0) return [];
+
+  const ranges: SkipRange[] = [];
+  const begin = TEX_BEGIN_DOC.exec(text);
+  if (begin !== null)
+    ranges.push({ start: 0, end: begin.index + begin[0].length });
+  const end = TEX_END_DOC.exec(text);
+  if (end !== null) ranges.push({ start: end.index, end: text.length });
+
+  return mergeRanges([
+    ...ranges,
+    ...codeRanges(text),
+    ...collect(text, TEX_COMMENT),
+    ...collect(text, TEX_VERBATIM),
+    ...collect(text, TEX_VERB),
+    ...collect(text, TEX_KEY_ARG),
+    ...collect(text, TEX_BREAK),
+  ]);
+}
+
+function braceCut(text: string, ranges: SkipRange[]): SkipRange[] {
+  return ranges.map(({ start, end }) => {
+    const brace = text.slice(start, end).search(/[{}]/);
+    return brace < 0 ? { start, end } : { start, end: start + brace };
+  });
+}
+
 export interface SkipOptions {
   code?: boolean;
   links?: boolean;
+  latex?: boolean;
 }
 
 export function skipRanges(
@@ -244,8 +292,12 @@ export function skipRanges(
   const wantLinks = options.links !== false;
 
   const ranges: SkipRange[] = [];
-  if (wantCode) ranges.push(...codeRanges(text));
-  if (wantLinks) ranges.push(...linkRanges(text));
+  if (wantCode)
+    ranges.push(...(options.latex ? latexRanges(text) : codeRanges(text)));
+  if (wantLinks)
+    ranges.push(
+      ...(options.latex ? braceCut(text, linkRanges(text)) : linkRanges(text)),
+    );
 
   return mergeRanges(ranges);
 }
