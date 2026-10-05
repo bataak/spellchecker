@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.99.1](https://github.com/bataak/spellchecker/compare/v1.99.0...v1.99.1) (2026-10-05)
+
+
+### Bug Fixes
+
+* **stardict:** keep noun reading when a stem also parses as a verb ([5d51675](https://github.com/bataak/spellchecker/commit/5d516753cc0b8b88cc21c8a5ab7aaf0e717c5711))
+
 ## [1.99.0](https://github.com/bataak/spellchecker/compare/v1.98.0...v1.99.0) (2026-10-05)
 
 
