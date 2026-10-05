@@ -254,6 +254,18 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     startDrag(e.pointerId, 40, 12);
   });
 
+  deps.dock.onShow((body) => {
+    if (!pinned || !defTip || defTip.hidden || !defTipBody) return;
+    const content = [...defTipBody.childNodes].filter(
+      (node) => !(node as Element).classList?.contains("def-empty"),
+    );
+    if (content.length) {
+      body.replaceChildren(...content);
+      body.scrollTop = 0;
+    }
+    closePinned();
+  });
+
   const savedPin = loadPin();
   if (savedPin && window.matchMedia("(hover: hover)").matches) {
     requestAnimationFrame(() => {
