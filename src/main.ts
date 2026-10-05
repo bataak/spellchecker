@@ -56,6 +56,8 @@ import {
   setLineBlocks,
   backdropLineCount,
   marksAtY,
+  offsetAtPoint,
+  rangeRectAt,
 } from "./backdrop.ts";
 import { shiftTokens } from "./tokenshift.ts";
 import { isLookupKey, wordAt, type WordSpan } from "./lookup.ts";
@@ -983,6 +985,64 @@ els.editor.addEventListener("pointerdown", (e) => {
   e.preventDefault();
   suppressNextClick = true;
   showPopoverFor(markToken);
+});
+
+function wordAtPoint(x: number, y: number): WordSpan | null {
+  const { editor, backdrop } = els;
+  editor.style.pointerEvents = "none";
+  backdrop.style.pointerEvents = "auto";
+  backdrop.style.userSelect = "text";
+  const offset = offsetAtPoint(x, y);
+  editor.style.pointerEvents = "";
+  backdrop.style.pointerEvents = "";
+  backdrop.style.userSelect = "";
+  if (offset === null) return null;
+  const span = wordAt(editor.value, offset);
+  const rect = span && rangeRectAt(span.start, span.end);
+  if (!rect) return null;
+  if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom)
+    return null;
+  return span;
+}
+
+function isHoverDefineKey(e: KeyboardEvent | PointerEvent): boolean {
+  return (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey;
+}
+
+let hoverPoint: { x: number; y: number } | null = null;
+let hoverSpan: WordSpan | null = null;
+
+function defineAtPoint(x: number, y: number): void {
+  if (!checker.define) return;
+  const span = wordAtPoint(x, y);
+  if (!span) {
+    hoverSpan = null;
+    defTip.hideWordTip();
+    return;
+  }
+  if (hoverSpan?.start === span.start && hoverSpan.end === span.end) return;
+  hoverSpan = span;
+  void defTip.showWordDefinition(span, x);
+}
+
+els.editor.addEventListener("pointermove", (e) => {
+  if (e.pointerType !== "mouse") return;
+  hoverPoint = { x: e.clientX, y: e.clientY };
+  if (e.buttons === 0 && isHoverDefineKey(e))
+    defineAtPoint(e.clientX, e.clientY);
+  else hoverSpan = null;
+});
+
+els.editor.addEventListener("pointerleave", () => {
+  hoverPoint = null;
+  hoverSpan = null;
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.repeat || (e.key !== "Control" && e.key !== "Meta")) return;
+  if (!hoverPoint || !isHoverDefineKey(e)) return;
+  hoverSpan = null;
+  defineAtPoint(hoverPoint.x, hoverPoint.y);
 });
 
 els.editor.addEventListener("contextmenu", (e) => {

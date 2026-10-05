@@ -73,6 +73,26 @@ export function placeTip(
   };
 }
 
+export function placeTipAtPointer(
+  pointerX: number,
+  line: Box,
+  tip: Size,
+  view: View,
+  gap = 8,
+): { left: number; top: number } {
+  const viewRight = view.left + view.width;
+  const viewBottom = view.top + view.height;
+  let top = line.bottom + gap;
+  if (top + tip.height > viewBottom - gap) {
+    const above = line.top - gap - tip.height;
+    if (above >= view.top + gap) top = above;
+  }
+  return {
+    left: clamp(pointerX, view.left + gap, viewRight - gap - tip.width),
+    top: clamp(top, view.top + gap, viewBottom - gap - tip.height),
+  };
+}
+
 export function clipText(text: string, limit: number): string {
   const chars = Array.from(text);
   if (chars.length <= limit) return text;

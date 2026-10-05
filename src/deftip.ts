@@ -1,4 +1,9 @@
-import { clipText, displayHeadword, placeTip } from "./defmarks.ts";
+import {
+  clipText,
+  displayHeadword,
+  placeTip,
+  placeTipAtPointer,
+} from "./defmarks.ts";
 import type { DictEntry } from "./stardict.ts";
 import { rangeRectAt } from "./backdrop.ts";
 import { KEYBOARD_LAYOUT_EVENT } from "./kbtoolbar.ts";
@@ -31,7 +36,10 @@ export interface DefTip {
   readonly wordTipOpen: () => boolean;
   readonly hideWordTip: () => void;
   readonly followWordTip: () => void;
-  readonly showWordDefinition: (span: WordSpan) => Promise<void>;
+  readonly showWordDefinition: (
+    span: WordSpan,
+    pointerX?: number,
+  ) => Promise<void>;
   readonly keyboardShifting: () => boolean;
 }
 
@@ -46,6 +54,8 @@ export function initDefTip(deps: DefTipDeps): DefTip {
   let defCache = new Map<string, Promise<Definition>>();
   let wordAnchor: HTMLElement | null = null;
   let wordTipSpan: WordSpan | null = null;
+  let wordTicket = 0;
+  let wordPointerX: number | null = null;
   let keyboardShiftUntil = 0;
 
   function cancelHide(): void {
@@ -123,19 +133,10 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     }
   }
 
-  function placeTipWithinEditor(
-    ...args: Parameters<typeof placeTip>
-  ): ReturnType<typeof placeTip> {
-    const [anchor, container, tip, view, gap] = args;
+  function withinEditor<V extends { top: number; height: number }>(view: V): V {
     const editorBottom = editor.getBoundingClientRect().bottom;
     const bottom = Math.min(view.top + view.height, editorBottom);
-    return placeTip(
-      anchor,
-      container,
-      tip,
-      { ...view, height: Math.max(0, bottom - view.top) },
-      gap,
-    );
+    return { ...view, height: Math.max(0, bottom - view.top) };
   }
 
   function position(): void {
@@ -146,17 +147,22 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     }
     const vv = window.visualViewport;
     const anchorRect = defTipAnchor.getBoundingClientRect();
-    const place = placeTipWithinEditor(
-      anchorRect,
-      popover.hidden ? anchorRect : popover.getBoundingClientRect(),
-      { width: defTip.offsetWidth, height: defTip.offsetHeight },
-      {
-        left: vv ? vv.offsetLeft : 0,
-        top: vv ? vv.offsetTop : 0,
-        width: vv ? vv.width : window.innerWidth,
-        height: vv ? vv.height : window.innerHeight,
-      },
-    );
+    const size = { width: defTip.offsetWidth, height: defTip.offsetHeight };
+    const view = withinEditor({
+      left: vv ? vv.offsetLeft : 0,
+      top: vv ? vv.offsetTop : 0,
+      width: vv ? vv.width : window.innerWidth,
+      height: vv ? vv.height : window.innerHeight,
+    });
+    const place =
+      defTipAnchor === wordAnchor && wordPointerX !== null
+        ? placeTipAtPointer(wordPointerX, anchorRect, size, view)
+        : placeTip(
+            anchorRect,
+            popover.hidden ? anchorRect : popover.getBoundingClientRect(),
+            size,
+            view,
+          );
     defTip.style.left = window.scrollX + place.left + "px";
     defTip.style.top = window.scrollY + place.top + "px";
   }
@@ -283,12 +289,28 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     position();
   }
 
-  async function showWordDefinition(span: WordSpan): Promise<void> {
+  async function showWordDefinition(
+    span: WordSpan,
+    pointerX?: number,
+  ): Promise<void> {
+    const quiet = pointerX !== undefined;
     const rect = rangeRectAt(span.start, span.end);
     if (!rect || !visibleInEditor(rect)) return;
-    wordTipSpan = span;
-    deps.hidePopover();
+    const ticket = ++wordTicket;
     const def = await definitionFor(span.word);
+    if (ticket !== wordTicket) return;
+    if (quiet && !def.entries.length) {
+      hideWordTip();
+      return;
+    }
+    if (
+      wordTipOpen() &&
+      (wordTipSpan?.start !== span.start || wordTipSpan?.end !== span.end)
+    )
+      hide();
+    wordTipSpan = span;
+    wordPointerX = pointerX ?? null;
+    deps.hidePopover();
     if (!def.entries.length) {
       deps.holdStatus(
         "Тайлбар олдсонгүй: " + escapeHtml(span.word),
