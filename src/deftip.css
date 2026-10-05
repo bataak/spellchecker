@@ -121,6 +121,12 @@
   color: var(--accent);
 }
 
+.def-tip.is-pinned .def-tip-pause[aria-pressed="true"],
+.def-dock-pause[aria-pressed="true"] {
+  color: var(--accent);
+}
+
+.def-tip:not(.is-pinned) .def-tip-pause,
 .def-tip:not(.is-pinned) .def-tip-close {
   display: none;
 }
@@ -193,4 +199,8 @@
   .is-swapping {
     animation: none;
   }
+}
+
+.def-dock-head > .error-panel-title {
+  margin-right: auto;
 }
