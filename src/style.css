@@ -43,7 +43,10 @@ html {
   --preview-w: calc(80 * var(--editor-per) + 2 * var(--preview-pad));
   --preview-ink: #2f7d54;
   --slots-w: 0px;
-  --page-base: calc(var(--editor-width) + var(--slots-w) + 2 * var(--page-pad));
+  --dock-w: 0px;
+  --page-base: calc(
+    var(--editor-width) + var(--slots-w) + var(--dock-w) + 2 * var(--page-pad)
+  );
   --gutter-pull: min(
     var(--gutter-w),
     max(var(--page-pad), calc((100vw - var(--page-base)) / 2 + var(--page-pad)))
@@ -75,6 +78,14 @@ html {
 
 :root[data-preview="on"][data-panel="off"] {
   --slots-w: calc(var(--preview-w) + var(--panel-gap));
+}
+
+:root[data-dock-col] {
+  --dock-w: calc(var(--panel-w) + var(--panel-gap));
+}
+
+:root[data-dock-col="left"] {
+  --gutter-pull: 0px;
 }
 
 :root[data-theme="dark"] {
@@ -1631,6 +1642,48 @@ html.booting .empty-state {
   body:not(.has-text) .error-panel,
   :root[data-panel="off"] .error-panel {
     display: none;
+  }
+  .def-dock {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 var(--panel-w);
+    min-width: var(--panel-w);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--editor-bg);
+    overflow: hidden;
+  }
+  .def-dock[data-place="left"] {
+    order: -1;
+  }
+  body:not(.has-text) .def-dock {
+    display: none;
+  }
+  .error-panel > .def-dock {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 0;
+    border: 0;
+    border-top: 1px solid var(--line);
+    border-radius: 0;
+  }
+  .error-panel:has(> .def-dock) > .error-list {
+    flex: 1 1 0;
+  }
+  .def-dock-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    padding: 12px 14px;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+  }
+  .def-dock-empty {
+    margin: 0;
+    color: var(--muted);
+    white-space: normal;
   }
   .error-panel-head {
     display: flex;

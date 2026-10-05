@@ -6,6 +6,7 @@ import {
   available,
   clamp,
   contentWidth,
+  dockColumnFits,
   editorWidth,
   key,
   parseLayout,
@@ -255,6 +256,7 @@ function describe(l: Layout): string {
 
 export interface MeasureControl {
   refresh(): void;
+  dockRoom(side: "left" | "right", active: boolean): boolean;
   setPreviewMode(on: boolean): void;
   destroy(): void;
 }
@@ -302,6 +304,8 @@ export function mountMeasureControl(
   let mdPreview = loadMdPreview();
   let prev: Layout[] = [];
   let metrics: Metrics = { ...DEFAULT_METRICS };
+  let shown: Layout = { ...DEFAULT_LAYOUT };
+  let viewportW = 0;
 
   const apply = (l: Layout): void => {
     const root = document.documentElement;
@@ -393,6 +397,8 @@ export function mountMeasureControl(
 
     const base = clamp(desired, avail);
     const active = (previewMode && previewLayout(base, avail)) || base;
+    shown = active;
+    viewportW = viewport;
     apply(active);
 
     syncToolbar();
@@ -438,6 +444,9 @@ export function mountMeasureControl(
 
   return {
     refresh,
+    dockRoom(side, active) {
+      return dockColumnFits(shown, metrics, viewportW, side, active);
+    },
     setPreviewMode(on) {
       if (on === mdMode) return;
       mdMode = on;

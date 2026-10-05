@@ -98,6 +98,7 @@ import {
 } from "./offline.ts";
 import { initShortcuts } from "./shortcuts.ts";
 import { initDefTip } from "./deftip.ts";
+import { initDefDock } from "./defdock.ts";
 import { initPopover } from "./popover.ts";
 import { initErrorPanel } from "./errorpanel.ts";
 
@@ -224,9 +225,7 @@ function afterPaint(): Promise<void> {
   );
 }
 function nextFrame(): Promise<void> {
-  return new Promise<void>((resolve) =>
-    requestAnimationFrame(() => resolve()),
-  );
+  return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 }
 async function correctNow(word: string): Promise<boolean> {
   if (cache.has(word)) return cache.get(word)!;
@@ -439,6 +438,14 @@ function tokenAtCaret() {
   return null;
 }
 
+const defDock = initDefDock({
+  workspace: document.querySelector(".workspace") as HTMLElement,
+  editorWrap: els.editor.closest(".editor-wrap") as HTMLElement,
+  errorPanel: document.querySelector("#errorPanel") as HTMLElement,
+  desktopMQ,
+  room: (side, active) => measureCtl?.dockRoom(side, active) ?? false,
+});
+
 const defTip = initDefTip({
   editor: els.editor,
   popover: els.popover,
@@ -446,6 +453,7 @@ const defTip = initDefTip({
   showPanel: (word) => void pop.showDefPanel(word),
   hidePopover: () => pop.hide(),
   holdStatus,
+  dock: defDock,
 });
 
 const pop = initPopover({
@@ -592,9 +600,7 @@ async function showPopoverFor(token: Token): Promise<void> {
   if (!mark) {
     await render();
     materializeMark(token.start);
-    mark = els.backdrop.querySelector(
-      'mark[data-start="' + token.start + '"]',
-    );
+    mark = els.backdrop.querySelector('mark[data-start="' + token.start + '"]');
   }
   if (!mark) {
     hidePopover();
@@ -681,9 +687,7 @@ async function showPopoverFor(token: Token): Promise<void> {
       applySuggestion(token, btn.textContent);
     });
   });
-  els.popover
-    .querySelectorAll<HTMLElement>(".sg-dot")
-    .forEach(defTip.bindDot);
+  els.popover.querySelectorAll<HTMLElement>(".sg-dot").forEach(defTip.bindDot);
   const pageBy = (sign: number) => {
     if (!list) return;
     list.scrollBy({
@@ -1025,12 +1029,20 @@ function defineAtPoint(x: number, y: number): void {
   void defTip.showWordDefinition(span, x);
 }
 
+let hoverFrame = 0;
+
 els.editor.addEventListener("pointermove", (e) => {
   if (e.pointerType !== "mouse") return;
   hoverPoint = { x: e.clientX, y: e.clientY };
-  if (e.buttons === 0 && isHoverDefineKey(e))
-    defineAtPoint(e.clientX, e.clientY);
-  else hoverSpan = null;
+  if (e.buttons !== 0 || !(isHoverDefineKey(e) || defDock.body())) {
+    hoverSpan = null;
+    return;
+  }
+  if (hoverFrame) return;
+  hoverFrame = requestAnimationFrame(() => {
+    hoverFrame = 0;
+    if (hoverPoint) defineAtPoint(hoverPoint.x, hoverPoint.y);
+  });
 });
 
 els.editor.addEventListener("pointerleave", () => {
@@ -1059,8 +1071,10 @@ const editorWrap = els.editor.closest<HTMLElement>(".editor-wrap");
 let measureCtl: MeasureControl | null = null;
 if (editorWrap) {
   measureCtl = mountMeasureControl(editorWrap, els.editor, (l) => {
+    defDock.sync(l.panel);
     if (l.preview) previewCtl?.update();
   });
+  defDock.sync();
   previewCtl = initPreview(editorWrap, els.editor, (next) => {
     const caret = Math.min(els.editor.selectionStart, next.length);
     const scrollTop = els.editor.scrollTop;
@@ -1239,8 +1253,7 @@ const find = (sel: string) => (): HTMLElement | null =>
   document.querySelector<HTMLElement>(sel);
 const nudgeHints = initHints(() => {
   const layout = layoutHint(find(".measure-btn.is-shown"));
-  if (!isPlain(mdBar.template()))
-    return [layout, exportHint(find("#saveBtn"))];
+  if (!isPlain(mdBar.template())) return [layout, exportHint(find("#saveBtn"))];
   const template = templateHint(find(".md-select"));
   if (els.editor.value.trim())
     return [layout, defineHint(find("#defineBtn")), template];
