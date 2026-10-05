@@ -1,4 +1,8 @@
-import type { WorkerRequest, WorkerResponse, DictFailure } from "./messages.ts";
+import type {
+  WorkerRequest,
+  WorkerResponse,
+  DictFailure,
+} from "./messages.ts";
 import { fetchGzText, loadDictText } from "./dictrefresh.ts";
 import {
   findHeadword,
@@ -233,7 +237,10 @@ async function refreshPrimary(): Promise<void> {
     );
     if (!texts) return;
     const inst = await backend.build(texts[0], texts[1], PRIMARY);
-    if (typeof inst.spell !== "function" || typeof inst.suggest !== "function")
+    if (
+      typeof inst.spell !== "function" ||
+      typeof inst.suggest !== "function"
+    )
       return;
     const index = instances.findIndex((item) => item.id === PRIMARY);
     const previous = index >= 0 ? instances[index]!.inst : null;
@@ -397,13 +404,17 @@ function infinitivesOfStem(word: string): string[] {
   const primary = instances.find((item) => item.id === PRIMARY)?.inst;
   if (!primary) return [];
   try {
-    return bareStemInfinitives(word, analysesOf(primary, word), (candidate) => {
-      try {
-        return primary.spell(candidate);
-      } catch (_) {
-        return false;
-      }
-    });
+    return bareStemInfinitives(
+      word,
+      analysesOf(primary, word),
+      (candidate) => {
+        try {
+          return primary.spell(candidate);
+        } catch (_) {
+          return false;
+        }
+      },
+    );
   } catch (_) {
     return [];
   }
