@@ -346,6 +346,50 @@ function spotIn(host: Element, offset: number): TextSpot | null {
   return null;
 }
 
+function caretSpotAt(
+  x: number,
+  y: number,
+): { node: Node; offset: number } | null {
+  if (typeof document.caretPositionFromPoint === "function") {
+    const pos = document.caretPositionFromPoint(x, y);
+    return pos ? { node: pos.offsetNode, offset: pos.offset } : null;
+  }
+  if (typeof document.caretRangeFromPoint === "function") {
+    const range = document.caretRangeFromPoint(x, y);
+    return range
+      ? { node: range.startContainer, offset: range.startOffset }
+      : null;
+  }
+  return null;
+}
+
+export function offsetAtPoint(x: number, y: number): number | null {
+  if (!root) return null;
+  const spot = caretSpotAt(x, y);
+  if (!spot) return null;
+  const node = nodes.find((n) => n !== spot.node && n.contains(spot.node));
+  if (!node) return null;
+  let host: Node = node;
+  let lineStart = 0;
+  if (useBlocks) {
+    host = spot.node;
+    while (host.parentNode && host.parentNode !== node) host = host.parentNode;
+    const index = Array.prototype.indexOf.call(node.children, host);
+    if (index < 0) return null;
+    const body = stripChunkNewline(node._src);
+    for (let i = 0; i < index; i++)
+      lineStart = body.indexOf("\n", lineStart) + 1;
+  }
+  const range = document.createRange();
+  range.setStart(host, 0);
+  range.setEnd(spot.node, spot.offset);
+  const local = Math.min(
+    lineStart + range.toString().length,
+    stripChunkNewline(node._src).length,
+  );
+  return node._start + local;
+}
+
 function nodeAtOffset(pos: number): ChunkNode | null {
   for (const node of nodes) {
     if (pos >= node._start && pos < node._start + node._src.length) {
