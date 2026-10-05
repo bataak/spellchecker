@@ -74,6 +74,63 @@
   overflow-wrap: anywhere;
 }
 
+.def-tip.is-pinned {
+  position: fixed;
+}
+
+.def-tip-bar {
+  position: sticky;
+  top: -8px;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+  margin: -8px -12px 0;
+  padding: 3px 3px 0;
+  background: var(--panel);
+  white-space: normal;
+  cursor: grab;
+  user-select: none;
+}
+
+.def-tip-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.def-tip-btn:hover {
+  background: var(--line);
+  color: var(--ink);
+}
+
+.def-tip-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.def-tip.is-pinned .def-tip-pin {
+  color: var(--accent);
+}
+
+.def-tip:not(.is-pinned) .def-tip-close {
+  display: none;
+}
+
+@media (hover: none) {
+  .def-tip-bar {
+    display: none;
+  }
+}
+
 .def-tip-entry + .def-tip-entry {
   margin-top: 0.6em;
 }

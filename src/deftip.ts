@@ -45,10 +45,24 @@ export interface DefTip {
 
 const DEF_TEXT_LIMIT = 3000;
 const DEF_TIP_GRACE_MS = 250;
+const PIN_ICON =
+  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" ' +
+  'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+  'stroke-linejoin="round" aria-hidden="true">' +
+  '<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>';
+const CLOSE_ICON =
+  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" ' +
+  'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+  'stroke-linejoin="round" aria-hidden="true">' +
+  '<path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
 
 export function initDefTip(deps: DefTipDeps): DefTip {
   const { editor, popover } = deps;
   let defTip: HTMLDivElement | null = null;
+  let defTipBody: HTMLDivElement | null = null;
+  let pinBtn: HTMLButtonElement | null = null;
+  let pinned = false;
+  let shownWord = "";
   let defTipAnchor: HTMLElement | null = null;
   let defTipHideTimer: ReturnType<typeof setTimeout> | null = null;
   let defCache = new Map<string, Promise<Definition>>();
@@ -75,7 +89,102 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     cancelHide();
     if (defTipAnchor) defTipAnchor.setAttribute("aria-expanded", "false");
     defTipAnchor = null;
-    if (defTip) defTip.hidden = true;
+    if (defTip && !pinned) defTip.hidden = true;
+  }
+
+  function setPinned(on: boolean): void {
+    if (!defTip || pinned === on) return;
+    const rect = defTip.getBoundingClientRect();
+    pinned = on;
+    defTip.classList.toggle("is-pinned", on);
+    pinBtn?.setAttribute("aria-pressed", String(on));
+    if (pinBtn) pinBtn.title = on ? "Бэхэлгээг авах" : "Энэ байрлалд бэхлэх";
+    defTip.style.left = (on ? 0 : window.scrollX) + rect.left + "px";
+    defTip.style.top = (on ? 0 : window.scrollY) + rect.top + "px";
+  }
+
+  function closePinned(): void {
+    setPinned(false);
+    hide();
+  }
+
+  function moveTip(left: number, top: number): void {
+    if (!defTip) return;
+    const maxLeft = window.innerWidth - defTip.offsetWidth;
+    const maxTop = window.innerHeight - defTip.offsetHeight;
+    defTip.style.left = Math.max(0, Math.min(left, maxLeft)) + "px";
+    defTip.style.top = Math.max(0, Math.min(top, maxTop)) + "px";
+  }
+
+  function iconButton(
+    className: string,
+    icon: string,
+    label: string,
+  ): HTMLButtonElement {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = className;
+    button.title = label;
+    button.setAttribute("aria-label", label);
+    button.innerHTML = icon;
+    return button;
+  }
+
+  function buildTip(): HTMLDivElement {
+    const tip = document.createElement("div");
+    tip.id = "defTip";
+    tip.className = "def-tip";
+    tip.setAttribute("role", "tooltip");
+    tip.hidden = true;
+    tip.addEventListener("pointerenter", (e) => {
+      if (e.pointerType !== "touch") cancelHide();
+    });
+    tip.addEventListener("pointerleave", (e) => {
+      if (e.pointerType !== "touch" && defTipAnchor) scheduleHide();
+    });
+
+    const bar = document.createElement("div");
+    bar.className = "def-tip-bar";
+    pinBtn = iconButton(
+      "def-tip-btn def-tip-pin",
+      PIN_ICON,
+      "Энэ байрлалд бэхлэх",
+    );
+    pinBtn.setAttribute("aria-pressed", "false");
+    pinBtn.addEventListener("click", () => setPinned(!pinned));
+    const closeBtn = iconButton(
+      "def-tip-btn def-tip-close",
+      CLOSE_ICON,
+      "Хаах",
+    );
+    closeBtn.addEventListener("click", closePinned);
+    bar.append(pinBtn, closeBtn);
+
+    bar.addEventListener("mousedown", (e) => e.preventDefault());
+    let grab: { dx: number; dy: number } | null = null;
+    bar.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0 || e.pointerType === "touch") return;
+      if ((e.target as Element).closest(".def-tip-btn")) return;
+      e.preventDefault();
+      setPinned(true);
+      const rect = tip.getBoundingClientRect();
+      grab = { dx: e.clientX - rect.left, dy: e.clientY - rect.top };
+      bar.setPointerCapture(e.pointerId);
+    });
+    bar.addEventListener("pointermove", (e) => {
+      if (grab) moveTip(e.clientX - grab.dx, e.clientY - grab.dy);
+    });
+    const release = () => {
+      grab = null;
+    };
+    bar.addEventListener("pointerup", release);
+    bar.addEventListener("pointercancel", release);
+
+    defTipBody = document.createElement("div");
+    defTipBody.className = "def-tip-body";
+    tip.append(bar, defTipBody);
+    document.body.appendChild(tip);
+    return tip;
   }
 
   function definitionFor(word: string): Promise<Definition> {
@@ -140,7 +249,7 @@ export function initDefTip(deps: DefTipDeps): DefTip {
   }
 
   function position(): void {
-    if (!defTip || defTip.hidden || !defTipAnchor) return;
+    if (!defTip || defTip.hidden || !defTipAnchor || pinned) return;
     if (!defTipAnchor.isConnected) {
       hide();
       return;
@@ -174,7 +283,12 @@ export function initDefTip(deps: DefTipDeps): DefTip {
 
   async function show(anchor: HTMLElement, word: string): Promise<void> {
     cancelHide();
-    if (defTipAnchor === anchor && defTip && !defTip.hidden) return;
+    if (
+      defTip &&
+      !defTip.hidden &&
+      (pinned ? shownWord === word : defTipAnchor === anchor)
+    )
+      return;
     if (defTipAnchor && defTipAnchor !== anchor)
       defTipAnchor.setAttribute("aria-expanded", "false");
     defTipAnchor = anchor;
@@ -184,21 +298,9 @@ export function initDefTip(deps: DefTipDeps): DefTip {
       hide();
       return;
     }
-    if (!defTip) {
-      defTip = document.createElement("div");
-      defTip.id = "defTip";
-      defTip.className = "def-tip";
-      defTip.setAttribute("role", "tooltip");
-      defTip.hidden = true;
-      defTip.addEventListener("pointerenter", (e) => {
-        if (e.pointerType !== "touch") cancelHide();
-      });
-      defTip.addEventListener("pointerleave", (e) => {
-        if (e.pointerType !== "touch" && defTipAnchor) scheduleHide();
-      });
-      document.body.appendChild(defTip);
-    }
-    fill(defTip, word, def);
+    if (!defTip) defTip = buildTip();
+    fill(defTipBody!, word, def);
+    shownWord = word;
     defTip.hidden = false;
     defTip.scrollTop = 0;
     anchor.setAttribute("aria-expanded", "true");
