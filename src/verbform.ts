@@ -140,16 +140,18 @@ export function parseAnalysis(line: string): Analysis | null {
 }
 
 export function parseAnalyses(lines: string[]): Analysis[] {
-  const out: Analysis[] = [];
+  const kinds = new Map<string, Set<boolean>>();
   for (const line of lines) {
     const analysis = parseAnalysis(line);
     if (!analysis) continue;
-    const same = out.find((item) => item.stem === analysis.stem);
-    if (!same) out.push(analysis);
-    else if (analysis.verb === true || same.verb === null)
-      same.verb = analysis.verb;
+    const seen = kinds.get(analysis.stem) ?? new Set<boolean>();
+    if (analysis.verb !== null) seen.add(analysis.verb);
+    kinds.set(analysis.stem, seen);
   }
-  return out;
+  return [...kinds].map(([stem, seen]) => ({
+    stem,
+    verb: seen.size === 1 ? [...seen][0]! : null,
+  }));
 }
 
 export function lookupCandidates(

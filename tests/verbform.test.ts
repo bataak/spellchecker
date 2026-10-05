@@ -100,9 +100,22 @@ test("ижил язгуурын шинжилгээнүүдийг нэгтгэн�
   assert.deepEqual(
     parseAnalyses([" st:ор fl:B1", " st:ор fl:F0", " st:орон fl:B1"]),
     [
-      { stem: "ор", verb: true },
+      { stem: "ор", verb: null },
       { stem: "орон", verb: false },
     ],
+  );
+});
+
+test("нэр, үйл үгийн аль алинаар шинжлэгдсэн язгуурын нэр үгийг түрүүлж хайна", () => {
+  const valid = new Set(["хэлбэр", "хэлбэрэх"]);
+  const isWord = (candidate: string) => valid.has(candidate);
+  assert.deepEqual(
+    lookupCandidates(
+      "хэлбэрээр",
+      parseAnalyses([" st:хэлбэр fl:G3", " st:хэлбэр fl:D3"]),
+      isWord,
+    ),
+    ["хэлбэр", "хэлбэрэх"],
   );
 });
 
