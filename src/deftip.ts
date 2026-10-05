@@ -44,6 +44,7 @@ export interface DefTip {
   ) => Promise<void>;
   readonly keyboardShifting: () => boolean;
   readonly pinned: () => boolean;
+  readonly paused: () => boolean;
 }
 
 const DEF_TEXT_LIMIT = 3000;
@@ -54,6 +55,18 @@ const PIN_ICON =
   'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
   'stroke-linejoin="round" aria-hidden="true">' +
   '<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>';
+const PAUSE_ICON =
+  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" ' +
+  'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+  'stroke-linejoin="round" aria-hidden="true">' +
+  '<path d="M9 5v14"/><path d="M15 5v14"/></svg>';
+const PLAY_ICON =
+  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" ' +
+  'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+  'stroke-linejoin="round" aria-hidden="true">' +
+  '<path d="M7 5v14l11-7z"/></svg>';
+const PAUSE_LABEL = "Түр зогсоох (эсвэл Shift дарж барих)";
+const RESUME_LABEL = "Заагчийг чагнах (эсвэл Ctrl дарж үг шалгах)";
 const CLOSE_ICON =
   '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" ' +
   'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
@@ -79,6 +92,8 @@ export function initDefTip(deps: DefTipDeps): DefTip {
   let grab: { dx: number; dy: number } | null = null;
   let zone: ReturnType<DefDock["zoneAt"]> = null;
   let dragBar: HTMLElement | null = null;
+  let paused = false;
+  const pauseBtns: HTMLButtonElement[] = [];
 
   function cancelHide(): void {
     if (defTipHideTimer) clearTimeout(defTipHideTimer);
@@ -136,6 +151,25 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     savePin();
   }
 
+  function pauseButton(className: string): HTMLButtonElement {
+    const button = iconButton(className, PAUSE_ICON, PAUSE_LABEL);
+    button.setAttribute("aria-pressed", "false");
+    button.addEventListener("mousedown", (e) => e.preventDefault());
+    button.addEventListener("click", () => setPaused(!paused));
+    pauseBtns.push(button);
+    return button;
+  }
+
+  function setPaused(on: boolean): void {
+    paused = on;
+    for (const button of pauseBtns) {
+      button.setAttribute("aria-pressed", String(on));
+      button.title = on ? RESUME_LABEL : PAUSE_LABEL;
+      button.setAttribute("aria-label", button.title);
+      button.innerHTML = on ? PLAY_ICON : PAUSE_ICON;
+    }
+  }
+
   function closePinned(): void {
     setPinned(false);
     hide();
@@ -191,7 +225,7 @@ export function initDefTip(deps: DefTipDeps): DefTip {
       "Хаах",
     );
     closeBtn.addEventListener("click", closePinned);
-    bar.append(pinBtn, closeBtn);
+    bar.append(pauseButton("def-tip-btn def-tip-pause"), pinBtn, closeBtn);
 
     bar.addEventListener("mousedown", (e) => e.preventDefault());
     dragBar = bar;
@@ -241,7 +275,9 @@ export function initDefTip(deps: DefTipDeps): DefTip {
 
   function showPinned(content: Node[]): HTMLDivElement {
     const tip = (defTip ??= buildTip());
-    defTipBody!.replaceChildren(...(content.length ? content : [emptyNote()]));
+    defTipBody!.replaceChildren(
+      ...(content.length ? content : [emptyNote()]),
+    );
     shownWord = "";
     tip.hidden = false;
     tip.scrollTop = 0;
@@ -254,6 +290,8 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     moveTip(e.clientX - 40, e.clientY - 12);
     startDrag(e.pointerId, 40, 12);
   });
+
+  deps.dock.addControl(pauseButton("error-copy def-dock-pause"));
 
   deps.dock.onShow((body) => {
     if (!pinned || !defTip || defTip.hidden || !defTipBody) return;
@@ -342,7 +380,9 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     body.classList.add("is-swapping");
   }
 
-  function withinEditor<V extends { top: number; height: number }>(view: V): V {
+  function withinEditor<V extends { top: number; height: number }>(
+    view: V,
+  ): V {
     const editorBottom = editor.getBoundingClientRect().bottom;
     const bottom = Math.min(view.top + view.height, editorBottom);
     return { ...view, height: Math.max(0, bottom - view.top) };
@@ -548,5 +588,6 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     showWordDefinition,
     keyboardShifting: () => performance.now() < keyboardShiftUntil,
     pinned: () => pinned && !!defTip && !defTip.hidden,
+    paused: () => paused,
   };
 }

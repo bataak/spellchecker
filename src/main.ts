@@ -1033,7 +1033,7 @@ let hoverFrame = 0;
 
 els.editor.addEventListener("pointermove", (e) => {
   if (e.pointerType !== "mouse") return;
-  const always = defDock.body() || defTip.pinned();
+  const always = (defDock.body() || defTip.pinned()) && !defTip.paused();
   if (always && e.shiftKey) return;
   hoverPoint = { x: e.clientX, y: e.clientY };
   if (e.buttons !== 0 || !(isHoverDefineKey(e) || always)) {

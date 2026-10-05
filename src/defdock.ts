@@ -34,6 +34,7 @@ export interface DefDock {
     handler: (e: PointerEvent, content: Node[]) => void,
   ) => void;
   readonly onShow: (handler: (body: HTMLElement) => void) => void;
+  readonly addControl: (control: HTMLElement) => void;
 }
 
 function load(): DockPlace | null {
@@ -61,6 +62,7 @@ export function initDefDock(deps: DefDockDeps): DefDock {
   let hintEl: HTMLElement | null = null;
   let dragOut: ((e: PointerEvent, content: Node[]) => void) | null = null;
   let shown: ((body: HTMLElement) => void) | null = null;
+  const controls: HTMLElement[] = [];
 
   function build(): HTMLElement {
     const el = document.createElement("section");
@@ -82,7 +84,7 @@ export function initDefDock(deps: DefDockDeps): DefDock {
       save(null);
       place();
     });
-    head.append(title, close);
+    head.append(title, ...controls, close);
     paneBody = document.createElement("div");
     paneBody.className = "def-dock-body";
     paneBody.setAttribute("aria-live", "polite");
@@ -233,6 +235,10 @@ export function initDefDock(deps: DefDockDeps): DefDock {
     },
     onShow(handler) {
       shown = handler;
+    },
+    addControl(control) {
+      controls.push(control);
+      pane?.querySelector(".def-dock-head > :last-child")?.before(control);
     },
     sync(shown) {
       if (shown !== undefined) panelShown = shown;
