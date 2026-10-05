@@ -165,7 +165,7 @@ export function openHint(target: () => HTMLElement | null): Hint {
     id: "open",
     target,
     html:
-      "txt, md, docx, pptx, odt, odp, pdf файлууд дахь бичвэрийн алдааг шалгана (" +
+      "txt, md, tex, docx, pptx, odt, odp, pdf файлууд дахь бичвэрийн алдааг шалгана (" +
       kbd("Ctrl+O", "⌘O") +
       "). Файлаа бичвэрийн талбар уруу чирч оруулж болно.",
   };

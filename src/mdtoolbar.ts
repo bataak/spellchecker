@@ -29,6 +29,7 @@ import {
 export interface MdToolbarOptions {
   readonly editor: HTMLTextAreaElement;
   readonly isMdFile: () => boolean;
+  readonly isTexFile?: () => boolean;
   readonly mount?: HTMLElement;
   readonly onTemplate?: (id: string) => void;
   readonly onExample?: () => void;
@@ -348,7 +349,7 @@ function buildPicker(): string {
 }
 
 export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
-  const { editor, isMdFile } = options;
+  const { editor, isMdFile, isTexFile = () => false } = options;
 
   const bar = document.createElement("div");
   bar.className = "md-bar";
@@ -484,6 +485,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   }
 
   function active(): boolean {
+    if (isTexFile()) return false;
     return !isPlain(templateId) || isMdFile();
   }
 

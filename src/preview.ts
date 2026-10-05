@@ -106,6 +106,7 @@ export function initPreview(
   wrap: HTMLElement,
   area: HTMLTextAreaElement,
   onFormat?: (next: string) => void,
+  isLatex: (text: string) => boolean = () => false,
 ): Preview {
   const panel = document.createElement("section");
   panel.className = "preview-panel";
@@ -195,7 +196,12 @@ export function initPreview(
 
     tidied = null;
     const looksMd = isMdFile || isMarkdown(blocks);
-    if (onFormat && looksMd && text.length <= TIDY_LIMIT) {
+    if (
+      onFormat &&
+      looksMd &&
+      text.length <= TIDY_LIMIT &&
+      !isLatex(text)
+    ) {
       const next = format(text, blocks);
       if (next !== text) tidied = next;
     }

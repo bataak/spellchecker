@@ -25,7 +25,7 @@ import { initPreview, type Preview } from "./preview.ts";
 let previewCtl: Preview | null = null;
 import { escapeHtml } from "./htmlutil.ts";
 import { pickDefinitionMarks } from "./defmarks.ts";
-import { inRanges, skipRanges } from "./codeskip.ts";
+import { inRanges, looksLatex, skipRanges } from "./codeskip.ts";
 import {
   checkable,
   isDashSuffix,
@@ -45,7 +45,7 @@ import {
   spellDictHint,
   templateHint,
 } from "./hint.ts";
-import { isPlain } from "./templates.ts";
+import { isPlain, PLAIN } from "./templates.ts";
 import { initExport, type ExportControl } from "./export.ts";
 import {
   initBackdrop,
@@ -250,7 +250,11 @@ function computeBad(
   tokens: Iterable<Tokenized> = tokenize(text),
 ): { bad: Token[]; total: number } {
   const bad: Token[] = [];
-  const skip = skipRanges(text, { code: skipCode, links: skipLinks });
+  const skip = skipRanges(text, {
+    code: skipCode,
+    links: skipLinks,
+    latex: isLatexText(text),
+  });
   let total = 0;
   let prev: Tokenized | null = null;
   for (const token of tokens) {
@@ -280,6 +284,31 @@ function computeBad(
   return { bad, total };
 }
 
+const TEX_NAME_RE = /\.(tex|ltx)$/i;
+
+function isLatexText(text: string): boolean {
+  if (docx) return false;
+  return (!!plainName && TEX_NAME_RE.test(plainName)) || looksLatex(text);
+}
+
+function isTexFile(): boolean {
+  return isLatexText(els.editor.value);
+}
+
+let lastTex: boolean | null = null;
+function syncTexMode(): void {
+  if (lastTex === null) return;
+  const tex = isTexFile();
+  if (tex === lastTex) return;
+  lastTex = tex;
+  mdBar.refresh();
+  enterMdMode(mdActive());
+}
+
+function mdActive(): boolean {
+  return !isTexFile() && !isPlain(mdBar.template());
+}
+
 function syncEmptyState(text: string): void {
   const empty = text.length === 0;
   if (empty) clearImages();
@@ -296,6 +325,7 @@ async function render() {
   const seq = ++renderSeq;
 
   syncEmptyState(text);
+  syncTexMode();
   previewCtl?.update();
 
   if (!ready) {
@@ -1089,7 +1119,7 @@ if (editorWrap) {
     restoreView();
     void Promise.resolve(render()).then(restoreView);
     saveText();
-  });
+  }, isLatexText);
 }
 
 const appUpdate = initAppUpdate(setStatus, import.meta.url);
@@ -1227,14 +1257,14 @@ const fileIO = initFileIO({
   hidePopover,
   render,
   saveText,
-  defaultExt: () => (isPlain(mdBar.template()) ? "txt" : "md"),
+  defaultExt: () => (mdActive() ? "md" : "txt"),
   onFileOpened: (ref) => {
     clearImages();
     plainName = ref ? ref.name : null;
     saveDraftFile(ref);
     syncSaveHint();
     mdBar.refresh();
-    nudgeHints();
+    enterMdMode(mdActive());
   },
 });
 
@@ -1248,14 +1278,15 @@ const mdBar = initMdToolbar({
     const name = fileIO.targetName() ?? plainName;
     return !!name && MD_NAME_RE.test(name);
   },
-  onTemplate: (id) => enterMdMode(!isPlain(id)),
-  onExample: () => enterMdMode(true),
+  isTexFile,
+  onTemplate: (id) => enterMdMode(!isTexFile() && !isPlain(id)),
+  onExample: () => enterMdMode(!isTexFile()),
 });
 const find = (sel: string) => (): HTMLElement | null =>
   document.querySelector<HTMLElement>(sel);
 const nudgeHints = initHints(() => {
   const layout = layoutHint(find(".measure-btn.is-shown"));
-  if (!isPlain(mdBar.template())) return [layout, exportHint(find("#saveBtn"))];
+  if (mdActive()) return [layout, exportHint(find("#saveBtn"))];
   const template = templateHint(find(".md-select"));
   if (els.editor.value.trim())
     return [layout, defineHint(find("#defineBtn")), template];
@@ -1268,7 +1299,8 @@ const nudgeHints = initHints(() => {
 });
 let exportCtl: ExportControl | null = null;
 
-enterMdMode(!isPlain(mdBar.template()));
+lastTex = isTexFile();
+enterMdMode(mdActive());
 els.editor.addEventListener("input", nudgeHints);
 
 function enterMdMode(on: boolean): void {
@@ -1281,7 +1313,7 @@ exportCtl = initExport({
   editor: els.editor,
   saveButton: document.querySelector<HTMLElement>("#saveBtn"),
   printButton: document.querySelector<HTMLElement>("#printBtn"),
-  template: () => mdBar.template(),
+  template: () => (isTexFile() ? PLAIN : mdBar.template()),
   baseName: () => fileIO.targetName() ?? plainName,
   blocked: () => docx !== null,
   onDone: () => flash("#saveBtn", "Хадгаллаа"),
@@ -1309,6 +1341,8 @@ function restoreDraftFile(): void {
   fileIO.restoreFile(ref);
   plainName = fileIO.targetName();
   syncSaveHint();
+  mdBar.refresh();
+  enterMdMode(mdActive());
 }
 
 initShortcuts({
