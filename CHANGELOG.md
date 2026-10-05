@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.98.0](https://github.com/bataak/spellchecker/compare/v1.97.0...v1.98.0) (2026-10-05)
+
+
+### Features
+
+* **deftip:** dock the definition pane into the error panel or a side column ([9ba3d9a](https://github.com/bataak/spellchecker/commit/9ba3d9a39a8c66ba441350dfb2187a2dd0b3d6ff))
+* **deftip:** pin and drag the definition tip ([ed9def9](https://github.com/bataak/spellchecker/commit/ed9def9515f5544f05e2bdfae7cbfeb840596afd))
+* **deftip:** show word definition on Ctrl+hover below the pointer ([b97d5d9](https://github.com/bataak/spellchecker/commit/b97d5d9d774fef0f3b746c415c9816cce74850fc))
+* **deftip:** top-of-panel dock, drag out of dock, remembered pin, Shift to hold ([65adda0](https://github.com/bataak/spellchecker/commit/65adda09bd1b3f1ada58fca5ae9c867cb9b15fd7))
+
+
+### Bug Fixes
+
+* **lookup:** look up -гч agent nouns derived from verb stems ([e34e7f2](https://github.com/bataak/spellchecker/commit/e34e7f208ea1a37da8c0e7da542daba29a649574))
+* **lookup:** look up -гч agent nouns derived from verb stems ([5ec1328](https://github.com/bataak/spellchecker/commit/5ec1328a5ff955c0a9c8a1a28bc5c5355f6099bc))
+* **topbar:** keep status text and editor steady when markdown bar toggles ([975ad0a](https://github.com/bataak/spellchecker/commit/975ad0a4dbdb27ec67fb3359bc44fe0134882fe9))
+
 ## [1.97.0](https://github.com/bataak/spellchecker/compare/v1.96.0...v1.97.0) (2026-10-02)
 
 
