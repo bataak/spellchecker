@@ -1,11 +1,11 @@
 export declare function createHunspellFromFiles(affixesFilePath: string, dictionaryFilePath: string, key?: string): Promise<Hunspell>;
-export declare function createHunspellFromStrings(affixes: string, dictionary: string, key?: string): Promise<Hunspell>;
+export declare function createHunspellFromStrings(affixes: string | Uint8Array, dictionary: string | Uint8Array, key?: string): Promise<Hunspell>;
 export declare class Hunspell {
     private readonly wasmModule;
     private wasmMemory;
     private hunspellHandle;
     private disposed;
-    constructor(wasmModule: any, affixes: string, dictionary: string, key?: string);
+    constructor(wasmModule: any, affixes: string | Uint8Array, dictionary: string | Uint8Array, key?: string);
     testSpelling(word: string): boolean;
     getSpellingSuggestions(word: string): string[];
     getSuffixSuggestions(word: string): string[];
