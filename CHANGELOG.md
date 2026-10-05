@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.99.0](https://github.com/bataak/spellchecker/compare/v1.98.0...v1.99.0) (2026-10-05)
+
+
+### Features
+
+* **deftip:** fade in the definition when the word changes ([e53da64](https://github.com/bataak/spellchecker/commit/e53da647ca0eaee601eeb1fc7b0e913a1dc4bd23))
+* **deftip:** pause button to stop following the pointer ([9b49f7f](https://github.com/bataak/spellchecker/commit/9b49f7fd95ada127c2a773b6a6b8217e379371fb))
+* **latex:** open .tex files and check only their prose ([964cb99](https://github.com/bataak/spellchecker/commit/964cb99177e0934c6a6fce64f078aad13f35518c))
+
+
+### Bug Fixes
+
+* **deftip:** close the pinned tip when the dock pane reappears ([96c37de](https://github.com/bataak/spellchecker/commit/96c37de8b599d99f160b7f0efe74eefe62a7f591))
+
+
+### Performance Improvements
+
+* **worker:** pass dictionaries to hunspell as bytes ([2f99dee](https://github.com/bataak/spellchecker/commit/2f99dee6a722ad726e1a74a90ded3c394d652ead))
+
 ## [1.98.0](https://github.com/bataak/spellchecker/compare/v1.97.0...v1.98.0) (2026-10-05)
 
 
