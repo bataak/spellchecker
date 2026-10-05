@@ -49,14 +49,19 @@ html {
   );
   --gutter-pull: min(
     var(--gutter-w),
-    max(var(--page-pad), calc((100vw - var(--page-base)) / 2 + var(--page-pad)))
+    max(
+      var(--page-pad),
+      calc((100vw - var(--page-base)) / 2 + var(--page-pad))
+    )
   );
   --page-max: calc(var(--page-base) - var(--gutter-pull));
 
   --sans:
-    ui-sans-serif, system-ui, "Segoe UI", "Noto Sans", Roboto, Arial, sans-serif;
+    ui-sans-serif, system-ui, "Segoe UI", "Noto Sans", Roboto, Arial,
+    sans-serif;
   --serif:
-    "Bichig Serif", "PT Serif", "Noto Serif", "Liberation Serif", Georgia, serif;
+    "Bichig Serif", "PT Serif", "Noto Serif", "Liberation Serif", Georgia,
+    serif;
   --mono:
     "Bichig Mono", ui-monospace, "DejaVu Sans Mono", "Liberation Mono",
     Consolas, monospace;
@@ -1293,7 +1298,11 @@ a.tbtn {
 .pop-more {
   bottom: 0;
   align-items: flex-end;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, var(--panel) 45%);
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0%,
+    var(--panel) 45%
+  );
 }
 .pop-less {
   top: 0;
@@ -1667,6 +1676,14 @@ html.booting .empty-state {
     border-top: 1px solid var(--line);
     border-radius: 0;
   }
+  .error-panel > .def-dock[data-place="panel-top"] {
+    border-top: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .def-dock-head {
+    cursor: grab;
+    user-select: none;
+  }
   .error-panel:has(> .def-dock) > .error-list {
     flex: 1 1 0;
   }
@@ -1679,11 +1696,6 @@ html.booting .empty-state {
     line-height: 1.45;
     white-space: pre-line;
     overflow-wrap: anywhere;
-  }
-  .def-dock-empty {
-    margin: 0;
-    color: var(--muted);
-    white-space: normal;
   }
   .error-panel-head {
     display: flex;

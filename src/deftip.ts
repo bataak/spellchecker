@@ -10,7 +10,7 @@ import { KEYBOARD_LAYOUT_EVENT } from "./kbtoolbar.ts";
 import { escapeHtml } from "./htmlutil.ts";
 import { isTouch } from "./input.ts";
 import type { WordSpan } from "./lookup.ts";
-import type { DefDock } from "./defdock.ts";
+import { emptyNote, type DefDock } from "./defdock.ts";
 
 export type Definition = {
   dicts: number;
@@ -43,10 +43,12 @@ export interface DefTip {
     pointerX?: number,
   ) => Promise<void>;
   readonly keyboardShifting: () => boolean;
+  readonly pinned: () => boolean;
 }
 
 const DEF_TEXT_LIMIT = 3000;
 const DEF_TIP_GRACE_MS = 250;
+const PIN_KEY = "def-pin";
 const PIN_ICON =
   '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" ' +
   'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
@@ -73,6 +75,9 @@ export function initDefTip(deps: DefTipDeps): DefTip {
   let wordTicket = 0;
   let wordPointerX: number | null = null;
   let keyboardShiftUntil = 0;
+  let grab: { dx: number; dy: number } | null = null;
+  let zone: ReturnType<DefDock["zoneAt"]> = null;
+  let dragBar: HTMLElement | null = null;
 
   function cancelHide(): void {
     if (defTipHideTimer) clearTimeout(defTipHideTimer);
@@ -94,6 +99,30 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     if (defTip && !pinned) defTip.hidden = true;
   }
 
+  function savePin(): void {
+    try {
+      if (pinned && defTip)
+        localStorage.setItem(
+          PIN_KEY,
+          `${defTip.offsetLeft},${defTip.offsetTop}`,
+        );
+      else localStorage.removeItem(PIN_KEY);
+    } catch {}
+  }
+
+  function loadPin(): { left: number; top: number } | null {
+    try {
+      const [left, top] = (localStorage.getItem(PIN_KEY) ?? "")
+        .split(",")
+        .map(Number);
+      return Number.isFinite(left) && Number.isFinite(top)
+        ? { left: left!, top: top! }
+        : null;
+    } catch {
+      return null;
+    }
+  }
+
   function setPinned(on: boolean): void {
     if (!defTip || pinned === on) return;
     const rect = defTip.getBoundingClientRect();
@@ -103,6 +132,7 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     if (pinBtn) pinBtn.title = on ? "Бэхэлгээг авах" : "Энэ байрлалд бэхлэх";
     defTip.style.left = (on ? 0 : window.scrollX) + rect.left + "px";
     defTip.style.top = (on ? 0 : window.scrollY) + rect.top + "px";
+    savePin();
   }
 
   function closePinned(): void {
@@ -163,16 +193,14 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     bar.append(pinBtn, closeBtn);
 
     bar.addEventListener("mousedown", (e) => e.preventDefault());
-    let grab: { dx: number; dy: number } | null = null;
-    let zone: ReturnType<DefDock["zoneAt"]> = null;
+    dragBar = bar;
     bar.addEventListener("pointerdown", (e) => {
       if (e.button !== 0 || e.pointerType === "touch") return;
       if ((e.target as Element).closest(".def-tip-btn")) return;
       e.preventDefault();
       setPinned(true);
       const rect = tip.getBoundingClientRect();
-      grab = { dx: e.clientX - rect.left, dy: e.clientY - rect.top };
-      bar.setPointerCapture(e.pointerId);
+      startDrag(e.pointerId, e.clientX - rect.left, e.clientY - rect.top);
     });
     bar.addEventListener("pointermove", (e) => {
       if (!grab) return;
@@ -183,6 +211,7 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     const release = () => {
       grab = null;
       deps.dock.hint(null);
+      savePin();
     };
     bar.addEventListener("pointerup", () => {
       const target = zone;
@@ -203,6 +232,41 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     document.body.appendChild(tip);
     return tip;
   }
+
+  function startDrag(pointerId: number, dx: number, dy: number): void {
+    grab = { dx, dy };
+    dragBar?.setPointerCapture(pointerId);
+  }
+
+  function showPinned(content: Node[]): HTMLDivElement {
+    const tip = (defTip ??= buildTip());
+    defTipBody!.replaceChildren(...(content.length ? content : [emptyNote()]));
+    shownWord = "";
+    tip.hidden = false;
+    tip.scrollTop = 0;
+    setPinned(true);
+    return tip;
+  }
+
+  deps.dock.onDragOut((e, content) => {
+    showPinned(content);
+    moveTip(e.clientX - 40, e.clientY - 12);
+    startDrag(e.pointerId, 40, 12);
+  });
+
+  const savedPin = loadPin();
+  if (savedPin && window.matchMedia("(hover: hover)").matches) {
+    requestAnimationFrame(() => {
+      if (deps.dock.body()) return;
+      showPinned([]);
+      moveTip(savedPin.left, savedPin.top);
+    });
+  }
+
+  window.addEventListener("resize", () => {
+    if (pinned && defTip && !defTip.hidden)
+      moveTip(defTip.offsetLeft, defTip.offsetTop);
+  });
 
   function definitionFor(word: string): Promise<Definition> {
     let pending = defCache.get(word);
@@ -435,7 +499,7 @@ export function initDefTip(deps: DefTipDeps): DefTip {
       hide();
     wordTipSpan = span;
     wordPointerX = pointerX ?? null;
-    if (!deps.dock.body()) deps.hidePopover();
+    if (!deps.dock.body() && !pinned) deps.hidePopover();
     if (!def.entries.length) {
       deps.holdStatus(
         "Тайлбар олдсонгүй: " + escapeHtml(span.word),
@@ -461,5 +525,6 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     followWordTip,
     showWordDefinition,
     keyboardShifting: () => performance.now() < keyboardShiftUntil,
+    pinned: () => pinned && !!defTip && !defTip.hidden,
   };
 }
