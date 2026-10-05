@@ -67,6 +67,7 @@ export function initDefTip(deps: DefTipDeps): DefTip {
   let pinBtn: HTMLButtonElement | null = null;
   let pinned = false;
   let shownWord = "";
+  let dockedWord = "";
   let defTipAnchor: HTMLElement | null = null;
   let defTipHideTimer: ReturnType<typeof setTimeout> | null = null;
   let defCache = new Map<string, Promise<Definition>>();
@@ -335,6 +336,12 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     }
   }
 
+  function reveal(body: HTMLElement): void {
+    body.classList.remove("is-swapping");
+    void body.offsetWidth;
+    body.classList.add("is-swapping");
+  }
+
   function withinEditor<V extends { top: number; height: number }>(view: V): V {
     const editorBottom = editor.getBoundingClientRect().bottom;
     const bottom = Math.min(view.top + view.height, editorBottom);
@@ -395,10 +402,13 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     if (docked) {
       fill(docked, word, def);
       docked.scrollTop = 0;
+      if (dockedWord !== word) reveal(docked);
+      dockedWord = word;
       return;
     }
     if (!defTip) defTip = buildTip();
     fill(defTipBody!, word, def);
+    if (!defTip.hidden && shownWord !== word) reveal(defTipBody!);
     shownWord = word;
     defTip.hidden = false;
     defTip.scrollTop = 0;
