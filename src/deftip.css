@@ -177,3 +177,20 @@
   color: var(--muted);
   white-space: normal;
 }
+
+.is-swapping {
+  animation: def-swap-in 140ms ease-out;
+}
+
+@keyframes def-swap-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .is-swapping {
+    animation: none;
+  }
+}
