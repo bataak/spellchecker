@@ -22,6 +22,9 @@ import {
   same,
   serializeLayout,
   showsControl,
+  dockColumnFits,
+  parseDock,
+  resolveDock,
   type Layout,
   type Metrics,
 } from "../src/layout.ts";
@@ -241,4 +244,31 @@ test("previewLayout — бодит өргөнөөс хамаарна", () => {
   const wide = available(x, pageWidth(pv("c", true), x) + HYSTERESIS);
   assert.deepEqual(previewLayout(DEFAULT_LAYOUT, wide), pv("a", true));
   assert.equal(previewLayout(DEFAULT_LAYOUT, available(x, 400)), null);
+});
+
+test("parseDock зөвхөн мэдэгдэх байршлыг хүлээн авна", () => {
+  assert.equal(parseDock("left"), "left");
+  assert.equal(parseDock("panel"), "panel");
+  assert.equal(parseDock("top"), null);
+  assert.equal(parseDock(null), null);
+});
+
+test("dockColumnFits нэмэлт баганын өргөнийг тооцно", () => {
+  const l = on("a");
+  const right = pageWidth(l, x) + x.panelW + x.panelGap;
+  assert.equal(dockColumnFits(l, x, right, "right", true), true);
+  assert.equal(dockColumnFits(l, x, right - 1, "right", true), false);
+  assert.equal(dockColumnFits(l, x, right, "right"), false);
+  assert.equal(dockColumnFits(l, x, right + HYSTERESIS, "right"), true);
+  assert.equal(dockColumnFits(l, x, right, "left", true), false);
+  assert.equal(dockColumnFits(l, x, right + x.gutterW, "left", true), true);
+});
+
+test("resolveDock багтахгүй баганыг алдааны талбар руу шилжүүлнэ", () => {
+  assert.equal(resolveDock(null, true, true), null);
+  assert.equal(resolveDock("left", true, true), "left");
+  assert.equal(resolveDock("right", true, false), "panel");
+  assert.equal(resolveDock("right", false, false), null);
+  assert.equal(resolveDock("panel", true, false), "panel");
+  assert.equal(resolveDock("panel", false, true), null);
 });

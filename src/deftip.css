@@ -157,3 +157,17 @@
 .def-tip-source + .def-tip-entry {
   margin-top: 0.75em;
 }
+
+.dock-hint {
+  position: fixed;
+  z-index: 999;
+  box-sizing: border-box;
+  border: 2px dashed var(--accent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  pointer-events: none;
+}
+
+.dock-hint[hidden] {
+  display: none;
+}

@@ -152,3 +152,30 @@ export function parseLayout(v: unknown): Layout {
 export function serializeLayout(l: Layout): string {
   return key(l);
 }
+
+export type DockPlace = "panel" | "left" | "right";
+
+export function parseDock(v: unknown): DockPlace | null {
+  return v === "panel" || v === "left" || v === "right" ? v : null;
+}
+
+export function dockColumnFits(
+  l: Layout,
+  x: Metrics,
+  viewport: number,
+  side: "left" | "right",
+  active = false,
+): boolean {
+  const extra = x.panelW + x.panelGap + (side === "left" ? x.gutterW : 0);
+  return viewport >= pageWidth(l, x) + extra + (active ? 0 : HYSTERESIS);
+}
+
+export function resolveDock(
+  desired: DockPlace | null,
+  panelShown: boolean,
+  room: boolean,
+): DockPlace | null {
+  if (!desired) return null;
+  if (desired !== "panel" && room) return desired;
+  return panelShown ? "panel" : null;
+}

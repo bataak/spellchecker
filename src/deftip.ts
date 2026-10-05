@@ -10,6 +10,7 @@ import { KEYBOARD_LAYOUT_EVENT } from "./kbtoolbar.ts";
 import { escapeHtml } from "./htmlutil.ts";
 import { isTouch } from "./input.ts";
 import type { WordSpan } from "./lookup.ts";
+import type { DefDock } from "./defdock.ts";
 
 export type Definition = {
   dicts: number;
@@ -24,6 +25,7 @@ export interface DefTipDeps {
   readonly showPanel: (word: string) => void;
   readonly hidePopover: () => void;
   readonly holdStatus: (html: string, ms?: number, animate?: boolean) => void;
+  readonly dock: DefDock;
 }
 
 export interface DefTip {
@@ -162,6 +164,7 @@ export function initDefTip(deps: DefTipDeps): DefTip {
 
     bar.addEventListener("mousedown", (e) => e.preventDefault());
     let grab: { dx: number; dy: number } | null = null;
+    let zone: ReturnType<DefDock["zoneAt"]> = null;
     bar.addEventListener("pointerdown", (e) => {
       if (e.button !== 0 || e.pointerType === "touch") return;
       if ((e.target as Element).closest(".def-tip-btn")) return;
@@ -172,13 +175,27 @@ export function initDefTip(deps: DefTipDeps): DefTip {
       bar.setPointerCapture(e.pointerId);
     });
     bar.addEventListener("pointermove", (e) => {
-      if (grab) moveTip(e.clientX - grab.dx, e.clientY - grab.dy);
+      if (!grab) return;
+      moveTip(e.clientX - grab.dx, e.clientY - grab.dy);
+      zone = deps.dock.zoneAt(e.clientX, e.clientY);
+      deps.dock.hint(zone);
     });
     const release = () => {
       grab = null;
+      deps.dock.hint(null);
     };
-    bar.addEventListener("pointerup", release);
-    bar.addEventListener("pointercancel", release);
+    bar.addEventListener("pointerup", () => {
+      const target = zone;
+      zone = null;
+      release();
+      if (!target || !defTipBody) return;
+      deps.dock.dock(target, [...defTipBody.childNodes]);
+      closePinned();
+    });
+    bar.addEventListener("pointercancel", () => {
+      zone = null;
+      release();
+    });
 
     defTipBody = document.createElement("div");
     defTipBody.className = "def-tip-body";
@@ -298,6 +315,12 @@ export function initDefTip(deps: DefTipDeps): DefTip {
       hide();
       return;
     }
+    const docked = deps.dock.body();
+    if (docked) {
+      fill(docked, word, def);
+      docked.scrollTop = 0;
+      return;
+    }
     if (!defTip) defTip = buildTip();
     fill(defTipBody!, word, def);
     shownWord = word;
@@ -412,7 +435,7 @@ export function initDefTip(deps: DefTipDeps): DefTip {
       hide();
     wordTipSpan = span;
     wordPointerX = pointerX ?? null;
-    deps.hidePopover();
+    if (!deps.dock.body()) deps.hidePopover();
     if (!def.entries.length) {
       deps.holdStatus(
         "Тайлбар олдсонгүй: " + escapeHtml(span.word),
