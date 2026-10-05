@@ -2,6 +2,14 @@ import { parseDock, resolveDock, type DockPlace } from "./layout.ts";
 
 const STORAGE_KEY = "def-dock";
 const EMPTY_TEXT = "Тайлбар харах үгэн дээр заагчаа аваачна уу";
+const DRAG_THRESHOLD = 5;
+
+export function emptyNote(): HTMLElement {
+  const note = document.createElement("p");
+  note.className = "def-empty";
+  note.textContent = EMPTY_TEXT;
+  return note;
+}
 const CLOSE_ICON =
   '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" ' +
   'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
@@ -22,6 +30,9 @@ export interface DefDock {
   readonly hint: (zone: DockPlace | null) => void;
   readonly dock: (zone: DockPlace, content?: Node[]) => void;
   readonly sync: (panelShown?: boolean) => void;
+  readonly onDragOut: (
+    handler: (e: PointerEvent, content: Node[]) => void,
+  ) => void;
 }
 
 function load(): DockPlace | null {
@@ -47,6 +58,7 @@ export function initDefDock(deps: DefDockDeps): DefDock {
   let pane: HTMLElement | null = null;
   let paneBody: HTMLElement | null = null;
   let hintEl: HTMLElement | null = null;
+  let dragOut: ((e: PointerEvent, content: Node[]) => void) | null = null;
 
   function build(): HTMLElement {
     const el = document.createElement("section");
@@ -72,16 +84,44 @@ export function initDefDock(deps: DefDockDeps): DefDock {
     paneBody = document.createElement("div");
     paneBody.className = "def-dock-body";
     paneBody.setAttribute("aria-live", "polite");
-    const empty = document.createElement("p");
-    empty.className = "def-dock-empty";
-    empty.textContent = EMPTY_TEXT;
-    paneBody.append(empty);
+    paneBody.append(emptyNote());
     el.append(head, paneBody);
+    bindDragOut(head);
     return el;
   }
 
+  function bindDragOut(head: HTMLElement): void {
+    let start: { x: number; y: number } | null = null;
+    head.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0 || e.pointerType === "touch") return;
+      if ((e.target as Element).closest("button")) return;
+      e.preventDefault();
+      start = { x: e.clientX, y: e.clientY };
+      head.setPointerCapture(e.pointerId);
+    });
+    head.addEventListener("pointermove", (e) => {
+      if (!start || !paneBody || !dragOut) return;
+      const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
+      if (moved < DRAG_THRESHOLD) return;
+      start = null;
+      const content = [...paneBody.childNodes].filter(
+        (node) => !(node as Element).classList?.contains("def-empty"),
+      );
+      paneBody.replaceChildren(emptyNote());
+      desired = null;
+      save(null);
+      place();
+      dragOut(e, content);
+    });
+    const stop = () => {
+      start = null;
+    };
+    head.addEventListener("pointerup", stop);
+    head.addEventListener("pointercancel", stop);
+  }
+
   function roomFor(side: DockPlace): boolean {
-    if (side === "panel") return false;
+    if (side !== "left" && side !== "right") return false;
     return deps.room(side, placed === side);
   }
 
@@ -101,13 +141,14 @@ export function initDefDock(deps: DefDockDeps): DefDock {
     pane.dataset.place = next;
     if (next === "left") workspace.insertBefore(pane, editorWrap);
     else if (next === "right") workspace.append(pane);
+    else if (next === "panel-top") errorPanel.prepend(pane);
     else
       errorPanel.insertBefore(
         pane,
         errorPanel.querySelector(".error-panel-foot"),
       );
-    if (next === "panel") delete root.dataset.dockCol;
-    else root.dataset.dockCol = next;
+    if (next === "left" || next === "right") root.dataset.dockCol = next;
+    else delete root.dataset.dockCol;
   }
 
   function panelVisible(): boolean {
@@ -116,9 +157,10 @@ export function initDefDock(deps: DefDockDeps): DefDock {
 
   function zoneRect(zone: DockPlace): DOMRect | null {
     const ws = workspace.getBoundingClientRect();
-    if (zone === "panel") {
+    if (zone === "panel" || zone === "panel-top") {
       const r = errorPanel.getBoundingClientRect();
-      return new DOMRect(r.left, r.top + r.height / 2, r.width, r.height / 2);
+      const top = zone === "panel" ? r.top + r.height / 2 : r.top;
+      return new DOMRect(r.left, top, r.width, r.height / 2);
     }
     const width = errorPanel.offsetWidth || 358;
     if (zone === "left") {
@@ -138,7 +180,8 @@ export function initDefDock(deps: DefDockDeps): DefDock {
     if (y < ws.top || y > ws.bottom) return null;
     if (panelVisible()) {
       const r = errorPanel.getBoundingClientRect();
-      if (x >= r.left && x <= r.right) return "panel";
+      if (x >= r.left && x <= r.right)
+        return y < r.top + r.height / 2 ? "panel-top" : "panel";
     }
     const box = editorWrap.querySelector(".editor")?.getBoundingClientRect();
     if (box && x < box.left && roomFor("left")) return "left";
@@ -168,8 +211,8 @@ export function initDefDock(deps: DefDockDeps): DefDock {
     desired = zone;
     save(zone);
     place();
-    if (content?.length && paneBody) {
-      paneBody.replaceChildren(...content);
+    if (content && paneBody) {
+      paneBody.replaceChildren(...(content.length ? content : [emptyNote()]));
       paneBody.scrollTop = 0;
     }
   }
@@ -181,6 +224,9 @@ export function initDefDock(deps: DefDockDeps): DefDock {
     zoneAt,
     hint,
     dock,
+    onDragOut(handler) {
+      dragOut = handler;
+    },
     sync(shown) {
       if (shown !== undefined) panelShown = shown;
       place();

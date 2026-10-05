@@ -153,10 +153,12 @@ export function serializeLayout(l: Layout): string {
   return key(l);
 }
 
-export type DockPlace = "panel" | "left" | "right";
+export type DockPlace = "panel-top" | "panel" | "left" | "right";
 
 export function parseDock(v: unknown): DockPlace | null {
-  return v === "panel" || v === "left" || v === "right" ? v : null;
+  return v === "panel-top" || v === "panel" || v === "left" || v === "right"
+    ? v
+    : null;
 }
 
 export function dockColumnFits(
@@ -176,6 +178,8 @@ export function resolveDock(
   room: boolean,
 ): DockPlace | null {
   if (!desired) return null;
-  if (desired !== "panel" && room) return desired;
+  if (desired === "panel" || desired === "panel-top")
+    return panelShown ? desired : null;
+  if (room) return desired;
   return panelShown ? "panel" : null;
 }

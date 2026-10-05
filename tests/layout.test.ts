@@ -249,6 +249,7 @@ test("previewLayout — бодит өргөнөөс хамаарна", () => {
 test("parseDock зөвхөн мэдэгдэх байршлыг хүлээн авна", () => {
   assert.equal(parseDock("left"), "left");
   assert.equal(parseDock("panel"), "panel");
+  assert.equal(parseDock("panel-top"), "panel-top");
   assert.equal(parseDock("top"), null);
   assert.equal(parseDock(null), null);
 });
@@ -271,4 +272,6 @@ test("resolveDock багтахгүй баганыг алдааны талбар 
   assert.equal(resolveDock("right", false, false), null);
   assert.equal(resolveDock("panel", true, false), "panel");
   assert.equal(resolveDock("panel", false, true), null);
+  assert.equal(resolveDock("panel-top", true, false), "panel-top");
+  assert.equal(resolveDock("panel-top", false, true), null);
 });
