@@ -33,6 +33,7 @@ export interface DefDock {
   readonly onDragOut: (
     handler: (e: PointerEvent, content: Node[]) => void,
   ) => void;
+  readonly onShow: (handler: (body: HTMLElement) => void) => void;
 }
 
 function load(): DockPlace | null {
@@ -59,6 +60,7 @@ export function initDefDock(deps: DefDockDeps): DefDock {
   let paneBody: HTMLElement | null = null;
   let hintEl: HTMLElement | null = null;
   let dragOut: ((e: PointerEvent, content: Node[]) => void) | null = null;
+  let shown: ((body: HTMLElement) => void) | null = null;
 
   function build(): HTMLElement {
     const el = document.createElement("section");
@@ -131,6 +133,7 @@ export function initDefDock(deps: DefDockDeps): DefDock {
       ? resolveDock(desired, panelShown, desired ? roomFor(desired) : false)
       : null;
     if (next === placed && (next === null || pane?.isConnected)) return;
+    const appearing = !placed;
     placed = next;
     if (!next) {
       pane?.remove();
@@ -149,6 +152,7 @@ export function initDefDock(deps: DefDockDeps): DefDock {
       );
     if (next === "left" || next === "right") root.dataset.dockCol = next;
     else delete root.dataset.dockCol;
+    if (appearing && paneBody) shown?.(paneBody);
   }
 
   function panelVisible(): boolean {
@@ -226,6 +230,9 @@ export function initDefDock(deps: DefDockDeps): DefDock {
     dock,
     onDragOut(handler) {
       dragOut = handler;
+    },
+    onShow(handler) {
+      shown = handler;
     },
     sync(shown) {
       if (shown !== undefined) panelShown = shown;
