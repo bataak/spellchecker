@@ -1,9 +1,5 @@
-import type {
-  WorkerRequest,
-  WorkerResponse,
-  DictFailure,
-} from "./messages.ts";
-import { fetchGzText, loadDictText } from "./dictrefresh.ts";
+import type { WorkerRequest, WorkerResponse, DictFailure } from "./messages.ts";
+import { fetchGzBytes, loadDictBytes } from "./dictrefresh.ts";
 import {
   findHeadword,
   findTaggedHeadword,
@@ -40,7 +36,11 @@ export interface SpellerInstance {
 export interface SpellBackend {
   label: string;
   fallbackReason?: string;
-  build: (aff: string, dic: string, id?: string) => Promise<SpellerInstance>;
+  build: (
+    aff: Uint8Array,
+    dic: Uint8Array,
+    id?: string,
+  ) => Promise<SpellerInstance>;
 }
 
 interface ManifestEntry {
@@ -57,6 +57,8 @@ declare global {
 }
 
 const post = (msg: WorkerResponse): void => self.postMessage(msg);
+
+const utf8 = new TextDecoder("utf-8");
 
 const netFetch: typeof fetch = self.fetch.bind(self);
 
@@ -153,7 +155,7 @@ async function loadNspell(): Promise<SpellBackend> {
   return {
     label: "nspell (хялбаршуулсан)",
     build: async (aff, dic) => {
-      const nspellInstance = nspell(aff, dic);
+      const nspellInstance = nspell(utf8.decode(aff), utf8.decode(dic));
       return {
         spell: (word) => nspellInstance.correct(word),
         suggest: (word) => nspellInstance.suggest(word),
@@ -186,14 +188,17 @@ async function loadOne(id: string): Promise<string> {
   const entry = manifest![id];
   if (!entry) throw new Error(id + " manifest-д алга");
   const [aff, dic] = await Promise.all([
-    fetchGzText(asset("dict/" + entry.aff)),
-    fetchGzText(asset("dict/" + entry.dic)),
+    fetchGzBytes(asset("dict/" + entry.aff)),
+    fetchGzBytes(asset("dict/" + entry.dic)),
   ]);
   const inst = await backend!.build(aff, dic, id);
   if (id === PRIMARY) {
     mnVersion =
       entry.version ||
-      aff.match(/^#?\s*Version:\s*(.+)$/m)?.[1]!.trim() ||
+      utf8
+        .decode(aff)
+        .match(/^#?\s*Version:\s*(.+)$/m)?.[1]!
+        .trim() ||
       null;
   }
   instances.push({ id, inst });
@@ -230,17 +235,14 @@ async function refreshPrimary(): Promise<void> {
     const entry = (data.dicts || []).find((dict) => dict.id === PRIMARY);
     if (!entry || !entry.version) return;
     if (entry.version === mnVersion) return;
-    const texts = await loadDictText(
+    const files = await loadDictBytes(
       asset("dict/" + entry.aff),
       asset("dict/" + entry.dic),
       [cacheOnlyFetch, netFetch],
     );
-    if (!texts) return;
-    const inst = await backend.build(texts[0], texts[1], PRIMARY);
-    if (
-      typeof inst.spell !== "function" ||
-      typeof inst.suggest !== "function"
-    )
+    if (!files) return;
+    const inst = await backend.build(files[0], files[1], PRIMARY);
+    if (typeof inst.spell !== "function" || typeof inst.suggest !== "function")
       return;
     const index = instances.findIndex((item) => item.id === PRIMARY);
     const previous = index >= 0 ? instances[index]!.inst : null;
@@ -404,17 +406,13 @@ function infinitivesOfStem(word: string): string[] {
   const primary = instances.find((item) => item.id === PRIMARY)?.inst;
   if (!primary) return [];
   try {
-    return bareStemInfinitives(
-      word,
-      analysesOf(primary, word),
-      (candidate) => {
-        try {
-          return primary.spell(candidate);
-        } catch (_) {
-          return false;
-        }
-      },
-    );
+    return bareStemInfinitives(word, analysesOf(primary, word), (candidate) => {
+      try {
+        return primary.spell(candidate);
+      } catch (_) {
+        return false;
+      }
+    });
   } catch (_) {
     return [];
   }
