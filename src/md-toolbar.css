@@ -2,6 +2,12 @@
   position: relative;
 }
 
+.topbar > h1 {
+  display: flex;
+  align-items: center;
+  height: 34px;
+}
+
 .topbar.has-mdbar > h1 {
   visibility: hidden;
 }
@@ -39,7 +45,7 @@
     position: static;
     flex: 0 1 auto;
     min-width: 0;
-    min-height: 34px;
+    height: 34px;
   }
 }
 
@@ -122,12 +128,6 @@
     inset-block: 0 auto;
     inset-inline: 0;
     max-width: none;
-  }
-
-  .topbar > h1 {
-    display: flex;
-    align-items: center;
-    min-height: 34px;
   }
 
   .md-bar .md-btn[data-role="h3"],

@@ -1393,7 +1393,7 @@ a.tbtn {
 @media (min-width: 701px) {
   .topbar {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
     gap: 8px 20px;
   }
