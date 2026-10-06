@@ -19,6 +19,7 @@ import {
 import stardictList from "virtual:stardict-index";
 import {
   bareStemInfinitives,
+  collectiveGenitive,
   lookupCandidates,
   parseAnalyses,
   type Analysis,
@@ -375,11 +376,28 @@ function analysesOf(inst: SpellerInstance, word: string): Analysis[] {
   return stringList(inst.stem(word)).map((stem) => ({ stem, verb: null }));
 }
 
+function spells(inst: SpellerInstance, candidate: string): boolean {
+  try {
+    return inst.spell(candidate);
+  } catch (_) {
+    return false;
+  }
+}
+
+function collectiveBase(inst: SpellerInstance, word: string): string | null {
+  const genitive = collectiveGenitive(word);
+  return genitive && spells(inst, genitive) ? genitive : null;
+}
+
 function analysesFor(word: string): Analysis[] {
   const primary = instances.find((item) => item.id === PRIMARY)?.inst;
   if (!primary) return [];
   try {
-    return analysesOf(primary, word);
+    const analyses = analysesOf(primary, word);
+    const genitive = collectiveBase(primary, word);
+    return genitive
+      ? [...analyses, ...analysesOf(primary, genitive)]
+      : analyses;
   } catch (_) {
     return [];
   }
@@ -389,14 +407,19 @@ function stemsOf(word: string): string[] {
   const primary = instances.find((item) => item.id === PRIMARY)?.inst;
   if (!primary) return [];
   try {
-    const analyses = analysesOf(primary, word);
-    return lookupCandidates(word, analyses, (candidate) => {
-      try {
-        return primary.spell(candidate);
-      } catch (_) {
-        return false;
-      }
-    });
+    const isWord = (candidate: string) => spells(primary, candidate);
+    const candidates = lookupCandidates(
+      word,
+      analysesOf(primary, word),
+      isWord,
+    );
+    const genitive = collectiveBase(primary, word);
+    if (!genitive) return candidates;
+    const all = [
+      ...candidates,
+      ...lookupCandidates(genitive, analysesOf(primary, genitive), isWord),
+    ];
+    return all.filter((item, position) => all.indexOf(item) === position);
   } catch (_) {
     return [];
   }
@@ -406,13 +429,9 @@ function infinitivesOfStem(word: string): string[] {
   const primary = instances.find((item) => item.id === PRIMARY)?.inst;
   if (!primary) return [];
   try {
-    return bareStemInfinitives(word, analysesOf(primary, word), (candidate) => {
-      try {
-        return primary.spell(candidate);
-      } catch (_) {
-        return false;
-      }
-    });
+    return bareStemInfinitives(word, analysesOf(primary, word), (candidate) =>
+      spells(primary, candidate),
+    );
   } catch (_) {
     return [];
   }

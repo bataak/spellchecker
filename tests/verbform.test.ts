@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   bareStemInfinitives,
+  collectiveGenitive,
   completiveRoot,
   derivedRoots,
   connectingVowel,
@@ -409,4 +410,17 @@ test("үйл үгийн язгуураас -гч үйлдэгч нэрийг х�
     lookupCandidates("зорчигч", parseAnalyses([" st:зорч fl:G1"]), isWord),
     ["зорчих"],
   );
+});
+
+test("-ийнхан, -ныхан зэргийг хасаж илгээх хэлбэрийг гаргана", () => {
+  assert.equal(collectiveGenitive("сургуулийнхан"), "сургуулийн");
+  assert.equal(collectiveGenitive("хашааныхан"), "хашааны");
+  assert.equal(collectiveGenitive("бүртгэлийнхэн"), "бүртгэлийн");
+  assert.equal(collectiveGenitive("худалдааныхан"), "худалдааны");
+  assert.equal(collectiveGenitive("ажлынхан"), "ажлын");
+  assert.equal(collectiveGenitive("Номынхон"), "номын");
+  assert.equal(collectiveGenitive("мөнгөнийхөн"), "мөнгөний");
+  assert.equal(collectiveGenitive("гэрийнхэн"), "гэрийн");
+  assert.equal(collectiveGenitive("сургууль"), null);
+  assert.equal(collectiveGenitive("ынхан"), null);
 });

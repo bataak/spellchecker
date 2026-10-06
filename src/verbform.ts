@@ -93,6 +93,14 @@ export function bareStemInfinitives(
     .slice(0, 1);
 }
 
+const COLLECTIVE = /^(.+(?:ын|ийн|ны|ний))х[аэоө]н$/;
+
+export function collectiveGenitive(word: string): string | null {
+  const genitive = word.toLowerCase().match(COLLECTIVE)?.[1];
+  if (!genitive || !HAS_VOWEL.test(genitive.slice(0, -2))) return null;
+  return genitive;
+}
+
 const AGENT_NOUN = /^[аэоөи]?гч/;
 
 function agentNoun(word: string, stem: string): string | null {
