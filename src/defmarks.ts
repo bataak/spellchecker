@@ -79,17 +79,17 @@ export function placeTipAtPointer(
   tip: Size,
   view: View,
   gap = 8,
-): { left: number; top: number } {
+): { left: number; top: number; maxHeight: number } {
   const viewRight = view.left + view.width;
-  const viewBottom = view.top + view.height;
-  let top = line.bottom + gap;
-  if (top + tip.height > viewBottom - gap) {
-    const above = line.top - gap - tip.height;
-    if (above >= view.top + gap) top = above;
-  }
+  const below = view.top + view.height - gap - (line.bottom + gap);
+  const above = line.top - gap - (view.top + gap);
+  const under = tip.height <= below || (tip.height > above && below >= above);
+  const maxHeight = Math.max(0, under ? below : above);
+  const height = Math.min(tip.height, maxHeight);
   return {
     left: clamp(pointerX, view.left + gap, viewRight - gap - tip.width),
-    top: clamp(top, view.top + gap, viewBottom - gap - tip.height),
+    top: under ? line.bottom + gap : line.top - gap - height,
+    maxHeight,
   };
 }
 

@@ -13,6 +13,8 @@ html {
   --proof-soft: #f6dedb;
   --count-bg: #c45650;
   --accent: #2c3a2e;
+  --lookup: rgba(243, 204, 84, 0.4);
+  --lookup-blend: multiply;
   --editor-bg: #ffffff;
   --focus: #b9b1a1;
   --editor-scale: 1;
@@ -104,6 +106,8 @@ html {
   --proof-soft: #3a2420;
   --count-bg: #ff8579;
   --accent: #86b08c;
+  --lookup: rgba(214, 178, 82, 0.22);
+  --lookup-blend: screen;
   --editor-bg: #211d16;
   --focus: #4a4438;
 }
@@ -1050,7 +1054,22 @@ a.tbtn {
 .word-anchor {
   position: absolute;
   pointer-events: none;
-  visibility: hidden;
+  border-radius: 3px;
+  opacity: 0;
+  background: var(--lookup);
+  box-shadow: 0 0 0 2px var(--lookup);
+  mix-blend-mode: var(--lookup-blend);
+  transition: opacity 120ms ease-out;
+}
+
+.word-anchor.is-lit {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .word-anchor {
+    transition: none;
+  }
 }
 
 .backdrop,

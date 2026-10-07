@@ -112,6 +112,7 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     cancelHide();
     if (defTipAnchor) defTipAnchor.setAttribute("aria-expanded", "false");
     defTipAnchor = null;
+    wordAnchor?.classList.remove("is-lit");
     if (defTip && !pinned) defTip.hidden = true;
   }
 
@@ -394,6 +395,7 @@ export function initDefTip(deps: DefTipDeps): DefTip {
       hide();
       return;
     }
+    defTip.style.maxHeight = "";
     const vv = window.visualViewport;
     const anchorRect = defTipAnchor.getBoundingClientRect();
     const size = { width: defTip.offsetWidth, height: defTip.offsetHeight };
@@ -403,15 +405,20 @@ export function initDefTip(deps: DefTipDeps): DefTip {
       width: vv ? vv.width : window.innerWidth,
       height: vv ? vv.height : window.innerHeight,
     });
-    const place =
+    const atPointer =
       defTipAnchor === wordAnchor && wordPointerX !== null
         ? placeTipAtPointer(wordPointerX, anchorRect, size, view)
-        : placeTip(
-            anchorRect,
-            popover.hidden ? anchorRect : popover.getBoundingClientRect(),
-            size,
-            view,
-          );
+        : null;
+    const place =
+      atPointer ??
+      placeTip(
+        anchorRect,
+        popover.hidden ? anchorRect : popover.getBoundingClientRect(),
+        size,
+        view,
+      );
+    if (atPointer && atPointer.maxHeight < size.height)
+      defTip.style.maxHeight = atPointer.maxHeight + "px";
     defTip.style.left = window.scrollX + place.left + "px";
     defTip.style.top = window.scrollY + place.top + "px";
   }
@@ -427,8 +434,13 @@ export function initDefTip(deps: DefTipDeps): DefTip {
       defTip &&
       !defTip.hidden &&
       (pinned ? shownWord === word : defTipAnchor === anchor)
-    )
+    ) {
+      if (pinned) {
+        defTipAnchor = anchor;
+        light(anchor);
+      }
       return;
+    }
     if (defTipAnchor && defTipAnchor !== anchor)
       defTipAnchor.setAttribute("aria-expanded", "false");
     defTipAnchor = anchor;
@@ -444,6 +456,7 @@ export function initDefTip(deps: DefTipDeps): DefTip {
       docked.scrollTop = 0;
       if (dockedWord !== word) reveal(docked);
       dockedWord = word;
+      light(anchor);
       return;
     }
     if (!defTip) defTip = buildTip();
@@ -453,7 +466,12 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     defTip.hidden = false;
     defTip.scrollTop = 0;
     anchor.setAttribute("aria-expanded", "true");
+    light(anchor);
     position();
+  }
+
+  function light(anchor: HTMLElement): void {
+    if (anchor === wordAnchor) anchor.classList.add("is-lit");
   }
 
   function bindDot(dot: HTMLElement): void {
