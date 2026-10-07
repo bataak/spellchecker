@@ -43,6 +43,7 @@ test("тайлбарыг заагчийн баруун доор, үгийн мө
   assert.deepEqual(placeTipAtPointer(140, line, tip, view), {
     left: 140,
     top: 132,
+    maxHeight: 660,
   });
 });
 
@@ -51,6 +52,7 @@ test("доор багтахгүй бол үгийн мөрийн дээр бай
   assert.deepEqual(placeTipAtPointer(140, line, tip, view), {
     left: 140,
     top: 492,
+    maxHeight: 684,
   });
 });
 
@@ -59,5 +61,28 @@ test("баруун талд багтахгүй бол зүүн тийш шахн
   assert.deepEqual(placeTipAtPointer(950, line, tip, view), {
     left: 692,
     top: 132,
+    maxHeight: 660,
   });
+});
+
+test("аль ч талд багтахгүй бол илүү зайтай талд багасгаж байрлуулна", () => {
+  const tall = { width: 300, height: 500 };
+  assert.deepEqual(
+    placeTipAtPointer(
+      140,
+      { left: 100, top: 360, right: 180, bottom: 384 },
+      tall,
+      view,
+    ),
+    { left: 140, top: 392, maxHeight: 400 },
+  );
+  assert.deepEqual(
+    placeTipAtPointer(
+      140,
+      { left: 100, top: 440, right: 180, bottom: 464 },
+      tall,
+      view,
+    ),
+    { left: 140, top: 8, maxHeight: 424 },
+  );
 });
