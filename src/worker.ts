@@ -9,7 +9,8 @@ import {
   type DictEntry,
   type StarDict,
 } from "./stardict.ts";
-import { loadStarDicts } from "./stardictload.ts";
+import { DictReadError, loadStarDicts } from "./stardictload.ts";
+import type { DictListEntry } from "./dictindex.ts";
 import {
   loadDictOrder,
   loadUserDicts,
@@ -273,7 +274,6 @@ async function refreshPrimary(): Promise<void> {
 }
 
 let starDicts: StarDict[] = [];
-let starDictLoading: Promise<void> | null = null;
 
 interface LoadedDict {
   id: string;
@@ -282,52 +282,215 @@ interface LoadedDict {
   dict: StarDict;
 }
 
-let loadedDicts: LoadedDict[] = [];
+const STARDICT_DIR = (): string => asset("dict/stardict/");
+const RELOAD_BACKOFF = [2000, 5000, 15000, 60000];
 
-function setLoadedDicts(list: LoadedDict[]): void {
-  loadedDicts = list;
-  starDicts = list.map((entry) => entry.dict);
+let loadedDicts: LoadedDict[] = [];
+let bundled = new Map<string, LoadedDict>();
+let bundledMissing: DictListEntry[] = [];
+let userDicts: LoadedDict[] = [];
+let userIncomplete = false;
+let dictOrder: string[] = [];
+let generation = 0;
+let starDictLoading: Promise<void> | null = null;
+let repairing: Promise<void> | null = null;
+let repairAt = 0;
+let repairCount = 0;
+
+function composeDicts(): void {
+  const list = [
+    ...stardictList.flatMap((entry) => {
+      const found = bundled.get(entry.base);
+      return found ? [found] : [];
+    }),
+    ...userDicts,
+  ];
+  loadedDicts = sortByOrder(list, dictOrder);
+  starDicts = loadedDicts.map((entry) => entry.dict);
 }
+
+async function bundledEntry(dict: StarDict): Promise<LoadedDict> {
+  return {
+    id: "bundled:" + dict.info.bookname,
+    user: false,
+    digest: await idxDigest(dict.index.bytes),
+    dict,
+  };
+}
+
+interface BundledResult {
+  loaded: [string, LoadedDict][];
+  failed: DictListEntry[];
+}
+
+async function loadBundled(list: DictListEntry[]): Promise<BundledResult> {
+  try {
+    const { loaded, failed } = await loadStarDicts(STARDICT_DIR(), list);
+    const entries = await Promise.all(
+      loaded.map(
+        async ({ entry, dict }) =>
+          [entry.base, await bundledEntry(dict)] as [string, LoadedDict],
+      ),
+    );
+    return { loaded: entries, failed };
+  } catch (err) {
+    console.warn("StarDict ачаалагдсангүй:", err);
+    return { loaded: [], failed: list.slice() };
+  }
+}
+
+interface UserResult {
+  loaded: LoadedDict[];
+  incomplete: boolean;
+}
+
+async function loadUser(): Promise<UserResult> {
+  try {
+    const { loaded, failed } = await loadUserDicts();
+    return {
+      loaded: loaded.map(({ name, digest, dict }) => ({
+        id: "user:" + name,
+        user: true,
+        digest,
+        dict,
+      })),
+      incomplete: failed.length > 0,
+    };
+  } catch (err) {
+    console.warn("Хэрэглэгчийн толь ачаалагдсангүй:", err);
+    return { loaded: [], incomplete: true };
+  }
+}
+
+function scheduleRepair(): void {
+  if (!bundledMissing.length && !userIncomplete) {
+    repairCount = 0;
+    repairAt = 0;
+    return;
+  }
+  const delay =
+    RELOAD_BACKOFF[Math.min(repairCount, RELOAD_BACKOFF.length - 1)]!;
+  repairCount++;
+  repairAt = Date.now() + delay;
+}
+
+async function loadAllDicts(): Promise<void> {
+  const current = generation;
+  const [found, user, order] = await Promise.all([
+    loadBundled(stardictList),
+    loadUser(),
+    loadDictOrder().catch(() => []),
+  ]);
+  if (current !== generation) return;
+  bundled = new Map(found.loaded);
+  bundledMissing = found.failed;
+  userDicts = user.loaded;
+  userIncomplete = user.incomplete;
+  dictOrder = order;
+  composeDicts();
+  scheduleRepair();
+}
+
+async function repairDicts(): Promise<void> {
+  const current = generation;
+  const missing = bundledMissing.slice();
+  const repairUser = userIncomplete;
+  const found = missing.length
+    ? await loadBundled(missing)
+    : { loaded: [], failed: [] };
+  const user = repairUser ? await loadUser() : null;
+  if (current !== generation) return;
+  for (const [base, entry] of found.loaded) bundled.set(base, entry);
+  bundledMissing = [
+    ...found.failed,
+    ...bundledMissing.filter(
+      (entry) => !missing.includes(entry) && !bundled.has(entry.base),
+    ),
+  ];
+  if (user) {
+    userDicts = user.loaded;
+    userIncomplete = user.incomplete;
+  }
+  composeDicts();
+  scheduleRepair();
+}
+
+async function ensureStarDicts(): Promise<void> {
+  if (!starDictLoading) starDictLoading = loadAllDicts();
+  await starDictLoading;
+  if (!bundledMissing.length && !userIncomplete) return;
+  if (Date.now() < repairAt) return;
+  if (!repairing)
+    repairing = repairDicts().finally(() => {
+      repairing = null;
+    });
+  await repairing;
+}
+
+function resetStarDicts(): void {
+  generation++;
+  starDictLoading = null;
+  repairing = null;
+  repairAt = 0;
+  repairCount = 0;
+  bundled = new Map();
+  bundledMissing = [];
+  userDicts = [];
+  userIncomplete = false;
+  composeDicts();
+}
+
+function markBroken(broken: StarDict[]): void {
+  for (const dict of broken) {
+    for (const [base, entry] of bundled) {
+      if (entry.dict !== dict) continue;
+      bundled.delete(base);
+      const listed = stardictList.find((item) => item.base === base);
+      if (listed && !bundledMissing.includes(listed))
+        bundledMissing.push(listed);
+    }
+    if (userDicts.some((entry) => entry.dict === dict)) {
+      userDicts = userDicts.filter((entry) => entry.dict !== dict);
+      userIncomplete = true;
+    }
+  }
+  composeDicts();
+  repairAt = 0;
+}
+
+async function inDict<T>(
+  dict: StarDict,
+  broken: StarDict[],
+  run: () => Promise<T>,
+  fallback: T,
+): Promise<T> {
+  try {
+    return await run();
+  } catch (err) {
+    if (err instanceof DictReadError) broken.push(dict);
+    else console.warn("StarDict хайлт амжилтгүй:", dict.info.bookname, err);
+    return fallback;
+  }
+}
+
+async function withDicts<T>(
+  run: (dicts: StarDict[], broken: StarDict[]) => Promise<T>,
+): Promise<T> {
+  await ensureStarDicts();
+  const broken: StarDict[] = [];
+  const result = await run(starDicts, broken);
+  if (!broken.length) return result;
+  markBroken(broken);
+  await ensureStarDicts();
+  return run(starDicts, []);
+}
+
+self.addEventListener("online", () => {
+  repairAt = 0;
+  repairCount = 0;
+});
 
 const MAX_DEFINITIONS = 12;
-
-function ensureStarDicts(): Promise<void> {
-  if (!starDictLoading) {
-    starDictLoading = Promise.all([
-      loadStarDicts(asset("dict/stardict/"), stardictList).catch(() => []),
-      loadUserDicts().catch(() => []),
-      loadDictOrder().catch(() => []),
-    ])
-      .then(async ([bundled, user, order]) => {
-        const bundledEntries = await Promise.all(
-          bundled.map(async (dict) => ({
-            id: "bundled:" + dict.info.bookname,
-            user: false,
-            digest: await idxDigest(dict.index.bytes),
-            dict,
-          })),
-        );
-        setLoadedDicts(
-          sortByOrder(
-            [
-              ...bundledEntries,
-              ...user.map(({ name, digest, dict }) => ({
-                id: "user:" + name,
-                user: true,
-                digest,
-                dict,
-              })),
-            ],
-            order,
-          ),
-        );
-      })
-      .catch((err) => {
-        console.warn("StarDict ачаалагдсангүй:", err);
-      });
-  }
-  return starDictLoading;
-}
 
 function sourceOf(dict: StarDict): string {
   return dict.info.bookname;
@@ -548,8 +711,8 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
 
   if (msg.type === "reorderDicts") {
     await ensureStarDicts();
-    const order = await loadDictOrder().catch(() => []);
-    setLoadedDicts(sortByOrder(loadedDicts, order));
+    dictOrder = await loadDictOrder().catch(() => dictOrder);
+    composeDicts();
     return;
   }
 
@@ -570,8 +733,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   }
 
   if (msg.type === "reloadDicts") {
-    starDictLoading = null;
-    setLoadedDicts([]);
+    resetStarDicts();
     await ensureStarDicts();
     return;
   }
@@ -602,45 +764,47 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   }
 
   if (msg.type === "lookup") {
-    await ensureStarDicts();
-    let found: Record<string, string> | null = null;
-    if (starDicts.length) {
-      found = {};
+    const found = await withDicts(async (dicts, broken) => {
+      if (!dicts.length) return null;
+      const out: Record<string, string> = {};
       for (const word of msg.words) {
         const mode = lookupModeOf(word);
-        for (const dict of starDicts) {
-          try {
-            const headword = await headwordIn(dict, word, mode);
-            if (headword != null) {
-              found[word] = headword;
-              break;
-            }
-          } catch (_) {
-            /* энэ толийг алгасна */
+        for (const dict of dicts) {
+          const headword = await inDict(
+            dict,
+            broken,
+            () => headwordIn(dict, word, mode),
+            null,
+          );
+          if (headword != null) {
+            out[word] = headword;
+            break;
           }
         }
       }
-    }
+      return out;
+    });
     post({ type: "lookup", id: msg.id, found });
     return;
   }
 
   if (msg.type === "define") {
-    await ensureStarDicts();
-    const entries: DictEntry[] = [];
     const word = msg.word;
     const mode = lookupModeOf(word);
-    for (const dict of starDicts) {
-      if (entries.length >= MAX_DEFINITIONS) break;
-      try {
-        for (const entry of await definitionsIn(dict, word, mode)) {
-          if (entries.length >= MAX_DEFINITIONS) break;
-          entries.push(entry);
-        }
-      } catch (_) {
-        /* энэ толийг алгасна */
+    const entries = await withDicts(async (dicts, broken) => {
+      const out: DictEntry[] = [];
+      for (const dict of dicts) {
+        if (out.length >= MAX_DEFINITIONS) break;
+        const found = await inDict(
+          dict,
+          broken,
+          () => definitionsIn(dict, word, mode),
+          [],
+        );
+        out.push(...found.slice(0, MAX_DEFINITIONS - out.length));
       }
-    }
+      return out;
+    });
     post({
       type: "define",
       id: msg.id,
