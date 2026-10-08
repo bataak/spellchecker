@@ -13,7 +13,7 @@ html {
   --proof-soft: #f6dedb;
   --count-bg: #c45650;
   --accent: #2c3a2e;
-  --lookup: rgba(250, 160, 70, 0.35);
+  --lookup: rgba(240, 100, 30, 0.3);
   --lookup-blend: multiply;
   --editor-bg: #ffffff;
   --focus: #b9b1a1;
@@ -106,7 +106,7 @@ html {
   --proof-soft: #3a2420;
   --count-bg: #ff8579;
   --accent: #86b08c;
-  --lookup: rgba(235, 140, 60, 0.24);
+  --lookup: rgba(240, 100, 30, 0.22);
   --lookup-blend: screen;
   --editor-bg: #211d16;
   --focus: #4a4438;
