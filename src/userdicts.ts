@@ -268,19 +268,27 @@ async function openUserDict(record: UserDict): Promise<StarDict> {
   return dict;
 }
 
-export async function loadUserDicts(): Promise<LoadedUserDict[]> {
-  if (typeof indexedDB === "undefined") return [];
-  const out: LoadedUserDict[] = [];
+export interface UserLoad {
+  loaded: LoadedUserDict[];
+  failed: string[];
+}
+
+export async function loadUserDicts(): Promise<UserLoad> {
+  const result: UserLoad = { loaded: [], failed: [] };
+  if (typeof indexedDB === "undefined") return result;
   for (const record of await listUserDicts()) {
     try {
-      out.push({
+      result.loaded.push({
         name: record.name,
         digest: await digestOf(record),
         dict: await openUserDict(record),
       });
-    } catch (_) {}
+    } catch (err) {
+      console.warn("Хэрэглэгчийн толь ачаалагдсангүй:", record.name, err);
+      result.failed.push(record.name);
+    }
   }
-  return out;
+  return result;
 }
 
 async function importGroup(
