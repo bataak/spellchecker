@@ -326,7 +326,13 @@ export function initDefTip(deps: DefTipDeps): DefTip {
       pending = deps.define
         ? deps.define(word)
         : Promise.resolve({ source: "", entries: [], dicts: -1 });
-      defCache.set(word, pending);
+      const cache = defCache;
+      const request = pending;
+      cache.set(word, request);
+      void request.then((def) => {
+        if (!def.entries.length && cache.get(word) === request)
+          cache.delete(word);
+      });
     }
     return pending;
   }
