@@ -277,9 +277,7 @@ export function initDefTip(deps: DefTipDeps): DefTip {
 
   function showPinned(content: Node[]): HTMLDivElement {
     const tip = (defTip ??= buildTip());
-    defTipBody!.replaceChildren(
-      ...(content.length ? content : [emptyNote()]),
-    );
+    defTipBody!.replaceChildren(...(content.length ? content : [emptyNote()]));
     shownWord = "";
     tip.hidden = false;
     tip.scrollTop = 0;
@@ -388,9 +386,7 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     body.classList.add("is-swapping");
   }
 
-  function withinEditor<V extends { top: number; height: number }>(
-    view: V,
-  ): V {
+  function withinEditor<V extends { top: number; height: number }>(view: V): V {
     const editorBottom = editor.getBoundingClientRect().bottom;
     const bottom = Math.min(view.top + view.height, editorBottom);
     return { ...view, height: Math.max(0, bottom - view.top) };

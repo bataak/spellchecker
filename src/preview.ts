@@ -91,7 +91,8 @@ function resolveImages(root: HTMLElement): void {
 }
 
 export type PreviewSource =
-  { kind: "pdf"; file: File } | { kind: "office"; name: string };
+  | { kind: "pdf"; file: File }
+  | { kind: "office"; name: string };
 
 const MD_NAME = /\.(md|markdown|mdown|mkd)$/i;
 
@@ -196,12 +197,7 @@ export function initPreview(
 
     tidied = null;
     const looksMd = isMdFile || isMarkdown(blocks);
-    if (
-      onFormat &&
-      looksMd &&
-      text.length <= TIDY_LIMIT &&
-      !isLatex(text)
-    ) {
+    if (onFormat && looksMd && text.length <= TIDY_LIMIT && !isLatex(text)) {
       const next = format(text, blocks);
       if (next !== text) tidied = next;
     }
