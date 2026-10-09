@@ -160,19 +160,19 @@ test("яг таарахгүй бол язгуураар хайна", async () =>
   );
 });
 
-test("яг таарсан үг байвал язгуурыг тооцохгүй", async () => {
+test("яг таарсан үгийн араас язгуурын тайлбарыг нэмнэ", async () => {
   const dict = buildDict([
-    ["НИСГЭГЧ", "жолооч"],
-    ["НИСЭХ", "агаарт хөөрөх"],
+    ["ИТГЭЛ", "итгэх сэтгэл"],
+    ["ИТГЭЛТЭЙ", "бат найдлагатай"],
   ]);
-  let called = false;
-  const stems = () => {
-    called = true;
-    return ["нисэх"];
-  };
-  assert.equal(findHeadword(dict, "нисгэгч", stems), "НИСГЭГЧ");
-  assert.equal((await resolveDefinitions(dict, "нисгэгч", stems)).length, 1);
-  assert.equal(called, false);
+  const stems = () => ["итгэлтэй", "итгэл"];
+  assert.equal(findHeadword(dict, "итгэлтэй", stems), "ИТГЭЛТЭЙ");
+  assert.deepEqual(
+    (await resolveDefinitions(dict, "итгэлтэй", stems)).map(
+      (entry) => entry.headword,
+    ),
+    ["ИТГЭЛТЭЙ", "ИТГЭЛ"],
+  );
 });
 
 test("оноосон нэрийг зөвхөн том үсгээр эхэлсэн толгой үгээс хайна", async () => {

@@ -71,11 +71,11 @@ test("яг таарсан бичлэг байхгүй бол язгуураар 
   );
 });
 
-test("нэмэлт үйлт нэр өгөөгүй бол өмнөх үйлдэл хэвээр", async () => {
+test("яг таарсан бичлэгийн араас язгуурын бичлэгийг нэмнэ", async () => {
   const entries = await resolveDefinitions(dict, "агуул", () => ["агуулах"]);
   assert.deepEqual(
     entries.map((entry) => entry.headword),
-    ["АГУУЛ"],
+    ["АГУУЛ", "АГУУЛАХ"],
   );
 });
 

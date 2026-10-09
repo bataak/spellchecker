@@ -400,12 +400,10 @@ export async function resolveDefinitions(
   const entries: DictEntry[] = [];
   const seen = new Set<string>();
   const exact = await defineWord(dict, word, mode);
-  if (exact.length) {
-    collect(entries, seen, exact);
+  collect(entries, seen, exact);
+  if (exact.length)
     for (const extra of stemKeys(alongside(), mode))
       collect(entries, seen, await defineWord(dict, extra, mode));
-    return entries;
-  }
   const plurals: string[] = [];
   for (const stem of stemKeys(stems(), mode)) {
     const lower = stem.toLowerCase();
@@ -434,10 +432,9 @@ export async function resolveTagged(
   analyses: () => StemInfo[],
   mode: LookupMode = "any",
 ): Promise<DictEntry[]> {
-  const exact = await defineWord(dict, word, mode);
-  if (exact.length) return exact;
   const entries: DictEntry[] = [];
   const seen = new Set<string>();
+  collect(entries, seen, await defineWord(dict, word, mode));
   for (const { stem, verb } of analyses()) {
     const key = mode === "proper" ? capitalizeFirst(stem) : stem;
     const found = await defineWord(dict, key, mode);
