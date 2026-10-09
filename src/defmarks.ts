@@ -35,9 +35,11 @@ export function pickDefinitionMarks(
 }
 
 export function displayHeadword(headword: string, word: string): string {
-  if (headword.toLowerCase() === word.toLowerCase()) return word;
-  const allUpper = /\p{Lu}/u.test(headword) && !/\p{Ll}/u.test(headword);
-  return allUpper ? headword.toLowerCase() : headword;
+  const allUpper = (text: string) =>
+    /\p{Lu}/u.test(text) && !/\p{Ll}/u.test(text);
+  if (headword.toLowerCase() === word.toLowerCase() && !allUpper(word))
+    return word;
+  return allUpper(headword) ? headword.toLowerCase() : headword;
 }
 
 function clamp(value: number, min: number, max: number): number {

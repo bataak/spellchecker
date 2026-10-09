@@ -1,6 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { pickDefinitionMarks, placeTipAtPointer } from "../src/defmarks.ts";
+import {
+  displayHeadword,
+  pickDefinitionMarks,
+  placeTipAtPointer,
+} from "../src/defmarks.ts";
 
 test("тайлбартай санал бүрийг тэмдэглэнэ", () => {
   const found = {
@@ -85,4 +89,11 @@ test("аль ч талд багтахгүй бол илүү зайтай тал�
     ),
     { left: 140, top: 8, maxHeight: 424 },
   );
+});
+
+test("бүгд том үсгээр бичсэн үгийн толгой үгийг жижиг үсгээр харуулна", () => {
+  assert.equal(displayHeadword("ИТГЭЛТЭЙ", "ИТГЭЛТЭЙ"), "итгэлтэй");
+  assert.equal(displayHeadword("ИТГЭЛ", "ИТГЭЛТЭЙ"), "итгэл");
+  assert.equal(displayHeadword("ИТГЭЛТЭЙ", "Итгэлтэй"), "Итгэлтэй");
+  assert.equal(displayHeadword("Монгол", "МОНГОЛ"), "Монгол");
 });
