@@ -390,6 +390,81 @@ export function offsetAtPoint(x: number, y: number): number | null {
   return node._start + local;
 }
 
+interface TopAnchor {
+  offset: number;
+  delta: number;
+}
+
+let topAnchor: TopAnchor | null = null;
+
+function caretRectAt(node: ChunkNode, body: string, offset: number): DOMRect {
+  const spot = locateInNode(node, body, offset);
+  if (!spot) {
+    const line = useBlocks ? lineElementAt(node, body, offset) : null;
+    return (line ?? node).getBoundingClientRect();
+  }
+  const range = document.createRange();
+  range.setStart(spot.node, spot.offset);
+  range.collapse(true);
+  return range.getBoundingClientRect();
+}
+
+function lineElementAt(
+  node: ChunkNode,
+  body: string,
+  offset: number,
+): HTMLElement | null {
+  let index = 0;
+  let nl = body.indexOf("\n");
+  while (nl !== -1 && nl < offset) {
+    index++;
+    nl = body.indexOf("\n", nl + 1);
+  }
+  return (node.children[index] as HTMLElement | undefined) ?? null;
+}
+
+function viewTop(): number {
+  return root!.getBoundingClientRect().top + root!.clientTop;
+}
+
+export function captureTopAnchor(): void {
+  if (!root) return;
+  if (root.scrollTop <= 0) {
+    topAnchor = null;
+    return;
+  }
+  const node = nodes.find(
+    (n) => n.offsetTop + n.offsetHeight > root!.scrollTop,
+  );
+  if (!node) {
+    topAnchor = null;
+    return;
+  }
+  const body = stripChunkNewline(node._src);
+  const y0 = viewTop();
+  let lo = 0;
+  let hi = body.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (caretRectAt(node, body, mid).bottom > y0) hi = mid;
+    else lo = mid + 1;
+  }
+  topAnchor = {
+    offset: node._start + lo,
+    delta: caretRectAt(node, body, lo).top - y0,
+  };
+}
+
+export function anchoredScrollTop(): number | null {
+  if (!root || !topAnchor) return null;
+  const node = nodeAtOffset(topAnchor.offset);
+  if (!node) return null;
+  const body = stripChunkNewline(node._src);
+  const local = Math.min(topAnchor.offset - node._start, body.length);
+  const top = caretRectAt(node, body, local).top - viewTop();
+  return Math.max(0, root.scrollTop + top - topAnchor.delta);
+}
+
 function nodeAtOffset(pos: number): ChunkNode | null {
   for (const node of nodes) {
     if (pos >= node._start && pos < node._start + node._src.length) {

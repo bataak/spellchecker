@@ -51,6 +51,8 @@ import {
   initBackdrop,
   renderBackdrop,
   refreshBackdropMarks,
+  captureTopAnchor,
+  anchoredScrollTop,
   materializeMark,
   setActiveLine,
   setLineBlocks,
@@ -344,6 +346,7 @@ async function render() {
 
   renderBackdrop(text, bad);
   syncScroll();
+  captureTopAnchor();
   errorPanel.render();
   surveyOnErrorCount(bad.length, text.trim() !== "");
 
@@ -962,9 +965,19 @@ const refreshMarksSoon = debounce(
 );
 els.editor.addEventListener("scroll", () => {
   syncScroll();
+  captureTopAnchor();
   pop.followScroll();
   refreshMarksSoon();
 });
+new ResizeObserver(() => {
+  syncScroll();
+  const top = anchoredScrollTop();
+  if (top !== null && Math.abs(top - els.editor.scrollTop) >= 1) {
+    els.editor.scrollTop = top;
+    syncScroll();
+  }
+  refreshMarksSoon();
+}).observe(els.editor);
 els.editor.addEventListener("click", () => {
   pendingFix = null;
   if (suppressNextClick) {
