@@ -1123,19 +1123,24 @@ if (editorWrap) {
     if (l.preview) previewCtl?.update();
   });
   defDock.sync();
-  previewCtl = initPreview(editorWrap, els.editor, (next) => {
-    const caret = Math.min(els.editor.selectionStart, next.length);
-    const scrollTop = els.editor.scrollTop;
-    const scrollLeft = els.editor.scrollLeft;
-    const restoreView = (): void => {
-      els.editor.scrollTop = scrollTop;
-      els.editor.scrollLeft = scrollLeft;
-    };
-    setEditorText(next, caret);
-    restoreView();
-    void Promise.resolve(render()).then(restoreView);
-    saveText();
-  }, isLatexText);
+  previewCtl = initPreview(
+    editorWrap,
+    els.editor,
+    (next) => {
+      const caret = Math.min(els.editor.selectionStart, next.length);
+      const scrollTop = els.editor.scrollTop;
+      const scrollLeft = els.editor.scrollLeft;
+      const restoreView = (): void => {
+        els.editor.scrollTop = scrollTop;
+        els.editor.scrollLeft = scrollLeft;
+      };
+      setEditorText(next, caret);
+      restoreView();
+      void Promise.resolve(render()).then(restoreView);
+      saveText();
+    },
+    isLatexText,
+  );
 }
 
 const appUpdate = initAppUpdate(setStatus, import.meta.url);
