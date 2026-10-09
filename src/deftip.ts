@@ -45,6 +45,7 @@ export interface DefTip {
   readonly keyboardShifting: () => boolean;
   readonly pinned: () => boolean;
   readonly paused: () => boolean;
+  readonly clear: () => void;
 }
 
 const DEF_TEXT_LIMIT = 3000;
@@ -613,5 +614,13 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     keyboardShifting: () => performance.now() < keyboardShiftUntil,
     pinned: () => pinned && !!defTip && !defTip.hidden,
     paused: () => paused,
+    clear: () => {
+      hide();
+      wordTipSpan = null;
+      deps.dock.clear();
+      dockedWord = "";
+      if (defTipBody) defTipBody.replaceChildren(emptyNote());
+      shownWord = "";
+    },
   };
 }

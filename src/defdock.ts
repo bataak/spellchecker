@@ -35,6 +35,7 @@ export interface DefDock {
   ) => void;
   readonly onShow: (handler: (body: HTMLElement) => void) => void;
   readonly addControl: (control: HTMLElement) => void;
+  readonly clear: () => void;
 }
 
 function load(): DockPlace | null {
@@ -239,6 +240,9 @@ export function initDefDock(deps: DefDockDeps): DefDock {
     addControl(control) {
       controls.push(control);
       pane?.querySelector(".def-dock-head > :last-child")?.before(control);
+    },
+    clear() {
+      paneBody?.replaceChildren(emptyNote());
     },
     sync(shown) {
       if (shown !== undefined) panelShown = shown;
