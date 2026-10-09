@@ -313,7 +313,10 @@ function mdActive(): boolean {
 
 function syncEmptyState(text: string): void {
   const empty = text.length === 0;
-  if (empty) clearImages();
+  if (empty) {
+    clearImages();
+    defTip.clear();
+  }
   if (!els.emptyState) return;
   els.emptyState.style.opacity = empty ? "" : "0";
   els.emptyState.setAttribute("aria-hidden", empty ? "false" : "true");
