@@ -302,6 +302,9 @@ a.tbtn {
   padding: 7px 8px;
   font-size: 0.95rem;
 }
+.tbtn-icon > svg {
+  display: block;
+}
 .kbd-active {
   border-color: var(--accent);
   box-shadow: inset 0 0 0 2px var(--accent);
