@@ -6,8 +6,9 @@ export interface SafeError {
 
 export const MAX_FRAMES = 8;
 
-const NAME_RE = /^[A-Za-z]{1,40}$/;
-const CODE_RE = /^[A-Z][A-Z0-9_]{1,40}$/;
+export const NAME_RE = /^[A-Za-z]{1,40}$/;
+export const CODE_RE = /^[A-Z][A-Z0-9_]{1,40}$/;
+export const FRAME_RE = /^[A-Za-z0-9_.-]{1,80}\.(?:m?js|ts):\d{1,7}:\d{1,7}$/;
 const FILE_RE = /^[A-Za-z0-9_.-]{1,80}\.(?:m?js|ts)$/;
 const CHROME_FRAME_RE = /^\s*at (?:.*?\()?(\S+?):(\d{1,7}):(\d{1,7})\)?\s*$/;
 const GECKO_FRAME_RE = /^[^@\s]*@(\S+?):(\d{1,7}):(\d{1,7})\s*$/;
