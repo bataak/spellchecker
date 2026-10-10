@@ -1431,11 +1431,14 @@ async function boot() {
   restoreDraftFile();
   render();
   document.documentElement.classList.remove("booting");
-  els.editor.focus();
+  els.editor.focus({ preventScroll: true });
   draft.restoreBootScroll();
-  void document.fonts?.ready.then(() => {
+  void Promise.resolve(document.fonts?.ready).then(() => {
     draft.restoreBootScroll();
-    draft.dropBootScroll();
+    requestAnimationFrame(() => {
+      draft.restoreBootScroll();
+      draft.dropBootScroll();
+    });
   });
   for (const type of ["pointerdown", "wheel", "keydown", "touchstart"])
     els.editor.addEventListener(type, draft.dropBootScroll, { once: true });
