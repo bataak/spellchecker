@@ -1,0 +1,56 @@
+name: Алдаа мэдээлэх
+description: Алдаа шалгагч веб апын алдаатай ажиллагааг мэдээлэх
+title: "[Алдаа]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Алдаа мэдээлсэнд баярлалаа. Хувийн мэдээлэл агуулсан бичвэр бүү оруулаарай.
+        Аюулгүй байдлын алдааг энд буюу нийтэд харагдахаар бичихгүй, зөвхөн веб ап хөгжүүлэгчид хандаж [энэ холбоосоор](https://github.com/bataak/spellchecker/security/advisories/new) мэдээлнэ үү.
+  - type: textarea
+    id: steps
+    attributes:
+      label: Алхмууд
+      description: Алдаа хэрхэн тохиолдсон бэ, алхам бүрээр тайлбарлан бичнэ үү!
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Хүсэж байсан үр дүн
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Гэтэл юу болсон
+    validations:
+      required: true
+  - type: textarea
+    id: sample
+    attributes:
+      label: Алдаа гаргаж байгаа жижиг жишээ бичвэр
+      description: Алдааг давтан гаргах боломжтой хамгийн богино бичвэр. Хувийн мэдээллээ бүү оруулаарай.
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Screenshot
+      description: Зургаа энд чирж оруулна уу.
+    validations:
+      required: false
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Техникийн мэдээлэл
+      description: Апаас автоматаар бөглөгдөнө. Хэрэглэгчийн бичвэр, файлын нэр болон толины алгассан үг агуулагдахгүй. Хүсвэл засаж болно.
+      render: json
+    validations:
+      required: false

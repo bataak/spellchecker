@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Аюулгүй байдлын алдаа
+    url: https://github.com/bataak/spellchecker/security/advisories/new
+    about: Аюулгүй байдлын алдааг public issue хэсэгт бичихгүй. Энэ холбоосоор зөвхөн веб ап хөгжүүлэгчид зориулж тусгайлан мэдээлнэ үү.
