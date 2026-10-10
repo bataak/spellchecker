@@ -11,7 +11,7 @@ html {
   --line: #e3ddd1;
   --proof: #b3261e;
   --proof-soft: #f6dedb;
-  --squiggle: #ff0000;
+  --squiggle-wave: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4'%3E%3Cpath d='M0 3.5C2 3.5 2 .5 4 .5S6 3.5 8 3.5' fill='none' stroke='%23ff0000' stroke-width='1.5'/%3E%3C/svg%3E");
   --count-bg: #c45650;
   --accent: #2c3a2e;
   --lookup: rgba(240, 100, 30, 0.3);
@@ -103,7 +103,7 @@ html {
   --muted: #9a9082;
   --line: #3a342a;
   --proof: #ff6f61;
-  --squiggle: #ff6f61;
+  --squiggle-wave: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4'%3E%3Cpath d='M0 3.5C2 3.5 2 .5 4 .5S6 3.5 8 3.5' fill='none' stroke='%23ff6f61' stroke-width='1.5'/%3E%3C/svg%3E");
   --preview-ink: #5fbf8b;
   --proof-soft: #3a2420;
   --count-bg: #ff8579;
@@ -1123,13 +1123,11 @@ a.tbtn {
   font-size: calc(1.14rem * var(--editor-scale, 1) * var(--mono-fit, 0.85));
 }
 /* A fixed 8x4 SVG wave instead of `wavy`, whose size differs per browser.
-   A 1.5px stroke keeps the core pixels at full color; 1px antialiases too faint. */
+   A 1.5px stroke keeps the core pixels at full color; 1px antialiases too faint.
+   Painted as a background, not a mask: Safari ignores masks on inline marks. */
 .backdrop mark {
-  --squiggle-wave: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4'%3E%3Cpath d='M0 3.5C2 3.5 2 .5 4 .5S6 3.5 8 3.5' fill='none' stroke='%23000' stroke-width='1.5'/%3E%3C/svg%3E");
   color: transparent;
-  background: var(--squiggle);
-  -webkit-mask: var(--squiggle-wave) left bottom / 8px 4px repeat-x;
-  mask: var(--squiggle-wave) left bottom / 8px 4px repeat-x;
+  background: var(--squiggle-wave) left bottom / 8px 4px repeat-x;
 }
 
 .editor {
