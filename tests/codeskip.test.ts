@@ -4,6 +4,7 @@ import { test } from "node:test";
 import {
   codeRanges,
   inRanges,
+  looksLatex,
   mergeRanges,
   skipRanges,
 } from "../src/codeskip.ts";
@@ -359,4 +360,24 @@ test("latex: plain skipRanges leaves comments alone", () => {
   const text = "Хувь % тайлбар";
 
   assert.ok(!inRanges(skipRanges(text), text.indexOf("тайлбар")));
+});
+
+test("looksLatex recognizes LaTeX fragments without a preamble", () => {
+  assert.equal(looksLatex("\\documentclass{article}\nхэх"), true);
+  assert.equal(
+    looksLatex("\\section{Уншлага}\\label{app:r1}\n\nТекст $O(n^3)$.\n"),
+    true,
+  );
+  assert.equal(
+    looksLatex("Текст \\emph{matrix-free} байна. \\cite{Zh2025}\n"),
+    true,
+  );
+  assert.equal(
+    looksLatex("# Гарчиг\n\n**тод** ба $x^2$\n\n\\[\na+b\n\\]\n"),
+    false,
+  );
+  assert.equal(
+    looksLatex("# Жишээ\n\n```latex\n\\section{A}\n\\emph{b} \\cite{c}\n```\n"),
+    false,
+  );
 });
