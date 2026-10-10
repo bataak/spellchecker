@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.100.0](https://github.com/bataak/spellchecker/compare/v1.99.1...v1.100.0) (2026-10-10)
+
+
+### Features
+
+* **deftip:** highlight the word whose definition is shown ([dbf6906](https://github.com/bataak/spellchecker/commit/dbf6906b48915a6280f2dfcfaa67f5e950dd51b3))
+* **stardict:** add root definitions after an exact match ([65e451f](https://github.com/bataak/spellchecker/commit/65e451f6235d9b2240743a751fb9b6b8df37bb50))
+* **stardict:** look up root of -ийнхан/-ныхан collective nouns ([1d9f872](https://github.com/bataak/spellchecker/commit/1d9f87215808fd3d5ab3f795b59334111b8b5873))
+
+
+### Bug Fixes
+
+* **backdrop:** draw spelling underline as a fixed SVG wave ([584db44](https://github.com/bataak/spellchecker/commit/584db44e10220956ca9091484a779f3d70d04e3d))
+* **backdrop:** paint spelling wave as a background for Safari ([4c8c07b](https://github.com/bataak/spellchecker/commit/4c8c07b9b818b7c619dfecb4b8f10bbf95172c7f))
+* **deftip:** clear docked and pinned definitions when the editor is emptied ([72d53fa](https://github.com/bataak/spellchecker/commit/72d53fa6da1eb918a0126acff57d8a6ee15a7280))
+* **deftip:** do not cache empty definition results ([200437a](https://github.com/bataak/spellchecker/commit/200437aeea4af4c50f59f63b6b6445e55ba0b5f5))
+* **deftip:** show lowercase headwords for all-caps words ([4b27ee7](https://github.com/bataak/spellchecker/commit/4b27ee7dd8006f42357c3b372bd9d7b795ed894d))
+* **draft:** keep saved scroll position on Safari reload ([3e7db59](https://github.com/bataak/spellchecker/commit/3e7db59dfa4ddfc06f5481be2cb4ce2c40ce0dde))
+* **editor:** keep spelling marks and top line aligned on resize ([a20b6d1](https://github.com/bataak/spellchecker/commit/a20b6d149da4f04257a1d75072a88850dad4f802))
+* **latex:** detect LaTeX fragments without a preamble ([45676ee](https://github.com/bataak/spellchecker/commit/45676eebdfa02fd667c6dcf4d3c2180a78764b8f))
+* **stardict:** retry failed dictionary loads and reject truncated files ([22613ce](https://github.com/bataak/spellchecker/commit/22613ceb3aaf36db15f6c2a6078b5a85b952f0e2))
+* **update:** finish a pending update on the first refresh ([5db8d49](https://github.com/bataak/spellchecker/commit/5db8d4944ad34cdab5c8ac9b29acc01d761768ce))
+
 ## [1.99.1](https://github.com/bataak/spellchecker/compare/v1.99.0...v1.99.1) (2026-10-05)
 
 
