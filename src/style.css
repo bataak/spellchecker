@@ -1575,6 +1575,21 @@ html.booting .empty-state {
   user-select: none;
 }
 
+.tnote {
+  flex: 0 0 auto;
+  align-self: center;
+  max-width: 15rem;
+  padding: 0 2px;
+  font-size: 0.68rem;
+  line-height: 1.25;
+  color: var(--accent);
+  white-space: normal;
+}
+
+.tnote[hidden] {
+  display: none;
+}
+
 .treload {
   flex: 0 0 auto;
   align-self: center;

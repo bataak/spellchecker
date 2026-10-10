@@ -142,6 +142,7 @@ export interface DictInfo {
 export interface ListDictsRequest {
   type: "listDicts";
   id: number;
+  peek?: boolean;
 }
 
 export interface ReorderDictsRequest {

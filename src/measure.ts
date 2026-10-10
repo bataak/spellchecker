@@ -258,6 +258,7 @@ export interface MeasureControl {
   refresh(): void;
   dockRoom(side: "left" | "right", active: boolean): boolean;
   setPreviewMode(on: boolean): void;
+  layout(): Layout;
   destroy(): void;
 }
 
@@ -452,6 +453,9 @@ export function mountMeasureControl(
       mdMode = on;
       previewMode = on && mdPreview;
       refresh();
+    },
+    layout() {
+      return { ...shown };
     },
     destroy() {
       ro.disconnect();

@@ -717,7 +717,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   }
 
   if (msg.type === "listDicts") {
-    await ensureStarDicts();
+    if (!msg.peek) await ensureStarDicts();
     post({
       type: "listDicts",
       id: msg.id,
