@@ -103,6 +103,9 @@ import { initDefTip } from "./deftip.ts";
 import { initDefDock } from "./defdock.ts";
 import { initPopover } from "./popover.ts";
 import { initErrorPanel } from "./errorpanel.ts";
+import { installErrorLog } from "./errorlog.ts";
+
+installErrorLog();
 
 document.body.classList.add("ready");
 
