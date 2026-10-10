@@ -50,7 +50,7 @@ export interface SpellChecker {
   define?(word: string): Promise<Omit<DefineResponse, "type" | "id">>;
   reloadDicts?(): void;
   reorderDicts?(): void;
-  listDicts?(): Promise<DictInfo[]>;
+  listDicts?(opts?: { peek?: boolean }): Promise<DictInfo[]>;
   setActive(ids: string[]): void;
   refresh(): void;
 }
@@ -74,6 +74,7 @@ type RpcType = "check" | "suggest" | "lookup" | "define" | "listDicts";
 type RpcPayload =
   | { words: string[] }
   | { word: string }
+  | { peek: boolean }
   | Record<string, never>;
 
 interface PendingEntry {
@@ -258,9 +259,9 @@ export class MultiSpellChecker implements SpellChecker {
     this.worker.postMessage({ type: "reorderDicts" });
   }
 
-  async listDicts(): Promise<DictInfo[]> {
+  async listDicts(opts?: { peek?: boolean }): Promise<DictInfo[]> {
     if (!this.ready || this.dead) return [];
-    const msg = await this._rpc("listDicts", {});
+    const msg = await this._rpc("listDicts", opts?.peek ? { peek: true } : {});
     return msg.type === "listDicts" ? msg.dicts : [];
   }
 
