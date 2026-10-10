@@ -246,8 +246,27 @@ const TEX_BREAK = /\\\\\*?\[[^\]\n]*\]/g;
 const TEX_BEGIN_DOC = /\\begin\{document\}/;
 const TEX_END_DOC = /\\end\{document\}/;
 
+const TEX_SECTION =
+  /^[ \t]*\\(?:part|chapter|(?:sub){0,2}section|(?:sub)?paragraph)\*?\s*[[{]/m;
+const TEX_MARKUP =
+  /\\(?:emph|textbf|textit|texttt|textsc|underline|cite[pt]?|label|ref|eqref|href|url|footnote)\s*\{/g;
+
 export function looksLatex(text: string): boolean {
-  return /\\documentclass\b|\\begin\{document\}/.test(text);
+  if (/\\documentclass\b|\\begin\{document\}/.test(text)) return true;
+  if (text.indexOf("\\") < 0) return false;
+  let prose = "";
+  let at = 0;
+  const fenced = fencedRanges(text, lineBounds(text));
+  for (const { start, end } of mergeRanges([
+    ...fenced,
+    ...inlineRanges(text, fenced),
+  ])) {
+    prose += text.slice(at, start) + "\n";
+    at = end;
+  }
+  prose += text.slice(at);
+  if (TEX_SECTION.test(prose)) return true;
+  return (prose.match(TEX_MARKUP)?.length ?? 0) >= 2;
 }
 
 export function latexRanges(text: string): SkipRange[] {
