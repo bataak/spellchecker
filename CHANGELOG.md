@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.101.0](https://github.com/bataak/spellchecker/compare/v1.100.0...v1.101.0) (2026-10-10)
+
+
+### Features
+
+* add report bug button ([730e8bb](https://github.com/bataak/spellchecker/commit/730e8bbe122570cb4f802f12e8e7d4f08720644b))
+* add safe error serializer and error ring buffer ([b3b9b56](https://github.com/bataak/spellchecker/commit/b3b9b562cef40b7916689525cb86f93b66ce8ab6))
+* build prefilled GitHub issue URL with length cap ([ef6d68c](https://github.com/bataak/spellchecker/commit/ef6d68cbbd382e899129ef122adbc955ea442384))
+* collect allowlisted diagnostics ([8e4c763](https://github.com/bataak/spellchecker/commit/8e4c76332b373a94d0d6c79edadb1980e9af036e))
+* **worker:** list loaded dictionaries without triggering a load ([9976938](https://github.com/bataak/spellchecker/commit/9976938f87bfab3706b5ffb9c6431ba77a802ed0))
+
+
+### Bug Fixes
+
+* center toolbar icon buttons and match bug icon size ([80c9cfb](https://github.com/bataak/spellchecker/commit/80c9cfbed5e22459f423093f51be3b2c4f23ddfa))
+* match theme toggle icon size with other toolbar icons ([f47fdb6](https://github.com/bataak/spellchecker/commit/f47fdb6709eeb218acd8fd14b7cdda82223045b0))
+
 ## [1.100.0](https://github.com/bataak/spellchecker/compare/v1.99.1...v1.100.0) (2026-10-10)
 
 
