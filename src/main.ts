@@ -15,7 +15,7 @@ import { initToolbar } from "./toolbar.ts";
 import { initKeyboardToolbar } from "./kbtoolbar.ts";
 import { initSuggest } from "./suggest.ts";
 import { initSurvey, surveyOnErrorCount } from "./survey.ts";
-import { isIgnored, addIgnored } from "./ignore.ts";
+import { isIgnored, addIgnored, getIgnored } from "./ignore.ts";
 import type { Token } from "./textcheck.ts";
 import { initIgnoreList, syncIgnoreVisibility } from "./ignorelist.ts";
 import { initAppearance } from "./appearance.ts";
@@ -104,6 +104,7 @@ import { initDefDock } from "./defdock.ts";
 import { initPopover } from "./popover.ts";
 import { initErrorPanel } from "./errorpanel.ts";
 import { installErrorLog } from "./errorlog.ts";
+import { initReportButton } from "./reportbtn.ts";
 
 installErrorLog();
 
@@ -1548,6 +1549,22 @@ initIgnoreList({
 });
 
 initSurvey();
+
+initReportButton(() => {
+  const active = activeIds(enabledEnglish);
+  return {
+    entryUrl: import.meta.url,
+    activeDicts: checker.loadedIds.filter((id) => active.includes(id)),
+    officeActive: docx !== null,
+    markdownActive: mdActive(),
+    fileName: docx ? docx.fileName() : plainName,
+    layout: measureCtl?.layout() ?? null,
+    text: els.editor.value,
+    errorWords: badTokens.map((token) => token.word),
+    personalDict: getIgnored(),
+    listDicts: () => checker.listDicts?.({ peek: true }) ?? Promise.resolve([]),
+  };
+});
 
 const openDictMenu = initDictMenu({
   statusEl: els.status,
