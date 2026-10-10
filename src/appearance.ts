@@ -3,8 +3,6 @@ export function initAppearance(): void {
 
   function applyTheme(theme: string): void {
     rootEl.setAttribute("data-theme", theme);
-    const btn = document.querySelector("#themeBtn");
-    if (btn) btn.textContent = theme === "dark" ? "☀️" : "🌙";
   }
   (function initTheme() {
     let theme: string | null = null;
