@@ -36,8 +36,7 @@ export function initDraftText(deps: DraftTextDeps): DraftText {
   }
   initDraftStorage({ onError: warnStorageFailure });
 
-  function save(): void {
-    saveDraft(editor.value);
+  function saveCaret(): void {
     try {
       const selectionStart = editor.selectionStart;
       const selectionEnd = editor.selectionEnd;
@@ -47,6 +46,11 @@ export function initDraftText(deps: DraftTextDeps): DraftText {
           selectionStart + "," + selectionEnd + "," + editor.scrollTop,
         );
     } catch (_) {}
+  }
+
+  function save(): void {
+    saveDraft(editor.value);
+    saveCaret();
   }
 
   let bootScroll: number | null = null;
@@ -92,6 +96,16 @@ export function initDraftText(deps: DraftTextDeps): DraftText {
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(save, 400);
   }
+  let caretTimer: ReturnType<typeof setTimeout> | null = null;
+  function saveCaretSoon(): void {
+    if (bootScroll != null) return;
+    if (caretTimer) clearTimeout(caretTimer);
+    caretTimer = setTimeout(saveCaret, 250);
+  }
+  editor.addEventListener("scroll", saveCaretSoon, { passive: true });
+  document.addEventListener("selectionchange", () => {
+    if (document.activeElement === editor) saveCaretSoon();
+  });
   window.addEventListener("pagehide", () => {
     save();
     flushDraft();
