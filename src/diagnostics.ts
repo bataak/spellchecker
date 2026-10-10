@@ -1,4 +1,11 @@
 import { isMeasure, type Measure } from "./layout.ts";
+import {
+  CODE_RE,
+  FRAME_RE,
+  MAX_FRAMES,
+  NAME_RE,
+  type SafeError,
+} from "./safeerror.ts";
 
 export const DICT_IDS = ["mn_MN", "en_GB", "en_US"] as const;
 export type DictId = (typeof DICT_IDS)[number];
@@ -161,4 +168,57 @@ export function collectDiagnostics(state: DiagnosticsState): Diagnostics {
     devicePixelRatio: ratio(state.devicePixelRatio),
     touch: flag(state.touch),
   };
+}
+
+export const ISSUE_URL = "https://github.com/bataak/spellchecker/issues/new";
+export const ISSUE_TEMPLATE = "bug_report.yml";
+export const MAX_ISSUE_URL_LENGTH = 8000;
+
+function cleanError(e: SafeError): SafeError {
+  return {
+    name: typeof e.name === "string" && NAME_RE.test(e.name) ? e.name : null,
+    code: typeof e.code === "string" && CODE_RE.test(e.code) ? e.code : null,
+    frames: (Array.isArray(e.frames) ? e.frames : [])
+      .filter((f) => typeof f === "string" && FRAME_RE.test(f))
+      .slice(0, MAX_FRAMES),
+  };
+}
+
+function issueUrl(diagnostics: Diagnostics, errors: SafeError[]): string {
+  const json = JSON.stringify({ ...diagnostics, errors }, null, 2);
+  return (
+    ISSUE_URL +
+    "?template=" +
+    encodeURIComponent(ISSUE_TEMPLATE) +
+    "&diagnostics=" +
+    encodeURIComponent(json)
+  );
+}
+
+export function buildIssueUrl(
+  diagnostics: Diagnostics,
+  errors: readonly SafeError[],
+  maxLength = MAX_ISSUE_URL_LENGTH,
+): string {
+  const clean = errors.map(cleanError);
+  for (let frames = MAX_FRAMES; frames >= 0; frames--) {
+    const url = issueUrl(
+      diagnostics,
+      clean.map((e) => ({ ...e, frames: e.frames.slice(0, frames) })),
+    );
+    if (url.length <= maxLength) return url;
+  }
+  let bare = clean.map((e) => ({ ...e, frames: [] as string[] }));
+  while (bare.length > 0) {
+    bare = bare.slice(1);
+    const url = issueUrl(diagnostics, bare);
+    if (url.length <= maxLength) return url;
+  }
+  let ua = diagnostics.userAgent;
+  while (ua.length > 0) {
+    ua = ua.slice(0, Math.floor(ua.length / 2));
+    const url = issueUrl({ ...diagnostics, userAgent: ua }, []);
+    if (url.length <= maxLength) return url;
+  }
+  return ISSUE_URL + "?template=" + encodeURIComponent(ISSUE_TEMPLATE);
 }
