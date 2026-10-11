@@ -15,6 +15,7 @@ import {
   toggleWrap,
   wrapLink,
 } from "./mdedit.ts";
+import { replaceRange } from "./editortext.ts";
 import { imagePath, pickImage, putImage } from "./images.ts";
 import type { AlignKind, Edit } from "./mdedit.ts";
 import {
@@ -726,15 +727,10 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     if (insert === "\n") return;
 
     event.preventDefault();
-    if (!document.execCommand("insertText", false, insert)) {
-      editor.setRangeText(
-        insert,
-        editor.selectionStart,
-        editor.selectionEnd,
-        "end",
-      );
+    if (
+      !replaceRange(editor, editor.selectionStart, editor.selectionEnd, insert)
+    )
       editor.dispatchEvent(new Event("input", { bubbles: true }));
-    }
   };
 
   holdTitle();
