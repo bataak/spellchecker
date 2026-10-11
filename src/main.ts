@@ -50,6 +50,8 @@ import { initExport, type ExportControl } from "./export.ts";
 import {
   initBackdrop,
   renderBackdrop,
+  backdropText,
+  setHighlighter,
   refreshBackdropMarks,
   captureTopAnchor,
   anchoredScrollTop,
@@ -62,6 +64,8 @@ import {
   rangeRectAt,
 } from "./backdrop.ts";
 import { shiftTokens } from "./tokenshift.ts";
+import { texSpans } from "./texhighlight.ts";
+import { minimalDiff } from "./mdedit.ts";
 import { isLookupKey, wordAt, type WordSpan } from "./lookup.ts";
 import { openDictManager } from "./dictmanager.ts";
 import { rotateEmptyTips, syncEmptyTips } from "./emptytips.ts";
@@ -307,8 +311,35 @@ function syncTexMode(): void {
   const tex = isTexFile();
   if (tex === lastTex) return;
   lastTex = tex;
+  applyTexPaint(tex);
   mdBar.refresh();
   enterMdMode(mdActive());
+}
+
+let texPaint = false;
+function applyTexPaint(on: boolean): void {
+  if (on === texPaint) return;
+  texPaint = on;
+  setHighlighter(on ? texSpans : null);
+  els.editor.parentElement?.classList.toggle("is-tex", on);
+  const text = els.editor.value;
+  if (text !== backdropText()) badTokens = [];
+  renderBackdrop(text, badTokens);
+  syncScroll();
+}
+
+function syncBackdrop(): void {
+  if (!texPaint) return;
+  const text = els.editor.value;
+  const patch = minimalDiff(backdropText(), text);
+  if (!patch) return;
+  badTokens = shiftTokens(badTokens, {
+    start: patch.from,
+    oldEnd: patch.to,
+    newEnd: patch.from + patch.insert.length,
+  });
+  renderBackdrop(text, badTokens);
+  syncScroll();
 }
 
 function mdActive(): boolean {
@@ -335,6 +366,7 @@ async function render() {
 
   syncEmptyState(text);
   syncTexMode();
+  syncBackdrop();
   previewCtl?.update();
 
   if (!ready) {
@@ -352,6 +384,7 @@ async function render() {
   badTokens = bad;
 
   renderBackdrop(text, bad);
+  syncBackdrop();
   syncScroll();
   captureTopAnchor();
   errorPanel.render();
@@ -816,8 +849,10 @@ async function commitReplacement(text: string, caret: number): Promise<void> {
   const edit = setEditorText(text, caret);
   els.editor.scrollTop = top;
   if (edit) {
-    badTokens = shiftTokens(badTokens, edit);
-    renderBackdrop(text, badTokens);
+    if (!texPaint) {
+      badTokens = shiftTokens(badTokens, edit);
+      renderBackdrop(text, badTokens);
+    }
     syncScroll();
     await afterPaint();
   }
@@ -937,6 +972,7 @@ const draft = initDraftText({
 const saveText = draft.save;
 
 els.editor.addEventListener("input", (e) => {
+  syncBackdrop();
   if (editorText.programmatic()) return;
   if (!(e instanceof InputEvent)) return;
   hidePopover();
@@ -1325,6 +1361,7 @@ const nudgeHints = initHints(() => {
 let exportCtl: ExportControl | null = null;
 
 lastTex = isTexFile();
+applyTexPaint(lastTex);
 enterMdMode(mdActive());
 els.editor.addEventListener("input", nudgeHints);
 
