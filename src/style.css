@@ -18,6 +18,12 @@ html {
   --lookup-blend: multiply;
   --editor-bg: #ffffff;
   --focus: #b9b1a1;
+  --tex-cmd: #1f5f99;
+  --tex-env: #8a4b08;
+  --tex-math: #2f6f3e;
+  --tex-delim: #7a4f9e;
+  --tex-verb: #6b5b3e;
+  --tex-selection: rgba(31, 95, 153, 0.22);
   --editor-scale: 1;
   --editor-lh: 1.9;
   --editor-pad-x: 22px;
@@ -112,6 +118,12 @@ html {
   --lookup-blend: screen;
   --editor-bg: #211d16;
   --focus: #4a4438;
+  --tex-cmd: #7fb2e5;
+  --tex-env: #e0a35c;
+  --tex-math: #8cc49a;
+  --tex-delim: #c2a6e0;
+  --tex-verb: #c9b48a;
+  --tex-selection: rgba(127, 178, 229, 0.28);
 }
 :root[data-theme="dark"] body {
   background: radial-gradient(
@@ -1138,6 +1150,44 @@ a.tbtn {
 .backdrop mark {
   color: transparent;
   background: var(--squiggle-wave) left bottom / 8px 4px repeat-x;
+}
+
+.is-tex > .backdrop {
+  color: var(--ink);
+}
+.is-tex > .backdrop mark {
+  color: inherit;
+}
+.is-tex > .editor {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+.is-tex > .editor::placeholder {
+  color: var(--muted);
+  -webkit-text-fill-color: var(--muted);
+}
+.is-tex > .editor::selection {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  background: var(--tex-selection);
+}
+.tx-cmd {
+  color: var(--tex-cmd);
+}
+.tx-env {
+  color: var(--tex-env);
+}
+.tx-math {
+  color: var(--tex-math);
+}
+.tx-delim {
+  color: var(--tex-delim);
+}
+.tx-comment {
+  color: var(--muted);
+}
+.tx-verb {
+  color: var(--tex-verb);
 }
 
 .editor {
