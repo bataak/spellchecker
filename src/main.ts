@@ -65,6 +65,7 @@ import {
 } from "./backdrop.ts";
 import { shiftTokens } from "./tokenshift.ts";
 import { texSpans } from "./texhighlight.ts";
+import { initTexComplete } from "./texcomplete.ts";
 import { minimalDiff } from "./mdedit.ts";
 import { isLookupKey, wordAt, type WordSpan } from "./lookup.ts";
 import { openDictManager } from "./dictmanager.ts";
@@ -1365,6 +1366,11 @@ let exportCtl: ExportControl | null = null;
 
 lastTex = isTexFile();
 applyTexPaint(lastTex);
+initTexComplete({
+  editor: els.editor,
+  active: () => texPaint,
+  rectAt: rangeRectAt,
+});
 enterMdMode(mdActive());
 els.editor.addEventListener("input", nudgeHints);
 
