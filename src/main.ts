@@ -1340,7 +1340,10 @@ const mdBar = initMdToolbar({
     return !!name && MD_NAME_RE.test(name);
   },
   isTexFile,
-  onTemplate: (id) => enterMdMode(!isTexFile() && !isPlain(id)),
+  onTemplate: (id) => {
+    if (fileIO.targetName()) fileIO.forgetFile();
+    enterMdMode(!isTexFile() && !isPlain(id));
+  },
   onExample: () => enterMdMode(!isTexFile()),
 });
 const find = (sel: string) => (): HTMLElement | null =>
