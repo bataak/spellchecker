@@ -14,6 +14,30 @@ export interface EditorText {
   readonly programmatic: () => boolean;
 }
 
+export function replaceRange(
+  editor: HTMLTextAreaElement,
+  from: number,
+  to: number,
+  text: string,
+): boolean {
+  if (from === to && text === "") return true;
+  try {
+    editor.setSelectionRange(from, to);
+  } catch (_) {}
+  let ok = false;
+  try {
+    ok =
+      text === ""
+        ? document.execCommand("delete", false)
+        : document.execCommand("insertText", false, text);
+  } catch (_) {
+    ok = false;
+  }
+  if (ok) return true;
+  editor.setRangeText(text, from, to, "end");
+  return false;
+}
+
 export function initEditorText(deps: EditorTextDeps): EditorText {
   const { editor } = deps;
   let programmaticEdit = false;
@@ -51,21 +75,13 @@ export function initEditorText(deps: EditorTextDeps): EditorText {
       commonPrefixLen,
       newText.length - commonSuffixLen,
     );
-    try {
-      editor.setSelectionRange(commonPrefixLen, oldEnd);
-    } catch (_) {}
-    let ok = false;
     programmaticEdit = true;
     try {
-      ok =
-        slice === ""
-          ? document.execCommand("delete", false)
-          : document.execCommand("insertText", false, slice);
-    } catch (_) {
-      ok = false;
+      replaceRange(editor, commonPrefixLen, oldEnd, slice);
+    } finally {
+      programmaticEdit = false;
     }
-    programmaticEdit = false;
-    if (!ok || editor.value !== newText) editor.value = newText;
+    if (editor.value !== newText) editor.value = newText;
     if (caret != null) {
       try {
         editor.setSelectionRange(caret, caret);
@@ -82,24 +98,11 @@ export function initEditorText(deps: EditorTextDeps): EditorText {
   function insert(text: string, start: number, end: number): void {
     deps.onEdit();
     editor.focus({ preventScroll: true });
-    try {
-      editor.setSelectionRange(start, end);
-    } catch (_) {}
-    let ok = false;
     programmaticEdit = true;
     try {
-      ok = document.execCommand("insertText", false, text);
-    } catch (_) {
-      ok = false;
-    }
-    programmaticEdit = false;
-    if (!ok) {
-      const editorText = editor.value;
-      editor.value = editorText.slice(0, start) + text + editorText.slice(end);
-      const pos = start + text.length;
-      try {
-        editor.setSelectionRange(pos, pos);
-      } catch (_) {}
+      replaceRange(editor, start, end, text);
+    } finally {
+      programmaticEdit = false;
     }
   }
 
