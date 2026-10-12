@@ -28,7 +28,6 @@ import { escapeHtml } from "./htmlutil.ts";
 import { pickDefinitionMarks } from "./defmarks.ts";
 import {
   fencedCode,
-  hasTexSyntax,
   inRanges,
   looksLatex,
   mergeRanges,
@@ -76,7 +75,11 @@ import { shiftTokens } from "./tokenshift.ts";
 import { texSpans } from "./texhighlight.ts";
 import { initTexComplete } from "./texcomplete.ts";
 import { initKeyboardLayout } from "./kblayout.ts";
-import { initUndoHistory, type UndoControl } from "./undohistory.ts";
+import {
+  initUndoHistory,
+  TEMPLATE_INPUT,
+  type UndoControl,
+} from "./undohistory.ts";
 import { initTexImageInput, insertPickedImage } from "./teximages.ts";
 import { minimalDiff } from "./mdedit.ts";
 import { isLookupKey, wordAt, type WordSpan } from "./lookup.ts";
@@ -195,7 +198,7 @@ const PREPARE_HOLD_MS = 3000;
 
 function restoreStatus(): void {
   if (!ready) return;
-  if (els.editor.value.trim() === "") {
+  if (els.editor.value.trim() === "" && !openFileName()) {
     if (baseStatus && !offlineIndicatorActive) setStatus(baseStatus);
     return;
   }
@@ -325,10 +328,12 @@ const TEX_NAME_RE = /\.(tex|ltx)$/i;
 
 function isLatexText(text: string): boolean {
   if (docx) return false;
-  if (plainName && TEX_NAME_RE.test(plainName) && hasTexSyntax(text))
-    return true;
-  return looksLatex(text);
+  if (plainName) return TEX_NAME_RE.test(plainName);
+  return texTemplate || looksLatex(text);
 }
+
+const TEX_TEMPLATE = "article";
+let texTemplate = false;
 
 function isTexFile(): boolean {
   return isLatexText(els.editor.value);
@@ -343,6 +348,7 @@ function syncTexMode(): void {
   applyTexPaint(tex);
   mdBar.refresh();
   enterMdMode(mdActive());
+  previewCtl?.update();
 }
 
 let texPaint = false;
@@ -388,11 +394,26 @@ function syncBackdrop(): void {
 }
 
 function mdActive(): boolean {
-  return !isTexFile() && !isPlain(mdBar.template());
+  if (isTexFile()) return false;
+  return openFileName() ? isMdFileOpen() : !isPlain(mdBar.template());
+}
+
+let previewWanted = false;
+let clearedEmpty = false;
+
+function syncPreviewClass(): void {
+  document.body.classList.toggle(
+    "preview-mode",
+    previewWanted && !clearedEmpty,
+  );
 }
 
 function syncEmptyState(text: string): void {
   const empty = text.length === 0;
+  if (!empty && clearedEmpty) {
+    clearedEmpty = false;
+    syncPreviewClass();
+  }
   if (empty) defTip.clear();
   if (!els.emptyState) return;
   els.emptyState.style.opacity = empty ? "" : "0";
@@ -433,7 +454,7 @@ async function render() {
   surveyOnErrorCount(bad.length, text.trim() !== "");
 
   if (ready) {
-    if (text.trim() === "") {
+    if (text.trim() === "" && !openFileName()) {
       if (baseStatus && !offlineIndicatorActive) setStatus(baseStatus);
     } else {
       statWords = total;
@@ -470,6 +491,19 @@ function lineInfo(knownLine?: number): string {
 }
 
 let saveTitleBase: string | null = null;
+let clearTitleBase: string | null = null;
+const CLEAR_TITLE = "Талбарыг цэвэрлэх";
+const CLOSE_CLEAR_TITLE = "Файлыг хааж, талбарыг цэвэрлэх";
+
+function syncClearHint(open: boolean): void {
+  const btn = document.querySelector<HTMLElement>("#clearBtn");
+  if (!btn) return;
+  if (clearTitleBase === null) clearTitleBase = btn.title;
+  btn.title =
+    open && clearTitleBase.startsWith(CLEAR_TITLE)
+      ? CLOSE_CLEAR_TITLE + clearTitleBase.slice(CLEAR_TITLE.length)
+      : clearTitleBase;
+}
 
 function statsBody(knownLine?: number): string {
   if (desktopMQ.matches) {
@@ -498,6 +532,7 @@ function syncSaveHint(): void {
     : "";
 
   const target = fileIO.targetName();
+  syncClearHint(!!(docx || target || plainName));
 
   btn.title = docx
     ? docx.outputName() + " болгож хадгална" + combo
@@ -506,8 +541,12 @@ function syncSaveHint(): void {
       : saveTitleBase;
 }
 
+function openFileName(): string | null {
+  return docx ? docx.fileName() : plainName;
+}
+
 function statsMessage(knownLine?: number): string {
-  const full = docx ? docx.fileName() : plainName;
+  const full = openFileName();
   if (!full) return statsBody(knownLine);
 
   const parts = splitName(full);
@@ -522,7 +561,7 @@ function statsMessage(knownLine?: number): string {
     escapeHtml(parts.tail) +
     "</b>" +
     '<span class="doc-rest">' +
-    ", " +
+    '<span class="doc-sep">, </span>' +
     statsBody(knownLine) +
     "</span>"
   );
@@ -1051,6 +1090,11 @@ const draft = initDraftText({
 const saveText = draft.save;
 
 els.editor.addEventListener("input", (e) => {
+  const swapped = e instanceof InputEvent && e.data === TEMPLATE_INPUT;
+  if (swapped) {
+    badTokens = [];
+    renderBackdrop(els.editor.value, []);
+  }
   syncBackdrop();
   if (editorText.programmatic()) return;
   if (!(e instanceof InputEvent)) return;
@@ -1059,7 +1103,12 @@ els.editor.addEventListener("input", (e) => {
   draft.saveSoon();
   if (isSeparatorInput(e)) void recheckAfterSeparator();
   else {
-    if (hadSelection || els.editor.value.length === 0 || isBulkDelete(e))
+    if (
+      swapped ||
+      hadSelection ||
+      els.editor.value.length === 0 ||
+      isBulkDelete(e)
+    )
       render();
     deferredCheck();
   }
@@ -1424,9 +1473,13 @@ const mdBar = initMdToolbar({
       false,
     ),
   isTexFile,
+  fileName: openFileName,
   onTemplate: (id, from) => {
+    clearedEmpty = false;
+    texTemplate = id === TEX_TEMPLATE;
+    syncTexMode();
     swapTemplateFile(from, mdBar.slot());
-    enterMdMode(!isTexFile() && !isPlain(id));
+    enterMdMode(mdActive());
   },
   onExample: () => enterMdMode(!isTexFile()),
 });
@@ -1463,6 +1516,7 @@ const nudgeHints = initHints(() => {
 });
 let exportCtl: ExportControl | null = null;
 
+texTemplate = mdBar.template() === TEX_TEMPLATE;
 lastTex = isTexFile();
 applyTexPaint(lastTex);
 initTexComplete({
@@ -1490,7 +1544,10 @@ function enterMdMode(on: boolean): void {
     markupSkips = markup;
     void render();
   }
+  measureCtl?.setPreviewBlocked(!!openFileName() && !on && !isTexFile());
   measureCtl?.setPreviewMode(on || isTexFile());
+  previewWanted = on || isTexFile();
+  syncPreviewClass();
   previewCtl?.setMarkdownMode(on);
   exportCtl?.syncPrint();
   nudgeHints();
@@ -1522,10 +1579,6 @@ exportCtl = initExport({
 function restoreDraftFile(): void {
   const ref = loadDraftFile();
   if (!ref) return;
-  if (els.editor.value === "") {
-    saveDraftFile(null);
-    return;
-  }
   fileIO.restoreFile(ref);
   plainName = fileIO.targetName();
   syncSaveHint();
@@ -1682,7 +1735,12 @@ initToolbar({
   els,
   isDocxActive: () => docx !== null,
   closeDocx,
-  forgetFile: fileIO.forgetFile,
+  forgetFile: () => {
+    clearedEmpty = true;
+    fileIO.forgetFile();
+    syncPreviewClass();
+  },
+  hasOpenFile: () => openFileName() !== null,
   flash,
   setStatus,
   setEditorText,

@@ -1915,8 +1915,11 @@ html.booting .empty-state {
     overflow: hidden;
   }
   :root:not([data-preview="on"]) .preview-panel,
-  body:not(.has-text) .preview-panel {
+  body:not(.has-text):not(.preview-mode) .preview-panel {
     display: none;
+  }
+  :root[data-preview="on"] body.preview-mode .empty-state {
+    visibility: hidden;
   }
   .error-panel {
     display: flex;
@@ -1928,7 +1931,7 @@ html.booting .empty-state {
     background: var(--editor-bg);
     overflow: hidden;
   }
-  body:not(.has-text) .editor-wrap {
+  body:not(.has-text):not(.preview-mode) .editor-wrap {
     flex: 1 1 auto;
   }
   body:not(.has-text) .error-panel,

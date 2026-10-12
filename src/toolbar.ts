@@ -6,6 +6,7 @@ export interface ToolbarDeps {
   isDocxActive: () => boolean;
   closeDocx: () => void;
   forgetFile: () => void;
+  hasOpenFile: () => boolean;
   flash: (sel: string, msg: string) => void;
   setStatus: (html: string, animate?: boolean) => void;
   setEditorText: (text: string, caret: number | null) => void;
@@ -185,6 +186,7 @@ function initButtons({
   isDocxActive,
   closeDocx,
   forgetFile,
+  hasOpenFile,
   flash,
   setStatus,
   setEditorText,
@@ -200,13 +202,14 @@ function initButtons({
   const clearBtn = document.querySelector<HTMLElement>("#clearBtn")!;
   initWipeButton(clearBtn);
   clearBtn.addEventListener("click", () => {
-    if (!els.editor.value) {
+    if (!els.editor.value && !hasOpenFile()) {
       els.editor.focus();
       return;
     }
-    try {
-      localStorage.setItem("mn-spell:last-cleared", els.editor.value);
-    } catch (_) {}
+    if (els.editor.value)
+      try {
+        localStorage.setItem("mn-spell:last-cleared", els.editor.value);
+      } catch (_) {}
     closeDocx();
     forgetFile();
     setEditorText("", 0);
