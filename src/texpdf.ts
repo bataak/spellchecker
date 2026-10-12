@@ -105,10 +105,28 @@ async function dropOldFontCaches(): Promise<void> {
   } catch {}
 }
 
+let warmed: Promise<void> | null = null;
+
+function warmEngine(): Promise<void> {
+  warmed ??= Promise.all(
+    [
+      TEX_ENGINE,
+      TEX_ENGINE.replace(/\.js$/, ".wasm"),
+      TEX_BUNDLE,
+    ].map((path) => fetch(asset(path), { priority: "low" })),
+  )
+    .then(() => undefined)
+    .catch(() => {
+      warmed = null;
+    });
+  return warmed;
+}
+
 export function prefetchFonts(): Promise<void> {
   const connection = (navigator as { connection?: { saveData?: boolean } })
     .connection;
   if (connection?.saveData) return Promise.resolve();
+  void warmEngine();
   prefetching ??= (async () => {
     await dropOldFontCaches();
     const cache = await fontCache();
@@ -171,20 +189,48 @@ async function start(): Promise<Worker> {
   }
 }
 
+const COMPILE_TIMEOUT_MS = 30000;
+
+function dropEngine(worker: Worker): void {
+  worker.terminate();
+  engine = null;
+  if (live === worker) live = null;
+}
+
+let running: { stop: (reason: string) => void; since: number } | null =
+  null;
+
+export function cancelCompile(): void {
+  running?.stop("TeX хөрвүүлэлтийг зогсоолоо");
+}
+
+export function compileRunningFor(): number {
+  return running ? performance.now() - running.since : 0;
+}
+
 function runOnce(worker: Worker): Promise<Uint8Array<ArrayBuffer>> {
   return new Promise((resolve, reject) => {
+    const stop = (reason: string): void => {
+      clearTimeout(timer);
+      running = null;
+      dropEngine(worker);
+      reject(new Error(reason));
+    };
+    const timer = setTimeout(
+      () => stop("TeX хөрвүүлэлт хэт удаан үргэлжилсэн тул зогсоолоо"),
+      COMPILE_TIMEOUT_MS,
+    );
+    running = { stop, since: performance.now() };
     worker.onmessage = (event: MessageEvent<EngineReply>) => {
       const reply = event.data;
       if (reply.cmd !== "compile") return;
+      clearTimeout(timer);
+      running = null;
       if (reply.result === "ok" && reply.pdf) {
         resolve(new Uint8Array(reply.pdf));
         return;
       }
-      if (reply.status === ENGINE_CRASHED) {
-        worker.terminate();
-        engine = null;
-        live = null;
-      }
+      if (reply.status === ENGINE_CRASHED) dropEngine(worker);
       reject(new PdfError(reply.log ?? ""));
     };
     worker.postMessage({ cmd: "compilelatex" });

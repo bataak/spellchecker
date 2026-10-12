@@ -94,6 +94,17 @@ export default defineConfig({
         clientsClaim: true,
         skipWaiting: true,
         maximumFileSizeToCacheInBytes: 20 * 1024 * 1024,
+        runtimeCaching: [
+          {
+            urlPattern: /\/(?:tex|examples)\//,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "tex-assets",
+              expiration: { maxEntries: 400, purgeOnQuotaError: true },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+        ],
       },
       manifest: {
         name: "Монгол үгийн алдаа шалгагч",

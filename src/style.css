@@ -663,6 +663,33 @@ a.tbtn {
   opacity: 0.72;
 }
 
+.tex-compile {
+  display: none;
+  pointer-events: auto;
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.preview-panel.tex-mode .tex-compile {
+  display: inline-flex;
+}
+
+.tex-compile:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+.preview-panel.tex-mode .pdf-zoom {
+  margin-inline-start: 0;
+}
+
 .pdf-zoom {
   display: none;
   pointer-events: auto;
