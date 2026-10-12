@@ -1711,7 +1711,7 @@ a.tbtn {
     width: 100vw;
     max-width: 100vw;
     margin-inline: calc(50% - 50vw);
-    justify-content: center;
+    justify-content: safe center;
   }
   :root[data-toolbar="wide"] .toolbar #fontDecBtn {
     margin-left: 0;
