@@ -13,11 +13,13 @@ interface Stored {
 }
 
 const REMOTE = /^(?:https?:|data:|blob:)/i;
+const NETWORK = /^https?:/i;
 
 const store = new Map<string, Stored>();
 const listeners = new Set<() => void>();
 const prepared = new Map<string, Promise<PreparedImage | null>>();
 let owned: string[] = [];
+const allowedRemote = new Set<string>();
 
 function dropPrepared(): void {
   for (const url of owned) URL.revokeObjectURL(url);
@@ -33,7 +35,17 @@ export function isRemoteImage(src: string): boolean {
   return REMOTE.test(src);
 }
 
+export function isBlockedRemote(src: string): boolean {
+  return NETWORK.test(src) && !allowedRemote.has(src);
+}
+
+export function allowRemoteImages(srcs: Iterable<string>): void {
+  for (const src of srcs) allowedRemote.add(src);
+  notify();
+}
+
 export function imageUrl(src: string): string | null {
+  if (isBlockedRemote(src)) return null;
   if (isRemoteImage(src)) return src;
   return store.get(src)?.url ?? null;
 }

@@ -1,3 +1,4 @@
+import "./wipe.ts";
 import "./style.css";
 import "./gutter.css";
 import "./md-toolbar.css";
