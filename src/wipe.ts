@@ -5,6 +5,7 @@ const DATABASES = [
   "stardict",
   "bichig-undo",
   "bichig-tex",
+  "bichig-images",
 ];
 const USER_CACHES = ["tex-preview"];
 

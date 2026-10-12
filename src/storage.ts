@@ -182,6 +182,25 @@ function idbRequest<T>(
   );
 }
 
+export async function storedTexts(): Promise<string[]> {
+  const out: string[] = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      const value = key === null ? null : localStorage.getItem(key);
+      if (value) out.push(value);
+    }
+  } catch (_) {}
+  try {
+    const values = await idbRequest(
+      "readonly",
+      (store) => store.getAll() as IDBRequest<unknown[]>,
+    );
+    for (const value of values) if (typeof value === "string") out.push(value);
+  } catch (_) {}
+  return out;
+}
+
 const idbGet = (key: string) =>
   idbRequest("readonly", (store) => store.get(key) as IDBRequest<unknown>);
 const idbSet = (key: string, value: string) =>

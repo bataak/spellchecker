@@ -54,11 +54,34 @@ export function imageBlob(src: string): Blob | null {
   return store.get(src)?.blob ?? null;
 }
 
-export function putImage(src: string, blob: Blob): void {
+let persist: ((src: string, blob: Blob) => void) | null = null;
+
+export function persistImages(save: (src: string, blob: Blob) => void): void {
+  persist = save;
+}
+
+function keep(src: string, blob: Blob): void {
   const old = store.get(src);
   if (old) URL.revokeObjectURL(old.url);
-  dropPrepared();
   store.set(src, { blob, url: URL.createObjectURL(blob) });
+}
+
+export function putImage(src: string, blob: Blob): void {
+  dropPrepared();
+  keep(src, blob);
+  persist?.(src, blob);
+  notify();
+}
+
+export function restoreImages(images: Iterable<[string, Blob]>): void {
+  let any = false;
+  for (const [src, blob] of images) {
+    if (store.has(src)) continue;
+    keep(src, blob);
+    any = true;
+  }
+  if (!any) return;
+  dropPrepared();
   notify();
 }
 
