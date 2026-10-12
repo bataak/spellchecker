@@ -30,6 +30,7 @@ import {
   inRanges,
   looksLatex,
   skipRanges,
+  type SkipRange,
 } from "./codeskip.ts";
 import {
   checkable,
@@ -264,17 +265,21 @@ function debounce<A extends unknown[]>(
   };
 }
 
+function skipFor(text: string): SkipRange[] {
+  const latex = isLatexText(text);
+  return skipRanges(text, {
+    code: skipCode && (markupSkips || latex),
+    links: skipLinks,
+    latex,
+  });
+}
+
 function computeBad(
   text: string,
   tokens: Iterable<Tokenized> = tokenize(text),
 ): { bad: Token[]; total: number } {
   const bad: Token[] = [];
-  const latex = isLatexText(text);
-  const skip = skipRanges(text, {
-    code: skipCode && (markupSkips || latex),
-    links: skipLinks,
-    latex,
-  });
+  const skip = skipFor(text);
   let total = 0;
   let prev: Tokenized | null = null;
   for (const token of tokens) {
@@ -885,6 +890,8 @@ async function maybePropagateManual() {
     manualFixToken.word,
     pos,
     primaryPattern,
+    null,
+    skipFor(text),
   );
   if (nt === text) return;
   const top = els.editor.scrollTop;
@@ -951,6 +958,7 @@ async function applySuggestion(
     token.end,
     casePattern(token.word),
     onlyAt,
+    skipFor(editorText),
   );
   if (nt === editorText) {
     hidePopover();
