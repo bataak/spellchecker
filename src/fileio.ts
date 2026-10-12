@@ -109,6 +109,25 @@ export function initFileIO({
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
+  async function deliverText(text: string, name: string): Promise<boolean> {
+    const fileName = ensureTextName(name);
+    const touch = window.matchMedia?.("(pointer: coarse)").matches;
+    if (touch && typeof navigator.canShare === "function") {
+      const file = new File([text], fileName, { type: "text/plain" });
+      if (navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file] });
+          return true;
+        } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError")
+            return false;
+        }
+      }
+    }
+    downloadText(text, fileName);
+    return true;
+  }
+
   const TXT_TYPES = [
     { description: "Текст файл", accept: { "text/plain": [".txt"] } },
   ];
@@ -208,8 +227,8 @@ export function initFileIO({
 
     if (currentFileName) {
       try {
-        downloadText(text, currentFileName);
-        flash("#saveBtn", "Хадгалав");
+        const done = await deliverText(text, currentFileName);
+        flash("#saveBtn", done ? "Хадгалав" : "Цуцаллаа");
       } catch (_) {
         flash("#saveBtn", "Боломжгүй");
       }
@@ -234,8 +253,8 @@ export function initFileIO({
     }
 
     try {
-      downloadText(text, stampName());
-      flash("#saveBtn", "Хадгаллаа");
+      const done = await deliverText(text, stampName());
+      flash("#saveBtn", done ? "Хадгаллаа" : "Цуцаллаа");
     } catch (_) {
       flash("#saveBtn", "Боломжгүй");
     }
