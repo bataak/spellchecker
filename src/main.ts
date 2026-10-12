@@ -27,9 +27,11 @@ let previewCtl: Preview | null = null;
 import { escapeHtml } from "./htmlutil.ts";
 import { pickDefinitionMarks } from "./defmarks.ts";
 import {
+  fencedCode,
   hasTexSyntax,
   inRanges,
   looksLatex,
+  mergeRanges,
   skipRanges,
   type SkipRange,
 } from "./codeskip.ts";
@@ -276,6 +278,12 @@ function skipFor(text: string): SkipRange[] {
     links: skipLinks,
     latex,
   });
+}
+
+const LATIN_WORD = /\p{Script=Latin}/u;
+
+function plainFences(text: string, word: string): SkipRange[] {
+  return markupSkips || !LATIN_WORD.test(word) ? [] : fencedCode(text);
 }
 
 function computeBad(
@@ -599,7 +607,6 @@ checker.onDictScripts = (latin) => {
 };
 const latinLookup = (): boolean => latinDicts !== false;
 
-const LATIN_WORD = /\p{Script=Latin}/u;
 const ENGLISH_REMIND_MS = 60000;
 let englishRemindedAt = -Infinity;
 function remindEnglish(word: string): void {
@@ -897,7 +904,7 @@ async function maybePropagateManual() {
     pos,
     primaryPattern,
     null,
-    skipFor(text),
+    mergeRanges([...skipFor(text), ...plainFences(text, original)]),
   );
   if (nt === text) return;
   const top = els.editor.scrollTop;
@@ -956,7 +963,10 @@ async function applySuggestion(
     }
   }
 
-  const onlyAt = isDashSuffix(editorText, token) ? token.start : null;
+  const fences = plainFences(editorText, token.word);
+  const inFence = inRanges(fences, token.start);
+  const onlyAt =
+    inFence || isDashSuffix(editorText, token) ? token.start : null;
   const { text: nt, caret } = replaceAllWord(
     editorText,
     token.word.toLowerCase(),
@@ -964,7 +974,9 @@ async function applySuggestion(
     token.end,
     casePattern(token.word),
     onlyAt,
-    skipFor(editorText),
+    inFence
+      ? skipFor(editorText)
+      : mergeRanges([...skipFor(editorText), ...fences]),
   );
   if (nt === editorText) {
     hidePopover();
@@ -1482,6 +1494,7 @@ function enterMdMode(on: boolean): void {
     void render();
   }
   measureCtl?.setPreviewMode(on || isTexFile());
+  previewCtl?.setMarkdownMode(on);
   exportCtl?.syncPrint();
   nudgeHints();
 }

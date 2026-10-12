@@ -8,7 +8,7 @@ import {
   prepareImage,
   putImage,
 } from "./images.ts";
-import { fitBlanks, format, isMarkdown, parse, toHtml } from "./markdown.ts";
+import { fitBlanks, format, parse, toHtml } from "./markdown.ts";
 
 const TIDY_LIMIT = 400_000;
 const TEX_DELAY_MS = 700;
@@ -227,6 +227,7 @@ const MD_NAME = /\.(md|markdown|mdown|mkd)$/i;
 export interface Preview {
   update(): void;
   setFileName(name: string | null): void;
+  setMarkdownMode(on: boolean): void;
   setSource(src: PreviewSource | null): void;
   destroy(): void;
 }
@@ -345,6 +346,7 @@ export function initPreview(
   let raf = 0;
   let tidied: string | null = null;
   let isMdFile = false;
+  let markdownMode = false;
   let source: PreviewSource | null = null;
   let sourceText = "";
   let pdfView: import("./pdfview.ts").PdfView | null = null;
@@ -415,7 +417,7 @@ export function initPreview(
     body.classList.toggle("is-empty", !blocks.length);
 
     tidied = null;
-    const looksMd = isMdFile || isMarkdown(blocks);
+    const looksMd = isMdFile || markdownMode;
     if (onFormat && looksMd && text.length <= TIDY_LIMIT && !isLatex(text)) {
       const next = format(text, blocks);
       if (next !== text) tidied = next;
@@ -714,9 +716,17 @@ export function initPreview(
     update();
   };
 
+  const setMarkdownMode = (on: boolean): void => {
+    if (on === markdownMode) return;
+    markdownMode = on;
+    shownHtml = null;
+    update();
+  };
+
   return {
     update,
     setFileName,
+    setMarkdownMode,
     setSource,
     destroy() {
       if (raf) cancelAnimationFrame(raf);
