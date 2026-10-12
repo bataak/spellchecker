@@ -201,7 +201,7 @@ export function initFileIO({
       } catch (_) {}
     }
 
-    if (!text.trim()) {
+    if (!text.trim() && !currentFileName) {
       flash("#saveBtn", "Хоосон байна");
       return;
     }

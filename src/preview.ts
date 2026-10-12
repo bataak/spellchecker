@@ -11,6 +11,7 @@ import {
 import { fitBlanks, format, parse, toHtml } from "./markdown.ts";
 
 const TIDY_LIMIT = 400_000;
+const TIDY_IDLE_MS = 5000;
 const TEX_DELAY_MS = 700;
 
 function isSameDocument(next: string, ref: string): boolean {
@@ -345,6 +346,19 @@ export function initPreview(
 
   let raf = 0;
   let tidied: string | null = null;
+  let typingTimer = 0;
+  const showTidy = (): void => {
+    tidy.hidden = tidied === null || typingTimer !== 0 || !!source || texMode;
+  };
+  const onTyping = (event: Event): void => {
+    if (!event.isTrusted) return;
+    if (typingTimer) clearTimeout(typingTimer);
+    tidy.hidden = true;
+    typingTimer = window.setTimeout(() => {
+      typingTimer = 0;
+      showTidy();
+    }, TIDY_IDLE_MS);
+  };
   let isMdFile = false;
   let markdownMode = false;
   let source: PreviewSource | null = null;
@@ -422,7 +436,7 @@ export function initPreview(
       const next = format(text, blocks);
       if (next !== text) tidied = next;
     }
-    tidy.hidden = tidied === null;
+    showTidy();
   };
 
   const dropPdf = (): void => {
@@ -708,6 +722,7 @@ export function initPreview(
     update();
   });
 
+  area.addEventListener("input", onTyping);
   area.addEventListener("input", update);
   update();
 
@@ -736,6 +751,8 @@ export function initPreview(
       offImages();
       offTexImages?.();
       imageEdit.destroy();
+      if (typingTimer) clearTimeout(typingTimer);
+      area.removeEventListener("input", onTyping);
       area.removeEventListener("input", update);
       tidy.remove();
       panel.remove();

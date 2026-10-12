@@ -11,27 +11,14 @@ import {
   isPlain,
 } from "../src/templates.ts";
 
-test("зургаан талбар, таван бүлэг", () => {
+test("зургаан талбар, гурван бүлэг", () => {
   assert.deepEqual(
     TEMPLATES.map((t) => t.name),
-    [
-      "Бичвэр 1",
-      "Бичвэр 2",
-      "Албан бичиг",
-      "Тайлан",
-      "Илтгэл",
-      "Судалгаа",
-    ],
+    ["Бичвэр 1", "Бичвэр 2", "Албан бичиг", "Тайлан", "Илтгэл", "Судалгаа"],
   );
   assert.deepEqual(
     TEMPLATE_GROUPS.map((g) => g.name),
-    [
-      "Алдаа шалгах",
-      "Албан бичиг",
-      "Тайлан",
-      "Илтгэл",
-      "Судалгаа",
-    ],
+    ["Алдаа шалгах", "Markdown", "LaTeX"],
   );
   const grouped = TEMPLATE_GROUPS.flatMap((g) => g.ids);
   assert.deepEqual([...grouped].sort(), TEMPLATES.map((t) => t.id).sort());
