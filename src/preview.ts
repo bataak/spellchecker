@@ -10,6 +10,7 @@ import { fitBlanks, format, isMarkdown, parse, toHtml } from "./markdown.ts";
 
 const TIDY_LIMIT = 400_000;
 const TEX_DELAY_MS = 700;
+const CROSS_REF = /\\(?:tableofcontents|listof(?:figures|tables)|ref|eqref|pageref|autoref)\b/;
 
 function isSameDocument(next: string, ref: string): boolean {
   if (next === ref) return true;
@@ -262,7 +263,8 @@ export function initPreview(
         import("./latex.ts"),
         import("./pdfview.ts"),
       ]);
-      const bytes = await compilePdf(previewTex(text));
+      const passes = CROSS_REF.test(text) ? 2 : 1;
+      const bytes = await compilePdf(previewTex(text), passes);
       if (seq !== texSeq || !texMode) return;
       const scroll = body.scrollTop;
       dropPdf();

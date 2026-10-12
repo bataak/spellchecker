@@ -10,8 +10,8 @@ function pieces(text: string): [TexKind, string][] {
 test("команд, хаалт, тайлбарыг ялгана", () => {
   assert.deepEqual(pieces("\\textbf{Сайн} % тэмдэглэл\nүг"), [
     ["cmd", "\\textbf"],
-    ["delim", "{"],
-    ["delim", "}"],
+    ["brace", "{"],
+    ["brace", "}"],
     ["comment", "% тэмдэглэл"],
   ]);
 });
@@ -26,13 +26,13 @@ test("escape хийсэн тэмдэгт тайлбар, томьёо эхлүү
 test("begin/end-ийн орчны нэрийг ялгана", () => {
   assert.deepEqual(pieces("\\begin{itemize}\\end{itemize}"), [
     ["cmd", "\\begin"],
-    ["delim", "{"],
+    ["brace", "{"],
     ["env", "itemize"],
-    ["delim", "}"],
+    ["brace", "}"],
     ["cmd", "\\end"],
-    ["delim", "{"],
+    ["brace", "{"],
     ["env", "itemize"],
-    ["delim", "}"],
+    ["brace", "}"],
   ]);
 });
 
@@ -65,7 +65,7 @@ test("томьёон доторх командыг тусад нь ялгана"
 test("томьёоны орчин олон мөр дамжина", () => {
   const kinds = pieces("\\begin{align}\na &= b\n\\end{align}\nтекст");
   assert.ok(kinds.some(([k, t]) => k === "math" && t.includes("a ")));
-  assert.equal(kinds.at(-1)![0], "delim");
+  assert.equal(kinds.at(-1)![0], "brace");
 });
 
 test("хаагаагүй $ хоосон мөрөөр тасарна", () => {
@@ -89,8 +89,8 @@ test("verbatim болон \\verb доторх текстийг задлахгү�
 test("одтой команд", () => {
   assert.deepEqual(pieces("\\section*{А}"), [
     ["cmd", "\\section*"],
-    ["delim", "{"],
-    ["delim", "}"],
+    ["brace", "{"],
+    ["brace", "}"],
   ]);
 });
 

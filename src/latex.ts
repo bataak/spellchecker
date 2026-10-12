@@ -90,7 +90,9 @@ const SYMBOL: Readonly<Record<string, string>> = {
 
 const SYMBOL_RE = new RegExp("[" + Object.keys(SYMBOL).join("") + "]", "gu");
 
-const T2A_FONTENC = /\\usepackage\[[^\]]*\bT2A\b[^\]]*\]\{fontenc\}/;
+const TEXT_FONTENC = /\\usepackage\[[^\]]*\b(?:T1|T2A)\b[^\]]*\]\{fontenc\}/;
+const CYRILLIC_BABEL =
+  /\\usepackage\[[^\]]*\b(?:mongolian|russian|ukrainian|bulgarian)\b[^\]]*\]\{babel\}/;
 const FONT_PACKAGE =
   /\\usepackage(?:\[[^\]]*\])?\{(?:paratype|PTSerif|PTSans|cm-super|lmodern|tempora|fontspec)\}/;
 
@@ -99,7 +101,8 @@ export function previewTex(text: string): string {
     return (
       preambleFor(text) + "\\begin{document}\n" + text + "\n\\end{document}\n"
     );
-  if (!T2A_FONTENC.test(text) || FONT_PACKAGE.test(text)) return text;
+  if (FONT_PACKAGE.test(text)) return text;
+  if (!TEXT_FONTENC.test(text) && !CYRILLIC_BABEL.test(text)) return text;
   const at = text.search(/\\begin\{document\}/);
   if (at < 0) return text;
   return text.slice(0, at) + "\\usepackage{paratype}\n" + text.slice(at);

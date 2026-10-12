@@ -20,10 +20,10 @@ html {
   --focus: #b9b1a1;
   --tex-bg: #fbf1c7;
   --tex-ink: #3c3836;
-  --tex-cmd: #076678;
-  --tex-env: #af3a03;
+  --tex-cmd: #9d0006;
+  --tex-env: #b57614;
   --tex-math: #79740e;
-  --tex-delim: #8f3f71;
+  --tex-delim: #af3a03;
   --tex-verb: #427b58;
   --tex-comment: #928374;
   --tex-selection: rgba(189, 174, 147, 0.55);
@@ -123,10 +123,10 @@ html {
   --focus: #4a4438;
   --tex-bg: #282828;
   --tex-ink: #ebdbb2;
-  --tex-cmd: #83a598;
-  --tex-env: #fe8019;
+  --tex-cmd: #fb4934;
+  --tex-env: #fabd2f;
   --tex-math: #b8bb26;
-  --tex-delim: #d3869b;
+  --tex-delim: #fe8019;
   --tex-verb: #8ec07c;
   --tex-comment: #928374;
   --tex-selection: rgba(102, 92, 84, 0.6);
@@ -1213,6 +1213,9 @@ a.tbtn {
 }
 .tx-delim {
   color: var(--tex-delim);
+}
+.tx-brace {
+  color: var(--tex-ink);
 }
 .tx-comment {
   color: var(--tex-comment);

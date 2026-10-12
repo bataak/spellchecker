@@ -1,4 +1,11 @@
-export type TexKind = "cmd" | "env" | "comment" | "math" | "delim" | "verb";
+export type TexKind =
+  | "cmd"
+  | "env"
+  | "comment"
+  | "math"
+  | "delim"
+  | "brace"
+  | "verb";
 
 export interface TexSpan {
   start: number;
@@ -61,9 +68,9 @@ export function texSpans(text: string): TexSpan[] {
         const name = env[3]!;
         const brace = index + 1 + word.length + gap.length;
         push(index, index + 1 + word.length, "cmd");
-        push(brace, brace + 1, "delim");
+        push(brace, brace + 1, "brace");
         push(brace + 1, brace + 1 + name.length, "env");
-        push(brace + 1 + name.length, brace + 2 + name.length, "delim");
+        push(brace + 1 + name.length, brace + 2 + name.length, "brace");
         index += whole.length;
         if (word === "begin" && close === null && VERB_ENV.test(name)) {
           const stop = text.indexOf("\\end{" + name + "}", index);
@@ -138,7 +145,13 @@ export function texSpans(text: string): TexSpan[] {
       }
     }
 
-    if (code === 123 || code === 125 || code === 38) {
+    if (code === 123 || code === 125) {
+      push(index, index + 1, "brace");
+      index++;
+      continue;
+    }
+
+    if (code === 38) {
       push(index, index + 1, "delim");
       index++;
       continue;

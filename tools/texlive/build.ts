@@ -444,6 +444,132 @@ function coverage(): string[] {
   ];
 }
 
+const USER_PACKAGES = String.raw`\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{underscore}
+\usepackage{comment}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage[table]{xcolor}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+\usepackage{url}
+\usepackage{listings}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\newtheorem{theorem}{Теорем}
+\pagestyle{fancy}
+\fancyhead[L]{Толгой}
+\titleformat{\subsection}{\bfseries}{\thesubsection}{1em}{}
+\lstset{basicstyle=\ttfamily\small,breaklines=true}
+\title{Гарчиг}
+\author{Зохиогч}
+\date{\today}
+`;
+
+const USER_BODY = String.raw`\maketitle
+\tableofcontents
+\section{Хэсэг}
+\subsection{Дэд хэсэг}
+\onehalfspacing
+Текст \textcolor{red}{улаан} \colorbox{yellow}{шар} a_b \url{https://bichig.dev}
+\href{https://bichig.dev}{холбоос}\footnote{Зүүлт.} \enquote{ишлэл}.
+\begin{enumerate}[label=\alph*)]
+\item нэг
+\begin{itemize}[noitemsep]
+\item хоёр
+\end{itemize}
+\end{enumerate}
+\begin{theorem}
+Теорем $x^2$.
+\end{theorem}
+\begin{proof}
+Баталгаа.
+\end{proof}
+\begin{table}[H]
+\centering
+\caption{Хүснэгт}
+\begin{tabularx}{\linewidth}{|X|c|}
+\hline
+\rowcolor{gray!20} А & \multirow{2}{*}{Б} \\
+\cline{1-1}
+В & \\
+\hline
+\end{tabularx}
+\end{table}
+\begin{tabular}{>{\bfseries}l r}
+\toprule
+А & 1 \\
+\midrule
+Б & 2 \\
+\bottomrule
+\end{tabular}
+\begin{longtable}{ll}
+А & Б \\
+\end{longtable}
+\begin{figure}[H]
+\centering
+\fbox{Зураг}
+\caption{Зураг}
+\end{figure}
+\begin{verbatim}
+код verbatim
+\end{verbatim}
+\begin{lstlisting}
+int main() { return 0; }
+\end{lstlisting}
+\begin{comment}
+нуух
+\end{comment}
+\texttt{код \textbf{тод}} \textsl{хазгай} \textsc{Жижиг}
+\begin{align}
+\int_0^1 f(x)\,dx &= \sum_{k=1}^{n} \frac{a_k}{b_k} \\
+\mathbb{R} \ni \alpha &\leq \sqrt{\beta}
+\end{align}
+`;
+
+function userCoverage(): string[] {
+  const docs: string[] = [];
+  const body =
+    USER_BODY +
+    SIZES.join("") +
+    TEXT_SIZES.join("") +
+    SHAPES +
+    "\\end{document}\n";
+  for (const size of ["10pt", "11pt", "12pt"]) {
+    for (const cls of ["article", "report"]) {
+      docs.push(
+        `\\documentclass[${size},a4paper]{${cls}}\n` +
+          "\\usepackage[utf8]{inputenc}\n" +
+          "\\usepackage[T1]{fontenc}\n" +
+          "\\usepackage[mongolian]{babel}\n" +
+          "\\usepackage{csquotes}\n" +
+          USER_PACKAGES +
+          "\\usepackage{paratype}\n" +
+          "\\begin{document}\n" +
+          body,
+      );
+    }
+    docs.push(
+      `\\documentclass[${size}]{article}\n` +
+        "\\usepackage{csquotes}\n" +
+        USER_PACKAGES.replace(/[А-Яа-яӨөҮүЁё]+/g, "Text") +
+        "\\begin{document}\n" +
+        body.replace(/[А-Яа-яӨөҮүЁё]+/g, "text"),
+    );
+  }
+  return docs;
+}
+
 function trimMap(map: string, fonts: ReadonlySet<string>): string {
   return (
     map
@@ -471,13 +597,14 @@ async function main(): Promise<void> {
   writeFileSync(fmtPath, format.pdf);
 
   const files = new Map<string, string>();
-  for (const source of coverage()) {
+  for (const source of [...coverage(), ...userCoverage()]) {
     const result = await run(
       "compilelatex",
       { "swiftlatexpdftex.fmt": fmtPath },
       source,
     );
     if (!result.ok) {
+      console.error(source.slice(0, 200));
       console.error(result.log.slice(-3000));
       throw new Error("coverage compile failed");
     }
