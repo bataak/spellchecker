@@ -26,7 +26,7 @@ const ZOOM_STEPS = [0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
 function loadZoom(): number {
   try {
     const value = Number(localStorage.getItem(ZOOM_KEY));
-    return ZOOM_STEPS.includes(value) ? value : 1;
+    return value > 0 ? clampZoom(value) : 1;
   } catch {
     return 1;
   }
@@ -88,10 +88,19 @@ async function saveCachedPdf(
   } catch {}
 }
 
+const ZOOM_MIN = ZOOM_STEPS[0]!;
+const ZOOM_MAX = ZOOM_STEPS[ZOOM_STEPS.length - 1]!;
+
+function clampZoom(zoom: number): number {
+  return Math.min(Math.max(Math.round(zoom * 1000) / 1000, ZOOM_MIN), ZOOM_MAX);
+}
+
 function stepZoom(zoom: number, dir: number): number {
-  const at = ZOOM_STEPS.indexOf(zoom);
-  const next = Math.min(Math.max(at + dir, 0), ZOOM_STEPS.length - 1);
-  return ZOOM_STEPS[next]!;
+  const next =
+    dir > 0
+      ? ZOOM_STEPS.find((step) => step > zoom + 0.001)
+      : [...ZOOM_STEPS].reverse().find((step) => step < zoom - 0.001);
+  return next ?? (dir > 0 ? ZOOM_MAX : ZOOM_MIN);
 }
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -287,8 +296,8 @@ export function initPreview(
     zoom = next;
     saveZoom(zoom);
     zoomReset.textContent = Math.round(zoom * 100) + "%";
-    zoomOut.disabled = zoom === ZOOM_STEPS[0];
-    zoomIn.disabled = zoom === ZOOM_STEPS[ZOOM_STEPS.length - 1];
+    zoomOut.disabled = zoom <= ZOOM_MIN;
+    zoomIn.disabled = zoom >= ZOOM_MAX;
     pdfView?.setZoom(zoom, origin);
   };
   setZoom(zoom);
@@ -296,16 +305,14 @@ export function initPreview(
   zoomIn.addEventListener("click", () => setZoom(stepZoom(zoom, 1)));
   zoomReset.addEventListener("click", () => setZoom(1));
 
-  let wheelAt = 0;
   body.addEventListener(
     "wheel",
     (event) => {
       if (!pdfView || !(event.ctrlKey || event.metaKey)) return;
       event.preventDefault();
-      const now = performance.now();
-      if (now - wheelAt < 80) return;
-      wheelAt = now;
-      setZoom(stepZoom(zoom, event.deltaY < 0 ? 1 : -1), {
+      const unit = event.deltaMode === 1 ? 0.05 : 0.0025;
+      const delta = Math.max(Math.min(event.deltaY, 120), -120);
+      setZoom(clampZoom(zoom * Math.exp(-delta * unit)), {
         x: event.clientX,
         y: event.clientY,
       });

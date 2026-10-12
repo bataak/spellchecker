@@ -145,13 +145,21 @@ export async function renderPdfInto(
     }
   };
 
+  const visible = new Set<PageSlot>();
+  let zooming = false;
+
   const io = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
         const slot = slots[Number(entry.target.getAttribute("data-page")) - 1];
         if (!slot) continue;
-        if (entry.isIntersecting) void draw(slot);
-        else release(slot);
+        if (entry.isIntersecting) {
+          visible.add(slot);
+          if (!zooming) void draw(slot);
+        } else {
+          visible.delete(slot);
+          release(slot);
+        }
       }
     },
     { root: host, rootMargin: ROOT_MARGIN },
@@ -168,10 +176,11 @@ export async function renderPdfInto(
   };
   const redraw = (delay: number): void => {
     stretch();
+    zooming = true;
     clearTimeout(resizeTimer);
     resizeTimer = window.setTimeout(() => {
-      for (const slot of slots) {
-        if (!slot.canvas) continue;
+      zooming = false;
+      for (const slot of visible) {
         slot.gen++;
         slot.task?.cancel();
         slot.task = null;
@@ -181,7 +190,12 @@ export async function renderPdfInto(
       }
     }, delay);
   };
-  const ro = new ResizeObserver(() => redraw(200));
+  let hostWidth = host.clientWidth;
+  const ro = new ResizeObserver(() => {
+    if (host.clientWidth === hostWidth) return;
+    hostWidth = host.clientWidth;
+    redraw(200);
+  });
   ro.observe(host);
 
   const onAbort = (): void => view.destroy();
