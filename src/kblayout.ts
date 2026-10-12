@@ -213,7 +213,6 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): void {
   const chip = document.createElement("button");
   chip.type = "button";
   chip.className = "layout-chip";
-  chip.title = "Системийн гарын байрлал уруу буцаах";
   chip.addEventListener("mousedown", (event) => event.preventDefault());
   chip.addEventListener("click", () => setForced(null));
   deps.status.after(chip);
@@ -226,14 +225,17 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): void {
   let badgeTimer = 0;
 
   const label = (layout: Layout): string => (layout === "mn" ? "АБВ" : "ABC");
+  const describe = (layout: Layout): string =>
+    layout === "mn" ? "Монгол гарын байрлал" : "US keyboard layout";
 
   const sync = (): void => {
     chip.hidden = forced === null;
     chip.textContent = forced ? label(forced) : "";
-    chip.setAttribute(
-      "aria-label",
-      forced ? "Гарын байрлал: " + label(forced) : "",
-    );
+    const hint = forced
+      ? describe(forced) + ". Дарвал системийн гарын байрлал уруу буцна"
+      : "";
+    chip.title = hint;
+    chip.setAttribute("aria-label", hint);
     editor.classList.toggle("layout-forced", forced !== null);
   };
 
