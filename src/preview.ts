@@ -21,6 +21,30 @@ function isSameDocument(next: string, ref: string): boolean {
 
 const HEAD_TEXT = "Харагдац";
 const INVERT_KEY = "pdfInvert";
+const ZOOM_KEY = "pdfZoom";
+const ZOOM_STEPS = [0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+
+function loadZoom(): number {
+  try {
+    const value = Number(localStorage.getItem(ZOOM_KEY));
+    return ZOOM_STEPS.includes(value) ? value : 1;
+  } catch {
+    return 1;
+  }
+}
+
+function saveZoom(zoom: number): void {
+  try {
+    if (zoom === 1) localStorage.removeItem(ZOOM_KEY);
+    else localStorage.setItem(ZOOM_KEY, String(zoom));
+  } catch {}
+}
+
+function stepZoom(zoom: number, dir: number): number {
+  const at = ZOOM_STEPS.indexOf(zoom);
+  const next = Math.min(Math.max(at + dir, 0), ZOOM_STEPS.length - 1);
+  return ZOOM_STEPS[next]!;
+}
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 function loadInvert(): boolean {
@@ -141,7 +165,25 @@ export function initPreview(
     applyInvert();
   });
 
-  head.append(title, invertBtn);
+  let zoom = loadZoom();
+  const zoomBox = document.createElement("span");
+  zoomBox.className = "pdf-zoom";
+  const zoomButton = (label: string, text: string): HTMLButtonElement => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.title = label;
+    button.setAttribute("aria-label", label);
+    button.textContent = text;
+    button.addEventListener("mousedown", (event) => event.preventDefault());
+    return button;
+  };
+  const zoomOut = zoomButton("Жижигрүүлэх", "−");
+  const zoomReset = zoomButton("Анхны хэмжээ", "100%");
+  const zoomIn = zoomButton("Томруулах", "+");
+  zoomReset.className = "pdf-zoom-level";
+  zoomBox.append(zoomOut, zoomReset, zoomIn);
+
+  head.append(title, zoomBox, invertBtn);
 
   const body = document.createElement("div");
   body.className = "preview-body";
@@ -173,7 +215,34 @@ export function initPreview(
   let isMdFile = false;
   let source: PreviewSource | null = null;
   let sourceText = "";
-  let pdfView: { destroy(): void } | null = null;
+  let pdfView: import("./pdfview.ts").PdfView | null = null;
+
+  const setZoom = (next: number): void => {
+    zoom = next;
+    saveZoom(zoom);
+    zoomReset.textContent = Math.round(zoom * 100) + "%";
+    zoomOut.disabled = zoom === ZOOM_STEPS[0];
+    zoomIn.disabled = zoom === ZOOM_STEPS[ZOOM_STEPS.length - 1];
+    pdfView?.setZoom(zoom);
+  };
+  setZoom(zoom);
+  zoomOut.addEventListener("click", () => setZoom(stepZoom(zoom, -1)));
+  zoomIn.addEventListener("click", () => setZoom(stepZoom(zoom, 1)));
+  zoomReset.addEventListener("click", () => setZoom(1));
+
+  let wheelAt = 0;
+  body.addEventListener(
+    "wheel",
+    (event) => {
+      if (!pdfView || !(event.ctrlKey || event.metaKey)) return;
+      event.preventDefault();
+      const now = performance.now();
+      if (now - wheelAt < 80) return;
+      wheelAt = now;
+      setZoom(stepZoom(zoom, event.deltaY < 0 ? 1 : -1));
+    },
+    { passive: false },
+  );
   let pdfAbort: AbortController | null = null;
   let shownHtml: string | null = null;
   let mathView: typeof import("./mathview.ts") | null = null;
@@ -231,7 +300,12 @@ export function initPreview(
     try {
       const mod = await import("./pdfview.ts");
       if (controller.signal.aborted) return;
-      const view = await mod.renderPdfInto(body, file, controller.signal);
+      const view = await mod.renderPdfInto(
+        body,
+        file,
+        controller.signal,
+        zoom,
+      );
       if (controller.signal.aborted) {
         view.destroy();
         return;
@@ -276,7 +350,12 @@ export function initPreview(
       const controller = new AbortController();
       pdfAbort = controller;
       const file = new File([bytes], "preview.pdf", { type: "application/pdf" });
-      const view = await mod.renderPdfInto(body, file, controller.signal);
+      const view = await mod.renderPdfInto(
+        body,
+        file,
+        controller.signal,
+        zoom,
+      );
       if (controller.signal.aborted) {
         view.destroy();
         return;
