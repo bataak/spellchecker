@@ -88,7 +88,6 @@ const EN: KeyMap = {
 
 const MAPS: Readonly<Record<Layout, KeyMap>> = { mn: MN, en: EN };
 const LETTER = /\p{L}/u;
-const CYRILLIC = /\p{Script=Cyrillic}/u;
 const STORAGE_KEY = "keyboard-layout";
 const BADGE_MS = 1100;
 
@@ -103,6 +102,10 @@ export function mapKey(
   const [plain, shifted] = pair;
   const letter = LETTER.test(plain) && plain !== shifted;
   return shift !== (letter && capsLock) ? shifted : plain;
+}
+
+export function systemLayout(keyQ: string): Layout {
+  return keyQ.toLowerCase() === MN.KeyQ![0] ? "mn" : "en";
 }
 
 export function otherLayout(system: Layout | null): Layout {
@@ -203,7 +206,7 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): void {
     ?.getLayoutMap?.()
     .then((map) => {
       const q = map.get("KeyQ");
-      if (q) system = CYRILLIC.test(q) ? "mn" : "en";
+      if (q) system = systemLayout(q);
     })
     .catch(() => undefined);
 
@@ -277,7 +280,7 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): void {
       }
       if (!forced) {
         if (system === null && event.code === "KeyQ" && event.key.length === 1)
-          system = CYRILLIC.test(event.key) ? "mn" : "en";
+          system = systemLayout(event.key);
         return;
       }
       if (event.ctrlKey || event.metaKey || event.altKey) return;
