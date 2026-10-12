@@ -71,6 +71,7 @@ import {
 import { shiftTokens } from "./tokenshift.ts";
 import { texSpans } from "./texhighlight.ts";
 import { initTexComplete } from "./texcomplete.ts";
+import { initTexImageInput, insertPickedImage } from "./teximages.ts";
 import { minimalDiff } from "./mdedit.ts";
 import { isLookupKey, wordAt, type WordSpan } from "./lookup.ts";
 import { openDictManager } from "./dictmanager.ts";
@@ -1327,7 +1328,7 @@ const fileIO = initFileIO({
   hidePopover,
   render,
   saveText,
-  defaultExt: () => (mdActive() ? "md" : "txt"),
+  defaultExt: () => (isTexFile() ? "tex" : mdActive() ? "md" : "txt"),
   onFileOpened: (ref) => {
     clearImages();
     plainName = ref ? ref.name : null;
@@ -1378,7 +1379,9 @@ initTexComplete({
   editor: els.editor,
   active: () => texPaint,
   rectAt: rangeRectAt,
+  onImage: () => void insertPickedImage(els.editor),
 });
+initTexImageInput({ editor: els.editor, active: () => texPaint });
 enterMdMode(mdActive());
 els.editor.addEventListener("input", nudgeHints);
 

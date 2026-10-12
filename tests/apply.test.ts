@@ -1,7 +1,8 @@
 import { strict as assert } from "node:assert";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
+import { looksLatex } from "../src/codeskip.ts";
 import { format, parse } from "../src/markdown.ts";
 import { TEMPLATES, findTemplate } from "../src/templates.ts";
 import { applyTemplate, guillemets } from "../src/office/apply.ts";
@@ -131,7 +132,12 @@ test("өргөдлийн жишээ: гарын үсгийн хүснэгт ба
 test("жишээ бүр файлтай бөгөөд хэлбэржүүлэхэд хэвээр үлдэнэ", () => {
   for (const template of TEMPLATES)
     for (const example of template.examples ?? []) {
-      const md = readFileSync("src/examples/" + example.id + ".md", "utf8");
+      const base = "src/examples/" + example.id;
+      if (existsSync(base + ".tex")) {
+        assert.ok(looksLatex(readFileSync(base + ".tex", "utf8")), example.id);
+        continue;
+      }
+      const md = readFileSync(base + ".md", "utf8");
       assert.ok(md.trim(), example.id);
       assert.equal(format(md), md, example.id);
     }
