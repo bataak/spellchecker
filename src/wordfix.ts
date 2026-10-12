@@ -14,6 +14,7 @@ import {
   rankToPattern,
 } from "./caseform.ts";
 import type { CasePattern } from "./caseform.ts";
+import { inRanges, type SkipRange } from "./codeskip.ts";
 
 export type CheckWords = (words: string[]) => Promise<Record<string, boolean>>;
 
@@ -24,6 +25,7 @@ export function replaceAllWord(
   caretOffset: number,
   primaryPattern: CasePattern,
   onlyAt?: number | null,
+  skip: SkipRange[] = [],
 ): { text: string; caret: number } {
   baseRepl = baseRepl.replace(/\s+$/, "");
   const verbatim = irregularCase(baseRepl);
@@ -39,7 +41,8 @@ export function replaceAllWord(
     const core = trail ? word.slice(0, word.length - trail.length) : word;
     if (
       core.toLowerCase() === targetLower &&
-      (onlyAt == null || index === onlyAt)
+      (onlyAt == null || index === onlyAt) &&
+      !inRanges(skip, index)
     ) {
       result += text.slice(cursor, index);
       let rep;
