@@ -275,6 +275,10 @@ export function initFileIO({
           if (!handle) return;
           const file = await handle.getFile();
           if (await tryDocx(file)) return;
+          if (!isTextFile(file)) {
+            flash("#openBtn", "Нээх боломжгүй");
+            return;
+          }
           if (!sizeOk(file)) return;
           await loadFileContent(await file.text(), file.name, handle);
         } catch (e) {
@@ -290,6 +294,11 @@ export function initFileIO({
       if (!selectedFile) return;
       if (await tryDocx(selectedFile)) {
         openFileEl.value = "";
+        return;
+      }
+      if (!isTextFile(selectedFile)) {
+        openFileEl.value = "";
+        flash("#openBtn", "Нээх боломжгүй");
         return;
       }
       if (!sizeOk(selectedFile)) {
@@ -372,7 +381,10 @@ export function initFileIO({
         ? await handle.getFile()
         : dt && dt.files && dt.files[0];
       if (droppedFile && (await tryDocx(droppedFile))) return;
-      if (!isTextFile(droppedFile)) return;
+      if (!isTextFile(droppedFile)) {
+        if (droppedFile) flash("#openBtn", "Нээх боломжгүй");
+        return;
+      }
       if (!sizeOk(droppedFile)) return;
       await loadFileContent(
         await readAsText(droppedFile),
