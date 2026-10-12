@@ -335,6 +335,13 @@ test("latex: skips comments but not escaped percent", () => {
   assert.ok(!texSkipped(text, "Дараах"));
 });
 
+test("latex: skips bibitem keys but keeps the reference text", () => {
+  const text = "\\bibitem{hunspell} Hunspell толь бичиг";
+
+  assert.ok(texSkipped(text, "hunspell"));
+  assert.ok(!texSkipped(text, "толь"));
+});
+
 test("latex: skips key arguments but keeps prose arguments", () => {
   const text =
     "\\section{Оршил}\\label{sec:orshil} Зураг \\ref{fig:neg} харна уу \\cite[х.~5]{bat2020}. \\textcolor{red}{Улаан} \\href{https://x.mn}{Холбоос}";

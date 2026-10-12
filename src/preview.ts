@@ -26,7 +26,7 @@ const ZOOM_STEPS = [0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
 function loadZoom(): number {
   try {
     const value = Number(localStorage.getItem(ZOOM_KEY));
-    return ZOOM_STEPS.includes(value) ? value : 1;
+    return value > 0 ? clampZoom(value) : 1;
   } catch {
     return 1;
   }
@@ -88,10 +88,19 @@ async function saveCachedPdf(
   } catch {}
 }
 
+const ZOOM_MIN = ZOOM_STEPS[0]!;
+const ZOOM_MAX = ZOOM_STEPS[ZOOM_STEPS.length - 1]!;
+
+function clampZoom(zoom: number): number {
+  return Math.min(Math.max(Math.round(zoom * 1000) / 1000, ZOOM_MIN), ZOOM_MAX);
+}
+
 function stepZoom(zoom: number, dir: number): number {
-  const at = ZOOM_STEPS.indexOf(zoom);
-  const next = Math.min(Math.max(at + dir, 0), ZOOM_STEPS.length - 1);
-  return ZOOM_STEPS[next]!;
+  const next =
+    dir > 0
+      ? ZOOM_STEPS.find((step) => step > zoom + 0.001)
+      : [...ZOOM_STEPS].reverse().find((step) => step < zoom - 0.001);
+  return next ?? (dir > 0 ? ZOOM_MAX : ZOOM_MIN);
 }
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -241,8 +250,26 @@ export function initPreview(
   texError.setAttribute("role", "status");
   texError.hidden = true;
 
+  const texMissing = document.createElement("p");
+  texMissing.className = "preview-missing";
+  texMissing.setAttribute("role", "status");
+  texMissing.hidden = true;
+  const texMissingText = document.createElement("span");
+  const texFolder = document.createElement("button");
+  texFolder.type = "button";
+  texFolder.textContent = "Хавтас сонгох";
+  texFolder.addEventListener("mousedown", (event) => event.preventDefault());
+  texFolder.addEventListener("click", () => {
+    void import("./teximages.ts").then((mod) => mod.chooseImageFolder());
+  });
+  texMissing.append(texMissingText, texFolder);
+
+  const notes = document.createElement("div");
+  notes.className = "preview-notes";
+  notes.append(texMissing, texError);
+
   applyInvert();
-  panel.append(head, body, texError);
+  panel.append(head, body, notes);
   const imageEdit = initImageEdit(body, area);
   wrap.after(panel);
 
@@ -265,29 +292,35 @@ export function initPreview(
   let sourceText = "";
   let pdfView: import("./pdfview.ts").PdfView | null = null;
 
-  const setZoom = (next: number): void => {
+  const setZoom = (next: number, origin?: { x: number; y: number }): void => {
     zoom = next;
     saveZoom(zoom);
     zoomReset.textContent = Math.round(zoom * 100) + "%";
-    zoomOut.disabled = zoom === ZOOM_STEPS[0];
-    zoomIn.disabled = zoom === ZOOM_STEPS[ZOOM_STEPS.length - 1];
-    pdfView?.setZoom(zoom);
+    zoomOut.disabled = zoom <= ZOOM_MIN;
+    zoomIn.disabled = zoom >= ZOOM_MAX;
+    pdfView?.setZoom(zoom, origin);
   };
   setZoom(zoom);
   zoomOut.addEventListener("click", () => setZoom(stepZoom(zoom, -1)));
   zoomIn.addEventListener("click", () => setZoom(stepZoom(zoom, 1)));
   zoomReset.addEventListener("click", () => setZoom(1));
 
-  let wheelAt = 0;
   body.addEventListener(
     "wheel",
     (event) => {
       if (!pdfView || !(event.ctrlKey || event.metaKey)) return;
       event.preventDefault();
-      const now = performance.now();
-      if (now - wheelAt < 80) return;
-      wheelAt = now;
-      setZoom(stepZoom(zoom, event.deltaY < 0 ? 1 : -1));
+      if (!event.deltaY) return;
+      const origin = { x: event.clientX, y: event.clientY };
+      const notch =
+        event.deltaMode !== 0 ||
+        (Math.abs(event.deltaY) >= 50 && Number.isInteger(event.deltaY));
+      if (notch) {
+        setZoom(stepZoom(zoom, event.deltaY < 0 ? 1 : -1), origin);
+        return;
+      }
+      const delta = Math.max(Math.min(event.deltaY, 50), -50);
+      setZoom(clampZoom(zoom * Math.exp(-delta / 100)), origin);
     },
     { passive: false },
   );
@@ -366,6 +399,25 @@ export function initPreview(
     }
   };
 
+  const setTexMissing = (paths: readonly string[]): void => {
+    texMissing.hidden = paths.length === 0;
+    texMissingText.textContent = paths.length
+      ? "Зураг олдсонгүй: " + paths.join(", ")
+      : "";
+  };
+
+  let offTexImages: (() => void) | null = null;
+  let watchingImages = false;
+  const watchImages = (mod: typeof import("./teximages.ts")): void => {
+    if (watchingImages) return;
+    watchingImages = true;
+    offTexImages = mod.onTexImagesChange(() => {
+      if (!texMode) return;
+      texShown = null;
+      update();
+    });
+  };
+
   const setTexError = (message: string | null): void => {
     texError.hidden = message === null;
     texError.textContent = message ?? "";
@@ -418,12 +470,17 @@ export function initPreview(
     if (seq !== texSeq || !texMode) return;
     if (!pdfView) showNotice("PDF бэлтгэж байна…");
     try {
-      const { compileTex } = await import("./texpdf.ts");
-      const bytes = await compileTex(text);
-      if (!(await showPdfBytes(bytes, seq))) return;
+      const [{ compileTexDocument }, images] = await Promise.all([
+        import("./texpdf.ts"),
+        import("./teximages.ts"),
+      ]);
+      watchImages(images);
+      const { pdf, missing } = await compileTexDocument(text);
+      if (!(await showPdfBytes(pdf, seq))) return;
       texShown = text;
       setTexError(null);
-      void saveCachedPdf(text, bytes);
+      setTexMissing(missing);
+      if (!missing.length) void saveCachedPdf(text, pdf);
     } catch (error) {
       if (seq !== texSeq || !texMode) return;
       texShown = text;
@@ -444,6 +501,7 @@ export function initPreview(
     texShown = null;
     dropPdf();
     setTexError(null);
+    setTexMissing([]);
     shownHtml = null;
     body.replaceChildren();
     panel.classList.remove("is-blank");
@@ -550,6 +608,7 @@ export function initPreview(
       if (texTimer) clearTimeout(texTimer);
       dropPdf();
       offImages();
+      offTexImages?.();
       imageEdit.destroy();
       area.removeEventListener("input", update);
       tidy.remove();

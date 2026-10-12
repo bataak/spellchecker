@@ -22,10 +22,11 @@ interface PageSlot {
   canvas: HTMLCanvasElement | null;
   task: { cancel: () => void } | null;
   rendering: boolean;
+  gen: number;
 }
 
 export interface PdfView {
-  setZoom(zoom: number): void;
+  setZoom(zoom: number, origin?: { x: number; y: number }): void;
   destroy(): void;
 }
 
@@ -64,7 +65,14 @@ export async function renderPdfInto(
     el.dataset.page = String(i);
     el.style.aspectRatio = `${base.width} / ${base.height}`;
     list.append(el);
-    slots.push({ el, index: i, canvas: null, task: null, rendering: false });
+    slots.push({
+      el,
+      index: i,
+      canvas: null,
+      task: null,
+      rendering: false,
+      gen: 0,
+    });
   }
 
   const snap = (slot: PageSlot): void => {
@@ -89,20 +97,22 @@ export async function renderPdfInto(
   host.addEventListener("scroll", onScroll, { passive: true });
 
   const release = (slot: PageSlot): void => {
+    slot.gen++;
     slot.task?.cancel();
     slot.task = null;
     if (slot.canvas) {
       slot.canvas.width = 0;
       slot.canvas.height = 0;
-      slot.canvas.remove();
       slot.canvas = null;
     }
+    slot.el.replaceChildren();
     slot.rendering = false;
   };
 
   const draw = async (slot: PageSlot): Promise<void> => {
     if (slot.canvas || slot.rendering) return;
     slot.rendering = true;
+    const gen = ++slot.gen;
     try {
       const page = await doc.getPage(slot.index);
       const border = slot.el.clientLeft;
@@ -122,6 +132,7 @@ export async function renderPdfInto(
       const render = page.render({ canvas, canvasContext: ctx, viewport });
       slot.task = render;
       await render.promise;
+      if (gen !== slot.gen) return;
       slot.task = null;
       if (!slot.rendering) return;
       slot.el.replaceChildren(canvas);
@@ -130,17 +141,25 @@ export async function renderPdfInto(
       page.cleanup();
     } catch {
     } finally {
-      slot.rendering = false;
+      if (gen === slot.gen) slot.rendering = false;
     }
   };
+
+  const visible = new Set<PageSlot>();
+  let zooming = false;
 
   const io = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
         const slot = slots[Number(entry.target.getAttribute("data-page")) - 1];
         if (!slot) continue;
-        if (entry.isIntersecting) void draw(slot);
-        else release(slot);
+        if (entry.isIntersecting) {
+          visible.add(slot);
+          if (!zooming) void draw(slot);
+        } else {
+          visible.delete(slot);
+          release(slot);
+        }
       }
     },
     { root: host, rootMargin: ROOT_MARGIN },
@@ -148,31 +167,68 @@ export async function renderPdfInto(
   for (const slot of slots) io.observe(slot.el);
 
   let resizeTimer = 0;
+  const stretch = (): void => {
+    for (const canvas of list.querySelectorAll("canvas")) {
+      canvas.style.width = "100%";
+      canvas.style.height = "auto";
+      canvas.style.transform = "";
+    }
+  };
   const redraw = (delay: number): void => {
+    stretch();
+    zooming = true;
     clearTimeout(resizeTimer);
     resizeTimer = window.setTimeout(() => {
-      for (const slot of slots) {
-        if (!slot.canvas) continue;
-        release(slot);
+      zooming = false;
+      for (const slot of visible) {
+        slot.gen++;
+        slot.task?.cancel();
+        slot.task = null;
+        slot.rendering = false;
+        slot.canvas = null;
         void draw(slot);
       }
     }, delay);
   };
-  const ro = new ResizeObserver(() => redraw(200));
+  let hostWidth = host.clientWidth;
+  const ro = new ResizeObserver(() => {
+    if (host.clientWidth === hostWidth) return;
+    hostWidth = host.clientWidth;
+    redraw(200);
+  });
   ro.observe(host);
 
   const onAbort = (): void => view.destroy();
   signal?.addEventListener("abort", onAbort, { once: true });
 
   const view: PdfView = {
-    setZoom(next) {
+    setZoom(next, origin) {
       if (next === zoom) return;
-      const midX = (host.scrollLeft + host.clientWidth / 2) / host.scrollWidth;
-      const midY = (host.scrollTop + host.clientHeight / 2) / host.scrollHeight;
+      const frame = host.getBoundingClientRect();
+      const x = origin?.x ?? frame.left + host.clientLeft + host.clientWidth / 2;
+      const y = origin?.y ?? frame.top + host.clientTop + host.clientHeight / 2;
+      let anchor = slots[0];
+      let gap = Infinity;
+      for (const slot of slots) {
+        const box = slot.el.getBoundingClientRect();
+        const distance =
+          y < box.top ? box.top - y : y > box.bottom ? y - box.bottom : 0;
+        if (distance < gap) {
+          gap = distance;
+          anchor = slot;
+        }
+        if (distance === 0) break;
+      }
+      const before = anchor?.el.getBoundingClientRect();
+      const fx = before ? (x - before.left) / before.width : 0;
+      const fy = before ? (y - before.top) / before.height : 0;
       zoom = next;
       list.style.setProperty("--pdf-zoom", String(zoom));
-      host.scrollLeft = midX * host.scrollWidth - host.clientWidth / 2;
-      host.scrollTop = midY * host.scrollHeight - host.clientHeight / 2;
+      const after = anchor?.el.getBoundingClientRect();
+      if (after) {
+        host.scrollLeft += after.left + fx * after.width - x;
+        host.scrollTop += after.top + fy * after.height - y;
+      }
       redraw(150);
     },
     destroy() {
