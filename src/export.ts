@@ -252,6 +252,7 @@ export interface ExportOptions {
   readonly baseName: () => string | null;
   /** Экспорт хийж болохгүй төлөв (office горим). */
   readonly blocked?: () => boolean;
+  readonly isTex?: () => boolean;
   readonly saveButton?: HTMLElement | null;
   readonly printButton?: HTMLElement | null;
   readonly template: () => string;
@@ -502,7 +503,21 @@ export function initExport(options: ExportOptions): ExportControl {
     }
   };
 
+  async function printTex(): Promise<void> {
+    options.onBusy?.(true);
+    try {
+      const [{ compileTex }, { printPdf }] = await Promise.all([
+        import("./texpdf.ts"),
+        import("./office/print.ts"),
+      ]);
+      await printPdf(await compileTex(editor.value));
+    } finally {
+      options.onBusy?.(false);
+    }
+  }
+
   async function print(): Promise<void> {
+    if (options.isTex?.()) return printTex();
     const template = findTemplate(options.template())!;
     if (template.frame === "slides") {
       const [{ splitSlides }, { deckDoc, deckImages }, { printDeck }] =
@@ -525,6 +540,7 @@ export function initExport(options: ExportOptions): ExportControl {
 
   function printable(): boolean {
     if (options.blocked?.()) return false;
+    if (options.isTex?.()) return true;
     const frame = findTemplate(options.template())?.frame;
     return frame !== undefined && PRINT_FRAMES.has(frame);
   }

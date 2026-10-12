@@ -10,7 +10,6 @@ import { fitBlanks, format, isMarkdown, parse, toHtml } from "./markdown.ts";
 
 const TIDY_LIMIT = 400_000;
 const TEX_DELAY_MS = 700;
-const CROSS_REF = /\\(?:tableofcontents|listof(?:figures|tables)|ref|eqref|pageref|autoref)\b/;
 
 function isSameDocument(next: string, ref: string): boolean {
   if (next === ref) return true;
@@ -332,18 +331,11 @@ export function initPreview(
     const seq = ++texSeq;
     if (!pdfView) showNotice("PDF бэлтгэж байна…");
     try {
-      const [{ compilePdf, missingFont }, latex, mod] = await Promise.all([
+      const [{ compileTex }, mod] = await Promise.all([
         import("./texpdf.ts"),
-        import("./latex.ts"),
         import("./pdfview.ts"),
       ]);
-      const passes = CROSS_REF.test(text) ? 2 : 1;
-      const tex = latex.previewTex(text);
-      const bytes = await compilePdf(tex, passes).catch((error: unknown) => {
-        const fallback = missingFont(error) ? latex.withParatype(tex) : null;
-        if (fallback === null) throw error;
-        return compilePdf(fallback, passes);
-      });
+      const bytes = await compileTex(text);
       if (seq !== texSeq || !texMode) return;
       const scroll = body.scrollTop;
       dropPdf();

@@ -345,6 +345,46 @@ export function printDoc(doc: DocIr, images?: ImageSet): Promise<void> {
   );
 }
 
+export function printPdf(bytes: Uint8Array<ArrayBuffer>): Promise<void> {
+  current?.remove();
+  const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+  const frame = document.createElement("iframe");
+  current = frame;
+  frame.setAttribute("aria-hidden", "true");
+  frame.tabIndex = -1;
+  frame.style.cssText =
+    "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
+  const cleanup = (): void => {
+    frame.remove();
+    URL.revokeObjectURL(url);
+    if (current === frame) current = null;
+  };
+  return new Promise((resolve, reject) => {
+    frame.addEventListener(
+      "load",
+      () => {
+        const win = frame.contentWindow;
+        if (!win) {
+          cleanup();
+          reject(new Error("print frame unavailable"));
+          return;
+        }
+        try {
+          win.focus();
+          win.print();
+        } catch {
+          window.open(url, "_blank", "noopener");
+        }
+        resolve();
+        setTimeout(cleanup, 60_000);
+      },
+      { once: true },
+    );
+    frame.src = url;
+    document.body.appendChild(frame);
+  });
+}
+
 export function printPage(html: string): Promise<void> {
   current?.remove();
   const frame = document.createElement("iframe");
