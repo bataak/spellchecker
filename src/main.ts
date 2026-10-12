@@ -566,15 +566,22 @@ const errorPanel = initErrorPanel({
 
 const WORD_CHAR = /[\p{L}\p{M}\p{N}]/u;
 
+let latinDicts: boolean | null = null;
+checker.onDictScripts = (latin) => {
+  latinDicts = latin;
+};
+const latinLookup = (): boolean => latinDicts !== false;
+
 function wordForLookup(): WordSpan | null {
   const { value, selectionStart, selectionEnd } = els.editor;
-  if (selectionStart === selectionEnd) return wordAt(value, selectionStart);
+  if (selectionStart === selectionEnd)
+    return wordAt(value, selectionStart, latinLookup());
   let start = selectionStart;
   let end = selectionEnd;
   while (start < end && !WORD_CHAR.test(value.charAt(start))) start++;
   while (end > start && !WORD_CHAR.test(value.charAt(end - 1))) end--;
   if (start >= end) return null;
-  const span = wordAt(value, start);
+  const span = wordAt(value, start, latinLookup());
   return span && span.start <= start && span.end >= end ? span : null;
 }
 
@@ -1097,7 +1104,7 @@ function wordAtPoint(x: number, y: number): WordSpan | null {
   backdrop.style.pointerEvents = "";
   backdrop.style.userSelect = "";
   if (offset === null) return null;
-  const span = wordAt(editor.value, offset);
+  const span = wordAt(editor.value, offset, latinLookup());
   const rect = span && rangeRectAt(span.start, span.end);
   if (!rect) return null;
   if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom)

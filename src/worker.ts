@@ -8,6 +8,7 @@ import {
   type LookupMode,
   type DictEntry,
   type StarDict,
+  hasLatinHeadwords,
 } from "./stardict.ts";
 import { DictReadError, loadStarDicts } from "./stardictload.ts";
 import type { DictListEntry } from "./dictindex.ts";
@@ -18,6 +19,7 @@ import {
   idxDigest,
 } from "./userdicts.ts";
 import stardictList from "virtual:stardict-index";
+import { englishStems } from "./lookup.ts";
 import {
   bareStemInfinitives,
   collectiveGenitive,
@@ -307,6 +309,10 @@ function composeDicts(): void {
   ];
   loadedDicts = sortByOrder(list, dictOrder);
   starDicts = loadedDicts.map((entry) => entry.dict);
+  post({
+    type: "dictScripts",
+    latin: starDicts.some((dict) => isLatinDict(dict)),
+  });
 }
 
 async function bundledEntry(dict: StarDict): Promise<LoadedDict> {
@@ -552,7 +558,20 @@ function collectiveBase(inst: SpellerInstance, word: string): string | null {
   return genitive && spells(inst, genitive) ? genitive : null;
 }
 
+const LATIN_WORD = /\p{Script=Latin}/u;
+const latinDicts = new WeakMap<StarDict, boolean>();
+
+function isLatinDict(dict: StarDict): boolean {
+  let latin = latinDicts.get(dict);
+  if (latin === undefined) {
+    latin = hasLatinHeadwords(dict.index);
+    latinDicts.set(dict, latin);
+  }
+  return latin;
+}
+
 function analysesFor(word: string): Analysis[] {
+  if (LATIN_WORD.test(word)) return [];
   const primary = instances.find((item) => item.id === PRIMARY)?.inst;
   if (!primary) return [];
   try {
@@ -566,7 +585,38 @@ function analysesFor(word: string): Analysis[] {
   }
 }
 
+const ENGLISH_IDS: ReadonlySet<string> = new Set(["en_US", "en_GB"]);
+
+function englishStemsOf(word: string): string[] {
+  const english = instances.filter(({ id }) => ENGLISH_IDS.has(id));
+  const lower = word.toLowerCase();
+  const out: string[] = [];
+  const add = (stem: string): void => {
+    if (stem && stem !== word && stem !== lower && !out.includes(stem))
+      out.push(stem);
+  };
+  for (const { inst } of english) {
+    if (!inst.stem) continue;
+    try {
+      for (const form of [word, lower]) stringList(inst.stem(form)).forEach(add);
+    } catch (_) {}
+  }
+  if (out.length) return out;
+  const rules = englishStems(word);
+  if (!english.length) return rules;
+  return rules.filter((stem) =>
+    english.some(({ inst }) => {
+      try {
+        return inst.spell(stem);
+      } catch (_) {
+        return false;
+      }
+    }),
+  );
+}
+
 function stemsOf(word: string): string[] {
+  if (LATIN_WORD.test(word)) return englishStemsOf(word);
   const primary = instances.find((item) => item.id === PRIMARY)?.inst;
   if (!primary) return [];
   try {
@@ -589,6 +639,7 @@ function stemsOf(word: string): string[] {
 }
 
 function infinitivesOfStem(word: string): string[] {
+  if (LATIN_WORD.test(word)) return [];
   const primary = instances.find((item) => item.id === PRIMARY)?.inst;
   if (!primary) return [];
   try {
@@ -603,7 +654,7 @@ function infinitivesOfStem(word: string): string[] {
 const STARTS_UPPER = /^\p{Lu}/u;
 
 function lookupModeOf(word: string): LookupMode {
-  if (!STARTS_UPPER.test(word)) return "any";
+  if (!STARTS_UPPER.test(word) || LATIN_WORD.test(word)) return "any";
   const primary = instances.find((item) => item.id === PRIMARY)?.inst;
   if (!primary) return "any";
   try {
@@ -727,6 +778,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
         name: dict.info.bookname,
         words: dict.info.wordcount,
         user,
+        latin: isLatinDict(dict),
       })),
     });
     return;
