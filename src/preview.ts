@@ -118,6 +118,19 @@ function saveInvert(on: boolean): void {
   } catch {}
 }
 
+function compileGlyph(): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", "0 0 16 16");
+  svg.setAttribute("class", "tex-compile-glyph");
+  svg.setAttribute("aria-hidden", "true");
+  for (const d of ["M13 8a5 5 0 1 1-1.46-3.54", "M13 2.5V5.5H10"]) {
+    const path = document.createElementNS(SVG_NS, "path");
+    path.setAttribute("d", d);
+    svg.append(path);
+  }
+  return svg;
+}
+
 function contrastGlyph(): SVGSVGElement {
   const svg = document.createElementNS(SVG_NS, "svg");
   svg.setAttribute("viewBox", "0 0 16 16");
@@ -240,12 +253,17 @@ export function initPreview(
   zoomReset.className = "pdf-zoom-level";
   zoomBox.append(zoomOut, zoomReset, zoomIn);
 
-  const compileBtn = document.createElement("button");
-  compileBtn.type = "button";
-  compileBtn.className = "tex-compile";
-  compileBtn.textContent = "Хөрвүүлэх";
-  compileBtn.title = "PDF-ийг дахин хөрвүүлэх";
-  compileBtn.addEventListener("mousedown", (event) => event.preventDefault());
+  const compileButton = (className: string): HTMLButtonElement => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = className;
+    button.title = "Дахин хөрвүүлэх";
+    button.setAttribute("aria-label", button.title);
+    button.append(compileGlyph());
+    button.addEventListener("mousedown", (event) => event.preventDefault());
+    return button;
+  };
+  const compileBtn = compileButton("tex-compile");
 
   head.append(title, compileBtn, zoomBox, invertBtn);
 
@@ -536,13 +554,14 @@ export function initPreview(
     }
   };
 
-  compileBtn.addEventListener("click", () => {
+  const recompile = (): void => {
     if (compiling !== null) return;
     retries = 0;
     triedText = null;
     texShown = null;
     void renderTex();
-  });
+  };
+  compileBtn.addEventListener("click", recompile);
 
   const setTexMode = (on: boolean): void => {
     if (on === texMode) return;
