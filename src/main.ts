@@ -1321,7 +1321,6 @@ async function openDocxFile(file: File): Promise<boolean> {
   try {
     docx = await mod.openOfficeMode(file);
   } catch (e) {
-    docx = null;
     const reason = e instanceof Error ? e.message : "";
     holdStatus(
       reason.startsWith("too-large")
