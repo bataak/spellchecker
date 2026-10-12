@@ -175,6 +175,7 @@ let docx: OfficeMode | null = null;
 let plainName: string | null = null;
 let skipCode = true;
 let skipLinks = true;
+let markupSkips = false;
 let lastCaret: { start: number; end: number } | null = null;
 
 const status = initStatus(els.status, () => restoreStatus());
@@ -267,10 +268,11 @@ function computeBad(
   tokens: Iterable<Tokenized> = tokenize(text),
 ): { bad: Token[]; total: number } {
   const bad: Token[] = [];
+  const latex = isLatexText(text);
   const skip = skipRanges(text, {
-    code: skipCode,
+    code: skipCode && (markupSkips || latex),
     links: skipLinks,
-    latex: isLatexText(text),
+    latex,
   });
   let total = 0;
   let prev: Tokenized | null = null;
@@ -1374,11 +1376,7 @@ const MD_NAME_RE = /\.(md|markdown|mdown)$/i;
 const mdBar = initMdToolbar({
   editor: els.editor,
   mount: document.querySelector<HTMLElement>("header.topbar") ?? undefined,
-  isMdFile: () => {
-    if (docx) return false;
-    const name = fileIO.targetName() ?? plainName;
-    return !!name && MD_NAME_RE.test(name);
-  },
+  isMdFile: isMdFileOpen,
   isTexFile,
   onTemplate: (id) => {
     if (fileIO.targetName()) fileIO.forgetFile();
@@ -1415,7 +1413,18 @@ initTexImageInput({ editor: els.editor, active: () => texPaint });
 enterMdMode(mdActive());
 els.editor.addEventListener("input", nudgeHints);
 
+function isMdFileOpen(): boolean {
+  if (docx) return false;
+  const name = fileIO.targetName() ?? plainName;
+  return !!name && MD_NAME_RE.test(name);
+}
+
 function enterMdMode(on: boolean): void {
+  const markup = on || isMdFileOpen();
+  if (markup !== markupSkips) {
+    markupSkips = markup;
+    void render();
+  }
   measureCtl?.setPreviewMode(on || isTexFile());
   exportCtl?.syncPrint();
   nudgeHints();
