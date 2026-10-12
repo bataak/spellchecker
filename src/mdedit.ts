@@ -552,7 +552,10 @@ function applyChanges(
       : pos > c.from
         ? c.from
         : pos;
-  for (const c of [...changes].sort((a, b) => b.from - a.from)) {
+  const order = changes
+    .map((change, index) => ({ change, index }))
+    .sort((a, b) => b.change.from - a.change.from || b.index - a.index);
+  for (const { change: c } of order) {
     out = out.slice(0, c.from) + c.insert + out.slice(c.to);
     s = move(s, c);
     e = move(e, c);
