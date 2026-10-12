@@ -1353,9 +1353,10 @@ function closeDocx(): void {
   exportCtl?.syncPrint();
 }
 
-async function docxSave(): Promise<void> {
-  if (!docx) return;
+async function docxSave(): Promise<boolean> {
+  if (!docx) return false;
   const out = await docx.save();
+  if (out.delivered === "cancelled") return false;
 
   if (out.skipped > 0) {
     console.warn("docx: алгасагдсан засвар", out.skippedWords);
@@ -1371,6 +1372,7 @@ async function docxSave(): Promise<void> {
       12000,
     );
   }
+  return true;
 }
 
 const fileIO = initFileIO({
