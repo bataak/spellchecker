@@ -26,7 +26,7 @@ interface PageSlot {
 }
 
 export interface PdfView {
-  setZoom(zoom: number): void;
+  setZoom(zoom: number, origin?: { x: number; y: number }): void;
   destroy(): void;
 }
 
@@ -188,14 +188,33 @@ export async function renderPdfInto(
   signal?.addEventListener("abort", onAbort, { once: true });
 
   const view: PdfView = {
-    setZoom(next) {
+    setZoom(next, origin) {
       if (next === zoom) return;
-      const midX = (host.scrollLeft + host.clientWidth / 2) / host.scrollWidth;
-      const midY = (host.scrollTop + host.clientHeight / 2) / host.scrollHeight;
+      const frame = host.getBoundingClientRect();
+      const x = origin?.x ?? frame.left + host.clientLeft + host.clientWidth / 2;
+      const y = origin?.y ?? frame.top + host.clientTop + host.clientHeight / 2;
+      let anchor = slots[0];
+      let gap = Infinity;
+      for (const slot of slots) {
+        const box = slot.el.getBoundingClientRect();
+        const distance =
+          y < box.top ? box.top - y : y > box.bottom ? y - box.bottom : 0;
+        if (distance < gap) {
+          gap = distance;
+          anchor = slot;
+        }
+        if (distance === 0) break;
+      }
+      const before = anchor?.el.getBoundingClientRect();
+      const fx = before ? (x - before.left) / before.width : 0;
+      const fy = before ? (y - before.top) / before.height : 0;
       zoom = next;
       list.style.setProperty("--pdf-zoom", String(zoom));
-      host.scrollLeft = midX * host.scrollWidth - host.clientWidth / 2;
-      host.scrollTop = midY * host.scrollHeight - host.clientHeight / 2;
+      const after = anchor?.el.getBoundingClientRect();
+      if (after) {
+        host.scrollLeft += after.left + fx * after.width - x;
+        host.scrollTop += after.top + fy * after.height - y;
+      }
       redraw(150);
     },
     destroy() {
