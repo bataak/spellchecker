@@ -30,6 +30,7 @@ import {
   inRanges,
   looksLatex,
   skipRanges,
+  type SkipRange,
 } from "./codeskip.ts";
 import {
   checkable,
@@ -264,17 +265,21 @@ function debounce<A extends unknown[]>(
   };
 }
 
+function skipFor(text: string): SkipRange[] {
+  const latex = isLatexText(text);
+  return skipRanges(text, {
+    code: skipCode && (markupSkips || latex),
+    links: skipLinks,
+    latex,
+  });
+}
+
 function computeBad(
   text: string,
   tokens: Iterable<Tokenized> = tokenize(text),
 ): { bad: Token[]; total: number } {
   const bad: Token[] = [];
-  const latex = isLatexText(text);
-  const skip = skipRanges(text, {
-    code: skipCode && (markupSkips || latex),
-    links: skipLinks,
-    latex,
-  });
+  const skip = skipFor(text);
   let total = 0;
   let prev: Tokenized | null = null;
   for (const token of tokens) {
@@ -872,12 +877,14 @@ async function maybePropagateManual() {
     pendingFix = null;
     return;
   }
+  const fix = pendingFix;
   const lower = manualFixToken.word.toLowerCase();
-  if (lower === pendingFix.original) return;
-  if (pendingFix.original.length - manualFixToken.word.length > 2) return;
+  if (lower === fix.original) return;
+  if (fix.original.length - manualFixToken.word.length > 2) return;
   if (!(await correctNow(manualFixToken.word))) return;
-  const original = pendingFix.original;
-  const primaryPattern = pendingFix.originalPattern || "lower";
+  if (pendingFix !== fix || els.editor.value !== text) return;
+  const original = fix.original;
+  const primaryPattern = fix.originalPattern || "lower";
   pendingFix = null;
   const { text: nt, caret } = replaceAllWord(
     text,
@@ -885,6 +892,8 @@ async function maybePropagateManual() {
     manualFixToken.word,
     pos,
     primaryPattern,
+    null,
+    skipFor(text),
   );
   if (nt === text) return;
   const top = els.editor.scrollTop;
@@ -951,6 +960,7 @@ async function applySuggestion(
     token.end,
     casePattern(token.word),
     onlyAt,
+    skipFor(editorText),
   );
   if (nt === editorText) {
     hidePopover();
@@ -1311,7 +1321,6 @@ async function openDocxFile(file: File): Promise<boolean> {
   try {
     docx = await mod.openOfficeMode(file);
   } catch (e) {
-    docx = null;
     const reason = e instanceof Error ? e.message : "";
     holdStatus(
       reason.startsWith("too-large")
@@ -1344,9 +1353,10 @@ function closeDocx(): void {
   exportCtl?.syncPrint();
 }
 
-async function docxSave(): Promise<void> {
-  if (!docx) return;
+async function docxSave(): Promise<boolean> {
+  if (!docx) return false;
   const out = await docx.save();
+  if (out.delivered === "cancelled") return false;
 
   if (out.skipped > 0) {
     console.warn("docx: алгасагдсан засвар", out.skippedWords);
@@ -1362,6 +1372,7 @@ async function docxSave(): Promise<void> {
       12000,
     );
   }
+  return true;
 }
 
 const fileIO = initFileIO({

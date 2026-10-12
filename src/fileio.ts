@@ -1,3 +1,4 @@
+import { decodeFileBytes } from "./cp1251.ts";
 import type { DraftFile } from "./storage.ts";
 
 export interface FileIODeps {
@@ -5,7 +6,7 @@ export interface FileIODeps {
   openDocxFile: (file: File) => Promise<boolean>;
   closeDocx: () => void;
   isDocxActive: () => boolean;
-  docxSave: () => Promise<void>;
+  docxSave: () => Promise<boolean>;
   flash: (sel: string, msg: string) => void;
   setStatus: (html: string, animate?: boolean) => void;
   setEditorText: (text: string, caret: number | null) => void;
@@ -174,8 +175,7 @@ export function initFileIO({
   document.querySelector("#saveBtn")!.addEventListener("click", async () => {
     if (isDocxActive()) {
       try {
-        await docxSave();
-        flash("#saveBtn", "Хадгаллаа");
+        flash("#saveBtn", (await docxSave()) ? "Хадгаллаа" : "Цуцаллаа");
       } catch (_) {
         flash("#saveBtn", "Боломжгүй");
       }
@@ -183,10 +183,6 @@ export function initFileIO({
     }
 
     const text = els.editor.value || "";
-    if (!text.trim()) {
-      flash("#saveBtn", "Хоосон байна");
-      return;
-    }
 
     if (currentFileHandle) {
       try {
@@ -196,6 +192,11 @@ export function initFileIO({
         flash("#saveBtn", "Хадгаллаа");
         return;
       } catch (_) {}
+    }
+
+    if (!text.trim()) {
+      flash("#saveBtn", "Хоосон байна");
+      return;
     }
 
     if (currentFileName) {
@@ -233,15 +234,8 @@ export function initFileIO({
     }
   });
 
-  function readAsText(file: File): Promise<string> {
-    return file.text
-      ? file.text()
-      : new Promise((resolve, reject) => {
-          const fileReader = new FileReader();
-          fileReader.onload = () => resolve(String(fileReader.result));
-          fileReader.onerror = reject;
-          fileReader.readAsText(file);
-        });
+  async function readAsText(file: File): Promise<string> {
+    return decodeFileBytes(new Uint8Array(await file.arrayBuffer()));
   }
 
   async function loadFileContent(
@@ -275,8 +269,12 @@ export function initFileIO({
           if (!handle) return;
           const file = await handle.getFile();
           if (await tryDocx(file)) return;
+          if (!isTextFile(file)) {
+            flash("#openBtn", "Нээх боломжгүй");
+            return;
+          }
           if (!sizeOk(file)) return;
-          await loadFileContent(await file.text(), file.name, handle);
+          await loadFileContent(await readAsText(file), file.name, handle);
         } catch (e) {
           if (!(e instanceof DOMException) || e.name !== "AbortError")
             flash("#openBtn", "Боломжгүй");
@@ -290,6 +288,11 @@ export function initFileIO({
       if (!selectedFile) return;
       if (await tryDocx(selectedFile)) {
         openFileEl.value = "";
+        return;
+      }
+      if (!isTextFile(selectedFile)) {
+        openFileEl.value = "";
+        flash("#openBtn", "Нээх боломжгүй");
         return;
       }
       if (!sizeOk(selectedFile)) {
@@ -372,7 +375,10 @@ export function initFileIO({
         ? await handle.getFile()
         : dt && dt.files && dt.files[0];
       if (droppedFile && (await tryDocx(droppedFile))) return;
-      if (!isTextFile(droppedFile)) return;
+      if (!isTextFile(droppedFile)) {
+        if (droppedFile) flash("#openBtn", "Нээх боломжгүй");
+        return;
+      }
       if (!sizeOk(droppedFile)) return;
       await loadFileContent(
         await readAsText(droppedFile),

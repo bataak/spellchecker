@@ -55,6 +55,23 @@ const TABLES: Record<CyrVariant, string[]> = {
   t2a: buildTable("t2a"),
 };
 
+export function decodeFileBytes(bytes: Uint8Array): string {
+  if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf)
+    return new TextDecoder("utf-8").decode(bytes.subarray(3));
+  if (bytes[0] === 0xff && bytes[1] === 0xfe)
+    return new TextDecoder("utf-16le").decode(bytes.subarray(2));
+  if (bytes[0] === 0xfe && bytes[1] === 0xff)
+    return new TextDecoder("utf-16be").decode(bytes.subarray(2));
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {}
+  const table = TABLES.cp1251;
+  let out = "";
+  for (const byte of bytes)
+    out += byte < 0x80 ? String.fromCharCode(byte) : table[byte - 0x80]!;
+  return out;
+}
+
 function isCyrillic(ch: string): boolean {
   const code = ch.codePointAt(0)!;
   return code >= 0x0400 && code <= 0x04ff;

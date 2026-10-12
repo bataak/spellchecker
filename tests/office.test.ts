@@ -179,3 +179,11 @@ test("treats a long trailing segment as part of the name, not an extension", () 
   assert.equal(parts.head + parts.tail, "tailan.uliraliintemdeglelhuvilbar");
   assert.ok(!parts.tail.startsWith("."));
 });
+
+test("splitName emoji-г хагалахгүй", () => {
+  const name = "😀😀😀😀😀😀😀😀😀😀.txt";
+  const { head, tail } = splitName(name);
+  assert.equal(head + tail, name);
+  assert.ok(!/[\uD800-\uDBFF]$/.test(head));
+  assert.ok(!/^[\uDC00-\uDFFF]/.test(tail));
+});
