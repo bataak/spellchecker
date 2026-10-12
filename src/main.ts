@@ -1395,6 +1395,7 @@ exportCtl = initExport({
   template: () => (isTexFile() ? PLAIN : mdBar.template()),
   baseName: () => fileIO.targetName() ?? plainName,
   blocked: () => docx !== null,
+  isTex: isTexFile,
   onDone: () => flash("#saveBtn", "Хадгаллаа"),
   onBlocked: () => flash("#saveBtn", "Экспорт хийх боломжгүй"),
   onBusy: (busy) => {

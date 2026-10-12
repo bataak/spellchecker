@@ -207,6 +207,22 @@ async function compileOn(
   return pdf;
 }
 
+const CROSS_REF =
+  /\\(?:tableofcontents|listof(?:figures|tables)|ref|eqref|pageref|autoref)\b/;
+
+export async function compileTex(text: string): Promise<Uint8Array<ArrayBuffer>> {
+  const { previewTex, withParatype } = await import("./latex.ts");
+  const tex = previewTex(text);
+  const passes = CROSS_REF.test(text) ? 2 : 1;
+  try {
+    return await compilePdf(tex, passes);
+  } catch (error) {
+    const fallback = missingFont(error) ? withParatype(tex) : null;
+    if (fallback === null) throw error;
+    return compilePdf(fallback, passes);
+  }
+}
+
 export function compilePdf(
   tex: string,
   passes = 1,
