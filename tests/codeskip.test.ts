@@ -407,3 +407,9 @@ test("hasTexSyntax needs a command, comment or inline math", () => {
   assert.equal(hasTexSyntax("Хувь 100\\% бэлэн"), true);
   assert.equal(hasTexSyntax("Томьёо $x^2$"), true);
 });
+
+test("latex: dollar math stays math even with Cyrillic or after a digit", () => {
+  assert.ok(texSkipped("Утга $хувьсагч$ байна.", "хувьсагч"));
+  assert.ok(texSkipped("Хэмжээ 2$x$ гэх.", "x"));
+  assert.ok(!texSkipped("Утга $хувьсагч$ байна.", "байна"));
+});
