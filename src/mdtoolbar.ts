@@ -34,7 +34,7 @@ export interface MdToolbarOptions {
   readonly isMdFile: () => boolean;
   readonly isTexFile?: () => boolean;
   readonly mount?: HTMLElement;
-  readonly onTemplate?: (id: string) => void;
+  readonly onTemplate?: (id: string, from: string) => void;
   readonly onExample?: () => void;
   readonly onDraftError?: () => void;
 }
@@ -731,7 +731,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       showDraft(id, key, loadDraft(key));
     }
 
-    if (options.onTemplate) options.onTemplate(id);
+    if (options.onTemplate) options.onTemplate(id, from);
     setPicked(key);
     syncVisible();
   }
