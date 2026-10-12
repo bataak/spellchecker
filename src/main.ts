@@ -25,7 +25,12 @@ import { initPreview, type Preview } from "./preview.ts";
 let previewCtl: Preview | null = null;
 import { escapeHtml } from "./htmlutil.ts";
 import { pickDefinitionMarks } from "./defmarks.ts";
-import { inRanges, looksLatex, skipRanges } from "./codeskip.ts";
+import {
+  hasTexSyntax,
+  inRanges,
+  looksLatex,
+  skipRanges,
+} from "./codeskip.ts";
 import {
   checkable,
   isDashSuffix,
@@ -299,7 +304,9 @@ const TEX_NAME_RE = /\.(tex|ltx)$/i;
 
 function isLatexText(text: string): boolean {
   if (docx) return false;
-  return (!!plainName && TEX_NAME_RE.test(plainName)) || looksLatex(text);
+  if (plainName && TEX_NAME_RE.test(plainName) && hasTexSyntax(text))
+    return true;
+  return looksLatex(text);
 }
 
 function isTexFile(): boolean {
