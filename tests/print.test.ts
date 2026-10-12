@@ -75,3 +75,17 @@ test("printHtml: бэлтгэсэн зургийг голлуулсан дого
   assert.equal(missing?.src, "x.png");
   assert.match(html, /<p class="s-Figure"><br><\/p>/);
 });
+
+test("printHtml: хэвлэлт апптай хамт ирсэн Times-тэй ижил өргөнтэй фонтыг эхэлж ашиглана", () => {
+  const html = letter("Бие.");
+  assert.match(html, /body\{font-family:"Bichig Print Serif", "Times New Roman"/);
+  assert.match(html, /\.mono\{font-family:"Bichig Print Mono"/);
+  for (const file of [
+    "bichig-print-serif-mn-400-v1",
+    "bichig-print-serif-mn-700-v1",
+    "bichig-print-serif-mn-400i-v1",
+    "bichig-print-serif-mn-700i-v1",
+    "bichig-print-mono-mn-400-v1",
+  ])
+    assert.ok(html.includes('url("fonts/' + file + '.woff2")'), file);
+});

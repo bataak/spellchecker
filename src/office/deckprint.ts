@@ -8,7 +8,7 @@ import {
 } from "./decklayout.ts";
 import { imageKey } from "./docir.ts";
 import type { Align, ImageSet, IrRun } from "./docir.ts";
-import { printPage } from "./print.ts";
+import { fontFaces, printFontBase, printPage } from "./print.ts";
 
 const SLIDE_W = 12192000 / 360000;
 const SLIDE_H = 6858000 / 360000;
@@ -26,8 +26,9 @@ const PAGE_TOP = (PAGE_H - 2 * PAGE_MARGIN - 2 * FRAME_H - SLOT_GAP) / 2;
 
 const SLIDES_PER_PAGE = 2;
 
-const FONT = 'Arial, "Liberation Sans", Helvetica, sans-serif';
-const MONO = '"Courier New", "Liberation Mono", monospace';
+const FONT =
+  '"Bichig Print Sans", Arial, "Liberation Sans", Helvetica, sans-serif';
+const MONO = '"Bichig Print Mono", "Courier New", "Liberation Mono", monospace';
 
 const TEXT_ALIGN: Readonly<Record<Align, string>> = {
   start: "left",
@@ -302,6 +303,7 @@ function frame(slide: string): string {
 export function deckPrintHtml(
   doc: DeckDoc,
   images: ImageSet = new Map(),
+  fontBase = "fonts/",
 ): string {
   const slides = slidesOf(doc, images);
   const pages: string[] = [];
@@ -315,6 +317,7 @@ export function deckPrintHtml(
         "</section>",
     );
   const css =
+    fontFaces(fontBase) +
     "@page{size:" +
     cm(PAGE_W) +
     " " +
@@ -377,5 +380,5 @@ export function deckPrintHtml(
 }
 
 export function printDeck(doc: DeckDoc, images?: ImageSet): Promise<void> {
-  return printPage(deckPrintHtml(doc, images));
+  return printPage(deckPrintHtml(doc, images, printFontBase()));
 }
