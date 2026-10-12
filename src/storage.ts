@@ -20,16 +20,18 @@ export interface DraftFile {
   kind: "text" | "office";
 }
 
-export function saveDraftFile(ref: DraftFile | null): void {
+export function saveDraftFile(ref: DraftFile | null, slot?: string): void {
+  const key = slot === undefined ? FILE_KEY : FILE_KEY + ":" + slot;
   try {
-    if (ref === null) localStorage.removeItem(FILE_KEY);
-    else localStorage.setItem(FILE_KEY, JSON.stringify(ref));
+    if (ref === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, JSON.stringify(ref));
   } catch (_) {}
 }
 
-export function loadDraftFile(): DraftFile | null {
+export function loadDraftFile(slot?: string): DraftFile | null {
+  const key = slot === undefined ? FILE_KEY : FILE_KEY + ":" + slot;
   try {
-    const raw = localStorage.getItem(FILE_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return null;
     const value = JSON.parse(raw) as Partial<DraftFile>;
     if (typeof value.name !== "string" || value.name === "") return null;

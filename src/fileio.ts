@@ -17,8 +17,15 @@ export interface FileIODeps {
   onFileOpened: (file: DraftFile | null) => void;
 }
 
+export interface OpenFile {
+  readonly handle: FileSystemFileHandle | null;
+  readonly name: string;
+}
+
 export interface FileIOControl {
   forgetFile: () => void;
+  takeFile: () => OpenFile | null;
+  putFile: (file: OpenFile | null) => void;
   restoreFile: (ref: DraftFile) => void;
   targetName: () => string | null;
 }
@@ -393,6 +400,18 @@ export function initFileIO({
       currentFileHandle = null;
       currentFileName = null;
       onFileOpened(null);
+    },
+    takeFile() {
+      const file = currentFileName
+        ? { handle: currentFileHandle, name: currentFileName }
+        : null;
+      currentFileHandle = null;
+      currentFileName = null;
+      return file;
+    },
+    putFile(file: OpenFile | null) {
+      currentFileHandle = file ? file.handle : null;
+      currentFileName = file ? file.name : null;
     },
     restoreFile(ref: DraftFile) {
       currentFileHandle = null;
