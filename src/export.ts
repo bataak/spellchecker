@@ -268,7 +268,35 @@ export interface ExportControl {
 }
 
 const LONG_PRESS_MS = 550;
-const EXT_RE = /\.[a-z0-9]+$/i;
+const KNOWN_EXT = new RegExp(
+  "\\.(?:" +
+    [
+      ...new Set([
+        ...FORMATS.map((format) => format.ext),
+        "txt",
+        "text",
+        "md",
+        "markdown",
+        "tex",
+        "ltx",
+        "docx",
+        "pptx",
+        "odt",
+        "odp",
+        "pdf",
+      ]),
+    ].join("|") +
+    ")$",
+  "i",
+);
+
+export function stripExt(name: string): string {
+  return name.replace(KNOWN_EXT, "");
+}
+
+export function withExt(name: string, ext: string): string {
+  return KNOWN_EXT.test(name) ? name : name + "." + ext;
+}
 
 function stamp(): string {
   const now = new Date();
@@ -378,7 +406,7 @@ export function initExport(options: ExportOptions): ExportControl {
 
   function baseFrom(): string {
     const current = options.baseName();
-    if (current) return current.replace(EXT_RE, "");
+    if (current) return stripExt(current);
     return stamp();
   }
 
@@ -397,7 +425,7 @@ export function initExport(options: ExportOptions): ExportControl {
       !TOC_FORMATS.has(chosen.id) ||
       !hasSections(editor.value, options.template());
 
-    nameInput.value = nameInput.value.replace(EXT_RE, "") + "." + chosen.ext;
+    nameInput.value = stripExt(nameInput.value) + "." + chosen.ext;
   }
 
   function open(): void {
@@ -438,7 +466,7 @@ export function initExport(options: ExportOptions): ExportControl {
   async function run(): Promise<void> {
     const text = editor.value;
     let name = nameInput.value.trim() || baseFrom();
-    if (!EXT_RE.test(name)) name += "." + chosen.ext;
+    name = withExt(name, chosen.ext);
 
     close();
     const format = chosen;
