@@ -762,3 +762,24 @@ test("toHtml — -- ба --- зураасыг хувиргана, кодыг х�
     '<p data-line="0">1990–2000 — <code>a--b</code></p>',
   );
 });
+
+test("үнийн $ тэмдэг томьёо биш, Markdown гэж танигдахгүй", () => {
+  for (const text of [
+    "Үнэ нь 100$2 ашигг нь 20$ байна.",
+    "Үнэ нь 100$, ашигг нь 20$ байна.",
+    "$хэмжээ$ гэж",
+  ]) {
+    const blocks = parse(text);
+    assert.equal(isMarkdown(blocks), false, text);
+  }
+});
+
+test("жинхэнэ $…$ томьёо хэвээр танигдана", () => {
+  const blocks = parse("Томьёо $x^2$ ба $a=b$ мөн $5$.");
+  const first = blocks[0];
+  assert.ok(first && first.type === "paragraph");
+  assert.equal(
+    first.children.filter((node) => node.type === "math").length,
+    3,
+  );
+});
