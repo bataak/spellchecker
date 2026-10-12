@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import {
   codeRanges,
+  fencedCode,
   hasTexSyntax,
   inRanges,
   looksLatex,
@@ -412,4 +413,14 @@ test("latex: dollar math stays math even with Cyrillic or after a digit", () => 
   assert.ok(texSkipped("Утга $хувьсагч$ байна.", "хувьсагч"));
   assert.ok(texSkipped("Хэмжээ 2$x$ гэх.", "x"));
   assert.ok(!texSkipped("Утга $хувьсагч$ байна.", "байна"));
+});
+
+test("fencedCode: зөвхөн хаагдсан кодын блокийг буцаана", () => {
+  const text = "helo\n\n```js\nconst helo = 1;\n```\n";
+  const ranges = fencedCode(text);
+  assert.equal(ranges.length, 1);
+  assert.ok(inRanges(ranges, text.indexOf("const")));
+  assert.ok(!inRanges(ranges, 0));
+  assert.deepEqual(fencedCode("helo\n```\nhelo"), []);
+  assert.deepEqual(fencedCode("`helo` ба helo"), []);
 });
