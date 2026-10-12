@@ -22,6 +22,7 @@ interface PageSlot {
   canvas: HTMLCanvasElement | null;
   task: { cancel: () => void } | null;
   rendering: boolean;
+  gen: number;
 }
 
 export interface PdfView {
@@ -64,7 +65,14 @@ export async function renderPdfInto(
     el.dataset.page = String(i);
     el.style.aspectRatio = `${base.width} / ${base.height}`;
     list.append(el);
-    slots.push({ el, index: i, canvas: null, task: null, rendering: false });
+    slots.push({
+      el,
+      index: i,
+      canvas: null,
+      task: null,
+      rendering: false,
+      gen: 0,
+    });
   }
 
   const snap = (slot: PageSlot): void => {
@@ -89,20 +97,22 @@ export async function renderPdfInto(
   host.addEventListener("scroll", onScroll, { passive: true });
 
   const release = (slot: PageSlot): void => {
+    slot.gen++;
     slot.task?.cancel();
     slot.task = null;
     if (slot.canvas) {
       slot.canvas.width = 0;
       slot.canvas.height = 0;
-      slot.canvas.remove();
       slot.canvas = null;
     }
+    slot.el.replaceChildren();
     slot.rendering = false;
   };
 
   const draw = async (slot: PageSlot): Promise<void> => {
     if (slot.canvas || slot.rendering) return;
     slot.rendering = true;
+    const gen = ++slot.gen;
     try {
       const page = await doc.getPage(slot.index);
       const border = slot.el.clientLeft;
@@ -122,6 +132,7 @@ export async function renderPdfInto(
       const render = page.render({ canvas, canvasContext: ctx, viewport });
       slot.task = render;
       await render.promise;
+      if (gen !== slot.gen) return;
       slot.task = null;
       if (!slot.rendering) return;
       slot.el.replaceChildren(canvas);
@@ -130,7 +141,7 @@ export async function renderPdfInto(
       page.cleanup();
     } catch {
     } finally {
-      slot.rendering = false;
+      if (gen === slot.gen) slot.rendering = false;
     }
   };
 
@@ -148,12 +159,24 @@ export async function renderPdfInto(
   for (const slot of slots) io.observe(slot.el);
 
   let resizeTimer = 0;
+  const stretch = (): void => {
+    for (const canvas of list.querySelectorAll("canvas")) {
+      canvas.style.width = "100%";
+      canvas.style.height = "auto";
+      canvas.style.transform = "";
+    }
+  };
   const redraw = (delay: number): void => {
+    stretch();
     clearTimeout(resizeTimer);
     resizeTimer = window.setTimeout(() => {
       for (const slot of slots) {
         if (!slot.canvas) continue;
-        release(slot);
+        slot.gen++;
+        slot.task?.cancel();
+        slot.task = null;
+        slot.rendering = false;
+        slot.canvas = null;
         void draw(slot);
       }
     }, delay);
