@@ -43,15 +43,26 @@ function family(name: string): string {
   return '"' + name + '"';
 }
 
+const PRINT_FAMILY: Readonly<Record<string, string>> = {
+  "Times New Roman": "Bichig Print Serif",
+  Arial: "Bichig Print Sans",
+  "Courier New": "Bichig Print Mono",
+};
+
 function serifStack(base: string): string {
-  return [base, odfFont(base), "Bichig Serif"]
+  return [PRINT_FAMILY[base] ?? base, base, odfFont(base), "Bichig Serif"]
     .filter((name, index, list) => list.indexOf(name) === index)
     .map(family)
     .concat("serif")
     .join(", ");
 }
 
-const MONO_STACK = ["Courier New", odfFont("Courier New"), "Bichig Mono"]
+const MONO_STACK = [
+  "Bichig Print Mono",
+  "Courier New",
+  odfFont("Courier New"),
+  "Bichig Mono",
+]
   .map(family)
   .concat("monospace")
   .join(", ");
@@ -239,7 +250,7 @@ function blockHtml(block: IrBlock, doc: DocIr, images: ImageSet): string {
   }
 }
 
-function fontFaces(fontBase: string): string {
+export function fontFaces(fontBase: string): string {
   const url = (file: string): string => fontBase + file;
   const face = (name: string, file: string, weight: number, style: string) =>
     "@font-face{font-family:" +
@@ -255,8 +266,21 @@ function fontFaces(fontBase: string): string {
     face("Bichig Serif", "pt-serif-mn-400-v1.woff2", 400, "normal") +
     face("Bichig Serif", "pt-serif-mn-700-v1.woff2", 700, "normal") +
     face("Bichig Serif", "pt-serif-mn-italic-v2.woff2", 400, "italic") +
-    face("Bichig Mono", "dejavu-mono-mn-400-v1.woff2", 400, "normal")
+    face("Bichig Mono", "dejavu-mono-mn-400-v1.woff2", 400, "normal") +
+    face("Bichig Print Serif", "bichig-print-serif-mn-400-v1.woff2", 400, "normal") +
+    face("Bichig Print Serif", "bichig-print-serif-mn-700-v1.woff2", 700, "normal") +
+    face("Bichig Print Serif", "bichig-print-serif-mn-400i-v1.woff2", 400, "italic") +
+    face("Bichig Print Serif", "bichig-print-serif-mn-700i-v1.woff2", 700, "italic") +
+    face("Bichig Print Sans", "bichig-print-sans-mn-400-v1.woff2", 400, "normal") +
+    face("Bichig Print Sans", "bichig-print-sans-mn-700-v1.woff2", 700, "normal") +
+    face("Bichig Print Sans", "bichig-print-sans-mn-400i-v1.woff2", 400, "italic") +
+    face("Bichig Print Sans", "bichig-print-sans-mn-700i-v1.woff2", 700, "italic") +
+    face("Bichig Print Mono", "bichig-print-mono-mn-400-v1.woff2", 400, "normal")
   );
+}
+
+export function printFontBase(): string {
+  return new URL(import.meta.env.BASE_URL + "fonts/", location.href).href;
 }
 
 export function printHtml(
@@ -337,11 +361,7 @@ let current: HTMLIFrameElement | null = null;
 
 export function printDoc(doc: DocIr, images?: ImageSet): Promise<void> {
   return printPage(
-    printHtml(
-      doc,
-      new URL(import.meta.env.BASE_URL + "fonts/", location.href).href,
-      images,
-    ),
+    printHtml(doc, printFontBase(), images),
   );
 }
 
