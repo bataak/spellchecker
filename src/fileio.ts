@@ -1,3 +1,4 @@
+import { decodeFileBytes } from "./cp1251.ts";
 import type { DraftFile } from "./storage.ts";
 
 export interface FileIODeps {
@@ -233,15 +234,8 @@ export function initFileIO({
     }
   });
 
-  function readAsText(file: File): Promise<string> {
-    return file.text
-      ? file.text()
-      : new Promise((resolve, reject) => {
-          const fileReader = new FileReader();
-          fileReader.onload = () => resolve(String(fileReader.result));
-          fileReader.onerror = reject;
-          fileReader.readAsText(file);
-        });
+  async function readAsText(file: File): Promise<string> {
+    return decodeFileBytes(new Uint8Array(await file.arrayBuffer()));
   }
 
   async function loadFileContent(
@@ -280,7 +274,7 @@ export function initFileIO({
             return;
           }
           if (!sizeOk(file)) return;
-          await loadFileContent(await file.text(), file.name, handle);
+          await loadFileContent(await readAsText(file), file.name, handle);
         } catch (e) {
           if (!(e instanceof DOMException) || e.name !== "AbortError")
             flash("#openBtn", "Боломжгүй");
