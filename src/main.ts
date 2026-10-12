@@ -330,8 +330,13 @@ function isLatexText(text: string): boolean {
   return looksLatex(text);
 }
 
+const TEX_TEMPLATE = "article";
+let texTemplate = false;
+
 function isTexFile(): boolean {
-  return isLatexText(els.editor.value);
+  const text = els.editor.value;
+  if (texTemplate && !docx && text.trim() === "") return true;
+  return isLatexText(text);
 }
 
 let lastTex: boolean | null = null;
@@ -1443,6 +1448,8 @@ const mdBar = initMdToolbar({
     ),
   isTexFile,
   onTemplate: (id, from) => {
+    texTemplate = id === TEX_TEMPLATE;
+    syncTexMode();
     swapTemplateFile(from, mdBar.slot());
     enterMdMode(!isTexFile() && !isPlain(id));
   },
@@ -1481,6 +1488,7 @@ const nudgeHints = initHints(() => {
 });
 let exportCtl: ExportControl | null = null;
 
+texTemplate = mdBar.template() === TEX_TEMPLATE;
 lastTex = isTexFile();
 applyTexPaint(lastTex);
 initTexComplete({
@@ -1509,6 +1517,7 @@ function enterMdMode(on: boolean): void {
     void render();
   }
   measureCtl?.setPreviewMode(on || isTexFile());
+  document.body.classList.toggle("preview-mode", on || isTexFile());
   previewCtl?.setMarkdownMode(on);
   exportCtl?.syncPrint();
   nudgeHints();
