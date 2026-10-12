@@ -18,6 +18,15 @@ html {
   --lookup-blend: multiply;
   --editor-bg: #ffffff;
   --focus: #b9b1a1;
+  --tex-bg: #fbf1c7;
+  --tex-ink: #3c3836;
+  --tex-cmd: #9d0006;
+  --tex-env: #b57614;
+  --tex-math: #79740e;
+  --tex-delim: #af3a03;
+  --tex-verb: #427b58;
+  --tex-comment: #928374;
+  --tex-selection: rgba(189, 174, 147, 0.55);
   --editor-scale: 1;
   --editor-lh: 1.9;
   --editor-pad-x: 22px;
@@ -112,6 +121,15 @@ html {
   --lookup-blend: screen;
   --editor-bg: #211d16;
   --focus: #4a4438;
+  --tex-bg: #282828;
+  --tex-ink: #ebdbb2;
+  --tex-cmd: #fb4934;
+  --tex-env: #fabd2f;
+  --tex-math: #b8bb26;
+  --tex-delim: #fe8019;
+  --tex-verb: #8ec07c;
+  --tex-comment: #928374;
+  --tex-selection: rgba(102, 92, 84, 0.6);
 }
 :root[data-theme="dark"] body {
   background: radial-gradient(
@@ -645,6 +663,48 @@ a.tbtn {
   opacity: 0.72;
 }
 
+.pdf-zoom {
+  display: none;
+  pointer-events: auto;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  margin-inline-start: auto;
+}
+
+.preview-panel.is-pdf .pdf-zoom {
+  display: inline-flex;
+}
+
+.pdf-zoom button {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 5px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  opacity: 0.72;
+}
+
+.pdf-zoom .pdf-zoom-level {
+  min-width: 46px;
+}
+
+.pdf-zoom button:hover:not(:disabled),
+.pdf-zoom button:focus-visible {
+  opacity: 1;
+  border-color: var(--line);
+}
+
+.pdf-zoom button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
 :root[data-theme="dark"] .preview-panel.is-pdf .pdf-invert {
   display: inline-flex;
 }
@@ -984,6 +1044,25 @@ a.tbtn {
   -webkit-backdrop-filter: none;
 }
 
+.preview-error {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: 0;
+  z-index: 2;
+  margin: 0;
+  padding: 8px var(--preview-pad);
+  background: color-mix(in srgb, var(--proof-soft) 92%, transparent);
+  color: var(--proof);
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.preview-error[hidden] {
+  display: none;
+}
+
 .preview-notice {
   margin: auto 0;
   padding: 24px 0;
@@ -1003,11 +1082,15 @@ a.tbtn {
 .pdf-pages {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 12px;
+  width: 100%;
 }
 
 .pdf-page {
-  width: 100%;
+  flex: 0 0 auto;
+  width: calc(100% * var(--pdf-zoom, 1));
+  margin-inline: auto;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: #fff;
@@ -1128,7 +1211,9 @@ a.tbtn {
 }
 
 .is-markdown > .backdrop,
-.is-markdown > .editor {
+.is-markdown > .editor,
+.is-tex > .backdrop,
+.is-tex > .editor {
   font-family: var(--mono);
   font-size: calc(1.14rem * var(--editor-scale, 1) * var(--mono-fit, 0.85));
 }
@@ -1138,6 +1223,51 @@ a.tbtn {
 .backdrop mark {
   color: transparent;
   background: var(--squiggle-wave) left bottom / 8px 4px repeat-x;
+}
+
+.is-tex {
+  --editor-bg: var(--tex-bg);
+}
+.is-tex > .backdrop {
+  color: var(--tex-ink);
+}
+.is-tex > .backdrop mark {
+  color: inherit;
+}
+.is-tex > .editor {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  caret-color: var(--tex-ink);
+}
+.is-tex > .editor::placeholder {
+  color: var(--muted);
+  -webkit-text-fill-color: var(--muted);
+}
+.is-tex > .editor::selection {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  background: var(--tex-selection);
+}
+.tx-cmd {
+  color: var(--tex-cmd);
+}
+.tx-env {
+  color: var(--tex-env);
+}
+.tx-math {
+  color: var(--tex-math);
+}
+.tx-delim {
+  color: var(--tex-delim);
+}
+.tx-brace {
+  color: var(--tex-ink);
+}
+.tx-comment {
+  color: var(--tex-comment);
+}
+.tx-verb {
+  color: var(--tex-verb);
 }
 
 .editor {
@@ -1431,7 +1561,9 @@ a.tbtn {
   }
 
   .is-markdown > .backdrop,
-  .is-markdown > .editor {
+  .is-markdown > .editor,
+  .is-tex > .backdrop,
+  .is-tex > .editor {
     font-size: calc(1.06rem * var(--editor-scale, 1) * var(--mono-fit, 0.85));
   }
 }

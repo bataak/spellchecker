@@ -48,3 +48,9 @@ test("deckPrintHtml: илтгэгчийн тэмдэглэл хэвлэгдэх�
   assert.match(html, /Текст/);
   assert.doesNotMatch(html, /Нууц/);
 });
+
+test("deckPrintHtml: слайд апптай хамт ирсэн Arial-тай ижил өргөнтэй фонтыг эхэлж ашиглана", () => {
+  const html = deck("# Слайд\n\nТекст.");
+  assert.match(html, /body\{font-family:"Bichig Print Sans", Arial/);
+  assert.ok(html.includes('url("fonts/bichig-print-sans-mn-400-v1.woff2")'));
+});

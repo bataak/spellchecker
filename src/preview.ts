@@ -9,6 +9,7 @@ import {
 import { fitBlanks, format, isMarkdown, parse, toHtml } from "./markdown.ts";
 
 const TIDY_LIMIT = 400_000;
+const TEX_DELAY_MS = 700;
 
 function isSameDocument(next: string, ref: string): boolean {
   if (next === ref) return true;
@@ -19,6 +20,79 @@ function isSameDocument(next: string, ref: string): boolean {
 
 const HEAD_TEXT = "Харагдац";
 const INVERT_KEY = "pdfInvert";
+const ZOOM_KEY = "pdfZoom";
+const ZOOM_STEPS = [0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+
+function loadZoom(): number {
+  try {
+    const value = Number(localStorage.getItem(ZOOM_KEY));
+    return ZOOM_STEPS.includes(value) ? value : 1;
+  } catch {
+    return 1;
+  }
+}
+
+function saveZoom(zoom: number): void {
+  try {
+    if (zoom === 1) localStorage.removeItem(ZOOM_KEY);
+    else localStorage.setItem(ZOOM_KEY, String(zoom));
+  } catch {}
+}
+
+const PDF_CACHE = "tex-preview";
+const PDF_KEY = "tex-preview/last.pdf";
+
+async function textKey(text: string): Promise<string | null> {
+  try {
+    const digest = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(text),
+    );
+    return [...new Uint8Array(digest)]
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+  } catch {
+    return null;
+  }
+}
+
+async function loadCachedPdf(): Promise<{
+  key: string;
+  bytes: Uint8Array<ArrayBuffer>;
+} | null> {
+  try {
+    const hit = await (await caches.open(PDF_CACHE)).match(PDF_KEY);
+    if (!hit) return null;
+    return {
+      key: hit.headers.get("x-text-key") ?? "",
+      bytes: new Uint8Array(await hit.arrayBuffer()),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function saveCachedPdf(
+  text: string,
+  bytes: Uint8Array<ArrayBuffer>,
+): Promise<void> {
+  const key = await textKey(text);
+  if (!key) return;
+  try {
+    await (await caches.open(PDF_CACHE)).put(
+      PDF_KEY,
+      new Response(bytes.slice(), {
+        headers: { "content-type": "application/pdf", "x-text-key": key },
+      }),
+    );
+  } catch {}
+}
+
+function stepZoom(zoom: number, dir: number): number {
+  const at = ZOOM_STEPS.indexOf(zoom);
+  const next = Math.min(Math.max(at + dir, 0), ZOOM_STEPS.length - 1);
+  return ZOOM_STEPS[next]!;
+}
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 function loadInvert(): boolean {
@@ -139,13 +213,36 @@ export function initPreview(
     applyInvert();
   });
 
-  head.append(title, invertBtn);
+  let zoom = loadZoom();
+  const zoomBox = document.createElement("span");
+  zoomBox.className = "pdf-zoom";
+  const zoomButton = (label: string, text: string): HTMLButtonElement => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.title = label;
+    button.setAttribute("aria-label", label);
+    button.textContent = text;
+    button.addEventListener("mousedown", (event) => event.preventDefault());
+    return button;
+  };
+  const zoomOut = zoomButton("Жижигрүүлэх", "−");
+  const zoomReset = zoomButton("Анхны хэмжээ", "100%");
+  const zoomIn = zoomButton("Томруулах", "+");
+  zoomReset.className = "pdf-zoom-level";
+  zoomBox.append(zoomOut, zoomReset, zoomIn);
+
+  head.append(title, zoomBox, invertBtn);
 
   const body = document.createElement("div");
   body.className = "preview-body";
 
+  const texError = document.createElement("p");
+  texError.className = "preview-error";
+  texError.setAttribute("role", "status");
+  texError.hidden = true;
+
   applyInvert();
-  panel.append(head, body);
+  panel.append(head, body, texError);
   const imageEdit = initImageEdit(body, area);
   wrap.after(panel);
 
@@ -166,10 +263,42 @@ export function initPreview(
   let isMdFile = false;
   let source: PreviewSource | null = null;
   let sourceText = "";
-  let pdfView: { destroy(): void } | null = null;
+  let pdfView: import("./pdfview.ts").PdfView | null = null;
+
+  const setZoom = (next: number): void => {
+    zoom = next;
+    saveZoom(zoom);
+    zoomReset.textContent = Math.round(zoom * 100) + "%";
+    zoomOut.disabled = zoom === ZOOM_STEPS[0];
+    zoomIn.disabled = zoom === ZOOM_STEPS[ZOOM_STEPS.length - 1];
+    pdfView?.setZoom(zoom);
+  };
+  setZoom(zoom);
+  zoomOut.addEventListener("click", () => setZoom(stepZoom(zoom, -1)));
+  zoomIn.addEventListener("click", () => setZoom(stepZoom(zoom, 1)));
+  zoomReset.addEventListener("click", () => setZoom(1));
+
+  let wheelAt = 0;
+  body.addEventListener(
+    "wheel",
+    (event) => {
+      if (!pdfView || !(event.ctrlKey || event.metaKey)) return;
+      event.preventDefault();
+      const now = performance.now();
+      if (now - wheelAt < 80) return;
+      wheelAt = now;
+      setZoom(stepZoom(zoom, event.deltaY < 0 ? 1 : -1));
+    },
+    { passive: false },
+  );
   let pdfAbort: AbortController | null = null;
   let shownHtml: string | null = null;
   let mathView: typeof import("./mathview.ts") | null = null;
+  let texMode = false;
+  let texShown: string | null = null;
+  let texTimer = 0;
+  let texSeq = 0;
+  let texRestored = false;
 
   const renderMarkdown = (): void => {
     const text = area.value;
@@ -220,7 +349,12 @@ export function initPreview(
     try {
       const mod = await import("./pdfview.ts");
       if (controller.signal.aborted) return;
-      const view = await mod.renderPdfInto(body, file, controller.signal);
+      const view = await mod.renderPdfInto(
+        body,
+        file,
+        controller.signal,
+        zoom,
+      );
       if (controller.signal.aborted) {
         view.destroy();
         return;
@@ -232,9 +366,103 @@ export function initPreview(
     }
   };
 
+  const setTexError = (message: string | null): void => {
+    texError.hidden = message === null;
+    texError.textContent = message ?? "";
+  };
+
+  const previewShown = (): boolean =>
+    document.documentElement.dataset.preview === "on";
+
+  const showPdfBytes = async (
+    bytes: Uint8Array<ArrayBuffer>,
+    seq: number,
+  ): Promise<boolean> => {
+    const mod = await import("./pdfview.ts");
+    if (seq !== texSeq || !texMode) return false;
+    const scroll = body.scrollTop;
+    dropPdf();
+    const controller = new AbortController();
+    pdfAbort = controller;
+    const file = new File([bytes], "preview.pdf", { type: "application/pdf" });
+    const view = await mod.renderPdfInto(body, file, controller.signal, zoom);
+    if (controller.signal.aborted) {
+      view.destroy();
+      return false;
+    }
+    pdfView = view;
+    panel.classList.remove("is-blank");
+    body.classList.remove("is-empty");
+    body.scrollTop = scroll;
+    return true;
+  };
+
+  const restoreTex = async (text: string, seq: number): Promise<boolean> => {
+    texRestored = true;
+    const [cached, key] = await Promise.all([loadCachedPdf(), textKey(text)]);
+    if (!cached || seq !== texSeq || !texMode) return false;
+    if (!(await showPdfBytes(cached.bytes, seq).catch(() => false)))
+      return false;
+    return key !== null && key === cached.key;
+  };
+
+  const renderTex = async (): Promise<void> => {
+    texTimer = 0;
+    const text = area.value;
+    if (!texMode || text === texShown || !previewShown()) return;
+    const seq = ++texSeq;
+    if (!texRestored && (await restoreTex(text, seq))) {
+      texShown = text;
+      return;
+    }
+    if (seq !== texSeq || !texMode) return;
+    if (!pdfView) showNotice("PDF бэлтгэж байна…");
+    try {
+      const { compileTex } = await import("./texpdf.ts");
+      const bytes = await compileTex(text);
+      if (!(await showPdfBytes(bytes, seq))) return;
+      texShown = text;
+      setTexError(null);
+      void saveCachedPdf(text, bytes);
+    } catch (error) {
+      if (seq !== texSeq || !texMode) return;
+      texShown = text;
+      const message =
+        error instanceof Error ? error.message : "PDF үүсгэж чадсангүй";
+      if (pdfView) setTexError(message);
+      else showNotice(message);
+    }
+  };
+
+  const setTexMode = (on: boolean): void => {
+    if (on === texMode) return;
+    texMode = on;
+    texSeq++;
+    texRestored = false;
+    if (texTimer) clearTimeout(texTimer);
+    texTimer = 0;
+    texShown = null;
+    dropPdf();
+    setTexError(null);
+    shownHtml = null;
+    body.replaceChildren();
+    panel.classList.remove("is-blank");
+    panel.classList.toggle("is-pdf", on);
+    tidy.hidden = true;
+  };
+
   const update = (): void => {
     if (source) {
       if (!isSameDocument(area.value, sourceText)) setSource(null);
+      return;
+    }
+    setTexMode(isLatex(area.value));
+    if (texMode) {
+      if (texTimer) clearTimeout(texTimer);
+      texTimer = window.setTimeout(
+        () => void renderTex(),
+        texShown === null ? 0 : TEX_DELAY_MS,
+      );
       return;
     }
     if (raf) return;
@@ -256,6 +484,7 @@ export function initPreview(
 
   const setSource = (next: PreviewSource | null): void => {
     source = next;
+    setTexMode(false);
     tidy.hidden = true;
     dropPdf();
 
@@ -266,7 +495,7 @@ export function initPreview(
       panel.classList.remove("is-pdf");
       shownHtml = null;
       body.replaceChildren();
-      renderMarkdown();
+      update();
       return;
     }
 
@@ -299,7 +528,7 @@ export function initPreview(
   });
 
   const offImages = onImagesChange(() => {
-    if (source) return;
+    if (source || texMode) return;
     shownHtml = null;
     update();
   });
@@ -318,6 +547,7 @@ export function initPreview(
     setSource,
     destroy() {
       if (raf) cancelAnimationFrame(raf);
+      if (texTimer) clearTimeout(texTimer);
       dropPdf();
       offImages();
       imageEdit.destroy();

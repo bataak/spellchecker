@@ -1,4 +1,5 @@
 import { codeRanges, inRanges } from "./codeskip.ts";
+import { replaceRange } from "./editortext.ts";
 import { imageAttrs, parseImageAttrs } from "./markdown.ts";
 import type { ImageSize } from "./markdown.ts";
 
@@ -684,20 +685,8 @@ export function applyEdit(
 
   if (patch) {
     editor.focus(options);
-    editor.setSelectionRange(patch.from, patch.to);
-    let ok = false;
-    try {
-      ok =
-        patch.insert === ""
-          ? document.execCommand("delete")
-          : document.execCommand("insertText", false, patch.insert);
-    } catch (_) {
-      ok = false;
-    }
-    if (!ok) {
-      editor.setRangeText(patch.insert, patch.from, patch.to, "end");
+    if (!replaceRange(editor, patch.from, patch.to, patch.insert))
       editor.dispatchEvent(new Event("input", { bubbles: true }));
-    }
   }
 
   editor.setSelectionRange(edit.start, edit.end);

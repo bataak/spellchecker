@@ -444,6 +444,136 @@ function coverage(): string[] {
   ];
 }
 
+const USER_PACKAGES = String.raw`\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{underscore}
+\usepackage{comment}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage[table]{xcolor}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+\usepackage{url}
+\usepackage{listings}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\newtheorem{theorem}{Теорем}
+\pagestyle{fancy}
+\fancyhead[L]{Толгой}
+\titleformat{\subsection}{\bfseries}{\thesubsection}{1em}{}
+\lstset{basicstyle=\ttfamily\small,breaklines=true}
+\title{Гарчиг}
+\author{Зохиогч}
+\date{\today}
+`;
+
+const USER_BODY = String.raw`\maketitle
+\tableofcontents
+\section{Хэсэг}
+\subsection{Дэд хэсэг}
+\onehalfspacing
+Текст \textcolor{red}{улаан} \colorbox{yellow}{шар} a_b \url{https://bichig.dev}
+\href{https://bichig.dev}{холбоос}\footnote{Зүүлт.} \enquote{ишлэл}.
+\begin{enumerate}[label=\alph*)]
+\item нэг
+\begin{itemize}[noitemsep]
+\item хоёр
+\end{itemize}
+\end{enumerate}
+\begin{theorem}
+Теорем $x^2$.
+\end{theorem}
+\begin{proof}
+Баталгаа.
+\end{proof}
+\begin{table}[H]
+\centering
+\caption{Хүснэгт}
+\begin{tabularx}{\linewidth}{|X|c|}
+\hline
+\rowcolor{gray!20} А & \multirow{2}{*}{Б} \\
+\cline{1-1}
+В & \\
+\hline
+\end{tabularx}
+\end{table}
+\begin{tabular}{>{\bfseries}l r}
+\toprule
+А & 1 \\
+\midrule
+Б & 2 \\
+\bottomrule
+\end{tabular}
+\begin{longtable}{ll}
+А & Б \\
+\end{longtable}
+\begin{figure}[H]
+\centering
+\fbox{Зураг}
+\caption{Зураг}
+\end{figure}
+\begin{verbatim}
+код verbatim
+\end{verbatim}
+\begin{lstlisting}
+int main() { return 0; }
+\end{lstlisting}
+\begin{comment}
+нуух
+\end{comment}
+\texttt{код \textbf{тод}} \textsl{хазгай} \textsc{Жижиг}
+\begin{align}
+\int_0^1 f(x)\,dx &= \sum_{k=1}^{n} \frac{a_k}{b_k} \\
+\mathbb{R} \ni \alpha &\leq \sqrt{\beta}
+\end{align}
+`;
+
+function userCoverage(): string[] {
+  const docs: string[] = [];
+  const body =
+    USER_BODY +
+    SIZES.join("") +
+    TEXT_SIZES.join("") +
+    SHAPES +
+    "\\end{document}\n";
+  for (const size of ["10pt", "11pt", "12pt"]) {
+    for (const cls of ["article", "report"]) {
+      for (const font of ["\\usepackage{paratype}\n", ""]) {
+        docs.push(
+          `\\documentclass[${size},a4paper]{${cls}}\n` +
+            "\\usepackage[utf8]{inputenc}\n" +
+            "\\usepackage[T1]{fontenc}\n" +
+            "\\usepackage[mongolian]{babel}\n" +
+            "\\usepackage{csquotes}\n" +
+            USER_PACKAGES +
+            font +
+            "\\begin{document}\n" +
+            body,
+        );
+      }
+    }
+    docs.push(
+      `\\documentclass[${size}]{article}\n` +
+        "\\usepackage{csquotes}\n" +
+        USER_PACKAGES.replace(/[А-Яа-яӨөҮүЁё]+/g, "Text") +
+        "\\begin{document}\n" +
+        body.replace(/[А-Яа-яӨөҮүЁё]+/g, "text"),
+    );
+  }
+  return docs;
+}
+
+const LAZY_FONT = /^sf[a-z]{2}\d{4}\.pfb$/;
+
 function trimMap(map: string, fonts: ReadonlySet<string>): string {
   return (
     map
@@ -471,13 +601,14 @@ async function main(): Promise<void> {
   writeFileSync(fmtPath, format.pdf);
 
   const files = new Map<string, string>();
-  for (const source of coverage()) {
+  for (const source of [...coverage(), ...userCoverage()]) {
     const result = await run(
       "compilelatex",
       { "swiftlatexpdftex.fmt": fmtPath },
       source,
     );
     if (!result.ok) {
+      console.error(source.slice(0, 200));
       console.error(result.log.slice(-3000));
       throw new Error("coverage compile failed");
     }
@@ -490,7 +621,12 @@ async function main(): Promise<void> {
       .map((name) => name.slice(0, -4)),
   );
   const bundle: Record<string, Uint8Array> = {};
+  const lazy: [string, string][] = [];
   for (const [name, path] of [...files].sort(([a], [b]) => (a < b ? -1 : 1))) {
+    if (LAZY_FONT.test(name)) {
+      lazy.push([name, path]);
+      continue;
+    }
     bundle[name] =
       name === "pdftex.map"
         ? new TextEncoder().encode(trimMap(readFileSync(path, "utf8"), fonts))
@@ -499,6 +635,9 @@ async function main(): Promise<void> {
 
   const zip = zipSync(bundle, { level: 9, mtime: new Date("2026-01-01") });
   const hash = createHash("sha256").update(zip).digest("hex").slice(0, 12);
+  const fontSum = createHash("sha256");
+  for (const [name, path] of lazy) fontSum.update(name).update(readFileSync(path));
+  const fontDir = "fonts-" + fontSum.digest("hex").slice(0, 12);
   const engineJs = patchEngine(
     readFileSync(join(ENGINE, "swiftlatexpdftex.js"), "utf8"),
   );
@@ -511,6 +650,9 @@ async function main(): Promise<void> {
   rmSync(OUT, { recursive: true, force: true });
   mkdirSync(join(OUT, engineHash), { recursive: true });
   writeFileSync(join(OUT, "texlive-" + hash + ".zip"), zip);
+  mkdirSync(join(OUT, fontDir), { recursive: true });
+  for (const [name, path] of lazy)
+    writeFileSync(join(OUT, fontDir, name), readFileSync(path));
   writeFileSync(join(OUT, engineHash, "swiftlatexpdftex.js"), engineJs);
   writeFileSync(
     join(OUT, engineHash, "swiftlatexpdftex.wasm"),
@@ -519,13 +661,18 @@ async function main(): Promise<void> {
   writeFileSync(
     MODULE,
     `export const TEX_ENGINE = "tex/${engineHash}/swiftlatexpdftex.js";\n` +
-      `export const TEX_BUNDLE = "tex/texlive-${hash}.zip";\n`,
+      `export const TEX_BUNDLE = "tex/texlive-${hash}.zip";\n` +
+      `export const TEX_FONTS = "tex/${fontDir}/";\n` +
+      `export const TEX_FONT_FILES: readonly string[] = ${JSON.stringify(
+        lazy.map(([name]) => name),
+      )};\n`,
   );
 
   const raw = Object.values(bundle).reduce((n, b) => n + b.length, 0);
   console.log(
     `${Object.keys(bundle).length} files, ${(raw / 1048576).toFixed(1)} MB raw, ` +
-      `zip ${(zip.length / 1048576).toFixed(2)} MB`,
+      `zip ${(zip.length / 1048576).toFixed(2)} MB, ` +
+      `${lazy.length} lazy fonts`,
   );
   console.log(readdirSync(OUT).join(" "));
 }
@@ -547,6 +694,15 @@ function patchEngine(js: string): string {
     "const names=ext&&!reqname.endsWith(ext)?[reqname,reqname+ext]:[reqname];" +
     'for(const name of names){const path=TEXCACHEROOT+"/"+name;' +
     'if(FS.analyzePath(path).exists){return allocate(intArrayFromString(path),"i8",ALLOC_NORMAL)}}' +
+    "if(format===32&&self.texfont_endpoint){" +
+    'const name=reqname.endsWith(".pfb")?reqname:reqname+".pfb";' +
+    "try{const xhr=new XMLHttpRequest();" +
+    'xhr.open("GET",self.texfont_endpoint+name,false);' +
+    'xhr.responseType="arraybuffer";xhr.send();' +
+    "if(xhr.status===200&&xhr.response){" +
+    'const path=TEXCACHEROOT+"/"+name;' +
+    "FS.writeFile(path,new Uint8Array(xhr.response));" +
+    'return allocate(intArrayFromString(path),"i8",ALLOC_NORMAL)}}catch(e){}}' +
     "return 0}" +
     "function kpse_find_pk_impl(nameptr,dpi){return 0}" +
     js.slice(end);
@@ -557,7 +713,8 @@ function patchEngine(js: string): string {
   replace(
     'else if(cmd==="flushcache"){cleanDir(WORKROOT)}',
     'else if(cmd==="flushcache"){cleanDir(WORKROOT)}' +
-      'else if(cmd==="writetex"){FS.writeFile(TEXCACHEROOT+"/"+data["name"],data["src"])}',
+      'else if(cmd==="writetex"){FS.writeFile(TEXCACHEROOT+"/"+data["name"],data["src"])}' +
+      'else if(cmd==="fonturl"){self.texfont_endpoint=data["url"]}',
   );
   return js;
 }

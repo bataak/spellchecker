@@ -43,15 +43,26 @@ function family(name: string): string {
   return '"' + name + '"';
 }
 
+const PRINT_FAMILY: Readonly<Record<string, string>> = {
+  "Times New Roman": "Bichig Print Serif",
+  Arial: "Bichig Print Sans",
+  "Courier New": "Bichig Print Mono",
+};
+
 function serifStack(base: string): string {
-  return [base, odfFont(base), "Bichig Serif"]
+  return [PRINT_FAMILY[base] ?? base, base, odfFont(base), "Bichig Serif"]
     .filter((name, index, list) => list.indexOf(name) === index)
     .map(family)
     .concat("serif")
     .join(", ");
 }
 
-const MONO_STACK = ["Courier New", odfFont("Courier New"), "Bichig Mono"]
+const MONO_STACK = [
+  "Bichig Print Mono",
+  "Courier New",
+  odfFont("Courier New"),
+  "Bichig Mono",
+]
   .map(family)
   .concat("monospace")
   .join(", ");
@@ -239,7 +250,7 @@ function blockHtml(block: IrBlock, doc: DocIr, images: ImageSet): string {
   }
 }
 
-function fontFaces(fontBase: string): string {
+export function fontFaces(fontBase: string): string {
   const url = (file: string): string => fontBase + file;
   const face = (name: string, file: string, weight: number, style: string) =>
     "@font-face{font-family:" +
@@ -255,8 +266,21 @@ function fontFaces(fontBase: string): string {
     face("Bichig Serif", "pt-serif-mn-400-v1.woff2", 400, "normal") +
     face("Bichig Serif", "pt-serif-mn-700-v1.woff2", 700, "normal") +
     face("Bichig Serif", "pt-serif-mn-italic-v2.woff2", 400, "italic") +
-    face("Bichig Mono", "dejavu-mono-mn-400-v1.woff2", 400, "normal")
+    face("Bichig Mono", "dejavu-mono-mn-400-v1.woff2", 400, "normal") +
+    face("Bichig Print Serif", "bichig-print-serif-mn-400-v1.woff2", 400, "normal") +
+    face("Bichig Print Serif", "bichig-print-serif-mn-700-v1.woff2", 700, "normal") +
+    face("Bichig Print Serif", "bichig-print-serif-mn-400i-v1.woff2", 400, "italic") +
+    face("Bichig Print Serif", "bichig-print-serif-mn-700i-v1.woff2", 700, "italic") +
+    face("Bichig Print Sans", "bichig-print-sans-mn-400-v1.woff2", 400, "normal") +
+    face("Bichig Print Sans", "bichig-print-sans-mn-700-v1.woff2", 700, "normal") +
+    face("Bichig Print Sans", "bichig-print-sans-mn-400i-v1.woff2", 400, "italic") +
+    face("Bichig Print Sans", "bichig-print-sans-mn-700i-v1.woff2", 700, "italic") +
+    face("Bichig Print Mono", "bichig-print-mono-mn-400-v1.woff2", 400, "normal")
   );
+}
+
+export function printFontBase(): string {
+  return new URL(import.meta.env.BASE_URL + "fonts/", location.href).href;
 }
 
 export function printHtml(
@@ -275,25 +299,13 @@ export function printHtml(
     cm(page.widthCm) +
     " " +
     cm(page.heightCm) +
-    ";margin:" +
-    [
-      page.marginTopCm,
-      page.marginOuterCm,
-      page.marginBottomCm,
-      page.marginInnerCm,
-    ]
-      .map(cm)
-      .join(" ") +
-    (doc.pageNumbers
-      ? ";@bottom-center{content:counter(page);font-family:" +
-        serifStack(base) +
-        ";font-size:" +
-        String(doc.font.sizePt) +
-        "pt}"
-      : "") +
-    "}" +
+    ";margin:0}" +
     "html,body{margin:0;padding:0;background:#fff;color:#000}" +
-    "body{font-family:" +
+    "body{padding:0 " +
+    cm(page.marginOuterCm) +
+    " 0 " +
+    cm(page.marginInnerCm) +
+    ";font-family:" +
     serifStack(base) +
     ";font-size:" +
     String(doc.font.sizePt) +
@@ -317,6 +329,15 @@ export function printHtml(
     ".tab{display:inline-block;width:1.25cm}" +
     ".rule{margin:6pt 0;border-bottom:0.5pt solid #000;padding-bottom:2pt}" +
     ".page-break{break-before:page}" +
+    "table.sheet{width:100%;table-layout:auto}" +
+    ".sheet>tbody>tr{break-inside:auto}" +
+    ".sheet>*>tr>td{padding:0}" +
+    ".sheet>thead>tr>td{height:" +
+    cm(page.marginTopCm) +
+    "}" +
+    ".sheet>tfoot>tr>td{height:" +
+    cm(page.marginBottomCm) +
+    "}" +
     ".image{max-width:100%;max-height:" +
     cm(page.heightCm - page.marginTopCm - page.marginBottomCm - 1) +
     ";height:auto;object-fit:contain;vertical-align:bottom}" +
@@ -328,8 +349,10 @@ export function printHtml(
     "</title><style>" +
     css +
     "</style></head><body>" +
+    '<table class="sheet"><thead><tr><td></td></tr></thead>' +
+    "<tfoot><tr><td></td></tr></tfoot><tbody><tr><td>" +
     doc.blocks.map((block) => blockHtml(block, doc, images)).join("") +
-    "</body></html>"
+    "</td></tr></tbody></table></body></html>"
   );
 }
 
@@ -337,12 +360,48 @@ let current: HTMLIFrameElement | null = null;
 
 export function printDoc(doc: DocIr, images?: ImageSet): Promise<void> {
   return printPage(
-    printHtml(
-      doc,
-      new URL(import.meta.env.BASE_URL + "fonts/", location.href).href,
-      images,
-    ),
+    printHtml(doc, printFontBase(), images),
   );
+}
+
+export function printPdf(bytes: Uint8Array<ArrayBuffer>): Promise<void> {
+  current?.remove();
+  const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+  const frame = document.createElement("iframe");
+  current = frame;
+  frame.setAttribute("aria-hidden", "true");
+  frame.tabIndex = -1;
+  frame.style.cssText =
+    "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
+  const cleanup = (): void => {
+    frame.remove();
+    URL.revokeObjectURL(url);
+    if (current === frame) current = null;
+  };
+  return new Promise((resolve, reject) => {
+    frame.addEventListener(
+      "load",
+      () => {
+        const win = frame.contentWindow;
+        if (!win) {
+          cleanup();
+          reject(new Error("print frame unavailable"));
+          return;
+        }
+        try {
+          win.focus();
+          win.print();
+        } catch {
+          window.open(url, "_blank", "noopener");
+        }
+        resolve();
+        setTimeout(cleanup, 60_000);
+      },
+      { once: true },
+    );
+    frame.src = url;
+    document.body.appendChild(frame);
+  });
 }
 
 export function printPage(html: string): Promise<void> {

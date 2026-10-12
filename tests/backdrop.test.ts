@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { countLines, markedHtml, plainHtml } from "../src/backdrop.ts";
+import { texSpans } from "../src/texhighlight.ts";
 import type { Token } from "../src/textcheck.ts";
 
 function blocks(html: string): number {
@@ -13,6 +14,8 @@ function unwrap(html: string): string {
     .replace(/<\/div>/g, "\n")
     .replace(/<mark data-start="\d+">/g, "")
     .replace(/<\/mark>/g, "")
+    .replace(/<span class="tx-\w+">/g, "")
+    .replace(/<\/span>/g, "")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&")
@@ -183,4 +186,31 @@ test("countLines нь хэсгийн төгсгөлийн \\n-ийг тоохг�
   assert.equal(countLines("a\nb\n"), 2);
   assert.equal(countLines("\n"), 1);
   assert.equal(countLines("\n\n"), 2);
+});
+
+test("синтакс өнгө текст болон блокийг өөрчлөхгүй", () => {
+  const random = lcg(59);
+  for (let iteration = 0; iteration < 200; iteration++) {
+    const raw = randomText(random, 1 + Math.floor(random() * 20));
+    const spans = texSpans(raw);
+    const marks = randomMarks(random, raw);
+    const body = raw.replace(/\n$/, "");
+    assert.equal(unwrap(plainHtml(raw, 0, spans)), body);
+    assert.equal(unwrap(markedHtml(raw, 0, marks, spans)), body);
+    assert.equal(blocks(plainHtml(raw, 0, spans)), blocks(plainHtml(raw)));
+  }
+});
+
+test("синтакс span тэмдэглэгээний дотор хуваагдана", () => {
+  const raw = "\\textbf{аав}";
+  const marks: Token[] = [{ word: "bf{аа", start: 5, end: 10 }];
+  const html = markedHtml(raw, 0, marks, texSpans(raw));
+  assert.ok(html.includes('<span class="tx-cmd">\\text</span><mark'));
+  assert.ok(html.includes('<mark data-start="5"><span class="tx-cmd">bf</span>'));
+  assert.equal(unwrap(html), raw);
+});
+
+test("хэсгийн шилжилтэд синтакс байрлал зөв", () => {
+  const html = plainHtml("x \\a", 10, [{ start: 12, end: 14, kind: "cmd" }]);
+  assert.ok(html.includes('x <span class="tx-cmd">\\a</span>'));
 });
