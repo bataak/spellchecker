@@ -17,6 +17,7 @@ import {
 } from "./mdedit.ts";
 import { replaceRange } from "./editortext.ts";
 import { imagePath, pickImage, putImage } from "./images.ts";
+import { dropSlotText, loadSlotText, saveSlotText } from "./storage.ts";
 import type { AlignKind, Edit } from "./mdedit.ts";
 import {
   LEGACY_TEMPLATES,
@@ -34,6 +35,7 @@ export interface MdToolbarOptions {
   readonly mount?: HTMLElement;
   readonly onTemplate?: (id: string) => void;
   readonly onExample?: () => void;
+  readonly onDraftError?: () => void;
 }
 
 export interface MdToolbar {
@@ -193,6 +195,17 @@ function pickerValue(slot: string): string {
 const DRAFT_PREFIX = "mdDraft:";
 
 const DRAFT_MAX = 200000;
+const LARGE_DRAFT = "\u0000idb";
+
+const slotOps = new Map<string, Promise<void>>();
+let draftFailed: (() => void) | null = null;
+
+function onSlot(id: string, op: () => Promise<void>): void {
+  const next = (slotOps.get(id) ?? Promise.resolve())
+    .then(op)
+    .catch(() => draftFailed?.());
+  slotOps.set(id, next);
+}
 
 function loadDraft(id: string): string | null {
   try {
@@ -202,30 +215,55 @@ function loadDraft(id: string): string | null {
   }
 }
 
-function saveDraft(id: string, text: string): void {
+function smallDraft(id: string): string | null {
+  const text = loadDraft(id);
+  return text === LARGE_DRAFT ? null : text;
+}
+
+async function readDraft(id: string): Promise<string | null> {
+  const text = loadDraft(id);
+  if (text !== LARGE_DRAFT) return text;
+  await slotOps.get(id);
   try {
-    if (text.trim() === "" || text.length > DRAFT_MAX)
-      localStorage.removeItem(DRAFT_PREFIX + id);
-    else localStorage.setItem(DRAFT_PREFIX + id, text);
-  } catch (_) {}
+    return await loadSlotText(id);
+  } catch (_) {
+    return null;
+  }
+}
+
+function saveDraft(id: string, text: string): void {
+  const large = text.trim() !== "" && text.length > DRAFT_MAX;
+  const wasLarge = loadDraft(id) === LARGE_DRAFT;
+  try {
+    if (text.trim() === "") localStorage.removeItem(DRAFT_PREFIX + id);
+    else localStorage.setItem(DRAFT_PREFIX + id, large ? LARGE_DRAFT : text);
+  } catch (_) {
+    draftFailed?.();
+    return;
+  }
+  if (large) onSlot(id, () => saveSlotText(id, text));
+  else if (wasLarge) onSlot(id, () => dropSlotText(id));
 }
 
 function dropDraft(id: string): void {
+  const wasLarge = loadDraft(id) === LARGE_DRAFT;
   try {
     localStorage.removeItem(DRAFT_PREFIX + id);
   } catch (_) {}
+  if (wasLarge) onSlot(id, () => dropSlotText(id));
 }
 
 export function migrateLegacyDrafts(active: string): string[] {
   const pending: string[] = [];
   for (const [legacy, target] of Object.entries(LEGACY_TEMPLATES)) {
-    const text = loadDraft(legacy);
+    const text = smallDraft(legacy);
     if (text === null) continue;
     if (target === active) {
       pending.push(legacy);
       continue;
     }
-    const existing = loadDraft(target);
+    if (loadDraft(target) === LARGE_DRAFT) continue;
+    const existing = smallDraft(target);
     saveDraft(target, existing === null ? text : existing + "\n\n" + text);
     dropDraft(legacy);
   }
@@ -235,7 +273,7 @@ export function migrateLegacyDrafts(active: string): string[] {
 function migrateSlotDrafts(): void {
   for (const template of TEMPLATES) {
     if (!template.examples?.length) continue;
-    const text = loadDraft(template.id);
+    const text = smallDraft(template.id);
     if (text === null) continue;
     const key = pickerValue(template.id);
     if (loadDraft(key) === null) saveDraft(key, text);
@@ -379,6 +417,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   const picker = bar.querySelector<HTMLElement>(".md-select")!;
   const wideQuery = window.matchMedia("(min-width: 701px)");
 
+  draftFailed = options.onDraftError ?? null;
   let legacyPending = migrateLegacyDrafts(templateId);
   migrateSlotDrafts();
 
@@ -620,30 +659,10 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     }, TITLE_HOLD_MS);
   }
 
-  function chooseTemplate(id: string, example?: string): void {
-    const from = pickerValue(templateId);
-    if (
-      id === templateId &&
-      (example === undefined || example === chosenExample(id))
-    )
-      return;
+  let switchSeq = 0;
+  let loadingKey: string | null = null;
 
-    const parts = [editor.value, ...legacyPending.map(loadDraft)].filter(
-      (part): part is string => part !== null && part.trim() !== "",
-    );
-    saveDraft(from, parts.join("\n\n"));
-    saveCaret(from, {
-      start: editor.selectionStart,
-      end: editor.selectionEnd,
-      scroll: editor.scrollTop,
-    });
-    dropLegacyPending();
-    templateId = id;
-    saveTemplateId(id);
-    if (example !== undefined) saveExampleChoice(id, example);
-
-    const key = pickerValue(id);
-    const stored = loadDraft(key);
+  function showDraft(id: string, key: string, stored: string | null): void {
     const text = stored ?? findTemplate(id)?.skeleton ?? "";
     const caret = stored === null ? null : loadCaret(key);
     const start = Math.min(caret?.start ?? text.length, text.length);
@@ -659,6 +678,44 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     }
     const first = chosenExample(id);
     if (stored === null && first) void loadDefault(key, first);
+  }
+
+  function chooseTemplate(id: string, example?: string): void {
+    const from = pickerValue(templateId);
+    if (
+      id === templateId &&
+      (example === undefined || example === chosenExample(id))
+    )
+      return;
+
+    const parts = [editor.value, ...legacyPending.map(smallDraft)].filter(
+      (part): part is string => part !== null && part.trim() !== "",
+    );
+    if (from !== loadingKey) saveDraft(from, parts.join("\n\n"));
+    saveCaret(from, {
+      start: editor.selectionStart,
+      end: editor.selectionEnd,
+      scroll: editor.scrollTop,
+    });
+    dropLegacyPending();
+    templateId = id;
+    saveTemplateId(id);
+    if (example !== undefined) saveExampleChoice(id, example);
+
+    const key = pickerValue(id);
+    const seq = ++switchSeq;
+    if (loadDraft(key) === LARGE_DRAFT) {
+      loadingKey = key;
+      void readDraft(key).then((stored) => {
+        if (seq !== switchSeq) return;
+        if (stored === null) draftFailed?.();
+        else loadingKey = null;
+        showDraft(id, key, stored);
+      });
+    } else {
+      loadingKey = null;
+      showDraft(id, key, loadDraft(key));
+    }
 
     if (options.onTemplate) options.onTemplate(id);
     setPicked(key);

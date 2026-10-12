@@ -74,6 +74,22 @@ export function loadDraft(): Promise<string | null> {
   return Promise.resolve(readLocal());
 }
 
+const SLOT_PREFIX = "slot:";
+
+export function saveSlotText(key: string, text: string): Promise<void> {
+  return idbSet(SLOT_PREFIX + key, text).then(() => undefined);
+}
+
+export function loadSlotText(key: string): Promise<string | null> {
+  return idbGet(SLOT_PREFIX + key).then((value) =>
+    typeof value === "string" ? value : null,
+  );
+}
+
+export function dropSlotText(key: string): Promise<void> {
+  return idbDelete(SLOT_PREFIX + key).then(() => undefined);
+}
+
 function saveSmall(text: string, seq: number): void {
   cancelQueuedLarge();
   try {
