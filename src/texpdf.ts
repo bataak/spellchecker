@@ -210,17 +210,36 @@ async function compileOn(
 const CROSS_REF =
   /\\(?:tableofcontents|listof(?:figures|tables)|ref|eqref|pageref|autoref|cite)\b/;
 
-export async function compileTex(text: string): Promise<Uint8Array<ArrayBuffer>> {
-  const { previewTex, withParatype } = await import("./latex.ts");
-  const tex = previewTex(text);
+export interface TexDocument {
+  readonly pdf: Uint8Array<ArrayBuffer>;
+  readonly missing: readonly string[];
+}
+
+export async function compileTexDocument(text: string): Promise<TexDocument> {
+  const [{ previewTex, withParatype }, { texImageFiles }] = await Promise.all([
+    import("./latex.ts"),
+    import("./teximages.ts"),
+  ]);
+  const images = await texImageFiles(text);
+  const tex = previewTex(images.rewrite(text));
   const passes = CROSS_REF.test(text) ? 2 : 1;
   try {
-    return await compilePdf(tex, passes);
+    return {
+      pdf: await compilePdf(tex, passes, images.files),
+      missing: images.missing,
+    };
   } catch (error) {
     const fallback = missingFont(error) ? withParatype(tex) : null;
     if (fallback === null) throw error;
-    return compilePdf(fallback, passes);
+    return {
+      pdf: await compilePdf(fallback, passes, images.files),
+      missing: images.missing,
+    };
   }
+}
+
+export async function compileTex(text: string): Promise<Uint8Array<ArrayBuffer>> {
+  return (await compileTexDocument(text)).pdf;
 }
 
 export function compilePdf(

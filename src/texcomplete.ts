@@ -7,6 +7,7 @@ export interface TexCompleteDeps {
   readonly editor: HTMLTextAreaElement;
   readonly active: () => boolean;
   readonly rectAt: (start: number, end: number) => DOMRect | null;
+  readonly onImage?: () => void;
 }
 
 const GAP = 4;
@@ -142,6 +143,7 @@ export function initTexComplete(deps: TexCompleteDeps): void {
     if (!item) return;
     const caret = editor.selectionStart;
     const edit = expand(editor.value, caret, context, item);
+    const image = context.kind === "cmd" && item.label === "includegraphics";
     close();
     editor.focus({ preventScroll: true });
     applying = true;
@@ -153,6 +155,10 @@ export function initTexComplete(deps: TexCompleteDeps): void {
     }
     editor.setSelectionRange(edit.caret, edit.caret);
     if (!native) editor.dispatchEvent(new Event("input", { bubbles: true }));
+    if (image) {
+      deps.onImage?.();
+      return;
+    }
     update();
   }
 
