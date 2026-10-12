@@ -195,7 +195,7 @@ const PREPARE_HOLD_MS = 3000;
 
 function restoreStatus(): void {
   if (!ready) return;
-  if (els.editor.value.trim() === "") {
+  if (els.editor.value.trim() === "" && !openFileName()) {
     if (baseStatus && !offlineIndicatorActive) setStatus(baseStatus);
     return;
   }
@@ -433,7 +433,7 @@ async function render() {
   surveyOnErrorCount(bad.length, text.trim() !== "");
 
   if (ready) {
-    if (text.trim() === "") {
+    if (text.trim() === "" && !openFileName()) {
       if (baseStatus && !offlineIndicatorActive) setStatus(baseStatus);
     } else {
       statWords = total;
@@ -506,8 +506,12 @@ function syncSaveHint(): void {
       : saveTitleBase;
 }
 
+function openFileName(): string | null {
+  return docx ? docx.fileName() : plainName;
+}
+
 function statsMessage(knownLine?: number): string {
-  const full = docx ? docx.fileName() : plainName;
+  const full = openFileName();
   if (!full) return statsBody(knownLine);
 
   const parts = splitName(full);
@@ -1522,10 +1526,6 @@ exportCtl = initExport({
 function restoreDraftFile(): void {
   const ref = loadDraftFile();
   if (!ref) return;
-  if (els.editor.value === "") {
-    saveDraftFile(null);
-    return;
-  }
   fileIO.restoreFile(ref);
   plainName = fileIO.targetName();
   syncSaveHint();
