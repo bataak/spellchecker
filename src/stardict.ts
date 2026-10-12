@@ -200,6 +200,22 @@ export function findEntries(index: StarDictIndex, word: string): number[] {
   return hits;
 }
 
+const LATIN_START = /^[^\p{L}]*\p{Script=Latin}/u;
+const LATIN_SAMPLES = 200;
+const LATIN_SHARE = 0.05;
+
+export function hasLatinHeadwords(index: StarDictIndex): boolean {
+  const count = index.starts.length;
+  if (!count) return false;
+  const samples = Math.min(count, LATIN_SAMPLES);
+  let latin = 0;
+  for (let i = 0; i < samples; i++) {
+    const entry = Math.floor(((i + 0.5) * count) / samples);
+    if (LATIN_START.test(headwordAt(index, entry))) latin++;
+  }
+  return latin / samples >= LATIN_SHARE;
+}
+
 export function headwordAt(index: StarDictIndex, entry: number): string {
   return decoder.decode(
     index.bytes.subarray(index.starts[entry]!, index.ends[entry]!),

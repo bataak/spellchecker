@@ -4,32 +4,21 @@ export interface WordSpan {
   word: string;
 }
 
-const LETTER = /\p{Script=Cyrillic}/u;
+const CYRILLIC = /\p{Script=Cyrillic}/u;
+const CYRILLIC_OR_LATIN = /[\p{Script=Cyrillic}\p{Script=Latin}]/u;
 const CONNECTOR = "-\u2010\u2011\u2019'";
 
-function isLetter(ch: string): boolean {
-  return LETTER.test(ch);
-}
-
-function isConnector(ch: string): boolean {
-  return CONNECTOR.includes(ch);
-}
-
-function isWordChar(ch: string): boolean {
-  return isLetter(ch) || isConnector(ch);
-}
-
-function trim(text: string, start: number, end: number): WordSpan | null {
-  let s = start;
-  let e = end;
-  while (s < e && !isLetter(text[s]!)) s += 1;
-  while (e > s && !isLetter(text[e - 1]!)) e -= 1;
-  if (s >= e) return null;
-  return { start: s, end: e, word: text.slice(s, e) };
-}
-
-export function wordAt(text: string, offset: number): WordSpan | null {
+export function wordAt(
+  text: string,
+  offset: number,
+  latin = false,
+): WordSpan | null {
   if (offset < 0 || offset > text.length) return null;
+
+  const letter = latin ? CYRILLIC_OR_LATIN : CYRILLIC;
+  const isLetter = (ch: string): boolean => letter.test(ch);
+  const isWordChar = (ch: string): boolean =>
+    isLetter(ch) || CONNECTOR.includes(ch);
 
   let at = offset;
   const before = at > 0 ? text[at - 1]! : "";
@@ -43,7 +32,35 @@ export function wordAt(text: string, offset: number): WordSpan | null {
   while (s > 0 && isWordChar(text[s - 1]!)) s -= 1;
   while (e < text.length && isWordChar(text[e]!)) e += 1;
 
-  return trim(text, s, e);
+  while (s < e && !isLetter(text[s]!)) s += 1;
+  while (e > s && !isLetter(text[e - 1]!)) e -= 1;
+  if (s >= e) return null;
+  return { start: s, end: e, word: text.slice(s, e) };
+}
+
+export function englishStems(word: string): string[] {
+  const lower = word.toLowerCase();
+  const out: string[] = [];
+  const add = (stem: string): void => {
+    if (stem.length >= 2 && stem !== lower && !out.includes(stem))
+      out.push(stem);
+  };
+  if (/['\u2019]s$/.test(lower)) add(lower.slice(0, -2));
+  if (lower.endsWith("ies") || lower.endsWith("ied"))
+    add(lower.slice(0, -3) + "y");
+  if (/(?:s|x|z|ch|sh)es$/.test(lower)) add(lower.slice(0, -2));
+  if (lower.endsWith("s") && !lower.endsWith("ss")) add(lower.slice(0, -1));
+  if (lower.endsWith("ed")) {
+    if (/([^aeiou])\1ed$/.test(lower)) add(lower.slice(0, -3));
+    add(lower.slice(0, -2));
+    add(lower.slice(0, -1));
+  }
+  if (lower.endsWith("ing")) {
+    if (/([^aeiou])\1ing$/.test(lower)) add(lower.slice(0, -4));
+    add(lower.slice(0, -3));
+    add(lower.slice(0, -3) + "e");
+  }
+  return out;
 }
 
 export function normalizeKey(word: string): string {

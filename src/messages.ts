@@ -86,6 +86,11 @@ export interface DictUpdatedResponse {
   version: string | null;
 }
 
+export interface DictScriptsResponse {
+  type: "dictScripts";
+  latin: boolean;
+}
+
 export interface CheckResponse {
   type: "check";
   id: number;
@@ -124,6 +129,7 @@ export type WorkerResponse =
   | CompleteResponse
   | ErrorResponse
   | DictUpdatedResponse
+  | DictScriptsResponse
   | RpcResponse;
 
 export type InitProgressMessage =
@@ -137,6 +143,7 @@ export interface DictInfo {
   words: number;
   digest: string;
   user: boolean;
+  latin: boolean;
 }
 
 export interface ListDictsRequest {
