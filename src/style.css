@@ -18,6 +18,7 @@ html {
   --lookup-blend: multiply;
   --editor-bg: #ffffff;
   --focus: #b9b1a1;
+  --layout-accent: #c2410c;
   --tex-bg: #fbf1c7;
   --tex-ink: #3c3836;
   --tex-cmd: #9d0006;
@@ -121,6 +122,7 @@ html {
   --lookup-blend: screen;
   --editor-bg: #211d16;
   --focus: #4a4438;
+  --layout-accent: #fb923c;
   --tex-bg: #282828;
   --tex-ink: #ebdbb2;
   --tex-cmd: #fb4934;
@@ -1684,6 +1686,9 @@ a.tbtn {
   .topbar > * {
     min-width: 0;
   }
+  .topbar .layout-chip {
+    margin-inline-start: -14px;
+  }
   .topbar .subtitle {
     margin-top: 0;
     text-align: right;
@@ -2608,4 +2613,56 @@ html.booting .empty-state {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+}
+
+.layout-chip {
+  flex: 0 0 auto;
+  margin-inline-start: 4px;
+  padding: 1px 7px;
+  border: 1px solid var(--layout-accent);
+  border-radius: 999px;
+  background: none;
+  color: var(--layout-accent);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.layout-chip[hidden] {
+  display: none;
+}
+
+.editor-wrap > .editor.layout-forced {
+  caret-color: var(--layout-accent);
+}
+
+.layout-badge {
+  position: fixed;
+  z-index: 70;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--layout-accent);
+  color: #fff;
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.layout-badge[hidden] {
+  display: none;
+}
+
+.layout-badge.layout-badge-out {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layout-badge {
+    transition: none;
+  }
 }
