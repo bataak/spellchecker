@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   charToByte,
+  decodeFileBytes,
   hasMojibake,
   countMojibakeLetters,
   countMojibakeWords,
@@ -245,4 +246,24 @@ test("countMojibakeWords нь гурваас богино гүйлтийг то�
 test("fixSlotsInWords нь ганцаарчилсан нүдийг үлдээнэ", () => {
   assert.equal(fixSlotsInWords("º ª ¯ ¿"), "º ª ¯ ¿");
   assert.equal(fixSlotsInWords("хºх"), "хөх");
+});
+
+test("CP1251 файлыг монгол үсэгтэй нь тайлна", () => {
+  const bytes = new Uint8Array([
+    209, 224, 233, 237, 32, 225, 224, 233, 237, 224, 32, 243, 243, 46, 32, 204,
+    238, 237, 227, 238, 235, 32, 245, 253, 235, 46,
+  ]);
+  assert.equal(decodeFileBytes(bytes), "Сайн байна уу. Монгол хэл.");
+  assert.equal(decodeFileBytes(new Uint8Array([0xaa, 0xba, 0xaf, 0xbf])), "ӨөҮү");
+});
+
+test("UTF-8 болон BOM-той файл өөрчлөгдөхгүй", () => {
+  const utf8 = new TextEncoder().encode("Өглөө үүр");
+  assert.equal(decodeFileBytes(utf8), "Өглөө үүр");
+  assert.equal(
+    decodeFileBytes(new Uint8Array([0xef, 0xbb, 0xbf, ...utf8])),
+    "Өглөө үүр",
+  );
+  const le = new Uint8Array([0xff, 0xfe, 0x2e, 0x04, 0x33, 0x04]);
+  assert.equal(decodeFileBytes(le), "Юг");
 });
