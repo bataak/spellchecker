@@ -663,6 +663,70 @@ a.tbtn {
   opacity: 0.72;
 }
 
+.tex-compile {
+  display: none;
+  pointer-events: auto;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.72;
+  margin-inline-start: auto;
+}
+
+.preview-panel.tex-mode .tex-compile {
+  display: inline-flex;
+}
+
+.tex-compile:hover:not(:disabled),
+.tex-compile:focus-visible {
+  opacity: 1;
+  border-color: currentColor;
+}
+
+.tex-compile:disabled {
+  opacity: 0.35;
+  cursor: progress;
+}
+
+.tex-compile-glyph {
+  display: block;
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tex-compile:disabled .tex-compile-glyph {
+  animation: tex-spin 1s linear infinite;
+}
+
+@keyframes tex-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tex-compile:disabled .tex-compile-glyph {
+    animation: none;
+  }
+}
+
+.preview-panel.tex-mode .pdf-zoom {
+  margin-inline-start: 0;
+}
+
 .pdf-zoom {
   display: none;
   pointer-events: auto;
