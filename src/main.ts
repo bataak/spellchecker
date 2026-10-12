@@ -877,12 +877,14 @@ async function maybePropagateManual() {
     pendingFix = null;
     return;
   }
+  const fix = pendingFix;
   const lower = manualFixToken.word.toLowerCase();
-  if (lower === pendingFix.original) return;
-  if (pendingFix.original.length - manualFixToken.word.length > 2) return;
+  if (lower === fix.original) return;
+  if (fix.original.length - manualFixToken.word.length > 2) return;
   if (!(await correctNow(manualFixToken.word))) return;
-  const original = pendingFix.original;
-  const primaryPattern = pendingFix.originalPattern || "lower";
+  if (pendingFix !== fix || els.editor.value !== text) return;
+  const original = fix.original;
+  const primaryPattern = fix.originalPattern || "lower";
   pendingFix = null;
   const { text: nt, caret } = replaceAllWord(
     text,
