@@ -470,6 +470,19 @@ function lineInfo(knownLine?: number): string {
 }
 
 let saveTitleBase: string | null = null;
+let clearTitleBase: string | null = null;
+const CLEAR_TITLE = "Талбарыг цэвэрлэх";
+const CLOSE_CLEAR_TITLE = "Файлыг хааж, талбарыг цэвэрлэх";
+
+function syncClearHint(open: boolean): void {
+  const btn = document.querySelector<HTMLElement>("#clearBtn");
+  if (!btn) return;
+  if (clearTitleBase === null) clearTitleBase = btn.title;
+  btn.title =
+    open && clearTitleBase.startsWith(CLEAR_TITLE)
+      ? CLOSE_CLEAR_TITLE + clearTitleBase.slice(CLEAR_TITLE.length)
+      : clearTitleBase;
+}
 
 function statsBody(knownLine?: number): string {
   if (desktopMQ.matches) {
@@ -498,6 +511,7 @@ function syncSaveHint(): void {
     : "";
 
   const target = fileIO.targetName();
+  syncClearHint(!!(docx || target || plainName));
 
   btn.title = docx
     ? docx.outputName() + " болгож хадгална" + combo
