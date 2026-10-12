@@ -34,11 +34,12 @@ test("skips a tilde fence", () => {
   assert.ok(!skipped(text, "Төгсгөл"));
 });
 
-test("closes an unterminated fence at the end of the text", () => {
-  const text = "Мөр.\n```\nnpm run build";
+test("an unterminated fence does not hide the rest of the text", () => {
+  const text = "Алдааа угг байна.\n\n~~~~~~~~~~\n\nДараагийн мөр алдаааа.";
 
-  assert.ok(skipped(text, "build"));
-  assert.ok(!skipped(text, "Мөр"));
+  assert.ok(!skipped(text, "Дараагийн"));
+  assert.ok(!skipped(text, "алдаааа"));
+  assert.ok(!skipped("Мөр.\n```\nnpm run build", "build"));
 });
 
 test("does not treat a longer fence as a different marker", () => {
@@ -267,6 +268,12 @@ test("томьёог алгасна", () => {
   assert.equal(skipped("$$\nгамма\n$$\nдараа", "гамма"), true);
   assert.equal(skipped("$$\nгамма\n$$\nдараа", "дараа"), false);
   assert.equal(skipped("Үнэ 100$ ба 200$ болно.", "ба"), false);
+  assert.equal(skipped("Үнэ нь 100$, ашигг нь 20$ байна.", "ашигг"), false);
+  assert.equal(skipped("Үнэ $5, ашигг нь 20$ байна.", "ашигг"), false);
+  assert.equal(skipped("(50$) ба үнэ 5$.", "үнэ"), false);
+  assert.equal(skipped("Хэмжээ $x^2$ байна.", "x"), true);
+  assert.equal(skipped("Тэнцэл $a = б$ байна.", "б"), true);
+  assert.equal(skipped("Нэр $\\text{хурд}$ гэх.", "хурд"), true);
 });
 
 test("\\[ \\] ба томьёоны орчныг алгасна", () => {
