@@ -241,8 +241,26 @@ export function initPreview(
   texError.setAttribute("role", "status");
   texError.hidden = true;
 
+  const texMissing = document.createElement("p");
+  texMissing.className = "preview-missing";
+  texMissing.setAttribute("role", "status");
+  texMissing.hidden = true;
+  const texMissingText = document.createElement("span");
+  const texFolder = document.createElement("button");
+  texFolder.type = "button";
+  texFolder.textContent = "Хавтас сонгох";
+  texFolder.addEventListener("mousedown", (event) => event.preventDefault());
+  texFolder.addEventListener("click", () => {
+    void import("./teximages.ts").then((mod) => mod.chooseImageFolder());
+  });
+  texMissing.append(texMissingText, texFolder);
+
+  const notes = document.createElement("div");
+  notes.className = "preview-notes";
+  notes.append(texMissing, texError);
+
   applyInvert();
-  panel.append(head, body, texError);
+  panel.append(head, body, notes);
   const imageEdit = initImageEdit(body, area);
   wrap.after(panel);
 
@@ -366,6 +384,25 @@ export function initPreview(
     }
   };
 
+  const setTexMissing = (paths: readonly string[]): void => {
+    texMissing.hidden = paths.length === 0;
+    texMissingText.textContent = paths.length
+      ? "Зураг олдсонгүй: " + paths.join(", ")
+      : "";
+  };
+
+  let offTexImages: (() => void) | null = null;
+  let watchingImages = false;
+  const watchImages = (mod: typeof import("./teximages.ts")): void => {
+    if (watchingImages) return;
+    watchingImages = true;
+    offTexImages = mod.onTexImagesChange(() => {
+      if (!texMode) return;
+      texShown = null;
+      update();
+    });
+  };
+
   const setTexError = (message: string | null): void => {
     texError.hidden = message === null;
     texError.textContent = message ?? "";
@@ -418,12 +455,17 @@ export function initPreview(
     if (seq !== texSeq || !texMode) return;
     if (!pdfView) showNotice("PDF бэлтгэж байна…");
     try {
-      const { compileTex } = await import("./texpdf.ts");
-      const bytes = await compileTex(text);
-      if (!(await showPdfBytes(bytes, seq))) return;
+      const [{ compileTexDocument }, images] = await Promise.all([
+        import("./texpdf.ts"),
+        import("./teximages.ts"),
+      ]);
+      watchImages(images);
+      const { pdf, missing } = await compileTexDocument(text);
+      if (!(await showPdfBytes(pdf, seq))) return;
       texShown = text;
       setTexError(null);
-      void saveCachedPdf(text, bytes);
+      setTexMissing(missing);
+      if (!missing.length) void saveCachedPdf(text, pdf);
     } catch (error) {
       if (seq !== texSeq || !texMode) return;
       texShown = text;
@@ -444,6 +486,7 @@ export function initPreview(
     texShown = null;
     dropPdf();
     setTexError(null);
+    setTexMissing([]);
     shownHtml = null;
     body.replaceChildren();
     panel.classList.remove("is-blank");
@@ -550,6 +593,7 @@ export function initPreview(
       if (texTimer) clearTimeout(texTimer);
       dropPdf();
       offImages();
+      offTexImages?.();
       imageEdit.destroy();
       area.removeEventListener("input", update);
       tidy.remove();
