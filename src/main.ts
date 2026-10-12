@@ -332,7 +332,12 @@ function applyTexPaint(on: boolean): void {
   if (on === texPaint) return;
   texPaint = on;
   setHighlighter(on ? texSpans : null);
-  if (on) void import("./texpdf.ts").then((mod) => mod.prefetchFonts());
+  if (on) {
+    void import("./texpdf.ts").then((mod) => mod.prefetchFonts());
+    void import("./pdfview.ts").then((mod) => mod.warmPdf());
+    void import("./teximages.ts");
+    void import("./latex.ts");
+  }
   els.editor.parentElement?.classList.toggle("is-tex", on);
   const text = els.editor.value;
   if (text !== backdropText()) badTokens = [];
