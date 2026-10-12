@@ -39,6 +39,55 @@ function saveZoom(zoom: number): void {
   } catch {}
 }
 
+const PDF_CACHE = "tex-preview";
+const PDF_KEY = "tex-preview/last.pdf";
+
+async function textKey(text: string): Promise<string | null> {
+  try {
+    const digest = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(text),
+    );
+    return [...new Uint8Array(digest)]
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+  } catch {
+    return null;
+  }
+}
+
+async function loadCachedPdf(): Promise<{
+  key: string;
+  bytes: Uint8Array<ArrayBuffer>;
+} | null> {
+  try {
+    const hit = await (await caches.open(PDF_CACHE)).match(PDF_KEY);
+    if (!hit) return null;
+    return {
+      key: hit.headers.get("x-text-key") ?? "",
+      bytes: new Uint8Array(await hit.arrayBuffer()),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function saveCachedPdf(
+  text: string,
+  bytes: Uint8Array<ArrayBuffer>,
+): Promise<void> {
+  const key = await textKey(text);
+  if (!key) return;
+  try {
+    await (await caches.open(PDF_CACHE)).put(
+      PDF_KEY,
+      new Response(bytes.slice(), {
+        headers: { "content-type": "application/pdf", "x-text-key": key },
+      }),
+    );
+  } catch {}
+}
+
 function stepZoom(zoom: number, dir: number): number {
   const at = ZOOM_STEPS.indexOf(zoom);
   const next = Math.min(Math.max(at + dir, 0), ZOOM_STEPS.length - 1);
@@ -249,6 +298,7 @@ export function initPreview(
   let texShown: string | null = null;
   let texTimer = 0;
   let texSeq = 0;
+  let texRestored = false;
 
   const renderMarkdown = (): void => {
     const text = area.value;
@@ -324,40 +374,56 @@ export function initPreview(
   const previewShown = (): boolean =>
     document.documentElement.dataset.preview === "on";
 
+  const showPdfBytes = async (
+    bytes: Uint8Array<ArrayBuffer>,
+    seq: number,
+  ): Promise<boolean> => {
+    const mod = await import("./pdfview.ts");
+    if (seq !== texSeq || !texMode) return false;
+    const scroll = body.scrollTop;
+    dropPdf();
+    const controller = new AbortController();
+    pdfAbort = controller;
+    const file = new File([bytes], "preview.pdf", { type: "application/pdf" });
+    const view = await mod.renderPdfInto(body, file, controller.signal, zoom);
+    if (controller.signal.aborted) {
+      view.destroy();
+      return false;
+    }
+    pdfView = view;
+    panel.classList.remove("is-blank");
+    body.classList.remove("is-empty");
+    body.scrollTop = scroll;
+    return true;
+  };
+
+  const restoreTex = async (text: string, seq: number): Promise<boolean> => {
+    texRestored = true;
+    const [cached, key] = await Promise.all([loadCachedPdf(), textKey(text)]);
+    if (!cached || seq !== texSeq || !texMode) return false;
+    if (!(await showPdfBytes(cached.bytes, seq).catch(() => false)))
+      return false;
+    return key !== null && key === cached.key;
+  };
+
   const renderTex = async (): Promise<void> => {
     texTimer = 0;
     const text = area.value;
     if (!texMode || text === texShown || !previewShown()) return;
     const seq = ++texSeq;
+    if (!texRestored && (await restoreTex(text, seq))) {
+      texShown = text;
+      return;
+    }
+    if (seq !== texSeq || !texMode) return;
     if (!pdfView) showNotice("PDF бэлтгэж байна…");
     try {
-      const [{ compileTex }, mod] = await Promise.all([
-        import("./texpdf.ts"),
-        import("./pdfview.ts"),
-      ]);
+      const { compileTex } = await import("./texpdf.ts");
       const bytes = await compileTex(text);
-      if (seq !== texSeq || !texMode) return;
-      const scroll = body.scrollTop;
-      dropPdf();
-      const controller = new AbortController();
-      pdfAbort = controller;
-      const file = new File([bytes], "preview.pdf", { type: "application/pdf" });
-      const view = await mod.renderPdfInto(
-        body,
-        file,
-        controller.signal,
-        zoom,
-      );
-      if (controller.signal.aborted) {
-        view.destroy();
-        return;
-      }
-      pdfView = view;
+      if (!(await showPdfBytes(bytes, seq))) return;
       texShown = text;
-      panel.classList.remove("is-blank");
-      body.classList.remove("is-empty");
-      body.scrollTop = scroll;
       setTexError(null);
+      void saveCachedPdf(text, bytes);
     } catch (error) {
       if (seq !== texSeq || !texMode) return;
       texShown = text;
@@ -372,6 +438,7 @@ export function initPreview(
     if (on === texMode) return;
     texMode = on;
     texSeq++;
+    texRestored = false;
     if (texTimer) clearTimeout(texTimer);
     texTimer = 0;
     texShown = null;
