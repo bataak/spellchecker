@@ -168,6 +168,21 @@ async function loadStored(slot: string): Promise<Stored | null> {
   }
 }
 
+export async function storedHistoryTexts(): Promise<string[]> {
+  try {
+    const db = await openDb();
+    const request = db.transaction(STORE).objectStore(STORE).getAll();
+    await done(request);
+    const out: string[] = [];
+    for (const entry of (request.result as Stored[] | undefined) ?? [])
+      for (const step of [...entry.history.undo, ...entry.history.redo])
+        out.push(step.removed, step.inserted);
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 async function saveStored(entry: Stored): Promise<void> {
   try {
     const db = await openDb();
