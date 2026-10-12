@@ -662,14 +662,25 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   let switchSeq = 0;
   let loadingKey: string | null = null;
 
+  function resetText(text: string, start: number, end: number): void {
+    editor.value = "";
+    editor.value = text;
+    editor.setSelectionRange(start, end);
+    editor.dispatchEvent(
+      new InputEvent("input", {
+        bubbles: true,
+        inputType: "insertReplacementText",
+      }),
+    );
+  }
+
   function showDraft(id: string, key: string, stored: string | null): void {
     const text = stored ?? findTemplate(id)?.skeleton ?? "";
     const caret = stored === null ? null : loadCaret(key);
     const start = Math.min(caret?.start ?? text.length, text.length);
     const end = Math.min(caret?.end ?? text.length, text.length);
 
-    if (text !== editor.value) apply({ text, start, end });
-    else editor.setSelectionRange(start, end);
+    resetText(text, start, end);
     if (caret !== null) {
       editor.scrollTop = caret.scroll;
       requestAnimationFrame(() => {
@@ -731,7 +742,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       editor.value.trim()
     )
       return;
-    apply({ text, start: 0, end: 0 });
+    resetText(text, 0, 0);
     editor.scrollTop = 0;
     options.onExample?.();
   }
