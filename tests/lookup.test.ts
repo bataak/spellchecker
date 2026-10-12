@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  englishStems,
   isLookupKey,
   lookupKeys,
   normalizeKey,
@@ -117,4 +118,24 @@ test("isLookupKey — өөр товч", () => {
 test("isLookupKey — F2 нөөц зам", () => {
   assert.equal(key({ code: "F2" }), true);
   assert.equal(key({ code: "F2", ctrlKey: true }), false);
+});
+
+test("wordAt — латин үгийг зөвхөн идэвхжүүлсэн үед таньна", () => {
+  const text = "Энэ attention механизм";
+  assert.equal(wordAt(text, 6), null);
+  assert.equal(wordAt(text, 6, true)?.word, "attention");
+  assert.equal(wordAt(text, 1, true)?.word, "Энэ");
+  assert.equal(wordAt("self-attention.", 3, true)?.word, "self-attention");
+});
+
+test("englishStems — англи үгийн үндсэн хэлбэрүүд", () => {
+  assert.ok(englishStems("attentions").includes("attention"));
+  assert.ok(englishStems("studies").includes("study"));
+  assert.ok(englishStems("boxes").includes("box"));
+  assert.ok(englishStems("stopped").includes("stop"));
+  assert.ok(englishStems("encoded").includes("encode"));
+  assert.ok(englishStems("running").includes("run"));
+  assert.ok(englishStems("making").includes("make"));
+  assert.ok(englishStems("model's").includes("model"));
+  assert.deepEqual(englishStems("glass"), []);
 });
