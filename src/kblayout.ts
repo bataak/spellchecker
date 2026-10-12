@@ -104,10 +104,6 @@ export function mapKey(
   return shift !== (letter && capsLock) ? shifted : plain;
 }
 
-export function scriptLabel(keyQ: string | null): string {
-  return keyQ !== null && /\p{Script=Cyrillic}/u.test(keyQ) ? "АБВ" : "ABC";
-}
-
 export function systemLayout(keyQ: string): Layout {
   return keyQ.toLowerCase() === MN.KeyQ![0] ? "mn" : "en";
 }
@@ -200,7 +196,6 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): void {
 
   let forced = loadForced();
   let system: Layout | null = null;
-  let systemKey: string | null = null;
 
   const navKeyboard = (
     navigator as {
@@ -211,17 +206,14 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): void {
     ?.getLayoutMap?.()
     .then((map) => {
       const q = map.get("KeyQ");
-      if (q) {
-        system = systemLayout(q);
-        systemKey = q;
-      }
+      if (q) system = systemLayout(q);
     })
     .catch(() => undefined);
 
   const chip = document.createElement("button");
   chip.type = "button";
   chip.className = "layout-chip";
-  chip.title = "Системийн гарын байрлал уруу буцаах (Ctrl+\\)";
+  chip.title = "Системийн гарын байрлал уруу буцаах";
   chip.addEventListener("mousedown", (event) => event.preventDefault());
   chip.addEventListener("click", () => setForced(null));
   deps.status.after(chip);
@@ -233,8 +225,7 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): void {
   document.body.append(badge);
   let badgeTimer = 0;
 
-  const label = (layout: Layout | null): string =>
-    layout === "mn" ? "МН" : layout === "en" ? "EN" : scriptLabel(systemKey);
+  const label = (layout: Layout): string => (layout === "mn" ? "АБВ" : "ABC");
 
   const sync = (): void => {
     chip.hidden = forced === null;
@@ -246,9 +237,9 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): void {
     editor.classList.toggle("layout-forced", forced !== null);
   };
 
-  const showBadge = (): void => {
+  const showBadge = (layout: Layout): void => {
     const caret = caretPoint(editor);
-    badge.textContent = forced ? label(forced) : label(system);
+    badge.textContent = label(layout);
     badge.style.left = caret.x + 4 + "px";
     badge.style.top = caret.y + caret.height + 2 + "px";
     badge.hidden = false;
@@ -266,7 +257,11 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): void {
     forced = next;
     saveForced(forced);
     sync();
-    showBadge();
+    if (forced) showBadge(forced);
+    else {
+      clearTimeout(badgeTimer);
+      badge.hidden = true;
+    }
     editor.focus({ preventScroll: true });
   };
 
@@ -283,7 +278,9 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): void {
       ) {
         event.preventDefault();
         event.stopPropagation();
-        setForced(forced ? null : otherLayout(system));
+        setForced(
+          forced ? (forced === "mn" ? "en" : "mn") : otherLayout(system),
+        );
         return;
       }
       if (!forced) {
@@ -291,10 +288,8 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): void {
           system === null &&
           event.code === "KeyQ" &&
           event.key.length === 1
-        ) {
+        )
           system = systemLayout(event.key);
-          systemKey = event.key;
-        }
         return;
       }
       if (event.ctrlKey || event.metaKey || event.altKey) return;
