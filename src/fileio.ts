@@ -109,8 +109,13 @@ export function initFileIO({
     { description: "Markdown файл", accept: { "text/markdown": [".md"] } },
   ];
 
+  const TEX_TYPES = [
+    { description: "LaTeX файл", accept: { "text/x-tex": [".tex"] } },
+  ];
+
   function saveTypes() {
-    return defaultExt() === "md" ? MD_TYPES : TXT_TYPES;
+    const ext = defaultExt();
+    return ext === "md" ? MD_TYPES : ext === "tex" ? TEX_TYPES : TXT_TYPES;
   }
 
   const PDF_MIME = "application/pdf";

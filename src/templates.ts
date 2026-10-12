@@ -45,6 +45,14 @@ export const TEMPLATES: readonly Template[] = [
     skeleton: "",
     examples: [{ id: "presentation", name: "Судалгааны илтгэл" }],
   },
+
+  {
+    id: "article",
+    frame: "plain",
+    name: "Судалгааны өгүүлэл",
+    skeleton: "",
+    examples: [{ id: "article", name: "LaTeX өгүүлэл" }],
+  },
 ];
 
 export interface TemplateGroup {
@@ -57,6 +65,7 @@ export const TEMPLATE_GROUPS: readonly TemplateGroup[] = [
   { name: "Албан бичиг", ids: ["letter"] },
   { name: "Тайлан", ids: ["report"] },
   { name: "Илтгэл", ids: ["slides"] },
+  { name: "Судалгааны өгүүлэл", ids: ["article"] },
 ];
 
 export function findTemplate(id: string): Template | undefined {

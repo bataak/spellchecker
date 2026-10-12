@@ -1327,7 +1327,7 @@ const fileIO = initFileIO({
   hidePopover,
   render,
   saveText,
-  defaultExt: () => (mdActive() ? "md" : "txt"),
+  defaultExt: () => (isTexFile() ? "tex" : mdActive() ? "md" : "txt"),
   onFileOpened: (ref) => {
     clearImages();
     plainName = ref ? ref.name : null;
