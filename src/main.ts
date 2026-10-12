@@ -1377,6 +1377,12 @@ const mdBar = initMdToolbar({
   editor: els.editor,
   mount: document.querySelector<HTMLElement>("header.topbar") ?? undefined,
   isMdFile: isMdFileOpen,
+  onDraftError: () =>
+    holdStatus(
+      "Энэ загварын бичвэрийг хадгалж чадсангүй. Файлаар хадгална уу.",
+      8000,
+      false,
+    ),
   isTexFile,
   onTemplate: (id) => {
     if (fileIO.targetName()) fileIO.forgetFile();
