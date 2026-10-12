@@ -201,6 +201,24 @@ export function imagePath(name: string): string {
   );
 }
 
+function sameImage(a: Blob, b: Blob): boolean {
+  if (a === b) return true;
+  if (a.size !== b.size || a.type !== b.type) return false;
+  if (!(a instanceof File && b instanceof File)) return true;
+  return a.lastModified === b.lastModified;
+}
+
+export function freeImagePath(name: string, blob: Blob): string {
+  const dot = name.lastIndexOf(".");
+  const stem = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : "";
+  for (let n = 1; ; n++) {
+    const src = imagePath(n === 1 ? name : stem + "-" + n + ext);
+    const taken = store.get(src);
+    if (!taken || sameImage(taken.blob, blob)) return src;
+  }
+}
+
 export function pickImage(): Promise<File | null> {
   return new Promise((resolve) => {
     const input = document.createElement("input");

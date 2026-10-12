@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import {
   clearImages,
+  freeImagePath,
   imageBlob,
   imagePath,
   imageUrl,
@@ -33,4 +34,19 @@ test("хадгалсан зургийг цэвэрлэхэд мэдэгдэнэ"
   clearImages();
   assert.equal(calls, 2);
   off();
+});
+
+test("ижил нэртэй өөр зураг өмнөхийг дарахгүй, шинэ нэр авна", () => {
+  clearImages();
+  const first = new File(["IMAGE A"], "photo.png", { type: "image/png", lastModified: 1 });
+  const second = new File(["IMAGE BB"], "photo.png", { type: "image/png", lastModified: 2 });
+  const a = freeImagePath(first.name, first);
+  putImage(a, first);
+  const b = freeImagePath(second.name, second);
+  putImage(b, second);
+  assert.equal(a, "photo.png");
+  assert.equal(b, "photo-2.png");
+  assert.equal(imageBlob(a), first);
+  assert.equal(freeImagePath(first.name, first), "photo.png");
+  clearImages();
 });

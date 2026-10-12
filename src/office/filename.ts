@@ -9,14 +9,14 @@ export function splitName(
   const dot = name.lastIndexOf(".");
   const hasExt = dot > 0 && name.length - dot <= 6;
   const ext = hasExt ? name.slice(dot) : "";
-  const base = hasExt ? name.slice(0, dot) : name;
+  const base = Array.from(hasExt ? name.slice(0, dot) : name);
   const keep = Math.min(
     Math.max(Math.round(base.length * ratio), TAIL_MIN),
     TAIL_MAX,
   );
   if (base.length <= keep) return { head: "", tail: name };
   return {
-    head: base.slice(0, base.length - keep),
-    tail: base.slice(base.length - keep) + ext,
+    head: base.slice(0, base.length - keep).join(""),
+    tail: base.slice(base.length - keep).join("") + ext,
   };
 }
