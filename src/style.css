@@ -1002,6 +1002,25 @@ a.tbtn {
   -webkit-backdrop-filter: none;
 }
 
+.preview-error {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: 0;
+  z-index: 2;
+  margin: 0;
+  padding: 8px var(--preview-pad);
+  background: color-mix(in srgb, var(--proof-soft) 92%, transparent);
+  color: var(--proof);
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.preview-error[hidden] {
+  display: none;
+}
+
 .preview-notice {
   margin: auto 0;
   padding: 24px 0;

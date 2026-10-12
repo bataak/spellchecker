@@ -90,6 +90,21 @@ const SYMBOL: Readonly<Record<string, string>> = {
 
 const SYMBOL_RE = new RegExp("[" + Object.keys(SYMBOL).join("") + "]", "gu");
 
+const T2A_FONTENC = /\\usepackage\[[^\]]*\bT2A\b[^\]]*\]\{fontenc\}/;
+const FONT_PACKAGE =
+  /\\usepackage(?:\[[^\]]*\])?\{(?:paratype|PTSerif|PTSans|cm-super|lmodern|tempora|fontspec)\}/;
+
+export function previewTex(text: string): string {
+  if (!/\\documentclass\b/.test(text))
+    return (
+      preambleFor(text) + "\\begin{document}\n" + text + "\n\\end{document}\n"
+    );
+  if (!T2A_FONTENC.test(text) || FONT_PACKAGE.test(text)) return text;
+  const at = text.search(/\\begin\{document\}/);
+  if (at < 0) return text;
+  return text.slice(0, at) + "\\usepackage{paratype}\n" + text.slice(at);
+}
+
 export function escapeTex(s: string): string {
   return s
     .replace(/[\\{}$&%#_~^]/g, (c) => SPECIAL[c]!)

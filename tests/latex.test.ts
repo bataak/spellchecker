@@ -2,7 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { parse, todayText } from "../src/markdown.ts";
-import { escapeTex, toBeamer, toLatex, toLatexBody } from "../src/latex.ts";
+import {
+  escapeTex,
+  previewTex,
+  toBeamer,
+  toLatex,
+  toLatexBody,
+} from "../src/latex.ts";
 
 const body = (md: string): string => toLatexBody(parse(md));
 
@@ -262,4 +268,29 @@ test("\\today LaTeX-д системийн огноогоор бичигдэнэ"
 
 test("toLatexBody: хуудас таслалт", () => {
   assert.equal(body("А\n\n\\newpage\n\nБ"), "А\n\n\\newpage\n\nБ");
+});
+
+test("previewTex хэсгийг бүтэн баримт болгоно", () => {
+  const out = previewTex("\\section{А}\nТекст $x$.");
+  assert.match(out, /^\\documentclass/);
+  assert.match(out, /\\usepackage\{amsmath\}/);
+  assert.match(out, /\\begin\{document\}\n\\section\{А\}/);
+  assert.match(out, /\\end\{document\}\n$/);
+});
+
+test("previewTex T2A баримтад paratype нэмнэ", () => {
+  const doc =
+    "\\documentclass{article}\n\\usepackage[T2A]{fontenc}\n\\begin{document}\nА\n\\end{document}\n";
+  assert.equal(
+    previewTex(doc),
+    doc.replace("\\begin{document}", "\\usepackage{paratype}\n\\begin{document}"),
+  );
+});
+
+test("previewTex фонттой эсвэл T2A-гүй баримтыг өөрчлөхгүй", () => {
+  const own =
+    "\\documentclass{article}\n\\usepackage[T2A]{fontenc}\n\\usepackage{paratype}\n\\begin{document}\n\\end{document}";
+  assert.equal(previewTex(own), own);
+  const latin = "\\documentclass{article}\n\\begin{document}\nA\n\\end{document}";
+  assert.equal(previewTex(latin), latin);
 });

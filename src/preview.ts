@@ -9,6 +9,7 @@ import {
 import { fitBlanks, format, isMarkdown, parse, toHtml } from "./markdown.ts";
 
 const TIDY_LIMIT = 400_000;
+const TEX_DELAY_MS = 700;
 
 function isSameDocument(next: string, ref: string): boolean {
   if (next === ref) return true;
@@ -144,8 +145,13 @@ export function initPreview(
   const body = document.createElement("div");
   body.className = "preview-body";
 
+  const texError = document.createElement("p");
+  texError.className = "preview-error";
+  texError.setAttribute("role", "status");
+  texError.hidden = true;
+
   applyInvert();
-  panel.append(head, body);
+  panel.append(head, body, texError);
   const imageEdit = initImageEdit(body, area);
   wrap.after(panel);
 
@@ -170,6 +176,10 @@ export function initPreview(
   let pdfAbort: AbortController | null = null;
   let shownHtml: string | null = null;
   let mathView: typeof import("./mathview.ts") | null = null;
+  let texMode = false;
+  let texShown: string | null = null;
+  let texTimer = 0;
+  let texSeq = 0;
 
   const renderMarkdown = (): void => {
     const text = area.value;
@@ -232,9 +242,82 @@ export function initPreview(
     }
   };
 
+  const setTexError = (message: string | null): void => {
+    texError.hidden = message === null;
+    texError.textContent = message ?? "";
+  };
+
+  const previewShown = (): boolean =>
+    document.documentElement.dataset.preview === "on";
+
+  const renderTex = async (): Promise<void> => {
+    texTimer = 0;
+    const text = area.value;
+    if (!texMode || text === texShown || !previewShown()) return;
+    const seq = ++texSeq;
+    if (!pdfView) showNotice("PDF бэлтгэж байна…");
+    try {
+      const [{ compilePdf }, { previewTex }, mod] = await Promise.all([
+        import("./texpdf.ts"),
+        import("./latex.ts"),
+        import("./pdfview.ts"),
+      ]);
+      const bytes = await compilePdf(previewTex(text));
+      if (seq !== texSeq || !texMode) return;
+      const scroll = body.scrollTop;
+      dropPdf();
+      const controller = new AbortController();
+      pdfAbort = controller;
+      const file = new File([bytes], "preview.pdf", { type: "application/pdf" });
+      const view = await mod.renderPdfInto(body, file, controller.signal);
+      if (controller.signal.aborted) {
+        view.destroy();
+        return;
+      }
+      pdfView = view;
+      texShown = text;
+      panel.classList.remove("is-blank");
+      body.classList.remove("is-empty");
+      body.scrollTop = scroll;
+      setTexError(null);
+    } catch (error) {
+      if (seq !== texSeq || !texMode) return;
+      texShown = text;
+      const message =
+        error instanceof Error ? error.message : "PDF үүсгэж чадсангүй";
+      if (pdfView) setTexError(message);
+      else showNotice(message);
+    }
+  };
+
+  const setTexMode = (on: boolean): void => {
+    if (on === texMode) return;
+    texMode = on;
+    texSeq++;
+    if (texTimer) clearTimeout(texTimer);
+    texTimer = 0;
+    texShown = null;
+    dropPdf();
+    setTexError(null);
+    shownHtml = null;
+    body.replaceChildren();
+    panel.classList.remove("is-blank");
+    panel.classList.toggle("is-pdf", on);
+    tidy.hidden = true;
+  };
+
   const update = (): void => {
     if (source) {
       if (!isSameDocument(area.value, sourceText)) setSource(null);
+      return;
+    }
+    setTexMode(isLatex(area.value));
+    if (texMode) {
+      if (texTimer) clearTimeout(texTimer);
+      texTimer = window.setTimeout(
+        () => void renderTex(),
+        texShown === null ? 0 : TEX_DELAY_MS,
+      );
       return;
     }
     if (raf) return;
@@ -256,6 +339,7 @@ export function initPreview(
 
   const setSource = (next: PreviewSource | null): void => {
     source = next;
+    setTexMode(false);
     tidy.hidden = true;
     dropPdf();
 
@@ -266,7 +350,7 @@ export function initPreview(
       panel.classList.remove("is-pdf");
       shownHtml = null;
       body.replaceChildren();
-      renderMarkdown();
+      update();
       return;
     }
 
@@ -299,7 +383,7 @@ export function initPreview(
   });
 
   const offImages = onImagesChange(() => {
-    if (source) return;
+    if (source || texMode) return;
     shownHtml = null;
     update();
   });
@@ -318,6 +402,7 @@ export function initPreview(
     setSource,
     destroy() {
       if (raf) cancelAnimationFrame(raf);
+      if (texTimer) clearTimeout(texTimer);
       dropPdf();
       offImages();
       imageEdit.destroy();
