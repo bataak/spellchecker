@@ -1059,8 +1059,7 @@ els.editor.addEventListener("input", (e) => {
 
 const clearBtnEl = document.querySelector("#clearBtn");
 if (clearBtnEl) {
-  clearBtnEl.addEventListener("click", (event) => {
-    if ((event as MouseEvent).shiftKey) return;
+  clearBtnEl.addEventListener("click", () => {
     mdBar.reset();
     rotateEmptyTips();
   });

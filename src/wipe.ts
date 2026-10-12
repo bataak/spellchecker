@@ -40,6 +40,34 @@ export function confirmWipe(): void {
   if (ok) requestWipe();
 }
 
+const LONG_PRESS_MS = 550;
+
+export function initWipeButton(btn: HTMLElement): void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let armed = false;
+  btn.addEventListener("pointerdown", () => {
+    armed = false;
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      armed = true;
+    }, LONG_PRESS_MS);
+  });
+  for (const type of ["pointerup", "pointercancel", "pointerleave"])
+    btn.addEventListener(type, () => clearTimeout(timer));
+  btn.addEventListener("contextmenu", (event) => event.preventDefault());
+  btn.addEventListener(
+    "click",
+    (event) => {
+      if (!armed && !event.shiftKey) return;
+      armed = false;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      confirmWipe();
+    },
+    true,
+  );
+}
+
 export function requestWipe(): void {
   try {
     sessionStorage.setItem(FLAG, "1");

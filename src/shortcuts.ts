@@ -28,7 +28,7 @@ export function initShortcuts(deps: ShortcutDeps): void {
       "#clearBtn",
       mod +
         shiftSym +
-        "⌫\nShift товчтой хамт дарвал бүх өгөгдөл устана · " +
+        "⌫\nShift товчтой хамт эсвэл удаан дарвал бүх өгөгдөл устана · " +
         mod +
         shiftSym +
         altSym +
