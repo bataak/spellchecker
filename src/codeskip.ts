@@ -251,6 +251,13 @@ const TEX_SECTION =
 const TEX_MARKUP =
   /\\(?:emph|textbf|textit|texttt|textsc|underline|cite[pt]?|label|ref|eqref|href|url|footnote)\s*\{/g;
 
+const TEX_SYNTAX =
+  /\\(?:[A-Za-z@]+|[%$&#_{}])|^[ \t]*%|(?<![\\$\d])\$(?![\s$])[^$\n]*?[^\s$\\]\$(?!\d)/m;
+
+export function hasTexSyntax(text: string): boolean {
+  return TEX_SYNTAX.test(text);
+}
+
 export function looksLatex(text: string): boolean {
   if (/\\documentclass\b|\\begin\{document\}/.test(text)) return true;
   if (text.indexOf("\\") < 0) return false;
