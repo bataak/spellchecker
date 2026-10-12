@@ -283,13 +283,13 @@ export function initPreview(
   let sourceText = "";
   let pdfView: import("./pdfview.ts").PdfView | null = null;
 
-  const setZoom = (next: number): void => {
+  const setZoom = (next: number, origin?: { x: number; y: number }): void => {
     zoom = next;
     saveZoom(zoom);
     zoomReset.textContent = Math.round(zoom * 100) + "%";
     zoomOut.disabled = zoom === ZOOM_STEPS[0];
     zoomIn.disabled = zoom === ZOOM_STEPS[ZOOM_STEPS.length - 1];
-    pdfView?.setZoom(zoom);
+    pdfView?.setZoom(zoom, origin);
   };
   setZoom(zoom);
   zoomOut.addEventListener("click", () => setZoom(stepZoom(zoom, -1)));
@@ -305,7 +305,10 @@ export function initPreview(
       const now = performance.now();
       if (now - wheelAt < 80) return;
       wheelAt = now;
-      setZoom(stepZoom(zoom, event.deltaY < 0 ? 1 : -1));
+      setZoom(stepZoom(zoom, event.deltaY < 0 ? 1 : -1), {
+        x: event.clientX,
+        y: event.clientY,
+      });
     },
     { passive: false },
   );
