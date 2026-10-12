@@ -588,7 +588,7 @@ function analysesFor(word: string): Analysis[] {
 const ENGLISH_IDS: ReadonlySet<string> = new Set(["en_US", "en_GB"]);
 
 function englishStemsOf(word: string): string[] {
-  const english = instances.filter(({ id }) => ENGLISH_IDS.has(id));
+  const english = activeInstances().filter(({ id }) => ENGLISH_IDS.has(id));
   const lower = word.toLowerCase();
   const out: string[] = [];
   const add = (stem: string): void => {

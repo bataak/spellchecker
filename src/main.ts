@@ -572,6 +572,27 @@ checker.onDictScripts = (latin) => {
 };
 const latinLookup = (): boolean => latinDicts !== false;
 
+const LATIN_WORD = /\p{Script=Latin}/u;
+const ENGLISH_REMIND_MS = 60000;
+let englishRemindedAt = -Infinity;
+function remindEnglish(word: string): void {
+  if (!LATIN_WORD.test(word)) return;
+  const loaded = checker.loadedIds.some(
+    (id) => id.startsWith("en") && enabledEnglish.has(id),
+  );
+  if (loaded) return;
+  const now = performance.now();
+  if (now - englishRemindedAt < ENGLISH_REMIND_MS) return;
+  englishRemindedAt = now;
+  holdStatus(
+    "Англи үгийн үндсийг танихын тулд англи толийг асаана уу (" +
+      (/mac|iphone|ipad/i.test(navigator.platform) ? "⌘⇧L" : "Ctrl+Shift+L") +
+      ")",
+    6000,
+    false,
+  );
+}
+
 function wordForLookup(): WordSpan | null {
   const { value, selectionStart, selectionEnd } = els.editor;
   if (selectionStart === selectionEnd)
@@ -655,7 +676,7 @@ defineBtn?.addEventListener("click", async (event) => {
     return;
   }
   if (isTouch()) void pop.openWordPanel(span);
-  else void defTip.showWordDefinition(span);
+  else void defTip.showWordDefinition(span).then(() => remindEnglish(span.word));
 });
 
 els.editor.addEventListener("keydown", (e) => {
@@ -675,7 +696,7 @@ els.editor.addEventListener("keydown", (e) => {
   const span = wordForLookup();
   if (!span) return;
   e.preventDefault();
-  void defTip.showWordDefinition(span);
+  void defTip.showWordDefinition(span).then(() => remindEnglish(span.word));
 });
 
 const checkWords = (words: string[]) => checker.checkWords(words);
@@ -1129,7 +1150,9 @@ function defineAtPoint(x: number, y: number): void {
   }
   if (hoverSpan?.start === span.start && hoverSpan.end === span.end) return;
   hoverSpan = span;
-  void defTip.showWordDefinition(span, x);
+  void defTip
+    .showWordDefinition(span, x)
+    .then(() => remindEnglish(span.word));
 }
 
 let hoverFrame = 0;
