@@ -28,7 +28,6 @@ import { escapeHtml } from "./htmlutil.ts";
 import { pickDefinitionMarks } from "./defmarks.ts";
 import {
   fencedCode,
-  hasTexSyntax,
   inRanges,
   looksLatex,
   mergeRanges,
@@ -76,7 +75,11 @@ import { shiftTokens } from "./tokenshift.ts";
 import { texSpans } from "./texhighlight.ts";
 import { initTexComplete } from "./texcomplete.ts";
 import { initKeyboardLayout } from "./kblayout.ts";
-import { initUndoHistory, type UndoControl } from "./undohistory.ts";
+import {
+  initUndoHistory,
+  TEMPLATE_INPUT,
+  type UndoControl,
+} from "./undohistory.ts";
 import { initTexImageInput, insertPickedImage } from "./teximages.ts";
 import { minimalDiff } from "./mdedit.ts";
 import { isLookupKey, wordAt, type WordSpan } from "./lookup.ts";
@@ -325,18 +328,15 @@ const TEX_NAME_RE = /\.(tex|ltx)$/i;
 
 function isLatexText(text: string): boolean {
   if (docx) return false;
-  if (plainName && TEX_NAME_RE.test(plainName) && hasTexSyntax(text))
-    return true;
-  return looksLatex(text);
+  if (plainName) return TEX_NAME_RE.test(plainName);
+  return texTemplate || looksLatex(text);
 }
 
 const TEX_TEMPLATE = "article";
 let texTemplate = false;
 
 function isTexFile(): boolean {
-  const text = els.editor.value;
-  if (texTemplate && !docx && text.trim() === "") return true;
-  return isLatexText(text);
+  return isLatexText(els.editor.value);
 }
 
 let lastTex: boolean | null = null;
@@ -348,6 +348,7 @@ function syncTexMode(): void {
   applyTexPaint(tex);
   mdBar.refresh();
   enterMdMode(mdActive());
+  previewCtl?.update();
 }
 
 let texPaint = false;
@@ -393,11 +394,26 @@ function syncBackdrop(): void {
 }
 
 function mdActive(): boolean {
-  return !isTexFile() && !isPlain(mdBar.template());
+  if (isTexFile()) return false;
+  return openFileName() ? isMdFileOpen() : !isPlain(mdBar.template());
+}
+
+let previewWanted = false;
+let clearedEmpty = false;
+
+function syncPreviewClass(): void {
+  document.body.classList.toggle(
+    "preview-mode",
+    previewWanted && !clearedEmpty,
+  );
 }
 
 function syncEmptyState(text: string): void {
   const empty = text.length === 0;
+  if (!empty && clearedEmpty) {
+    clearedEmpty = false;
+    syncPreviewClass();
+  }
   if (empty) defTip.clear();
   if (!els.emptyState) return;
   els.emptyState.style.opacity = empty ? "" : "0";
@@ -545,7 +561,7 @@ function statsMessage(knownLine?: number): string {
     escapeHtml(parts.tail) +
     "</b>" +
     '<span class="doc-rest">' +
-    ", " +
+    '<span class="doc-sep">, </span>' +
     statsBody(knownLine) +
     "</span>"
   );
@@ -1074,6 +1090,11 @@ const draft = initDraftText({
 const saveText = draft.save;
 
 els.editor.addEventListener("input", (e) => {
+  const swapped = e instanceof InputEvent && e.data === TEMPLATE_INPUT;
+  if (swapped) {
+    badTokens = [];
+    renderBackdrop(els.editor.value, []);
+  }
   syncBackdrop();
   if (editorText.programmatic()) return;
   if (!(e instanceof InputEvent)) return;
@@ -1082,7 +1103,12 @@ els.editor.addEventListener("input", (e) => {
   draft.saveSoon();
   if (isSeparatorInput(e)) void recheckAfterSeparator();
   else {
-    if (hadSelection || els.editor.value.length === 0 || isBulkDelete(e))
+    if (
+      swapped ||
+      hadSelection ||
+      els.editor.value.length === 0 ||
+      isBulkDelete(e)
+    )
       render();
     deferredCheck();
   }
@@ -1447,11 +1473,13 @@ const mdBar = initMdToolbar({
       false,
     ),
   isTexFile,
+  fileName: openFileName,
   onTemplate: (id, from) => {
+    clearedEmpty = false;
     texTemplate = id === TEX_TEMPLATE;
     syncTexMode();
     swapTemplateFile(from, mdBar.slot());
-    enterMdMode(!isTexFile() && !isPlain(id));
+    enterMdMode(mdActive());
   },
   onExample: () => enterMdMode(!isTexFile()),
 });
@@ -1516,8 +1544,10 @@ function enterMdMode(on: boolean): void {
     markupSkips = markup;
     void render();
   }
+  measureCtl?.setPreviewBlocked(!!openFileName() && !on && !isTexFile());
   measureCtl?.setPreviewMode(on || isTexFile());
-  document.body.classList.toggle("preview-mode", on || isTexFile());
+  previewWanted = on || isTexFile();
+  syncPreviewClass();
   previewCtl?.setMarkdownMode(on);
   exportCtl?.syncPrint();
   nudgeHints();
@@ -1705,7 +1735,12 @@ initToolbar({
   els,
   isDocxActive: () => docx !== null,
   closeDocx,
-  forgetFile: fileIO.forgetFile,
+  forgetFile: () => {
+    clearedEmpty = true;
+    fileIO.forgetFile();
+    syncPreviewClass();
+  },
+  hasOpenFile: () => openFileName() !== null,
   flash,
   setStatus,
   setEditorText,
