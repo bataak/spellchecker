@@ -66,7 +66,6 @@ export function missingFont(error: unknown): boolean {
 let engine: Promise<Worker> | null = null;
 let live: Worker | null = null;
 let queue: Promise<unknown> = Promise.resolve();
-let prefetching: Promise<void> | null = null;
 
 const FONT_CACHE = "tex-" + TEX_FONTS.split("/")[1];
 
@@ -125,30 +124,41 @@ async function dropOldFontCaches(): Promise<void> {
   } catch {}
 }
 
-let warmed: Promise<void> | null = null;
+let warmed: Promise<boolean> | null = null;
 
-function warmEngine(): Promise<void> {
-  warmed ??= Promise.all(
-    [
-      ...[TEX_ENGINE, TEX_ENGINE.replace(/\.js$/, ".wasm")].map((path) =>
-        fetch(asset(path), { priority: "low" }),
-      ),
-      loadBundle(),
-    ],
-  )
-    .then(() => undefined)
+function warmEngine(): Promise<boolean> {
+  warmed ??= Promise.all([
+    ...[TEX_ENGINE, TEX_ENGINE.replace(/\.js$/, ".wasm")].map((path) =>
+      fetch(asset(path), { priority: "low" }).then((response) => {
+        if (!response.ok) throw new Error(path);
+      }),
+    ),
+    loadBundle(),
+  ])
+    .then(() => true)
     .catch(() => {
       warmed = null;
+      return false;
     });
   return warmed;
 }
 
-export function prefetchFonts(): Promise<void> {
+async function persistStorage(): Promise<void> {
+  try {
+    if (navigator.storage && !(await navigator.storage.persisted()))
+      await navigator.storage.persist();
+  } catch {}
+}
+
+let prefetching: Promise<boolean> | null = null;
+
+export function prefetchFonts(): Promise<boolean> {
   const connection = (navigator as { connection?: { saveData?: boolean } })
     .connection;
-  if (connection?.saveData) return Promise.resolve();
-  void warmEngine();
+  if (connection?.saveData) return Promise.resolve(false);
   prefetching ??= (async () => {
+    void persistStorage();
+    const engineReady = warmEngine();
     await dropOldFontCaches();
     const cache = await fontCache();
     let complete = true;
@@ -177,10 +187,14 @@ export function prefetchFonts(): Promise<void> {
         }
       if (live) sendFont(live, name, data);
     }
-    if (!complete) prefetching = null;
+    const ready = complete && (await engineReady);
+    if (!ready) prefetching = null;
+    return ready && cache !== null;
   })();
   return prefetching;
 }
+
+export const OFFLINE_KEY = "tex-offline:" + TEX_BUNDLE + TEX_FONTS;
 
 async function start(): Promise<Worker> {
   const worker = new Worker(asset(TEX_ENGINE));
