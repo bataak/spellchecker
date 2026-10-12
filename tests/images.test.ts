@@ -10,7 +10,9 @@ import {
   imageUrl,
   isBlockedRemote,
   onImagesChange,
+  persistImages,
   putImage,
+  restoreImages,
 } from "../src/images.ts";
 
 test("imagePath: хоосон зай, хаалтыг кодлоно", () => {
@@ -56,5 +58,23 @@ test("ижил нэртэй өөр зураг өмнөхийг дарахгүй,
   assert.equal(b, "photo-2.png");
   assert.equal(imageBlob(a), first);
   assert.equal(freeImagePath(first.name, first), "photo.png");
+  clearImages();
+});
+
+test("оруулсан зургийг хадгалж, сэргээхдээ одоогийнхыг дарахгүй", () => {
+  clearImages();
+  const saved: string[] = [];
+  persistImages((src) => saved.push(src));
+  const fresh = new Blob(["NEW"], { type: "image/png" });
+  putImage("a.png", fresh);
+  assert.deepEqual(saved, ["a.png"]);
+  restoreImages([
+    ["a.png", new Blob(["OLD"], { type: "image/png" })],
+    ["b.png", new Blob(["B"], { type: "image/png" })],
+  ]);
+  assert.equal(imageBlob("a.png"), fresh);
+  assert.ok(imageBlob("b.png"));
+  assert.deepEqual(saved, ["a.png"]);
+  persistImages(() => {});
   clearImages();
 });
