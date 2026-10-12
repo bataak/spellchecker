@@ -355,6 +355,11 @@ export function skipRanges(
   return mergeRanges(ranges);
 }
 
+export function fencedCode(text: string): SkipRange[] {
+  if (text.indexOf("```") < 0 && text.indexOf("~~~") < 0) return [];
+  return fencedRanges(text, lineBounds(text));
+}
+
 export function codeRanges(text: string, tex = false): SkipRange[] {
   if (
     text.indexOf("`") < 0 &&
