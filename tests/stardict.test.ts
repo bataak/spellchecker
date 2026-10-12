@@ -8,6 +8,7 @@ import {
   resolveDefinitions,
   resolveTagged,
   findTaggedHeadword,
+  hasLatinHeadwords,
   openStarDict,
   parseDefinition,
   parseIfo,
@@ -298,4 +299,28 @@ test("tag-тай толинд үйл үгийн tag-гүй оруулгыг үй
     ]),
     null,
   );
+});
+
+test("латин толгой үгтэй толийг таньна", () => {
+  const english = buildDict(
+    ["apple", "attention", "book", "matrix", "zebra"].map(
+      (word): [string, string] => [word, "тайлбар"],
+    ),
+  );
+  assert.equal(hasLatinHeadwords(english.index), true);
+  const mongolian = buildDict(
+    ["ном", "ус", "үг", "хэл", "эх"].map((word): [string, string] => [
+      word,
+      "тайлбар",
+    ]),
+  );
+  assert.equal(hasLatinHeadwords(mongolian.index), false);
+});
+
+test("цөөн латин товчлолтой монгол толийг англи гэж үзэхгүй", () => {
+  const words = Array.from({ length: 199 }, (_, i) => "үг" + String(i));
+  const dict = buildDict(
+    [...words, "DNA"].map((word): [string, string] => [word, "тайлбар"]),
+  );
+  assert.equal(hasLatinHeadwords(dict.index), false);
 });

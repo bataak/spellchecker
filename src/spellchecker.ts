@@ -42,6 +42,7 @@ export interface SpellChecker {
   readonly fallbackReason: string | null;
   onFatal: ((reason: string) => void) | null;
   onDictUpdated: ((id: string, version: string | null) => void) | null;
+  onDictScripts: ((latin: boolean) => void) | null;
   init(base: string): Promise<InitResult>;
   whenComplete(): Promise<CompleteResult>;
   checkWords(words: string[]): Promise<Record<string, boolean>>;
@@ -94,6 +95,7 @@ export class MultiSpellChecker implements SpellChecker {
   dead: boolean;
   onFatal: ((reason: string) => void) | null;
   onDictUpdated: ((id: string, version: string | null) => void) | null;
+  onDictScripts: ((latin: boolean) => void) | null;
   private _seq: number;
   private _pending: Map<number, PendingEntry>;
   private _initHandler: ((msg: InitProgressMessage) => void) | null;
@@ -116,6 +118,7 @@ export class MultiSpellChecker implements SpellChecker {
     this.dead = false;
     this.onFatal = null;
     this.onDictUpdated = null;
+    this.onDictScripts = null;
     this.worker.onmessage = (e: MessageEvent<WorkerResponse>) =>
       this._onMessage(e.data);
     this.worker.onerror = (e) =>
@@ -155,6 +158,10 @@ export class MultiSpellChecker implements SpellChecker {
     if (msg.type === "dictUpdated") {
       if (msg.id === "mn_MN") this.mnVersion = msg.version;
       if (this.onDictUpdated) this.onDictUpdated(msg.id, msg.version);
+      return;
+    }
+    if (msg.type === "dictScripts") {
+      this.onDictScripts?.(msg.latin);
       return;
     }
     if (
