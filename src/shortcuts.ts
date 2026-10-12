@@ -1,3 +1,5 @@
+import { confirmWipe } from "./wipe.ts";
+
 export interface ShortcutDeps {
   readonly editor: HTMLTextAreaElement;
   readonly openDictMenu: () => void;
@@ -22,7 +24,16 @@ export function initShortcuts(deps: ShortcutDeps): void {
   const altSym = isMac ? "⌥" : "Alt+";
 
   [
-    ["#clearBtn", mod + shiftSym + "⌫"],
+    [
+      "#clearBtn",
+      mod +
+        shiftSym +
+        "⌫\nShift дараад дарвал бүх өгөгдлийг устгана · " +
+        mod +
+        shiftSym +
+        altSym +
+        "⌫",
+    ],
     ["#pasteBtn", mod + "V"],
     [
       "#copyBtn",
@@ -80,7 +91,15 @@ export function initShortcuts(deps: ShortcutDeps): void {
     const hasPrimaryModifier = isMac
       ? e.metaKey && !e.ctrlKey
       : e.ctrlKey && !e.metaKey;
-    if (!hasPrimaryModifier || e.altKey) return;
+    if (!hasPrimaryModifier) return;
+    if (e.altKey) {
+      if (e.shiftKey && e.key === "Backspace") {
+        e.preventDefault();
+        trigger("#clearBtn", false);
+        confirmWipe();
+      }
+      return;
+    }
 
     const key = e.key;
     const lowerKey = key.toLowerCase();
