@@ -663,6 +663,48 @@ a.tbtn {
   opacity: 0.72;
 }
 
+.pdf-zoom {
+  display: none;
+  pointer-events: auto;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  margin-inline-start: auto;
+}
+
+.preview-panel.is-pdf .pdf-zoom {
+  display: inline-flex;
+}
+
+.pdf-zoom button {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 5px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  opacity: 0.72;
+}
+
+.pdf-zoom .pdf-zoom-level {
+  min-width: 46px;
+}
+
+.pdf-zoom button:hover:not(:disabled),
+.pdf-zoom button:focus-visible {
+  opacity: 1;
+  border-color: var(--line);
+}
+
+.pdf-zoom button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
 :root[data-theme="dark"] .preview-panel.is-pdf .pdf-invert {
   display: inline-flex;
 }
@@ -1040,11 +1082,15 @@ a.tbtn {
 .pdf-pages {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 12px;
+  width: 100%;
 }
 
 .pdf-page {
-  width: 100%;
+  flex: 0 0 auto;
+  width: calc(100% * var(--pdf-zoom, 1));
+  margin-inline: auto;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: #fff;
