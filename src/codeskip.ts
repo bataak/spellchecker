@@ -16,16 +16,24 @@ const MATH_BLOCK = new RegExp(
 );
 const LATEX_COMMAND =
   /\\(?:begin|end)\{[^}\n]*\}(?:\{[^}\n]*\}|\[[^\]\n]*\])*|\\[A-Za-z]+\*?/g;
-const MATH = new RegExp(
-  String.raw`\\\(` +
-    NO_BLANK +
-    String.raw`\\\)|\\begin\{math\}` +
-    NO_BLANK +
-    String.raw`\\end\{math\}|\$\$` +
-    NO_BLANK +
-    String.raw`\$\$|(?<![\\$])\$(?![\s$])(?:[^$\n\\]|\\.)*?[^\s$\\]\$(?![\d$])|(?<![\\$])\$(?![\s$])[^$\n\\]\$(?![\d$])`,
-  "g",
-);
+function mathPattern(opener: string): RegExp {
+  return new RegExp(
+    String.raw`\\\(` +
+      NO_BLANK +
+      String.raw`\\\)|\\begin\{math\}` +
+      NO_BLANK +
+      String.raw`\\end\{math\}|\$\$` +
+      NO_BLANK +
+      String.raw`\$\$|` +
+      opener +
+      String.raw`\$(?![\s$])(?:[^$\n\\]|\\.)*?[^\s$\\]\$(?![\d$])|` +
+      opener +
+      String.raw`\$(?![\s$])[^$\n\\]\$(?![\d$])`,
+    "g",
+  );
+}
+const MATH = mathPattern(String.raw`(?<![\\$\d])`);
+const TEX_MATH = mathPattern(String.raw`(?<![\\$])`);
 
 function lineBounds(text: string): number[] {
   const starts = [0];
@@ -62,8 +70,6 @@ function fencedRanges(text: string, starts: number[]): SkipRange[] {
       marker = "";
     }
   }
-
-  if (open >= 0) ranges.push({ start: open, end: text.length });
 
   return ranges;
 }
@@ -179,6 +185,18 @@ const MD_LABEL = new RegExp(String.raw`\[([^\]\n]+)\](?=\(|\[|:)`, "g");
 
 const EMAIL = /\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b/g;
 
+const MATH_TEXT_ARG =
+  /\\(?:text|mbox|textrm|textit|textbf|mathrm|operatorname)\s*\{[^{}]*\}/g;
+const CYRILLIC_WORD = /\p{Script=Cyrillic}{2,}/u;
+const MATH_MARK = /[\\^_=+{}<>]/;
+
+function inlineMath(text: string, range: SkipRange): boolean {
+  const body = text.slice(range.start, range.end);
+  if (body.startsWith("$$") || !body.startsWith("$")) return true;
+  const inner = body.slice(1, -1).replace(MATH_TEXT_ARG, "");
+  return !CYRILLIC_WORD.test(inner) || MATH_MARK.test(inner);
+}
+
 function collect(text: string, pattern: RegExp, group = 0): SkipRange[] {
   const ranges: SkipRange[] = [];
   pattern.lastIndex = 0;
@@ -277,7 +295,12 @@ export function looksLatex(text: string): boolean {
 }
 
 export function latexRanges(text: string): SkipRange[] {
-  if (text.indexOf("\\") < 0 && text.indexOf("%") < 0) return [];
+  if (
+    text.indexOf("\\") < 0 &&
+    text.indexOf("%") < 0 &&
+    text.indexOf("$") < 0
+  )
+    return [];
 
   const ranges: SkipRange[] = [];
   const begin = TEX_BEGIN_DOC.exec(text);
@@ -288,7 +311,7 @@ export function latexRanges(text: string): SkipRange[] {
 
   return mergeRanges([
     ...ranges,
-    ...codeRanges(text),
+    ...codeRanges(text, true),
     ...collect(text, TEX_COMMENT),
     ...collect(text, TEX_VERBATIM),
     ...collect(text, TEX_VERB),
@@ -328,7 +351,7 @@ export function skipRanges(
   return mergeRanges(ranges);
 }
 
-export function codeRanges(text: string): SkipRange[] {
+export function codeRanges(text: string, tex = false): SkipRange[] {
   if (
     text.indexOf("`") < 0 &&
     text.indexOf("~~~") < 0 &&
@@ -347,7 +370,9 @@ export function codeRanges(text: string): SkipRange[] {
     ...inlineRanges(text, fenced),
     ...htmlRanges(text),
     ...[
-      ...collect(text, MATH),
+      ...(tex
+        ? collect(text, TEX_MATH)
+        : collect(text, MATH).filter((range) => inlineMath(text, range))),
       ...collect(text, MATH_BLOCK),
       ...collect(text, LATEX_COMMAND),
     ].filter((range) => !covered(fenced, range.start)),
