@@ -277,7 +277,7 @@ export function initFileIO({
           const file = await handle.getFile();
           if (await tryDocx(file)) return;
           if (!isTextFile(file)) {
-            flash("#openBtn", "Нээх боломжгүй");
+            refuse();
             return;
           }
           if (!sizeOk(file)) return;
@@ -299,7 +299,7 @@ export function initFileIO({
       }
       if (!isTextFile(selectedFile)) {
         openFileEl.value = "";
-        flash("#openBtn", "Нээх боломжгүй");
+        refuse();
         return;
       }
       if (!sizeOk(selectedFile)) {
@@ -317,6 +317,11 @@ export function initFileIO({
       }
       openFileEl.value = "";
     });
+  }
+
+  function refuse(): void {
+    setStatus("Файлыг нээх боломжгүй", true);
+    flash("#openBtn", "Нээх боломжгүй");
   }
 
   function sizeOk(file: File | null | undefined): boolean {
@@ -383,7 +388,7 @@ export function initFileIO({
         : dt && dt.files && dt.files[0];
       if (droppedFile && (await tryDocx(droppedFile))) return;
       if (!isTextFile(droppedFile)) {
-        if (droppedFile) flash("#openBtn", "Нээх боломжгүй");
+        if (droppedFile) refuse();
         return;
       }
       if (!sizeOk(droppedFile)) return;
