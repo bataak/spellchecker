@@ -224,7 +224,7 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): void {
   document.body.append(badge);
   let badgeTimer = 0;
 
-  const label = (layout: Layout): string => (layout === "mn" ? "АБВ" : "ABC");
+  const label = (layout: Layout): string => (layout === "mn" ? "MN" : "EN");
   const describe = (layout: Layout): string =>
     layout === "mn" ? "Монгол гарын байрлал" : "US keyboard layout";
 

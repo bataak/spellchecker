@@ -18,6 +18,7 @@ import {
 import { replaceRange } from "./editortext.ts";
 import { freeImagePath, pickImage, putImage } from "./images.ts";
 import { dropSlotText, loadSlotText, saveSlotText } from "./storage.ts";
+import { TEMPLATE_INPUT } from "./undohistory.ts";
 import type { AlignKind, Edit } from "./mdedit.ts";
 import {
   LEGACY_TEMPLATES,
@@ -41,6 +42,7 @@ export interface MdToolbarOptions {
 export interface MdToolbar {
   refresh: () => void;
   template: () => string;
+  slot: () => string;
   reset: () => void;
   destroy: () => void;
 }
@@ -662,14 +664,26 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   let switchSeq = 0;
   let loadingKey: string | null = null;
 
+  function resetText(text: string, start: number, end: number): void {
+    editor.value = "";
+    editor.value = text;
+    editor.setSelectionRange(start, end);
+    editor.dispatchEvent(
+      new InputEvent("input", {
+        bubbles: true,
+        inputType: "insertReplacementText",
+        data: TEMPLATE_INPUT,
+      }),
+    );
+  }
+
   function showDraft(id: string, key: string, stored: string | null): void {
     const text = stored ?? findTemplate(id)?.skeleton ?? "";
     const caret = stored === null ? null : loadCaret(key);
     const start = Math.min(caret?.start ?? text.length, text.length);
     const end = Math.min(caret?.end ?? text.length, text.length);
 
-    if (text !== editor.value) apply({ text, start, end });
-    else editor.setSelectionRange(start, end);
+    resetText(text, start, end);
     if (caret !== null) {
       editor.scrollTop = caret.scroll;
       requestAnimationFrame(() => {
@@ -731,7 +745,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       editor.value.trim()
     )
       return;
-    apply({ text, start: 0, end: 0 });
+    resetText(text, 0, 0);
     editor.scrollTop = 0;
     options.onExample?.();
   }
@@ -843,6 +857,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   return {
     refresh: syncVisible,
     template: () => templateId,
+    slot: () => pickerValue(templateId),
     reset(): void {
       dropDraft(pickerValue(templateId));
       dropLegacyPending();

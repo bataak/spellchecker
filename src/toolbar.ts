@@ -56,10 +56,38 @@ function initToolbarMemory(): void {
 
 export function initToolbar(deps: ToolbarDeps): void {
   initToolbarScroll();
+  initToolbarWheel();
   initToolbarMemory();
   initToolbarSnap();
   initClippedReveal();
   initButtons(deps);
+}
+
+function initToolbarWheel(): void {
+  const bar = document.querySelector<HTMLElement>(".toolbar");
+  if (!bar) return;
+  bar.addEventListener(
+    "wheel",
+    (event) => {
+      if (event.ctrlKey || bar.scrollWidth <= bar.clientWidth) return;
+      if (Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
+      const unit =
+        event.deltaMode === WheelEvent.DOM_DELTA_LINE
+          ? 16
+          : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+            ? bar.clientWidth
+            : 1;
+      const max = bar.scrollWidth - bar.clientWidth;
+      const next = Math.min(
+        max,
+        Math.max(0, bar.scrollLeft + event.deltaY * unit),
+      );
+      if (next === bar.scrollLeft) return;
+      event.preventDefault();
+      bar.scrollLeft = next;
+    },
+    { passive: false },
+  );
 }
 
 function initToolbarScroll(): void {
