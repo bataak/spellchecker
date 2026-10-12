@@ -118,6 +118,19 @@ function saveInvert(on: boolean): void {
   } catch {}
 }
 
+function compileGlyph(): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", "0 0 16 16");
+  svg.setAttribute("class", "tex-compile-glyph");
+  svg.setAttribute("aria-hidden", "true");
+  for (const d of ["M13 8a5 5 0 1 1-1.46-3.54", "M13 2.5V5.5H10"]) {
+    const path = document.createElementNS(SVG_NS, "path");
+    path.setAttribute("d", d);
+    svg.append(path);
+  }
+  return svg;
+}
+
 function contrastGlyph(): SVGSVGElement {
   const svg = document.createElementNS(SVG_NS, "svg");
   svg.setAttribute("viewBox", "0 0 16 16");
@@ -240,7 +253,19 @@ export function initPreview(
   zoomReset.className = "pdf-zoom-level";
   zoomBox.append(zoomOut, zoomReset, zoomIn);
 
-  head.append(title, zoomBox, invertBtn);
+  const compileButton = (className: string): HTMLButtonElement => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = className;
+    button.title = "Дахин хөрвүүлэх";
+    button.setAttribute("aria-label", button.title);
+    button.append(compileGlyph());
+    button.addEventListener("mousedown", (event) => event.preventDefault());
+    return button;
+  };
+  const compileBtn = compileButton("tex-compile");
+
+  head.append(title, compileBtn, zoomBox, invertBtn);
 
   const body = document.createElement("div");
   body.className = "preview-body";
@@ -458,17 +483,40 @@ export function initPreview(
     return key !== null && key === cached.key;
   };
 
+  const RETRY_MS = [2000, 5000, 15000];
+  let retryTimer = 0;
+  let retries = 0;
+  let triedText: string | null = null;
+  let compiling: string | null = null;
+  const STALE_COMPILE_MS = 3000;
+
+  const cancelRetry = (): void => {
+    if (retryTimer) clearTimeout(retryTimer);
+    retryTimer = 0;
+  };
+
   const renderTex = async (): Promise<void> => {
     texTimer = 0;
+    cancelRetry();
     const text = area.value;
-    if (!texMode || text === texShown || !previewShown()) return;
+    if (!texMode || text === texShown || text === compiling || !previewShown())
+      return;
+    if (text !== triedText) {
+      triedText = text;
+      retries = 0;
+    }
     const seq = ++texSeq;
+    compileBtn.disabled = true;
     if (!texRestored && (await restoreTex(text, seq))) {
       texShown = text;
       return;
     }
     if (seq !== texSeq || !texMode) return;
     if (!pdfView) showNotice("PDF бэлтгэж байна…");
+    void import("./texpdf.ts").then((mod) => {
+      if (mod.compileRunningFor() > STALE_COMPILE_MS) mod.cancelCompile();
+    });
+    compiling = text;
     try {
       const [{ compileTexDocument }, images] = await Promise.all([
         import("./texpdf.ts"),
@@ -478,24 +526,52 @@ export function initPreview(
       const { pdf, missing } = await compileTexDocument(text);
       if (!(await showPdfBytes(pdf, seq))) return;
       texShown = text;
+      retries = 0;
       setTexError(null);
       setTexMissing(missing);
       if (!missing.length) void saveCachedPdf(text, pdf);
     } catch (error) {
       if (seq !== texSeq || !texMode) return;
       texShown = text;
+      const delay = RETRY_MS[retries];
       const message =
-        error instanceof Error ? error.message : "PDF үүсгэж чадсангүй";
+        (error instanceof Error ? error.message : "PDF үүсгэж чадсангүй") +
+        (delay ? " — дахин оролдож байна…" : "");
       if (pdfView) setTexError(message);
       else showNotice(message);
+      if (delay) {
+        retries++;
+        retryTimer = window.setTimeout(() => {
+          retryTimer = 0;
+          if (!texMode || area.value !== text) return;
+          texShown = null;
+          void renderTex();
+        }, delay);
+      }
+    } finally {
+      if (compiling === text) compiling = null;
+      if (seq === texSeq) compileBtn.disabled = false;
     }
   };
+
+  const recompile = (): void => {
+    if (compiling !== null) return;
+    retries = 0;
+    triedText = null;
+    texShown = null;
+    void renderTex();
+  };
+  compileBtn.addEventListener("click", recompile);
 
   const setTexMode = (on: boolean): void => {
     if (on === texMode) return;
     texMode = on;
     texSeq++;
     texRestored = false;
+    compiling = null;
+    cancelRetry();
+    compileBtn.disabled = false;
+    panel.classList.toggle("tex-mode", on);
     if (texTimer) clearTimeout(texTimer);
     texTimer = 0;
     texShown = null;
@@ -606,6 +682,7 @@ export function initPreview(
     destroy() {
       if (raf) cancelAnimationFrame(raf);
       if (texTimer) clearTimeout(texTimer);
+      cancelRetry();
       dropPdf();
       offImages();
       offTexImages?.();
