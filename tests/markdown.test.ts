@@ -7,6 +7,7 @@ import {
   isMarkdown,
   parse,
   print,
+  safeHref,
   toHtml,
   todayText,
   withoutDivs,
@@ -782,4 +783,29 @@ test("жинхэнэ $…$ томьёо хэвээр танигдана", () => 
     first.children.filter((node) => node.type === "math").length,
     3,
   );
+});
+
+test("preview зөвхөн аюулгүй холбоос гаргана", () => {
+  for (const url of [
+    "javascript:alert(1)",
+    "JaVaScRiPt:alert(1)",
+    "java\tscript:alert(1)",
+    " javascript:alert(1)",
+    "data:text/html,x",
+    "vbscript:x",
+  ])
+    assert.equal(safeHref(url), false, url);
+  for (const url of [
+    "https://bichig.dev",
+    "http://a.mn",
+    "mailto:a@b.mn",
+    "tel:99119911",
+    "docs/a.md",
+    "#heading",
+    "/path",
+  ])
+    assert.equal(safeHref(url), true, url);
+  assert.doesNotMatch(toHtml(parse("[x](javascript:alert(1))")), /<a /);
+  assert.doesNotMatch(toHtml(parse("[x](&#106;avascript:alert(1))")), /href="j/i);
+  assert.match(toHtml(parse("[x](https://bichig.dev)")), /<a href="https:/);
 });
