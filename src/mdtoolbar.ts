@@ -18,6 +18,7 @@ import {
 import { replaceRange } from "./editortext.ts";
 import { freeImagePath, pickImage, putImage } from "./images.ts";
 import { dropSlotText, loadSlotText, saveSlotText } from "./storage.ts";
+import { TEMPLATE_INPUT } from "./undohistory.ts";
 import type { AlignKind, Edit } from "./mdedit.ts";
 import {
   LEGACY_TEMPLATES,
@@ -41,6 +42,7 @@ export interface MdToolbarOptions {
 export interface MdToolbar {
   refresh: () => void;
   template: () => string;
+  slot: () => string;
   reset: () => void;
   destroy: () => void;
 }
@@ -670,6 +672,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       new InputEvent("input", {
         bubbles: true,
         inputType: "insertReplacementText",
+        data: TEMPLATE_INPUT,
       }),
     );
   }
@@ -854,6 +857,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   return {
     refresh: syncVisible,
     template: () => templateId,
+    slot: () => pickerValue(templateId),
     reset(): void {
       dropDraft(pickerValue(templateId));
       dropLegacyPending();
