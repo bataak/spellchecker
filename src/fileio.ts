@@ -5,7 +5,7 @@ export interface FileIODeps {
   openDocxFile: (file: File) => Promise<boolean>;
   closeDocx: () => void;
   isDocxActive: () => boolean;
-  docxSave: () => Promise<void>;
+  docxSave: () => Promise<boolean>;
   flash: (sel: string, msg: string) => void;
   setStatus: (html: string, animate?: boolean) => void;
   setEditorText: (text: string, caret: number | null) => void;
@@ -174,8 +174,7 @@ export function initFileIO({
   document.querySelector("#saveBtn")!.addEventListener("click", async () => {
     if (isDocxActive()) {
       try {
-        await docxSave();
-        flash("#saveBtn", "Хадгаллаа");
+        flash("#saveBtn", (await docxSave()) ? "Хадгаллаа" : "Цуцаллаа");
       } catch (_) {
         flash("#saveBtn", "Боломжгүй");
       }

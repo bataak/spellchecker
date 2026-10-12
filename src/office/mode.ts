@@ -18,7 +18,7 @@ export interface SkippedWord {
 }
 
 export interface SaveOutcome {
-  delivered: "share" | "download";
+  delivered: "share" | "download" | "cancelled";
   applied: number;
   skipped: number;
   skippedWords: SkippedWord[];
@@ -167,7 +167,7 @@ export async function deliver(
   bytes: Uint8Array<ArrayBuffer>,
   name: string,
   format: OfficeFormat,
-): Promise<"share" | "download"> {
+): Promise<"share" | "download" | "cancelled"> {
   const blob = new Blob([bytes], { type: MIME[format] });
   const file = new File([blob], name, { type: MIME[format] });
 
@@ -180,7 +180,7 @@ export async function deliver(
       return "share";
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError")
-        return "share";
+        return "cancelled";
     }
   }
 

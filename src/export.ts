@@ -297,7 +297,7 @@ async function deliverFile(
   data: BlobPart,
   name: string,
   mime: string,
-): Promise<void> {
+): Promise<boolean> {
   const blob = new Blob([data], { type: mime });
 
   if (typeof navigator.canShare === "function") {
@@ -305,10 +305,10 @@ async function deliverFile(
     if (navigator.canShare({ files: [file] })) {
       try {
         await navigator.share({ files: [file] });
-        return;
+        return true;
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError")
-          return;
+          return false;
       }
     }
   }
@@ -323,6 +323,7 @@ async function deliverFile(
   setTimeout(() => {
     URL.revokeObjectURL(url);
   }, 1000);
+  return true;
 }
 
 export function initExport(options: ExportOptions): ExportControl {
@@ -447,8 +448,7 @@ export function initExport(options: ExportOptions): ExportControl {
         toc: tocInput.checked,
       });
       if (format.slow) options.onBusy?.(false);
-      await deliverFile(data, name, format.mime);
-      options.onDone?.(name);
+      if (await deliverFile(data, name, format.mime)) options.onDone?.(name);
     } catch (error) {
       if (format.slow) options.onBusy?.(false);
       console.error("export:", error);
