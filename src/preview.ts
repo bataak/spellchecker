@@ -240,7 +240,14 @@ export function initPreview(
   zoomReset.className = "pdf-zoom-level";
   zoomBox.append(zoomOut, zoomReset, zoomIn);
 
-  head.append(title, zoomBox, invertBtn);
+  const compileBtn = document.createElement("button");
+  compileBtn.type = "button";
+  compileBtn.className = "tex-compile";
+  compileBtn.textContent = "Хөрвүүлэх";
+  compileBtn.title = "PDF-ийг дахин хөрвүүлэх";
+  compileBtn.addEventListener("mousedown", (event) => event.preventDefault());
+
+  head.append(title, compileBtn, zoomBox, invertBtn);
 
   const body = document.createElement("div");
   body.className = "preview-body";
@@ -458,17 +465,40 @@ export function initPreview(
     return key !== null && key === cached.key;
   };
 
+  const RETRY_MS = [2000, 5000, 15000];
+  let retryTimer = 0;
+  let retries = 0;
+  let triedText: string | null = null;
+  let compiling: string | null = null;
+  const STALE_COMPILE_MS = 3000;
+
+  const cancelRetry = (): void => {
+    if (retryTimer) clearTimeout(retryTimer);
+    retryTimer = 0;
+  };
+
   const renderTex = async (): Promise<void> => {
     texTimer = 0;
+    cancelRetry();
     const text = area.value;
-    if (!texMode || text === texShown || !previewShown()) return;
+    if (!texMode || text === texShown || text === compiling || !previewShown())
+      return;
+    if (text !== triedText) {
+      triedText = text;
+      retries = 0;
+    }
     const seq = ++texSeq;
+    compileBtn.disabled = true;
     if (!texRestored && (await restoreTex(text, seq))) {
       texShown = text;
       return;
     }
     if (seq !== texSeq || !texMode) return;
     if (!pdfView) showNotice("PDF бэлтгэж байна…");
+    void import("./texpdf.ts").then((mod) => {
+      if (mod.compileRunningFor() > STALE_COMPILE_MS) mod.cancelCompile();
+    });
+    compiling = text;
     try {
       const [{ compileTexDocument }, images] = await Promise.all([
         import("./texpdf.ts"),
@@ -478,24 +508,51 @@ export function initPreview(
       const { pdf, missing } = await compileTexDocument(text);
       if (!(await showPdfBytes(pdf, seq))) return;
       texShown = text;
+      retries = 0;
       setTexError(null);
       setTexMissing(missing);
       if (!missing.length) void saveCachedPdf(text, pdf);
     } catch (error) {
       if (seq !== texSeq || !texMode) return;
       texShown = text;
+      const delay = RETRY_MS[retries];
       const message =
-        error instanceof Error ? error.message : "PDF үүсгэж чадсангүй";
+        (error instanceof Error ? error.message : "PDF үүсгэж чадсангүй") +
+        (delay ? " — дахин оролдож байна…" : "");
       if (pdfView) setTexError(message);
       else showNotice(message);
+      if (delay) {
+        retries++;
+        retryTimer = window.setTimeout(() => {
+          retryTimer = 0;
+          if (!texMode || area.value !== text) return;
+          texShown = null;
+          void renderTex();
+        }, delay);
+      }
+    } finally {
+      if (compiling === text) compiling = null;
+      if (seq === texSeq) compileBtn.disabled = false;
     }
   };
+
+  compileBtn.addEventListener("click", () => {
+    if (compiling !== null) return;
+    retries = 0;
+    triedText = null;
+    texShown = null;
+    void renderTex();
+  });
 
   const setTexMode = (on: boolean): void => {
     if (on === texMode) return;
     texMode = on;
     texSeq++;
     texRestored = false;
+    compiling = null;
+    cancelRetry();
+    compileBtn.disabled = false;
+    panel.classList.toggle("tex-mode", on);
     if (texTimer) clearTimeout(texTimer);
     texTimer = 0;
     texShown = null;
@@ -606,6 +663,7 @@ export function initPreview(
     destroy() {
       if (raf) cancelAnimationFrame(raf);
       if (texTimer) clearTimeout(texTimer);
+      cancelRetry();
       dropPdf();
       offImages();
       offTexImages?.();
