@@ -299,25 +299,13 @@ export function printHtml(
     cm(page.widthCm) +
     " " +
     cm(page.heightCm) +
-    ";margin:" +
-    [
-      page.marginTopCm,
-      page.marginOuterCm,
-      page.marginBottomCm,
-      page.marginInnerCm,
-    ]
-      .map(cm)
-      .join(" ") +
-    (doc.pageNumbers
-      ? ";@bottom-center{content:counter(page);font-family:" +
-        serifStack(base) +
-        ";font-size:" +
-        String(doc.font.sizePt) +
-        "pt}"
-      : "") +
-    "}" +
+    ";margin:0}" +
     "html,body{margin:0;padding:0;background:#fff;color:#000}" +
-    "body{font-family:" +
+    "body{padding:0 " +
+    cm(page.marginOuterCm) +
+    " 0 " +
+    cm(page.marginInnerCm) +
+    ";font-family:" +
     serifStack(base) +
     ";font-size:" +
     String(doc.font.sizePt) +
@@ -341,6 +329,15 @@ export function printHtml(
     ".tab{display:inline-block;width:1.25cm}" +
     ".rule{margin:6pt 0;border-bottom:0.5pt solid #000;padding-bottom:2pt}" +
     ".page-break{break-before:page}" +
+    "table.sheet{width:100%;table-layout:auto}" +
+    ".sheet>tbody>tr{break-inside:auto}" +
+    ".sheet>*>tr>td{padding:0}" +
+    ".sheet>thead>tr>td{height:" +
+    cm(page.marginTopCm) +
+    "}" +
+    ".sheet>tfoot>tr>td{height:" +
+    cm(page.marginBottomCm) +
+    "}" +
     ".image{max-width:100%;max-height:" +
     cm(page.heightCm - page.marginTopCm - page.marginBottomCm - 1) +
     ";height:auto;object-fit:contain;vertical-align:bottom}" +
@@ -352,8 +349,10 @@ export function printHtml(
     "</title><style>" +
     css +
     "</style></head><body>" +
+    '<table class="sheet"><thead><tr><td></td></tr></thead>' +
+    "<tfoot><tr><td></td></tr></tfoot><tbody><tr><td>" +
     doc.blocks.map((block) => blockHtml(block, doc, images)).join("") +
-    "</body></html>"
+    "</td></tr></tbody></table></body></html>"
   );
 }
 

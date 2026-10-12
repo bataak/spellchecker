@@ -18,8 +18,12 @@ test("printHtml: өргөдлийн гарчиг мөр таслалттайга
   assert.match(html, /<title>Тэнхимд Өргөдөл гаргах нь:<\/title>/);
   assert.match(
     html,
-    /@page\{size:21\.000cm 29\.700cm;margin:2\.000cm 1\.500cm 2\.000cm 3\.000cm\}/,
+    /@page\{size:21\.000cm 29\.700cm;margin:0\}/,
   );
+  assert.match(html, /body\{padding:0 1\.500cm 0 3\.000cm;/);
+  assert.match(html, /\.sheet>thead>tr>td\{height:2\.000cm\}/);
+  assert.match(html, /\.sheet>tfoot>tr>td\{height:2\.000cm\}/);
+  assert.match(html, /<body><table class="sheet"><thead>/);
   assert.doesNotMatch(html, /@bottom-center/);
 });
 
@@ -27,7 +31,7 @@ test("printHtml: хүснэгт, жагсаалт, тэмдэгт", () => {
   const html = letter(
     "# А\n\n## Б\n\n- **нэг** <x>\n- хоёр\n\n| а | б |\n| - | -: |\n| 1 | 2 |",
   );
-  assert.match(html, /@bottom-center\{content:counter\(page\)/);
+  assert.doesNotMatch(html, /@bottom-center/);
   assert.match(
     html,
     /<ul><li><p class="s-ListItem"><b>нэг<\/b> &lt;x&gt;<\/p><\/li>/,
@@ -78,7 +82,7 @@ test("printHtml: бэлтгэсэн зургийг голлуулсан дого
 
 test("printHtml: хэвлэлт апптай хамт ирсэн Times-тэй ижил өргөнтэй фонтыг эхэлж ашиглана", () => {
   const html = letter("Бие.");
-  assert.match(html, /body\{font-family:"Bichig Print Serif", "Times New Roman"/);
+  assert.match(html, /body\{[^}]*font-family:"Bichig Print Serif", "Times New Roman"/);
   assert.match(html, /\.mono\{font-family:"Bichig Print Mono"/);
   for (const file of [
     "bichig-print-serif-mn-400-v1",
