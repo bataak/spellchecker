@@ -1,3 +1,5 @@
+import { dollarMath } from "./codeskip.ts";
+
 export type MathOpen = "$" | "$$" | "\\(" | "\\begin{math}";
 
 const MATH_SHUT: Readonly<Record<MathOpen, string>> = {
@@ -185,7 +187,7 @@ const MATH_HOLD = "\u0002";
 const HARD = "\u0003";
 
 const MATH_SPAN =
-  /(`+)[\s\S]*?\1|\\begin\{math\}([\s\S]*?)\\end\{math\}|\\\(([\s\S]*?)\\\)|\\[\s\S]|\$\$((?:[^$\\]|\\.)+?)\$\$|(?<!\$)\$(?![\s$])((?:[^$\\]|\\.)*?[^\s$\\]|[^\s$\\])\$(?![\d$])|(?<![\p{L}\p{N}_])(_{3,})(?![\p{L}\p{N}_])/gu;
+  /(`+)[\s\S]*?\1|\\begin\{math\}([\s\S]*?)\\end\{math\}|\\\(([\s\S]*?)\\\)|\\[\s\S]|\$\$((?:[^$\\]|\\.)+?)\$\$|(?<![$\d])\$(?![\s$])((?:[^$\\]|\\.)*?[^\s$\\]|[^\s$\\])\$(?![\d$])|(?<![\p{L}\p{N}_])(_{3,})(?![\p{L}\p{N}_])/gu;
 
 const ESCAPABLE = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
 
@@ -407,6 +409,7 @@ function inlineOf(src: string, breaks: boolean): Inline[] {
                   ? "$"
                   : null;
         if (open === null) return whole;
+        if (open === "$" && !dollarMath(single ?? "")) return whole;
         lifted.push({
           type: "math",
           open,

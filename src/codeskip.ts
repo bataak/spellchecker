@@ -190,11 +190,15 @@ const MATH_TEXT_ARG =
 const CYRILLIC_WORD = /\p{Script=Cyrillic}{2,}/u;
 const MATH_MARK = /[\\^_=+{}<>]/;
 
+export function dollarMath(inner: string): boolean {
+  const rest = inner.replace(MATH_TEXT_ARG, "");
+  return !CYRILLIC_WORD.test(rest) || MATH_MARK.test(rest);
+}
+
 function inlineMath(text: string, range: SkipRange): boolean {
   const body = text.slice(range.start, range.end);
   if (body.startsWith("$$") || !body.startsWith("$")) return true;
-  const inner = body.slice(1, -1).replace(MATH_TEXT_ARG, "");
-  return !CYRILLIC_WORD.test(inner) || MATH_MARK.test(inner);
+  return dollarMath(body.slice(1, -1));
 }
 
 function collect(text: string, pattern: RegExp, group = 0): SkipRange[] {
