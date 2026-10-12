@@ -5,6 +5,7 @@ import { parse, todayText } from "../src/markdown.ts";
 import {
   escapeTex,
   previewTex,
+  withParatype,
   toBeamer,
   toLatex,
   toLatexBody,
@@ -278,29 +279,31 @@ test("previewTex хэсгийг бүтэн баримт болгоно", () => {
   assert.match(out, /\\end\{document\}\n$/);
 });
 
-test("previewTex T2A баримтад paratype нэмнэ", () => {
+test("previewTex бүтэн баримтыг өөрчлөхгүй", () => {
   const doc =
-    "\\documentclass{article}\n\\usepackage[T2A]{fontenc}\n\\begin{document}\nА\n\\end{document}\n";
-  assert.equal(
-    previewTex(doc),
-    doc.replace("\\begin{document}", "\\usepackage{paratype}\n\\begin{document}"),
-  );
+    "\\documentclass{article}\n\\usepackage[T1]{fontenc}\n\\begin{document}\nА\n\\end{document}\n";
+  assert.equal(previewTex(doc), doc);
 });
 
-test("previewTex T1 болон кирилл babel баримтад paratype нэмнэ", () => {
+test("withParatype T1, T2A болон кирилл babel баримтад paratype нэмнэ", () => {
   for (const pre of [
     "\\usepackage[T1]{fontenc}",
+    "\\usepackage[T2A]{fontenc}",
     "\\usepackage[mongolian]{babel}",
   ]) {
-    const doc = "\\documentclass{article}\n" + pre + "\n\\begin{document}\n\\end{document}";
-    assert.match(previewTex(doc), /\\usepackage\{paratype\}\n\\begin\{document\}/);
+    const doc =
+      "\\documentclass{article}\n" + pre + "\n\\begin{document}\n\\end{document}";
+    assert.equal(
+      withParatype(doc),
+      doc.replace("\\begin{document}", "\\usepackage{paratype}\n\\begin{document}"),
+    );
   }
 });
 
-test("previewTex фонттой эсвэл T2A-гүй баримтыг өөрчлөхгүй", () => {
+test("withParatype фонттой эсвэл латин OT1 баримтад null буцаана", () => {
   const own =
     "\\documentclass{article}\n\\usepackage[T2A]{fontenc}\n\\usepackage{paratype}\n\\begin{document}\n\\end{document}";
-  assert.equal(previewTex(own), own);
+  assert.equal(withParatype(own), null);
   const latin = "\\documentclass{article}\n\\begin{document}\nA\n\\end{document}";
-  assert.equal(previewTex(latin), latin);
+  assert.equal(withParatype(latin), null);
 });

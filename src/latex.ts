@@ -97,14 +97,17 @@ const FONT_PACKAGE =
   /\\usepackage(?:\[[^\]]*\])?\{(?:paratype|PTSerif|PTSans|cm-super|lmodern|tempora|fontspec)\}/;
 
 export function previewTex(text: string): string {
-  if (!/\\documentclass\b/.test(text))
-    return (
-      preambleFor(text) + "\\begin{document}\n" + text + "\n\\end{document}\n"
-    );
-  if (FONT_PACKAGE.test(text)) return text;
-  if (!TEXT_FONTENC.test(text) && !CYRILLIC_BABEL.test(text)) return text;
+  if (/\\documentclass\b/.test(text)) return text;
+  return (
+    preambleFor(text) + "\\begin{document}\n" + text + "\n\\end{document}\n"
+  );
+}
+
+export function withParatype(text: string): string | null {
+  if (FONT_PACKAGE.test(text)) return null;
+  if (!TEXT_FONTENC.test(text) && !CYRILLIC_BABEL.test(text)) return null;
   const at = text.search(/\\begin\{document\}/);
-  if (at < 0) return text;
+  if (at < 0) return null;
   return text.slice(0, at) + "\\usepackage{paratype}\n" + text.slice(at);
 }
 

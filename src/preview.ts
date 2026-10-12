@@ -258,13 +258,18 @@ export function initPreview(
     const seq = ++texSeq;
     if (!pdfView) showNotice("PDF бэлтгэж байна…");
     try {
-      const [{ compilePdf }, { previewTex }, mod] = await Promise.all([
+      const [{ compilePdf, missingFont }, latex, mod] = await Promise.all([
         import("./texpdf.ts"),
         import("./latex.ts"),
         import("./pdfview.ts"),
       ]);
       const passes = CROSS_REF.test(text) ? 2 : 1;
-      const bytes = await compilePdf(previewTex(text), passes);
+      const tex = latex.previewTex(text);
+      const bytes = await compilePdf(tex, passes).catch((error: unknown) => {
+        const fallback = missingFont(error) ? latex.withParatype(tex) : null;
+        if (fallback === null) throw error;
+        return compilePdf(fallback, passes);
+      });
       if (seq !== texSeq || !texMode) return;
       const scroll = body.scrollTop;
       dropPdf();
