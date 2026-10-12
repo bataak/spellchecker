@@ -1,6 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mapKey, otherLayout, systemLayout } from "../src/kblayout.ts";
+import {
+  mapKey,
+  otherLayout,
+  scriptLabel,
+  systemLayout,
+} from "../src/kblayout.ts";
 
 test("монгол layout стандарт байрлалаар үсэг гаргана", () => {
   const word = ["KeyG", "KeyD", "KeyO", "KeyF"].map((code) =>
@@ -44,4 +49,11 @@ test("зөвхөн монгол гарыг монгол гэж таньж, бу�
   assert.equal(otherLayout(systemLayout("й")), "mn");
   assert.equal(otherLayout(systemLayout("q")), "mn");
   assert.equal(otherLayout(systemLayout("ф")), "en");
+});
+
+test("системийн гарыг бичгийн төрлөөр нь нэрлэнэ", () => {
+  assert.equal(scriptLabel("q"), "ABC");
+  assert.equal(scriptLabel("й"), "АБВ");
+  assert.equal(scriptLabel("ф"), "АБВ");
+  assert.equal(scriptLabel(null), "ABC");
 });

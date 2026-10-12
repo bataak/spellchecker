@@ -104,6 +104,10 @@ export function mapKey(
   return shift !== (letter && capsLock) ? shifted : plain;
 }
 
+export function scriptLabel(keyQ: string | null): string {
+  return keyQ !== null && /\p{Script=Cyrillic}/u.test(keyQ) ? "АБВ" : "ABC";
+}
+
 export function systemLayout(keyQ: string): Layout {
   return keyQ.toLowerCase() === MN.KeyQ![0] ? "mn" : "en";
 }
@@ -196,6 +200,7 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): void {
 
   let forced = loadForced();
   let system: Layout | null = null;
+  let systemKey: string | null = null;
 
   const navKeyboard = (
     navigator as {
@@ -206,7 +211,10 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): void {
     ?.getLayoutMap?.()
     .then((map) => {
       const q = map.get("KeyQ");
-      if (q) system = systemLayout(q);
+      if (q) {
+        system = systemLayout(q);
+        systemKey = q;
+      }
     })
     .catch(() => undefined);
 
@@ -226,7 +234,7 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): void {
   let badgeTimer = 0;
 
   const label = (layout: Layout | null): string =>
-    layout === "mn" ? "МН" : layout === "en" ? "EN" : "System";
+    layout === "mn" ? "МН" : layout === "en" ? "EN" : scriptLabel(systemKey);
 
   const sync = (): void => {
     chip.hidden = forced === null;
@@ -279,8 +287,14 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): void {
         return;
       }
       if (!forced) {
-        if (system === null && event.code === "KeyQ" && event.key.length === 1)
+        if (
+          system === null &&
+          event.code === "KeyQ" &&
+          event.key.length === 1
+        ) {
           system = systemLayout(event.key);
+          systemKey = event.key;
+        }
         return;
       }
       if (event.ctrlKey || event.metaKey || event.altKey) return;
