@@ -1686,6 +1686,9 @@ a.tbtn {
   .topbar > * {
     min-width: 0;
   }
+  .topbar .layout-chip {
+    margin-inline-start: -14px;
+  }
   .topbar .subtitle {
     margin-top: 0;
     text-align: right;
@@ -2614,7 +2617,7 @@ html.booting .empty-state {
 
 .layout-chip {
   flex: 0 0 auto;
-  margin-inline-start: 8px;
+  margin-inline-start: 4px;
   padding: 1px 7px;
   border: 1px solid var(--layout-accent);
   border-radius: 999px;

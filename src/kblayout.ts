@@ -210,7 +210,7 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): void {
   const chip = document.createElement("button");
   chip.type = "button";
   chip.className = "layout-chip";
-  chip.title = "Гарын байрлалыг системийнх руу буцаах (Ctrl+\\)";
+  chip.title = "Системийн гарын байрлал уруу буцаах (Ctrl+\\)";
   chip.addEventListener("mousedown", (event) => event.preventDefault());
   chip.addEventListener("click", () => setForced(null));
   deps.status.after(chip);
@@ -223,11 +223,11 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): void {
   let badgeTimer = 0;
 
   const label = (layout: Layout | null): string =>
-    layout ? layout.toUpperCase() : "Систем";
+    layout === "mn" ? "МН" : layout === "en" ? "EN" : "System";
 
   const sync = (): void => {
     chip.hidden = forced === null;
-    chip.textContent = forced ? forced.toUpperCase() : "";
+    chip.textContent = forced ? label(forced) : "";
     chip.setAttribute(
       "aria-label",
       forced ? "Гарын байрлал: " + label(forced) : "",
