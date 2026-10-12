@@ -1382,7 +1382,7 @@ enterMdMode(mdActive());
 els.editor.addEventListener("input", nudgeHints);
 
 function enterMdMode(on: boolean): void {
-  measureCtl?.setPreviewMode(on);
+  measureCtl?.setPreviewMode(on || isTexFile());
   exportCtl?.syncPrint();
   nudgeHints();
 }
