@@ -1,3 +1,4 @@
+import "./wipe.ts";
 import "./style.css";
 import "./gutter.css";
 import "./md-toolbar.css";
@@ -1058,7 +1059,8 @@ els.editor.addEventListener("input", (e) => {
 
 const clearBtnEl = document.querySelector("#clearBtn");
 if (clearBtnEl) {
-  clearBtnEl.addEventListener("click", () => {
+  clearBtnEl.addEventListener("click", (event) => {
+    if ((event as MouseEvent).shiftKey) return;
     mdBar.reset();
     rotateEmptyTips();
   });
