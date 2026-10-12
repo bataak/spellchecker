@@ -287,6 +287,16 @@ test("previewTex T2A баримтад paratype нэмнэ", () => {
   );
 });
 
+test("previewTex T1 болон кирилл babel баримтад paratype нэмнэ", () => {
+  for (const pre of [
+    "\\usepackage[T1]{fontenc}",
+    "\\usepackage[mongolian]{babel}",
+  ]) {
+    const doc = "\\documentclass{article}\n" + pre + "\n\\begin{document}\n\\end{document}";
+    assert.match(previewTex(doc), /\\usepackage\{paratype\}\n\\begin\{document\}/);
+  }
+});
+
 test("previewTex фонттой эсвэл T2A-гүй баримтыг өөрчлөхгүй", () => {
   const own =
     "\\documentclass{article}\n\\usepackage[T2A]{fontenc}\n\\usepackage{paratype}\n\\begin{document}\n\\end{document}";
