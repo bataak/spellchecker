@@ -16,16 +16,24 @@ const MATH_BLOCK = new RegExp(
 );
 const LATEX_COMMAND =
   /\\(?:begin|end)\{[^}\n]*\}(?:\{[^}\n]*\}|\[[^\]\n]*\])*|\\[A-Za-z]+\*?/g;
-const MATH = new RegExp(
-  String.raw`\\\(` +
-    NO_BLANK +
-    String.raw`\\\)|\\begin\{math\}` +
-    NO_BLANK +
-    String.raw`\\end\{math\}|\$\$` +
-    NO_BLANK +
-    String.raw`\$\$|(?<![\\$\d])\$(?![\s$])(?:[^$\n\\]|\\.)*?[^\s$\\]\$(?![\d$])|(?<![\\$\d])\$(?![\s$])[^$\n\\]\$(?![\d$])`,
-  "g",
-);
+function mathPattern(opener: string): RegExp {
+  return new RegExp(
+    String.raw`\\\(` +
+      NO_BLANK +
+      String.raw`\\\)|\\begin\{math\}` +
+      NO_BLANK +
+      String.raw`\\end\{math\}|\$\$` +
+      NO_BLANK +
+      String.raw`\$\$|` +
+      opener +
+      String.raw`\$(?![\s$])(?:[^$\n\\]|\\.)*?[^\s$\\]\$(?![\d$])|` +
+      opener +
+      String.raw`\$(?![\s$])[^$\n\\]\$(?![\d$])`,
+    "g",
+  );
+}
+const MATH = mathPattern(String.raw`(?<![\\$\d])`);
+const TEX_MATH = mathPattern(String.raw`(?<![\\$])`);
 
 function lineBounds(text: string): number[] {
   const starts = [0];
@@ -287,7 +295,12 @@ export function looksLatex(text: string): boolean {
 }
 
 export function latexRanges(text: string): SkipRange[] {
-  if (text.indexOf("\\") < 0 && text.indexOf("%") < 0) return [];
+  if (
+    text.indexOf("\\") < 0 &&
+    text.indexOf("%") < 0 &&
+    text.indexOf("$") < 0
+  )
+    return [];
 
   const ranges: SkipRange[] = [];
   const begin = TEX_BEGIN_DOC.exec(text);
@@ -298,7 +311,7 @@ export function latexRanges(text: string): SkipRange[] {
 
   return mergeRanges([
     ...ranges,
-    ...codeRanges(text),
+    ...codeRanges(text, true),
     ...collect(text, TEX_COMMENT),
     ...collect(text, TEX_VERBATIM),
     ...collect(text, TEX_VERB),
@@ -338,7 +351,7 @@ export function skipRanges(
   return mergeRanges(ranges);
 }
 
-export function codeRanges(text: string): SkipRange[] {
+export function codeRanges(text: string, tex = false): SkipRange[] {
   if (
     text.indexOf("`") < 0 &&
     text.indexOf("~~~") < 0 &&
@@ -357,7 +370,9 @@ export function codeRanges(text: string): SkipRange[] {
     ...inlineRanges(text, fenced),
     ...htmlRanges(text),
     ...[
-      ...collect(text, MATH).filter((range) => inlineMath(text, range)),
+      ...(tex
+        ? collect(text, TEX_MATH)
+        : collect(text, MATH).filter((range) => inlineMath(text, range))),
       ...collect(text, MATH_BLOCK),
       ...collect(text, LATEX_COMMAND),
     ].filter((range) => !covered(fenced, range.start)),
