@@ -71,6 +71,7 @@ import {
 import { shiftTokens } from "./tokenshift.ts";
 import { texSpans } from "./texhighlight.ts";
 import { initTexComplete } from "./texcomplete.ts";
+import { initKeyboardLayout } from "./kblayout.ts";
 import { initTexImageInput, insertPickedImage } from "./teximages.ts";
 import { minimalDiff } from "./mdedit.ts";
 import { isLookupKey, wordAt, type WordSpan } from "./lookup.ts";
@@ -1431,6 +1432,7 @@ initTexComplete({
   onImage: () => void insertPickedImage(els.editor),
 });
 initTexImageInput({ editor: els.editor, active: () => texPaint });
+initKeyboardLayout({ editor: els.editor, status: els.status });
 enterMdMode(mdActive());
 els.editor.addEventListener("input", nudgeHints);
 
