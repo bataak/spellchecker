@@ -73,6 +73,7 @@ import { shiftTokens } from "./tokenshift.ts";
 import { texSpans } from "./texhighlight.ts";
 import { initTexComplete } from "./texcomplete.ts";
 import { initKeyboardLayout } from "./kblayout.ts";
+import { initUndoHistory, type UndoControl } from "./undohistory.ts";
 import { initTexImageInput, insertPickedImage } from "./teximages.ts";
 import { minimalDiff } from "./mdedit.ts";
 import { isLookupKey, wordAt, type WordSpan } from "./lookup.ts";
@@ -174,6 +175,7 @@ let enabledEnglish = loadEnabledEnglish();
 let lastFailed: { id: string; error: string }[] | null = null;
 let lastFallbackReason: string | null = null;
 let docx: OfficeMode | null = null;
+let undoCtl: UndoControl | null = null;
 let plainName: string | null = null;
 let skipCode = true;
 let skipLinks = true;
@@ -1334,6 +1336,7 @@ async function openDocxFile(file: File): Promise<boolean> {
 
   els.editor.readOnly = true;
   els.editor.value = docx.text();
+  undoCtl?.baseline();
   previewCtl?.setSource({ kind: "office", name: file.name });
   document.body.classList.add("docx-mode");
   syncSaveHint();
@@ -1444,6 +1447,7 @@ initTexComplete({
 });
 initTexImageInput({ editor: els.editor, active: () => texPaint });
 initKeyboardLayout({ editor: els.editor, status: els.status });
+undoCtl = initUndoHistory({ editor: els.editor, slot: () => mdBar.slot() });
 enterMdMode(mdActive());
 els.editor.addEventListener("input", nudgeHints);
 
@@ -1563,6 +1567,7 @@ async function boot() {
   };
   setStatus("Hunspell ачаалж байна…");
   await draft.load();
+  undoCtl?.baseline();
   restoreDraftFile();
   render();
   document.documentElement.classList.remove("booting");

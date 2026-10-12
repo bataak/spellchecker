@@ -96,10 +96,29 @@ const CYRILLIC_BABEL =
 const FONT_PACKAGE =
   /\\usepackage(?:\[[^\]]*\])?\{(?:paratype|PTSerif|PTSans|cm-super|lmodern|tempora|fontspec)\}/;
 
+const PREAMBLE_LINE = /^[ \t]*\\(?:usepackage|RequirePackage)\b.*$/gm;
+
 export function previewTex(text: string): string {
   if (/\\documentclass\b/.test(text)) return text;
+  const begin = text.search(/\\begin\{document\}/);
+  let head: string;
+  let body: string;
+  if (begin >= 0) {
+    head = text.slice(0, begin);
+    body = text
+      .slice(begin + "\\begin{document}".length)
+      .replace(/\\end\{document\}[\s\S]*$/, "");
+  } else {
+    head = (text.match(PREAMBLE_LINE) ?? []).join("\n");
+    body = text.replace(PREAMBLE_LINE, "");
+  }
   return (
-    preambleFor(text) + "\\begin{document}\n" + text + "\n\\end{document}\n"
+    preambleFor(body) +
+    "\n" +
+    head.trim() +
+    "\n\\begin{document}\n" +
+    body +
+    "\n\\end{document}\n"
   );
 }
 

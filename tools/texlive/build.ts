@@ -14,7 +14,12 @@ import { execFileSync } from "node:child_process";
 import { unzipSync, zipSync } from "fflate";
 
 import { parse, type Block } from "../../src/markdown.ts";
-import { BEAMER_PREAMBLE, toBeamer, toLatex } from "../../src/latex.ts";
+import {
+  BEAMER_PREAMBLE,
+  previewTex,
+  toBeamer,
+  toLatex,
+} from "../../src/latex.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "../..");
@@ -538,7 +543,14 @@ int main() { return 0; }
 `;
 
 function userCoverage(): string[] {
-  const docs: string[] = [];
+  const docs: string[] = [
+    previewTex(
+      "\\section{Зураг}\n\\includegraphics[width=3cm]{example-image.png}\n" +
+        "\\url{https://bichig.dev} \\href{https://bichig.dev}{холбоос} $x^2$\n",
+    ),
+    "\\documentclass{article}\n\\usepackage{infwarerr,grfext,kvoptions,pdftexcmds}\n" +
+      "\\begin{document}\nx\n\\end{document}\n",
+  ];
   const body =
     USER_BODY +
     SIZES.join("") +
@@ -573,6 +585,7 @@ function userCoverage(): string[] {
 }
 
 const LAZY_FONT = /^sf[a-z]{2}\d{4}\.pfb$/;
+const COVERAGE_ONLY = /^example-image/;
 
 function trimMap(map: string, fonts: ReadonlySet<string>): string {
   return (
@@ -623,6 +636,7 @@ async function main(): Promise<void> {
   const bundle: Record<string, Uint8Array> = {};
   const lazy: [string, string][] = [];
   for (const [name, path] of [...files].sort(([a], [b]) => (a < b ? -1 : 1))) {
+    if (COVERAGE_ONLY.test(name)) continue;
     if (LAZY_FONT.test(name)) {
       lazy.push([name, path]);
       continue;
