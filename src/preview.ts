@@ -310,12 +310,17 @@ export function initPreview(
     (event) => {
       if (!pdfView || !(event.ctrlKey || event.metaKey)) return;
       event.preventDefault();
-      const unit = event.deltaMode === 1 ? 0.05 : 0.0025;
-      const delta = Math.max(Math.min(event.deltaY, 120), -120);
-      setZoom(clampZoom(zoom * Math.exp(-delta * unit)), {
-        x: event.clientX,
-        y: event.clientY,
-      });
+      if (!event.deltaY) return;
+      const origin = { x: event.clientX, y: event.clientY };
+      const notch =
+        event.deltaMode !== 0 ||
+        (Math.abs(event.deltaY) >= 50 && Number.isInteger(event.deltaY));
+      if (notch) {
+        setZoom(stepZoom(zoom, event.deltaY < 0 ? 1 : -1), origin);
+        return;
+      }
+      const delta = Math.max(Math.min(event.deltaY, 50), -50);
+      setZoom(clampZoom(zoom * Math.exp(-delta / 100)), origin);
     },
     { passive: false },
   );
