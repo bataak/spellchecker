@@ -25,6 +25,7 @@ interface PageSlot {
 }
 
 export interface PdfView {
+  setZoom(zoom: number): void;
   destroy(): void;
 }
 
@@ -32,6 +33,7 @@ export async function renderPdfInto(
   host: HTMLElement,
   file: File,
   signal?: AbortSignal,
+  zoom = 1,
 ): Promise<PdfView> {
   const pdfjs = await loadPdfjs();
   const data = new Uint8Array(await file.arrayBuffer());
@@ -45,12 +47,12 @@ export async function renderPdfInto(
 
   const list = document.createElement("div");
   list.className = "pdf-pages";
+  list.style.setProperty("--pdf-zoom", String(zoom));
   host.replaceChildren(list);
 
   const slots: PageSlot[] = [];
   const dpr = Math.min(globalThis.devicePixelRatio || 1, MAX_DPR);
 
-  const widthOf = (): number => Math.max(host.clientWidth - 24, 120);
 
   const first = await doc.getPage(1);
   const base = first.getViewport({ scale: 1 });
@@ -64,6 +66,27 @@ export async function renderPdfInto(
     list.append(el);
     slots.push({ el, index: i, canvas: null, task: null, rendering: false });
   }
+
+  const snap = (slot: PageSlot): void => {
+    if (!slot.canvas) return;
+    const box = slot.el.getBoundingClientRect();
+    const x = (box.left + slot.el.clientLeft) * dpr;
+    const y = (box.top + slot.el.clientTop) * dpr;
+    const dx = (Math.round(x) - x) / dpr;
+    const dy = (Math.round(y) - y) / dpr;
+    slot.canvas.style.transform =
+      dx || dy ? `translate(${dx}px, ${dy}px)` : "";
+  };
+
+  let snapFrame = 0;
+  const onScroll = (): void => {
+    if (snapFrame) return;
+    snapFrame = requestAnimationFrame(() => {
+      snapFrame = 0;
+      for (const slot of slots) snap(slot);
+    });
+  };
+  host.addEventListener("scroll", onScroll, { passive: true });
 
   const release = (slot: PageSlot): void => {
     slot.task?.cancel();
@@ -82,14 +105,18 @@ export async function renderPdfInto(
     slot.rendering = true;
     try {
       const page = await doc.getPage(slot.index);
-      const width = widthOf();
-      const scale = width / base.width;
-      const viewport = page.getViewport({ scale: scale * dpr });
+      const border = slot.el.clientLeft;
+      const width = Math.max(
+        slot.el.getBoundingClientRect().width - border * 2,
+        120,
+      );
+      const pixels = Math.round(width * dpr);
+      const viewport = page.getViewport({ scale: pixels / base.width });
       const canvas = document.createElement("canvas");
-      canvas.width = Math.round(viewport.width);
+      canvas.width = pixels;
       canvas.height = Math.round(viewport.height);
-      canvas.style.width = "100%";
-      canvas.style.height = "auto";
+      canvas.style.width = canvas.width / dpr + "px";
+      canvas.style.height = canvas.height / dpr + "px";
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       const render = page.render({ canvas, canvasContext: ctx, viewport });
@@ -99,6 +126,7 @@ export async function renderPdfInto(
       if (!slot.rendering) return;
       slot.el.replaceChildren(canvas);
       slot.canvas = canvas;
+      snap(slot);
       page.cleanup();
     } catch {
     } finally {
@@ -120,7 +148,7 @@ export async function renderPdfInto(
   for (const slot of slots) io.observe(slot.el);
 
   let resizeTimer = 0;
-  const ro = new ResizeObserver(() => {
+  const redraw = (delay: number): void => {
     clearTimeout(resizeTimer);
     resizeTimer = window.setTimeout(() => {
       for (const slot of slots) {
@@ -128,16 +156,29 @@ export async function renderPdfInto(
         release(slot);
         void draw(slot);
       }
-    }, 200);
-  });
+    }, delay);
+  };
+  const ro = new ResizeObserver(() => redraw(200));
   ro.observe(host);
 
   const onAbort = (): void => view.destroy();
   signal?.addEventListener("abort", onAbort, { once: true });
 
   const view: PdfView = {
+    setZoom(next) {
+      if (next === zoom) return;
+      const midX = (host.scrollLeft + host.clientWidth / 2) / host.scrollWidth;
+      const midY = (host.scrollTop + host.clientHeight / 2) / host.scrollHeight;
+      zoom = next;
+      list.style.setProperty("--pdf-zoom", String(zoom));
+      host.scrollLeft = midX * host.scrollWidth - host.clientWidth / 2;
+      host.scrollTop = midY * host.scrollHeight - host.clientHeight / 2;
+      redraw(150);
+    },
     destroy() {
       signal?.removeEventListener("abort", onAbort);
+      host.removeEventListener("scroll", onScroll);
+      if (snapFrame) cancelAnimationFrame(snapFrame);
       clearTimeout(resizeTimer);
       ro.disconnect();
       io.disconnect();

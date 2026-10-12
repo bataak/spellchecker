@@ -90,6 +90,27 @@ const SYMBOL: Readonly<Record<string, string>> = {
 
 const SYMBOL_RE = new RegExp("[" + Object.keys(SYMBOL).join("") + "]", "gu");
 
+const TEXT_FONTENC = /\\usepackage\[[^\]]*\b(?:T1|T2A)\b[^\]]*\]\{fontenc\}/;
+const CYRILLIC_BABEL =
+  /\\usepackage\[[^\]]*\b(?:mongolian|russian|ukrainian|bulgarian)\b[^\]]*\]\{babel\}/;
+const FONT_PACKAGE =
+  /\\usepackage(?:\[[^\]]*\])?\{(?:paratype|PTSerif|PTSans|cm-super|lmodern|tempora|fontspec)\}/;
+
+export function previewTex(text: string): string {
+  if (/\\documentclass\b/.test(text)) return text;
+  return (
+    preambleFor(text) + "\\begin{document}\n" + text + "\n\\end{document}\n"
+  );
+}
+
+export function withParatype(text: string): string | null {
+  if (FONT_PACKAGE.test(text)) return null;
+  if (!TEXT_FONTENC.test(text) && !CYRILLIC_BABEL.test(text)) return null;
+  const at = text.search(/\\begin\{document\}/);
+  if (at < 0) return null;
+  return text.slice(0, at) + "\\usepackage{paratype}\n" + text.slice(at);
+}
+
 export function escapeTex(s: string): string {
   return s
     .replace(/[\\{}$&%#_~^]/g, (c) => SPECIAL[c]!)

@@ -1,0 +1,54 @@
+.tex-complete {
+  position: fixed;
+  z-index: 60;
+  top: 0;
+  left: 0;
+  min-width: 11rem;
+  max-width: min(22rem, calc(100vw - 16px));
+  box-sizing: border-box;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border-radius: 8px;
+  background: var(--tex-bg);
+  color: var(--tex-ink);
+  border: 1px solid var(--line);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.tex-complete[hidden] {
+  display: none;
+}
+
+.tex-complete li {
+  display: flex;
+  gap: 2px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tex-complete li[aria-selected="true"] {
+  background: var(--tex-selection);
+}
+
+.tex-complete .tc-name {
+  color: var(--tex-cmd);
+}
+
+.tex-complete .tc-rest {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (pointer: coarse) {
+  .tex-complete li {
+    padding: 9px 10px;
+  }
+}

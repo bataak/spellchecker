@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import {
   codeRanges,
+  hasTexSyntax,
   inRanges,
   looksLatex,
   mergeRanges,
@@ -380,4 +381,15 @@ test("looksLatex recognizes LaTeX fragments without a preamble", () => {
     looksLatex("# Жишээ\n\n```latex\n\\section{A}\n\\emph{b} \\cite{c}\n```\n"),
     false,
   );
+});
+
+test("hasTexSyntax needs a command, comment or inline math", () => {
+  assert.equal(hasTexSyntax("Энгийн текст, команд алга."), false);
+  assert.equal(hasTexSyntax("Үнэ 5$ ба 10$"), false);
+  assert.equal(hasTexSyntax("Гарчиг \\textbf{тод}"), true);
+  assert.equal(hasTexSyntax("% тайлбар"), true);
+  assert.equal(hasTexSyntax("Текст\n  % тайлбар"), true);
+  assert.equal(hasTexSyntax("Энгийн текст, 50% хямдрал."), false);
+  assert.equal(hasTexSyntax("Хувь 100\\% бэлэн"), true);
+  assert.equal(hasTexSyntax("Томьёо $x^2$"), true);
 });

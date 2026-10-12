@@ -1,5 +1,10 @@
 import { unzipSync } from "fflate";
-import { TEX_BUNDLE, TEX_ENGINE } from "./texbundle.ts";
+import {
+  TEX_BUNDLE,
+  TEX_ENGINE,
+  TEX_FONT_FILES,
+  TEX_FONTS,
+} from "./texbundle.ts";
 
 interface EngineReply {
   readonly result?: string;
@@ -51,11 +56,90 @@ export class PdfError extends Error {
   }
 }
 
+const MISSING_FONT =
+  /cannot open Type 1 font file|Metric \(TFM\) file not found|not loadable: Metric/;
+
+export function missingFont(error: unknown): boolean {
+  return error instanceof PdfError && MISSING_FONT.test(error.log);
+}
+
 let engine: Promise<Worker> | null = null;
+let live: Worker | null = null;
 let queue: Promise<unknown> = Promise.resolve();
+let prefetching: Promise<void> | null = null;
+
+const FONT_CACHE = "tex-" + TEX_FONTS.split("/")[1];
 
 function asset(path: string): string {
   return import.meta.env.BASE_URL + path;
+}
+
+async function fontCache(): Promise<Cache | null> {
+  try {
+    return await caches.open(FONT_CACHE);
+  } catch {
+    return null;
+  }
+}
+
+function sendFont(worker: Worker, name: string, data: ArrayBuffer): void {
+  worker.postMessage({ cmd: "writetex", name, src: new Uint8Array(data) }, [
+    data,
+  ]);
+}
+
+async function loadCachedFonts(worker: Worker): Promise<void> {
+  const cache = await fontCache();
+  if (!cache) return;
+  for (const name of TEX_FONT_FILES) {
+    const hit = await cache.match(asset(TEX_FONTS + name));
+    if (hit) sendFont(worker, name, await hit.arrayBuffer());
+  }
+}
+
+async function dropOldFontCaches(): Promise<void> {
+  try {
+    for (const key of await caches.keys())
+      if (key.startsWith("tex-fonts-") && key !== FONT_CACHE)
+        await caches.delete(key);
+  } catch {}
+}
+
+export function prefetchFonts(): Promise<void> {
+  const connection = (navigator as { connection?: { saveData?: boolean } })
+    .connection;
+  if (connection?.saveData) return Promise.resolve();
+  prefetching ??= (async () => {
+    await dropOldFontCaches();
+    const cache = await fontCache();
+    if (!cache) return;
+    let complete = true;
+    for (const name of TEX_FONT_FILES) {
+      const url = asset(TEX_FONTS + name);
+      if (await cache.match(url)) continue;
+      let response: Response;
+      try {
+        response = await fetch(url, { priority: "low" });
+      } catch {
+        complete = false;
+        break;
+      }
+      if (!response.ok) {
+        complete = false;
+        continue;
+      }
+      const data = await response.arrayBuffer();
+      try {
+        await cache.put(url, new Response(data.slice(0)));
+      } catch {
+        complete = false;
+        break;
+      }
+      if (live) sendFont(live, name, data);
+    }
+    if (!complete) prefetching = null;
+  })();
+  return prefetching;
 }
 
 async function start(): Promise<Worker> {
@@ -74,6 +158,12 @@ async function start(): Promise<Worker> {
     const files = unzipSync(new Uint8Array(bytes));
     for (const [name, data] of Object.entries(files))
       worker.postMessage({ cmd: "writetex", name, src: data });
+    worker.postMessage({
+      cmd: "fonturl",
+      url: new URL(asset(TEX_FONTS), location.href).href,
+    });
+    await loadCachedFonts(worker);
+    live = worker;
     return worker;
   } catch (error) {
     worker.terminate();
@@ -93,6 +183,7 @@ function runOnce(worker: Worker): Promise<Uint8Array<ArrayBuffer>> {
       if (reply.status === ENGINE_CRASHED) {
         worker.terminate();
         engine = null;
+        live = null;
       }
       reject(new PdfError(reply.log ?? ""));
     };
@@ -114,6 +205,22 @@ async function compileOn(
   let pdf = await runOnce(worker);
   for (let pass = 1; pass < passes; pass += 1) pdf = await runOnce(worker);
   return pdf;
+}
+
+const CROSS_REF =
+  /\\(?:tableofcontents|listof(?:figures|tables)|ref|eqref|pageref|autoref)\b/;
+
+export async function compileTex(text: string): Promise<Uint8Array<ArrayBuffer>> {
+  const { previewTex, withParatype } = await import("./latex.ts");
+  const tex = previewTex(text);
+  const passes = CROSS_REF.test(text) ? 2 : 1;
+  try {
+    return await compilePdf(tex, passes);
+  } catch (error) {
+    const fallback = missingFont(error) ? withParatype(tex) : null;
+    if (fallback === null) throw error;
+    return compilePdf(fallback, passes);
+  }
 }
 
 export function compilePdf(

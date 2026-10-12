@@ -86,7 +86,17 @@ used by the deployment, together with their licenses.
 - License: Apache-2.0
 - The NOTICE file is retained in the distribution
 
-### Other production dependencies
+#### Liberation Serif, Liberation Sans, Liberation Mono
+
+- Copyright: Digitized data © 2010 Google Corporation; © 2012 Red Hat, Inc.
+- License: SIL Open Font License 1.1, Reserved Font Name "Liberation"
+- Full license text: `public/fonts/Liberation-LICENSE.txt`
+- The bundled files are a subset converted to `.woff2` and renamed to
+  "Bichig Print Serif", "Bichig Print Sans" and "Bichig Print Mono", so the
+  modified version does not carry the Reserved Font Name. They are used only
+  for printing, because their glyph widths match the fonts named in ODT files
+
+## Other production dependencies
 
 All MIT licensed; see the `LICENSE` file inside each package.
 

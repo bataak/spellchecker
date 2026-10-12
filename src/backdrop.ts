@@ -1,10 +1,14 @@
 import { escapeHtml } from "./htmlutil.ts";
 import type { Token } from "./textcheck.ts";
+import { spansInRange } from "./texhighlight.ts";
+import type { TexSpan } from "./texhighlight.ts";
 
 interface ChunkNode extends HTMLDivElement {
   _start: number;
   _src: string;
   _markKey: string | null;
+  _spans: TexSpan[];
+  _synKey: string;
   _line: number;
   _lines: number;
 }
@@ -25,6 +29,9 @@ let activeLine = -1;
 let activeEl: HTMLElement | null = null;
 let useBlocks = true;
 let lineTotal = 1;
+let highlighter: ((text: string) => TexSpan[]) | null = null;
+let syntax: TexSpan[] = [];
+let lastText = "";
 
 export function initBackdrop(el: HTMLElement): void {
   root = el;
@@ -37,8 +44,22 @@ export function initBackdrop(el: HTMLElement): void {
   root.appendChild(trailer);
 }
 
+export function setHighlighter(
+  fn: ((text: string) => TexSpan[]) | null,
+): void {
+  if (fn === highlighter) return;
+  highlighter = fn;
+  for (const node of nodes) node._src = "";
+}
+
+export function backdropText(): string {
+  return lastText;
+}
+
 export function renderBackdrop(text: string, marks: Token[]): void {
   lastMarks = marks;
+  lastText = text;
+  syntax = highlighter ? highlighter(text) : [];
   const bounds = splitChunks(text);
   syncChunkCount(bounds.length);
   let line = 0;
@@ -134,6 +155,8 @@ function syncChunkCount(count: number): void {
   while (nodes.length > count) nodes.pop()!.remove();
   while (nodes.length < count) {
     const div = document.createElement("div") as ChunkNode;
+    div._spans = [];
+    div._synKey = "";
     root!.insertBefore(div, trailer);
     nodes.push(div);
   }
@@ -147,10 +170,19 @@ function updateChunkText(
   const raw = text.slice(bound.start, bound.end);
   node._start = bound.start;
   node._lines = countLines(raw);
-  if (node._src === raw) return;
+  const spans = syntax.length
+    ? spansInRange(syntax, bound.start, bound.end)
+    : [];
+  const synKey = spanKey(spans, bound.start, bound.end);
+  if (node._src === raw && node._synKey === synKey) {
+    node._spans = spans;
+    return;
+  }
   node._src = raw;
+  node._spans = spans;
+  node._synKey = synKey;
   node._markKey = "";
-  node.innerHTML = plainHtml(raw);
+  node.innerHTML = plainHtml(raw, bound.start, spans);
 }
 
 function applyVisibleMarks(): void {
@@ -171,8 +203,8 @@ function applyChunkMarks(node: ChunkNode): void {
   if (node._markKey === key) return;
   node._markKey = key;
   node.innerHTML = slice.length
-    ? markedHtml(node._src, start, slice)
-    : plainHtml(node._src);
+    ? markedHtml(node._src, start, slice, node._spans)
+    : plainHtml(node._src, start, node._spans);
 }
 
 function marksInRange(marks: Token[], start: number, end: number): Token[] {
@@ -188,6 +220,45 @@ function marksInRange(marks: Token[], start: number, end: number): Token[] {
     out.push(marks[i]!);
   }
   return out;
+}
+
+function spanKey(spans: TexSpan[], start: number, end: number): string {
+  let key = "";
+  for (const span of spans) {
+    key +=
+      span.kind +
+      (Math.max(span.start, start) - start) +
+      ":" +
+      (Math.min(span.end, end) - start) +
+      ",";
+  }
+  return key;
+}
+
+function paint(
+  body: string,
+  from: number,
+  to: number,
+  base: number,
+  spans: readonly TexSpan[],
+): string {
+  if (!spans.length) return escapeHtml(body.slice(from, to));
+  let html = "";
+  let cursor = from;
+  for (const span of spansInRange(spans, base + from, base + to)) {
+    const a = Math.max(span.start - base, from);
+    const b = Math.min(span.end - base, to);
+    if (b <= a) continue;
+    html += escapeHtml(body.slice(cursor, a));
+    html +=
+      '<span class="tx-' +
+      span.kind +
+      '">' +
+      escapeHtml(body.slice(a, b)) +
+      "</span>";
+    cursor = b;
+  }
+  return html + escapeHtml(body.slice(cursor, to));
 }
 
 function markKey(slice: Token[]): string {
@@ -209,11 +280,16 @@ function hangingGuard(body: string): string {
   return body.endsWith("\n") ? "\u200b" : "";
 }
 
-export function plainHtml(raw: string): string {
+export function plainHtml(
+  raw: string,
+  chunkStart = 0,
+  spans: readonly TexSpan[] = [],
+): string {
   const body = stripChunkNewline(raw);
 
   if (!useBlocks) {
-    const flat = escapeHtml(body) + hangingGuard(body);
+    const flat =
+      paint(body, 0, body.length, chunkStart, spans) + hangingGuard(body);
     return flat === "" ? "\u200b" : flat;
   }
 
@@ -222,7 +298,8 @@ export function plainHtml(raw: string): string {
   for (;;) {
     const nl = body.indexOf("\n", cursor);
     const end = nl === -1 ? body.length : nl;
-    html += '<div class="bl">' + escapeHtml(body.slice(cursor, end)) + "</div>";
+    html +=
+      '<div class="bl">' + paint(body, cursor, end, chunkStart, spans) + "</div>";
     if (nl === -1) break;
     cursor = nl + 1;
   }
@@ -233,10 +310,11 @@ export function markedHtml(
   raw: string,
   chunkStart: number,
   slice: Token[],
+  spans: readonly TexSpan[] = [],
 ): string {
   const body = stripChunkNewline(raw);
 
-  if (!useBlocks) return flatMarkedHtml(body, chunkStart, slice);
+  if (!useBlocks) return flatMarkedHtml(body, chunkStart, slice, spans);
 
   let html = "";
   let lineStart = 0;
@@ -256,12 +334,12 @@ export function markedHtml(
       const clampedFrom = Math.max(from, cursor);
       const clampedTo = Math.min(to, lineEnd);
       if (clampedTo > clampedFrom) {
-        html += escapeHtml(body.slice(cursor, clampedFrom));
+        html += paint(body, cursor, clampedFrom, chunkStart, spans);
         html +=
           '<mark data-start="' +
           mark.start +
           '">' +
-          escapeHtml(body.slice(clampedFrom, clampedTo)) +
+          paint(body, clampedFrom, clampedTo, chunkStart, spans) +
           "</mark>";
         cursor = clampedTo;
       }
@@ -269,7 +347,7 @@ export function markedHtml(
       index++;
     }
 
-    html += escapeHtml(body.slice(cursor, lineEnd)) + "</div>";
+    html += paint(body, cursor, lineEnd, chunkStart, spans) + "</div>";
     if (nl === -1) break;
     lineStart = nl + 1;
   }
@@ -478,6 +556,7 @@ function flatMarkedHtml(
   body: string,
   chunkStart: number,
   slice: Token[],
+  spans: readonly TexSpan[],
 ): string {
   let html = "";
   let cursor = 0;
@@ -485,16 +564,16 @@ function flatMarkedHtml(
   for (const mark of slice) {
     const from = mark.start - chunkStart;
     const to = mark.end - chunkStart;
-    html += escapeHtml(body.slice(cursor, from));
+    html += paint(body, cursor, from, chunkStart, spans);
     html +=
       '<mark data-start="' +
       mark.start +
       '">' +
-      escapeHtml(body.slice(from, to)) +
+      paint(body, from, to, chunkStart, spans) +
       "</mark>";
     cursor = to;
   }
 
-  html += escapeHtml(body.slice(cursor)) + hangingGuard(body);
+  html += paint(body, cursor, body.length, chunkStart, spans) + hangingGuard(body);
   return html === "" ? "\u200b" : html;
 }
