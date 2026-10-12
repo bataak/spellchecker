@@ -16,7 +16,7 @@ import {
   wrapLink,
 } from "./mdedit.ts";
 import { replaceRange } from "./editortext.ts";
-import { imagePath, pickImage, putImage } from "./images.ts";
+import { freeImagePath, pickImage, putImage } from "./images.ts";
 import { dropSlotText, loadSlotText, saveSlotText } from "./storage.ts";
 import type { AlignKind, Edit } from "./mdedit.ts";
 import {
@@ -511,7 +511,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     else if (role === "image")
       void pickImage().then((file) => {
         if (!file) return;
-        const src = imagePath(file.name);
+        const src = freeImagePath(file.name, file);
         putImage(src, file);
         apply(
           insertImage(editor.value, Math.min(start, editor.value.length), src),
