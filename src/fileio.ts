@@ -183,10 +183,6 @@ export function initFileIO({
     }
 
     const text = els.editor.value || "";
-    if (!text.trim()) {
-      flash("#saveBtn", "Хоосон байна");
-      return;
-    }
 
     if (currentFileHandle) {
       try {
@@ -196,6 +192,11 @@ export function initFileIO({
         flash("#saveBtn", "Хадгаллаа");
         return;
       } catch (_) {}
+    }
+
+    if (!text.trim()) {
+      flash("#saveBtn", "Хоосон байна");
+      return;
     }
 
     if (currentFileName) {
