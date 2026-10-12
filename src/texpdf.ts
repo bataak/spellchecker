@@ -88,9 +88,29 @@ function sendFont(worker: Worker, name: string, data: ArrayBuffer): void {
   ]);
 }
 
+const memoryFonts = new Map<string, ArrayBuffer>();
+let bundleBytes: Promise<ArrayBuffer> | null = null;
+
+function loadBundle(): Promise<ArrayBuffer> {
+  bundleBytes ??= fetch(asset(TEX_BUNDLE))
+    .then((response) => {
+      if (!response.ok) throw new Error("TeX файлууд татагдсангүй");
+      return response.arrayBuffer();
+    })
+    .catch((error: unknown) => {
+      bundleBytes = null;
+      throw error;
+    });
+  return bundleBytes;
+}
+
 async function loadCachedFonts(worker: Worker): Promise<void> {
   const cache = await fontCache();
-  if (!cache) return;
+  if (!cache) {
+    for (const [name, data] of memoryFonts)
+      sendFont(worker, name, data.slice(0));
+    return;
+  }
   for (const name of TEX_FONT_FILES) {
     const hit = await cache.match(asset(TEX_FONTS + name));
     if (hit) sendFont(worker, name, await hit.arrayBuffer());
@@ -110,10 +130,11 @@ let warmed: Promise<void> | null = null;
 function warmEngine(): Promise<void> {
   warmed ??= Promise.all(
     [
-      TEX_ENGINE,
-      TEX_ENGINE.replace(/\.js$/, ".wasm"),
-      TEX_BUNDLE,
-    ].map((path) => fetch(asset(path), { priority: "low" })),
+      ...[TEX_ENGINE, TEX_ENGINE.replace(/\.js$/, ".wasm")].map((path) =>
+        fetch(asset(path), { priority: "low" }),
+      ),
+      loadBundle(),
+    ],
   )
     .then(() => undefined)
     .catch(() => {
@@ -130,11 +151,10 @@ export function prefetchFonts(): Promise<void> {
   prefetching ??= (async () => {
     await dropOldFontCaches();
     const cache = await fontCache();
-    if (!cache) return;
     let complete = true;
     for (const name of TEX_FONT_FILES) {
       const url = asset(TEX_FONTS + name);
-      if (await cache.match(url)) continue;
+      if (cache ? await cache.match(url) : memoryFonts.has(name)) continue;
       let response: Response;
       try {
         response = await fetch(url, { priority: "low" });
@@ -147,12 +167,14 @@ export function prefetchFonts(): Promise<void> {
         continue;
       }
       const data = await response.arrayBuffer();
-      try {
-        await cache.put(url, new Response(data.slice(0)));
-      } catch {
-        complete = false;
-        break;
-      }
+      if (!cache) memoryFonts.set(name, data.slice(0));
+      else
+        try {
+          await cache.put(url, new Response(data.slice(0)));
+        } catch {
+          complete = false;
+          break;
+        }
       if (live) sendFont(live, name, data);
     }
     if (!complete) prefetching = null;
@@ -170,9 +192,7 @@ async function start(): Promise<Worker> {
       };
       worker.onerror = () => reject(new Error("TeX хөдөлгүүр ачаалагдсангүй"));
     });
-    const response = await fetch(asset(TEX_BUNDLE));
-    if (!response.ok) throw new Error("TeX файлууд татагдсангүй");
-    const [bytes] = await Promise.all([response.arrayBuffer(), booted]);
+    const [bytes] = await Promise.all([loadBundle(), booted]);
     const files = unzipSync(new Uint8Array(bytes));
     for (const [name, data] of Object.entries(files))
       worker.postMessage({ cmd: "writetex", name, src: data });

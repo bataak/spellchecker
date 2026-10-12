@@ -95,6 +95,17 @@ function clampZoom(zoom: number): number {
   return Math.min(Math.max(Math.round(zoom * 1000) / 1000, ZOOM_MIN), ZOOM_MAX);
 }
 
+const NETWORK_ERROR =
+  /fake worker|dynamically imported module|Failed to fetch|NetworkError|Load failed|татагдсангүй|ачаалагдсангүй/i;
+
+function explainTexError(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+  if (!NETWORK_ERROR.test(message)) return message || "PDF үүсгэж чадсангүй";
+  if (!window.isSecureContext)
+    return "Сервертэй холбогдож чадсангүй. Энэ хаяг HTTPS биш тул офлайн горим ажиллахгүй, localhost эсвэл HTTPS хаягаар нээнэ үү";
+  return "Сервертэй холбогдож чадсангүй. Офлайн ажиллахын тулд нэг удаа онлайн үед хөрвүүлсэн байх шаардлагатай";
+}
+
 function stepZoom(zoom: number, dir: number): number {
   const next =
     dir > 0
@@ -535,8 +546,7 @@ export function initPreview(
       texShown = text;
       const delay = RETRY_MS[retries];
       const message =
-        (error instanceof Error ? error.message : "PDF үүсгэж чадсангүй") +
-        (delay ? " — дахин оролдож байна…" : "");
+        explainTexError(error) + (delay ? " — дахин оролдож байна…" : "");
       if (pdfView) setTexError(message);
       else showNotice(message);
       if (delay) {
