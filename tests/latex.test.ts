@@ -307,3 +307,19 @@ test("withParatype фонттой эсвэл латин OT1 баримтад nul
   const latin = "\\documentclass{article}\n\\begin{document}\nA\n\\end{document}";
   assert.equal(withParatype(latin), null);
 });
+
+test("previewTex begin{document}-ийг давхардуулахгүй, өмнөх хэсгийг preamble болгоно", () => {
+  const out = previewTex(
+    "\\usepackage{longtable}\n\\begin{document}\nТекст.\n\\end{document}\n",
+  );
+  assert.equal(out.match(/\\begin\{document\}/g)?.length, 1);
+  assert.equal(out.match(/\\end\{document\}/g)?.length, 1);
+  assert.ok(out.indexOf("\\usepackage{longtable}") < out.indexOf("\\begin{document}"));
+});
+
+test("previewTex preamble-гүй хэсэгт байгаа usepackage-ийг preamble руу шилжүүлнэ", () => {
+  const out = previewTex("\\usepackage{longtable}\n\\section{А}\nТекст.\n");
+  const begin = out.indexOf("\\begin{document}");
+  assert.ok(out.indexOf("\\usepackage{longtable}") < begin);
+  assert.ok(!out.slice(begin).includes("\\usepackage"));
+});
