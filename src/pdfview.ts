@@ -12,6 +12,25 @@ function loadPdfjs(): Promise<typeof import("pdfjs-dist")> {
   return pdfjsPromise;
 }
 
+let sharedWorker: import("pdfjs-dist").PDFWorker | null = null;
+
+function pdfWorker(
+  pdfjs: typeof import("pdfjs-dist"),
+): import("pdfjs-dist").PDFWorker {
+  if (!sharedWorker || sharedWorker.destroyed)
+    sharedWorker = new pdfjs.PDFWorker();
+  return sharedWorker;
+}
+
+export async function warmPdf(): Promise<void> {
+  pdfWorker(await loadPdfjs());
+}
+
+function dropWorker(): void {
+  sharedWorker?.destroy();
+  sharedWorker = null;
+}
+
 const ROOT_MARGIN = "900px 0px";
 
 const MAX_DPR = 2;
@@ -38,8 +57,11 @@ export async function renderPdfInto(
 ): Promise<PdfView> {
   const pdfjs = await loadPdfjs();
   const data = new Uint8Array(await file.arrayBuffer());
-  const task = pdfjs.getDocument({ data });
-  const doc = await task.promise;
+  const task = pdfjs.getDocument({ data, worker: pdfWorker(pdfjs) });
+  const doc = await task.promise.catch((error: unknown) => {
+    dropWorker();
+    throw error;
+  });
 
   if (signal?.aborted) {
     await task.destroy();
