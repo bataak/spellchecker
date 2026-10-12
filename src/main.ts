@@ -9,7 +9,7 @@ import {
   tokenize,
 } from "./spellchecker.ts";
 import type { SpellChecker } from "./spellchecker.ts";
-import { initFileIO } from "./fileio.ts";
+import { initFileIO, type OpenFile } from "./fileio.ts";
 import { clearImages } from "./images.ts";
 import { initToolbar } from "./toolbar.ts";
 import { initKeyboardToolbar } from "./kbtoolbar.ts";
@@ -177,6 +177,7 @@ let lastFallbackReason: string | null = null;
 let docx: OfficeMode | null = null;
 let undoCtl: UndoControl | null = null;
 let plainName: string | null = null;
+const templateFiles = new Map<string, OpenFile>();
 let skipCode = true;
 let skipLinks = true;
 let markupSkips = false;
@@ -1414,12 +1415,28 @@ const mdBar = initMdToolbar({
       false,
     ),
   isTexFile,
-  onTemplate: (id) => {
-    if (fileIO.targetName()) fileIO.forgetFile();
+  onTemplate: (id, from) => {
+    swapTemplateFile(from, mdBar.slot());
     enterMdMode(!isTexFile() && !isPlain(id));
   },
   onExample: () => enterMdMode(!isTexFile()),
 });
+function swapTemplateFile(from: string, to: string): void {
+  if (from === to) return;
+  const left = fileIO.takeFile();
+  if (left) templateFiles.set(from, left);
+  else templateFiles.delete(from);
+  saveDraftFile(left ? { name: left.name, kind: "text" } : null, from);
+  const stored = loadDraftFile(to);
+  const next =
+    templateFiles.get(to) ??
+    (stored ? { handle: null, name: stored.name } : null);
+  fileIO.putFile(next);
+  plainName = next ? next.name : null;
+  saveDraftFile(next ? { name: next.name, kind: "text" } : null);
+  syncSaveHint();
+  mdBar.refresh();
+}
 const find = (sel: string) => (): HTMLElement | null =>
   document.querySelector<HTMLElement>(sel);
 const nudgeHints = initHints(() => {
