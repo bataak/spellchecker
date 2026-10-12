@@ -332,7 +332,22 @@ function applyTexPaint(on: boolean): void {
   if (on === texPaint) return;
   texPaint = on;
   setHighlighter(on ? texSpans : null);
-  if (on) void import("./texpdf.ts").then((mod) => mod.prefetchFonts());
+  if (on) {
+    void import("./texpdf.ts").then(async (mod) => {
+      const ready = await mod.prefetchFonts();
+      if (!ready || !navigator.serviceWorker?.controller) return;
+      try {
+        if (localStorage.getItem(mod.OFFLINE_KEY)) return;
+        localStorage.setItem(mod.OFFLINE_KEY, "1");
+      } catch {
+        return;
+      }
+      holdStatus("LaTeX файлтай офлайн ажиллахад бэлэн боллоо", 6000, false);
+    });
+    void import("./pdfview.ts").then((mod) => mod.warmPdf());
+    void import("./teximages.ts");
+    void import("./latex.ts");
+  }
   els.editor.parentElement?.classList.toggle("is-tex", on);
   const text = els.editor.value;
   if (text !== backdropText()) badTokens = [];
