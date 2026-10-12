@@ -1013,7 +1013,8 @@ a.tbtn {
   border-color: var(--accent);
 }
 
-.preview-body .md-image-missing {
+.preview-body .md-image-missing,
+.preview-body .md-image-remote {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1040,7 +1041,9 @@ a.tbtn {
 }
 
 .preview-body .md-image-missing:hover,
-.preview-body .md-image-missing:focus-visible {
+.preview-body .md-image-missing:focus-visible,
+.preview-body .md-image-remote:hover,
+.preview-body .md-image-remote:focus-visible {
   border-color: var(--accent);
   color: var(--accent);
 }

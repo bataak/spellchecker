@@ -1,4 +1,5 @@
 import type { Token, ErrorEntry } from "./textcheck.ts";
+import { initWipeButton } from "./wipe.ts";
 
 export interface ToolbarDeps {
   els: { editor: HTMLTextAreaElement; status: HTMLElement };
@@ -196,7 +197,9 @@ function initButtons({
   getBadTokens,
   copyText,
 }: ToolbarDeps): void {
-  document.querySelector("#clearBtn")!.addEventListener("click", () => {
+  const clearBtn = document.querySelector<HTMLElement>("#clearBtn")!;
+  initWipeButton(clearBtn);
+  clearBtn.addEventListener("click", () => {
     if (!els.editor.value) {
       els.editor.focus();
       return;

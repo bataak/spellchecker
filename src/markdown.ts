@@ -1071,6 +1071,20 @@ function parseBlocks(src: string, top: boolean): Block[] {
   return out;
 }
 
+const URL_SCHEME = /^([a-z][a-z\d+.-]*):/i;
+const SAFE_SCHEMES: ReadonlySet<string> = new Set([
+  "http",
+  "https",
+  "mailto",
+  "tel",
+]);
+
+export function safeHref(url: string): boolean {
+  const bare = url.replace(/[\u0000-\u0020\u007f-\u009f]/g, "");
+  const scheme = URL_SCHEME.exec(bare);
+  return !scheme || SAFE_SCHEMES.has(scheme[1]!.toLowerCase());
+}
+
 function esc(s: string): string {
   return s.replace(
     /[&<>"]/g,
@@ -1108,6 +1122,7 @@ function inlineHtml(nodes: readonly Inline[]): string {
         (n.width === undefined ? "" : ` style="width:${n.width}%"`) +
         (n.rotate === undefined ? "" : ` data-rotate="${n.rotate}"`) +
         `>`;
+    else if (!safeHref(n.url)) out += inlineHtml(n.children);
     else
       out +=
         `<a href="${esc(n.url)}" rel="noopener noreferrer" target="_blank">` +

@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  allowRemoteImages,
   clearImages,
   freeImagePath,
   imageBlob,
   imagePath,
   imageUrl,
+  isBlockedRemote,
   onImagesChange,
   putImage,
 } from "../src/images.ts";
@@ -15,8 +17,14 @@ test("imagePath: хоосон зай, хаалтыг кодлоно", () => {
   assert.equal(imagePath("үнэмлэх (1).jpg"), "үнэмлэх%20%281%29.jpg");
 });
 
-test("гадаад хаягийг шууд ашиглана", () => {
+test("гадаад хаягийг зөвшөөрсний дараа л ашиглана", () => {
+  assert.equal(isBlockedRemote("https://a.mn/x.png"), true);
+  assert.equal(imageUrl("https://a.mn/x.png"), null);
+  allowRemoteImages(["https://a.mn/x.png"]);
+  assert.equal(isBlockedRemote("https://a.mn/x.png"), false);
   assert.equal(imageUrl("https://a.mn/x.png"), "https://a.mn/x.png");
+  assert.equal(isBlockedRemote("https://a.mn/y.png"), true);
+  assert.equal(isBlockedRemote("data:image/png;base64,AA"), false);
   assert.equal(imageUrl("x.png"), null);
 });
 

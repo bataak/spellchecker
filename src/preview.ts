@@ -1,6 +1,8 @@
 import { initImageEdit } from "./imageedit.ts";
 import {
+  allowRemoteImages,
   imageUrl,
+  isBlockedRemote,
   onImagesChange,
   pickImage,
   prepareImage,
@@ -171,9 +173,28 @@ function displayPath(src: string): string {
   }
 }
 
+function hostOf(src: string): string {
+  try {
+    return new URL(src).host;
+  } catch {
+    return src;
+  }
+}
+
 function resolveImages(root: HTMLElement): void {
   for (const img of root.querySelectorAll<HTMLImageElement>("img.md-image")) {
     const src = img.dataset.src ?? "";
+    if (isBlockedRemote(src)) {
+      const remote = document.createElement("button");
+      remote.type = "button";
+      remote.className = "md-image-remote";
+      remote.dataset.src = src;
+      remote.style.cssText = img.style.cssText;
+      remote.title = hostOf(src);
+      remote.textContent = "Гадны зураг · ачаалах";
+      img.replaceWith(remote);
+      continue;
+    }
     const url = imageUrl(src);
     const rotate = Number(img.dataset.rotate) || 0;
     if (url && rotate) {
@@ -661,6 +682,14 @@ export function initPreview(
   });
 
   body.addEventListener("click", (event) => {
+    if ((event.target as Element).closest(".md-image-remote")) {
+      allowRemoteImages(
+        [...body.querySelectorAll<HTMLElement>(".md-image-remote")].map(
+          (el) => el.dataset.src ?? "",
+        ),
+      );
+      return;
+    }
     const missing = (event.target as Element).closest<HTMLElement>(
       ".md-image-missing",
     );

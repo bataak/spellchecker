@@ -296,10 +296,15 @@ export function initTexImageInput(deps: TexImageInputDeps): void {
 export async function insertPickedImage(
   editor: HTMLTextAreaElement,
 ): Promise<void> {
-  const start = editor.selectionStart;
-  const end = editor.selectionEnd;
+  const text = editor.value;
+  let start = editor.selectionStart;
+  let end = editor.selectionEnd;
   const file = await pickImage();
   if (!file) return;
+  if (editor.value !== text) {
+    start = editor.selectionStart;
+    end = editor.selectionEnd;
+  }
   const name = addImage(file);
   editor.focus({ preventScroll: true });
   if (!replaceRange(editor, start, end, name))
