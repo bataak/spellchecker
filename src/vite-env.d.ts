@@ -5,6 +5,11 @@ declare module "*.md?raw" {
   export default text;
 }
 
+declare module "*.tex?raw" {
+  const text: string;
+  export default text;
+}
+
 interface ImportMetaEnv {
   readonly DEV: boolean;
   readonly BASE_URL: string;

@@ -11,14 +11,27 @@ import {
   isPlain,
 } from "../src/templates.ts";
 
-test("таван талбар, дөрвөн бүлэг", () => {
+test("зургаан талбар, таван бүлэг", () => {
   assert.deepEqual(
     TEMPLATES.map((t) => t.name),
-    ["Бичвэр 1", "Бичвэр 2", "Албан бичиг", "Тайлан", "Илтгэл"],
+    [
+      "Бичвэр 1",
+      "Бичвэр 2",
+      "Албан бичиг",
+      "Тайлан",
+      "Илтгэл",
+      "Судалгааны өгүүлэл",
+    ],
   );
   assert.deepEqual(
     TEMPLATE_GROUPS.map((g) => g.name),
-    ["Алдаа шалгах", "Албан бичиг", "Тайлан", "Илтгэл"],
+    [
+      "Алдаа шалгах",
+      "Албан бичиг",
+      "Тайлан",
+      "Илтгэл",
+      "Судалгааны өгүүлэл",
+    ],
   );
   const grouped = TEMPLATE_GROUPS.flatMap((g) => g.ids);
   assert.deepEqual([...grouped].sort(), TEMPLATES.map((t) => t.id).sort());
@@ -30,6 +43,7 @@ test("isPlain: бичвэрийн талбар .txt, бусад нь markdown", 
   assert.equal(isPlain("letter"), false);
   assert.equal(isPlain("report"), false);
   assert.equal(isPlain("slides"), false);
+  assert.equal(isPlain("article"), true);
 });
 
 test("хасагдсан загвар бүр одоо байгаа талбар руу заана", () => {

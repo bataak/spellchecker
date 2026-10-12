@@ -208,7 +208,7 @@ async function compileOn(
 }
 
 const CROSS_REF =
-  /\\(?:tableofcontents|listof(?:figures|tables)|ref|eqref|pageref|autoref)\b/;
+  /\\(?:tableofcontents|listof(?:figures|tables)|ref|eqref|pageref|autoref|cite)\b/;
 
 export async function compileTex(text: string): Promise<Uint8Array<ArrayBuffer>> {
   const { previewTex, withParatype } = await import("./latex.ts");

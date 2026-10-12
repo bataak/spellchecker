@@ -237,7 +237,7 @@ const TEX_VERBATIM =
 const TEX_VERB = /\\verb\*?([^A-Za-z\s*])[^\n]*?\1/g;
 const TEX_ARG = String.raw`\{(?:[^{}]|\{[^{}]*\})*\}`;
 const TEX_KEY_ARG = new RegExp(
-  String.raw`\\(?:label|ref|eqref|pageref|autoref|nameref|[cC]ref|cite[pt]?|nocite|usepackage|RequirePackage|documentclass|includegraphics|includepdf|input|include|bibliography|bibliographystyle|addbibresource|url|href|hypersetup|setlength|addtolength|setcounter|addtocounter|newcounter|pagestyle|thispagestyle|numberwithin|newtheorem|theoremstyle|color|textcolor|colorbox|definecolor|lstinputlisting|graphicspath|usetheme|usecolortheme|usefonttheme|setbeamertemplate|setbeamercolor|newcommand|renewcommand|providecommand|newenvironment|renewenvironment|vspace|hspace|vskip|hskip|geometry|selectlanguage|foreignlanguage)\*?(?:\s*\[[^\]\n]*\])*\s*` +
+  String.raw`\\(?:label|ref|eqref|pageref|autoref|nameref|[cC]ref|cite[pt]?|nocite|bibitem|usepackage|RequirePackage|documentclass|includegraphics|includepdf|input|include|bibliography|bibliographystyle|addbibresource|url|href|hypersetup|setlength|addtolength|setcounter|addtocounter|newcounter|pagestyle|thispagestyle|numberwithin|newtheorem|theoremstyle|color|textcolor|colorbox|definecolor|lstinputlisting|graphicspath|usetheme|usecolortheme|usefonttheme|setbeamertemplate|setbeamercolor|newcommand|renewcommand|providecommand|newenvironment|renewenvironment|vspace|hspace|vskip|hskip|geometry|selectlanguage|foreignlanguage)\*?(?:\s*\[[^\]\n]*\])*\s*` +
     TEX_ARG +
     String.raw`(?:\s*\[[^\]\n]*\])*`,
   "g",

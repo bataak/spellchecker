@@ -1,0 +1,51 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[mongolian]{babel}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{hyperref}
+
+\title{Монгол хэлний үгийн алдааг автоматаар илрүүлэх нь}
+\author{Овог Нэр\\ Их сургууль, Мэдээллийн технологийн тэнхим}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Энэхүү өгүүлэлд толь бичигт суурилсан үг шалгагчийн ажиллах зарчим, нарийвчлалыг товч авч үзнэ.
+\end{abstract}
+
+\section{Оршил}
+Үгийн алдаа нь бичвэрийн чанарт шууд нөлөөлдөг. Иймд алдааг автоматаар илрүүлэх хэрэгсэл чухал~\cite{hunspell}.
+
+\section{Арга зүй}
+Үг бүрийг толь бичигтэй харьцуулж, олдоогүй үгэнд хамгийн ойр хувилбарыг санал болгоно. Санал болгох магадлалыг дараах томьёогоор үнэлнэ:
+\begin{equation}
+  P(w \mid c) = \frac{N(w, c)}{N(c)}
+\end{equation}
+
+\section{Үр дүн}
+\begin{table}[h]
+  \centering
+  \begin{tabular}{lr}
+    \toprule
+    Үзүүлэлт & Утга \\
+    \midrule
+    Нарийвчлал & 0.94 \\
+    Бүрэн байдал & 0.91 \\
+    \bottomrule
+  \end{tabular}
+  \caption{Туршилтын үр дүн}
+\end{table}
+
+\section{Дүгнэлт}
+Толь бичигт суурилсан арга нь энгийн бөгөөд үр дүнтэй болох нь харагдлаа.
+
+\begin{thebibliography}{9}
+\bibitem{hunspell} Hunspell: \url{https://hunspell.github.io}
+\end{thebibliography}
+
+\end{document}
