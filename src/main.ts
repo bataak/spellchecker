@@ -11,7 +11,7 @@ import {
 } from "./spellchecker.ts";
 import type { SpellChecker } from "./spellchecker.ts";
 import { initFileIO, type OpenFile } from "./fileio.ts";
-import { clearImages } from "./images.ts";
+import { initImageStore } from "./imagestore.ts";
 import { initToolbar } from "./toolbar.ts";
 import { initKeyboardToolbar } from "./kbtoolbar.ts";
 import { initSuggest } from "./suggest.ts";
@@ -1403,7 +1403,6 @@ const fileIO = initFileIO({
   saveText,
   defaultExt: () => (isTexFile() ? "tex" : mdActive() ? "md" : "txt"),
   onFileOpened: (ref) => {
-    clearImages();
     plainName = ref ? ref.name : null;
     saveDraftFile(ref);
     syncSaveHint();
@@ -1474,6 +1473,7 @@ initTexComplete({
 });
 initTexImageInput({ editor: els.editor, active: () => texPaint });
 initKeyboardLayout({ editor: els.editor, status: els.status });
+void initImageStore(() => els.editor.value);
 undoCtl = initUndoHistory({ editor: els.editor, slot: () => mdBar.slot() });
 enterMdMode(mdActive());
 els.editor.addEventListener("input", nudgeHints);
