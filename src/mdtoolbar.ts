@@ -16,6 +16,7 @@ import {
   wrapLink,
 } from "./mdedit.ts";
 import { replaceRange } from "./editortext.ts";
+import { splitName } from "./office/filename.ts";
 import { freeImagePath, pickImage, putImage } from "./images.ts";
 import { dropSlotText, loadSlotText, saveSlotText } from "./storage.ts";
 import { TEMPLATE_INPUT } from "./undohistory.ts";
@@ -33,6 +34,7 @@ export interface MdToolbarOptions {
   readonly editor: HTMLTextAreaElement;
   readonly isMdFile: () => boolean;
   readonly isTexFile?: () => boolean;
+  readonly fileName?: () => string | null;
   readonly mount?: HTMLElement;
   readonly onTemplate?: (id: string, from: string) => void;
   readonly onExample?: () => void;
@@ -385,7 +387,9 @@ function buildPicker(): string {
   return (
     '<span class="md-select"><button type="button" ' +
     'class="tbtn tbtn-icon md-template" aria-haspopup="menu" ' +
-    'aria-expanded="false" aria-label="Баримтын загвар"></button></span>'
+    'aria-expanded="false" aria-label="Баримтын загвар"></button></span>' +
+    '<span class="md-file" hidden><span class="md-file-head"></span>' +
+    '<span class="md-file-tail"></span></span>'
   );
 }
 
@@ -417,6 +421,9 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   const items = [...menu.querySelectorAll<HTMLButtonElement>(".md-menu-item")];
   const group = bar.querySelector<HTMLElement>(".md-group")!;
   const picker = bar.querySelector<HTMLElement>(".md-select")!;
+  const fileBox = bar.querySelector<HTMLElement>(".md-file")!;
+  const fileHead = fileBox.querySelector<HTMLElement>(".md-file-head")!;
+  const fileTail = fileBox.querySelector<HTMLElement>(".md-file-tail")!;
   const wideQuery = window.matchMedia("(min-width: 701px)");
 
   draftFailed = options.onDraftError ?? null;
@@ -427,12 +434,30 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     for (const legacy of legacyPending) dropDraft(legacy);
     legacyPending = [];
   }
+  let pickedLabel = "";
+  let shownFile: string | null | undefined;
+
   function setPicked(key: string): void {
     for (const item of items) {
       const on = item.dataset.value === key;
       item.setAttribute("aria-checked", String(on));
-      if (on) select.textContent = item.textContent;
+      if (on) pickedLabel = item.textContent ?? "";
     }
+    shownFile = undefined;
+    syncLabel();
+  }
+
+  function syncLabel(): void {
+    const name = options.fileName?.() ?? null;
+    if (name === shownFile) return;
+    shownFile = name;
+    select.textContent = name ? "Файл" : pickedLabel;
+    fileBox.hidden = !name;
+    if (!name) return;
+    const parts = splitName(name);
+    fileHead.textContent = parts.head;
+    fileTail.textContent = parts.tail;
+    fileBox.title = name;
   }
 
   function placeMenu(): void {
@@ -528,7 +553,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
 
   function active(): boolean {
     if (isTexFile()) return false;
-    return !isPlain(templateId) || isMdFile();
+    return options.fileName?.() ? isMdFile() : !isPlain(templateId);
   }
 
   function syncActive(): void {
@@ -555,6 +580,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       (focus !== null && (bar.contains(focus) || menu.contains(focus)));
     const on = active();
     const show = ready && focused;
+    syncLabel();
 
     picker.classList.toggle("is-plain", !on);
     editor.parentElement?.classList.toggle("is-markdown", on);

@@ -258,6 +258,7 @@ export interface MeasureControl {
   refresh(): void;
   dockRoom(side: "left" | "right", active: boolean): boolean;
   setPreviewMode(on: boolean): void;
+  setPreviewBlocked(on: boolean): void;
   layout(): Layout;
   destroy(): void;
 }
@@ -301,6 +302,7 @@ export function mountMeasureControl(
 
   let desired: Layout = load();
   let previewMode = false;
+  let previewBlocked = false;
   let mdMode = false;
   let mdPreview = loadMdPreview();
   let prev: Layout[] = [];
@@ -393,10 +395,14 @@ export function mountMeasureControl(
     );
 
     const viewport = document.documentElement.clientWidth;
-    const avail = available(metrics, viewport, prev);
-    prev = avail;
+    const fit = available(metrics, viewport, prev);
+    prev = fit;
+    const avail = previewBlocked ? fit.filter((l) => !l.preview) : fit;
 
-    const base = clamp(desired, avail);
+    const base = clamp(
+      previewBlocked ? { ...desired, preview: false } : desired,
+      avail,
+    );
     const active = (previewMode && previewLayout(base, avail)) || base;
     shown = active;
     viewportW = viewport;
@@ -452,6 +458,11 @@ export function mountMeasureControl(
       if (on === mdMode) return;
       mdMode = on;
       previewMode = on && mdPreview;
+      refresh();
+    },
+    setPreviewBlocked(on) {
+      if (on === previewBlocked) return;
+      previewBlocked = on;
       refresh();
     },
     layout() {

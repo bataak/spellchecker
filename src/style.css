@@ -1918,6 +1918,9 @@ html.booting .empty-state {
   body:not(.has-text):not(.preview-mode) .preview-panel {
     display: none;
   }
+  :root[data-preview="on"] body.preview-mode .empty-state {
+    visibility: hidden;
+  }
   .error-panel {
     display: flex;
     flex-direction: column;
