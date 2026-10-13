@@ -7,6 +7,16 @@ const INFO_TIPS = [
   "Word, PowerPoint файлуудын үгийн алдааг шалгаж засварлах боломжтой.",
 ];
 
+const MAC = /mac|iphone|ipad/i.test(navigator.platform);
+
+const KEYBOARD_TIPS = [
+  "Ctrl+\\ товчлуурын хослолоор монгол, англи гарын байрлалыг сэлгэн ашиглах боломжтой.",
+  `${MAC ? "⌘" : "Ctrl"} товчийг дарсан чигтээ заагчийг үгэн дээр аваачихад тухайн үгийн тайлбар гарч ирнэ.`,
+];
+
+if (matchMedia("(hover: hover) and (pointer: fine)").matches)
+  INFO_TIPS.push(...KEYBOARD_TIPS);
+
 const ACTION_TIPS = [
   "Үг мэдэгдэх холбоосыг ашиглан шинэ болон алдаатай үгийг бидэнд илгээж, толийг баяжуулахад туслаарай.",
   "Ап ашиглах заавар: https://zuv.bichig.dev/online-app/",

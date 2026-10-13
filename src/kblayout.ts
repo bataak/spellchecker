@@ -231,17 +231,21 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): void {
   const sync = (): void => {
     chip.hidden = forced === null;
     chip.textContent = forced ? label(forced) : "";
+    chip.dataset.layout = forced ?? "";
     const hint = forced
       ? describe(forced) + ". Дарвал системийн гарын байрлал уруу буцна"
       : "";
     chip.title = hint;
     chip.setAttribute("aria-label", hint);
     editor.classList.toggle("layout-forced", forced !== null);
+    if (forced) editor.dataset.layout = forced;
+    else delete editor.dataset.layout;
   };
 
   const showBadge = (layout: Layout): void => {
     const caret = caretPoint(editor);
     badge.textContent = label(layout);
+    badge.dataset.layout = layout;
     badge.style.left = caret.x + 4 + "px";
     badge.style.top = caret.y + caret.height + 2 + "px";
     badge.hidden = false;
