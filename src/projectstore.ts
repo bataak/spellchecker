@@ -649,7 +649,6 @@ export function setProjectText(path: string, text: string): void {
     return;
   s.texts.set(path, text);
   markDirty(s, path);
-  s.unsynced = true;
   changed(false);
 }
 
