@@ -24,6 +24,7 @@ import { initAppearance } from "./appearance.ts";
 import { mountMeasureControl, type MeasureControl } from "./measure.ts";
 import { initPreview, type Preview } from "./preview.ts";
 import { initProjectLink, type ProjectLink } from "./projectlink.ts";
+import { FILE_LIMIT, isFileSlot } from "./fileslots.ts";
 
 let previewCtl: Preview | null = null;
 let projectLink: ProjectLink | null = null;
@@ -1613,6 +1614,23 @@ const fileIO = initFileIO({
   openProjectDir: async (handle) => {
     if (projectLink) await projectLink.openDir(handle);
   },
+  prepareOpen: (name) => {
+    if (mdBar.openFile(name)) return true;
+    holdStatus(
+      "Нэг дор " +
+        FILE_LIMIT +
+        " хүртэл файл нээнэ — шинийг нээхийн өмнө загварын цэснээс нэгийг нь хаана уу",
+      8000,
+      false,
+    );
+    flash("#openBtn", "Хязгаар");
+    return false;
+  },
+  onLoaded: () => {
+    undoCtl?.baseline();
+    mdBar.markSaved();
+  },
+  onSaved: () => mdBar.markSaved(),
 });
 
 const MD_NAME_RE = /\.(md|markdown|mdown)$/i;
@@ -1637,6 +1655,12 @@ const mdBar = initMdToolbar({
     enterMdMode(mdActive());
   },
   onExample: () => enterMdMode(!isTexFile()),
+  onCloseFile: (slot) => {
+    templateFiles.delete(slot);
+    parkedOffice.delete(slot);
+    saveDraftFile(null, slot);
+    queueOffice(() => dropOfficeFile(slot));
+  },
 });
 function swapTemplateFile(from: string, to: string): void {
   if (from === to) return;
@@ -1820,7 +1844,12 @@ exportCtl = initExport({
   editor: els.editor,
   saveButton: document.querySelector<HTMLElement>("#saveBtn"),
   printButton: document.querySelector<HTMLElement>("#printBtn"),
-  template: () => (isTexFile() ? PLAIN : mdBar.template()),
+  template: () => {
+    if (isTexFile()) return PLAIN;
+    const id = mdBar.template();
+    if (!isFileSlot(id)) return id;
+    return isMdFileOpen() ? "report" : PLAIN;
+  },
   baseName: () => fileIO.targetName() ?? plainName,
   blocked: () => docx !== null,
   isTex: isTexFile,
