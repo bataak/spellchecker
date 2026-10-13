@@ -47,6 +47,7 @@ export interface ProjectLink {
   readonly restore: () => Promise<void>;
   readonly sync: () => void;
   readonly fileOpened: (name: string) => void;
+  readonly cleared: () => void;
 }
 
 interface Place {
@@ -333,6 +334,10 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
       panel.sync();
     },
     sync: panel.sync,
+    cleared() {
+      unbind(true);
+      panel.show(false);
+    },
     fileOpened(name) {
       if (project() !== null) return;
       panel.show(isTexSource(name) && referencesFiles(editor.value));
