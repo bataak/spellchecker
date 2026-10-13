@@ -324,12 +324,14 @@ export interface TexDocument {
 }
 
 export async function compileTexDocument(text: string): Promise<TexDocument> {
-  const [{ previewTex, withParatype }, { texImageFiles }] = await Promise.all([
-    import("./latex.ts"),
-    import("./teximages.ts"),
-  ]);
+  const [{ previewTex, withParatype }, { texImageFiles }, { toPdfLatex }] =
+    await Promise.all([
+      import("./latex.ts"),
+      import("./teximages.ts"),
+      import("./texcompat.ts"),
+    ]);
   const images = await texImageFiles(text);
-  const tex = previewTex(images.rewrite(text));
+  const tex = toPdfLatex(previewTex(images.rewrite(text)));
   const passes = CROSS_REF.test(text) ? 2 : 1;
   try {
     return {

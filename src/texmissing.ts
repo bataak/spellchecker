@@ -5,6 +5,10 @@ const ERROR_NAMES = [
   /\(file ([^)\s]+)\): (?:cannot open|Font \S+ at \d+ not found)/g,
 ];
 const BABEL_LANGUAGE = /Package babel Error: Unknown option '([^']+)'/g;
+const BABEL_FILES: Readonly<Record<string, string>> = {
+  russian: "russianb",
+  ukrainian: "ukraineb",
+};
 const GUESS_EXTENSIONS = [
   ".sty",
   ".cls",
@@ -23,7 +27,7 @@ export function wantedFiles(log: string, misses: readonly string[]): string[] {
     for (const match of log.matchAll(pattern))
       named.add(match[1]!.replace(/^.*\//, ""));
   for (const match of log.matchAll(BABEL_LANGUAGE)) {
-    named.add(match[1]! + ".ldf");
+    named.add((BABEL_FILES[match[1]!] ?? match[1]!) + ".ldf");
     named.add("babel-" + match[1]! + ".tex");
   }
   const wanted = new Set<string>();
