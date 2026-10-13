@@ -85,6 +85,7 @@ interface State {
   unsynced: boolean;
   version: number;
   exportedAt: number | null;
+  stamps: Map<string, string>;
 }
 
 let state: State | null = null;
@@ -281,6 +282,7 @@ function fromEntries(
     unsynced: false,
     version: 1,
     exportedAt: null,
+    stamps: new Map(),
   };
 }
 
@@ -301,11 +303,21 @@ function budget(): { take: (size: number) => void } {
   };
 }
 
+interface DirScan {
+  readonly files: [string, Uint8Array][];
+  readonly same: string[];
+  readonly dirs: string[];
+  readonly stamps: Map<string, string>;
+}
+
 async function readDir(
   dir: FileSystemDirectoryHandle,
-): Promise<{ files: [string, Uint8Array][]; dirs: string[] }> {
+  known: ReadonlyMap<string, string> = new Map(),
+): Promise<DirScan> {
   const files: [string, Uint8Array][] = [];
+  const same: string[] = [];
   const dirs: string[] = [];
+  const stamps = new Map<string, string>();
   const limit = budget();
   const walk = async (
     handle: FileSystemDirectoryHandle,
@@ -325,11 +337,80 @@ async function readDir(
       }
       const file = await (entry as FileSystemFileHandle).getFile();
       limit.take(file.size);
-      files.push([path, new Uint8Array(await file.arrayBuffer())]);
+      const stamp = file.size + ":" + file.lastModified;
+      stamps.set(path, stamp);
+      if (known.get(path) === stamp) same.push(path);
+      else files.push([path, new Uint8Array(await file.arrayBuffer())]);
     }
   };
   await walk(dir, "");
-  return { files, dirs };
+  return { files, same, dirs, stamps };
+}
+
+function withStamps(next: State, stamps: Map<string, string>): State {
+  next.stamps = stamps;
+  return next;
+}
+
+let refreshing: Promise<boolean> | null = null;
+
+export function refreshProject(): Promise<boolean> {
+  refreshing ??= refreshFromDisk().finally(() => {
+    refreshing = null;
+  });
+  return refreshing;
+}
+
+async function refreshFromDisk(): Promise<boolean> {
+  const s = state;
+  if (!s || s.pending || s.kind !== "dir" || !s.handle) return false;
+  try {
+    if ((await s.handle.queryPermission?.({ mode: "readwrite" })) !== "granted")
+      return false;
+  } catch {
+    return false;
+  }
+  const scan = await readDir(s.handle, s.stamps);
+  if (state !== s) return false;
+  const present = new Set([...scan.same, ...scan.files.map(([path]) => path)]);
+  let touched = false;
+  for (const path of [...s.texts.keys()])
+    if (!present.has(path) && !s.dirty.has(path)) {
+      s.texts.delete(path);
+      s.saved.delete(path);
+      touched = true;
+    }
+  for (const path of [...s.binaries.keys()])
+    if (!present.has(path)) {
+      s.binaries.delete(path);
+      touched = true;
+    }
+  for (const [path, bytes] of scan.files) {
+    if (!isEditablePath(path)) {
+      s.binaries.set(path, bytes);
+      touched = true;
+      continue;
+    }
+    const text = decodeFileBytes(bytes);
+    if (s.saved.get(path) === text && s.texts.has(path)) continue;
+    s.saved.set(path, text);
+    s.added.delete(path);
+    if (!s.dirty.has(path) || !s.texts.has(path)) s.texts.set(path, text);
+    touched = true;
+  }
+  const dirs = new Set(scan.dirs);
+  for (const path of s.texts.keys())
+    for (const dir of parentDirs(path)) dirs.add(dir);
+  if (dirs.size !== s.dirs.size || [...dirs].some((dir) => !s.dirs.has(dir)))
+    touched = true;
+  s.stamps = scan.stamps;
+  if (!touched) return false;
+  s.dirs = dirs;
+  if (!s.main || !s.texts.has(s.main)) s.main = findMain(s.texts);
+  if (s.active && !s.texts.has(s.active)) s.active = null;
+  recountDirty(s);
+  changed(true);
+  return true;
 }
 
 function hasTex(s: State): boolean {
@@ -354,14 +435,17 @@ export async function openDirHandle(
     writable =
       (await handle.requestPermission?.({ mode: "readwrite" })) === "granted";
   } catch {}
-  const { files, dirs } = await readDir(handle);
+  const { files, dirs, stamps } = await readDir(handle);
   adopt(
-    fromEntries(
-      writable ? "dir" : "folder",
-      handle.name,
-      writable ? handle : null,
-      files,
-      dirs,
+    withStamps(
+      fromEntries(
+        writable ? "dir" : "folder",
+        handle.name,
+        writable ? handle : null,
+        files,
+        dirs,
+      ),
+      stamps,
     ),
   );
 }
@@ -478,9 +562,12 @@ export async function restoreProject(): Promise<boolean> {
       "granted";
   } catch {}
   if (granted) {
-    const { files, dirs } = await readDir(meta.handle);
+    const { files, dirs, stamps } = await readDir(meta.handle);
     applyRestored(
-      fromEntries("dir", meta.name, meta.handle, files, dirs),
+      withStamps(
+        fromEntries("dir", meta.name, meta.handle, files, dirs),
+        stamps,
+      ),
       meta,
       edits,
     );
@@ -528,10 +615,10 @@ export async function grantProject(): Promise<boolean> {
       (await s.handle.requestPermission?.({ mode: "readwrite" })) === "granted";
   } catch {}
   if (!granted) return false;
-  const { files, dirs } = await readDir(s.handle);
+  const { files, dirs, stamps } = await readDir(s.handle);
   const meta = metaOf(s);
   applyRestored(
-    fromEntries("dir", s.name, s.handle, files, dirs),
+    withStamps(fromEntries("dir", s.name, s.handle, files, dirs), stamps),
     meta,
     pendingEdits,
   );

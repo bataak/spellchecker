@@ -7,6 +7,7 @@ import {
   project,
   projectKey,
   projectText,
+  refreshProject,
   restoreProject,
   saveProject,
   setActive,
@@ -115,13 +116,22 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     }
     pushText();
     remember();
+    bound = false;
     setActive(path);
     bind(path);
-    const place = places.get(path);
     deps.bindName(baseName(path));
+    load(text, places.get(path) ?? null);
+  };
+
+  const load = (text: string, place: Place | null): void => {
     editor.value = "";
     editor.value = text;
-    if (place) editor.setSelectionRange(place.start, place.end);
+    const end = text.length;
+    if (place)
+      editor.setSelectionRange(
+        Math.min(place.start, end),
+        Math.min(place.end, end),
+      );
     else editor.setSelectionRange(0, 0);
     editor.focus({ preventScroll: true });
     editor.dispatchEvent(
@@ -223,9 +233,31 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
         if (moved) places.set(view.active, moved);
         deps.bindName(baseName(view.active));
       }
+      const text = boundPath === null ? null : projectText(boundPath);
+      if (
+        text !== null &&
+        text !== editor.value &&
+        boundPath !== null &&
+        !view.dirty.has(boundPath)
+      )
+        load(text, {
+          start: editor.selectionStart,
+          end: editor.selectionEnd,
+          scroll: editor.scrollTop,
+        });
     }
     deps.onChange();
   });
+
+  let lastRefresh = 0;
+  const refresh = (): void => {
+    if (document.visibilityState !== "visible") return;
+    if (Date.now() - lastRefresh < 1000) return;
+    lastRefresh = Date.now();
+    void refreshProject().catch(() => false);
+  };
+  window.addEventListener("focus", refresh);
+  document.addEventListener("visibilitychange", refresh);
 
   const fail = (error: unknown): void => {
     if (error instanceof ProjectError) deps.notify(error.message);
@@ -252,7 +284,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
       return result === "downloaded"
         ? "Zip татлаа"
         : result === "files"
-          ? "Файл татлаа"
+          ? "Засварласан файлуудыг татлаа"
           : result === "saved"
             ? "Хадгаллаа"
             : "Өөрчлөлт алга";
