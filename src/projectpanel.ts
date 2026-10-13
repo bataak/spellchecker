@@ -148,8 +148,8 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     button.addEventListener("mousedown", (event) => event.preventDefault());
     return button;
   };
-  const newFileBtn = headButton("Шинэ файл", ICON.newFile);
-  const newDirBtn = headButton("Шинэ хавтас", ICON.newFolder);
+  const newFileBtn = headButton("Шинэ файл үүсгэх", ICON.newFile);
+  const newDirBtn = headButton("Шинэ хавтас үүсгэх", ICON.newFolder);
   const exportBtn = textButton("Zip татах");
   const closeBtn = headButton("Төслийг хаах", ICON.close);
   const refreshBtn = headButton("Дискнээс дахин унших", ICON.refresh);
@@ -642,8 +642,8 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     )
       items.push({ label: "Үндсэн файл болгох", run: () => setMain(path) });
     if (dir) {
-      items.push({ label: "Шинэ файл", run: () => startCreate(false) });
-      items.push({ label: "Шинэ хавтас", run: () => startCreate(true) });
+      items.push({ label: "Шинэ файл үүсгэх", run: () => startCreate(false) });
+      items.push({ label: "Шинэ хавтас үүсгэх", run: () => startCreate(true) });
     }
     items.push({ label: "Нэр солих", run: () => startRename(path) });
     items.push({ label: "Устгах", run: () => remove(path), danger: true });
