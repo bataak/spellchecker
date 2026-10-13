@@ -377,6 +377,7 @@ function syncTexMode(): void {
   enterMdMode(mdActive());
   previewCtl?.update();
   projectLink?.sync();
+  clean.sync();
 }
 
 let texPaint = false;
@@ -1185,7 +1186,7 @@ const fixButtonDeps = {
   saveText: () => saveText(),
 };
 const decode = initDecode(fixButtonDeps);
-const clean = initClean(fixButtonDeps);
+const clean = initClean({ ...fixButtonDeps, skip: () => isTexFile() });
 function syncFixButtons(): void {
   decode.sync();
   clean.sync();
