@@ -125,7 +125,7 @@ import {
 } from "./wordfix.ts";
 import { initEditorText } from "./editortext.ts";
 import { initDraftText } from "./drafttext.ts";
-import { initDecode } from "./decode.ts";
+import { initClean, initDecode } from "./decode.ts";
 import { initAppUpdate } from "./appupdate.ts";
 import {
   dictStatusMessage,
@@ -766,7 +766,8 @@ defineBtn?.addEventListener("click", async (event) => {
     return;
   }
   if (isTouch()) void pop.openWordPanel(span);
-  else void defTip.showWordDefinition(span).then(() => remindEnglish(span.word));
+  else
+    void defTip.showWordDefinition(span).then(() => remindEnglish(span.word));
 });
 
 els.editor.addEventListener("keydown", (e) => {
@@ -1161,12 +1162,12 @@ const editorText = initEditorText({
     }
     return true;
   },
-  onReplaced: () => decode.sync(),
+  onReplaced: () => syncFixButtons(),
 });
 const setEditorText = editorText.set;
 const insertEditorText = editorText.insert;
 
-const decode = initDecode({
+const fixButtonDeps = {
   editor: els.editor,
   setEditorText,
   refresh: () => {
@@ -1174,12 +1175,18 @@ const decode = initDecode({
     return render();
   },
   saveText: () => saveText(),
-});
+};
+const decode = initDecode(fixButtonDeps);
+const clean = initClean(fixButtonDeps);
+function syncFixButtons(): void {
+  decode.sync();
+  clean.sync();
+}
 
 const draft = initDraftText({
   editor: els.editor,
   setStatus,
-  onLoaded: () => decode.sync(),
+  onLoaded: () => syncFixButtons(),
   onCaret: (caret) => {
     lastCaret = caret;
   },
@@ -1210,6 +1217,7 @@ els.editor.addEventListener("input", (e) => {
     deferredCheck();
   }
   decode.afterInput(e);
+  clean.afterInput(e);
 });
 
 const clearBtnEl = document.querySelector("#clearBtn");
@@ -1337,9 +1345,7 @@ function defineAtPoint(x: number, y: number): void {
   }
   if (hoverSpan?.start === span.start && hoverSpan.end === span.end) return;
   hoverSpan = span;
-  void defTip
-    .showWordDefinition(span, x)
-    .then(() => remindEnglish(span.word));
+  void defTip.showWordDefinition(span, x).then(() => remindEnglish(span.word));
 }
 
 let hoverFrame = 0;
@@ -1519,7 +1525,7 @@ async function openDocxFile(
   syncSaveHint();
   exportCtl?.syncPrint();
   hidePopover();
-  decode.sync();
+  syncFixButtons();
   await render();
   saveText();
   return true;
@@ -1702,8 +1708,7 @@ const nudgeHints = initHints(() => {
     },
   );
   const mode = modeHint(find(".md-select"));
-  if (mdActive())
-    return [keyboard, mode, layout, exportHint(find("#saveBtn"))];
+  if (mdActive()) return [keyboard, mode, layout, exportHint(find("#saveBtn"))];
   if (els.editor.value.trim())
     return [keyboard, mode, layout, defineHint(find("#defineBtn"))];
   return [
