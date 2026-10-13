@@ -255,6 +255,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     if (!view?.active || view.pending) return;
     adopt(true);
     if (!bound) openFile(view.active);
+    panel.reveal();
   };
 
   const close = (): void => {
