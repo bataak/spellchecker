@@ -150,7 +150,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   };
   const newFileBtn = headButton("Шинэ файл үүсгэх", ICON.newFile);
   const newDirBtn = headButton("Шинэ хавтас үүсгэх", ICON.newFolder);
-  const exportBtn = textButton("Zip татах");
+  const exportBtn = textButton("Архивлах");
   const closeBtn = headButton("Төслийг хаах", ICON.close);
   const refreshBtn = headButton("Дискнээс дахин унших", ICON.refresh);
 
@@ -329,7 +329,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
 
   const syncFoot = (view: ProjectView): void => {
     exportBtn.title =
-      "Төслийг бүхэлд нь zip болгож татах" +
+      "Төслийг бүхэлд нь zip архив болгож татах" +
       (view.exportedAt === null
         ? ""
         : " · сүүлд татсан: " + ago(view.exportedAt));
@@ -915,7 +915,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   const runExport = (): void => {
     void run(async () => {
       await exportZip();
-      deps.notify("Төслийг zip болгож татлаа");
+      deps.notify("Төслийг zip архив болгож татлаа");
     });
   };
   exportBtn.addEventListener("click", runExport);
