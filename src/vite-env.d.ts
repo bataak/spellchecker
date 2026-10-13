@@ -13,6 +13,7 @@ declare module "*.tex?raw" {
 interface ImportMetaEnv {
   readonly DEV: boolean;
   readonly BASE_URL: string;
+  readonly VITE_TEX_PACKAGES_URL?: string;
 }
 
 interface ImportMeta {
