@@ -267,3 +267,8 @@ test("UTF-8 болон BOM-той файл өөрчлөгдөхгүй", () => {
   const le = new Uint8Array([0xff, 0xfe, 0x2e, 0x04, 0x33, 0x04]);
   assert.equal(decodeFileBytes(le), "Юг");
 });
+
+test("м², м³ зэрэг нэгжийн зэрэг хэвээр үлдэнэ", () => {
+  const text = "Байрны талбай 45 м², эзэлхүүн 120 м³, 3 см² ба 9,8 м/с² байна.";
+  assert.equal(repairCyrillic(text), text);
+});

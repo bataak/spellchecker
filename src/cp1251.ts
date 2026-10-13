@@ -231,10 +231,13 @@ function buildRunPattern(): string {
 
 const RUN_RE = new RegExp("[\\p{L}" + buildRunPattern() + "]+", "gu");
 
+const UNIT_POWER_RE = /^(?:[кмсдКМСД]?[мМ]|[сС]|сек)[\u00B2\u00B3]$/u;
+
 function repairWord(
   word: string,
   variant: CyrVariant,
 ): { text: string; changed: boolean } {
+  if (UNIT_POWER_RE.test(word)) return { text: word, changed: false };
   const table = TABLES[variant];
   let mojibake = 0;
   let cyrillic = 0;
