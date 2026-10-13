@@ -394,3 +394,42 @@
 .project-toggle.is-on {
   color: var(--accent);
 }
+
+.project-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 8px 7px 14px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.project-foot[hidden] {
+  display: none;
+}
+
+.project-foot.is-due {
+  color: var(--proof);
+}
+
+.project-foot-zip {
+  flex: 0 0 auto;
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.project-foot-zip:hover {
+  border-color: var(--muted);
+}
+
+.project-foot-zip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

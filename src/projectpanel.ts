@@ -7,6 +7,7 @@ import {
   grantProject,
   onProjectChange,
   openZip,
+  exportZip,
   pickFolder,
   project,
   removePath,
@@ -27,6 +28,7 @@ import {
 } from "./texproject.ts";
 
 const OPEN_KEY = "mn-spell:project-panel";
+const STALE_MS = 24 * 60 * 60 * 1000;
 
 export interface ProjectPanelDeps {
   readonly workspace: HTMLElement;
@@ -58,6 +60,7 @@ const ICON = {
     '<path d="M3.5 1.5h6l3 3v10h-9z"/><path d="M9.5 1.5v3h3M8 7.5v4.5M5.75 9.75h4.5"/>',
   newFolder:
     '<path d="M1.5 4.2c0-.8.6-1.4 1.4-1.4h3.3l1.5 1.7h5.4c.8 0 1.4.6 1.4 1.4v6.6c0 .8-.6 1.4-1.4 1.4H2.9c-.8 0-1.4-.6-1.4-1.4z"/><path d="M8 7v4.5M5.75 9.25h4.5"/>',
+  zip: '<path d="M3.5 1.5h6l3 3v10h-9z"/><path d="M6.5 1.5v1.5M6.5 4v1.5M6.5 6.5V8"/><rect x="5.5" y="9" width="2" height="2.5" rx=".5"/>',
   save: '<path d="M2.5 2.5h9l2 2v9h-11z"/><path d="M5 2.5v3.5h5.5V2.5M5 13.5V9.5h6v4"/>',
   close: '<path d="M4 4l8 8M12 4l-8 8"/>',
   more: '<circle cx="3.5" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="12.5" cy="8" r="1.1" fill="currentColor" stroke="none"/>',
@@ -124,7 +127,16 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   const saveBtn = headButton("Төслийг хадгалах", ICON.save);
   const closeBtn = headButton("Төслийг хаах", ICON.close);
   const hideBtn = headButton("Самбарыг нуух", ICON.close);
-  head.append(title, newFileBtn, newDirBtn, saveBtn, closeBtn, hideBtn);
+  const exportBtn = headButton("Zip болгож татах", ICON.zip);
+  head.append(
+    title,
+    newFileBtn,
+    newDirBtn,
+    saveBtn,
+    exportBtn,
+    closeBtn,
+    hideBtn,
+  );
 
   const tree = document.createElement("div");
   tree.className = "project-tree";
@@ -157,7 +169,16 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   zipInput.accept = ".zip,application/zip";
   zipInput.hidden = true;
 
-  panel.append(head, tree, empty, zipInput);
+  const foot = document.createElement("div");
+  foot.className = "project-foot";
+  const footText = document.createElement("span");
+  const footZip = document.createElement("button");
+  footZip.type = "button";
+  footZip.className = "project-foot-zip";
+  footZip.textContent = "Zip татах";
+  foot.append(footText, footZip);
+
+  panel.append(head, tree, empty, foot, zipInput);
   deps.workspace.prepend(panel);
 
   const menu = document.createElement("div");
@@ -246,6 +267,29 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   const icons = (node: TreeNode): string =>
     icon(node.dir ? ICON.folder : ICON.file, 15);
 
+  const ago = (time: number): string => {
+    const minutes = Math.floor((Date.now() - time) / 60000);
+    if (minutes < 1) return "дөнгөж сая";
+    if (minutes < 60) return minutes + " минутын өмнө";
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return hours + " цагийн өмнө";
+    return Math.floor(hours / 24) + " өдрийн өмнө";
+  };
+
+  const syncFoot = (view: ProjectView): void => {
+    const stale =
+      view.exportedAt === null || Date.now() - view.exportedAt > STALE_MS;
+    footText.textContent =
+      view.exportedAt === null
+        ? "Zip нөөц татаагүй"
+        : "Zip: " + ago(view.exportedAt);
+    foot.classList.toggle("is-due", view.kind !== "dir" && stale);
+    foot.title =
+      view.kind === "dir"
+        ? "Төсөл дискэн дээрх хавтсанд хадгалагдана"
+        : "Төсөл энэ хөтөч дотор хадгалагдана — хөтчийн өгөгдлийг цэвэрлэвэл устах тул zip нөөц татаж байгаарай";
+  };
+
   const rowFor = (
     node: TreeNode,
     depth: number,
@@ -316,8 +360,15 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
       : "";
     newFileBtn.hidden = !ready;
     newDirBtn.hidden = !ready;
-    saveBtn.hidden = !ready;
+    saveBtn.hidden = !ready || view.kind === "memory";
     saveBtn.classList.toggle("is-due", ready && view.unsaved);
+    exportBtn.hidden = !ready;
+    exportBtn.classList.toggle(
+      "is-due",
+      ready && view.kind === "memory" && view.unsaved,
+    );
+    foot.hidden = !ready;
+    if (ready) syncFoot(view);
     saveBtn.title =
       view?.kind === "memory"
         ? "Төслийг zip болгож татах"
@@ -724,6 +775,19 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   });
   newFileBtn.addEventListener("click", () => startCreate(false));
   newDirBtn.addEventListener("click", () => startCreate(true));
+  const runExport = (): void => {
+    void run(async () => {
+      await exportZip();
+      deps.notify("Төслийг zip болгож татлаа");
+    });
+  };
+  exportBtn.addEventListener("click", runExport);
+  footZip.addEventListener("click", runExport);
+  window.setInterval(() => {
+    const view = project();
+    if (view && !view.pending && !panel.hidden) syncFoot(view);
+  }, 60000);
+
   saveBtn.addEventListener("click", () => {
     void run(async () => {
       const result = await saveProject();
