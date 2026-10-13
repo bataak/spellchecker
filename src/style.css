@@ -1552,6 +1552,61 @@ a.tbtn {
   background: var(--paper);
   color: var(--ink);
 }
+.popover .pop-fix-open {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.pop-fix-cue {
+  color: var(--proof);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.pop-fix {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+}
+.pop-fix-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--serif);
+  font-size: 16px;
+  color: var(--ink);
+  background: var(--editor-bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+.pop-fix-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+}
+.pop-fix-input.layout-forced {
+  caret-color: var(--layout-accent);
+  border-color: var(--layout-accent);
+}
+.pop-fix-input[data-layout="en"] {
+  --layout-accent: var(--layout-accent-en);
+}
+.pop-fix-ok {
+  flex: 0 0 auto;
+  font-family: var(--sans);
+  font-size: 0.9rem;
+  color: var(--proof);
+  background: var(--proof-soft);
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.pop-fix-ok:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.pop-fix-ok:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
 .pop-more,
 .pop-less {
   position: absolute;

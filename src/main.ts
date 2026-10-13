@@ -42,7 +42,13 @@ import {
   dashCompound,
   dashNormalizeApply,
 } from "./textcheck.ts";
-import { saveDraftFile, loadDraftFile } from "./storage.ts";
+import {
+  saveDraftFile,
+  loadDraftFile,
+  saveOfficeFile,
+  loadOfficeFile,
+  dropOfficeFile,
+} from "./storage.ts";
 import { initMdToolbar } from "./mdtoolbar.ts";
 import {
   defineHint,
@@ -75,6 +81,13 @@ import { shiftTokens } from "./tokenshift.ts";
 import { texSpans } from "./texhighlight.ts";
 import { initTexComplete } from "./texcomplete.ts";
 import { initKeyboardLayout } from "./kblayout.ts";
+import {
+  MANUAL_FIX_MAX,
+  MANUAL_FIX_WORDS,
+  cleanManualFix,
+  countWords,
+  filterManualFix,
+} from "./manualfix.ts";
 import {
   initUndoHistory,
   TEMPLATE_INPUT,
@@ -832,7 +845,10 @@ async function showPopoverFor(token: Token): Promise<void> {
           );
         })
         .join("")
-    : '<div class="muted pop-empty">санал алга</div>';
+    : els.editor.readOnly
+      ? '<button class="sg sg-manual pop-fix-open" type="button">' +
+        'санал алга — <span class="pop-fix-cue">засах</span></button>'
+      : '<div class="muted pop-empty">санал алга</div>';
   els.popover.innerHTML =
     '<div class="pop-scroll">' +
     '<div class="pop-list">' +
@@ -855,19 +871,27 @@ async function showPopoverFor(token: Token): Promise<void> {
   pop.measure();
   pop.place();
 
-  els.popover.querySelectorAll(".sg:not(.sg-ignore)").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const covered = pop.obscuredBy(btn);
-      if (covered > 0 && list) {
-        list.scrollBy({
-          top: covered,
-          behavior: reducedMotionMQ.matches ? "auto" : "smooth",
-        });
-        return;
-      }
-      applySuggestion(token, btn.textContent);
+  els.popover
+    .querySelector<HTMLElement>(".pop-fix-open")
+    ?.addEventListener("click", (event) => {
+      if (event.currentTarget instanceof HTMLElement)
+        openManualFix(token, event.currentTarget);
     });
-  });
+  els.popover
+    .querySelectorAll(".sg:not(.sg-ignore, .sg-manual)")
+    .forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const covered = pop.obscuredBy(btn);
+        if (covered > 0 && list) {
+          list.scrollBy({
+            top: covered,
+            behavior: reducedMotionMQ.matches ? "auto" : "smooth",
+          });
+          return;
+        }
+        applySuggestion(token, btn.textContent);
+      });
+    });
   els.popover.querySelectorAll<HTMLElement>(".sg-dot").forEach(defTip.bindDot);
   const pageBy = (sign: number) => {
     if (!list) return;
@@ -893,6 +917,72 @@ async function showPopoverFor(token: Token): Promise<void> {
       render();
     });
   }
+}
+
+function openManualFix(token: Token, trigger: HTMLElement): void {
+  const original = token.word.replace(/\s+$/, "");
+  const form = document.createElement("form");
+  form.className = "pop-fix";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "pop-fix-input";
+  input.value = filterManualFix(original);
+  input.maxLength = MANUAL_FIX_MAX;
+  input.spellcheck = false;
+  input.autocomplete = "off";
+  input.setAttribute("autocapitalize", "off");
+  input.setAttribute("enterkeyhint", "done");
+  input.setAttribute("aria-label", "Зөв бичлэгийг өөрөө бичих");
+  const submit = document.createElement("button");
+  submit.type = "submit";
+  submit.className = "pop-fix-ok";
+  submit.textContent = "Засах";
+  form.append(input, submit);
+  trigger.replaceWith(form);
+  kbLayout.attach(input);
+
+  let accepted = input.value;
+  const refresh = () => {
+    submit.disabled = cleanManualFix(input.value, original) === null;
+  };
+  const enforce = () => {
+    const raw = input.value;
+    const caret = input.selectionStart ?? raw.length;
+    const next = filterManualFix(raw);
+    const over = countWords(next) > MANUAL_FIX_WORDS;
+    const value = over ? accepted : next;
+    if (value !== raw) {
+      const at = over
+        ? Math.max(0, caret - (raw.length - accepted.length))
+        : filterManualFix(raw.slice(0, caret)).length;
+      input.value = value;
+      input.setSelectionRange(at, at);
+    }
+    accepted = input.value;
+    refresh();
+  };
+  input.addEventListener("input", (event) => {
+    if (event instanceof InputEvent && event.isComposing) return;
+    enforce();
+  });
+  input.addEventListener("compositionend", enforce);
+  refresh();
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const fix = cleanManualFix(input.value, original);
+    if (fix === null) return;
+    if (els.editor.value.slice(token.start, token.end) !== token.word) {
+      hidePopover();
+      return;
+    }
+    void applySuggestion(token, fix);
+  });
+
+  pop.measure();
+  pop.place();
+  input.focus({ preventScroll: true });
+  input.select();
 }
 
 function suggestAtCaret() {
@@ -1368,7 +1458,7 @@ async function openPdfFile(file: File): Promise<boolean> {
   return true;
 }
 
-async function openDocxFile(file: File): Promise<boolean> {
+async function openDocxFile(file: File, draftText?: string): Promise<boolean> {
   if (isPdfFile(file)) return openPdfFile(file);
   let mod: typeof import("./office/mode.ts");
   try {
@@ -1395,8 +1485,16 @@ async function openDocxFile(file: File): Promise<boolean> {
   }
 
   els.editor.readOnly = true;
-  els.editor.value = docx.text();
+  const source = docx.text();
+  const restored =
+    draftText !== undefined &&
+    draftText !== source &&
+    docx.sync(source, draftText);
+  if (draftText !== undefined && draftText !== source && !restored)
+    holdStatus("Өмнөх засваруудыг сэргээж чадсангүй", 8000);
+  els.editor.value = restored ? draftText : source;
   undoCtl?.baseline();
+  if (draftText === undefined) void saveOfficeFile(file).catch(() => undefined);
   previewCtl?.setSource({ kind: "office", name: file.name });
   document.body.classList.add("docx-mode");
   syncSaveHint();
@@ -1404,12 +1502,14 @@ async function openDocxFile(file: File): Promise<boolean> {
   hidePopover();
   decode.sync();
   await render();
+  saveText();
   return true;
 }
 
 function closeDocx(): void {
   if (!docx) return;
   docx = null;
+  void dropOfficeFile().catch(() => undefined);
   els.editor.readOnly = false;
   document.body.classList.remove("docx-mode");
   syncSaveHint();
@@ -1526,7 +1626,7 @@ initTexComplete({
   onImage: () => void insertPickedImage(els.editor),
 });
 initTexImageInput({ editor: els.editor, active: () => texPaint });
-initKeyboardLayout({ editor: els.editor, status: els.status });
+const kbLayout = initKeyboardLayout({ editor: els.editor, status: els.status });
 void initImageStore(() => els.editor.value);
 undoCtl = initUndoHistory({ editor: els.editor, slot: () => mdBar.slot() });
 enterMdMode(mdActive());
@@ -1576,9 +1676,23 @@ exportCtl = initExport({
   },
 });
 
-function restoreDraftFile(): void {
+async function restoreOfficeFile(name: string): Promise<boolean> {
+  const file = await loadOfficeFile().catch(() => null);
+  if (!file || file.name !== name) return false;
+  await openDocxFile(file, els.editor.value);
+  return docx !== null;
+}
+
+async function restoreDraftFile(): Promise<void> {
   const ref = loadDraftFile();
   if (!ref) return;
+  if (ref.kind === "office" && (await restoreOfficeFile(ref.name))) {
+    plainName = ref.name;
+    syncSaveHint();
+    mdBar.refresh();
+    enterMdMode(mdActive());
+    return;
+  }
   fileIO.restoreFile(ref);
   plainName = fileIO.targetName();
   syncSaveHint();
@@ -1649,7 +1763,7 @@ async function boot() {
   setStatus("Hunspell ачаалж байна…");
   await draft.load();
   undoCtl?.baseline();
-  restoreDraftFile();
+  await restoreDraftFile();
   render();
   document.documentElement.classList.remove("booting");
   els.editor.focus({ preventScroll: true });

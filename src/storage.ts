@@ -77,6 +77,21 @@ export function loadDraft(): Promise<string | null> {
 }
 
 const SLOT_PREFIX = "slot:";
+const OFFICE_FILE_KEY = "office-file";
+
+export function saveOfficeFile(file: File): Promise<void> {
+  return idbSet(OFFICE_FILE_KEY, file).then(() => undefined);
+}
+
+export function loadOfficeFile(): Promise<File | null> {
+  return idbGet(OFFICE_FILE_KEY).then((value) =>
+    value instanceof File ? value : null,
+  );
+}
+
+export function dropOfficeFile(): Promise<void> {
+  return idbDelete(OFFICE_FILE_KEY).then(() => undefined);
+}
 
 export function saveSlotText(key: string, text: string): Promise<void> {
   return idbSet(SLOT_PREFIX + key, text).then(() => undefined);
@@ -203,7 +218,7 @@ export async function storedTexts(): Promise<string[]> {
 
 const idbGet = (key: string) =>
   idbRequest("readonly", (store) => store.get(key) as IDBRequest<unknown>);
-const idbSet = (key: string, value: string) =>
+const idbSet = (key: string, value: unknown) =>
   idbRequest("readwrite", (store) => store.put(value, key));
 const idbDelete = (key: string) =>
   idbRequest("readwrite", (store) => store.delete(key));

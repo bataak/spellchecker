@@ -383,3 +383,11 @@ test("replaces a word inside a hyperlink field result", () => {
   assert.equal(textOf(out), "Монгол толь");
   assert.ok(out.includes('HYPERLINK "https://a.example"'));
 });
+
+test("writes multi-word replacements with markup characters as plain text", () => {
+  const xml = doc(`<w:p>${run("өмнө алдаатүг хойно")}</w:p>`);
+  const fix = '<b>x</b> & "y" зөв үг';
+  const out = rewrite(xml, [edit(5, 13, fix)]);
+  assert.equal(textOf(out), "өмнө " + fix + " хойно");
+  assert.ok(out.includes("&lt;b&gt;x&lt;/b&gt; &amp;"));
+});
