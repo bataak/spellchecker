@@ -11,9 +11,10 @@ import {
   saveProject,
   setActive,
   setLinked,
+  setMain,
   setProjectText,
 } from "./projectstore.ts";
-import { baseName } from "./texproject.ts";
+import { baseName, isTexSource } from "./texproject.ts";
 import { TEMPLATE_INPUT } from "./undohistory.ts";
 
 const SLOT_KEY = "mn-spell:project-slot";
@@ -24,6 +25,7 @@ export interface ProjectLinkDeps {
   readonly tools: () => HTMLElement | null;
   readonly slot: () => string;
   readonly fileName: () => string | null;
+  readonly fileHandle: () => FileSystemFileHandle | null;
   readonly texActive: () => boolean;
   readonly bindName: (name: string | null) => void;
   readonly afterSwitch: () => void;
@@ -148,12 +150,22 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     deps.afterSwitch();
   };
 
-  const opened = (fresh: boolean): void => {
+  const opened = (fresh: boolean, prefer?: string): void => {
     const view = project();
     if (!view?.active) return;
     if (!fresh) {
       adopt(false);
       if (bound) return;
+    }
+    if (prefer && !bound && deps.fileName() === prefer) {
+      const saved = projectText(prefer);
+      if (saved !== null) {
+        setProjectText(prefer, editor.value);
+        if (isTexSource(prefer) && /\\documentclass\b/.test(editor.value))
+          setMain(prefer);
+        openFile(prefer);
+        return;
+      }
     }
     openFile(view.active);
   };
@@ -173,6 +185,12 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
       );
     },
     onOpened: opened,
+    openedFile: () => {
+      const name = deps.fileName();
+      return name && !bound && /\.(tex|ltx)$/i.test(name)
+        ? { name, handle: deps.fileHandle() }
+        : null;
+    },
     onClosed: () => storeSlot(null),
     onLayout: deps.layout,
     notify: deps.notify,
@@ -233,9 +251,11 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
       const result = await saveProject();
       return result === "downloaded"
         ? "Zip татлаа"
-        : result === "saved"
-          ? "Хадгаллаа"
-          : "Өөрчлөлт алга";
+        : result === "files"
+          ? "Файл татлаа"
+          : result === "saved"
+            ? "Хадгаллаа"
+            : "Өөрчлөлт алга";
     },
     async openZip(file) {
       const view = project();

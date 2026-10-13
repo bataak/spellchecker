@@ -34,7 +34,11 @@ export interface ProjectPanelDeps {
   readonly texActive: () => boolean;
   readonly openFile: (path: string) => void;
   readonly beforeOpen: () => boolean;
-  readonly onOpened: (fresh: boolean) => void;
+  readonly onOpened: (fresh: boolean, prefer?: string) => void;
+  readonly openedFile: () => {
+    readonly name: string;
+    readonly handle: FileSystemFileHandle | null;
+  } | null;
   readonly onClosed: () => void;
   readonly onLayout: () => void;
   readonly notify: (message: string) => void;
@@ -232,8 +236,11 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     if (on) render();
   };
 
+  const floating = (): boolean =>
+    !wide.matches || "projectFloat" in document.documentElement.dataset;
+
   const closeDrawer = (): void => {
-    if (!wide.matches) show(false);
+    if (floating()) show(false);
   };
 
   const icons = (node: TreeNode): string =>
@@ -303,7 +310,9 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     title.title = view
       ? view.kind === "dir"
         ? view.name + " — дискэн дээрх хавтас"
-        : view.name + " — санах ойд (хадгалахад zip болно)"
+        : view.kind === "folder"
+          ? view.name + " — хадгалахад өөрчлөгдсөн файлууд татагдана"
+          : view.name + " — санах ойд (хадгалахад zip болно)"
       : "";
     newFileBtn.hidden = !ready;
     newDirBtn.hidden = !ready;
@@ -312,11 +321,18 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     saveBtn.title =
       view?.kind === "memory"
         ? "Төслийг zip болгож татах"
-        : "Өөрчлөлтийг хадгалах";
+        : view?.kind === "folder"
+          ? "Өөрчлөгдсөн файлуудыг татах"
+          : "Өөрчлөлтийг хадгалах";
     closeBtn.hidden = view === null;
     hideBtn.hidden = view !== null;
     empty.hidden = ready;
     tree.hidden = !ready;
+    const file = deps.openedFile();
+    folderBtn.textContent =
+      file?.handle && window.showDirectoryPicker
+        ? "«" + file.name + "»-ийн хавтсыг нээх"
+        : "Хавтас нээх";
     folderBtn.hidden = pending;
     zipBtn.hidden = pending;
     grantBtn.hidden = !pending;
@@ -642,7 +658,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     const target = event.target as Node;
     if (!menu.hidden && !menu.contains(target)) closeMenu();
     if (
-      !wide.matches &&
+      floating() &&
       !panel.hidden &&
       !panel.contains(target) &&
       !toggle.contains(target) &&
@@ -664,18 +680,20 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     event.preventDefault();
   });
 
-  const opened = (): void => {
+  const opened = (prefer?: string): void => {
     collapsed.clear();
     selected = null;
     shownVersion = "";
     show(true);
-    deps.onOpened(true);
+    deps.onOpened(true, prefer);
+    closeDrawer();
   };
 
   folderBtn.addEventListener("click", () => {
     if (!deps.beforeOpen()) return;
+    const file = deps.openedFile();
     void run(async () => {
-      if (await pickFolder()) opened();
+      if (await pickFolder(file?.handle ?? null)) opened(file?.name);
     });
   });
   zipBtn.addEventListener("click", () => {
@@ -714,7 +732,9 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
           ? "Төслийн өөрчлөлтийг хадгаллаа"
           : result === "downloaded"
             ? "Төслийг zip болгож татлаа"
-            : "Хадгалах өөрчлөлт алга",
+            : result === "files"
+              ? "Өөрчлөгдсөн файлуудыг татлаа — анхны файлыг дарж хадгална уу"
+              : "Хадгалах өөрчлөлт алга",
       );
     });
   });
@@ -737,6 +757,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
 
   onProjectChange(render);
   render();
+  if (!panel.hidden && floating()) show(false);
 
   return {
     sync: render,

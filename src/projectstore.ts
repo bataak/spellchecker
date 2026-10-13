@@ -30,7 +30,7 @@ const FILES_KEY = "files";
 const EDITS_KEY = "edits";
 const EDITS_DELAY_MS = 800;
 
-export type ProjectKind = "dir" | "memory";
+export type ProjectKind = "dir" | "folder" | "memory";
 
 interface Meta {
   readonly kind: ProjectKind;
@@ -225,7 +225,7 @@ function persistMeta(withFiles = false): Promise<void> {
     [META_KEY]: metaOf(s),
     [EDITS_KEY]: editsOf(s),
   };
-  if (withFiles && s.kind === "memory") entries[FILES_KEY] = savedFilesOf(s);
+  if (withFiles && s.kind !== "dir") entries[FILES_KEY] = savedFilesOf(s);
   return dbPut(entries);
 }
 
@@ -241,7 +241,7 @@ function persistEdits(): void {
 function changed(structure: boolean): void {
   if (!state) return;
   state.version += 1;
-  if (structure) void persistMeta(state.kind === "memory");
+  if (structure) void persistMeta(state.kind !== "dir");
   else persistEdits();
   notify();
 }
@@ -351,7 +351,7 @@ export async function openDirHandle(
   const { files, dirs } = await readDir(handle);
   adopt(
     fromEntries(
-      writable ? "dir" : "memory",
+      writable ? "dir" : "folder",
       handle.name,
       writable ? handle : null,
       files,
@@ -360,11 +360,16 @@ export async function openDirHandle(
   );
 }
 
-export async function pickFolder(): Promise<boolean> {
+export async function pickFolder(
+  near: FileSystemFileHandle | null = null,
+): Promise<boolean> {
   if (window.showDirectoryPicker) {
     let handle: FileSystemDirectoryHandle;
     try {
-      handle = await window.showDirectoryPicker({ mode: "readwrite" });
+      handle = await window.showDirectoryPicker({
+        mode: "readwrite",
+        ...(near ? { startIn: near } : {}),
+      });
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError")
         return false;
@@ -403,7 +408,7 @@ async function openFileList(list: readonly File[]): Promise<void> {
     files.push([path, new Uint8Array(await file.arrayBuffer())]);
   }
   const dirs = new Set(files.flatMap(([path]) => parentDirs(path)));
-  adopt(fromEntries("memory", root || "төсөл", null, files, dirs));
+  adopt(fromEntries("folder", root || "төсөл", null, files, dirs));
 }
 
 export async function openZip(file: File): Promise<void> {
@@ -446,11 +451,11 @@ export async function restoreProject(): Promise<boolean> {
   const meta = await dbGet<Meta>(META_KEY);
   if (!meta) return false;
   const edits = (await dbGet<Record<string, string>>(EDITS_KEY)) ?? {};
-  if (meta.kind === "memory") {
+  if (meta.kind !== "dir") {
     const files = await dbGet<Record<string, Uint8Array>>(FILES_KEY);
     if (!files) return false;
     const next = fromEntries(
-      "memory",
+      meta.kind,
       meta.name,
       null,
       Object.entries(files),
@@ -737,7 +742,7 @@ export async function projectZip(): Promise<Blob> {
   });
 }
 
-export type SaveResult = "saved" | "downloaded" | "clean";
+export type SaveResult = "saved" | "downloaded" | "files" | "clean";
 
 export async function saveProject(): Promise<SaveResult> {
   const s = requireState();
@@ -756,21 +761,42 @@ export async function saveProject(): Promise<SaveResult> {
     changed(true);
     return "saved";
   }
-  const blob = await projectZip();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = s.name + ".zip";
-  document.body.append(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  if (s.kind === "folder") {
+    const dirty = [...dirtySet(s)].filter((path) => s.texts.has(path));
+    if (!dirty.length) return "clean";
+    for (const path of dirty) {
+      const text = s.texts.get(path)!;
+      download(
+        new Blob([text], { type: "text/plain;charset=utf-8" }),
+        baseName(path),
+      );
+      s.saved.set(path, text);
+      s.added.delete(path);
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    s.unsynced = false;
+    recountDirty(s);
+    changed(true);
+    return "files";
+  }
+  download(await projectZip(), s.name + ".zip");
   for (const [path, text] of s.texts) s.saved.set(path, text);
   s.added.clear();
   s.unsynced = false;
   recountDirty(s);
   changed(true);
   return "downloaded";
+}
+
+function download(blob: Blob, name: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 async function toPng(bytes: Uint8Array): Promise<Uint8Array | null> {
