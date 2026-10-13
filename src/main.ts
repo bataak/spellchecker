@@ -1603,6 +1603,8 @@ const fileIO = initFileIO({
     syncSaveHint();
     mdBar.refresh();
     enterMdMode(mdActive());
+    if (ref?.kind === "text")
+      queueMicrotask(() => projectLink?.fileOpened(ref.name));
   },
   saveProject: () => projectLink?.save() ?? Promise.resolve(null),
   openProjectZip: async (file) => {

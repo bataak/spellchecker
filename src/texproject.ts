@@ -162,6 +162,13 @@ export function graphicRefs(text: string): string[] {
   );
 }
 
+const FILE_REFERENCE =
+  /\\(?:input|include|subfile|import|subimport|includegraphics|bibliography|addbibresource|lstinputlisting|verbatiminput)\b\s*(?:\[[^\]]*\]\s*)?\{/;
+
+export function referencesFiles(text: string): boolean {
+  return FILE_REFERENCE.test(uncommented(text));
+}
+
 export function compilePasses(texts: Iterable<string>): number {
   let passes = 1;
   for (const text of texts) {
