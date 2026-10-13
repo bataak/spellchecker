@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.104.0](https://github.com/bataak/spellchecker/compare/v1.103.0...v1.104.0) (2026-10-13)
+
+
+### Features
+
+* **preview:** show the current PDF page number and jump to a typed page ([37f12ee](https://github.com/bataak/spellchecker/commit/37f12ee17720bbbc28457195654531847dd44e01))
+
+
+### Bug Fixes
+
+* **latex:** keep font map entries for bundled cm-super fonts and report pdfTeX fatal errors ([80cece7](https://github.com/bataak/spellchecker/commit/80cece737d5f281bd0e12c4f2ac5fe906cea2757))
+* **preview:** keep compiled PDFs per document and clear another document's PDF when switching slots ([cc9718b](https://github.com/bataak/spellchecker/commit/cc9718b76fc0218c10b1d783320ef6a8bb2cb338))
+* **preview:** reuse the last compiled PDF when returning to an unchanged LaTeX project ([fb00bb2](https://github.com/bataak/spellchecker/commit/fb00bb203847193c30dc9d0b85d87a9ded5af724))
+
 ## [1.103.0](https://github.com/bataak/spellchecker/compare/v1.102.2...v1.103.0) (2026-10-13)
 
 
