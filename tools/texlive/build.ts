@@ -610,11 +610,30 @@ function kernelFiles(): [string, string][] {
   return found;
 }
 
-function trimMap(map: string, fonts: ReadonlySet<string>): string {
+function mapFiles(line: string): string[] {
+  return [...line.matchAll(/<[<[]?([^\s"<[]+)/g)].map((match) => match[1]!);
+}
+
+function servable(line: string, files: ReadonlyMap<string, string>): boolean {
+  const refs = mapFiles(line);
+  return (
+    refs.some((ref) => ref.endsWith(".pfb")) &&
+    refs.every((ref) => files.has(ref))
+  );
+}
+
+function trimMap(
+  map: string,
+  fonts: ReadonlySet<string>,
+  files: ReadonlyMap<string, string>,
+): string {
   return (
     map
       .split("\n")
-      .filter((line) => fonts.has(line.split(/\s+/, 1)[0] ?? ""))
+      .filter(
+        (line) =>
+          fonts.has(line.split(/\s+/, 1)[0] ?? "") || servable(line, files),
+      )
       .join("\n") + "\n"
   );
 }
@@ -668,14 +687,17 @@ async function main(): Promise<void> {
     }
     bundle[name] =
       name === "pdftex.map"
-        ? new TextEncoder().encode(trimMap(readFileSync(path, "utf8"), fonts))
+        ? new TextEncoder().encode(
+            trimMap(readFileSync(path, "utf8"), fonts, files),
+          )
         : new Uint8Array(readFileSync(path));
   }
 
   const zip = zipSync(bundle, { level: 9, mtime: new Date("2026-01-01") });
   const hash = createHash("sha256").update(zip).digest("hex").slice(0, 12);
   const fontSum = createHash("sha256");
-  for (const [name, path] of lazy) fontSum.update(name).update(readFileSync(path));
+  for (const [name, path] of lazy)
+    fontSum.update(name).update(readFileSync(path));
   const fontDir = "fonts-" + fontSum.digest("hex").slice(0, 12);
   const engineJs = patchEngine(
     readFileSync(join(ENGINE, "swiftlatexpdftex.js"), "utf8"),
