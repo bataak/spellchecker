@@ -841,7 +841,7 @@ async function showPopoverFor(token: Token): Promise<void> {
         .join("")
     : els.editor.readOnly
       ? '<button class="sg sg-manual pop-fix-open" type="button">' +
-        'санал алга — <span class="pop-fix-cue">өөрөө засах</span></button>'
+        'санал алга — <span class="pop-fix-cue">засах</span></button>'
       : '<div class="muted pop-empty">санал алга</div>';
   els.popover.innerHTML =
     '<div class="pop-scroll">' +
@@ -927,20 +927,12 @@ function openManualFix(token: Token, trigger: HTMLElement): void {
   input.setAttribute("autocapitalize", "off");
   input.setAttribute("enterkeyhint", "done");
   input.setAttribute("aria-label", "Зөв бичлэгийг өөрөө бичих");
-  input.setAttribute("aria-describedby", "popFixNote");
   const submit = document.createElement("button");
   submit.type = "submit";
   submit.className = "pop-fix-ok";
   submit.textContent = "Засах";
   form.append(input, submit);
-  const note = document.createElement("div");
-  note.id = "popFixNote";
-  note.className = "pop-fix-note";
-  note.textContent =
-    "Кирилл, латин үсэг ба . , ; - тэмдэгт, " + MANUAL_FIX_WORDS + " хүртэл үг";
-  const box = document.createElement("div");
-  box.append(form, note);
-  trigger.replaceWith(box);
+  trigger.replaceWith(form);
   kbLayout.attach(input);
 
   let accepted = input.value;
@@ -959,8 +951,7 @@ function openManualFix(token: Token, trigger: HTMLElement): void {
         : filterManualFix(raw.slice(0, caret)).length;
       input.value = value;
       input.setSelectionRange(at, at);
-      note.classList.add("pop-fix-note-warn");
-    } else note.classList.remove("pop-fix-note-warn");
+    }
     accepted = input.value;
     refresh();
   };
