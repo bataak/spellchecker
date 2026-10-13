@@ -33,6 +33,20 @@ test("PDF алдааны мессеж шалтгаан ба байршлыг М�
     "PDF үүсгэж чадсангүй: Bad math environment delimiter. — «ана. $\\displaymath c+1$»",
   );
   assert.equal(new PdfError("").message, "PDF үүсгэж чадсангүй.");
+  const fatal = [
+    "pdfTeX warning (ext4): destination with the same identifier (name{page.3}) has been already used, duplicate ignored",
+    "",
+    "\\pgfpages@shipoutshipoutbox ...physicalpagesizes }",
+    "                                                  \\endgroup ",
+    "l.36 \\end{frame}",
+    "                   ]",
+    "!pdfTeX error:  (file tcss0800): Font tcss0800 at 600 not found",
+    " ==> Fatal error occurred, no output PDF file produced!",
+  ].join("\n");
+  assert.equal(
+    new PdfError(fatal).message,
+    "PDF үүсгэж чадсангүй: Font tcss0800 at 600 not found",
+  );
 });
 
 test("гарчгийн жагсаалт зөвхөн бүлэгтэй баримтад", async () => {
