@@ -237,6 +237,7 @@ function resolveImages(root: HTMLElement): void {
 
 export type PreviewSource =
   | { kind: "pdf"; file: File }
+  | { kind: "image"; file: File }
   | { kind: "office"; name: string };
 
 const MD_NAME = /\.(md|markdown|mdown|mkd)$/i;
@@ -379,6 +380,7 @@ export function initPreview(
   let isMdFile = false;
   let markdownMode = false;
   let source: PreviewSource | null = null;
+  let imageUrl: string | null = null;
   let sourceText = "";
   let pdfView: import("./pdfview.ts").PdfView | null = null;
 
@@ -713,6 +715,8 @@ export function initPreview(
     setTexMode(false);
     tidy.hidden = true;
     dropPdf();
+    if (imageUrl) URL.revokeObjectURL(imageUrl);
+    imageUrl = null;
 
     panel.classList.remove("is-blank");
 
@@ -726,12 +730,26 @@ export function initPreview(
     }
 
     sourceText = area.value;
-    const name = next.kind === "pdf" ? next.file.name : next.name;
+    const name = next.kind === "office" ? next.name : next.file.name;
     title.textContent = `${HEAD_TEXT} · ${name}`;
     panel.classList.toggle("is-pdf", next.kind === "pdf");
 
     if (next.kind === "pdf") {
       void renderPdf(next.file);
+      return;
+    }
+    if (next.kind === "image") {
+      imageUrl = URL.createObjectURL(next.file);
+      const image = document.createElement("img");
+      image.className = "preview-image";
+      image.alt = next.file.name;
+      image.src = imageUrl;
+      image.addEventListener("error", () =>
+        showNotice("Зургийг харуулж чадсангүй"),
+      );
+      shownHtml = null;
+      body.replaceChildren(image);
+      body.classList.remove("is-empty");
       return;
     }
     showNotice("Уг файлыг үзүүлэх боломжгүй");
@@ -789,6 +807,7 @@ export function initPreview(
     setMarkdownMode,
     setSource,
     destroy() {
+      if (imageUrl) URL.revokeObjectURL(imageUrl);
       if (raf) cancelAnimationFrame(raf);
       if (texTimer) clearTimeout(texTimer);
       cancelRetry();

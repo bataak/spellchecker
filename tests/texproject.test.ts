@@ -20,6 +20,7 @@ import {
   skippedPath,
   texMaster,
   validName,
+  viewableType,
 } from "../src/texproject.ts";
 
 test("cleanPath: цэг, давхар зураас, .. замыг цэгцэлнэ", () => {
@@ -228,4 +229,12 @@ test("findMain: TeX-master заасан файлыг илүүд үзнэ", () =>
     ),
     "F.CSA304_Lecture.tex",
   );
+});
+
+test("viewableType: PDF ба зургийн төрлийг өгнө", () => {
+  assert.equal(viewableType("img/fig.PDF"), "application/pdf");
+  assert.equal(viewableType("a/b.jpg"), "image/jpeg");
+  assert.equal(viewableType("logo.svg"), "image/svg+xml");
+  assert.equal(viewableType("main.tex"), null);
+  assert.equal(viewableType("font.pfb"), null);
 });

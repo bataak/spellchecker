@@ -2748,3 +2748,12 @@ html.booting .empty-state {
     transition: none;
   }
 }
+
+.preview-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 56px auto 24px;
+  padding: 0 var(--preview-pad);
+  box-sizing: border-box;
+}
