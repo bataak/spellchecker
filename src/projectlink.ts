@@ -15,7 +15,7 @@ import {
   setMain,
   setProjectText,
 } from "./projectstore.ts";
-import { baseName, isTexSource } from "./texproject.ts";
+import { baseName, isTexSource, referencesFiles } from "./texproject.ts";
 import { TEMPLATE_INPUT } from "./undohistory.ts";
 
 const SLOT_KEY = "mn-spell:project-slot";
@@ -46,6 +46,7 @@ export interface ProjectLink {
   readonly openDir: (handle: FileSystemDirectoryHandle) => Promise<void>;
   readonly restore: () => Promise<void>;
   readonly sync: () => void;
+  readonly fileOpened: (name: string) => void;
 }
 
 interface Place {
@@ -332,5 +333,9 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
       panel.sync();
     },
     sync: panel.sync,
+    fileOpened(name) {
+      if (project() !== null) return;
+      panel.show(isTexSource(name) && referencesFiles(editor.value));
+    },
   };
 }

@@ -12,6 +12,7 @@ import {
   mapGraphics,
   movedPath,
   parentDirs,
+  referencesFiles,
   resolveGraphic,
   rootedPath,
   skippedPath,
@@ -147,5 +148,24 @@ test("buildTree: хавтсыг эхэнд, нэрээр эрэмбэлнэ", ()
   assert.deepEqual(
     tree[0]!.children.map((node) => node.path),
     ["ch/a.tex", "ch/b.tex"],
+  );
+});
+
+test("referencesFiles: өөр файл ашигладаг эсэхийг тодорхойлно", () => {
+  assert.equal(referencesFiles("\\input{chapters/intro}"), true);
+  assert.equal(referencesFiles("\\include{ch1}"), true);
+  assert.equal(
+    referencesFiles("\\includegraphics[width=3cm]{img/a.png}"),
+    true,
+  );
+  assert.equal(referencesFiles("\\bibliography{refs}"), true);
+  assert.equal(referencesFiles("\\addbibresource{refs.bib}"), true);
+  assert.equal(referencesFiles("% \\input{old}\nЭнгийн бичвэр"), false);
+  assert.equal(referencesFiles("\\inputencoding{utf8}"), false);
+  assert.equal(
+    referencesFiles(
+      "\\documentclass{article}\n\\begin{document}Сайн\\end{document}",
+    ),
+    false,
   );
 });
