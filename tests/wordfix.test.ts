@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { replaceAllWord } from "../src/wordfix.ts";
+import { replaceAllWord, splitEveryOccurrence } from "../src/wordfix.ts";
 import { skipRanges } from "../src/codeskip.ts";
 
 test("алгассан код блок дахь үгийг солихгүй", () => {
@@ -20,4 +20,20 @@ test("алгассан код блок дахь үгийг солихгүй", ()
 test("алгасах муж өгөөгүй бол бүх тохиолдлыг сольно", () => {
   const out = replaceAllWord("helo ба helo", "helo", "hello", 0, "lower");
   assert.equal(out.text, "hello ба hello");
+});
+
+test("цэгээр салгахад холбоос, inline код доторх үгийг өөрчлөхгүй", () => {
+  const text = "байна.Тэгээд\nhttps://example.mn/байна.Тэгээд\n`байна.Тэгээд` байна.Тэгээд";
+  const out = splitEveryOccurrence(
+    text,
+    "байна.Тэгээд",
+    5,
+    0,
+    skipRanges(text, { code: true }),
+  );
+  assert.equal(
+    out?.text,
+    "байна. Тэгээд\nhttps://example.mn/байна.Тэгээд\n`байна.Тэгээд` байна. Тэгээд",
+  );
+  assert.equal(out?.caret, 13);
 });

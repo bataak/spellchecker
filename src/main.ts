@@ -1068,8 +1068,10 @@ async function applySuggestion(
 ): Promise<void> {
   pendingFix = null;
   const editorText = els.editor.value;
+  const fences = plainFences(editorText, token.word);
+  const skip = mergeRanges([...skipFor(editorText), ...fences]);
 
-  const dashFix = dashNormalizeApply(editorText, token, replacement);
+  const dashFix = dashNormalizeApply(editorText, token, replacement, skip);
   if (dashFix) {
     await commitReplacement(dashFix.text, dashFix.caret);
     return;
@@ -1082,6 +1084,7 @@ async function applySuggestion(
       token.word,
       dot,
       token.start,
+      skip,
     );
     if (split) {
       await commitReplacement(split.text, split.caret);
@@ -1089,7 +1092,6 @@ async function applySuggestion(
     }
   }
 
-  const fences = plainFences(editorText, token.word);
   const inFence = inRanges(fences, token.start);
   const onlyAt =
     inFence || isDashSuffix(editorText, token) ? token.start : null;
@@ -1100,9 +1102,7 @@ async function applySuggestion(
     token.end,
     casePattern(token.word),
     onlyAt,
-    inFence
-      ? skipFor(editorText)
-      : mergeRanges([...skipFor(editorText), ...fences]),
+    inFence ? skipFor(editorText) : skip,
   );
   if (nt === editorText) {
     hidePopover();
