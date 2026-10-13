@@ -46,6 +46,7 @@ function saveZoom(zoom: number): void {
 const PDF_CACHE = "tex-preview";
 const PDF_KEY = "tex-preview/last.pdf";
 const PDF_TEXT_KEY = "tex-preview/last.tex";
+const KEPT_PDFS = 3;
 
 async function textKey(text: string): Promise<string | null> {
   try {
@@ -256,6 +257,7 @@ export function initPreview(
   onFormat?: (next: string) => void,
   isLatex: (text: string) => boolean = () => false,
   projectKey: () => string | null = () => null,
+  inProject: () => boolean = () => false,
 ): Preview {
   const panel = document.createElement("section");
   panel.className = "preview-panel";
@@ -489,12 +491,15 @@ export function initPreview(
   let texTimer = 0;
   let texSeq = 0;
   let texRestored = false;
-  let lastPdf: {
-    readonly key: string;
-    readonly text: string;
-    readonly pdf: Uint8Array<ArrayBuffer>;
-    readonly missing: readonly string[];
-  } | null = null;
+  let pdfOfProject = false;
+  const keptPdfs = new Map<
+    string,
+    {
+      readonly text: string;
+      readonly pdf: Uint8Array<ArrayBuffer>;
+      readonly missing: readonly string[];
+    }
+  >();
 
   const renderMarkdown = (): void => {
     const text = area.value;
@@ -665,14 +670,17 @@ export function initPreview(
     }
     const seq = ++texSeq;
     compileBtn.disabled = true;
-    const kept = lastPdf;
-    if (kept?.key === key && !pdfView) {
+    const kept = keptPdfs.get(key);
+    if (kept) {
+      keptPdfs.delete(key);
+      keptPdfs.set(key, kept);
       const shown = await showPdfBytes(kept.pdf, seq).catch(() => false);
       if (seq !== texSeq) return;
       compileBtn.disabled = false;
       if (shown) {
         texRestored = true;
         pdfText = kept.text;
+        pdfOfProject = project !== null;
         texShown = key;
         setTexError(null);
         setTexMissing(kept.missing);
@@ -680,6 +688,7 @@ export function initPreview(
       }
     }
     if (!texRestored && project === null && (await restoreTex(text, seq))) {
+      pdfOfProject = false;
       texShown = key;
       return;
     }
@@ -687,8 +696,8 @@ export function initPreview(
     if (seq !== texSeq || !texMode) return;
     if (
       pdfView &&
-      project === null &&
-      (pdfText === null || !isEditOf(text, pdfText))
+      (pdfOfProject !== (project !== null) ||
+        (project === null && (pdfText === null || !isEditOf(text, pdfText))))
     ) {
       dropPdf();
       setTexError(null);
@@ -712,7 +721,11 @@ export function initPreview(
       if (!(await showPdfBytes(pdf, seq))) return;
       pdfText = text;
       texShown = key;
-      lastPdf = { key, text, pdf, missing };
+      pdfOfProject = project !== null;
+      keptPdfs.delete(key);
+      keptPdfs.set(key, { text, pdf, missing });
+      while (keptPdfs.size > KEPT_PDFS)
+        keptPdfs.delete(keptPdfs.keys().next().value!);
       retries = 0;
       setTexError(null);
       setTexMissing(missing);
@@ -778,6 +791,16 @@ export function initPreview(
     }
     setTexMode(isLatex(area.value));
     if (texMode) {
+      const project = inProject();
+      if (
+        pdfView &&
+        (pdfOfProject !== project ||
+          (!project && pdfText !== null && !isEditOf(area.value, pdfText)))
+      ) {
+        dropPdf();
+        setTexError(null);
+        setTexMissing([]);
+      }
       if (texTimer) clearTimeout(texTimer);
       texTimer = window.setTimeout(
         () => void renderTex(),

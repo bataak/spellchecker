@@ -1429,6 +1429,7 @@ if (editorWrap) {
     },
     isLatexText,
     () => projectLink?.key() ?? null,
+    () => projectLink?.bound() ?? false,
   );
 }
 
@@ -1677,7 +1678,9 @@ const mdBar = initMdToolbar({
 });
 function swapTemplateFile(from: string, to: string): void {
   if (from === to) return;
+  const wasBound = projectLink?.bound() ?? false;
   projectLink?.unbind(true);
+  if (wasBound) previewCtl?.update();
   swapSeq++;
   const office = docxFile
     ? docxFile.name
