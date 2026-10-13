@@ -10,6 +10,7 @@ import {
   graphicRefs,
   graphicsPaths,
   isLatexDocument,
+  masterPath,
   mapGraphics,
   movedPath,
   parentDirs,
@@ -17,6 +18,7 @@ import {
   resolveGraphic,
   rootedPath,
   skippedPath,
+  texMaster,
   validName,
 } from "../src/texproject.ts";
 
@@ -196,5 +198,34 @@ test("findMain: энгийн бичвэртэй .tex файлыг үндсэн �
       ]),
     ),
     null,
+  );
+});
+
+test("texMaster ба masterPath: AUCTeX-ийн TeX-master мөрийг уншина", () => {
+  const sub =
+    "\\section{Оршил}\n\n%%% Local Variables:\n%%% mode: LaTeX\n" +
+    '%%% TeX-master: "../F.CSA304_Lecture"\n%%% End:\n';
+  assert.equal(texMaster(sub), "../F.CSA304_Lecture");
+  assert.equal(texMaster("%%% TeX-master: t\n"), null);
+  assert.equal(texMaster("Энгийн бичвэр"), null);
+  assert.equal(
+    masterPath("chapters/intro.tex", "../F.CSA304_Lecture"),
+    "F.CSA304_Lecture.tex",
+  );
+  assert.equal(masterPath("a.tex", "main.ltx"), "main.ltx");
+  assert.equal(masterPath("a.tex", "../../x"), null);
+});
+
+test("findMain: TeX-master заасан файлыг илүүд үзнэ", () => {
+  const doc = "\\documentclass{article}\\begin{document}\\end{document}";
+  assert.equal(
+    findMain(
+      new Map([
+        ["main.tex", doc],
+        ["F.CSA304_Lecture.tex", doc],
+        ["chapters/one.tex", '%%% TeX-master: "../F.CSA304_Lecture"\n'],
+      ]),
+    ),
+    "F.CSA304_Lecture.tex",
   );
 });
