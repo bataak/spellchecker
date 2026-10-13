@@ -1585,6 +1585,7 @@ const mdBar = initMdToolbar({
 });
 function swapTemplateFile(from: string, to: string): void {
   if (from === to) return;
+  closeDocx();
   const left = fileIO.takeFile();
   if (left) templateFiles.set(from, left);
   else templateFiles.delete(from);
