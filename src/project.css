@@ -368,17 +368,26 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
+  height: 32px;
   padding: 5px 7px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: color-mix(in srgb, var(--editor-bg) 72%, transparent);
   color: var(--muted);
   cursor: pointer;
+  opacity: 0;
   backdrop-filter: blur(12px) saturate(125%);
   -webkit-backdrop-filter: blur(12px) saturate(125%);
   transition:
     opacity 0.15s ease,
     background 0.15s ease;
+}
+
+.editor-tools:hover .project-toggle,
+.project-toggle:focus-visible,
+.project-toggle.is-shown {
+  opacity: 1;
 }
 
 .project-toggle[hidden] {
@@ -388,11 +397,28 @@
 .project-toggle:hover,
 .project-toggle:focus-visible {
   background: var(--editor-bg);
-  color: var(--ink);
+  color: var(--accent);
 }
 
 .project-toggle.is-on {
   color: var(--accent);
+}
+
+.project-glyph {
+  display: block;
+  width: 18px;
+  height: 14px;
+}
+
+.project-glyph-frame {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.project-glyph-slot {
+  fill: currentColor;
+  stroke: none;
 }
 
 .project-foot {
