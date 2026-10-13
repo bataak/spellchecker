@@ -774,8 +774,9 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
 
   const openZipFile = (file: File): Promise<void> =>
     run(async () => {
+      const prefer = deps.openedFile()?.name;
       await openZip(file);
-      opened();
+      opened(prefer);
     });
 
   zipInput.addEventListener("change", () => {

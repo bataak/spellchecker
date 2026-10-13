@@ -43,6 +43,11 @@ export interface ProjectLinkDeps {
   readonly inSlot: () => boolean;
   readonly enterSlot: () => void;
   readonly closeFileSlot: (id: string) => void;
+  readonly fileSlots: () => {
+    id: string;
+    name: string;
+    text: string | null;
+  }[];
   readonly layout: () => void;
   readonly notify: (message: string) => void;
 }
@@ -192,8 +197,8 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     if (!view?.active) return;
     if (!fresh) {
       if (deps.inSlot()) adopt(false);
-      if (bound) return;
-      openFile(view.active);
+      if (!bound) openFile(view.active);
+      absorb();
       return;
     }
     const fromSlot = deps.slot();
@@ -212,6 +217,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     openFile(target ?? view.active);
     if (target !== null && fromSlot !== deps.slot())
       deps.closeFileSlot(fromSlot);
+    absorb();
   };
 
   const locate = (
@@ -227,6 +233,20 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
       matches.sort((a, b) => a.split("/").length - b.split("/").length)[0] ??
       null
     );
+  };
+
+  const absorb = (): void => {
+    const view = project();
+    if (!view || view.pending) return;
+    for (const slot of deps.fileSlots()) {
+      if (slot.text === null || slot.id === deps.slot()) continue;
+      const same = view.files.some(
+        (path) =>
+          (path === slot.name || baseName(path) === slot.name) &&
+          projectText(path) === slot.text,
+      );
+      if (same) deps.closeFileSlot(slot.id);
+    }
   };
 
   const enter = (): void => {
@@ -390,10 +410,13 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
         )
       )
         return;
+      const name = deps.fileName();
+      const prefer =
+        name && !bound && /\.(tex|ltx)$/i.test(name) ? name : undefined;
       try {
         await openDirHandle(handle);
         panel.show(true);
-        opened(true);
+        opened(true, prefer);
       } catch (error) {
         fail(error);
       }
@@ -410,6 +433,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
         return;
       }
       adopt(false);
+      absorb();
       panel.sync();
     },
     sync: panel.sync,

@@ -1814,6 +1814,7 @@ if (workspaceEl)
     inSlot: () => mdBar.template() === PROJECT_SLOT,
     enterSlot: () => mdBar.enterProject(),
     closeFileSlot: (id) => mdBar.closeFile(id, true),
+    fileSlots: () => mdBar.fileSlots(),
     onChange: () => {
       syncTexMode();
       previewCtl?.update();
