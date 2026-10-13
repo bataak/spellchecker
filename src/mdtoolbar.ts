@@ -400,7 +400,7 @@ function pickerOptions(
     escapeAttr(slot.name) +
     "</span>" +
     (dirty(slot)
-      ? '<span class="md-menu-dot" title="Хадгалаагүй өөрчлөлттэй"></span>'
+      ? '<span class="md-menu-dot" title="Хадгалагдаагүй"></span>'
       : "") +
     "</button>" +
     '<button type="button" class="md-menu-close" tabindex="-1" data-close="' +
@@ -419,7 +419,7 @@ function pickerOptions(
       escapeAttr(project.name) +
       '</span><span class="md-menu-kind">төсөл</span>' +
       (project.dirty
-        ? '<span class="md-menu-dot" title="Хадгалаагүй өөрчлөлттэй"></span>'
+        ? '<span class="md-menu-dot" title="Хадгалагдаагүй"></span>'
         : "") +
       "</button>" +
       '<button type="button" class="md-menu-close" tabindex="-1" data-close="' +
@@ -895,7 +895,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       !force &&
       isDirty(slot) &&
       !window.confirm(
-        "«" + slot.name + "» хадгалаагүй өөрчлөлттэй. Файлыг хаах уу?",
+        "«" + slot.name + "» хадгалагдаагүй байна. Файлыг хаах уу?",
       )
     )
       return;

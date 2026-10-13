@@ -376,7 +376,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     if (view.dirty.has(node.path)) {
       const dot = document.createElement("span");
       dot.className = "project-dot";
-      dot.title = "Хадгалаагүй өөрчлөлттэй";
+      dot.title = "Хадгалагдаагүй";
       row.append(dot);
     }
     const more = document.createElement("button");
@@ -852,7 +852,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     const view = project();
     if (
       view?.unsaved &&
-      !window.confirm("Хадгалаагүй өөрчлөлт байна. Төслийг хаах уу?")
+      !window.confirm("Төсөлд хадгалагдаагүй файл байна. Төслийг хаах уу?")
     )
       return;
     closeProject();
