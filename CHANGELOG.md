@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.102.1](https://github.com/bataak/spellchecker/compare/v1.102.0...v1.102.1) (2026-10-13)
+
+
+### Bug Fixes
+
+* **fixes:** skip links and code when splitting at a period or normalizing a dash ([#228](https://github.com/bataak/spellchecker/issues/228)) ([e014b0f](https://github.com/bataak/spellchecker/commit/e014b0fecbcebdf6dba7b5b6af56520be569fab2))
+* **markdown:** close indented code fences and strip their indent ([#230](https://github.com/bataak/spellchecker/issues/230)) ([d1089ff](https://github.com/bataak/spellchecker/commit/d1089ff399fd61cfed18947370a7e34ffe196f0f))
+* **office:** stop reading DOCX/PPTX tab stop definitions as tab characters ([#229](https://github.com/bataak/spellchecker/issues/229)) ([eebffb0](https://github.com/bataak/spellchecker/commit/eebffb07b70e03786203202024747970756063ca))
+* **pdf:** keep m², m³ unit powers instead of reading them as CP1251 letters ([#231](https://github.com/bataak/spellchecker/issues/231)) ([67de19a](https://github.com/bataak/spellchecker/commit/67de19a26e5814a03d8da154d518edf25fa010e2))
+* **templates:** close an open DOCX when switching to another template ([#227](https://github.com/bataak/spellchecker/issues/227)) ([b9668db](https://github.com/bataak/spellchecker/commit/b9668dbc2191fe296e4004db28b1408960e36e2b))
+* **templates:** keep an open DOCX with its template and reopen it read-only on return ([#227](https://github.com/bataak/spellchecker/issues/227)) ([e9ccf3b](https://github.com/bataak/spellchecker/commit/e9ccf3bf03372d0dccefeaa243ff8393cbc34a9e))
+
 ## [1.102.0](https://github.com/bataak/spellchecker/compare/v1.101.0...v1.102.0) (2026-10-13)
 
 
