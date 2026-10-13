@@ -191,7 +191,12 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   foot.className = "project-foot";
   const spacer = document.createElement("span");
   spacer.className = "project-foot-gap";
-  foot.append(newFileBtn, newDirBtn, refreshBtn, spacer, exportBtn, closeBtn);
+  foot.append(newFileBtn, newDirBtn, refreshBtn, spacer, exportBtn);
+  closeBtn.classList.add("project-close");
+  const headGap = document.createElement("span");
+  headGap.className = "project-foot-gap";
+  head.insertBefore(closeBtn, hideBtn);
+  head.insertBefore(headGap, hideBtn);
 
   panel.append(head, tree, empty, foot, zipInput);
   deps.workspace.prepend(panel);
@@ -406,6 +411,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
         : view.name + " — энэ хөтөч дотор хадгалагдана"
       : "";
     headIcon.hidden = view === null;
+    closeBtn.hidden = !ready;
     refreshBtn.hidden = !ready || view.kind !== "dir";
     exportBtn.hidden = !ready;
     exportBtn.classList.toggle(
