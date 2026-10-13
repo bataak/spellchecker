@@ -1,13 +1,50 @@
 const UPSTREAMS = {
   2026: [
-    "https://mirrors.ctan.org/systems/texlive/tlnet/archive/",
     "https://mirror.math.princeton.edu/pub/CTAN/systems/texlive/tlnet/archive/",
     "https://ftp.fau.de/ctan/systems/texlive/tlnet/archive/",
+    "https://mirrors.ctan.org/systems/texlive/tlnet/archive/",
   ],
 };
 const PATH = /^\/(\d{4})\/([A-Za-z0-9][A-Za-z0-9_-]{0,99})\.tar\.xz$/;
 const UPSTREAM_TIMEOUT_MS = 25000;
 const CACHE_SECONDS = 7 * 24 * 60 * 60;
+const CACHE_VERSION = "v2";
+const XZ_MAGIC = [0xfd, 0x37, 0x7a, 0x58, 0x5a, 0x00];
+
+async function asXz(response) {
+  if (!response.body) return null;
+  const reader = response.body.getReader();
+  let head = new Uint8Array(0);
+  while (head.length < XZ_MAGIC.length) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const next = new Uint8Array(head.length + value.length);
+    next.set(head);
+    next.set(value, head.length);
+    head = next;
+  }
+  if (!XZ_MAGIC.every((byte, i) => head[i] === byte)) {
+    await reader.cancel().catch(() => undefined);
+    return null;
+  }
+  const body = new ReadableStream({
+    start(controller) {
+      controller.enqueue(head);
+    },
+    async pull(controller) {
+      const { done, value } = await reader.read();
+      if (done) controller.close();
+      else controller.enqueue(value);
+    },
+    cancel(reason) {
+      return reader.cancel(reason);
+    },
+  });
+  return new Response(body, {
+    status: response.status,
+    headers: response.headers,
+  });
+}
 
 function allowedOrigin(origin, env) {
   if (!origin) return null;
@@ -56,7 +93,6 @@ async function fromUpstream(year, name) {
       upstream = await fetch(base + name + ".tar.xz", {
         redirect: "follow",
         signal: controller.signal,
-        cf: { cacheTtl: CACHE_SECONDS, cacheEverything: true },
       });
     } catch {
       continue;
@@ -68,6 +104,8 @@ async function fromUpstream(year, name) {
       continue;
     }
     if (!upstream.ok) continue;
+    const checked = await asXz(upstream).catch(() => null);
+    if (!checked) continue;
     const length = Number(upstream.headers.get("Content-Length") ?? 0);
     const headers = new Headers({
       "Content-Type": "application/x-xz",
@@ -80,7 +118,7 @@ async function fromUpstream(year, name) {
     }
     return {
       status: 200,
-      response: new Response(upstream.body, { status: 200, headers }),
+      response: new Response(checked.body, { status: 200, headers }),
     };
   }
   return { status };
@@ -99,10 +137,16 @@ export default {
     if (!match || !UPSTREAMS[match[1]]) return reply(404, origin);
     const [, year, name] = match;
 
-    const key = new Request(url.origin + url.pathname, { method: "GET" });
+    const key = new Request(url.origin + "/" + CACHE_VERSION + url.pathname, {
+      method: "GET",
+    });
     const cache = caches.default;
     const hit = await cache.match(key);
-    if (hit) return withCors(hit, origin);
+    if (hit) {
+      const checked = await asXz(hit).catch(() => null);
+      if (checked) return withCors(checked, origin);
+      ctx.waitUntil(cache.delete(key).catch(() => undefined));
+    }
 
     const result = await fromUpstream(year, name);
     if (!result.response) return reply(result.status, origin);

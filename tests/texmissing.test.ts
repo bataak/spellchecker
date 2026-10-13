@@ -39,3 +39,11 @@ test("алдаагүй лог дээр юу ч татахгүй", () => {
     [],
   );
 });
+
+test("babel-ийн танигдаагүй хэлний .ldf файлыг хайна", () => {
+  const log =
+    "! Package babel Error: Unknown option 'english'.\n(babel)                Suggested actions:";
+  const files = wantedFiles(log, ["english.ldf"]);
+  assert.ok(files.includes("english.ldf"));
+  assert.ok(files.includes("babel-english.tex"));
+});

@@ -78,7 +78,7 @@ const engineFiles = new WeakMap<Worker, EngineFiles>();
 const sessionPackages = new Set<string>();
 const PACKAGE_ROUNDS = 8;
 const PACKAGE_ERROR =
-  /File `[^']+' not found|I can't find file|Metric \(TFM\) file not found|cannot open Type 1 font file|cannot open encoding file|Font \S+ at \d+ not found/;
+  /File `[^']+' not found|I can't find file|Metric \(TFM\) file not found|cannot open Type 1 font file|cannot open encoding file|Font \S+ at \d+ not found|Package babel Error: Unknown option/;
 
 let packageNotice: ((message: string | null) => void) | null = null;
 
