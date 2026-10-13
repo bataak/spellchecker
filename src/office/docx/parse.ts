@@ -60,6 +60,7 @@ const SKIPPED_ELEMENTS = new Set([
   "w:delInstrText",
   "w:delText",
   "w:sdtPr",
+  "w:tabs",
 ]);
 
 const SEPARATORS: Record<string, string> = {
@@ -96,7 +97,7 @@ export const SLIDE_VOCAB: Vocab = {
   run: "a:r",
   runProps: "a:rPr",
   text: "a:t",
-  skipped: new Set(["a:fld", "p:pic", "a:blip", "mc:Fallback"]),
+  skipped: new Set(["a:fld", "p:pic", "a:blip", "mc:Fallback", "a:tabLst"]),
   separators: { "a:br": "\n", "a:tab": "\t" },
   glyphs: {},
   stale: new Set<string>(),
