@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.102.0](https://github.com/bataak/spellchecker/compare/v1.101.0...v1.102.0) (2026-10-13)
+
+
+### Features
+
+* **keyboard:** distinguish MN and EN layout indicator colors ([2ab5aed](https://github.com/bataak/spellchecker/commit/2ab5aede908c1cae05c9fc9a61980c168c7aa2c9))
+* **office:** let read-only documents take a typed fix when no suggestion exists ([188636a](https://github.com/bataak/spellchecker/commit/188636af09431a28ffbf764b988811e809e31425))
+* **office:** limit typed fixes to Cyrillic/Latin letters, . , ; - and five words ([5962e81](https://github.com/bataak/spellchecker/commit/5962e819a6ee5959106d732af46d315fd2b7ac74))
+* **office:** shorten manual fix label and drop the input hint ([98a1547](https://github.com/bataak/spellchecker/commit/98a154796f2f4d35450603e8fb94925bffc57111))
+* **tex:** compile XeLaTeX documents with pdfLaTeX and add Cyrillic encoding automatically ([545af3e](https://github.com/bataak/spellchecker/commit/545af3efcd58000bade99ef72e4d786bf8b666a9))
+* **tex:** fetch missing TeX Live packages on demand through a Cloudflare Worker ([b3b1707](https://github.com/bataak/spellchecker/commit/b3b1707cd0d987338735d4b8947fcd7c875810a2))
+
+
+### Bug Fixes
+
+* **keyboard:** ignore forced-layout typing in read-only editor ([22e0847](https://github.com/bataak/spellchecker/commit/22e08474f5f9adc0e4c621f18b1c2deca90df228)), closes [#226](https://github.com/bataak/spellchecker/issues/226)
+* **office:** keep an opened office document in office mode across reloads ([14c7b7b](https://github.com/bataak/spellchecker/commit/14c7b7bc8c1bcdb4548e719673a051e236021601))
+* **preview:** show a previous PDF only while editing the same LaTeX document ([df390e6](https://github.com/bataak/spellchecker/commit/df390e65ddc114b471a2533974d884e066b796eb))
+* **tex:** reject non-xz mirror replies in the Worker and fetch babel language files ([a9532bd](https://github.com/bataak/spellchecker/commit/a9532bd992c4d23f45bc95b4e35cc31bef98f208))
+
 ## [1.101.0](https://github.com/bataak/spellchecker/compare/v1.100.0...v1.101.0) (2026-10-12)
 
 
