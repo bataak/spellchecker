@@ -11,6 +11,7 @@ import {
   pickFolder,
   refreshProject,
   project,
+  projectText,
   removePath,
   renamePath,
   setMain,
@@ -21,6 +22,7 @@ import {
   buildTree,
   dirName,
   isEditablePath,
+  isLatexDocument,
   isTexSource,
   joinPath,
   validName,
@@ -589,7 +591,13 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     const items: MenuItem[] = [];
     if (!dir && isEditablePath(path))
       items.push({ label: "Нээх", run: () => activate(path) });
-    if (!dir && isTexSource(path) && view.main !== path)
+    const text = dir ? null : projectText(path);
+    if (
+      text !== null &&
+      isTexSource(path) &&
+      view.main !== path &&
+      isLatexDocument(text)
+    )
       items.push({ label: "Үндсэн файл болгох", run: () => setMain(path) });
     if (dir) {
       items.push({ label: "Шинэ файл", run: () => startCreate(false) });
@@ -736,6 +744,8 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     shownVersion = "";
     show(true);
     deps.onOpened(true, prefer);
+    const view = project();
+    if (view) deps.notify("«" + view.name + "» төслийг нээлээ");
     closeDrawer();
   };
 

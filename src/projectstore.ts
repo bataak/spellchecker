@@ -9,6 +9,7 @@ import {
   graphicRefs,
   graphicsPaths,
   isEditablePath,
+  isLatexDocument,
   isPdfGraphic,
   isTexSource,
   joinPath,
@@ -413,12 +414,11 @@ async function refreshFromDisk(): Promise<boolean> {
   return true;
 }
 
-function hasTex(s: State): boolean {
-  return [...s.texts.keys()].some(isTexSource);
-}
-
 function adopt(next: State): void {
-  if (!hasTex(next)) throw new ProjectError("Төсөлд .tex файл олдсонгүй");
+  if (next.main === null)
+    throw new ProjectError(
+      "Төсөлд \\documentclass болон \\begin{document} бүхий үндсэн .tex файл олдсонгүй",
+    );
   next.active = next.main ?? [...next.texts.keys()].find(isTexSource) ?? null;
   state = next;
   void persistMeta(true).then(() =>
@@ -659,7 +659,9 @@ export function setActive(path: string | null): void {
 
 export function setMain(path: string): void {
   const s = state;
-  if (!s || !isTexSource(path) || !s.texts.has(path) || s.main === path) return;
+  const text = s?.texts.get(path);
+  if (!s || !isTexSource(path) || text === undefined || s.main === path) return;
+  if (!isLatexDocument(text)) return;
   s.main = path;
   changed(true);
 }
