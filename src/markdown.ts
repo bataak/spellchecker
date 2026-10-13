@@ -935,10 +935,13 @@ function parseBlocks(src: string, top: boolean): Block[] {
     if (fence) {
       const start = i;
       const marker = fence[1]!;
+      const indent = line.length - line.trimStart().length;
       const body: string[] = [];
       i += 1;
-      while (i < lines.length && !lines[i]!.trimEnd().startsWith(marker)) {
-        body.push(lines[i]!);
+      while (i < lines.length && !lines[i]!.trim().startsWith(marker)) {
+        const text = lines[i]!;
+        const lead = text.length - text.trimStart().length;
+        body.push(text.slice(Math.min(indent, lead)));
         i += 1;
       }
       i += 1;
