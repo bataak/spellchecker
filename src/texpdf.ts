@@ -1,4 +1,5 @@
 import { unzipSync } from "fflate";
+import { unwrapLog } from "./texmissing.ts";
 import {
   TEX_BUNDLE,
   TEX_ENGINE,
@@ -43,9 +44,10 @@ function errorPlace(log: string): string | null {
 export class PdfError extends Error {
   readonly log: string;
 
-  constructor(log: string) {
+  constructor(raw: string) {
+    const log = unwrapLog(raw);
     const reason = /^! (?:LaTeX Error: )?(.+)$/m.exec(log)?.[1];
-    const place = errorPlace(log);
+    const place = errorPlace(raw);
     super(
       "PDF үүсгэж чадсангүй" +
         (reason ? ": " + reason : ".") +

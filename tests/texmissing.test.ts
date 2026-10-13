@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { wantedFiles } from "../src/texmissing.ts";
+import { unwrapLog, wantedFiles } from "../src/texmissing.ts";
 
 test("дутуу .sty файлыг LaTeX-ийн алдаанаас олно", () => {
   const log =
@@ -46,4 +46,20 @@ test("babel-ийн танигдаагүй хэлний .ldf файлыг хай�
   const files = wantedFiles(log, ["english.ldf"]);
   assert.ok(files.includes("english.ldf"));
   assert.ok(files.includes("babel-english.tex"));
+});
+
+test("79 тэмдэгтээр тасарсан фонтын алдааг таньж файлын нэрийг гаргана", () => {
+  const log =
+    "! Font OT1/PTSans-TLF/m/it/9=PTSans-Italic-tlf-ot1 at 9.0pt not loadable: Metri\n" +
+    "c (TFM) file not found.\n<to be read again>";
+  assert.equal(
+    "! Font OT1/PTSans-TLF/m/it/9=PTSans-Italic-tlf-ot1 at 9.0pt not loadable: Metri"
+      .length,
+    79,
+  );
+  assert.equal(
+    unwrapLog(log),
+    "! Font OT1/PTSans-TLF/m/it/9=PTSans-Italic-tlf-ot1 at 9.0pt not loadable: Metric (TFM) file not found.\n<to be read again>",
+  );
+  assert.ok(wantedFiles(log, []).includes("PTSans-Italic-tlf-ot1.tfm"));
 });
