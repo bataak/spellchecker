@@ -81,6 +81,15 @@ test("treats break, tab and soft hyphen as separators", () => {
   assert.equal(textOf(xml), "нэг\nхоёр\tгу\u00adрав");
 });
 
+test("ignores tab stop definitions in paragraph properties", () => {
+  const xml = doc(
+    '<w:p><w:pPr><w:tabs><w:tab w:val="left" w:pos="720"/>' +
+      '<w:tab w:val="right" w:pos="9000"/></w:tabs></w:pPr>' +
+      `${run("Сайн байна уу")}<w:r><w:tab/></w:r>${run("1")}</w:p>`,
+  );
+  assert.equal(textOf(xml), "Сайн байна уу\t1");
+});
+
 test("narrows a replacement to the differing span", () => {
   const narrowed = narrowEdit("харъяалал", "харъяллын", 10);
   assert.equal(narrowed.start, 15);
