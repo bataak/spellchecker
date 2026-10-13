@@ -18,7 +18,9 @@ html {
   --lookup-blend: multiply;
   --editor-bg: #ffffff;
   --focus: #b9b1a1;
-  --layout-accent: #c2410c;
+  --layout-accent: #0066b3;
+  --layout-accent-en: #b4541a;
+  --layout-on: #ffffff;
   --tex-bg: #fbf1c7;
   --tex-ink: #3c3836;
   --tex-cmd: #9d0006;
@@ -122,7 +124,9 @@ html {
   --lookup-blend: screen;
   --editor-bg: #211d16;
   --focus: #4a4438;
-  --layout-accent: #fb923c;
+  --layout-accent: #5aa9e6;
+  --layout-accent-en: #e8a06a;
+  --layout-on: #17150f;
   --tex-bg: #282828;
   --tex-ink: #ebdbb2;
   --tex-cmd: #fb4934;
@@ -2636,6 +2640,12 @@ html.booting .empty-state {
   cursor: pointer;
 }
 
+.layout-chip[data-layout="en"],
+.layout-badge[data-layout="en"],
+.editor[data-layout="en"] {
+  --layout-accent: var(--layout-accent-en);
+}
+
 .layout-chip[hidden] {
   display: none;
 }
@@ -2650,7 +2660,7 @@ html.booting .empty-state {
   padding: 2px 6px;
   border-radius: 5px;
   background: var(--layout-accent);
-  color: #fff;
+  color: var(--layout-on);
   font-family: var(--sans);
   font-size: 0.72rem;
   font-weight: 700;
