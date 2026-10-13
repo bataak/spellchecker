@@ -55,10 +55,11 @@ import {
   defineHint,
   exportHint,
   initHints,
+  keyboardHint,
   layoutHint,
+  modeHint,
   openHint,
   spellDictHint,
-  templateHint,
 } from "./hint.ts";
 import { isPlain, PLAIN } from "./templates.ts";
 import { initExport, type ExportControl } from "./export.ts";
@@ -81,7 +82,7 @@ import {
 import { shiftTokens } from "./tokenshift.ts";
 import { texSpans } from "./texhighlight.ts";
 import { initTexComplete } from "./texcomplete.ts";
-import { initKeyboardLayout } from "./kblayout.ts";
+import { caretPoint, initKeyboardLayout } from "./kblayout.ts";
 import {
   MANUAL_FIX_MAX,
   MANUAL_FIX_WORDS,
@@ -1685,16 +1686,32 @@ async function unparkDocx(slot: string, ref: DraftFile): Promise<void> {
 const find = (sel: string) => (): HTMLElement | null =>
   document.querySelector<HTMLElement>(sel);
 const nudgeHints = initHints(() => {
+  if (document.documentElement.classList.contains("booting")) return [];
   const layout = layoutHint(find(".measure-btn.is-shown"));
-  if (mdActive()) return [layout, exportHint(find("#saveBtn"))];
-  const template = templateHint(find(".md-select"));
+  const keyboard = keyboardHint(
+    () =>
+      document.activeElement !== els.editor ||
+      document.querySelector(".layout-chip:not([hidden])")
+        ? null
+        : els.editor,
+    () => {
+      const caret = caretPoint(els.editor);
+      const box = els.editor.getBoundingClientRect();
+      if (caret.y < box.top || caret.y + caret.height > box.bottom) return null;
+      return new DOMRect(caret.x, caret.y, 0, caret.height);
+    },
+  );
+  const mode = modeHint(find(".md-select"));
+  if (mdActive())
+    return [keyboard, mode, layout, exportHint(find("#saveBtn"))];
   if (els.editor.value.trim())
-    return [layout, defineHint(find("#defineBtn")), template];
+    return [keyboard, mode, layout, defineHint(find("#defineBtn"))];
   return [
+    keyboard,
+    mode,
     layout,
     openHint(find("#openBtn")),
     spellDictHint(find(".dict-toggle")),
-    template,
   ];
 });
 let exportCtl: ExportControl | null = null;
@@ -1850,6 +1867,7 @@ async function boot() {
   render();
   document.documentElement.classList.remove("booting");
   els.editor.focus({ preventScroll: true });
+  nudgeHints();
   draft.restoreBootScroll();
   void Promise.resolve(document.fonts?.ready).then(() => {
     draft.restoreBootScroll();
