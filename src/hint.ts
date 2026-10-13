@@ -12,6 +12,7 @@ export interface Hint {
   readonly id: string;
   readonly target: () => HTMLElement | null;
   readonly html: string;
+  readonly anchor?: (el: HTMLElement) => DOMRect | null;
 }
 
 function seen(id: string): boolean {
@@ -58,17 +59,31 @@ function display(hint: Hint, button: HTMLElement, onHide: () => void): void {
       hide();
       return;
     }
-    const r = button.getBoundingClientRect();
+    const r = hint.anchor
+      ? hint.anchor(button)
+      : button.getBoundingClientRect();
+    if (!r) {
+      hide();
+      return;
+    }
     const w = tip.offsetWidth;
     const h = tip.offsetHeight;
     const vw = document.documentElement.clientWidth;
+    const vh = document.documentElement.clientHeight;
     const center = r.left + r.width / 2;
     const left = Math.min(Math.max(center - w / 2, EDGE), vw - w - EDGE);
-    const above = r.top - GAP - h >= EDGE;
+    const above = hint.anchor
+      ? r.bottom + GAP + h > vh - EDGE
+      : r.top - GAP - h >= EDGE;
     tip.dataset.side = above ? "above" : "below";
     tip.style.left = `${left}px`;
     tip.style.top = `${above ? r.top - GAP - h : r.bottom + GAP}px`;
     tip.style.setProperty("--arrow-x", `${center - left}px`);
+  };
+
+  const follow = !!hint.anchor;
+  const onKey = (event: KeyboardEvent): void => {
+    if (!follow || event.key === "Escape") hide();
   };
 
   const hideTimer = setTimeout(() => hide(), HIDE_AFTER_MS);
@@ -78,7 +93,12 @@ function display(hint: Hint, button: HTMLElement, onHide: () => void): void {
     window.removeEventListener("resize", place);
     window.removeEventListener("scroll", place, true);
     document.removeEventListener("pointerdown", hide, true);
-    document.removeEventListener("keydown", hide, true);
+    document.removeEventListener("keydown", onKey, true);
+    if (follow) {
+      button.removeEventListener("input", place);
+      button.removeEventListener("focusout", hide);
+      document.removeEventListener("selectionchange", place);
+    }
     tip.remove();
     delete button.dataset.hinted;
     onHide();
@@ -91,7 +111,12 @@ function display(hint: Hint, button: HTMLElement, onHide: () => void): void {
   window.addEventListener("resize", place);
   window.addEventListener("scroll", place, true);
   document.addEventListener("pointerdown", hide, true);
-  document.addEventListener("keydown", hide, true);
+  document.addEventListener("keydown", onKey, true);
+  if (follow) {
+    button.addEventListener("input", place);
+    button.addEventListener("focusout", hide);
+    document.addEventListener("selectionchange", place);
+  }
 }
 
 export function initHints(source: () => readonly Hint[]): () => void {
@@ -147,6 +172,21 @@ export function layoutHint(target: () => HTMLElement | null): Hint {
   };
 }
 
+export function keyboardHint(
+  target: () => HTMLElement | null,
+  anchor: (el: HTMLElement) => DOMRect | null,
+): Hint {
+  return {
+    id: "keyboard",
+    target,
+    anchor,
+    html:
+      "Монгол, англи гарын байрлалыг " +
+      "<kbd>Ctrl+\\</kbd>" +
+      " товчоор сэлгэнэ. Системдээ монгол гар суулгаагүй ч монголоор бичих боломжтой.",
+  };
+}
+
 export function exportHint(target: () => HTMLElement | null): Hint {
   return {
     id: "export",
@@ -195,10 +235,10 @@ export function spellDictHint(target: () => HTMLElement | null): Hint {
   };
 }
 
-export function templateHint(target: () => HTMLElement | null): Hint {
+export function modeHint(target: () => HTMLElement | null): Hint {
   return {
-    id: "template",
+    id: "mode",
     target,
-    html: "Албан бичиг, тайлан, илтгэл бичих бол эндээс жишээ загвар сонгоно.",
+    html: "Бичвэрийн горимыг энд дарж солино.",
   };
 }
