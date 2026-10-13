@@ -4,6 +4,7 @@ const ERROR_NAMES = [
   /=([^\s=]+) (?:at [\d.]+pt )?not loadable: Metric \(TFM\) file not found/g,
   /\(file ([^)\s]+)\): (?:cannot open|Font \S+ at \d+ not found)/g,
 ];
+const BABEL_LANGUAGE = /Package babel Error: Unknown option '([^']+)'/g;
 const GUESS_EXTENSIONS = [
   ".sty",
   ".cls",
@@ -21,6 +22,10 @@ export function wantedFiles(log: string, misses: readonly string[]): string[] {
   for (const pattern of ERROR_NAMES)
     for (const match of log.matchAll(pattern))
       named.add(match[1]!.replace(/^.*\//, ""));
+  for (const match of log.matchAll(BABEL_LANGUAGE)) {
+    named.add(match[1]! + ".ldf");
+    named.add("babel-" + match[1]! + ".tex");
+  }
   const wanted = new Set<string>();
   for (const miss of misses)
     if (named.has(miss) || named.has(stem(miss))) wanted.add(miss);
