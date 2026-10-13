@@ -2016,7 +2016,7 @@ initToolbar({
   closeDocx,
   forgetFile: () => {
     clearedEmpty = true;
-    projectLink?.unbind(true);
+    projectLink?.cleared();
     fileIO.forgetFile();
     syncPreviewClass();
   },

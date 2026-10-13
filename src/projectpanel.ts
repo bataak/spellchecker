@@ -229,8 +229,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     }
   };
 
-  const visible = (): boolean =>
-    open && (deps.texActive() || project() !== null);
+  const visible = (): boolean => open && deps.texActive();
 
   const place = (): void => {
     const tools = deps.tools();
@@ -240,7 +239,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   const syncVisibility = (): void => {
     place();
     const shown = visible();
-    toggle.hidden = !(deps.texActive() || project() !== null);
+    toggle.hidden = !deps.texActive();
     toggle.setAttribute("aria-pressed", String(shown));
     toggle.classList.toggle("is-on", shown);
     if (panel.hidden === !shown) return;
