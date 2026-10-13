@@ -42,7 +42,13 @@ import {
   dashCompound,
   dashNormalizeApply,
 } from "./textcheck.ts";
-import { saveDraftFile, loadDraftFile } from "./storage.ts";
+import {
+  saveDraftFile,
+  loadDraftFile,
+  saveOfficeFile,
+  loadOfficeFile,
+  dropOfficeFile,
+} from "./storage.ts";
 import { initMdToolbar } from "./mdtoolbar.ts";
 import {
   defineHint,
@@ -1452,7 +1458,7 @@ async function openPdfFile(file: File): Promise<boolean> {
   return true;
 }
 
-async function openDocxFile(file: File): Promise<boolean> {
+async function openDocxFile(file: File, draftText?: string): Promise<boolean> {
   if (isPdfFile(file)) return openPdfFile(file);
   let mod: typeof import("./office/mode.ts");
   try {
@@ -1479,8 +1485,16 @@ async function openDocxFile(file: File): Promise<boolean> {
   }
 
   els.editor.readOnly = true;
-  els.editor.value = docx.text();
+  const source = docx.text();
+  const restored =
+    draftText !== undefined &&
+    draftText !== source &&
+    docx.sync(source, draftText);
+  if (draftText !== undefined && draftText !== source && !restored)
+    holdStatus("Өмнөх засваруудыг сэргээж чадсангүй", 8000);
+  els.editor.value = restored ? draftText : source;
   undoCtl?.baseline();
+  if (draftText === undefined) void saveOfficeFile(file).catch(() => undefined);
   previewCtl?.setSource({ kind: "office", name: file.name });
   document.body.classList.add("docx-mode");
   syncSaveHint();
@@ -1488,12 +1502,14 @@ async function openDocxFile(file: File): Promise<boolean> {
   hidePopover();
   decode.sync();
   await render();
+  saveText();
   return true;
 }
 
 function closeDocx(): void {
   if (!docx) return;
   docx = null;
+  void dropOfficeFile().catch(() => undefined);
   els.editor.readOnly = false;
   document.body.classList.remove("docx-mode");
   syncSaveHint();
@@ -1660,9 +1676,23 @@ exportCtl = initExport({
   },
 });
 
-function restoreDraftFile(): void {
+async function restoreOfficeFile(name: string): Promise<boolean> {
+  const file = await loadOfficeFile().catch(() => null);
+  if (!file || file.name !== name) return false;
+  await openDocxFile(file, els.editor.value);
+  return docx !== null;
+}
+
+async function restoreDraftFile(): Promise<void> {
   const ref = loadDraftFile();
   if (!ref) return;
+  if (ref.kind === "office" && (await restoreOfficeFile(ref.name))) {
+    plainName = ref.name;
+    syncSaveHint();
+    mdBar.refresh();
+    enterMdMode(mdActive());
+    return;
+  }
   fileIO.restoreFile(ref);
   plainName = fileIO.targetName();
   syncSaveHint();
@@ -1733,7 +1763,7 @@ async function boot() {
   setStatus("Hunspell ачаалж байна…");
   await draft.load();
   undoCtl?.baseline();
-  restoreDraftFile();
+  await restoreDraftFile();
   render();
   document.documentElement.classList.remove("booting");
   els.editor.focus({ preventScroll: true });
