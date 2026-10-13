@@ -46,8 +46,12 @@ export class PdfError extends Error {
 
   constructor(raw: string) {
     const log = unwrapLog(raw);
-    const reason = /^! (?:LaTeX Error: )?(.+)$/m.exec(log)?.[1];
-    const place = errorPlace(raw);
+    const reason =
+      /^!(?: |pdfTeX error: +(?:\(file [^)]*\): )?)(?:LaTeX Error: )?(.+)$/m.exec(
+        log,
+      )?.[1];
+    const at = raw.search(/^!/m);
+    const place = at < 0 ? null : errorPlace(raw.slice(at));
     super(
       "PDF үүсгэж чадсангүй" +
         (reason ? ": " + reason : ".") +
