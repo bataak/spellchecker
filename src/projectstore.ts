@@ -39,6 +39,7 @@ interface Meta {
   readonly main: string | null;
   readonly active: string | null;
   readonly dirs: readonly string[];
+  readonly exportedAt?: number | null;
 }
 
 export interface ProjectView {
@@ -53,6 +54,7 @@ export interface ProjectView {
   readonly unsaved: boolean;
   readonly pending: boolean;
   readonly version: number;
+  readonly exportedAt: number | null;
 }
 
 export interface ProjectBuild {
@@ -82,6 +84,7 @@ interface State {
   active: string | null;
   unsynced: boolean;
   version: number;
+  exportedAt: number | null;
 }
 
 let state: State | null = null;
@@ -129,6 +132,7 @@ export function project(): ProjectView | null {
     unsaved: dirty.size > 0 || (s.kind === "memory" && s.unsynced),
     pending: s.pending,
     version: s.version,
+    exportedAt: s.exportedAt,
   };
 }
 
@@ -200,6 +204,7 @@ function metaOf(s: State): Meta {
     main: s.main,
     active: s.active,
     dirs: [...s.dirs],
+    exportedAt: s.exportedAt,
   };
 }
 
@@ -275,6 +280,7 @@ function fromEntries(
     active: null,
     unsynced: false,
     version: 1,
+    exportedAt: null,
   };
 }
 
@@ -483,6 +489,7 @@ export async function restoreProject(): Promise<boolean> {
   state = {
     ...fromEntries("dir", meta.name, meta.handle, [], meta.dirs),
     pending: true,
+    exportedAt: meta.exportedAt ?? null,
     main: meta.main,
     active: meta.active,
   };
@@ -504,6 +511,7 @@ function applyRestored(
     for (const dir of parentDirs(path)) next.dirs.add(dir);
   }
   if (meta.main && next.texts.has(meta.main)) next.main = meta.main;
+  next.exportedAt = meta.exportedAt ?? null;
   next.active =
     meta.active && next.texts.has(meta.active) ? meta.active : next.main;
   recountDirty(next);
@@ -779,13 +787,21 @@ export async function saveProject(): Promise<SaveResult> {
     changed(true);
     return "files";
   }
-  download(await projectZip(), s.name + ".zip");
-  for (const [path, text] of s.texts) s.saved.set(path, text);
-  s.added.clear();
-  s.unsynced = false;
-  recountDirty(s);
-  changed(true);
+  await exportZip();
   return "downloaded";
+}
+
+export async function exportZip(): Promise<void> {
+  const s = requireState();
+  download(await projectZip(), s.name + ".zip");
+  s.exportedAt = Date.now();
+  if (s.kind === "memory") {
+    for (const [path, text] of s.texts) s.saved.set(path, text);
+    s.added.clear();
+    s.unsynced = false;
+    recountDirty(s);
+  }
+  changed(true);
 }
 
 function download(blob: Blob, name: string): void {
