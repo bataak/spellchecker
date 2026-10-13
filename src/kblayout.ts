@@ -156,9 +156,11 @@ const MIRROR_STYLES = [
   "wordBreak",
 ] as const;
 
-function caretPoint(
-  editor: HTMLTextAreaElement,
-): { x: number; y: number; height: number } {
+function caretPoint(editor: HTMLTextAreaElement): {
+  x: number;
+  y: number;
+  height: number;
+} {
   const style = getComputedStyle(editor);
   const mirror = document.createElement("div");
   for (const name of MIRROR_STYLES) mirror.style[name] = style[name];
@@ -190,9 +192,17 @@ export interface KeyboardLayoutDeps {
   readonly status: HTMLElement;
 }
 
-export function initKeyboardLayout(deps: KeyboardLayoutDeps): void {
+export interface KeyboardLayout {
+  attach: (field: HTMLInputElement) => void;
+}
+
+type Field = HTMLTextAreaElement | HTMLInputElement;
+
+export function initKeyboardLayout(deps: KeyboardLayoutDeps): KeyboardLayout {
   const { editor } = deps;
-  if (!window.matchMedia("(pointer: fine)").matches) return;
+  if (!window.matchMedia("(pointer: fine)").matches)
+    return { attach: () => {} };
+  const fields = new Set<Field>([editor]);
 
   let forced = loadForced();
   let system: Layout | null = null;
@@ -237,13 +247,27 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): void {
       : "";
     chip.title = hint;
     chip.setAttribute("aria-label", hint);
-    editor.classList.toggle("layout-forced", forced !== null);
-    if (forced) editor.dataset.layout = forced;
-    else delete editor.dataset.layout;
+    for (const field of fields) {
+      if (field !== editor && !field.isConnected) {
+        fields.delete(field);
+        continue;
+      }
+      field.classList.toggle("layout-forced", forced !== null);
+      if (forced) field.dataset.layout = forced;
+      else delete field.dataset.layout;
+    }
   };
 
-  const showBadge = (layout: Layout): void => {
-    const caret = caretPoint(editor);
+  const anchorPoint = (
+    field: Field,
+  ): { x: number; y: number; height: number } => {
+    if (field instanceof HTMLTextAreaElement) return caretPoint(field);
+    const box = field.getBoundingClientRect();
+    return { x: box.left, y: box.top, height: box.height };
+  };
+
+  const showBadge = (layout: Layout, field: Field): void => {
+    const caret = anchorPoint(field);
     badge.textContent = label(layout);
     badge.dataset.layout = layout;
     badge.style.left = caret.x + 4 + "px";
@@ -259,60 +283,75 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): void {
     }, BADGE_MS);
   };
 
-  const setForced = (next: Layout | null): void => {
+  const setForced = (next: Layout | null, field: Field = editor): void => {
     forced = next;
     saveForced(forced);
     sync();
-    if (forced) showBadge(forced);
+    if (forced) showBadge(forced, field);
     else {
       clearTimeout(badgeTimer);
       badge.hidden = true;
     }
-    editor.focus({ preventScroll: true });
+    field.focus({ preventScroll: true });
   };
 
-  editor.addEventListener(
-    "keydown",
-    (event) => {
-      if (event.isComposing) return;
-      if (
-        event.code === "Backslash" &&
-        event.ctrlKey &&
-        !event.altKey &&
-        !event.metaKey &&
-        !event.shiftKey
-      ) {
-        event.preventDefault();
-        event.stopPropagation();
-        setForced(
-          forced ? (forced === "mn" ? "en" : "mn") : otherLayout(system),
-        );
-        return;
-      }
-      if (!forced) {
+  const listen = (field: Field): void => {
+    const target: HTMLElement = field;
+    target.addEventListener(
+      "keydown",
+      (event) => {
+        if (event.isComposing) return;
         if (
-          system === null &&
-          event.code === "KeyQ" &&
-          event.key.length === 1
-        )
-          system = systemLayout(event.key);
-        return;
-      }
-      if (event.ctrlKey || event.metaKey || event.altKey || editor.readOnly)
-        return;
-      const text = mapKey(
-        forced,
-        event.code,
-        event.shiftKey,
-        event.getModifierState("CapsLock"),
-      );
-      if (text === null) return;
-      event.preventDefault();
-      if (!replaceRange(editor, editor.selectionStart, editor.selectionEnd, text))
-        editor.dispatchEvent(new Event("input", { bubbles: true }));
-    },
-    true,
-  );
+          event.code === "Backslash" &&
+          event.ctrlKey &&
+          !event.altKey &&
+          !event.metaKey &&
+          !event.shiftKey
+        ) {
+          event.preventDefault();
+          event.stopPropagation();
+          setForced(
+            forced ? (forced === "mn" ? "en" : "mn") : otherLayout(system),
+            field,
+          );
+          return;
+        }
+        if (!forced) {
+          if (
+            system === null &&
+            event.code === "KeyQ" &&
+            event.key.length === 1
+          )
+            system = systemLayout(event.key);
+          return;
+        }
+        if (event.ctrlKey || event.metaKey || event.altKey || field.readOnly)
+          return;
+        const text = mapKey(
+          forced,
+          event.code,
+          event.shiftKey,
+          event.getModifierState("CapsLock"),
+        );
+        if (text === null) return;
+        event.preventDefault();
+        const start = field.selectionStart ?? field.value.length;
+        const end = field.selectionEnd ?? start;
+        if (!replaceRange(field, start, end, text))
+          field.dispatchEvent(new Event("input", { bubbles: true }));
+      },
+      true,
+    );
+  };
 
+  listen(editor);
   sync();
+
+  return {
+    attach: (field) => {
+      fields.add(field);
+      listen(field);
+      sync();
+    },
+  };
 }

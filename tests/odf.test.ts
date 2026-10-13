@@ -142,3 +142,10 @@ test("leaves untouched paragraphs byte identical", () => {
   const out = rewrite(xml, 0, 3, "НЭГ");
   assert.ok(out.includes("<text:p>хоёр</text:p>"));
 });
+
+test("writes multi-word replacements with markup characters as plain text", () => {
+  const xml = doc("<text:p>өмнө алдаатүг хойно</text:p>");
+  const fix = '<b>x</b> & "y" зөв үг';
+  const out = rewrite(xml, 5, 13, fix);
+  assert.equal(partOf(out).paragraphs[0].text, "өмнө " + fix + " хойно");
+});
