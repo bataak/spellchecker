@@ -62,6 +62,7 @@ export interface MdToolbar {
   reset: () => void;
   openFile: (name: string) => boolean;
   closeFile: (id: string, force?: boolean) => void;
+  fileSlots: () => { id: string; name: string; text: string | null }[];
   setProject: (name: string | null) => void;
   enterProject: () => void;
   leaveProject: () => void;
@@ -1087,6 +1088,12 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     },
     openFile,
     closeFile,
+    fileSlots: () =>
+      files.map((slot) => ({
+        id: slot.id,
+        name: slot.name,
+        text: slotText(slot),
+      })),
     setProject,
     enterProject,
     leaveProject,
