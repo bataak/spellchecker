@@ -364,7 +364,6 @@
   background: color-mix(in srgb, var(--editor-bg) 72%, transparent);
   color: var(--muted);
   cursor: pointer;
-  opacity: 0;
   backdrop-filter: blur(12px) saturate(125%);
   -webkit-backdrop-filter: blur(12px) saturate(125%);
   transition:
@@ -376,12 +375,6 @@
   display: none;
 }
 
-.editor-tools:hover .project-toggle,
-.project-toggle:focus-visible,
-.project-toggle.is-on {
-  opacity: 1;
-}
-
 .project-toggle:hover,
 .project-toggle:focus-visible {
   background: var(--editor-bg);
@@ -390,10 +383,4 @@
 
 .project-toggle.is-on {
   color: var(--accent);
-}
-
-@media (pointer: coarse) {
-  .project-toggle {
-    opacity: 1;
-  }
 }
