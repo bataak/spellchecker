@@ -1399,6 +1399,7 @@ if (editorWrap) {
   measureCtl = mountMeasureControl(editorWrap, els.editor, (l) => {
     defDock.sync(l.panel);
     if (l.preview) previewCtl?.update();
+    projectLink?.sync();
   });
   defDock.sync();
   previewCtl = initPreview(

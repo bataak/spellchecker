@@ -419,8 +419,11 @@ export function mountMeasureControl(
     const full = root.clientWidth;
     const room = projectRoom(wrap, metrics);
     let viewport = full;
+    let offered: Layout[] | null = null;
     if (room > 0) {
-      const loose = choose(available(metrics, full, prev)).active;
+      const wide = choose(available(metrics, full, prev));
+      offered = wide.avail;
+      const loose = wide.active;
       const float = full - room < pageWidth(loose, metrics);
       if (float) root.dataset.projectFloat = "";
       else viewport = full - room;
@@ -435,14 +438,15 @@ export function mountMeasureControl(
 
     syncToolbar();
 
-    const show = showsControl(avail);
+    const menuAvail = offered ?? avail;
+    const show = showsControl(menuAvail);
     ctl.hidden = !show;
     if (!show) {
       close();
       return;
     }
 
-    paint(avail, active);
+    paint(menuAvail, active);
   }
 
   btn.addEventListener("click", () => {

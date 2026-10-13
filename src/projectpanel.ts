@@ -197,6 +197,8 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   toggle.addEventListener("mousedown", (event) => event.preventDefault());
 
   let open = loadOpen() && wide.matches;
+  let laying = false;
+  let wasFloating = false;
   const collapsed = new Set<string>();
   let selected: string | null = null;
   let editing: HTMLInputElement | null = null;
@@ -247,7 +249,23 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     if (shown) root.dataset.project = "on";
     else delete root.dataset.project;
     if (!shown) closeMenu();
-    deps.onLayout();
+    laying = true;
+    try {
+      deps.onLayout();
+    } finally {
+      laying = false;
+    }
+    wasFloating = floating();
+  };
+
+  const syncFloat = (): boolean => {
+    if (laying || panel.hidden) return false;
+    const now = floating();
+    const turned = now && !wasFloating && wide.matches;
+    wasFloating = now;
+    if (!turned) return false;
+    show(false);
+    return true;
   };
 
   const show = (on: boolean): void => {
@@ -341,7 +359,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   const render = (): void => {
     const view = project();
     syncVisibility();
-    if (panel.hidden) return;
+    if (syncFloat() || panel.hidden) return;
     const pending = view?.pending ?? false;
     const ready = view !== null && !pending;
     title.textContent = view ? view.name : "LaTeX төсөл";
