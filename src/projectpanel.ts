@@ -65,10 +65,17 @@ const ICON = {
     '<path d="M1.5 4.2c0-.8.6-1.4 1.4-1.4h3.3l1.5 1.7h5.4c.8 0 1.4.6 1.4 1.4v6.6c0 .8-.6 1.4-1.4 1.4H2.9c-.8 0-1.4-.6-1.4-1.4z"/><path d="M8 7v4.5M5.75 9.25h4.5"/>',
   close: '<path d="M4 4l8 8M12 4l-8 8"/>',
   more: '<circle cx="3.5" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="12.5" cy="8" r="1.1" fill="currentColor" stroke="none"/>',
-  tree: '<path d="M2 2.5h4.5M4 2.5v9.5h3.5M4 7h3.5"/><rect x="8.5" y="5" width="6" height="4" rx="1"/><rect x="8.5" y="10" width="6" height="4" rx="1"/>',
   refresh:
     '<path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M12.2 1.8v2.6H9.6"/>',
 } as const;
+
+const GLYPH =
+  '<svg viewBox="0 0 18 14" class="project-glyph" aria-hidden="true">' +
+  '<rect x="1" y="1" width="16" height="12" rx="2.25" class="project-glyph-frame"/>' +
+  '<rect x="3.5" y="3.4" width="5.5" height="1.7" rx=".6" class="project-glyph-slot"/>' +
+  '<rect x="6" y="6.15" width="7.5" height="1.7" rx=".6" class="project-glyph-slot"/>' +
+  '<rect x="6" y="8.9" width="7.5" height="1.7" rx=".6" class="project-glyph-slot"/>' +
+  "</svg>";
 
 function icon(body: string, size = 16): string {
   return (
@@ -128,7 +135,8 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   headIcon.innerHTML = icon(ICON.folder, 16);
   const title = document.createElement("span");
   title.className = "project-title";
-  const hideBtn = headButton("Самбарыг нуух", ICON.tree);
+  const hideBtn = headButton("Самбарыг нуух", "");
+  hideBtn.innerHTML = GLYPH;
   head.append(headIcon, title, hideBtn);
 
   const textButton = (label: string): HTMLButtonElement => {
@@ -194,10 +202,11 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   const toggle = document.createElement("button");
   toggle.type = "button";
   toggle.className = "project-toggle";
+  toggle.hidden = true;
   toggle.title = "LaTeX төсөл";
   toggle.setAttribute("aria-label", "LaTeX төслийн самбар");
   toggle.setAttribute("aria-pressed", "false");
-  toggle.innerHTML = icon(ICON.tree, 15);
+  toggle.innerHTML = GLYPH;
   toggle.addEventListener("mousedown", (event) => event.preventDefault());
 
   let open = loadOpen() && wide.matches;
@@ -240,10 +249,22 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     if (tools && toggle.parentElement !== tools) tools.prepend(toggle);
   };
 
+  let flashTimer = 0;
+  const flashToggle = (): void => {
+    toggle.classList.add("is-shown");
+    clearTimeout(flashTimer);
+    flashTimer = window.setTimeout(
+      () => toggle.classList.remove("is-shown"),
+      5000,
+    );
+  };
+
   const syncVisibility = (): void => {
     place();
     const shown = visible();
-    toggle.hidden = !deps.texActive() || shown;
+    const hide = !deps.texActive() || shown;
+    if (toggle.hidden && !hide) flashToggle();
+    toggle.hidden = hide;
     toggle.setAttribute("aria-pressed", String(shown));
     toggle.classList.toggle("is-on", shown);
     if (panel.hidden === !shown) return;
