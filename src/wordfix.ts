@@ -159,11 +159,16 @@ export function splitEveryOccurrence(
   word: string,
   dot: number,
   tokenStart: number,
+  skip: SkipRange[] = [],
 ): { text: string; caret: number } | null {
   const target = word.toLowerCase();
   const hits: number[] = [];
   for (const item of tokenize(text)) {
-    if (item.word.toLowerCase() === target) hits.push(item.index);
+    if (
+      item.word.toLowerCase() === target &&
+      (item.index === tokenStart || !inRanges(skip, item.index))
+    )
+      hits.push(item.index);
   }
   if (hits.length === 0) return null;
 
