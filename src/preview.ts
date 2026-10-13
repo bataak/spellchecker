@@ -237,6 +237,7 @@ function resolveImages(root: HTMLElement): void {
 
 export type PreviewSource =
   | { kind: "pdf"; file: File }
+  | { kind: "image"; file: File }
   | { kind: "office"; name: string };
 
 const MD_NAME = /\.(md|markdown|mdown|mkd)$/i;
@@ -254,6 +255,7 @@ export function initPreview(
   area: HTMLTextAreaElement,
   onFormat?: (next: string) => void,
   isLatex: (text: string) => boolean = () => false,
+  projectKey: () => string | null = () => null,
 ): Preview {
   const panel = document.createElement("section");
   panel.className = "preview-panel";
@@ -378,6 +380,7 @@ export function initPreview(
   let isMdFile = false;
   let markdownMode = false;
   let source: PreviewSource | null = null;
+  let imageUrl: string | null = null;
   let sourceText = "";
   let pdfView: import("./pdfview.ts").PdfView | null = null;
 
@@ -492,6 +495,7 @@ export function initPreview(
 
   const setTexMissing = (paths: readonly string[]): void => {
     texMissing.hidden = paths.length === 0;
+    texFolder.hidden = projectKey() !== null;
     texMissingText.textContent = paths.length
       ? "Зураг олдсонгүй: " + paths.join(", ")
       : "";
@@ -565,24 +569,36 @@ export function initPreview(
     retryTimer = 0;
   };
 
+  const texKey = (): string => {
+    const project = projectKey();
+    return project === null ? area.value : "\u0000project:" + project;
+  };
+
   const renderTex = async (): Promise<void> => {
     texTimer = 0;
     cancelRetry();
     const text = area.value;
-    if (!texMode || text === texShown || text === compiling || !previewShown())
+    const project = projectKey();
+    const key = texKey();
+    if (!texMode || key === texShown || key === compiling || !previewShown())
       return;
-    if (text !== triedText) {
-      triedText = text;
+    if (key !== triedText) {
+      triedText = key;
       retries = 0;
     }
     const seq = ++texSeq;
     compileBtn.disabled = true;
-    if (!texRestored && (await restoreTex(text, seq))) {
-      texShown = text;
+    if (!texRestored && project === null && (await restoreTex(text, seq))) {
+      texShown = key;
       return;
     }
+    texRestored = true;
     if (seq !== texSeq || !texMode) return;
-    if (pdfView && (pdfText === null || !isEditOf(text, pdfText))) {
+    if (
+      pdfView &&
+      project === null &&
+      (pdfText === null || !isEditOf(text, pdfText))
+    ) {
       dropPdf();
       setTexError(null);
     }
@@ -590,7 +606,7 @@ export function initPreview(
     void import("./texpdf.ts").then((mod) => {
       if (mod.compileRunningFor() > STALE_COMPILE_MS) mod.cancelCompile();
     });
-    compiling = text;
+    compiling = key;
     try {
       const [{ compileTexDocument, onTexPackage }, images] = await Promise.all([
         import("./texpdf.ts"),
@@ -604,14 +620,14 @@ export function initPreview(
       const { pdf, missing } = await compileTexDocument(text);
       if (!(await showPdfBytes(pdf, seq))) return;
       pdfText = text;
-      texShown = text;
+      texShown = key;
       retries = 0;
       setTexError(null);
       setTexMissing(missing);
-      if (!missing.length) void saveCachedPdf(text, pdf);
+      if (!missing.length && project === null) void saveCachedPdf(text, pdf);
     } catch (error) {
       if (seq !== texSeq || !texMode) return;
-      texShown = text;
+      texShown = key;
       const delay = RETRY_MS[retries];
       const message =
         explainTexError(error) + (delay ? " — дахин оролдож байна…" : "");
@@ -621,13 +637,13 @@ export function initPreview(
         retries++;
         retryTimer = window.setTimeout(() => {
           retryTimer = 0;
-          if (!texMode || area.value !== text) return;
+          if (!texMode || texKey() !== key) return;
           texShown = null;
           void renderTex();
         }, delay);
       }
     } finally {
-      if (compiling === text) compiling = null;
+      if (compiling === key) compiling = null;
       if (seq === texSeq) compileBtn.disabled = false;
     }
   };
@@ -699,6 +715,8 @@ export function initPreview(
     setTexMode(false);
     tidy.hidden = true;
     dropPdf();
+    if (imageUrl) URL.revokeObjectURL(imageUrl);
+    imageUrl = null;
 
     panel.classList.remove("is-blank");
 
@@ -712,12 +730,26 @@ export function initPreview(
     }
 
     sourceText = area.value;
-    const name = next.kind === "pdf" ? next.file.name : next.name;
+    const name = next.kind === "office" ? next.name : next.file.name;
     title.textContent = `${HEAD_TEXT} · ${name}`;
     panel.classList.toggle("is-pdf", next.kind === "pdf");
 
     if (next.kind === "pdf") {
       void renderPdf(next.file);
+      return;
+    }
+    if (next.kind === "image") {
+      imageUrl = URL.createObjectURL(next.file);
+      const image = document.createElement("img");
+      image.className = "preview-image";
+      image.alt = next.file.name;
+      image.src = imageUrl;
+      image.addEventListener("error", () =>
+        showNotice("Зургийг харуулж чадсангүй"),
+      );
+      shownHtml = null;
+      body.replaceChildren(image);
+      body.classList.remove("is-empty");
       return;
     }
     showNotice("Уг файлыг үзүүлэх боломжгүй");
@@ -775,6 +807,7 @@ export function initPreview(
     setMarkdownMode,
     setSource,
     destroy() {
+      if (imageUrl) URL.revokeObjectURL(imageUrl);
       if (raf) cancelAnimationFrame(raf);
       if (texTimer) clearTimeout(texTimer);
       cancelRetry();

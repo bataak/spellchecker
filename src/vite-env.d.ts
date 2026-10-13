@@ -46,6 +46,7 @@ interface Window {
   ): Promise<FileSystemFileHandle[]>;
   showDirectoryPicker?(options?: {
     mode?: "read" | "readwrite";
+    startIn?: FileSystemHandle;
   }): Promise<FileSystemDirectoryHandle>;
 }
 

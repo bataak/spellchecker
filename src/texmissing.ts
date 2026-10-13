@@ -21,12 +21,23 @@ const GUESS_EXTENSIONS = [
 
 const stem = (name: string): string => name.replace(/\.[^.]*$/, "");
 
+const LOG_WIDTH = 79;
+
+export function unwrapLog(log: string): string {
+  return log
+    .split("\n")
+    .map((line) => (line.length === LOG_WIDTH ? line : line + "\n"))
+    .join("")
+    .replace(/\n$/, "");
+}
+
 export function wantedFiles(log: string, misses: readonly string[]): string[] {
   const named = new Set<string>();
+  const flat = unwrapLog(log);
   for (const pattern of ERROR_NAMES)
-    for (const match of log.matchAll(pattern))
+    for (const match of flat.matchAll(pattern))
       named.add(match[1]!.replace(/^.*\//, ""));
-  for (const match of log.matchAll(BABEL_LANGUAGE)) {
+  for (const match of flat.matchAll(BABEL_LANGUAGE)) {
     named.add((BABEL_FILES[match[1]!] ?? match[1]!) + ".ldf");
     named.add("babel-" + match[1]! + ".tex");
   }
