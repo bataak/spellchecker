@@ -45,6 +45,7 @@ export interface MdToolbar {
   refresh: () => void;
   template: () => string;
   slot: () => string;
+  draft: (key: string) => Promise<string | null>;
   reset: () => void;
   destroy: () => void;
 }
@@ -884,6 +885,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     refresh: syncVisible,
     template: () => templateId,
     slot: () => pickerValue(templateId),
+    draft: readDraft,
     reset(): void {
       dropDraft(pickerValue(templateId));
       dropLegacyPending();

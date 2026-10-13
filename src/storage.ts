@@ -79,18 +79,22 @@ export function loadDraft(): Promise<string | null> {
 const SLOT_PREFIX = "slot:";
 const OFFICE_FILE_KEY = "office-file";
 
-export function saveOfficeFile(file: File): Promise<void> {
-  return idbSet(OFFICE_FILE_KEY, file).then(() => undefined);
+function officeKey(slot?: string): string {
+  return slot === undefined ? OFFICE_FILE_KEY : OFFICE_FILE_KEY + ":" + slot;
 }
 
-export function loadOfficeFile(): Promise<File | null> {
-  return idbGet(OFFICE_FILE_KEY).then((value) =>
+export function saveOfficeFile(file: File, slot?: string): Promise<void> {
+  return idbSet(officeKey(slot), file).then(() => undefined);
+}
+
+export function loadOfficeFile(slot?: string): Promise<File | null> {
+  return idbGet(officeKey(slot)).then((value) =>
     value instanceof File ? value : null,
   );
 }
 
-export function dropOfficeFile(): Promise<void> {
-  return idbDelete(OFFICE_FILE_KEY).then(() => undefined);
+export function dropOfficeFile(slot?: string): Promise<void> {
+  return idbDelete(officeKey(slot)).then(() => undefined);
 }
 
 export function saveSlotText(key: string, text: string): Promise<void> {
