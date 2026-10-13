@@ -74,6 +74,15 @@ for (const [name, src] of Object.entries(SAMPLES)) {
   });
 }
 
+test("кодын блок — доголтой fence хаагдана", () => {
+  const blocks = parse("Текст\n\n  ```\n  код\n  ```\n\nДараагийн догол мөр\n");
+  assert.deepEqual(
+    blocks.map((b) => b.type),
+    ["paragraph", "codeblock", "paragraph"],
+  );
+  assert.equal((blocks[1] as { value: string }).value, "код");
+});
+
 test("параграф — олон мөрийг нэгтгэнэ", () => {
   const blocks = parse("нэгдүгээр мөр\nхоёрдугаар мөр\n\nдараагийн догол\n");
   assert.equal(blocks.length, 2);
