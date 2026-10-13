@@ -67,6 +67,27 @@ let engine: Promise<Worker> | null = null;
 let live: Worker | null = null;
 let queue: Promise<unknown> = Promise.resolve();
 
+interface EngineFiles {
+  readonly bundled: ReadonlySet<string>;
+  readonly baseMap: Uint8Array | null;
+  readonly installed: Set<string>;
+  readonly maps: Map<string, Uint8Array>;
+}
+
+const engineFiles = new WeakMap<Worker, EngineFiles>();
+const sessionPackages = new Set<string>();
+const PACKAGE_ROUNDS = 8;
+const PACKAGE_ERROR =
+  /File `[^']+' not found|I can't find file|Metric \(TFM\) file not found|cannot open Type 1 font file|cannot open encoding file|Font \S+ at \d+ not found|Package babel Error: Unknown option/;
+
+let packageNotice: ((message: string | null) => void) | null = null;
+
+export function onTexPackage(
+  listener: ((message: string | null) => void) | null,
+): void {
+  packageNotice = listener;
+}
+
 const FONT_CACHE = "tex-" + TEX_FONTS.split("/")[1];
 
 function asset(path: string): string {
@@ -208,6 +229,12 @@ async function start(): Promise<Worker> {
     });
     const [bytes] = await Promise.all([loadBundle(), booted]);
     const files = unzipSync(new Uint8Array(bytes));
+    engineFiles.set(worker, {
+      bundled: new Set(Object.keys(files)),
+      baseMap: files["pdftex.map"]?.slice() ?? null,
+      installed: new Set(),
+      maps: new Map(),
+    });
     for (const [name, data] of Object.entries(files))
       worker.postMessage({ cmd: "writetex", name, src: data });
     worker.postMessage({
@@ -215,6 +242,7 @@ async function start(): Promise<Worker> {
       url: new URL(asset(TEX_FONTS), location.href).href,
     });
     await loadCachedFonts(worker);
+    await reinstallPackages(worker);
     live = worker;
     return worker;
   } catch (error) {
@@ -296,12 +324,14 @@ export interface TexDocument {
 }
 
 export async function compileTexDocument(text: string): Promise<TexDocument> {
-  const [{ previewTex, withParatype }, { texImageFiles }] = await Promise.all([
-    import("./latex.ts"),
-    import("./teximages.ts"),
-  ]);
+  const [{ previewTex, withParatype }, { texImageFiles }, { toPdfLatex }] =
+    await Promise.all([
+      import("./latex.ts"),
+      import("./teximages.ts"),
+      import("./texcompat.ts"),
+    ]);
   const images = await texImageFiles(text);
-  const tex = previewTex(images.rewrite(text));
+  const tex = toPdfLatex(previewTex(images.rewrite(text)));
   const passes = CROSS_REF.test(text) ? 2 : 1;
   try {
     return {
@@ -322,18 +352,116 @@ export async function compileTex(text: string): Promise<Uint8Array<ArrayBuffer>>
   return (await compileTexDocument(text)).pdf;
 }
 
+function askMisses(worker: Worker): Promise<string[]> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve([]), 2000);
+    worker.onmessage = (
+      event: MessageEvent<{ cmd?: string; names?: string[] }>,
+    ) => {
+      if (event.data.cmd !== "misses") return;
+      clearTimeout(timer);
+      resolve(event.data.names ?? []);
+    };
+    worker.postMessage({ cmd: "misses" });
+  });
+}
+
+function writeMap(worker: Worker, state: EngineFiles): void {
+  const parts = [state.baseMap ?? new Uint8Array(0), ...state.maps.values()];
+  const newline = new Uint8Array([10]);
+  const chunks = parts.flatMap((part) => [part, newline]);
+  const size = chunks.reduce((sum, part) => sum + part.length, 0);
+  const map = new Uint8Array(size);
+  let at = 0;
+  for (const part of chunks) {
+    map.set(part, at);
+    at += part.length;
+  }
+  worker.postMessage({ cmd: "writetex", name: "pdftex.map", src: map });
+}
+
+async function installPackage(worker: Worker, name: string): Promise<void> {
+  const state = engineFiles.get(worker);
+  if (!state || state.installed.has(name)) return;
+  const { loadPackage } = await import("./texfetch.ts");
+  packageNotice?.("«" + name + "» TeX багцыг ачаалж байна…");
+  const pkg = await loadPackage(name);
+  let mapsChanged = false;
+  for (const map of pkg.maps) {
+    const data = pkg.files.get(map);
+    if (data && !state.maps.has(map)) {
+      state.maps.set(map, data.slice());
+      mapsChanged = true;
+    }
+  }
+  for (const [file, data] of pkg.files)
+    if (!state.bundled.has(file))
+      worker.postMessage({ cmd: "writetex", name: file, src: data }, [
+        data.buffer,
+      ]);
+  if (mapsChanged) writeMap(worker, state);
+  state.installed.add(name);
+  sessionPackages.add(name);
+}
+
+async function reinstallPackages(worker: Worker): Promise<void> {
+  for (const name of sessionPackages)
+    try {
+      await installPackage(worker, name);
+    } catch {}
+}
+
+async function addPackages(worker: Worker, log: string): Promise<boolean> {
+  if (!PACKAGE_ERROR.test(log)) return false;
+  const fetcher = await import("./texfetch.ts");
+  if (!fetcher.packagesEnabled()) return false;
+  const state = engineFiles.get(worker);
+  if (!state) return false;
+  const files = fetcher.wantedFiles(log, await askMisses(worker));
+  if (!files.length) return false;
+  const names = await fetcher.packagesFor(files, (name) =>
+    state.installed.has(name),
+  );
+  if (!names.length) return false;
+  for (const name of names) await installPackage(worker, name);
+  return true;
+}
+
+async function compileWithPackages(
+  tex: string,
+  passes: number,
+  files: Readonly<Record<string, Uint8Array>>,
+): Promise<Uint8Array<ArrayBuffer>> {
+  try {
+    for (let round = 0; ; round += 1) {
+      engine ??= start().catch((error: unknown) => {
+        engine = null;
+        throw error;
+      });
+      const worker = await engine;
+      try {
+        return await compileOn(worker, tex, passes, files);
+      } catch (error) {
+        if (
+          !(error instanceof PdfError) ||
+          round >= PACKAGE_ROUNDS ||
+          live !== worker
+        )
+          throw error;
+        if (!(await addPackages(worker, error.log))) throw error;
+      }
+    }
+  } finally {
+    packageNotice?.(null);
+  }
+}
+
 export function compilePdf(
   tex: string,
   passes = 1,
   files: Readonly<Record<string, Uint8Array>> = {},
 ): Promise<Uint8Array<ArrayBuffer>> {
-  const job = queue.then(async () => {
-    engine ??= start().catch((error: unknown) => {
-      engine = null;
-      throw error;
-    });
-    return compileOn(await engine, tex, passes, files);
-  });
+  const job = queue.then(() => compileWithPackages(tex, passes, files));
   queue = job.catch(() => undefined);
   return job;
 }

@@ -32,6 +32,7 @@ jobs:
       - run: npm run build
         env:
           VITE_BASE: /
+          VITE_TEX_PACKAGES_URL: ${{ vars.TEX_PACKAGES_URL }}
       - uses: actions/upload-pages-artifact@v5
         with:
           path: dist

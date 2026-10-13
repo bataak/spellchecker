@@ -9,6 +9,7 @@ import {
   putImage,
 } from "./images.ts";
 import { fitBlanks, format, parse, toHtml } from "./markdown.ts";
+import { isEditOf } from "./samedoc.ts";
 
 const TIDY_LIMIT = 400_000;
 const TIDY_IDLE_MS = 5000;
@@ -44,6 +45,7 @@ function saveZoom(zoom: number): void {
 
 const PDF_CACHE = "tex-preview";
 const PDF_KEY = "tex-preview/last.pdf";
+const PDF_TEXT_KEY = "tex-preview/last.tex";
 
 async function textKey(text: string): Promise<string | null> {
   try {
@@ -61,15 +63,22 @@ async function textKey(text: string): Promise<string | null> {
 
 async function loadCachedPdf(): Promise<{
   key: string;
+  text: string | null;
   bytes: Uint8Array<ArrayBuffer>;
 } | null> {
   try {
-    const hit = await (await caches.open(PDF_CACHE)).match(PDF_KEY);
+    const cache = await caches.open(PDF_CACHE);
+    const [hit, source] = await Promise.all([
+      cache.match(PDF_KEY),
+      cache.match(PDF_TEXT_KEY),
+    ]);
     if (!hit) return null;
-    return {
-      key: hit.headers.get("x-text-key") ?? "",
-      bytes: new Uint8Array(await hit.arrayBuffer()),
-    };
+    const key = hit.headers.get("x-text-key") ?? "";
+    const text =
+      source && source.headers.get("x-text-key") === key
+        ? await source.text()
+        : null;
+    return { key, text, bytes: new Uint8Array(await hit.arrayBuffer()) };
   } catch {
     return null;
   }
@@ -82,10 +91,17 @@ async function saveCachedPdf(
   const key = await textKey(text);
   if (!key) return;
   try {
-    await (await caches.open(PDF_CACHE)).put(
+    const cache = await caches.open(PDF_CACHE);
+    await cache.put(
       PDF_KEY,
       new Response(bytes.slice(), {
         headers: { "content-type": "application/pdf", "x-text-key": key },
+      }),
+    );
+    await cache.put(
+      PDF_TEXT_KEY,
+      new Response(text, {
+        headers: { "content-type": "text/plain", "x-text-key": key },
       }),
     );
   } catch {}
@@ -402,6 +418,7 @@ export function initPreview(
   let mathView: typeof import("./mathview.ts") | null = null;
   let texMode = false;
   let texShown: string | null = null;
+  let pdfText: string | null = null;
   let texTimer = 0;
   let texSeq = 0;
   let texRestored = false;
@@ -440,6 +457,7 @@ export function initPreview(
   };
 
   const dropPdf = (): void => {
+    pdfText = null;
     pdfAbort?.abort();
     pdfAbort = null;
     pdfView?.destroy();
@@ -526,9 +544,13 @@ export function initPreview(
     texRestored = true;
     const [cached, key] = await Promise.all([loadCachedPdf(), textKey(text)]);
     if (!cached || seq !== texSeq || !texMode) return false;
+    const exact = key !== null && key === cached.key;
+    if (!exact && (cached.text === null || !isEditOf(text, cached.text)))
+      return false;
     if (!(await showPdfBytes(cached.bytes, seq).catch(() => false)))
       return false;
-    return key !== null && key === cached.key;
+    pdfText = exact ? text : cached.text;
+    return exact;
   };
 
   const RETRY_MS = [2000, 5000, 15000];
@@ -560,19 +582,28 @@ export function initPreview(
       return;
     }
     if (seq !== texSeq || !texMode) return;
+    if (pdfView && (pdfText === null || !isEditOf(text, pdfText))) {
+      dropPdf();
+      setTexError(null);
+    }
     if (!pdfView) showNotice("PDF бэлтгэж байна…");
     void import("./texpdf.ts").then((mod) => {
       if (mod.compileRunningFor() > STALE_COMPILE_MS) mod.cancelCompile();
     });
     compiling = text;
     try {
-      const [{ compileTexDocument }, images] = await Promise.all([
+      const [{ compileTexDocument, onTexPackage }, images] = await Promise.all([
         import("./texpdf.ts"),
         import("./teximages.ts"),
       ]);
       watchImages(images);
+      onTexPackage((message) => {
+        if (seq === texSeq && texMode && !pdfView)
+          showNotice(message ?? "PDF бэлтгэж байна…");
+      });
       const { pdf, missing } = await compileTexDocument(text);
       if (!(await showPdfBytes(pdf, seq))) return;
+      pdfText = text;
       texShown = text;
       retries = 0;
       setTexError(null);
