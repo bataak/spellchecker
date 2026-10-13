@@ -425,6 +425,12 @@ export function initPreview(
   let texTimer = 0;
   let texSeq = 0;
   let texRestored = false;
+  let lastPdf: {
+    readonly key: string;
+    readonly text: string;
+    readonly pdf: Uint8Array<ArrayBuffer>;
+    readonly missing: readonly string[];
+  } | null = null;
 
   const renderMarkdown = (): void => {
     const text = area.value;
@@ -588,6 +594,20 @@ export function initPreview(
     }
     const seq = ++texSeq;
     compileBtn.disabled = true;
+    const kept = lastPdf;
+    if (kept?.key === key && !pdfView) {
+      const shown = await showPdfBytes(kept.pdf, seq).catch(() => false);
+      if (seq !== texSeq) return;
+      compileBtn.disabled = false;
+      if (shown) {
+        texRestored = true;
+        pdfText = kept.text;
+        texShown = key;
+        setTexError(null);
+        setTexMissing(kept.missing);
+        return;
+      }
+    }
     if (!texRestored && project === null && (await restoreTex(text, seq))) {
       texShown = key;
       return;
@@ -621,6 +641,7 @@ export function initPreview(
       if (!(await showPdfBytes(pdf, seq))) return;
       pdfText = text;
       texShown = key;
+      lastPdf = { key, text, pdf, missing };
       retries = 0;
       setTexError(null);
       setTexMissing(missing);
