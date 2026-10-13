@@ -426,7 +426,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 2px;
-  padding: 6px 6px;
+  padding: 6px 10px 6px 6px;
   border-top: 1px solid var(--line);
 }
 
