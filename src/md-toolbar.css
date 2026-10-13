@@ -334,3 +334,14 @@
     height: 40px;
   }
 }
+
+.md-menu-kind {
+  flex: 0 0 auto;
+  padding: 0 5px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+  font-size: 0.75em;
+  font-weight: 600;
+  line-height: 1.5;
+}
