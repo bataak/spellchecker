@@ -1,4 +1,5 @@
 import { unzipSync } from "fflate";
+import { unwrapLog } from "./texmissing.ts";
 import {
   TEX_BUNDLE,
   TEX_ENGINE,
@@ -43,9 +44,10 @@ function errorPlace(log: string): string | null {
 export class PdfError extends Error {
   readonly log: string;
 
-  constructor(log: string) {
+  constructor(raw: string) {
+    const log = unwrapLog(raw);
     const reason = /^! (?:LaTeX Error: )?(.+)$/m.exec(log)?.[1];
-    const place = errorPlace(log);
+    const place = errorPlace(raw);
     super(
       "PDF үүсгэж чадсангүй" +
         (reason ? ": " + reason : ".") +
@@ -299,17 +301,28 @@ function runOnce(worker: Worker): Promise<Uint8Array<ArrayBuffer>> {
   });
 }
 
+export interface CompileLayout {
+  readonly main: string;
+  readonly dirs: readonly string[];
+}
+
+const SINGLE: CompileLayout = { main: "main.tex", dirs: [] };
+
+type SourceFiles = Readonly<Record<string, Uint8Array | string>>;
+
 async function compileOn(
   worker: Worker,
   tex: string,
   passes: number,
-  files: Readonly<Record<string, Uint8Array>>,
+  files: SourceFiles,
+  layout: CompileLayout,
 ): Promise<Uint8Array<ArrayBuffer>> {
   worker.postMessage({ cmd: "flushcache" });
+  for (const url of layout.dirs) worker.postMessage({ cmd: "mkdir", url });
   for (const [url, src] of Object.entries(files))
     worker.postMessage({ cmd: "writefile", url, src });
-  worker.postMessage({ cmd: "writefile", url: "main.tex", src: tex });
-  worker.postMessage({ cmd: "setmainfile", url: "main.tex" });
+  worker.postMessage({ cmd: "writefile", url: layout.main, src: tex });
+  worker.postMessage({ cmd: "setmainfile", url: layout.main });
   let pdf = await runOnce(worker);
   for (let pass = 1; pass < passes; pass += 1) pdf = await runOnce(worker);
   return pdf;
@@ -323,7 +336,34 @@ export interface TexDocument {
   readonly missing: readonly string[];
 }
 
+async function compileProjectDocument(): Promise<TexDocument> {
+  const [{ projectBuild }, { withParatype }, { toPdfLatex }] =
+    await Promise.all([
+      import("./projectstore.ts"),
+      import("./latex.ts"),
+      import("./texcompat.ts"),
+    ]);
+  const build = await projectBuild();
+  const tex = toPdfLatex(build.mainText);
+  const layout = { main: build.main, dirs: build.dirs };
+  try {
+    return {
+      pdf: await compilePdf(tex, build.passes, build.files, layout),
+      missing: build.missing,
+    };
+  } catch (error) {
+    const fallback = missingFont(error) ? withParatype(tex) : null;
+    if (fallback === null) throw error;
+    return {
+      pdf: await compilePdf(fallback, build.passes, build.files, layout),
+      missing: build.missing,
+    };
+  }
+}
+
 export async function compileTexDocument(text: string): Promise<TexDocument> {
+  const { projectLinked } = await import("./projectstore.ts");
+  if (projectLinked()) return compileProjectDocument();
   const [{ previewTex, withParatype }, { texImageFiles }, { toPdfLatex }] =
     await Promise.all([
       import("./latex.ts"),
@@ -430,7 +470,8 @@ async function addPackages(worker: Worker, log: string): Promise<boolean> {
 async function compileWithPackages(
   tex: string,
   passes: number,
-  files: Readonly<Record<string, Uint8Array>>,
+  files: SourceFiles,
+  layout: CompileLayout,
 ): Promise<Uint8Array<ArrayBuffer>> {
   try {
     for (let round = 0; ; round += 1) {
@@ -440,7 +481,7 @@ async function compileWithPackages(
       });
       const worker = await engine;
       try {
-        return await compileOn(worker, tex, passes, files);
+        return await compileOn(worker, tex, passes, files, layout);
       } catch (error) {
         if (
           !(error instanceof PdfError) ||
@@ -459,9 +500,10 @@ async function compileWithPackages(
 export function compilePdf(
   tex: string,
   passes = 1,
-  files: Readonly<Record<string, Uint8Array>> = {},
+  files: SourceFiles = {},
+  layout: CompileLayout = SINGLE,
 ): Promise<Uint8Array<ArrayBuffer>> {
-  const job = queue.then(() => compileWithPackages(tex, passes, files));
+  const job = queue.then(() => compileWithPackages(tex, passes, files, layout));
   queue = job.catch(() => undefined);
   return job;
 }

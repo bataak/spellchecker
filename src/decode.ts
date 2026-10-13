@@ -11,6 +11,7 @@ export interface DecodeDeps {
   readonly setEditorText: (text: string, caret: number | null) => void;
   readonly refresh: () => Promise<void> | void;
   readonly saveText: () => void;
+  readonly skip?: () => boolean;
 }
 
 export interface DecodeControl {
@@ -74,7 +75,7 @@ function initFixButton(deps: DecodeDeps, spec: FixButtonSpec): DecodeControl {
   function sync(): void {
     if (!decodeBtn) return;
     if (decodeBtn.classList.contains("is-done")) return;
-    decodeBtn.hidden = !spec.detect(editor.value);
+    decodeBtn.hidden = !!deps.skip?.() || !spec.detect(editor.value);
   }
 
   function showDecodeMessage(message: string): void {
@@ -110,6 +111,7 @@ function initFixButton(deps: DecodeDeps, spec: FixButtonSpec): DecodeControl {
   function reveal(): void {
     if (!decodeBtn) return;
     if (decodeBtn.classList.contains("is-done")) return;
+    if (deps.skip?.()) return;
     decodeBtn.hidden = false;
   }
 

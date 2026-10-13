@@ -15,6 +15,12 @@ export interface FileIODeps {
   saveText: () => void;
   defaultExt: () => string;
   onFileOpened: (file: DraftFile | null) => void;
+  saveProject: () => Promise<string | null>;
+  openProjectZip: (file: File) => Promise<void>;
+  openProjectDir: (handle: FileSystemDirectoryHandle) => Promise<void>;
+  prepareOpen: (name: string) => boolean;
+  onLoaded: () => void;
+  onSaved: () => void;
 }
 
 export interface OpenFile {
@@ -28,6 +34,7 @@ export interface FileIOControl {
   putFile: (file: OpenFile | null) => void;
   restoreFile: (ref: DraftFile) => void;
   targetName: () => string | null;
+  targetHandle: () => FileSystemFileHandle | null;
 }
 
 export function initFileIO({
@@ -44,6 +51,12 @@ export function initFileIO({
   saveText,
   defaultExt,
   onFileOpened,
+  saveProject,
+  openProjectZip,
+  openProjectDir,
+  prepareOpen,
+  onLoaded,
+  onSaved,
 }: FileIODeps): FileIOControl {
   const MAX_OPEN_BYTES = 10 * 1024 * 1024;
   const BIG_NOTICE_BYTES = 2 * 1024 * 1024;
@@ -179,6 +192,10 @@ export function initFileIO({
       description: "PDF",
       accept: { [PDF_MIME]: [".pdf"] },
     },
+    {
+      description: "LaTeX төсөл (zip)",
+      accept: { "application/zip": [".zip"] },
+    },
   ];
 
   function looksDocx(file: File | null | undefined): boolean {
@@ -188,14 +205,44 @@ export function initFileIO({
     return /\.(docx|pptx|odt|odp|pdf)$/i.test(file.name);
   }
 
-  async function tryDocx(file: File): Promise<boolean> {
-    if (!looksDocx(file)) return false;
-    currentFileHandle = null;
-    currentFileName = null;
-    onFileOpened({ name: file.name, kind: "office" });
-    await openDocxFile(file);
-    flash("#openBtn", "Нээлээ");
+  async function openOne(
+    file: File,
+    handle: FileSystemFileHandle | null,
+  ): Promise<boolean> {
+    if (/\.zip$/i.test(file.name)) {
+      await openProjectZip(file);
+      return true;
+    }
+    const office = looksDocx(file);
+    if (!office && !isTextFile(file)) {
+      refuse();
+      return true;
+    }
+    if (!office && !sizeOk(file)) return true;
+    const text = office ? "" : await readAsText(file);
+    if (!prepareOpen(file.name)) return false;
+    if (office) {
+      currentFileHandle = null;
+      currentFileName = null;
+      onFileOpened({ name: file.name, kind: "office" });
+      await openDocxFile(file);
+      flash("#openBtn", "Нээлээ");
+      return true;
+    }
+    await loadFileContent(text, file.name, handle);
     return true;
+  }
+
+  async function openAll(
+    entries: readonly { file: File; handle: FileSystemFileHandle | null }[],
+  ): Promise<void> {
+    for (const { file, handle } of entries) {
+      try {
+        if (!(await openOne(file, handle))) return;
+      } catch (_) {
+        flash("#openBtn", "Боломжгүй");
+      }
+    }
   }
 
   document.querySelector("#saveBtn")!.addEventListener("click", async () => {
@@ -208,6 +255,17 @@ export function initFileIO({
       return;
     }
 
+    try {
+      const label = await saveProject();
+      if (label !== null) {
+        flash("#saveBtn", label);
+        return;
+      }
+    } catch (_) {
+      flash("#saveBtn", "Боломжгүй");
+      return;
+    }
+
     const text = els.editor.value || "";
 
     if (currentFileHandle) {
@@ -216,6 +274,7 @@ export function initFileIO({
         await writableStream.write(text);
         await writableStream.close();
         flash("#saveBtn", "Хадгаллаа");
+        onSaved();
         return;
       } catch (_) {}
     }
@@ -229,6 +288,7 @@ export function initFileIO({
       try {
         const done = await deliverText(text, currentFileName);
         flash("#saveBtn", done ? "Хадгалав" : "Цуцаллаа");
+        if (done) onSaved();
       } catch (_) {
         flash("#saveBtn", "Боломжгүй");
       }
@@ -246,6 +306,7 @@ export function initFileIO({
         await writableStream.close();
         currentFileHandle = handle;
         flash("#saveBtn", "Хадгаллаа");
+        onSaved();
         return;
       } catch (e) {
         if (e instanceof DOMException && e.name === "AbortError") return;
@@ -276,6 +337,7 @@ export function initFileIO({
       currentFileName ? { name: currentFileName, kind: "text" } : null,
     );
     setEditorText(content, content.length);
+    onLoaded();
     hidePopover();
     render();
     saveText();
@@ -286,55 +348,30 @@ export function initFileIO({
   const openBtn = document.querySelector<HTMLElement>("#openBtn");
   if (openBtn && openFileEl) {
     openBtn.addEventListener("click", async () => {
-      if (hasFSOpen) {
-        try {
-          const [handle] = await window.showOpenFilePicker!({
-            types: OPEN_TYPES,
-            multiple: false,
-          });
-          if (!handle) return;
-          const file = await handle.getFile();
-          if (await tryDocx(file)) return;
-          if (!isTextFile(file)) {
-            refuse();
-            return;
-          }
-          if (!sizeOk(file)) return;
-          await loadFileContent(await readAsText(file), file.name, handle);
-        } catch (e) {
-          if (!(e instanceof DOMException) || e.name !== "AbortError")
-            flash("#openBtn", "Боломжгүй");
-        }
-      } else {
+      if (!hasFSOpen) {
         openFileEl.click();
+        return;
       }
+      let handles: FileSystemFileHandle[];
+      try {
+        handles = await window.showOpenFilePicker!({
+          types: OPEN_TYPES,
+          multiple: true,
+        });
+      } catch (e) {
+        if (!(e instanceof DOMException) || e.name !== "AbortError")
+          flash("#openBtn", "Боломжгүй");
+        return;
+      }
+      const entries = [];
+      for (const handle of handles)
+        entries.push({ file: await handle.getFile(), handle });
+      await openAll(entries);
     });
     openFileEl.addEventListener("change", async () => {
-      const selectedFile = openFileEl.files && openFileEl.files[0];
-      if (!selectedFile) return;
-      if (await tryDocx(selectedFile)) {
-        openFileEl.value = "";
-        return;
-      }
-      if (!isTextFile(selectedFile)) {
-        openFileEl.value = "";
-        refuse();
-        return;
-      }
-      if (!sizeOk(selectedFile)) {
-        openFileEl.value = "";
-        return;
-      }
-      try {
-        await loadFileContent(
-          await readAsText(selectedFile),
-          selectedFile.name,
-          null,
-        );
-      } catch (_) {
-        flash("#openBtn", "Боломжгүй");
-      }
+      const files = [...(openFileEl.files ?? [])];
       openFileEl.value = "";
+      await openAll(files.map((file) => ({ file, handle: null })));
     });
   }
 
@@ -392,31 +429,30 @@ export function initFileIO({
     e.preventDefault();
     els.editor.classList.remove("drag-over");
     const dt = e.dataTransfer;
-    let handle: FileSystemFileHandle | null = null;
-    const item = dt && dt.items && dt.items[0];
-    if (item && item.kind === "file" && item.getAsFileSystemHandle) {
-      try {
-        const fsHandle = await item.getAsFileSystemHandle();
-        if (fsHandle && fsHandle.kind === "file")
-          handle = fsHandle as FileSystemFileHandle;
-      } catch (_) {}
-    }
-    try {
-      const droppedFile = handle
-        ? await handle.getFile()
-        : dt && dt.files && dt.files[0];
-      if (droppedFile && (await tryDocx(droppedFile))) return;
-      if (!isTextFile(droppedFile)) {
-        if (droppedFile) refuse();
-        return;
-      }
-      if (!sizeOk(droppedFile)) return;
-      await loadFileContent(
-        await readAsText(droppedFile),
-        droppedFile.name,
-        handle,
+    if (!dt) return;
+    const files = [...dt.files];
+    const pending = [...dt.items]
+      .filter((item) => item.kind === "file")
+      .map((item) =>
+        item.getAsFileSystemHandle
+          ? item.getAsFileSystemHandle().catch(() => null)
+          : Promise.resolve(null),
       );
-    } catch (_) {}
+    const handles = await Promise.all(pending);
+    const dir = handles.find((handle) => handle?.kind === "directory");
+    if (dir) {
+      await openProjectDir(dir as FileSystemDirectoryHandle);
+      return;
+    }
+    const entries = [];
+    for (const [index, file] of files.entries()) {
+      const handle = handles[index];
+      entries.push({
+        file: handle?.kind === "file" ? await (handle as FileSystemFileHandle).getFile() : file,
+        handle: handle?.kind === "file" ? (handle as FileSystemFileHandle) : null,
+      });
+    }
+    await openAll(entries);
   });
 
   return {
@@ -446,6 +482,9 @@ export function initFileIO({
     },
     targetName() {
       return currentFileName;
+    },
+    targetHandle() {
+      return currentFileHandle;
     },
   };
 }

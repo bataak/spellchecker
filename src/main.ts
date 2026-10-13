@@ -4,6 +4,7 @@ import "./gutter.css";
 import "./md-toolbar.css";
 import "./export.css";
 import "./deftip.css";
+import "./project.css";
 import {
   MultiSpellChecker,
   checkWordsBatched,
@@ -22,8 +23,12 @@ import { initIgnoreList, syncIgnoreVisibility } from "./ignorelist.ts";
 import { initAppearance } from "./appearance.ts";
 import { mountMeasureControl, type MeasureControl } from "./measure.ts";
 import { initPreview, type Preview } from "./preview.ts";
+import { initProjectLink, type ProjectLink } from "./projectlink.ts";
+import { FILE_LIMIT, PROJECT_SLOT, isFileSlot } from "./fileslots.ts";
+import { project } from "./projectstore.ts";
 
 let previewCtl: Preview | null = null;
+let projectLink: ProjectLink | null = null;
 import { escapeHtml } from "./htmlutil.ts";
 import { pickDefinitionMarks } from "./defmarks.ts";
 import {
@@ -348,12 +353,16 @@ const TEX_NAME_RE = /\.(tex|ltx)$/i;
 
 function isLatexText(text: string): boolean {
   if (docx) return false;
+  if (inProject || projectLink?.bound()) return true;
   if (plainName) return TEX_NAME_RE.test(plainName);
   return texTemplate || looksLatex(text);
 }
 
 const TEX_TEMPLATE = "article";
 let texTemplate = false;
+let inProject = false;
+const CHECK_TEMPLATES: ReadonlySet<string> = new Set([PLAIN, "plain2"]);
+let checkTemplate = false;
 
 function isTexFile(): boolean {
   return isLatexText(els.editor.value);
@@ -369,6 +378,8 @@ function syncTexMode(): void {
   mdBar.refresh();
   enterMdMode(mdActive());
   previewCtl?.update();
+  projectLink?.sync();
+  clean.sync();
 }
 
 let texPaint = false;
@@ -1177,7 +1188,10 @@ const fixButtonDeps = {
   saveText: () => saveText(),
 };
 const decode = initDecode(fixButtonDeps);
-const clean = initClean(fixButtonDeps);
+const clean = initClean({
+  ...fixButtonDeps,
+  skip: () => !checkTemplate || isTexFile(),
+});
 function syncFixButtons(): void {
   decode.sync();
   clean.sync();
@@ -1394,6 +1408,7 @@ if (editorWrap) {
   measureCtl = mountMeasureControl(editorWrap, els.editor, (l) => {
     defDock.sync(l.panel);
     if (l.preview) previewCtl?.update();
+    projectLink?.sync();
   });
   defDock.sync();
   previewCtl = initPreview(
@@ -1413,6 +1428,7 @@ if (editorWrap) {
       saveText();
     },
     isLatexText,
+    () => projectLink?.key() ?? null,
   );
 }
 
@@ -1590,12 +1606,39 @@ const fileIO = initFileIO({
   saveText,
   defaultExt: () => (isTexFile() ? "tex" : mdActive() ? "md" : "txt"),
   onFileOpened: (ref) => {
+    projectLink?.unbind(true);
     plainName = ref ? ref.name : null;
     saveDraftFile(ref);
     syncSaveHint();
     mdBar.refresh();
     enterMdMode(mdActive());
+    if (ref?.kind === "text")
+      queueMicrotask(() => projectLink?.fileOpened(ref.name));
   },
+  saveProject: () => projectLink?.save() ?? Promise.resolve(null),
+  openProjectZip: async (file) => {
+    if (projectLink) await projectLink.openZip(file);
+  },
+  openProjectDir: async (handle) => {
+    if (projectLink) await projectLink.openDir(handle);
+  },
+  prepareOpen: (name) => {
+    if (mdBar.openFile(name)) return true;
+    holdStatus(
+      "Нэг дор " +
+        FILE_LIMIT +
+        " хүртэл файл нээнэ — шинэ файл нээхийн тулд ядаж нэг хуучин файлыг хаана уу",
+      8000,
+      false,
+    );
+    flash("#openBtn", "Хязгаар");
+    return false;
+  },
+  onLoaded: () => {
+    undoCtl?.reset();
+    mdBar.markSaved();
+  },
+  onSaved: () => mdBar.markSaved(),
 });
 
 const MD_NAME_RE = /\.(md|markdown|mdown)$/i;
@@ -1615,14 +1658,26 @@ const mdBar = initMdToolbar({
   onTemplate: (id, from) => {
     clearedEmpty = false;
     texTemplate = id === TEX_TEMPLATE;
+    inProject = id === PROJECT_SLOT;
+    checkTemplate = CHECK_TEMPLATES.has(id);
+    clean.sync();
     syncTexMode();
     swapTemplateFile(from, mdBar.slot());
     enterMdMode(mdActive());
   },
   onExample: () => enterMdMode(!isTexFile()),
+  projectDirty: () => project()?.unsaved ?? false,
+  onCloseProject: () => projectLink?.close(),
+  onCloseFile: (slot) => {
+    templateFiles.delete(slot);
+    parkedOffice.delete(slot);
+    saveDraftFile(null, slot);
+    queueOffice(() => dropOfficeFile(slot));
+  },
 });
 function swapTemplateFile(from: string, to: string): void {
   if (from === to) return;
+  projectLink?.unbind(true);
   swapSeq++;
   const office = docxFile
     ? docxFile.name
@@ -1661,6 +1716,7 @@ function swapTemplateFile(from: string, to: string): void {
   saveDraftFile(next ? { name: next.name, kind: "text" } : null);
   syncSaveHint();
   mdBar.refresh();
+  if (to === PROJECT_SLOT) projectLink?.enter();
 }
 async function unparkDocx(slot: string, ref: DraftFile): Promise<void> {
   const seq = swapSeq;
@@ -1722,6 +1778,9 @@ const nudgeHints = initHints(() => {
 let exportCtl: ExportControl | null = null;
 
 texTemplate = mdBar.template() === TEX_TEMPLATE;
+inProject = mdBar.template() === PROJECT_SLOT;
+checkTemplate = CHECK_TEMPLATES.has(mdBar.template());
+clean.sync();
 lastTex = isTexFile();
 applyTexPaint(lastTex);
 initTexComplete({
@@ -1731,9 +1790,57 @@ initTexComplete({
   onImage: () => void insertPickedImage(els.editor),
 });
 initTexImageInput({ editor: els.editor, active: () => texPaint });
+const workspaceEl = document.querySelector<HTMLElement>(".workspace");
+if (workspaceEl)
+  projectLink = initProjectLink({
+    editor: els.editor,
+    workspace: workspaceEl,
+    tools: () =>
+      editorWrap?.querySelector<HTMLElement>(".editor-tools") ?? null,
+    slot: () => mdBar.slot(),
+    fileName: () => plainName,
+    fileHandle: () => fileIO.targetHandle(),
+    texActive: isTexFile,
+    bindName: (name) => {
+      fileIO.putFile(name ? { handle: null, name } : null);
+      plainName = name;
+      saveDraftFile(name ? { name, kind: "text" } : null);
+      syncSaveHint();
+      mdBar.refresh();
+      restoreStatus();
+    },
+    afterSwitch: () => {
+      undoCtl?.baseline();
+      syncTexMode();
+      enterMdMode(mdActive());
+      void render();
+      saveText();
+    },
+    onProject: (name) => {
+      mdBar.setProject(name);
+      if (name === null) mdBar.leaveProject();
+    },
+    inSlot: () => mdBar.template() === PROJECT_SLOT,
+    enterSlot: () => mdBar.enterProject(),
+    closeFileSlot: (id) => mdBar.closeFile(id, true),
+    fileSlots: () => mdBar.fileSlots(),
+    onChange: () => {
+      syncTexMode();
+      previewCtl?.update();
+    },
+    layout: () => measureCtl?.refresh(),
+    notify: (message) => holdStatus(message, 6000, false),
+    show: (source) => previewCtl?.setSource(source),
+  });
 const kbLayout = initKeyboardLayout({ editor: els.editor, status: els.status });
 void initImageStore(() => els.editor.value);
-undoCtl = initUndoHistory({ editor: els.editor, slot: () => mdBar.slot() });
+undoCtl = initUndoHistory({
+  editor: els.editor,
+  slot: () => {
+    const path = projectLink?.path();
+    return path ? mdBar.slot() + "\u0000" + path : mdBar.slot();
+  },
+});
 enterMdMode(mdActive());
 els.editor.addEventListener("input", nudgeHints);
 
@@ -1762,7 +1869,12 @@ exportCtl = initExport({
   editor: els.editor,
   saveButton: document.querySelector<HTMLElement>("#saveBtn"),
   printButton: document.querySelector<HTMLElement>("#printBtn"),
-  template: () => (isTexFile() ? PLAIN : mdBar.template()),
+  template: () => {
+    if (isTexFile()) return PLAIN;
+    const id = mdBar.template();
+    if (!isFileSlot(id)) return id;
+    return isMdFileOpen() ? "report" : PLAIN;
+  },
   baseName: () => fileIO.targetName() ?? plainName,
   blocked: () => docx !== null,
   isTex: isTexFile,
@@ -1869,6 +1981,7 @@ async function boot() {
   await draft.load();
   undoCtl?.baseline();
   await restoreDraftFile();
+  await projectLink?.restore();
   render();
   document.documentElement.classList.remove("booting");
   els.editor.focus({ preventScroll: true });
@@ -1957,6 +2070,7 @@ initToolbar({
   closeDocx,
   forgetFile: () => {
     clearedEmpty = true;
+    projectLink?.cleared();
     fileIO.forgetFile();
     syncPreviewClass();
   },

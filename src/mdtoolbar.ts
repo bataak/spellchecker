@@ -19,6 +19,16 @@ import { replaceRange } from "./editortext.ts";
 import { splitName } from "./office/filename.ts";
 import { freeImagePath, pickImage, putImage } from "./images.ts";
 import { dropSlotText, loadSlotText, saveSlotText } from "./storage.ts";
+import {
+  FILE_LIMIT,
+  PROJECT_SLOT,
+  isFileSlot,
+  loadSlots,
+  nextFileId,
+  saveSlots,
+  textSum,
+  type FileSlot,
+} from "./fileslots.ts";
 import { TEMPLATE_INPUT } from "./undohistory.ts";
 import type { AlignKind, Edit } from "./mdedit.ts";
 import {
@@ -39,6 +49,9 @@ export interface MdToolbarOptions {
   readonly onTemplate?: (id: string, from: string) => void;
   readonly onExample?: () => void;
   readonly onDraftError?: () => void;
+  readonly onCloseFile?: (id: string) => void;
+  readonly projectDirty?: () => boolean;
+  readonly onCloseProject?: () => void;
 }
 
 export interface MdToolbar {
@@ -47,6 +60,13 @@ export interface MdToolbar {
   slot: () => string;
   draft: (key: string) => Promise<string | null>;
   reset: () => void;
+  openFile: (name: string) => boolean;
+  closeFile: (id: string, force?: boolean) => void;
+  fileSlots: () => { id: string; name: string; text: string | null }[];
+  setProject: (name: string | null) => void;
+  enterProject: () => void;
+  leaveProject: () => void;
+  markSaved: () => void;
   destroy: () => void;
 }
 
@@ -164,7 +184,9 @@ function loadTemplateId(): string {
   try {
     const stored = localStorage.getItem(TEMPLATE_KEY);
     const raw = stored === null ? null : (LEGACY_TEMPLATES[stored] ?? stored);
-    return raw !== null && findTemplate(raw) !== undefined ? raw : PLAIN;
+    if (raw === null) return PLAIN;
+    if (findTemplate(raw) !== undefined || raw === PROJECT_SLOT) return raw;
+    return loadSlots().some((slot) => slot.id === raw) ? raw : PLAIN;
   } catch (_) {
     return PLAIN;
   }
@@ -306,6 +328,12 @@ function loadCaret(key: string): Caret | null {
   }
 }
 
+function dropCaret(key: string): void {
+  try {
+    localStorage.removeItem(CARET_PREFIX + key);
+  } catch (_) {}
+}
+
 function saveCaret(key: string, caret: Caret): void {
   try {
     localStorage.setItem(
@@ -349,7 +377,11 @@ function buildButtons(): string {
   ).join("");
 }
 
-function pickerOptions(): string {
+function pickerOptions(
+  files: readonly FileSlot[],
+  dirty: (slot: FileSlot) => boolean,
+  project: { readonly name: string; readonly dirty: boolean } | null,
+): string {
   const option = (value: string, label: string): string =>
     '<button type="button" class="md-menu-item" role="menuitemradio" ' +
     'aria-checked="false" data-value="' +
@@ -357,6 +389,51 @@ function pickerOptions(): string {
     '">' +
     escapeAttr(label) +
     "</button>";
+  const fileOption = (slot: FileSlot): string =>
+    '<div class="md-menu-file" role="presentation">' +
+    '<button type="button" class="md-menu-item" role="menuitemradio" ' +
+    'aria-checked="false" data-value="' +
+    escapeAttr(slot.id) +
+    '" title="' +
+    escapeAttr(slot.name) +
+    '"><span class="md-menu-name">' +
+    escapeAttr(slot.name) +
+    "</span>" +
+    (dirty(slot)
+      ? '<span class="md-menu-dot" title="Хадгалагдаагүй"></span>'
+      : "") +
+    "</button>" +
+    '<button type="button" class="md-menu-close" tabindex="-1" data-close="' +
+    escapeAttr(slot.id) +
+    '" aria-label="' +
+    escapeAttr(slot.name + " файлыг хаах") +
+    '" title="Хаах">×</button></div>';
+  const projectOption = project
+    ? '<div class="md-menu-file" role="presentation">' +
+      '<button type="button" class="md-menu-item" role="menuitemradio" ' +
+      'aria-checked="false" data-value="' +
+      PROJECT_SLOT +
+      '" title="' +
+      escapeAttr(project.name + " — LaTeX төсөл") +
+      '"><span class="md-menu-name">' +
+      escapeAttr(project.name) +
+      '</span><span class="md-menu-kind">төсөл</span>' +
+      (project.dirty
+        ? '<span class="md-menu-dot" title="Хадгалагдаагүй"></span>'
+        : "") +
+      "</button>" +
+      '<button type="button" class="md-menu-close" tabindex="-1" data-close="' +
+      PROJECT_SLOT +
+      '" aria-label="' +
+      escapeAttr(project.name + " төслийг хаах") +
+      '" title="Төслийг хаах">×</button></div>'
+    : "";
+  const fileGroup =
+    files.length || project
+      ? '<div class="md-menu-group" role="presentation">Нээлттэй файлууд</div>' +
+        projectOption +
+        files.map(fileOption).join("")
+      : "";
   const slot = (id: string): string => {
     const item = findTemplate(id);
     if (item === undefined) return "";
@@ -371,6 +448,7 @@ function pickerOptions(): string {
     for (const id of group.ids) grouped.add(id);
 
   return (
+    fileGroup +
     TEMPLATE_GROUPS.map(
       (group) =>
         '<div class="md-menu-group" role="presentation">' +
@@ -417,9 +495,36 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   menu.setAttribute("role", "menu");
   menu.setAttribute("aria-label", "Баримтын загвар");
   menu.hidden = true;
-  menu.innerHTML = pickerOptions();
+  let files = loadSlots();
+  let lastTemplate =
+    isFileSlot(templateId) || templateId === PROJECT_SLOT ? PLAIN : templateId;
+  let projectName: string | null = null;
+  let items: HTMLButtonElement[] = [];
   document.body.append(menu);
-  const items = [...menu.querySelectorAll<HTMLButtonElement>(".md-menu-item")];
+
+  function slotText(slot: FileSlot): string | null {
+    if (slot.id === templateId) return editor.value;
+    const text = loadDraft(slot.id);
+    return text === LARGE_DRAFT ? null : (text ?? "");
+  }
+
+  function isDirty(slot: FileSlot): boolean {
+    if (slot.sum === null) return false;
+    const text = slotText(slot);
+    return text !== null && textSum(text) !== slot.sum;
+  }
+
+  function rebuildMenu(): void {
+    menu.innerHTML = pickerOptions(
+      files,
+      isDirty,
+      projectName === null
+        ? null
+        : { name: projectName, dirty: options.projectDirty?.() ?? false },
+    );
+    items = [...menu.querySelectorAll<HTMLButtonElement>(".md-menu-item")];
+    setPicked(pickerValue(templateId));
+  }
   const group = bar.querySelector<HTMLElement>(".md-group")!;
   const picker = bar.querySelector<HTMLElement>(".md-select")!;
   const fileBox = bar.querySelector<HTMLElement>(".md-file")!;
@@ -452,6 +557,14 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     const name = options.fileName?.() ?? null;
     if (name === shownFile) return;
     shownFile = name;
+    const slot = files.find((item) => item.id === templateId);
+    if (slot && name && slot.name !== name) {
+      files = files.map((item) =>
+        item.id === slot.id ? { ...item, name } : item,
+      );
+      saveSlots(files);
+      rebuildMenu();
+    }
     select.textContent = name ? "Файл" : pickedLabel;
     fileBox.hidden = !name;
     if (!name) return;
@@ -481,6 +594,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   }
 
   function openMenu(): void {
+    rebuildMenu();
     menu.hidden = false;
     select.setAttribute("aria-expanded", "true");
     placeMenu();
@@ -491,7 +605,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     checked?.scrollIntoView({ block: "nearest" });
   }
 
-  setPicked(pickerValue(templateId));
+  rebuildMenu();
 
   const headingButtons: [HTMLButtonElement, number][] = [];
   for (const button of group.querySelectorAll<HTMLButtonElement>(".md-btn")) {
@@ -740,6 +854,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     });
     dropLegacyPending();
     templateId = id;
+    if (!isFileSlot(id) && id !== PROJECT_SLOT) lastTemplate = id;
     saveTemplateId(id);
     if (example !== undefined) saveExampleChoice(id, example);
 
@@ -761,6 +876,68 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     if (options.onTemplate) options.onTemplate(id, from);
     setPicked(key);
     syncVisible();
+  }
+
+  function openFile(name: string): boolean {
+    if (files.length >= FILE_LIMIT) return false;
+    const id = nextFileId(files);
+    files = [...files, { id, name, sum: null }];
+    saveSlots(files);
+    rebuildMenu();
+    chooseTemplate(id);
+    return true;
+  }
+
+  function closeFile(id: string, force = false): void {
+    const slot = files.find((item) => item.id === id);
+    if (!slot) return;
+    if (
+      !force &&
+      isDirty(slot) &&
+      !window.confirm(
+        "«" + slot.name + "» хадгалагдаагүй байна. Файлыг хаах уу?",
+      )
+    )
+      return;
+    if (templateId === id) {
+      const others = files.filter((item) => item.id !== id);
+      chooseTemplate(others.at(-1)?.id ?? lastTemplate);
+    }
+    files = files.filter((item) => item.id !== id);
+    saveSlots(files);
+    dropDraft(id);
+    dropCaret(id);
+    options.onCloseFile?.(id);
+    rebuildMenu();
+  }
+
+  function setProject(name: string | null): void {
+    if (name === projectName) return;
+    projectName = name;
+    rebuildMenu();
+  }
+
+  function enterProject(): void {
+    if (templateId !== PROJECT_SLOT) chooseTemplate(PROJECT_SLOT);
+  }
+
+  function leaveProject(): void {
+    if (templateId === PROJECT_SLOT) {
+      const target = files.at(-1)?.id ?? lastTemplate;
+      chooseTemplate(target);
+    }
+    dropDraft(PROJECT_SLOT);
+    dropCaret(PROJECT_SLOT);
+    options.onCloseFile?.(PROJECT_SLOT);
+  }
+
+  function markSaved(): void {
+    if (!isFileSlot(templateId)) return;
+    const sum = textSum(editor.value);
+    files = files.map((item) =>
+      item.id === templateId ? { ...item, sum } : item,
+    );
+    saveSlots(files);
   }
 
   async function loadDefault(key: string, example: string): Promise<void> {
@@ -840,9 +1017,19 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     else closeMenu(true);
   });
   menu.addEventListener("click", (event) => {
-    const item = (event.target as HTMLElement | null)?.closest<HTMLElement>(
-      ".md-menu-item",
-    );
+    const target = event.target as HTMLElement | null;
+    const close = target?.closest<HTMLElement>(".md-menu-close");
+    if (close?.dataset.close === PROJECT_SLOT) {
+      closeMenu(false);
+      options.onCloseProject?.();
+      return;
+    }
+    if (close?.dataset.close) {
+      closeFile(close.dataset.close);
+      if (!menu.hidden) placeMenu();
+      return;
+    }
+    const item = target?.closest<HTMLElement>(".md-menu-item");
     if (item?.dataset.value !== undefined) onSelect(item.dataset.value);
   });
   menu.addEventListener("keydown", (event) => {
@@ -853,7 +1040,15 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       next = (at - 1 + items.length) % items.length;
     else if (event.key === "Home") next = 0;
     else if (event.key === "End") next = items.length - 1;
-    else if (event.key === "Escape" || event.key === "Tab") {
+    else if (event.key === "Delete") {
+      const id = items[at]?.dataset.value;
+      if (id && isFileSlot(id)) {
+        event.preventDefault();
+        closeFile(id);
+        items[Math.min(at, items.length - 1)]?.focus();
+      }
+      return;
+    } else if (event.key === "Escape" || event.key === "Tab") {
       event.preventDefault();
       closeMenu(true);
       return;
@@ -891,6 +1086,18 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       dropLegacyPending();
       holdTitle();
     },
+    openFile,
+    closeFile,
+    fileSlots: () =>
+      files.map((slot) => ({
+        id: slot.id,
+        name: slot.name,
+        text: slotText(slot),
+      })),
+    setProject,
+    enterProject,
+    leaveProject,
+    markSaved,
     destroy(): void {
       if (readyTimer) clearTimeout(readyTimer);
       if (settle) clearTimeout(settle);
