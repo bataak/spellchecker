@@ -156,7 +156,7 @@ const MIRROR_STYLES = [
   "wordBreak",
 ] as const;
 
-function caretPoint(editor: HTMLTextAreaElement): {
+export function caretPoint(editor: HTMLTextAreaElement): {
   x: number;
   y: number;
   height: number;
