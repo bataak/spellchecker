@@ -15,7 +15,12 @@ import {
   setMain,
   setProjectText,
 } from "./projectstore.ts";
-import { baseName, isTexSource, referencesFiles } from "./texproject.ts";
+import {
+  baseName,
+  isLatexDocument,
+  isTexSource,
+  referencesFiles,
+} from "./texproject.ts";
 import { TEMPLATE_INPUT } from "./undohistory.ts";
 
 const SLOT_KEY = "mn-spell:project-slot";
@@ -173,7 +178,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
       const saved = projectText(prefer);
       if (saved !== null) {
         setProjectText(prefer, editor.value);
-        if (isTexSource(prefer) && /\\documentclass\b/.test(editor.value))
+        if (isTexSource(prefer) && isLatexDocument(editor.value))
           setMain(prefer);
         openFile(prefer);
         return;
@@ -340,7 +345,11 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     },
     fileOpened(name) {
       if (project() !== null) return;
-      panel.show(isTexSource(name) && referencesFiles(editor.value));
+      panel.show(
+        isTexSource(name) &&
+          isLatexDocument(editor.value) &&
+          referencesFiles(editor.value),
+      );
     },
   };
 }

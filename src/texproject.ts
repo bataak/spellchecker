@@ -99,14 +99,16 @@ function uncommented(text: string): string {
   return text.replace(/(?<!\\)%.*$/gm, "");
 }
 
+export function isLatexDocument(text: string): boolean {
+  const body = uncommented(text);
+  return /\\documentclass\b/.test(body) && /\\begin\s*\{document\}/.test(body);
+}
+
 export function findMain(texts: ReadonlyMap<string, string>): string | null {
   const scored: { path: string; score: number }[] = [];
   for (const [path, text] of texts) {
-    if (!isTexSource(path)) continue;
-    const body = uncommented(text);
-    if (!/\\documentclass\b/.test(body)) continue;
+    if (!isTexSource(path) || !isLatexDocument(text)) continue;
     let score = 0;
-    if (/\\begin\s*\{document\}/.test(body)) score += 4;
     if (/^main\.tex$/i.test(baseName(path))) score += 2;
     score -= path.split("/").length - 1;
     scored.push({ path, score });

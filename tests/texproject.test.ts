@@ -9,6 +9,7 @@ import {
   findMain,
   graphicRefs,
   graphicsPaths,
+  isLatexDocument,
   mapGraphics,
   movedPath,
   parentDirs,
@@ -167,5 +168,33 @@ test("referencesFiles: өөр файл ашигладаг эсэхийг тод�
       "\\documentclass{article}\n\\begin{document}Сайн\\end{document}",
     ),
     false,
+  );
+});
+
+test("isLatexDocument: зөвхөн \\documentclass, \\begin{document} хоёулаа байвал", () => {
+  assert.equal(
+    isLatexDocument(
+      "\\documentclass{article}\n\\begin{document}\nА\n\\end{document}",
+    ),
+    true,
+  );
+  assert.equal(isLatexDocument("Энгийн бичвэр, өргөтгөл нь .tex"), false);
+  assert.equal(isLatexDocument("\\documentclass{article}"), false);
+  assert.equal(isLatexDocument("\\section{Оршил}\n\\input{a}"), false);
+  assert.equal(
+    isLatexDocument("% \\documentclass{article}\n\\begin{document}"),
+    false,
+  );
+});
+
+test("findMain: энгийн бичвэртэй .tex файлыг үндсэн гэж үзэхгүй", () => {
+  assert.equal(
+    findMain(
+      new Map([
+        ["notes.tex", "Энгийн тэмдэглэл"],
+        ["half.tex", "\\documentclass{article}"],
+      ]),
+    ),
+    null,
   );
 });
