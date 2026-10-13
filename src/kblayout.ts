@@ -298,7 +298,8 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): void {
           system = systemLayout(event.key);
         return;
       }
-      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.ctrlKey || event.metaKey || event.altKey || editor.readOnly)
+        return;
       const text = mapKey(
         forced,
         event.code,
