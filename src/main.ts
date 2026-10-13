@@ -24,7 +24,8 @@ import { initAppearance } from "./appearance.ts";
 import { mountMeasureControl, type MeasureControl } from "./measure.ts";
 import { initPreview, type Preview } from "./preview.ts";
 import { initProjectLink, type ProjectLink } from "./projectlink.ts";
-import { FILE_LIMIT, isFileSlot } from "./fileslots.ts";
+import { FILE_LIMIT, PROJECT_SLOT, isFileSlot } from "./fileslots.ts";
+import { project } from "./projectstore.ts";
 
 let previewCtl: Preview | null = null;
 let projectLink: ProjectLink | null = null;
@@ -352,13 +353,14 @@ const TEX_NAME_RE = /\.(tex|ltx)$/i;
 
 function isLatexText(text: string): boolean {
   if (docx) return false;
-  if (projectLink?.bound()) return true;
+  if (inProject || projectLink?.bound()) return true;
   if (plainName) return TEX_NAME_RE.test(plainName);
   return texTemplate || looksLatex(text);
 }
 
 const TEX_TEMPLATE = "article";
 let texTemplate = false;
+let inProject = false;
 
 function isTexFile(): boolean {
   return isLatexText(els.editor.value);
@@ -1650,11 +1652,14 @@ const mdBar = initMdToolbar({
   onTemplate: (id, from) => {
     clearedEmpty = false;
     texTemplate = id === TEX_TEMPLATE;
+    inProject = id === PROJECT_SLOT;
     syncTexMode();
     swapTemplateFile(from, mdBar.slot());
     enterMdMode(mdActive());
   },
   onExample: () => enterMdMode(!isTexFile()),
+  projectDirty: () => project()?.unsaved ?? false,
+  onCloseProject: () => projectLink?.close(),
   onCloseFile: (slot) => {
     templateFiles.delete(slot);
     parkedOffice.delete(slot);
@@ -1703,7 +1708,7 @@ function swapTemplateFile(from: string, to: string): void {
   saveDraftFile(next ? { name: next.name, kind: "text" } : null);
   syncSaveHint();
   mdBar.refresh();
-  projectLink?.adopt(true);
+  if (to === PROJECT_SLOT) projectLink?.enter();
 }
 async function unparkDocx(slot: string, ref: DraftFile): Promise<void> {
   const seq = swapSeq;
@@ -1765,6 +1770,7 @@ const nudgeHints = initHints(() => {
 let exportCtl: ExportControl | null = null;
 
 texTemplate = mdBar.template() === TEX_TEMPLATE;
+inProject = mdBar.template() === PROJECT_SLOT;
 lastTex = isTexFile();
 applyTexPaint(lastTex);
 initTexComplete({
@@ -1800,6 +1806,13 @@ if (workspaceEl)
       void render();
       saveText();
     },
+    onProject: (name) => {
+      mdBar.setProject(name);
+      if (name === null) mdBar.leaveProject();
+    },
+    inSlot: () => mdBar.template() === PROJECT_SLOT,
+    enterSlot: () => mdBar.enterProject(),
+    closeFileSlot: (id) => mdBar.closeFile(id, true),
     onChange: () => {
       syncTexMode();
       previewCtl?.update();

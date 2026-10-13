@@ -1,4 +1,5 @@
 export const FILE_LIMIT = 10;
+export const PROJECT_SLOT = "project";
 const FILE_PREFIX = "file-";
 const LIST_KEY = "mdFiles";
 

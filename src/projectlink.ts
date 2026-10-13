@@ -12,6 +12,7 @@ import {
   saveProject,
   setActive,
   setLinked,
+  closeProject,
   setMain,
   setProjectText,
 } from "./projectstore.ts";
@@ -36,6 +37,10 @@ export interface ProjectLinkDeps {
   readonly bindName: (name: string | null) => void;
   readonly afterSwitch: () => void;
   readonly onChange: () => void;
+  readonly onProject: (name: string | null) => void;
+  readonly inSlot: () => boolean;
+  readonly enterSlot: () => void;
+  readonly closeFileSlot: (id: string) => void;
   readonly layout: () => void;
   readonly notify: (message: string) => void;
 }
@@ -46,6 +51,8 @@ export interface ProjectLink {
   readonly key: () => string | null;
   readonly unbind: (forget: boolean) => void;
   readonly adopt: (strict: boolean) => void;
+  readonly enter: () => void;
+  readonly close: () => void;
   readonly save: () => Promise<string | null>;
   readonly openZip: (file: File) => Promise<void>;
   readonly openDir: (handle: FileSystemDirectoryHandle) => Promise<void>;
@@ -112,9 +119,20 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     if (forget) storeSlot(null);
   };
 
+  let entering = false;
+
   const openFile = (path: string): void => {
     const view = project();
     if (!view || view.pending) return;
+    if (projectText(path) === null) return;
+    if (!deps.inSlot()) {
+      entering = true;
+      try {
+        deps.enterSlot();
+      } finally {
+        entering = false;
+      }
+    }
     const text = projectText(path);
     if (text === null) return;
     if (bound && boundPath === path) {
@@ -171,20 +189,42 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     const view = project();
     if (!view?.active) return;
     if (!fresh) {
-      adopt(false);
+      if (deps.inSlot()) adopt(false);
       if (bound) return;
+      openFile(view.active);
+      return;
     }
-    if (prefer && !bound && deps.fileName() === prefer) {
-      const saved = projectText(prefer);
-      if (saved !== null) {
-        setProjectText(prefer, editor.value);
-        if (isTexSource(prefer) && isLatexDocument(editor.value))
-          setMain(prefer);
-        openFile(prefer);
-        return;
-      }
+    const fromSlot = deps.slot();
+    const fromText = editor.value;
+    const adopted =
+      prefer !== undefined &&
+      deps.fileName() === prefer &&
+      projectText(prefer) !== null;
+    if (adopted) {
+      setProjectText(prefer, fromText);
+      if (isTexSource(prefer) && isLatexDocument(fromText)) setMain(prefer);
     }
-    openFile(view.active);
+    openFile(adopted ? prefer : view.active);
+    if (adopted && fromSlot !== deps.slot()) deps.closeFileSlot(fromSlot);
+  };
+
+  const enter = (): void => {
+    if (entering || bound) return;
+    const view = project();
+    if (!view?.active || view.pending) return;
+    adopt(true);
+    if (!bound) openFile(view.active);
+  };
+
+  const close = (): void => {
+    const view = project();
+    if (
+      view?.unsaved &&
+      !window.confirm("Хадгалаагүй өөрчлөлт байна. Төслийг хаах уу?")
+    )
+      return;
+    closeProject();
+    storeSlot(null);
   };
 
   const panel: ProjectPanel = initProjectPanel({
@@ -213,10 +253,19 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     notify: deps.notify,
   });
 
-  editor.addEventListener("input", pushText);
+  editor.addEventListener("input", (event) => {
+    if (event instanceof InputEvent && event.data === TEMPLATE_INPUT) return;
+    pushText();
+  });
 
+  let shownName: string | null = null;
   onProjectChange(() => {
     const view = project();
+    const name = view?.name ?? null;
+    if (name !== shownName) {
+      shownName = name;
+      deps.onProject(name);
+    }
     if (bound && !view) {
       unbind(true);
       deps.bindName(null);
@@ -330,15 +379,21 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     },
     async restore() {
       try {
-        if (!(await restoreProject())) return;
+        if (!(await restoreProject())) {
+          deps.onProject(null);
+          return;
+        }
       } catch (error) {
         fail(error);
+        deps.onProject(null);
         return;
       }
       adopt(false);
       panel.sync();
     },
     sync: panel.sync,
+    enter,
+    close,
     cleared() {
       unbind(true);
       panel.show(false);
