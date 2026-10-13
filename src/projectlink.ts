@@ -20,7 +20,9 @@ import {
   baseName,
   isLatexDocument,
   isTexSource,
+  masterPath,
   referencesFiles,
+  texMaster,
 } from "./texproject.ts";
 import { TEMPLATE_INPUT } from "./undohistory.ts";
 
@@ -196,16 +198,35 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     }
     const fromSlot = deps.slot();
     const fromText = editor.value;
-    const adopted =
-      prefer !== undefined &&
-      deps.fileName() === prefer &&
-      projectText(prefer) !== null;
-    if (adopted) {
-      setProjectText(prefer, fromText);
-      if (isTexSource(prefer) && isLatexDocument(fromText)) setMain(prefer);
+    const target =
+      prefer !== undefined && deps.fileName() === prefer
+        ? locate(view.files, prefer, fromText)
+        : null;
+    if (target !== null) {
+      setProjectText(target, fromText);
+      const master = texMaster(fromText);
+      const main = master === null ? null : masterPath(target, master);
+      if (isTexSource(target) && isLatexDocument(fromText)) setMain(target);
+      else if (main !== null && projectText(main) !== null) setMain(main);
     }
-    openFile(adopted ? prefer : view.active);
-    if (adopted && fromSlot !== deps.slot()) deps.closeFileSlot(fromSlot);
+    openFile(target ?? view.active);
+    if (target !== null && fromSlot !== deps.slot())
+      deps.closeFileSlot(fromSlot);
+  };
+
+  const locate = (
+    files: readonly string[],
+    name: string,
+    text: string,
+  ): string | null => {
+    const matches = files.filter(
+      (path) => path === name || baseName(path) === name,
+    );
+    return (
+      matches.find((path) => projectText(path) === text) ??
+      matches.sort((a, b) => a.split("/").length - b.split("/").length)[0] ??
+      null
+    );
   };
 
   const enter = (): void => {
@@ -245,7 +266,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     openedFile: () => {
       const name = deps.fileName();
       return name && !bound && /\.(tex|ltx)$/i.test(name)
-        ? { name, handle: deps.fileHandle() }
+        ? { name, handle: deps.fileHandle(), master: texMaster(editor.value) }
         : null;
     },
     onClosed: () => storeSlot(null),
@@ -400,10 +421,11 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     },
     fileOpened(name) {
       if (project() !== null) return;
+      const text = editor.value;
       panel.show(
         isTexSource(name) &&
-          isLatexDocument(editor.value) &&
-          referencesFiles(editor.value),
+          ((isLatexDocument(text) && referencesFiles(text)) ||
+            texMaster(text) !== null),
       );
     },
   };

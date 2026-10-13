@@ -104,11 +104,31 @@ export function isLatexDocument(text: string): boolean {
   return /\\documentclass\b/.test(body) && /\\begin\s*\{document\}/.test(body);
 }
 
+const TEX_MASTER = /^%+\s*TeX-master:\s*(?:"([^"]+)"|(t|nil))\s*$/m;
+
+export function texMaster(text: string): string | null {
+  const match = TEX_MASTER.exec(text);
+  return match?.[1]?.trim() || null;
+}
+
+export function masterPath(file: string, master: string): string | null {
+  const target = cleanPath(joinPath(dirName(file), master));
+  if (!target) return null;
+  return /\.[A-Za-z0-9]+$/.test(baseName(target)) ? target : target + ".tex";
+}
+
 export function findMain(texts: ReadonlyMap<string, string>): string | null {
+  const named = new Map<string, number>();
+  for (const [path, text] of texts) {
+    const master = texMaster(text);
+    const target = master === null ? null : masterPath(path, master);
+    if (target) named.set(target, (named.get(target) ?? 0) + 1);
+  }
   const scored: { path: string; score: number }[] = [];
   for (const [path, text] of texts) {
     if (!isTexSource(path) || !isLatexDocument(text)) continue;
     let score = 0;
+    if (named.has(path)) score += 10 + (named.get(path) ?? 0);
     if (/^main\.tex$/i.test(baseName(path))) score += 2;
     score -= path.split("/").length - 1;
     scored.push({ path, score });

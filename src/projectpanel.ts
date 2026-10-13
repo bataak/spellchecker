@@ -41,6 +41,7 @@ export interface ProjectPanelDeps {
   readonly openedFile: () => {
     readonly name: string;
     readonly handle: FileSystemFileHandle | null;
+    readonly master: string | null;
   } | null;
   readonly onClosed: () => void;
   readonly onLayout: () => void;
@@ -381,8 +382,9 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     empty.hidden = ready;
     tree.hidden = !ready;
     const file = deps.openedFile();
-    folderBtn.textContent =
-      file?.handle && window.showDirectoryPicker
+    folderBtn.textContent = file?.master
+      ? "Төслийн хавтсыг нээх"
+      : file?.handle && window.showDirectoryPicker
         ? "«" + file.name + "»-ийн хавтсыг нээх"
         : "Хавтас нээх";
     folderBtn.hidden = pending;
@@ -393,7 +395,16 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
       ? "«" +
         view!.name +
         "» хавтсыг дахин нээхийн тулд хандах зөвшөөрөл өгнө үү."
-      : "Олон файлтай LaTeX төслийг хавтсаар эсвэл zip файлаар нээж засварлана.";
+      : file?.master
+        ? "«" +
+          file.name +
+          "» нь «" +
+          file.master +
+          "» үндсэн файлын хэсэг. " +
+          (file.master.startsWith("../")
+            ? "Үндсэн файл байгаа дээд хавтсыг сонгоно уу."
+            : "Тэр файл байгаа хавтсыг сонгоно уу.")
+        : "Олон файлтай LaTeX төслийг хавтсаар эсвэл zip файлаар нээж засварлана.";
     if (!ready) {
       tree.replaceChildren();
       shownVersion = "";
