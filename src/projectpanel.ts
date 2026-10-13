@@ -52,6 +52,7 @@ export interface ProjectPanel {
   readonly sync: () => void;
   readonly show: (on: boolean) => void;
   readonly openZipFile: (file: File) => Promise<void>;
+  readonly reveal: () => void;
 }
 
 const ICON = {
@@ -842,5 +843,8 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     sync: render,
     show,
     openZipFile,
+    reveal: () => {
+      if (panel.hidden) show(true);
+    },
   };
 }
