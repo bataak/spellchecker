@@ -59,8 +59,11 @@ html {
   --preview-ink: #2f7d54;
   --slots-w: 0px;
   --dock-w: 0px;
+  --project-w: 236px;
+  --project-col: 0px;
   --page-base: calc(
-    var(--editor-width) + var(--slots-w) + var(--dock-w) + 2 * var(--page-pad)
+    var(--editor-width) + var(--slots-w) + var(--dock-w) + var(--project-col) +
+      2 * var(--page-pad)
   );
   --gutter-pull: min(
     var(--gutter-w),
@@ -106,6 +109,13 @@ html {
 
 :root[data-dock-col="left"] {
   --gutter-pull: 0px;
+}
+
+@media (min-width: 1024px) {
+  :root[data-project="on"] {
+    --project-col: calc(var(--project-w) + var(--panel-gap));
+    --gutter-pull: 0px;
+  }
 }
 
 :root[data-theme="dark"] {
