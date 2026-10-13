@@ -58,7 +58,7 @@
 }
 
 .project-title {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -493,4 +493,10 @@
 
 .project-row[draggable="true"] {
   -webkit-user-drag: element;
+}
+
+.project-head .project-close {
+  width: 22px;
+  height: 22px;
+  margin-left: 2px;
 }
