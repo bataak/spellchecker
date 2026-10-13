@@ -87,6 +87,7 @@ interface State {
   version: number;
   exportedAt: number | null;
   stamps: Map<string, string>;
+  crlf: Set<string>;
 }
 
 let state: State | null = null;
@@ -220,11 +221,25 @@ function editsOf(s: State): Record<string, string> {
   return out;
 }
 
+function readText(bytes: Uint8Array): { text: string; crlf: boolean } {
+  const raw = decodeFileBytes(bytes);
+  return { text: raw.replace(/\r\n?/g, "\n"), crlf: raw.includes("\r\n") };
+}
+
+function diskText(s: State, path: string, text: string): string {
+  return s.crlf.has(path) ? text.replace(/\n/g, "\r\n") : text;
+}
+
+function noteEol(s: State, path: string, crlf: boolean): void {
+  if (crlf) s.crlf.add(path);
+  else s.crlf.delete(path);
+}
+
 function savedFilesOf(s: State): Record<string, Uint8Array> {
   const out: Record<string, Uint8Array> = {};
   const encoder = new TextEncoder();
   for (const [path, text] of s.saved)
-    if (!s.added.has(path)) out[path] = encoder.encode(text);
+    if (!s.added.has(path)) out[path] = encoder.encode(diskText(s, path, text));
   for (const [path, bytes] of s.binaries) out[path] = bytes;
   return out;
 }
@@ -266,9 +281,15 @@ function fromEntries(
 ): State {
   const texts = new Map<string, string>();
   const binaries = new Map<string, Uint8Array>();
+  const crlf = new Set<string>();
   for (const [path, bytes] of entries) {
-    if (isEditablePath(path)) texts.set(path, decodeFileBytes(bytes));
-    else binaries.set(path, bytes);
+    if (!isEditablePath(path)) {
+      binaries.set(path, bytes);
+      continue;
+    }
+    const read = readText(bytes);
+    texts.set(path, read.text);
+    if (read.crlf) crlf.add(path);
   }
   return {
     id: nextId++,
@@ -288,6 +309,7 @@ function fromEntries(
     version: 1,
     exportedAt: null,
     stamps: new Map(),
+    crlf,
   };
 }
 
@@ -396,7 +418,8 @@ async function refreshFromDisk(): Promise<boolean> {
       touched = true;
       continue;
     }
-    const text = decodeFileBytes(bytes);
+    const { text, crlf } = readText(bytes);
+    noteEol(s, path, crlf);
     if (s.saved.get(path) === text && s.texts.has(path)) continue;
     s.saved.set(path, text);
     s.added.delete(path);
@@ -741,7 +764,8 @@ export async function addFile(path: string, bytes: Uint8Array): Promise<void> {
   if (!clean) throw new ProjectError("Файлын нэр буруу байна");
   if (s.kind === "dir") await writeDisk(clean, bytes);
   if (isEditablePath(clean)) {
-    const text = decodeFileBytes(bytes);
+    const { text, crlf } = readText(bytes);
+    noteEol(s, clean, crlf);
     s.texts.set(clean, text);
     s.saved.set(clean, text);
   } else s.binaries.set(clean, bytes);
@@ -783,7 +807,7 @@ export async function renamePath(from: string, to: string): Promise<void> {
   if (s.kind === "dir") {
     for (const [path, text] of s.saved) {
       const next = movedPath(path, from, target);
-      if (next !== null) await writeDisk(next, text);
+      if (next !== null) await writeDisk(next, diskText(s, path, text));
     }
     for (const [path, bytes] of s.binaries) {
       const next = movedPath(path, from, target);
@@ -798,6 +822,9 @@ export async function renamePath(from: string, to: string): Promise<void> {
   }
   movedKeys(s.texts, from, target);
   movedKeys(s.saved, from, target);
+  s.crlf = new Set(
+    [...s.crlf].map((path) => movedPath(path, from, target) ?? path),
+  );
   movedKeys(s.binaries, from, target);
   s.added = new Set(
     [...s.added].map((path) => movedPath(path, from, target) ?? path),
@@ -819,6 +846,7 @@ export async function removePath(path: string): Promise<void> {
   for (const map of [s.texts, s.saved, s.binaries] as Map<string, unknown>[])
     for (const key of [...map.keys()]) if (within(key, path)) map.delete(key);
   for (const key of [...s.added]) if (within(key, path)) s.added.delete(key);
+  for (const key of [...s.crlf]) if (within(key, path)) s.crlf.delete(key);
   for (const dir of [...s.dirs]) if (within(dir, path)) s.dirs.delete(dir);
   if (s.main && within(s.main, path)) s.main = findMain(s.texts);
   if (s.active && within(s.active, path)) s.active = null;
@@ -832,7 +860,8 @@ export async function projectZip(): Promise<Blob> {
   const { zipSync } = await import("fflate");
   const encoder = new TextEncoder();
   const entries: Record<string, Uint8Array> = {};
-  for (const [path, text] of s.texts) entries[path] = encoder.encode(text);
+  for (const [path, text] of s.texts)
+    entries[path] = encoder.encode(diskText(s, path, text));
   for (const [path, bytes] of s.binaries) entries[path] = bytes;
   for (const dir of s.dirs)
     if (![...Object.keys(entries)].some((path) => within(path, dir)))
@@ -852,7 +881,7 @@ export async function saveProject(): Promise<SaveResult> {
     for (const path of dirty) {
       const text = s.texts.get(path);
       if (text === undefined) continue;
-      await writeDisk(path, text);
+      await writeDisk(path, diskText(s, path, text));
       s.saved.set(path, text);
       s.added.delete(path);
     }
@@ -867,7 +896,9 @@ export async function saveProject(): Promise<SaveResult> {
     for (const path of dirty) {
       const text = s.texts.get(path)!;
       download(
-        new Blob([text], { type: "text/plain;charset=utf-8" }),
+        new Blob([diskText(s, path, text)], {
+          type: "text/plain;charset=utf-8",
+        }),
         baseName(path),
       );
       s.saved.set(path, text);
