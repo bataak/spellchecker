@@ -305,6 +305,20 @@ export function initPreview(
   zoomReset.className = "pdf-zoom-level";
   zoomBox.append(zoomOut, zoomReset, zoomIn);
 
+  const pageNav = document.createElement("span");
+  pageNav.className = "pdf-page-nav";
+  const pageLabel = document.createElement("button");
+  pageLabel.type = "button";
+  pageLabel.className = "pdf-page-label";
+  pageLabel.title = "Хуудас руу очих";
+  const pageInput = document.createElement("input");
+  pageInput.type = "text";
+  pageInput.inputMode = "numeric";
+  pageInput.className = "pdf-page-input";
+  pageInput.setAttribute("aria-label", "Хуудасны дугаар");
+  pageInput.hidden = true;
+  pageNav.append(pageLabel, pageInput);
+
   const compileButton = (className: string): HTMLButtonElement => {
     const button = document.createElement("button");
     button.type = "button";
@@ -317,7 +331,7 @@ export function initPreview(
   };
   const compileBtn = compileButton("tex-compile");
 
-  head.append(title, compileBtn, zoomBox, invertBtn);
+  head.append(title, pageNav, compileBtn, zoomBox, invertBtn);
 
   const body = document.createElement("div");
   body.className = "preview-body";
@@ -397,6 +411,56 @@ export function initPreview(
   zoomIn.addEventListener("click", () => setZoom(stepZoom(zoom, 1)));
   zoomReset.addEventListener("click", () => setZoom(1));
 
+  let page = 1;
+  let pages = 0;
+  const showPage = (next: number, total: number): void => {
+    page = next;
+    pages = total;
+    pageLabel.textContent = page + " / " + pages;
+    pageLabel.setAttribute(
+      "aria-label",
+      "Хуудас " + page + " / " + pages + ". Хуудас руу очих",
+    );
+  };
+  const closePageInput = (): void => {
+    if (pageInput.hidden) return;
+    pageInput.hidden = true;
+    pageLabel.hidden = false;
+  };
+  pageLabel.addEventListener("click", () => {
+    if (!pdfView) return;
+    pageLabel.hidden = true;
+    pageInput.hidden = false;
+    pageInput.style.width = String(pages).length + 2 + "ch";
+    pageInput.value = String(page);
+    pageInput.focus();
+    pageInput.select();
+  });
+  pageInput.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closePageInput();
+      pageLabel.focus();
+      return;
+    }
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    const target = Number.parseInt(pageInput.value.trim(), 10);
+    if (Number.isFinite(target)) pdfView?.goTo(target);
+    closePageInput();
+    pageLabel.focus();
+  });
+  pageInput.addEventListener("blur", closePageInput);
+  const pdfOptions = {
+    inset: () => head.offsetHeight,
+    onPage: showPage,
+  };
+  const setPdfView = (view: import("./pdfview.ts").PdfView | null): void => {
+    pdfView = view;
+    panel.classList.toggle("has-pages", view !== null);
+    if (!view) closePageInput();
+  };
+
   body.addEventListener(
     "wheel",
     (event) => {
@@ -470,7 +534,7 @@ export function initPreview(
     pdfAbort?.abort();
     pdfAbort = null;
     pdfView?.destroy();
-    pdfView = null;
+    setPdfView(null);
   };
 
   const renderPdf = async (file: File): Promise<void> => {
@@ -487,12 +551,13 @@ export function initPreview(
         file,
         controller.signal,
         zoom,
+        pdfOptions,
       );
       if (controller.signal.aborted) {
         view.destroy();
         return;
       }
-      pdfView = view;
+      setPdfView(view);
     } catch {
       if (controller.signal.aborted) return;
       showNotice("PDF хуудсыг зурж чадсангүй");
@@ -538,12 +603,18 @@ export function initPreview(
     const controller = new AbortController();
     pdfAbort = controller;
     const file = new File([bytes], "preview.pdf", { type: "application/pdf" });
-    const view = await mod.renderPdfInto(body, file, controller.signal, zoom);
+    const view = await mod.renderPdfInto(
+      body,
+      file,
+      controller.signal,
+      zoom,
+      pdfOptions,
+    );
     if (controller.signal.aborted) {
       view.destroy();
       return false;
     }
-    pdfView = view;
+    setPdfView(view);
     panel.classList.remove("is-blank");
     body.classList.remove("is-empty");
     body.scrollTop = scroll;
