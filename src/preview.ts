@@ -566,11 +566,15 @@ export function initPreview(
     });
     compiling = text;
     try {
-      const [{ compileTexDocument }, images] = await Promise.all([
+      const [{ compileTexDocument, onTexPackage }, images] = await Promise.all([
         import("./texpdf.ts"),
         import("./teximages.ts"),
       ]);
       watchImages(images);
+      onTexPackage((message) => {
+        if (seq === texSeq && texMode && !pdfView)
+          showNotice(message ?? "PDF бэлтгэж байна…");
+      });
       const { pdf, missing } = await compileTexDocument(text);
       if (!(await showPdfBytes(pdf, seq))) return;
       texShown = text;

@@ -7,7 +7,7 @@ const DATABASES = [
   "bichig-tex",
   "bichig-images",
 ];
-const USER_CACHES = ["tex-preview"];
+const USER_CACHES = ["tex-preview", "tex-packages"];
 
 function wipeNow(): void {
   try {
