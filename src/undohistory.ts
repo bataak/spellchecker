@@ -201,6 +201,7 @@ export interface UndoDeps {
 
 export interface UndoControl {
   readonly baseline: () => void;
+  readonly reset: () => void;
 }
 
 const SAVE_DELAY_MS = 1000;
@@ -344,7 +345,16 @@ export function initUndoHistory(deps: UndoDeps): UndoControl {
     persist();
   });
 
+  const reset = (): void => {
+    loadSeq++;
+    slot = deps.slot();
+    value = editor.value;
+    selection = [editor.selectionStart, editor.selectionEnd];
+    history = emptyHistory();
+    persist();
+  };
+
   document.addEventListener("selectionchange", trackSelection);
   baseline();
-  return { baseline };
+  return { baseline, reset };
 }
