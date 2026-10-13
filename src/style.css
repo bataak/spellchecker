@@ -1566,6 +1566,16 @@ a.tbtn {
   gap: 6px;
   padding: 4px;
 }
+.pop-fix-note {
+  padding: 0 6px 4px;
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+.pop-fix-note-warn {
+  color: var(--proof);
+}
 .pop-fix-input {
   flex: 1 1 auto;
   min-width: 0;
