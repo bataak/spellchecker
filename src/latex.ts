@@ -422,6 +422,20 @@ function titleBlock(head: Block | undefined): string {
 export interface LatexOptions {
   readonly toc?: boolean;
   readonly pageNumbers?: boolean;
+  readonly letter?: boolean;
+}
+
+function unnumberFirstHeading(blocks: readonly Block[]): Block[] {
+  let done = false;
+  const visit = (list: readonly Block[]): Block[] =>
+    list.map((b) => {
+      if (done) return b;
+      if (b.type === "div") return { ...b, children: visit(b.children) };
+      if (b.type !== "heading" || oneLine(b.children).trim() === "") return b;
+      done = true;
+      return { ...b, attrs: b.attrs ? b.attrs.replace(/\}$/, " -}") : "{-}" };
+    });
+  return visit(blocks);
 }
 
 export function toLatex(
@@ -429,6 +443,7 @@ export function toLatex(
   preamble?: string,
   options: LatexOptions = {},
 ): string {
+  if (options.letter) blocks = unnumberFirstHeading(blocks);
   const head = titleBlock(blocks[0]);
   const plain = options.pageNumbers !== false;
   const body = toLatexBody(blocks);

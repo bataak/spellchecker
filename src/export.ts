@@ -74,6 +74,7 @@ async function latexFor(
     : toLatex(parse(text), undefined, {
         toc: tocFor(options, templateId, text),
         pageNumbers: frame !== "letter" || hasSections(text, templateId),
+        letter: frame === "letter",
       });
 }
 
