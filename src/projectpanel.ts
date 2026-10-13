@@ -319,7 +319,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     !wide.matches || "projectFloat" in document.documentElement.dataset;
 
   const closeDrawer = (): void => {
-    if (floating()) show(false);
+    if (!wide.matches) show(false);
   };
 
   const icons = (node: TreeNode): string =>
