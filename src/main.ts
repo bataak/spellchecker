@@ -361,6 +361,8 @@ function isLatexText(text: string): boolean {
 const TEX_TEMPLATE = "article";
 let texTemplate = false;
 let inProject = false;
+const CHECK_TEMPLATES: ReadonlySet<string> = new Set([PLAIN, "plain2"]);
+let checkTemplate = false;
 
 function isTexFile(): boolean {
   return isLatexText(els.editor.value);
@@ -1186,7 +1188,10 @@ const fixButtonDeps = {
   saveText: () => saveText(),
 };
 const decode = initDecode(fixButtonDeps);
-const clean = initClean({ ...fixButtonDeps, skip: () => isTexFile() });
+const clean = initClean({
+  ...fixButtonDeps,
+  skip: () => !checkTemplate || isTexFile(),
+});
 function syncFixButtons(): void {
   decode.sync();
   clean.sync();
@@ -1654,6 +1659,8 @@ const mdBar = initMdToolbar({
     clearedEmpty = false;
     texTemplate = id === TEX_TEMPLATE;
     inProject = id === PROJECT_SLOT;
+    checkTemplate = CHECK_TEMPLATES.has(id);
+    clean.sync();
     syncTexMode();
     swapTemplateFile(from, mdBar.slot());
     enterMdMode(mdActive());
@@ -1772,6 +1779,8 @@ let exportCtl: ExportControl | null = null;
 
 texTemplate = mdBar.template() === TEX_TEMPLATE;
 inProject = mdBar.template() === PROJECT_SLOT;
+checkTemplate = CHECK_TEMPLATES.has(mdBar.template());
+clean.sync();
 lastTex = isTexFile();
 applyTexPaint(lastTex);
 initTexComplete({
