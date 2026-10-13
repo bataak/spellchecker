@@ -587,6 +587,29 @@ function userCoverage(): string[] {
 const LAZY_FONT = /^sf[a-z]{2}\d{4}\.pfb$/;
 const COVERAGE_ONLY = /^example-image/;
 
+const KERNEL_DIRS = [
+  "tex/latex/base",
+  "tex/latex/l3kernel",
+  "tex/latex/l3backend",
+  "tex/latex/latex-lab",
+  "tex/latex/firstaid",
+];
+const KERNEL_SKIP = /\.(?:ltx|lua|dtx|ins)$|^expl3-code\.tex$/;
+
+function kernelFiles(): [string, string][] {
+  const root = execFileSync("kpsewhich", ["-var-value=TEXMFDIST"])
+    .toString()
+    .trim();
+  const found: [string, string][] = [];
+  for (const dir of KERNEL_DIRS) {
+    const path = join(root, dir);
+    if (!existsSync(path)) continue;
+    for (const name of readdirSync(path))
+      if (!KERNEL_SKIP.test(name)) found.push([name, join(path, name)]);
+  }
+  return found;
+}
+
 function trimMap(map: string, fonts: ReadonlySet<string>): string {
   return (
     map
@@ -627,6 +650,8 @@ async function main(): Promise<void> {
     }
     for (const [name, path] of result.served) files.set(name, path);
   }
+  for (const [name, path] of kernelFiles())
+    if (!files.has(name)) files.set(name, path);
 
   const fonts = new Set(
     [...files.keys()]
@@ -661,7 +686,10 @@ async function main(): Promise<void> {
     .digest("hex")
     .slice(0, 12);
 
-  rmSync(OUT, { recursive: true, force: true });
+  mkdirSync(OUT, { recursive: true });
+  for (const name of readdirSync(OUT))
+    if (!/^packages-[0-9a-f]+\.json$/.test(name))
+      rmSync(join(OUT, name), { recursive: true, force: true });
   mkdirSync(join(OUT, engineHash), { recursive: true });
   writeFileSync(join(OUT, "texlive-" + hash + ".zip"), zip);
   mkdirSync(join(OUT, fontDir), { recursive: true });
@@ -702,6 +730,7 @@ function patchEngine(js: string): string {
   js =
     js.slice(0, start) +
     'const KPSE_EXT={3:".tfm",10:".fmt",11:".map",26:".tex",32:".pfb",33:".vf",44:".enc"};' +
+    "self.texmisses=new Set();" +
     "function kpse_find_file_impl(nameptr,format,_mustexist){" +
     'const reqname=UTF8ToString(nameptr);if(reqname.includes("/")){return 0}' +
     "const ext=KPSE_EXT[format];" +
@@ -717,6 +746,7 @@ function patchEngine(js: string): string {
     'const path=TEXCACHEROOT+"/"+name;' +
     "FS.writeFile(path,new Uint8Array(xhr.response));" +
     'return allocate(intArrayFromString(path),"i8",ALLOC_NORMAL)}}catch(e){}}' +
+    "for(const name of names){self.texmisses.add(name)}" +
     "return 0}" +
     "function kpse_find_pk_impl(nameptr,dpi){return 0}" +
     js.slice(end);
@@ -726,8 +756,9 @@ function patchEngine(js: string): string {
   );
   replace(
     'else if(cmd==="flushcache"){cleanDir(WORKROOT)}',
-    'else if(cmd==="flushcache"){cleanDir(WORKROOT)}' +
+    'else if(cmd==="flushcache"){cleanDir(WORKROOT);self.texmisses.clear()}' +
       'else if(cmd==="writetex"){FS.writeFile(TEXCACHEROOT+"/"+data["name"],data["src"])}' +
+      'else if(cmd==="misses"){self.postMessage({cmd:"misses",names:[...self.texmisses]})}' +
       'else if(cmd==="fonturl"){self.texfont_endpoint=data["url"]}',
   );
   return js;

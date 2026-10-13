@@ -1,0 +1,6 @@
+name = "texlive-packages"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+[vars]
+ALLOWED_ORIGINS = "https://aldaa.bichig.dev,http://localhost:5173,http://localhost:4173"
