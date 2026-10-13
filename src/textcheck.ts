@@ -1,3 +1,5 @@
+import { inRanges, type SkipRange } from "./codeskip.ts";
+
 export const DASHES = /[-\u2013\u2014]/;
 
 export interface Token {
@@ -135,6 +137,7 @@ export function dashNormalizeApply(
   text: string,
   token: Pick<Token, "word" | "start">,
   replacement: string,
+  skip: SkipRange[] = [],
 ): { text: string; caret: number } | null {
   const normalized = dashNormalized(token.word);
   if (normalized === null || normalized !== replacement) return null;
@@ -146,7 +149,10 @@ export function dashNormalizeApply(
     const at = text.indexOf(token.word, cursor);
     if (at < 0) break;
     const stop = at + token.word.length;
-    if (isSpanBoundary(text, at, stop)) {
+    if (
+      isSpanBoundary(text, at, stop) &&
+      (at === token.start || !inRanges(skip, at))
+    ) {
       result += text.slice(cursor, at) + normalized;
       cursor = stop;
     } else {

@@ -8,6 +8,7 @@ import {
   dashCompound,
   isLexicalHyphen,
 } from "../src/textcheck.ts";
+import { skipRanges } from "../src/codeskip.ts";
 
 test("span covers abbreviation, dash and suffix", () => {
   const text = "ОЖД\u2013аас ирсэн";
@@ -204,4 +205,16 @@ test("a hyphen compound built from two words is not lexical", () => {
 test("a stem without a hyphen is not lexical", () => {
   assert.equal(isLexicalHyphen([" st:Монгол"]), false);
   assert.equal(isLexicalHyphen([]), false);
+});
+
+test("apply leaves links and inline code untouched", () => {
+  const text = "ОЖД\u2013аас `ОЖД\u2013аас` https://x.mn/ОЖД\u2013аас";
+  const span = dashSpan(text, { word: "аас", start: 4 })!;
+  const got = dashNormalizeApply(
+    text,
+    span,
+    "ОЖД-аас",
+    skipRanges(text, { code: true }),
+  );
+  assert.equal(got?.text, "ОЖД-аас `ОЖД\u2013аас` https://x.mn/ОЖД\u2013аас");
 });
