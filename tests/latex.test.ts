@@ -180,6 +180,14 @@ test("хуудасны дугааргүй сонголт", () => {
   );
 });
 
+test("албан бичгийн эхний гарчиг дугааргүй", () => {
+  const src = "# Өргөдөл гаргах нь:\n\nБие.\n\n## Хавсралт\n";
+  const tex = toLatex(parse(src), undefined, { letter: true });
+  assert.ok(tex.includes("\\section*{Өргөдөл гаргах нь:}"));
+  assert.ok(tex.includes("\\subsection{Хавсралт}"));
+  assert.ok(toLatex(parse(src)).includes("\\section{Өргөдөл гаргах нь:}"));
+});
+
 test("гарчгийн жагсаалт сонголтоор", () => {
   assert.ok(!toLatex(parse("# А\n")).includes("\\tableofcontents"));
   assert.ok(
