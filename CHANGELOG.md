@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.102.2](https://github.com/bataak/spellchecker/compare/v1.102.1...v1.102.2) (2026-10-13)
+
+
+### Bug Fixes
+
+* **export:** leave the first heading of an official letter unnumbered in LaTeX and PDF ([bf105e1](https://github.com/bataak/spellchecker/commit/bf105e151a18873ca43b97e7fab8315da3f2e3d0))
+
 ## [1.102.1](https://github.com/bataak/spellchecker/compare/v1.102.0...v1.102.1) (2026-10-13)
 
 
