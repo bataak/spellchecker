@@ -1,5 +1,53 @@
 # Changelog
 
+## [1.103.0](https://github.com/bataak/spellchecker/compare/v1.102.2...v1.103.0) (2026-10-13)
+
+
+### Features
+
+* **clean:** add a Clean button that strips HTML markup and fixes misused v, є, ї letters ([9bfdd5d](https://github.com/bataak/spellchecker/commit/9bfdd5d63bc4f1cba8102243ffcee55239a61237))
+* **files:** open several files at once and switch between them from the template menu ([9a03be4](https://github.com/bataak/spellchecker/commit/9a03be49fc5b2d60d89102a48614cc05f3756ac6))
+* **hints:** show the keyboard layout hint under the caret first and add a text mode hint ([cfcd093](https://github.com/bataak/spellchecker/commit/cfcd0937497556aa9e4d4ce3f18f520bccee83f4))
+* **latex:** drag files and folders in the project panel to move them; drop the redundant Open menu item ([e2853ff](https://github.com/bataak/spellchecker/commit/e2853ffa48a7b2526b0e29ce0156f0113fc6df98))
+* **latex:** drop the panel save button in favour of Ctrl+S and restore the tree icon for the panel toggle ([ddfa379](https://github.com/bataak/spellchecker/commit/ddfa37915ea2df5fa54d8730293cbefac115a19e))
+* **latex:** float the project panel on narrow screens, open the current file's folder, save changed files in Firefox ([545a74d](https://github.com/bataak/spellchecker/commit/545a74dd4a6bfd19717b18c2924800e1a3a9d3dd))
+* **latex:** fold a floating project panel shown on switch after five seconds unless the user turns to it ([b597e98](https://github.com/bataak/spellchecker/commit/b597e98d02c97270f07019cbcf1c088db5909646))
+* **latex:** follow AUCTeX TeX-master lines to find a chapter file's project and main file ([04cb27e](https://github.com/bataak/spellchecker/commit/04cb27ee4172978321520ea314ed75ac150a07a9))
+* **latex:** give the project panel toggle the layout button's fade-in behaviour and glyph style ([e5446d7](https://github.com/bataak/spellchecker/commit/e5446d778d6dbf1bab17676dcfe39cd497bc000b))
+* **latex:** keep a zip download button in the project panel and show when the last zip backup was taken ([b586e43](https://github.com/bataak/spellchecker/commit/b586e434bb1d9c03d43ffe46b30c908772fdbeb0))
+* **latex:** let the layout menu widen the editor past the project column, folding the panel into a floating drawer ([feef4a8](https://github.com/bataak/spellchecker/commit/feef4a8c9eea5ca5fc76ba5c41ab9996b1b9524d))
+* **latex:** list the LaTeX project in the template menu as its own slot ([97607d5](https://github.com/bataak/spellchecker/commit/97607d56bd2a0923db277f153c7c711732938505))
+* **latex:** move project actions to the panel footer and reload folders changed on disk ([4df9bbf](https://github.com/bataak/spellchecker/commit/4df9bbf651340a62e3a6313e0554bf8bcb56cee7))
+* **latex:** open multi-file LaTeX projects from a folder or zip in a project panel ([0743693](https://github.com/bataak/spellchecker/commit/0743693e4f7c90f558f22c116e35d3c2582190c7))
+* **latex:** open the project panel when an opened .tex file pulls in other files, keep it hidden otherwise ([8070e78](https://github.com/bataak/spellchecker/commit/8070e784c5396863a8979444d7ba06223395d9c7))
+* **latex:** open the project panel when switching to the project from the template menu ([01b2614](https://github.com/bataak/spellchecker/commit/01b2614e151a7cc9287295fdbcb2875d21a3d486))
+* **latex:** put the close-project button right after the project name ([b889724](https://github.com/bataak/spellchecker/commit/b889724e55198a6a34db63deb2d281729e118c1b))
+* **latex:** show project PDFs and images in the preview when clicked in the panel ([8d8d556](https://github.com/bataak/spellchecker/commit/8d8d5567961abf29b5bd24f6954a29c252b18735))
+
+
+### Bug Fixes
+
+* **clean:** hide the clean button for LaTeX, where overlays and comparisons look like HTML tags ([7255299](https://github.com/bataak/spellchecker/commit/7255299dcf1700c1f37fc1e4e97ece6cc5a5810a))
+* **clean:** show the clean button only in the Бичвэр 1 and Бичвэр 2 templates ([3269d0c](https://github.com/bataak/spellchecker/commit/3269d0ccf0bce48b87c0887432079e6d65743e79))
+* **editor:** refresh the decode and clean buttons after toolbar paste ([25e7a84](https://github.com/bataak/spellchecker/commit/25e7a8401662a72b919f37fe7ccd13d8e8a5a32a))
+* **files:** reword the open-file limit message ([b19e458](https://github.com/bataak/spellchecker/commit/b19e458523ba27d07765479ab1a2693476a3675a))
+* **files:** say «Хадгалагдаагүй» for unsaved files ([ce9ace8](https://github.com/bataak/spellchecker/commit/ce9ace8c2457cea780d5b988f949502b57fc5677))
+* **latex:** add room to the right of the archive button ([be78e50](https://github.com/bataak/spellchecker/commit/be78e50e97494e5c2cf91349add58279a2d9da7d))
+* **latex:** clear the project's unsaved mark when edits are undone back to the saved text ([159e3d8](https://github.com/bataak/spellchecker/commit/159e3d8c6dac0a93046b37b947d948581aec1c07))
+* **latex:** fold open files that match a project file into the project entry ([aad4a5d](https://github.com/bataak/spellchecker/commit/aad4a5d928640ad49e9178196526001712962278))
+* **latex:** hide the panel toggle while the project panel is open ([44c7041](https://github.com/bataak/spellchecker/commit/44c70418c8b2cde97d813c9f03a4dfb23c811bf5))
+* **latex:** hide the project panel after clearing the editor and outside LaTeX mode ([4e0d67d](https://github.com/bataak/spellchecker/commit/4e0d67dd635cdc9e22907a46e2b6954bbe029cbf))
+* **latex:** keep a floating project panel open while picking files; still fold it on phones ([051602a](https://github.com/bataak/spellchecker/commit/051602a306c7da03947141a9500315c9edaf0d3b))
+* **latex:** keep the project panel button visible and accept .zip in the open dialog ([e3f980f](https://github.com/bataak/spellchecker/commit/e3f980f2bd868dc7d67efece2e221ff55b524986))
+* **latex:** label the panel's create actions «Шинэ файл үүсгэх» and «Шинэ хавтас үүсгэх» ([c26c571](https://github.com/bataak/spellchecker/commit/c26c5713b1e846f09aa9dcd1fc10cd53c26b6c4d))
+* **latex:** rename the zip button to «Архивлах» ([43b087a](https://github.com/bataak/spellchecker/commit/43b087a1816b39c87ef21a96e078f3861f1ebec6))
+* **latex:** start a new file name as *.tex with the star selected ([66b0b7f](https://github.com/bataak/spellchecker/commit/66b0b7f821e73a888409f9e5aa57dc6bc3fba704))
+* **latex:** treat CRLF project files as unchanged after loading and keep their line endings on save ([853211a](https://github.com/bataak/spellchecker/commit/853211a5324a7316c821e9d1c699f976e0e069fd))
+* **latex:** treat only files with \documentclass and \begin{document} as project main files ([c6336ef](https://github.com/bataak/spellchecker/commit/c6336ef1b501efdcf2a4c96bde072867b7305e0d))
+* **layout:** widen the empty editor in Markdown and LaTeX modes when the preview is off ([#236](https://github.com/bataak/spellchecker/issues/236)) ([aa3e310](https://github.com/bataak/spellchecker/commit/aa3e3103ad166455a6af260419714723d6f51576))
+* **tex:** read TeX errors wrapped at 79 columns so missing fonts with long names are fetched ([b50f818](https://github.com/bataak/spellchecker/commit/b50f81849e9636d00b97f8de0534821f2f3cf8e9))
+* **undo:** start a fresh undo history for an opened file so undo cannot wipe its content ([2edc8fb](https://github.com/bataak/spellchecker/commit/2edc8fb284d380072a901bfbf936bd8efeb2c4b6))
+
 ## [1.102.2](https://github.com/bataak/spellchecker/compare/v1.102.1...v1.102.2) (2026-10-13)
 
 
