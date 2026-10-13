@@ -13,7 +13,6 @@ import {
   project,
   removePath,
   renamePath,
-  saveProject,
   setMain,
   type ProjectView,
 } from "./projectstore.ts";
@@ -62,8 +61,7 @@ const ICON = {
     '<path d="M1.5 4.2c0-.8.6-1.4 1.4-1.4h3.3l1.5 1.7h5.4c.8 0 1.4.6 1.4 1.4v6.6c0 .8-.6 1.4-1.4 1.4H2.9c-.8 0-1.4-.6-1.4-1.4z"/><path d="M8 7v4.5M5.75 9.25h4.5"/>',
   close: '<path d="M4 4l8 8M12 4l-8 8"/>',
   more: '<circle cx="3.5" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="12.5" cy="8" r="1.1" fill="currentColor" stroke="none"/>',
-  sidebar:
-    '<rect x="1.5" y="2.5" width="13" height="11" rx="1.8"/><path d="M6 2.5v11M3.3 5.5h1M3.3 7.5h1"/>',
+  tree: '<path d="M2 2.5h4.5M4 2.5v9.5h3.5M4 7h3.5"/><rect x="8.5" y="5" width="6" height="4" rx="1"/><rect x="8.5" y="10" width="6" height="4" rx="1"/>',
   refresh:
     '<path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M12.2 1.8v2.6H9.6"/>',
 } as const;
@@ -126,7 +124,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   headIcon.innerHTML = icon(ICON.folder, 16);
   const title = document.createElement("span");
   title.className = "project-title";
-  const hideBtn = headButton("Самбарыг нуух", ICON.sidebar);
+  const hideBtn = headButton("Самбарыг нуух", ICON.tree);
   head.append(headIcon, title, hideBtn);
 
   const textButton = (label: string): HTMLButtonElement => {
@@ -139,7 +137,6 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   };
   const newFileBtn = headButton("Шинэ файл", ICON.newFile);
   const newDirBtn = headButton("Шинэ хавтас", ICON.newFolder);
-  const saveBtn = textButton("Хадгалах");
   const exportBtn = textButton("Zip татах");
   const closeBtn = headButton("Төслийг хаах", ICON.close);
   const refreshBtn = headButton("Дискнээс дахин унших", ICON.refresh);
@@ -179,15 +176,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   foot.className = "project-foot";
   const spacer = document.createElement("span");
   spacer.className = "project-foot-gap";
-  foot.append(
-    newFileBtn,
-    newDirBtn,
-    refreshBtn,
-    spacer,
-    saveBtn,
-    exportBtn,
-    closeBtn,
-  );
+  foot.append(newFileBtn, newDirBtn, refreshBtn, spacer, exportBtn, closeBtn);
 
   panel.append(head, tree, empty, foot, zipInput);
   deps.workspace.prepend(panel);
@@ -204,7 +193,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   toggle.title = "LaTeX төсөл";
   toggle.setAttribute("aria-label", "LaTeX төслийн самбар");
   toggle.setAttribute("aria-pressed", "false");
-  toggle.innerHTML = icon(ICON.sidebar, 15);
+  toggle.innerHTML = icon(ICON.tree, 15);
   toggle.addEventListener("mousedown", (event) => event.preventDefault());
 
   let open = loadOpen() && wide.matches;
@@ -293,10 +282,6 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
       (view.exportedAt === null
         ? ""
         : " · сүүлд татсан: " + ago(view.exportedAt));
-    saveBtn.title =
-      view.kind === "dir"
-        ? "Өөрчлөлтийг дискэн дээрх файлд хадгалах"
-        : "Энэ хөтөч дискэн дээрх файлыг шууд засах эрхгүй тул засварласан файлууд «Татаж авсан файлууд» хавтас руу татагдана";
   };
 
   const rowFor = (
@@ -366,9 +351,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
         : view.name + " — энэ хөтөч дотор хадгалагдана"
       : "";
     headIcon.hidden = view === null;
-    saveBtn.hidden = !ready || view.kind === "memory";
     refreshBtn.hidden = !ready || view.kind !== "dir";
-    saveBtn.classList.toggle("is-due", ready && view.unsaved);
     exportBtn.hidden = !ready;
     exportBtn.classList.toggle(
       "is-due",
@@ -795,20 +778,6 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     if (view && !view.pending && !panel.hidden) syncFoot(view);
   }, 60000);
 
-  saveBtn.addEventListener("click", () => {
-    void run(async () => {
-      const result = await saveProject();
-      deps.notify(
-        result === "saved"
-          ? "Төслийн өөрчлөлтийг хадгаллаа"
-          : result === "downloaded"
-            ? "Төслийг zip болгож татлаа"
-            : result === "files"
-              ? "Засварласан файлуудыг «Татаж авсан файлууд» хавтас руу татлаа — анхны файлыг тэдгээрээр солино уу"
-              : "Хадгалах өөрчлөлт алга",
-      );
-    });
-  });
   closeBtn.addEventListener("click", () => {
     const view = project();
     if (

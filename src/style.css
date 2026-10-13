@@ -59,7 +59,7 @@ html {
   --preview-ink: #2f7d54;
   --slots-w: 0px;
   --dock-w: 0px;
-  --project-w: 264px;
+  --project-w: 236px;
   --project-col: 0px;
   --page-base: calc(
     var(--editor-width) + var(--slots-w) + var(--dock-w) + var(--project-col) +

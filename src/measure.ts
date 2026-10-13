@@ -149,7 +149,7 @@ const wideQuery = window.matchMedia("(min-width: 1024px)");
 function projectRoom(wrap: HTMLElement, x: Metrics): number {
   if (document.documentElement.dataset.project !== "on" || !wideQuery.matches)
     return 0;
-  return measureVar(wrap, "--project-w", 264) + x.panelGap + x.gutterW;
+  return measureVar(wrap, "--project-w", 236) + x.panelGap + x.gutterW;
 }
 
 function load(): Layout {

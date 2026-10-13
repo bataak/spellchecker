@@ -281,6 +281,10 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
       if (!bound || !hasProject()) return null;
       pushText();
       const result = await saveProject();
+      if (result === "files")
+        deps.notify(
+          "Засварласан файлуудыг «Татаж авсан файлууд» хавтас руу татлаа — анхны файлыг тэдгээрээр солино уу",
+        );
       return result === "downloaded"
         ? "Zip татлаа"
         : result === "files"
