@@ -384,7 +384,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
           "Засварласан файлуудыг «Татаж авсан файлууд» хавтас руу татлаа — анхны файлыг тэдгээрээр солино уу",
         );
       return result === "downloaded"
-        ? "Zip татлаа"
+        ? "Архивлалаа"
         : result === "files"
           ? "Засварласан файлуудыг татлаа"
           : result === "saved"
