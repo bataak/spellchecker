@@ -1,0 +1,151 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import {
+  buildTree,
+  cleanPath,
+  commonRoot,
+  compilePasses,
+  findMain,
+  graphicRefs,
+  graphicsPaths,
+  mapGraphics,
+  movedPath,
+  parentDirs,
+  resolveGraphic,
+  rootedPath,
+  skippedPath,
+  validName,
+} from "../src/texproject.ts";
+
+test("cleanPath: цэг, давхар зураас, .. замыг цэгцэлнэ", () => {
+  assert.equal(cleanPath("./a//b/./c.tex"), "a/b/c.tex");
+  assert.equal(cleanPath("a/b/../c.tex"), "a/c.tex");
+  assert.equal(cleanPath("a\\b.tex"), "a/b.tex");
+  assert.equal(cleanPath("../x.tex"), null);
+  assert.equal(cleanPath("./"), null);
+});
+
+test("skippedPath: далд хавтас, build гаралтыг алгасна", () => {
+  assert.equal(skippedPath(".git/config"), true);
+  assert.equal(skippedPath("__MACOSX/main.tex"), true);
+  assert.equal(skippedPath("main.aux"), true);
+  assert.equal(skippedPath("out/main.synctex.gz"), true);
+  assert.equal(skippedPath("main.tex"), false);
+  assert.equal(skippedPath("img/fig.pdf"), false);
+});
+
+test("commonRoot: zip-ийн нийтлэг дээд хавтсыг олно", () => {
+  assert.equal(commonRoot(["p/main.tex", "p/img/a.png"]), "p");
+  assert.equal(commonRoot(["main.tex", "img/a.png"]), "");
+  assert.equal(commonRoot(["p/main.tex", "q/x.tex"]), "");
+  assert.equal(rootedPath("p/img/a.png", "p"), "img/a.png");
+  assert.equal(rootedPath("other/a.png", "p"), "other/a.png");
+});
+
+test("findMain: \\documentclass-тай, \\begin{document}-тэй файлыг сонгоно", () => {
+  const texts = new Map([
+    ["chapters/intro.tex", "\\section{Оршил}"],
+    ["old/draft.tex", "\\documentclass{article}"],
+    [
+      "thesis.tex",
+      "\\documentclass{report}\n\\begin{document}\n\\end{document}",
+    ],
+    ["refs.bib", "@book{a,}"],
+  ]);
+  assert.equal(findMain(texts), "thesis.tex");
+});
+
+test("findMain: тайлбарласан \\documentclass-ыг тооцохгүй, main.tex-ийг илүүд үзнэ", () => {
+  assert.equal(
+    findMain(new Map([["a.tex", "% \\documentclass{article}"]])),
+    null,
+  );
+  const both = "\\documentclass{article}\\begin{document}\\end{document}";
+  assert.equal(
+    findMain(
+      new Map([
+        ["b.tex", both],
+        ["main.tex", both],
+      ]),
+    ),
+    "main.tex",
+  );
+});
+
+test("graphicsPaths ба resolveGraphic: өргөтгөлгүй, \\graphicspath-тай зургийг олно", () => {
+  const files = new Set(["img/pic.png", "fig/plot.pdf", "logo.jpg"]);
+  const has = (path: string): boolean => files.has(path);
+  const search = graphicsPaths("\\graphicspath{{img/}{fig/}}");
+  assert.deepEqual(search, ["img/", "fig/"]);
+  assert.equal(resolveGraphic("pic", "", search, has), "img/pic.png");
+  assert.equal(resolveGraphic("plot", "", search, has), "fig/plot.pdf");
+  assert.equal(resolveGraphic("./logo.jpg", "", search, has), "logo.jpg");
+  assert.equal(resolveGraphic("none", "", search, has), null);
+});
+
+test("resolveGraphic: үндсэн файлын хавтсаас эхэлж хайна", () => {
+  const files = new Set(["src/img/a.png", "shared/b.png"]);
+  const has = (path: string): boolean => files.has(path);
+  assert.equal(resolveGraphic("img/a", "src", [], has), "src/img/a.png");
+  assert.equal(
+    resolveGraphic("../shared/b.png", "src", [], has),
+    "shared/b.png",
+  );
+});
+
+test("mapGraphics: олдоогүй зургийг хүрээгээр, хөрвүүлсэн зургийг шинэ нэрээр солино", () => {
+  const text =
+    "\\includegraphics[width=1cm]{a}\n\\includegraphics{b.webp}\n\\includegraphics{c}";
+  const out = mapGraphics(text, (raw) =>
+    raw === "a" ? "a" : raw === "b.webp" ? "b.converted.png" : null,
+  );
+  assert.equal(
+    out,
+    "\\includegraphics[width=1cm]{a}\n\\includegraphics{b.converted.png}\n" +
+      "\\fbox{\\ttfamily\\detokenize{c}}",
+  );
+});
+
+test("graphicRefs: тайлбар доторх зургийг алгасна", () => {
+  assert.deepEqual(
+    graphicRefs("\\includegraphics{a}\n% \\includegraphics{b}"),
+    ["a"],
+  );
+});
+
+test("compilePasses: ном зүйд 3, холбоост 2 удаа хөрвүүлнэ", () => {
+  assert.equal(compilePasses(["Энгийн бичвэр"]), 1);
+  assert.equal(compilePasses(["\\label{x}", "\\ref{x}"]), 2);
+  assert.equal(compilePasses(["\\bibliography{refs}"]), 3);
+  assert.equal(compilePasses(["% \\bibliography{refs}"]), 1);
+});
+
+test("movedPath ба parentDirs: нэр солих замыг тооцно", () => {
+  assert.equal(movedPath("ch/a.tex", "ch", "chapters"), "chapters/a.tex");
+  assert.equal(movedPath("ch", "ch", "chapters"), "chapters");
+  assert.equal(movedPath("chx/a.tex", "ch", "chapters"), null);
+  assert.deepEqual(parentDirs("a/b/c.tex"), ["a", "a/b"]);
+});
+
+test("validName: хориотой тэмдэгтийг шүүнэ", () => {
+  assert.equal(validName("бүлэг 1.tex"), true);
+  assert.equal(validName("a/b"), false);
+  assert.equal(validName(".."), false);
+  assert.equal(validName("  "), false);
+});
+
+test("buildTree: хавтсыг эхэнд, нэрээр эрэмбэлнэ", () => {
+  const tree = buildTree(
+    ["main.tex", "ch/b.tex", "ch/a.tex", "abc.bib"],
+    ["empty"],
+  );
+  assert.deepEqual(
+    tree.map((node) => node.path),
+    ["ch", "empty", "abc.bib", "main.tex"],
+  );
+  assert.deepEqual(
+    tree[0]!.children.map((node) => node.path),
+    ["ch/a.tex", "ch/b.tex"],
+  );
+});

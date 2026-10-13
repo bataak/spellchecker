@@ -143,6 +143,14 @@ function readMetrics(area: HTMLElement, wrap: HTMLElement): Metrics {
   };
 }
 
+const wideQuery = window.matchMedia("(min-width: 1024px)");
+
+function projectRoom(wrap: HTMLElement, x: Metrics): number {
+  if (document.documentElement.dataset.project !== "on" || !wideQuery.matches)
+    return 0;
+  return measureVar(wrap, "--project-w", 236) + x.panelGap + x.gutterW;
+}
+
 function load(): Layout {
   try {
     return parseLayout(localStorage.getItem(STORAGE_KEY));
@@ -394,7 +402,8 @@ export function mountMeasureControl(
       `${measureScrollbar()}px`,
     );
 
-    const viewport = document.documentElement.clientWidth;
+    const viewport =
+      document.documentElement.clientWidth - projectRoom(wrap, metrics);
     const fit = available(metrics, viewport, prev);
     prev = fit;
     const avail = previewBlocked ? fit.filter((l) => !l.preview) : fit;

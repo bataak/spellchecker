@@ -15,6 +15,9 @@ export interface FileIODeps {
   saveText: () => void;
   defaultExt: () => string;
   onFileOpened: (file: DraftFile | null) => void;
+  saveProject: () => Promise<string | null>;
+  openProjectZip: (file: File) => Promise<void>;
+  openProjectDir: (handle: FileSystemDirectoryHandle) => Promise<void>;
 }
 
 export interface OpenFile {
@@ -44,6 +47,9 @@ export function initFileIO({
   saveText,
   defaultExt,
   onFileOpened,
+  saveProject,
+  openProjectZip,
+  openProjectDir,
 }: FileIODeps): FileIOControl {
   const MAX_OPEN_BYTES = 10 * 1024 * 1024;
   const BIG_NOTICE_BYTES = 2 * 1024 * 1024;
@@ -179,6 +185,10 @@ export function initFileIO({
       description: "PDF",
       accept: { [PDF_MIME]: [".pdf"] },
     },
+    {
+      description: "LaTeX төсөл (zip)",
+      accept: { "application/zip": [".zip"] },
+    },
   ];
 
   function looksDocx(file: File | null | undefined): boolean {
@@ -189,6 +199,10 @@ export function initFileIO({
   }
 
   async function tryDocx(file: File): Promise<boolean> {
+    if (/\.zip$/i.test(file.name)) {
+      await openProjectZip(file);
+      return true;
+    }
     if (!looksDocx(file)) return false;
     currentFileHandle = null;
     currentFileName = null;
@@ -205,6 +219,17 @@ export function initFileIO({
       } catch (_) {
         flash("#saveBtn", "Боломжгүй");
       }
+      return;
+    }
+
+    try {
+      const label = await saveProject();
+      if (label !== null) {
+        flash("#saveBtn", label);
+        return;
+      }
+    } catch (_) {
+      flash("#saveBtn", "Боломжгүй");
       return;
     }
 
@@ -397,6 +422,10 @@ export function initFileIO({
     if (item && item.kind === "file" && item.getAsFileSystemHandle) {
       try {
         const fsHandle = await item.getAsFileSystemHandle();
+        if (fsHandle && fsHandle.kind === "directory") {
+          await openProjectDir(fsHandle as FileSystemDirectoryHandle);
+          return;
+        }
         if (fsHandle && fsHandle.kind === "file")
           handle = fsHandle as FileSystemFileHandle;
       } catch (_) {}

@@ -4,6 +4,7 @@ import "./gutter.css";
 import "./md-toolbar.css";
 import "./export.css";
 import "./deftip.css";
+import "./project.css";
 import {
   MultiSpellChecker,
   checkWordsBatched,
@@ -22,8 +23,10 @@ import { initIgnoreList, syncIgnoreVisibility } from "./ignorelist.ts";
 import { initAppearance } from "./appearance.ts";
 import { mountMeasureControl, type MeasureControl } from "./measure.ts";
 import { initPreview, type Preview } from "./preview.ts";
+import { initProjectLink, type ProjectLink } from "./projectlink.ts";
 
 let previewCtl: Preview | null = null;
+let projectLink: ProjectLink | null = null;
 import { escapeHtml } from "./htmlutil.ts";
 import { pickDefinitionMarks } from "./defmarks.ts";
 import {
@@ -348,6 +351,7 @@ const TEX_NAME_RE = /\.(tex|ltx)$/i;
 
 function isLatexText(text: string): boolean {
   if (docx) return false;
+  if (projectLink?.bound()) return true;
   if (plainName) return TEX_NAME_RE.test(plainName);
   return texTemplate || looksLatex(text);
 }
@@ -369,6 +373,7 @@ function syncTexMode(): void {
   mdBar.refresh();
   enterMdMode(mdActive());
   previewCtl?.update();
+  projectLink?.sync();
 }
 
 let texPaint = false;
@@ -1413,6 +1418,7 @@ if (editorWrap) {
       saveText();
     },
     isLatexText,
+    () => projectLink?.key() ?? null,
   );
 }
 
@@ -1590,11 +1596,19 @@ const fileIO = initFileIO({
   saveText,
   defaultExt: () => (isTexFile() ? "tex" : mdActive() ? "md" : "txt"),
   onFileOpened: (ref) => {
+    projectLink?.unbind(true);
     plainName = ref ? ref.name : null;
     saveDraftFile(ref);
     syncSaveHint();
     mdBar.refresh();
     enterMdMode(mdActive());
+  },
+  saveProject: () => projectLink?.save() ?? Promise.resolve(null),
+  openProjectZip: async (file) => {
+    if (projectLink) await projectLink.openZip(file);
+  },
+  openProjectDir: async (handle) => {
+    if (projectLink) await projectLink.openDir(handle);
   },
 });
 
@@ -1623,6 +1637,7 @@ const mdBar = initMdToolbar({
 });
 function swapTemplateFile(from: string, to: string): void {
   if (from === to) return;
+  projectLink?.unbind(true);
   swapSeq++;
   const office = docxFile
     ? docxFile.name
@@ -1661,6 +1676,7 @@ function swapTemplateFile(from: string, to: string): void {
   saveDraftFile(next ? { name: next.name, kind: "text" } : null);
   syncSaveHint();
   mdBar.refresh();
+  projectLink?.adopt(true);
 }
 async function unparkDocx(slot: string, ref: DraftFile): Promise<void> {
   const seq = swapSeq;
@@ -1731,9 +1747,47 @@ initTexComplete({
   onImage: () => void insertPickedImage(els.editor),
 });
 initTexImageInput({ editor: els.editor, active: () => texPaint });
+const workspaceEl = document.querySelector<HTMLElement>(".workspace");
+if (workspaceEl)
+  projectLink = initProjectLink({
+    editor: els.editor,
+    workspace: workspaceEl,
+    tools: () =>
+      editorWrap?.querySelector<HTMLElement>(".editor-tools") ?? null,
+    slot: () => mdBar.slot(),
+    fileName: () => plainName,
+    texActive: isTexFile,
+    bindName: (name) => {
+      fileIO.putFile(name ? { handle: null, name } : null);
+      plainName = name;
+      saveDraftFile(name ? { name, kind: "text" } : null);
+      syncSaveHint();
+      mdBar.refresh();
+      restoreStatus();
+    },
+    afterSwitch: () => {
+      undoCtl?.baseline();
+      syncTexMode();
+      enterMdMode(mdActive());
+      void render();
+      saveText();
+    },
+    onChange: () => {
+      syncTexMode();
+      previewCtl?.update();
+    },
+    layout: () => measureCtl?.refresh(),
+    notify: (message) => holdStatus(message, 6000, false),
+  });
 const kbLayout = initKeyboardLayout({ editor: els.editor, status: els.status });
 void initImageStore(() => els.editor.value);
-undoCtl = initUndoHistory({ editor: els.editor, slot: () => mdBar.slot() });
+undoCtl = initUndoHistory({
+  editor: els.editor,
+  slot: () => {
+    const path = projectLink?.path();
+    return path ? mdBar.slot() + "\u0000" + path : mdBar.slot();
+  },
+});
 enterMdMode(mdActive());
 els.editor.addEventListener("input", nudgeHints);
 
@@ -1869,6 +1923,7 @@ async function boot() {
   await draft.load();
   undoCtl?.baseline();
   await restoreDraftFile();
+  await projectLink?.restore();
   render();
   document.documentElement.classList.remove("booting");
   els.editor.focus({ preventScroll: true });
@@ -1957,6 +2012,7 @@ initToolbar({
   closeDocx,
   forgetFile: () => {
     clearedEmpty = true;
+    projectLink?.unbind(true);
     fileIO.forgetFile();
     syncPreviewClass();
   },
