@@ -75,7 +75,13 @@ import { shiftTokens } from "./tokenshift.ts";
 import { texSpans } from "./texhighlight.ts";
 import { initTexComplete } from "./texcomplete.ts";
 import { initKeyboardLayout } from "./kblayout.ts";
-import { MANUAL_FIX_MAX, cleanManualFix } from "./manualfix.ts";
+import {
+  MANUAL_FIX_MAX,
+  MANUAL_FIX_WORDS,
+  cleanManualFix,
+  countWords,
+  filterManualFix,
+} from "./manualfix.ts";
 import {
   initUndoHistory,
   TEMPLATE_INPUT,
@@ -914,25 +920,55 @@ function openManualFix(token: Token, trigger: HTMLElement): void {
   const input = document.createElement("input");
   input.type = "text";
   input.className = "pop-fix-input";
-  input.value = original;
-  input.maxLength = MANUAL_FIX_MAX * 2;
+  input.value = filterManualFix(original);
+  input.maxLength = MANUAL_FIX_MAX;
   input.spellcheck = false;
   input.autocomplete = "off";
   input.setAttribute("autocapitalize", "off");
   input.setAttribute("enterkeyhint", "done");
   input.setAttribute("aria-label", "Зөв бичлэгийг өөрөө бичих");
+  input.setAttribute("aria-describedby", "popFixNote");
   const submit = document.createElement("button");
   submit.type = "submit";
   submit.className = "pop-fix-ok";
   submit.textContent = "Засах";
   form.append(input, submit);
-  trigger.replaceWith(form);
+  const note = document.createElement("div");
+  note.id = "popFixNote";
+  note.className = "pop-fix-note";
+  note.textContent =
+    "Кирилл, латин үсэг ба . , ; - тэмдэгт, " + MANUAL_FIX_WORDS + " хүртэл үг";
+  const box = document.createElement("div");
+  box.append(form, note);
+  trigger.replaceWith(box);
   kbLayout.attach(input);
 
+  let accepted = input.value;
   const refresh = () => {
     submit.disabled = cleanManualFix(input.value, original) === null;
   };
-  input.addEventListener("input", refresh);
+  const enforce = () => {
+    const raw = input.value;
+    const caret = input.selectionStart ?? raw.length;
+    const next = filterManualFix(raw);
+    const over = countWords(next) > MANUAL_FIX_WORDS;
+    const value = over ? accepted : next;
+    if (value !== raw) {
+      const at = over
+        ? Math.max(0, caret - (raw.length - accepted.length))
+        : filterManualFix(raw.slice(0, caret)).length;
+      input.value = value;
+      input.setSelectionRange(at, at);
+      note.classList.add("pop-fix-note-warn");
+    } else note.classList.remove("pop-fix-note-warn");
+    accepted = input.value;
+    refresh();
+  };
+  input.addEventListener("input", (event) => {
+    if (event instanceof InputEvent && event.isComposing) return;
+    enforce();
+  });
+  input.addEventListener("compositionend", enforce);
   refresh();
 
   form.addEventListener("submit", (event) => {

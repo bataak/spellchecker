@@ -1,6 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { MANUAL_FIX_MAX, cleanManualFix } from "../src/manualfix.ts";
+import {
+  MANUAL_FIX_MAX,
+  cleanManualFix,
+  countWords,
+  filterManualFix,
+} from "../src/manualfix.ts";
 import { replaceAllWord } from "../src/wordfix.ts";
 
 test("гараар засварыг тайрч, хоосон ба өөрчлөлтгүйг хүлээж авахгүй", () => {
@@ -10,28 +15,27 @@ test("гараар засварыг тайрч, хоосон ба өөрчлөл
   assert.equal(cleanManualFix("Үг", "үг"), "Үг");
 });
 
-test("олон үгийн хоорондох мөр, таб, давхар зайг нэг зай болгоно", () => {
+test("кирилл, латин үсэг ба . , ; - тэмдэгтийг л үлдээнэ", () => {
+  assert.equal(filterManualFix("Өрөө, word; э-мэйл."), "Өрөө, word; э-мэйл.");
+  assert.equal(filterManualFix('a1<b>&"x"`z`$5€№₮:?!()'), "abxz");
+  assert.equal(filterManualFix("αβγ 中文 😀ok"), "ok");
+  assert.equal(filterManualFix("а\u0000б в￾\uD800г"), "аб вг");
+  assert.equal(filterManualFix("й"), "й");
+});
+
+test("зайг нэг зай болгож, эхний зайг хасна", () => {
   assert.equal(
-    cleanManualFix("нэг\t\tхоёр\r\nгурав  дөрөв", "x"),
-    "нэг хоёр гурав дөрөв",
+    filterManualFix("  нэг\t\tхоёр\r\nгурав  дөрөв "),
+    "нэг хоёр гурав дөрөв ",
   );
+  assert.equal(cleanManualFix("нэг\nхоёр", "x"), "нэг хоёр");
 });
 
-test("удирдах тэмдэгт ба XML-д хориотой тэмдэгтийг хасна", () => {
-  assert.equal(cleanManualFix("а\u0000б\u0007в\u2028г\u0085", "x"), "абвг");
-  assert.equal(cleanManualFix("а\uFFFEб\uD800в\uDC00", "x"), "абв");
-  assert.equal(cleanManualFix("😀ok", "x"), "😀ok");
-});
-
-test("цэг тэмдэг, код зэрэг тэмдэгтийг хэвээр үлдээнэ", () => {
-  const code = '<b>x</b> & "y" `z` $a_1$ **b** {c}';
-  assert.equal(cleanManualFix(code, "x"), code);
-  assert.equal(cleanManualFix("5 кг", "x"), "5 кг");
-});
-
-test("хэт урт засварыг тэмдэгтээр нь тайрна", () => {
-  const long = "😀".repeat(MANUAL_FIX_MAX + 10);
-  assert.equal([...cleanManualFix(long, "x")!].length, MANUAL_FIX_MAX);
+test("таваас олон үгийг хүлээж авахгүй", () => {
+  assert.equal(countWords("нэг хоёр гурав дөрөв тав "), 5);
+  assert.equal(cleanManualFix("a b c d e", "x"), "a b c d e");
+  assert.equal(cleanManualFix("a b c d e f", "x"), null);
+  assert.equal(cleanManualFix("a".repeat(MANUAL_FIX_MAX + 1), "x"), null);
 });
 
 test("олон үгтэй засвар бүх тохиолдолд том жижиг үсгээ дагаж орно", () => {
@@ -49,9 +53,9 @@ test("цэг тэмдэгтэй засвар өөрийгөө дахин сол�
   const { text } = replaceAllWord(
     "абв гд абв",
     "абв",
-    "(абв) — абв",
+    "абв, абв-гд",
     0,
     "lower",
   );
-  assert.equal(text, "(абв) — абв гд (абв) — абв");
+  assert.equal(text, "абв, абв-гд гд абв, абв-гд");
 });
