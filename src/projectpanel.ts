@@ -575,7 +575,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     if (parent) collapsed.delete(parent);
     shownVersion = "";
     render();
-    editName(null, dir ? "" : ".tex", async (name) => {
+    editName(null, dir ? "" : "*.tex", async (name) => {
       const path = joinPath(parent, name);
       if (dir) {
         await createDir(path);
