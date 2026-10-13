@@ -75,6 +75,7 @@ import { shiftTokens } from "./tokenshift.ts";
 import { texSpans } from "./texhighlight.ts";
 import { initTexComplete } from "./texcomplete.ts";
 import { initKeyboardLayout } from "./kblayout.ts";
+import { MANUAL_FIX_MAX, cleanManualFix } from "./manualfix.ts";
 import {
   initUndoHistory,
   TEMPLATE_INPUT,
@@ -832,7 +833,10 @@ async function showPopoverFor(token: Token): Promise<void> {
           );
         })
         .join("")
-    : '<div class="muted pop-empty">санал алга</div>';
+    : els.editor.readOnly
+      ? '<button class="sg sg-manual pop-fix-open" type="button">' +
+        'санал алга — <span class="pop-fix-cue">өөрөө засах</span></button>'
+      : '<div class="muted pop-empty">санал алга</div>';
   els.popover.innerHTML =
     '<div class="pop-scroll">' +
     '<div class="pop-list">' +
@@ -855,19 +859,27 @@ async function showPopoverFor(token: Token): Promise<void> {
   pop.measure();
   pop.place();
 
-  els.popover.querySelectorAll(".sg:not(.sg-ignore)").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const covered = pop.obscuredBy(btn);
-      if (covered > 0 && list) {
-        list.scrollBy({
-          top: covered,
-          behavior: reducedMotionMQ.matches ? "auto" : "smooth",
-        });
-        return;
-      }
-      applySuggestion(token, btn.textContent);
+  els.popover
+    .querySelector<HTMLElement>(".pop-fix-open")
+    ?.addEventListener("click", (event) => {
+      if (event.currentTarget instanceof HTMLElement)
+        openManualFix(token, event.currentTarget);
     });
-  });
+  els.popover
+    .querySelectorAll(".sg:not(.sg-ignore, .sg-manual)")
+    .forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const covered = pop.obscuredBy(btn);
+        if (covered > 0 && list) {
+          list.scrollBy({
+            top: covered,
+            behavior: reducedMotionMQ.matches ? "auto" : "smooth",
+          });
+          return;
+        }
+        applySuggestion(token, btn.textContent);
+      });
+    });
   els.popover.querySelectorAll<HTMLElement>(".sg-dot").forEach(defTip.bindDot);
   const pageBy = (sign: number) => {
     if (!list) return;
@@ -893,6 +905,51 @@ async function showPopoverFor(token: Token): Promise<void> {
       render();
     });
   }
+}
+
+function openManualFix(token: Token, trigger: HTMLElement): void {
+  const original = token.word.replace(/\s+$/, "");
+  const form = document.createElement("form");
+  form.className = "pop-fix";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "pop-fix-input";
+  input.value = original;
+  input.maxLength = MANUAL_FIX_MAX * 2;
+  input.spellcheck = false;
+  input.autocomplete = "off";
+  input.setAttribute("autocapitalize", "off");
+  input.setAttribute("enterkeyhint", "done");
+  input.setAttribute("aria-label", "Зөв бичлэгийг өөрөө бичих");
+  const submit = document.createElement("button");
+  submit.type = "submit";
+  submit.className = "pop-fix-ok";
+  submit.textContent = "Засах";
+  form.append(input, submit);
+  trigger.replaceWith(form);
+  kbLayout.attach(input);
+
+  const refresh = () => {
+    submit.disabled = cleanManualFix(input.value, original) === null;
+  };
+  input.addEventListener("input", refresh);
+  refresh();
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const fix = cleanManualFix(input.value, original);
+    if (fix === null) return;
+    if (els.editor.value.slice(token.start, token.end) !== token.word) {
+      hidePopover();
+      return;
+    }
+    void applySuggestion(token, fix);
+  });
+
+  pop.measure();
+  pop.place();
+  input.focus({ preventScroll: true });
+  input.select();
 }
 
 function suggestAtCaret() {
@@ -1526,7 +1583,7 @@ initTexComplete({
   onImage: () => void insertPickedImage(els.editor),
 });
 initTexImageInput({ editor: els.editor, active: () => texPaint });
-initKeyboardLayout({ editor: els.editor, status: els.status });
+const kbLayout = initKeyboardLayout({ editor: els.editor, status: els.status });
 void initImageStore(() => els.editor.value);
 undoCtl = initUndoHistory({ editor: els.editor, slot: () => mdBar.slot() });
 enterMdMode(mdActive());
