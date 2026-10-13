@@ -346,6 +346,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     row.setAttribute("role", "treeitem");
     row.setAttribute("aria-level", String(depth + 1));
     row.tabIndex = -1;
+    row.draggable = true;
     row.style.setProperty("--depth", String(depth));
     if (node.dir) {
       row.classList.add("is-dir");
@@ -631,8 +632,6 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     selected = path;
     const dir = isDir(path);
     const items: MenuItem[] = [];
-    if (!dir && isEditablePath(path))
-      items.push({ label: "Нээх", run: () => activate(path) });
     const text = dir ? null : projectText(path);
     if (
       text !== null &&
@@ -728,15 +727,92 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     event.preventDefault();
   });
 
+  let dragging: string | null = null;
+  let dropRow: HTMLElement | null = null;
+
+  const dropDir = (target: EventTarget | null): string => {
+    const row = rowOf(target);
+    const path = row?.dataset.path ?? "";
+    return row ? (isDir(path) ? path : dirName(path)) : "";
+  };
+
+  const markDrop = (dir: string | null): void => {
+    const next =
+      dir === null || dir === ""
+        ? null
+        : tree.querySelector<HTMLElement>(
+            '.project-row[data-path="' + CSS.escape(dir) + '"]',
+          );
+    if (next === dropRow) return;
+    dropRow?.classList.remove("is-drop-target");
+    dropRow = next;
+    dropRow?.classList.add("is-drop-target");
+  };
+
+  const endDrag = (): void => {
+    dragging = null;
+    markDrop(null);
+    tree.classList.remove("is-drop");
+  };
+
+  tree.addEventListener("dragstart", (event) => {
+    const row = rowOf(event.target);
+    if (!row || editing || !event.dataTransfer) return;
+    dragging = row.dataset.path ?? null;
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", dragging ?? "");
+    closeMenu();
+  });
+  tree.addEventListener("dragend", endDrag);
+
   tree.addEventListener("dragover", (event) => {
-    if (!project() || !event.dataTransfer?.types.includes("Files")) return;
+    if (!project() || !event.dataTransfer) return;
+    if (dragging !== null) {
+      event.preventDefault();
+      event.stopPropagation();
+      const dir = dropDir(event.target);
+      const allowed =
+        dir !== dirName(dragging) &&
+        dir !== dragging &&
+        !dir.startsWith(dragging + "/");
+      event.dataTransfer.dropEffect = allowed ? "move" : "none";
+      markDrop(allowed ? dir : null);
+      tree.classList.toggle("is-drop", allowed && dir === "");
+      return;
+    }
+    if (!event.dataTransfer.types.includes("Files")) return;
     event.preventDefault();
     event.stopPropagation();
     event.dataTransfer.dropEffect = "copy";
+    markDrop(dropDir(event.target) || null);
     tree.classList.add("is-drop");
   });
-  tree.addEventListener("dragleave", () => tree.classList.remove("is-drop"));
+  tree.addEventListener("dragleave", (event) => {
+    if (
+      event.relatedTarget instanceof Node &&
+      tree.contains(event.relatedTarget)
+    )
+      return;
+    markDrop(null);
+    tree.classList.remove("is-drop");
+  });
   tree.addEventListener("drop", (event) => {
+    if (dragging !== null) {
+      event.preventDefault();
+      event.stopPropagation();
+      const from = dragging;
+      const dir = dropDir(event.target);
+      endDrag();
+      if (dir === dirName(from)) return;
+      const to = joinPath(dir, baseName(from));
+      void run(async () => {
+        await renamePath(from, to);
+        if (dir) collapsed.delete(dir);
+        selected = to;
+      });
+      return;
+    }
+    markDrop(null);
     tree.classList.remove("is-drop");
     const files = [...(event.dataTransfer?.files ?? [])];
     if (!project() || !files.length) return;

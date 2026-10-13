@@ -484,3 +484,13 @@
 .project-foot .project-act {
   width: 24px;
 }
+
+.project-row.is-drop-target {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  outline: 1px dashed color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: -1px;
+}
+
+.project-row[draggable="true"] {
+  -webkit-user-drag: element;
+}
