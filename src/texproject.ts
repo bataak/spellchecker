@@ -19,6 +19,22 @@ export function isTexSource(path: string): boolean {
   return TEX_SOURCE.test(path);
 }
 
+const VIEWABLE: Readonly<Record<string, string>> = {
+  pdf: "application/pdf",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  svg: "image/svg+xml",
+  bmp: "image/bmp",
+};
+
+export function viewableType(path: string): string | null {
+  const ext = /\.([^./]+)$/.exec(path)?.[1]?.toLowerCase() ?? "";
+  return VIEWABLE[ext] ?? null;
+}
+
 export function isPdfGraphic(path: string): boolean {
   return PDF_GRAPHIC.test(path);
 }

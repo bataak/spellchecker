@@ -6,6 +6,7 @@ import {
   openDirHandle,
   project,
   projectKey,
+  projectBinary,
   projectText,
   refreshProject,
   restoreProject,
@@ -23,7 +24,9 @@ import {
   masterPath,
   referencesFiles,
   texMaster,
+  viewableType,
 } from "./texproject.ts";
+import type { PreviewSource } from "./preview.ts";
 import { TEMPLATE_INPUT } from "./undohistory.ts";
 
 const SLOT_KEY = "mn-spell:project-slot";
@@ -50,6 +53,7 @@ export interface ProjectLinkDeps {
   }[];
   readonly layout: () => void;
   readonly notify: (message: string) => void;
+  readonly show: (source: PreviewSource | null) => void;
 }
 
 export interface ProjectLink {
@@ -127,6 +131,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
   };
 
   let entering = false;
+  let viewing = false;
 
   const openFile = (path: string): void => {
     const view = project();
@@ -274,6 +279,26 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     tools: deps.tools,
     texActive: () => bound || deps.texActive(),
     openFile,
+    view: (path) => {
+      if (path === null) {
+        if (viewing) deps.show(null);
+        viewing = false;
+        return true;
+      }
+      const type = viewableType(path);
+      const bytes = projectBinary(path);
+      if (type === null || bytes === null) return false;
+      const file = new File(
+        [bytes as Uint8Array<ArrayBuffer>],
+        baseName(path),
+        {
+          type,
+        },
+      );
+      deps.show({ kind: type === "application/pdf" ? "pdf" : "image", file });
+      viewing = true;
+      return true;
+    },
     beforeOpen: () => {
       const view = project();
       return (

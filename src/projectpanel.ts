@@ -26,6 +26,7 @@ import {
   isTexSource,
   joinPath,
   validName,
+  viewableType,
   type TreeNode,
 } from "./texproject.ts";
 
@@ -37,6 +38,7 @@ export interface ProjectPanelDeps {
   readonly tools: () => HTMLElement | null;
   readonly texActive: () => boolean;
   readonly openFile: (path: string) => void;
+  readonly view: (path: string | null) => boolean;
   readonly beforeOpen: () => boolean;
   readonly onOpened: (fresh: boolean, prefer?: string) => void;
   readonly openedFile: () => {
@@ -351,7 +353,8 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     if (node.dir) {
       row.classList.add("is-dir");
       row.setAttribute("aria-expanded", String(!collapsed.has(node.path)));
-    } else if (!isEditablePath(node.path)) row.classList.add("is-binary");
+    } else if (!isEditablePath(node.path) && viewableType(node.path) === null)
+      row.classList.add("is-binary");
     if (node.path === view.active) {
       row.classList.add("is-active");
       row.setAttribute("aria-current", "true");
@@ -496,9 +499,16 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
       return;
     }
     if (!isEditablePath(path)) {
-      deps.notify(baseName(path) + " — засварлах боломжгүй файл");
+      if (deps.view(path)) {
+        selected = path;
+        render();
+        closeDrawer();
+        return;
+      }
+      deps.notify(baseName(path) + " — нээх боломжгүй файл");
       return;
     }
+    deps.view(null);
     deps.openFile(path);
     closeDrawer();
   };

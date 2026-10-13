@@ -152,6 +152,10 @@ export function projectLinked(): boolean {
   return linked && hasProject();
 }
 
+export function projectBinary(path: string): Uint8Array | null {
+  return state?.binaries.get(path) ?? null;
+}
+
 export function projectText(path: string): string | null {
   return state?.texts.get(path) ?? null;
 }

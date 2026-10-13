@@ -1830,6 +1830,7 @@ if (workspaceEl)
     },
     layout: () => measureCtl?.refresh(),
     notify: (message) => holdStatus(message, 6000, false),
+    show: (source) => previewCtl?.setSource(source),
   });
 const kbLayout = initKeyboardLayout({ editor: els.editor, status: els.status });
 void initImageStore(() => els.editor.value);
