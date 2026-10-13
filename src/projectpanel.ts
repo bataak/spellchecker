@@ -30,6 +30,7 @@ import {
 } from "./texproject.ts";
 
 const OPEN_KEY = "mn-spell:project-panel";
+const PEEK_MS = 5000;
 
 export interface ProjectPanelDeps {
   readonly workspace: HTMLElement;
@@ -250,6 +251,14 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   };
 
   let flashTimer = 0;
+  let peekTimer = 0;
+  const keepPeek = (): void => {
+    clearTimeout(peekTimer);
+    peekTimer = 0;
+  };
+  panel.addEventListener("pointerdown", keepPeek);
+  panel.addEventListener("wheel", keepPeek, { passive: true });
+  panel.addEventListener("focusin", keepPeek);
   const flashToggle = (): void => {
     toggle.classList.add("is-shown");
     clearTimeout(flashTimer);
@@ -865,7 +874,17 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     show,
     openZipFile,
     reveal: () => {
-      if (panel.hidden) show(true);
+      if (!panel.hidden) return;
+      show(true);
+      if (!floating()) return;
+      clearTimeout(peekTimer);
+      peekTimer = window.setTimeout(() => {
+        peekTimer = 0;
+        if (panel.hidden || !floating()) return;
+        if (panel.matches(":hover") || panel.contains(document.activeElement))
+          return;
+        show(false);
+      }, PEEK_MS);
     },
   };
 }
