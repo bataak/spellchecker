@@ -1635,7 +1635,7 @@ const fileIO = initFileIO({
     return false;
   },
   onLoaded: () => {
-    undoCtl?.baseline();
+    undoCtl?.reset();
     mdBar.markSaved();
   },
   onSaved: () => mdBar.markSaved(),
