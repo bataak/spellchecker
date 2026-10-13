@@ -45,8 +45,15 @@ interface PageSlot {
 }
 
 export interface PdfView {
+  readonly pages: number;
   setZoom(zoom: number, origin?: { x: number; y: number }): void;
+  goTo(page: number): void;
   destroy(): void;
+}
+
+export interface PdfViewOptions {
+  readonly inset?: () => number;
+  readonly onPage?: (page: number, pages: number) => void;
 }
 
 export async function renderPdfInto(
@@ -54,6 +61,7 @@ export async function renderPdfInto(
   file: File,
   signal?: AbortSignal,
   zoom = 1,
+  options: PdfViewOptions = {},
 ): Promise<PdfView> {
   const pdfjs = await loadPdfjs();
   const data = new Uint8Array(await file.arrayBuffer());
@@ -108,12 +116,35 @@ export async function renderPdfInto(
       dx || dy ? `translate(${dx}px, ${dy}px)` : "";
   };
 
+  const inset = (): number => options.inset?.() ?? 0;
+  const pageAt = (): number => {
+    const frame = host.getBoundingClientRect();
+    const top = frame.top + host.clientTop + inset();
+    const line = top + (frame.bottom - top) * 0.4;
+    let low = 0;
+    let high = slots.length - 1;
+    while (low < high) {
+      const mid = (low + high) >> 1;
+      if (slots[mid]!.el.getBoundingClientRect().bottom < line) low = mid + 1;
+      else high = mid;
+    }
+    return low + 1;
+  };
+  let shownPage = 0;
+  const reportPage = (): void => {
+    const page = pageAt();
+    if (page === shownPage) return;
+    shownPage = page;
+    options.onPage?.(page, slots.length);
+  };
+
   let snapFrame = 0;
   const onScroll = (): void => {
     if (snapFrame) return;
     snapFrame = requestAnimationFrame(() => {
       snapFrame = 0;
       for (const slot of slots) snap(slot);
+      reportPage();
     });
   };
   host.addEventListener("scroll", onScroll, { passive: true });
@@ -220,10 +251,22 @@ export async function renderPdfInto(
   });
   ro.observe(host);
 
+  onScroll();
+
   const onAbort = (): void => view.destroy();
   signal?.addEventListener("abort", onAbort, { once: true });
 
   const view: PdfView = {
+    pages: slots.length,
+    goTo(page) {
+      const slot = slots[Math.min(Math.max(page, 1), slots.length) - 1];
+      if (!slot) return;
+      const frame = host.getBoundingClientRect();
+      const top = frame.top + host.clientTop + inset();
+      host.scrollTop += slot.el.getBoundingClientRect().top - top - 8;
+      shownPage = 0;
+      reportPage();
+    },
     setZoom(next, origin) {
       if (next === zoom) return;
       const frame = host.getBoundingClientRect();
