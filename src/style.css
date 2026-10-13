@@ -112,7 +112,7 @@ html {
 }
 
 @media (min-width: 1024px) {
-  :root[data-project="on"] {
+  :root[data-project="on"]:not([data-project-float]) {
     --project-col: calc(var(--project-w) + var(--panel-gap));
     --gutter-pull: 0px;
   }

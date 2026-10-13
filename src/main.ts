@@ -1756,6 +1756,7 @@ if (workspaceEl)
       editorWrap?.querySelector<HTMLElement>(".editor-tools") ?? null,
     slot: () => mdBar.slot(),
     fileName: () => plainName,
+    fileHandle: () => fileIO.targetHandle(),
     texActive: isTexFile,
     bindName: (name) => {
       fileIO.putFile(name ? { handle: null, name } : null);

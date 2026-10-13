@@ -23,6 +23,16 @@
   }
 }
 
+@media (min-width: 1024px) {
+  :root[data-project-float] .project-panel {
+    position: absolute;
+    z-index: 60;
+    inset-block: 0;
+    inset-inline-start: 0;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+  }
+}
+
 @media (max-width: 1023.98px) {
   .project-panel {
     position: fixed;

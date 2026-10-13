@@ -9,6 +9,7 @@ import {
   dockColumnFits,
   editorWidth,
   key,
+  pageWidth,
   parseLayout,
   previewLayout,
   previewWidth,
@@ -402,17 +403,32 @@ export function mountMeasureControl(
       `${measureScrollbar()}px`,
     );
 
-    const viewport =
-      document.documentElement.clientWidth - projectRoom(wrap, metrics);
+    const choose = (fit: Layout[]): { avail: Layout[]; active: Layout } => {
+      const avail = previewBlocked ? fit.filter((l) => !l.preview) : fit;
+      const base = clamp(
+        previewBlocked ? { ...desired, preview: false } : desired,
+        avail,
+      );
+      return {
+        avail,
+        active: (previewMode && previewLayout(base, avail)) || base,
+      };
+    };
+
+    const root = document.documentElement;
+    const full = root.clientWidth;
+    const room = projectRoom(wrap, metrics);
+    let viewport = full;
+    if (room > 0) {
+      const loose = choose(available(metrics, full, prev)).active;
+      const float = full - room < pageWidth(loose, metrics);
+      if (float) root.dataset.projectFloat = "";
+      else viewport = full - room;
+      if (!float) delete root.dataset.projectFloat;
+    } else delete root.dataset.projectFloat;
     const fit = available(metrics, viewport, prev);
     prev = fit;
-    const avail = previewBlocked ? fit.filter((l) => !l.preview) : fit;
-
-    const base = clamp(
-      previewBlocked ? { ...desired, preview: false } : desired,
-      avail,
-    );
-    const active = (previewMode && previewLayout(base, avail)) || base;
+    const { avail, active } = choose(fit);
     shown = active;
     viewportW = viewport;
     apply(active);

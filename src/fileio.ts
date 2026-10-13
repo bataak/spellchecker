@@ -31,6 +31,7 @@ export interface FileIOControl {
   putFile: (file: OpenFile | null) => void;
   restoreFile: (ref: DraftFile) => void;
   targetName: () => string | null;
+  targetHandle: () => FileSystemFileHandle | null;
 }
 
 export function initFileIO({
@@ -475,6 +476,9 @@ export function initFileIO({
     },
     targetName() {
       return currentFileName;
+    },
+    targetHandle() {
+      return currentFileHandle;
     },
   };
 }
