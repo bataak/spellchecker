@@ -262,7 +262,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     const view = project();
     if (
       view?.unsaved &&
-      !window.confirm("Хадгалаагүй өөрчлөлт байна. Төслийг хаах уу?")
+      !window.confirm("Төсөлд хадгалагдаагүй файл байна. Төслийг хаах уу?")
     )
       return;
     closeProject();
@@ -279,7 +279,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
       return (
         !view?.unsaved ||
         window.confirm(
-          "Нээлттэй төсөлд хадгалаагүй өөрчлөлт байна. Шинэ төсөл нээх үү?",
+          "Нээлттэй төсөлд хадгалагдаагүй файл байна. Шинэ төсөл нээх үү?",
         )
       );
     },
@@ -396,7 +396,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
       if (
         view?.unsaved &&
         !window.confirm(
-          "Нээлттэй төсөлд хадгалаагүй өөрчлөлт байна. Шинэ төсөл нээх үү?",
+          "Нээлттэй төсөлд хадгалагдаагүй файл байна. Шинэ төсөл нээх үү?",
         )
       )
         return;
@@ -407,7 +407,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
       if (
         view?.unsaved &&
         !window.confirm(
-          "Нээлттэй төсөлд хадгалаагүй өөрчлөлт байна. Шинэ төсөл нээх үү?",
+          "Нээлттэй төсөлд хадгалагдаагүй файл байна. Шинэ төсөл нээх үү?",
         )
       )
         return;
