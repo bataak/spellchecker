@@ -48,6 +48,7 @@ import {
   saveOfficeFile,
   loadOfficeFile,
   dropOfficeFile,
+  type DraftFile,
 } from "./storage.ts";
 import { initMdToolbar } from "./mdtoolbar.ts";
 import {
@@ -194,6 +195,11 @@ let enabledEnglish = loadEnabledEnglish();
 let lastFailed: { id: string; error: string }[] | null = null;
 let lastFallbackReason: string | null = null;
 let docx: OfficeMode | null = null;
+let docxFile: File | null = null;
+let officeOps: Promise<void> = Promise.resolve();
+const parkedOffice = new Map<string, File>();
+let restoring: { slot: string; name: string } | null = null;
+let swapSeq = 0;
 let undoCtl: UndoControl | null = null;
 let plainName: string | null = null;
 const templateFiles = new Map<string, OpenFile>();
@@ -1458,7 +1464,15 @@ async function openPdfFile(file: File): Promise<boolean> {
   return true;
 }
 
-async function openDocxFile(file: File, draftText?: string): Promise<boolean> {
+function queueOffice(op: () => Promise<void>): void {
+  officeOps = officeOps.then(op).catch(() => undefined);
+}
+
+async function openDocxFile(
+  file: File,
+  draftText?: string,
+  cancelled?: () => boolean,
+): Promise<boolean> {
   if (isPdfFile(file)) return openPdfFile(file);
   let mod: typeof import("./office/mode.ts");
   try {
@@ -1470,8 +1484,9 @@ async function openDocxFile(file: File, draftText?: string): Promise<boolean> {
 
   if (mod.officeFormat(file) === null) return false;
 
+  let opened: OfficeMode;
   try {
-    docx = await mod.openOfficeMode(file);
+    opened = await mod.openOfficeMode(file);
   } catch (e) {
     const reason = e instanceof Error ? e.message : "";
     holdStatus(
@@ -1483,6 +1498,9 @@ async function openDocxFile(file: File, draftText?: string): Promise<boolean> {
     );
     return true;
   }
+  if (cancelled?.()) return true;
+  docx = opened;
+  docxFile = file;
 
   els.editor.readOnly = true;
   const source = docx.text();
@@ -1494,7 +1512,7 @@ async function openDocxFile(file: File, draftText?: string): Promise<boolean> {
     holdStatus("Өмнөх засваруудыг сэргээж чадсангүй", 8000);
   els.editor.value = restored ? draftText : source;
   undoCtl?.baseline();
-  if (draftText === undefined) void saveOfficeFile(file).catch(() => undefined);
+  if (draftText === undefined) queueOffice(() => saveOfficeFile(file));
   previewCtl?.setSource({ kind: "office", name: file.name });
   document.body.classList.add("docx-mode");
   syncSaveHint();
@@ -1508,8 +1526,21 @@ async function openDocxFile(file: File, draftText?: string): Promise<boolean> {
 
 function closeDocx(): void {
   if (!docx) return;
+  detachDocx();
+  queueOffice(() => dropOfficeFile());
+}
+
+function parkDocx(slot: string): void {
+  const file = docxFile;
+  if (!docx || !file) return closeDocx();
+  detachDocx();
+  parkedOffice.set(slot, file);
+  queueOffice(() => saveOfficeFile(file, slot).then(() => dropOfficeFile()));
+}
+
+function detachDocx(): void {
   docx = null;
-  void dropOfficeFile().catch(() => undefined);
+  docxFile = null;
   els.editor.readOnly = false;
   document.body.classList.remove("docx-mode");
   syncSaveHint();
@@ -1585,11 +1616,36 @@ const mdBar = initMdToolbar({
 });
 function swapTemplateFile(from: string, to: string): void {
   if (from === to) return;
+  swapSeq++;
+  const office = docxFile
+    ? docxFile.name
+    : restoring?.slot === from
+      ? restoring.name
+      : null;
+  if (restoring) els.editor.readOnly = false;
+  restoring = null;
+  parkDocx(from);
   const left = fileIO.takeFile();
   if (left) templateFiles.set(from, left);
   else templateFiles.delete(from);
-  saveDraftFile(left ? { name: left.name, kind: "text" } : null, from);
+  saveDraftFile(
+    office
+      ? { name: office, kind: "office" }
+      : left
+        ? { name: left.name, kind: "text" }
+        : null,
+    from,
+  );
   const stored = loadDraftFile(to);
+  if (stored?.kind === "office") {
+    fileIO.putFile(null);
+    plainName = stored.name;
+    saveDraftFile(stored);
+    syncSaveHint();
+    mdBar.refresh();
+    void unparkDocx(to, stored);
+    return;
+  }
   const next =
     templateFiles.get(to) ??
     (stored ? { handle: null, name: stored.name } : null);
@@ -1598,6 +1654,33 @@ function swapTemplateFile(from: string, to: string): void {
   saveDraftFile(next ? { name: next.name, kind: "text" } : null);
   syncSaveHint();
   mdBar.refresh();
+}
+async function unparkDocx(slot: string, ref: DraftFile): Promise<void> {
+  const seq = swapSeq;
+  const cancelled = (): boolean => seq !== swapSeq;
+  restoring = { slot, name: ref.name };
+  els.editor.readOnly = true;
+  const file =
+    parkedOffice.get(slot) ??
+    (await officeOps.then(() => loadOfficeFile(slot)).catch(() => null));
+  const text = await mdBar.draft(slot);
+  if (cancelled()) return;
+  if (file && file.name === ref.name)
+    await openDocxFile(file, text ?? undefined, cancelled);
+  if (cancelled()) return;
+  restoring = null;
+  if (docx && file) {
+    parkedOffice.delete(slot);
+    queueOffice(() => saveOfficeFile(file).then(() => dropOfficeFile(slot)));
+  } else {
+    els.editor.readOnly = false;
+    fileIO.restoreFile(ref);
+    plainName = fileIO.targetName();
+    saveDraftFile(plainName ? { name: plainName, kind: "text" } : null);
+  }
+  syncSaveHint();
+  mdBar.refresh();
+  enterMdMode(mdActive());
 }
 const find = (sel: string) => (): HTMLElement | null =>
   document.querySelector<HTMLElement>(sel);
