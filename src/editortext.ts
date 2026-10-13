@@ -15,7 +15,7 @@ export interface EditorText {
 }
 
 export function replaceRange(
-  editor: HTMLTextAreaElement,
+  editor: HTMLTextAreaElement | HTMLInputElement,
   from: number,
   to: number,
   text: string,
