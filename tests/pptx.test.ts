@@ -42,6 +42,16 @@ test("treats a:br as a line break", () => {
   assert.equal(part.paragraphs[0].text, "нэг\nхоёр");
 });
 
+test("ignores tab stop definitions in paragraph properties", () => {
+  const part = partOf(
+    slide(
+      '<a:p><a:pPr><a:tabLst><a:tab pos="914400" algn="l"/></a:tabLst></a:pPr>' +
+        `${run("Сайн байна уу")}</a:p>`,
+    ),
+  );
+  assert.equal(part.paragraphs[0].text, "Сайн байна уу");
+});
+
 test("skips field text", () => {
   const part = partOf(
     slide(
