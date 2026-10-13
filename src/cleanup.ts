@@ -1,0 +1,160 @@
+import { fixSlotsInWords } from "./cp1251.ts";
+
+const TAG_RE = /<\/?[a-zA-Z][a-zA-Z0-9-]*(?:\s[^<>]*)?\/?>/g;
+const MIN_TAGS = 2;
+
+const BLOCK_TAGS = new Set([
+  "address",
+  "article",
+  "aside",
+  "blockquote",
+  "dd",
+  "div",
+  "dl",
+  "dt",
+  "fieldset",
+  "figcaption",
+  "figure",
+  "footer",
+  "form",
+  "header",
+  "hr",
+  "li",
+  "main",
+  "nav",
+  "ol",
+  "pre",
+  "section",
+  "table",
+  "tbody",
+  "td",
+  "tfoot",
+  "th",
+  "thead",
+  "tr",
+  "ul",
+]);
+
+const PARAGRAPH_TAGS = new Set(["p", "h1", "h2", "h3", "h4", "h5", "h6"]);
+
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  nbsp: " ",
+  ensp: " ",
+  emsp: " ",
+  thinsp: " ",
+  shy: "",
+  ndash: "\u2013",
+  mdash: "\u2014",
+  hellip: "\u2026",
+  laquo: "\u00AB",
+  raquo: "\u00BB",
+  ldquo: "\u201C",
+  rdquo: "\u201D",
+  bdquo: "\u201E",
+  lsquo: "\u2018",
+  rsquo: "\u2019",
+  sbquo: "\u201A",
+  bull: "\u2022",
+  middot: "\u00B7",
+  copy: "\u00A9",
+  reg: "\u00AE",
+  trade: "\u2122",
+  deg: "\u00B0",
+  times: "\u00D7",
+  divide: "\u00F7",
+  minus: "\u2212",
+  plusmn: "\u00B1",
+  sect: "\u00A7",
+  para: "\u00B6",
+  numero: "\u2116",
+  euro: "\u20AC",
+};
+
+const ENTITY_RE = /&(?:#(\d{1,7})|#[xX]([0-9a-fA-F]{1,6})|([a-zA-Z]+));/g;
+
+const PARAGRAPH_MARK = "\u0000";
+
+export function hasMarkup(text: string): boolean {
+  let count = 0;
+  for (const _ of text.matchAll(TAG_RE)) {
+    count++;
+    if (count >= MIN_TAGS) return true;
+  }
+  return false;
+}
+
+function decodeEntities(text: string): string {
+  return text.replace(ENTITY_RE, (whole, dec, hex, name) => {
+    if (name !== undefined) return NAMED_ENTITIES[name] ?? whole;
+    const code = dec !== undefined ? Number(dec) : parseInt(hex, 16);
+    if (code === 0 || code > 0x10ffff) return whole;
+    return code === 0xa0 ? " " : String.fromCodePoint(code);
+  });
+}
+
+export function stripMarkup(text: string): string {
+  const flat = text
+    .replace(/<!--[\s\S]*?(?:-->|$)/g, "")
+    .replace(/<(script|style|head|title)\b[\s\S]*?(?:<\/\1\s*>|$)/gi, "")
+    .replace(/<!doctype[^>]*>/gi, "")
+    .replace(/\s+/g, " ")
+    .replace(TAG_RE, (tag) => {
+      const name = /^<\/?([a-zA-Z0-9-]+)/.exec(tag)![1]!.toLowerCase();
+      if (name === "br") return "\n";
+      if (PARAGRAPH_TAGS.has(name)) return "\n" + PARAGRAPH_MARK + "\n";
+      if (BLOCK_TAGS.has(name)) return "\n";
+      return "";
+    });
+  const lines: string[] = [];
+  for (const raw of decodeEntities(flat).split("\n")) {
+    const line = raw.replace(/[ \t\u00A0]+/g, " ").trim();
+    if (!line) continue;
+    if (line === PARAGRAPH_MARK) {
+      if (lines.length && lines[lines.length - 1] !== "") lines.push("");
+      continue;
+    }
+    lines.push(line.split(PARAGRAPH_MARK).join(""));
+  }
+  while (lines.length && lines[lines.length - 1] === "") lines.pop();
+  return lines.join("\n");
+}
+
+const LETTER_RUN_RE = /[\p{L}\u00AA\u00AF\u00BA\u00BF]+/gu;
+const SLOT_RE = /[\u00AA\u00AF\u00BA\u00BF\u0404\u0407\u0454\u0457]/u;
+const CYRILLIC_RE = /\p{Script=Cyrillic}/u;
+const OTHER_LATIN_RE = /[A-UW-Za-uw-z]/;
+
+function fixLatinV(word: string): string {
+  if (!/[vV]/.test(word)) return word;
+  if (!CYRILLIC_RE.test(word) || OTHER_LATIN_RE.test(word)) return word;
+  return word.replace(/v/g, "\u04AF").replace(/V/g, "\u04AE");
+}
+
+function hasSlotInCyrillicWord(word: string): boolean {
+  if (!SLOT_RE.test(word)) return false;
+  return fixSlotsInWords(word) !== word;
+}
+
+export function hasMisletters(text: string): boolean {
+  for (const [word] of text.matchAll(LETTER_RUN_RE)) {
+    if (fixLatinV(word) !== word || hasSlotInCyrillicWord(word)) return true;
+  }
+  return false;
+}
+
+export function fixMisletters(text: string): string {
+  return fixSlotsInWords(text.replace(LETTER_RUN_RE, fixLatinV));
+}
+
+export function needsCleanup(text: string): boolean {
+  return hasMarkup(text) || hasMisletters(text);
+}
+
+export function cleanText(text: string): string {
+  return fixMisletters(hasMarkup(text) ? stripMarkup(text) : text);
+}

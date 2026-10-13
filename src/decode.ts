@@ -3,6 +3,7 @@ import {
   hasMojibake,
   repairCyrillicDetailed,
 } from "./cp1251.ts";
+import { cleanText, needsCleanup } from "./cleanup.ts";
 import { editKind, isSeparatorInput } from "./input.ts";
 
 export interface DecodeDeps {
@@ -17,15 +18,55 @@ export interface DecodeControl {
   readonly afterInput: (event: Event) => void;
 }
 
+interface FixButtonSpec {
+  readonly selector: string;
+  readonly label: string;
+  readonly detect: (text: string) => boolean;
+  readonly fix: (
+    target: string,
+    full: string,
+  ) => { text: string; message: string } | null;
+  readonly emptyMessage: string;
+}
+
 const DECODE_CHECK_DELAY = 500;
-const DECODE_LABEL = "Үсэг таниулах";
 const DECODE_DONE_HOLD = 1400;
 const DECODE_DONE_FADE = 900;
 const DECODE_TYPING_WINDOW = 64;
 
 export function initDecode(deps: DecodeDeps): DecodeControl {
+  return initFixButton(deps, {
+    selector: "#decodeBtn",
+    label: "Үсэг таниулах",
+    detect: hasMojibake,
+    fix: (target, full) => {
+      const result = repairCyrillicDetailed(target, detectVariant(full));
+      if (result.text === target) return null;
+      return {
+        text: result.text,
+        message: "Хөрвүүлэв — " + result.words + " үг",
+      };
+    },
+    emptyMessage: "Хөрвүүлэх үг олдсонгүй",
+  });
+}
+
+export function initClean(deps: DecodeDeps): DecodeControl {
+  return initFixButton(deps, {
+    selector: "#cleanBtn",
+    label: "Цэвэрлэх",
+    detect: needsCleanup,
+    fix: (target) => {
+      const text = cleanText(target);
+      return text === target ? null : { text, message: "Цэвэрлэв" };
+    },
+    emptyMessage: "Цэвэрлэх зүйл олдсонгүй",
+  });
+}
+
+function initFixButton(deps: DecodeDeps, spec: FixButtonSpec): DecodeControl {
   const { editor } = deps;
-  const decodeBtn = document.querySelector<HTMLButtonElement>("#decodeBtn");
+  const decodeBtn = document.querySelector<HTMLButtonElement>(spec.selector);
   let decodeCheckTimer: number | null = null;
   let decodeDoneTimer: number | null = null;
   let decodeSkipNextInput = false;
@@ -33,7 +74,7 @@ export function initDecode(deps: DecodeDeps): DecodeControl {
   function sync(): void {
     if (!decodeBtn) return;
     if (decodeBtn.classList.contains("is-done")) return;
-    decodeBtn.hidden = !hasMojibake(editor.value);
+    decodeBtn.hidden = !spec.detect(editor.value);
   }
 
   function showDecodeMessage(message: string): void {
@@ -51,7 +92,7 @@ export function initDecode(deps: DecodeDeps): DecodeControl {
         decodeDoneTimer = null;
         button.classList.remove("is-done", "is-fading");
         button.disabled = false;
-        button.textContent = DECODE_LABEL;
+        button.textContent = spec.label;
         sync();
       }, DECODE_DONE_FADE);
     }, DECODE_DONE_HOLD);
@@ -72,17 +113,17 @@ export function initDecode(deps: DecodeDeps): DecodeControl {
     decodeBtn.hidden = false;
   }
 
-  function checkNearCaret(): void {
+  function checkNearCaret(inserted: number): void {
     const caret = editor.selectionStart;
     const value = editor.value;
-    const from = Math.max(0, caret - DECODE_TYPING_WINDOW);
+    const from = Math.max(0, caret - inserted - DECODE_TYPING_WINDOW);
     const to = Math.min(value.length, caret + DECODE_TYPING_WINDOW);
-    if (hasMojibake(value.slice(from, to))) reveal();
+    if (spec.detect(value.slice(from, to))) reveal();
   }
 
   function checkInPasted(text: string): boolean {
     if (!text || !decodeBtn || !decodeBtn.hidden) return false;
-    if (!hasMojibake(text)) return false;
+    if (!spec.detect(text)) return false;
     reveal();
     return true;
   }
@@ -102,7 +143,7 @@ export function initDecode(deps: DecodeDeps): DecodeControl {
     if (decodeBtn.hidden) {
       if (kind === "other") syncSoon();
       else if (kind === "insert" && isSeparatorInput(event as InputEvent))
-        checkNearCaret();
+        checkNearCaret((event as InputEvent).data?.length ?? 0);
       return;
     }
     if (kind === "insert") return;
@@ -117,17 +158,18 @@ export function initDecode(deps: DecodeDeps): DecodeControl {
       const start = editor.selectionStart;
       const end = editor.selectionEnd;
       const selected = end > start;
-      const variant = detectVariant(full);
       const target = selected ? full.slice(start, end) : full;
-      const result = repairCyrillicDetailed(target, variant);
-      if (result.text === target) {
-        showDecodeMessage("Хөрвүүлэх үг олдсонгүй");
+      const result = spec.fix(target, full);
+      if (!result) {
+        showDecodeMessage(spec.emptyMessage);
         return;
       }
       const next = selected
         ? full.slice(0, start) + result.text + full.slice(end)
         : result.text;
-      const caret = selected ? start + result.text.length : start;
+      const caret = selected
+        ? start + result.text.length
+        : Math.min(start, result.text.length);
       const scrollTop = editor.scrollTop;
       const scrollLeft = editor.scrollLeft;
       const restoreView = (): void => {
@@ -138,7 +180,7 @@ export function initDecode(deps: DecodeDeps): DecodeControl {
       restoreView();
       void Promise.resolve(deps.refresh()).then(restoreView);
       deps.saveText();
-      showDecodeMessage("Хөрвүүлэв — " + result.words + " үг");
+      showDecodeMessage(result.message);
     });
   }
 

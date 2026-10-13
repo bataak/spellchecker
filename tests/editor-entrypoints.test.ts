@@ -11,7 +11,7 @@ const MAIN = read("main.ts");
 const LOOKAHEAD = 40;
 
 const ENTRYPOINTS: readonly [string, RegExp, string][] = [
-  ["main.ts", /els\.editor\.value\s*=[^=]/, "decode.sync("],
+  ["main.ts", /els\.editor\.value\s*=[^=]/, "syncFixButtons("],
   ["drafttext.ts", /editor\.value\s*=\s*draftText/, "deps.onLoaded("],
   ["editortext.ts", /editor\.value\s*=\s*newText/, "deps.onReplaced("],
 ];
@@ -50,8 +50,9 @@ test("засварлагчид текст оруулах зам бүр товч�
     [],
     "дараах мөрийн ойролцоо товч шинэчлэгдээгүй байна:\n" + missing.join("\n"),
   );
-  assert.match(MAIN, /onLoaded: \(\) => decode\.sync\(\)/);
-  assert.match(MAIN, /onReplaced: \(\) => decode\.sync\(\)/);
+  assert.match(MAIN, /onLoaded: \(\) => syncFixButtons\(\)/);
+  assert.match(MAIN, /onReplaced: \(\) => syncFixButtons\(\)/);
+  assert.match(MAIN, /decode\.sync\(\);\s*clean\.sync\(\);/);
 });
 
 test("товчийн илрүүлэгч main.ts-д холбогдсон байна", () => {
@@ -59,5 +60,7 @@ test("товчийн илрүүлэгч main.ts-д холбогдсон байн
   assert.match(decode, /from "\.\/cp1251\.ts"/);
   assert.match(decode, /hasMojibake/);
   assert.match(decode, /#decodeBtn/);
+  assert.match(decode, /#cleanBtn/);
+  assert.match(decode, /needsCleanup/);
   assert.match(MAIN, /from "\.\/decode\.ts"/);
 });

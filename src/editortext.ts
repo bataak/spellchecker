@@ -104,6 +104,7 @@ export function initEditorText(deps: EditorTextDeps): EditorText {
     } finally {
       programmaticEdit = false;
     }
+    deps.onReplaced();
   }
 
   return { set, insert, programmatic: () => programmaticEdit };
