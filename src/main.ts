@@ -1666,6 +1666,7 @@ const mdBar = initMdToolbar({
     clean.sync();
     swapTemplateFile(from, mdBar.slot());
     syncTexMode();
+    projectLink?.sync();
     enterMdMode(mdActive());
   },
   onExample: () => enterMdMode(!isTexFile()),
