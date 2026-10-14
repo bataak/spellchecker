@@ -1864,7 +1864,7 @@ function enterMdMode(on: boolean): void {
     void render();
   }
   measureCtl?.setPreviewBlocked(!!openFileName() && !on && !isTexFile());
-  measureCtl?.setPreviewMode(on || isTexFile());
+  measureCtl?.setPreviewMode(on || isTexFile(), isTexFile());
   previewWanted = on || isTexFile();
   syncPreviewClass();
   previewCtl?.setMarkdownMode(on);
