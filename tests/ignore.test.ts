@@ -1,4 +1,4 @@
-import { resetStorage, rawGet } from "./helpers/mock-storage.ts";
+import { resetStorage, rawGet, rawSet } from "./helpers/mock-storage.ts";
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -89,4 +89,16 @@ test("getIgnored: хуулбарыг буцаана", () => {
   const list = getIgnored();
   list.push("гаднаас");
   assert.deepEqual(getIgnored(), ["тест"]);
+});
+
+test("addIgnored: өөр табад хадгалсан үгийг дарж бичихгүй", () => {
+  addIgnored("Хүрэлбаатар");
+  rawSet(KEY, JSON.stringify(["Хүрэлбаатар", "Болд"]));
+  addIgnored("Цэцэгмаа");
+  assert.deepEqual(JSON.parse(rawGet(KEY)!), [
+    "Хүрэлбаатар",
+    "Болд",
+    "Цэцэгмаа",
+  ]);
+  assert.equal(isIgnored("Болд"), true);
 });
