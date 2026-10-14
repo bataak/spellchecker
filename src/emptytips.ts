@@ -1,3 +1,4 @@
+import { KEYS, read, type StoreKey, write } from "./store.ts";
 const INFO_TIPS = [
   "Улаанаар зурагдсан үг бүрийг алдаанд тооцож болохгүй, энэ нь үгийн алдаа шалгах толинд хараахан бүртгэгдээгүй байж болно.",
   "Алдсан үгэн дээр заагчаар дарахад гарах үгийн зөв бичлэг нь оновчгүй байж болохыг мөн анхаарна уу!",
@@ -25,24 +26,16 @@ const ACTION_TIPS = [
   "Монгол үсгийн дүрмийн толь: https://zuv.bichig.dev/book/",
 ];
 
-const KEY_INFO = "mn-spell:tip-info";
-const KEY_ACTION = "mn-spell:tip-action";
-
 let wasEmpty: boolean | null = null;
 let swapTimer: ReturnType<typeof setTimeout> | null = null;
 
-function pick(list: string[], key: string): string {
-  let last = -1;
-  try {
-    const raw = localStorage.getItem(key);
-    if (raw !== null) last = parseInt(raw, 10);
-  } catch (_) {}
+function pick(list: string[], key: StoreKey): string {
+  const raw = read(key);
+  const last = raw === null ? -1 : parseInt(raw, 10);
   let tipIndex = Math.floor(Math.random() * list.length);
   if (list.length > 1 && tipIndex === last)
     tipIndex = (tipIndex + 1) % list.length;
-  try {
-    localStorage.setItem(key, String(tipIndex));
-  } catch (_) {}
+  write(key, String(tipIndex));
   return list[tipIndex]!;
 }
 
@@ -68,8 +61,8 @@ function apply(animate: boolean): void {
   const els = [info, action].filter((el): el is HTMLElement => el !== null);
   if (els.length === 0) return;
   const write = () => {
-    if (info) renderTip(info, pick(INFO_TIPS, KEY_INFO));
-    if (action) renderTip(action, pick(ACTION_TIPS, KEY_ACTION));
+    if (info) renderTip(info, pick(INFO_TIPS, KEYS.tipInfo));
+    if (action) renderTip(action, pick(ACTION_TIPS, KEYS.tipAction));
   };
   if (!animate) {
     write();

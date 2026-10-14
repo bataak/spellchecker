@@ -1,7 +1,7 @@
+import { KEYS, read, remove, writeJson } from "./store.ts";
 export const FILE_LIMIT = 10;
 export const PROJECT_SLOT = "project";
 const FILE_PREFIX = "file-";
-export const SLOTS_KEY = "mdFiles";
 
 export interface FileSlot {
   readonly id: string;
@@ -53,16 +53,10 @@ export function parseSlots(raw: string | null): FileSlot[] {
 }
 
 export function loadSlots(): FileSlot[] {
-  try {
-    return parseSlots(localStorage.getItem(SLOTS_KEY));
-  } catch {
-    return [];
-  }
+  return parseSlots(read(KEYS.slots));
 }
 
 export function saveSlots(slots: readonly FileSlot[]): void {
-  try {
-    if (slots.length) localStorage.setItem(SLOTS_KEY, JSON.stringify(slots));
-    else localStorage.removeItem(SLOTS_KEY);
-  } catch {}
+  if (slots.length) writeJson(KEYS.slots, slots);
+  else remove(KEYS.slots);
 }

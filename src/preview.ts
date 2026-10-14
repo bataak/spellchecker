@@ -10,6 +10,7 @@ import {
 } from "./images.ts";
 import { fitBlanks, format, parse, toHtml } from "./markdown.ts";
 import { isEditOf } from "./samedoc.ts";
+import { KEYS, read, remove, write } from "./store.ts";
 
 const TIDY_LIMIT = 400_000;
 const TIDY_IDLE_MS = 5000;
@@ -23,24 +24,16 @@ function isSameDocument(next: string, ref: string): boolean {
 }
 
 const HEAD_TEXT = "Харагдац";
-const INVERT_KEY = "pdfInvert";
-const ZOOM_KEY = "pdfZoom";
 const ZOOM_STEPS = [0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
 
 function loadZoom(): number {
-  try {
-    const value = Number(localStorage.getItem(ZOOM_KEY));
-    return value > 0 ? clampZoom(value) : 1;
-  } catch {
-    return 1;
-  }
+  const value = Number(read(KEYS.pdfZoom));
+  return value > 0 ? clampZoom(value) : 1;
 }
 
 function saveZoom(zoom: number): void {
-  try {
-    if (zoom === 1) localStorage.removeItem(ZOOM_KEY);
-    else localStorage.setItem(ZOOM_KEY, String(zoom));
-  } catch {}
+  if (zoom === 1) remove(KEYS.pdfZoom);
+  else write(KEYS.pdfZoom, String(zoom));
 }
 
 const PDF_CACHE = "tex-preview";
@@ -151,17 +144,11 @@ function stepZoom(zoom: number, dir: number): number {
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 function loadInvert(): boolean {
-  try {
-    return localStorage.getItem(INVERT_KEY) !== "off";
-  } catch {
-    return true;
-  }
+  return read(KEYS.pdfInvert) !== "off";
 }
 
 function saveInvert(on: boolean): void {
-  try {
-    localStorage.setItem(INVERT_KEY, on ? "on" : "off");
-  } catch {}
+  write(KEYS.pdfInvert, on ? "on" : "off");
 }
 
 function compileGlyph(): SVGSVGElement {

@@ -29,8 +29,8 @@ import {
   viewableType,
   type TreeNode,
 } from "./texproject.ts";
+import { KEYS, read, remove, write } from "./store.ts";
 
-const OPEN_KEY = "mn-spell:project-panel";
 const PEEK_MS = 5000;
 
 export interface ProjectPanelDeps {
@@ -105,18 +105,12 @@ function headButton(label: string, body: string): HTMLButtonElement {
 }
 
 function loadOpen(): boolean {
-  try {
-    return localStorage.getItem(OPEN_KEY) === "on";
-  } catch {
-    return false;
-  }
+  return read(KEYS.projectPanel) === "on";
 }
 
 function saveOpen(on: boolean): void {
-  try {
-    if (on) localStorage.setItem(OPEN_KEY, "on");
-    else localStorage.removeItem(OPEN_KEY);
-  } catch {}
+  if (on) write(KEYS.projectPanel, "on");
+  else remove(KEYS.projectPanel);
 }
 
 interface MenuItem {

@@ -1,5 +1,6 @@
 import type { Token, ErrorEntry } from "./textcheck.ts";
 import { initWipeButton } from "./wipe.ts";
+import { KEYS, read, write } from "./store.ts";
 
 export interface ToolbarDeps {
   els: { editor: HTMLTextAreaElement; status: HTMLElement };
@@ -20,7 +21,6 @@ export interface ToolbarDeps {
   copyText: (str: string) => Promise<void>;
 }
 
-const SCROLL_KEY = "mn-spell:toolbar-scroll";
 const SCROLL_SAVE_MS = 250;
 
 export function parseSavedScroll(value: string | null): number | null {
@@ -30,11 +30,7 @@ export function parseSavedScroll(value: string | null): number | null {
 }
 
 function readSavedScroll(): number | null {
-  try {
-    return parseSavedScroll(localStorage.getItem(SCROLL_KEY));
-  } catch (_) {
-    return null;
-  }
+  return parseSavedScroll(read(KEYS.toolbarScroll));
 }
 
 function initToolbarMemory(): void {
@@ -47,9 +43,7 @@ function initToolbarMemory(): void {
     () => {
       clearTimeout(saveTimer);
       saveTimer = setTimeout(() => {
-        try {
-          localStorage.setItem(SCROLL_KEY, String(Math.round(bar.scrollLeft)));
-        } catch (_) {}
+        write(KEYS.toolbarScroll, String(Math.round(bar.scrollLeft)));
       }, SCROLL_SAVE_MS);
     },
     { passive: true },
@@ -206,10 +200,7 @@ function initButtons({
       els.editor.focus();
       return;
     }
-    if (els.editor.value)
-      try {
-        localStorage.setItem("mn-spell:last-cleared", els.editor.value);
-      } catch (_) {}
+    if (els.editor.value) write(KEYS.lastCleared, els.editor.value);
     closeDocx();
     forgetFile();
     setEditorText("", 0);
