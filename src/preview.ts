@@ -44,9 +44,11 @@ function saveZoom(zoom: number): void {
 }
 
 const PDF_CACHE = "tex-preview";
-const PDF_KEY = "tex-preview/last.pdf";
 const PDF_TEXT_KEY = "tex-preview/last.tex";
+const CACHED_PDFS = 6;
 const KEPT_PDFS = 3;
+
+const pdfUrl = (digest: string): string => "tex-preview/" + digest + ".pdf";
 
 async function textKey(text: string): Promise<string | null> {
   try {
@@ -62,49 +64,62 @@ async function textKey(text: string): Promise<string | null> {
   }
 }
 
-async function loadCachedPdf(): Promise<{
-  key: string;
-  text: string | null;
-  bytes: Uint8Array<ArrayBuffer>;
-} | null> {
+async function cachedPdf(
+  digest: string,
+): Promise<Uint8Array<ArrayBuffer> | null> {
   try {
     const cache = await caches.open(PDF_CACHE);
-    const [hit, source] = await Promise.all([
-      cache.match(PDF_KEY),
-      cache.match(PDF_TEXT_KEY),
-    ]);
+    const hit = await cache.match(pdfUrl(digest));
     if (!hit) return null;
-    const key = hit.headers.get("x-text-key") ?? "";
-    const text =
-      source && source.headers.get("x-text-key") === key
-        ? await source.text()
-        : null;
-    return { key, text, bytes: new Uint8Array(await hit.arrayBuffer()) };
+    const bytes = new Uint8Array(await hit.arrayBuffer());
+    void cache.put(
+      pdfUrl(digest),
+      new Response(bytes.slice(), {
+        headers: { "content-type": "application/pdf" },
+      }),
+    );
+    return bytes;
+  } catch {
+    return null;
+  }
+}
+
+async function lastTex(): Promise<{ digest: string; text: string } | null> {
+  try {
+    const cache = await caches.open(PDF_CACHE);
+    const hit = await cache.match(PDF_TEXT_KEY);
+    const digest = hit?.headers.get("x-text-key");
+    return hit && digest ? { digest, text: await hit.text() } : null;
   } catch {
     return null;
   }
 }
 
 async function saveCachedPdf(
-  text: string,
+  digest: string,
   bytes: Uint8Array<ArrayBuffer>,
+  text: string | null,
 ): Promise<void> {
-  const key = await textKey(text);
-  if (!key) return;
   try {
     const cache = await caches.open(PDF_CACHE);
     await cache.put(
-      PDF_KEY,
+      pdfUrl(digest),
       new Response(bytes.slice(), {
-        headers: { "content-type": "application/pdf", "x-text-key": key },
+        headers: { "content-type": "application/pdf" },
       }),
     );
-    await cache.put(
-      PDF_TEXT_KEY,
-      new Response(text, {
-        headers: { "content-type": "text/plain", "x-text-key": key },
-      }),
+    if (text !== null)
+      await cache.put(
+        PDF_TEXT_KEY,
+        new Response(text, {
+          headers: { "content-type": "text/plain", "x-text-key": digest },
+        }),
+      );
+    const pdfs = (await cache.keys()).filter((request) =>
+      request.url.endsWith(".pdf"),
     );
+    for (const request of pdfs.slice(0, Math.max(0, pdfs.length - CACHED_PDFS)))
+      await cache.delete(request);
   } catch {}
 }
 
@@ -611,6 +626,7 @@ export function initPreview(
     offTexImages = mod.onTexImagesChange(() => {
       if (!texMode) return;
       texShown = null;
+      forced = true;
       update();
     });
   };
@@ -647,24 +663,37 @@ export function initPreview(
     }
     setPdfView(view);
     shownPdf = bytes;
-    downloadBtn.disabled = false;
     panel.classList.remove("is-blank");
     body.classList.remove("is-empty");
     body.scrollTop = scroll;
     return true;
   };
 
-  const restoreTex = async (text: string, seq: number): Promise<boolean> => {
+  const restoreTex = async (text: string, seq: number): Promise<void> => {
     texRestored = true;
-    const [cached, key] = await Promise.all([loadCachedPdf(), textKey(text)]);
-    if (!cached || seq !== texSeq || !texMode) return false;
-    const exact = key !== null && key === cached.key;
-    if (!exact && (cached.text === null || !isEditOf(text, cached.text)))
-      return false;
-    if (!(await showPdfBytes(cached.bytes, seq).catch(() => false)))
-      return false;
-    pdfText = exact ? text : cached.text;
-    return exact;
+    const last = await lastTex();
+    if (!last || seq !== texSeq || !texMode || !isEditOf(text, last.text))
+      return;
+    const bytes = await cachedPdf(last.digest);
+    if (!bytes || seq !== texSeq || !texMode) return;
+    if (await showPdfBytes(bytes, seq).catch(() => false)) {
+      pdfText = last.text;
+      pdfOfProject = false;
+    }
+  };
+
+  const markShown = (key: string): void => {
+    texShown = key;
+    downloadBtn.disabled = shownPdf === null;
+  };
+
+  const digestOf = async (
+    text: string,
+    project: string | null,
+  ): Promise<string | null> => {
+    if (project === null) return textKey(text);
+    const { projectDigest } = await import("./projectstore.ts");
+    return projectDigest();
   };
 
   const RETRY_MS = [2000, 5000, 15000];
@@ -672,6 +701,7 @@ export function initPreview(
   let retries = 0;
   let triedText: string | null = null;
   let compiling: string | null = null;
+  let forced = false;
   const STALE_COMPILE_MS = 3000;
 
   const cancelRetry = (): void => {
@@ -697,8 +727,10 @@ export function initPreview(
       retries = 0;
     }
     const seq = ++texSeq;
+    const force = forced;
+    forced = false;
     compileBtn.disabled = true;
-    const kept = keptPdfs.get(key);
+    const kept = force ? undefined : keptPdfs.get(key);
     if (kept) {
       keptPdfs.delete(key);
       keptPdfs.set(key, kept);
@@ -709,18 +741,29 @@ export function initPreview(
         texRestored = true;
         pdfText = kept.text;
         pdfOfProject = project !== null;
-        texShown = key;
+        markShown(key);
         setTexError(null);
         setTexMissing(kept.missing);
         return;
       }
     }
-    if (!texRestored && project === null && (await restoreTex(text, seq))) {
-      pdfOfProject = false;
-      texShown = key;
+    const digest = await digestOf(text, project);
+    if (seq !== texSeq || !texMode) return;
+    const cached = digest === null || force ? null : await cachedPdf(digest);
+    if (cached && (await showPdfBytes(cached, seq).catch(() => false))) {
+      texRestored = true;
+      pdfText = text;
+      pdfOfProject = project !== null;
+      markShown(key);
+      keptPdfs.delete(key);
+      keptPdfs.set(key, { text, pdf: cached, missing: [] });
+      setTexError(null);
+      setTexMissing([]);
       compileBtn.disabled = false;
       return;
     }
+    if (seq !== texSeq || !texMode) return;
+    if (!texRestored && project === null) await restoreTex(text, seq);
     texRestored = true;
     if (seq !== texSeq || !texMode) return;
     if (
@@ -752,7 +795,7 @@ export function initPreview(
       const { pdf, missing } = await compileTexDocument(text);
       if (!(await showPdfBytes(pdf, seq))) return;
       pdfText = text;
-      texShown = key;
+      markShown(key);
       pdfOfProject = project !== null;
       keptPdfs.delete(key);
       keptPdfs.set(key, { text, pdf, missing });
@@ -761,7 +804,8 @@ export function initPreview(
       retries = 0;
       setTexError(null);
       setTexMissing(missing);
-      if (!missing.length && project === null) void saveCachedPdf(text, pdf);
+      if (!missing.length && digest !== null)
+        void saveCachedPdf(digest, pdf, project === null ? text : null);
     } catch (error) {
       if (seq !== texSeq || !texMode) return;
       texShown = key;
@@ -787,6 +831,7 @@ export function initPreview(
 
   const recompile = (): void => {
     if (compiling !== null) return;
+    forced = true;
     retries = 0;
     triedText = null;
     texShown = null;
@@ -830,6 +875,7 @@ export function initPreview(
     }
     setTexMode(isLatex(area.value));
     if (texMode) {
+      if (texKey() !== texShown) downloadBtn.disabled = true;
       const project = inProject();
       if (
         pdfView &&
