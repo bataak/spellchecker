@@ -591,6 +591,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     menu.hidden = true;
     select.setAttribute("aria-expanded", "false");
     if (refocus) select.focus();
+    syncVisible();
   }
 
   function openMenu(): void {
@@ -694,7 +695,8 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       focus === editor ||
       (focus !== null && (bar.contains(focus) || menu.contains(focus)));
     const on = active();
-    const show = ready && focused;
+    // Нээлттэй цэс товчоо алдвал зүүн ирмэг рүү үсэрнэ — цэс нээлттэй үед мөрийг үлдээнэ.
+    const show = (ready && focused) || !menu.hidden;
     syncLabel();
 
     picker.classList.toggle("is-plain", !on);
@@ -1026,7 +1028,10 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     }
     if (close?.dataset.close) {
       closeFile(close.dataset.close);
-      if (!menu.hidden) placeMenu();
+      if (!menu.hidden) {
+        placeMenu();
+        items[0]?.focus({ preventScroll: true });
+      }
       return;
     }
     const item = target?.closest<HTMLElement>(".md-menu-item");
