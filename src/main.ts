@@ -17,7 +17,12 @@ import { initToolbar } from "./toolbar.ts";
 import { initKeyboardToolbar } from "./kbtoolbar.ts";
 import { initSuggest } from "./suggest.ts";
 import { initSurvey, surveyOnErrorCount } from "./survey.ts";
-import { isIgnored, addIgnored, getIgnored } from "./ignore.ts";
+import {
+  isIgnored,
+  addIgnored,
+  getIgnored,
+  onIgnoredChange,
+} from "./ignore.ts";
 import type { Token } from "./textcheck.ts";
 import { initIgnoreList, syncIgnoreVisibility } from "./ignorelist.ts";
 import { initAppearance } from "./appearance.ts";
@@ -2120,6 +2125,7 @@ initSuggest({
 initIgnoreList({
   onChange: () => render(),
 });
+onIgnoredChange(() => render());
 
 initSurvey();
 
