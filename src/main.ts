@@ -30,7 +30,7 @@ import { mountMeasureControl, type MeasureControl } from "./measure.ts";
 import { initPreview, type Preview } from "./preview.ts";
 import { initProjectLink, type ProjectLink } from "./projectlink.ts";
 import { FILE_LIMIT, PROJECT_SLOT, isFileSlot } from "./fileslots.ts";
-import { project } from "./projectstore.ts";
+import { onProjectChange, project } from "./projectstore.ts";
 
 let previewCtl: Preview | null = null;
 let projectLink: ProjectLink | null = null;
@@ -61,6 +61,7 @@ import {
   type DraftFile,
 } from "./storage.ts";
 import { initMdToolbar, sharedSlot } from "./mdtoolbar.ts";
+import { initTabGuard, type TabGuard } from "./tabguard.ts";
 import {
   defineHint,
   exportHint,
@@ -212,6 +213,7 @@ const parkedOffice = new Map<string, File>();
 let restoring: { slot: string; name: string } | null = null;
 let swapSeq = 0;
 let undoCtl: UndoControl | null = null;
+let tabGuard: TabGuard | null = null;
 let plainName: string | null = null;
 const templateFiles = new Map<string, OpenFile>();
 let skipCode = true;
@@ -1690,6 +1692,7 @@ const mdBar = initMdToolbar({
     syncTexMode();
     projectLink?.sync();
     enterMdMode(mdActive());
+    tabGuard?.sync();
   },
   onExample: () => enterMdMode(!isTexFile()),
   projectDirty: () => project()?.unsaved ?? false,
@@ -2133,6 +2136,19 @@ initIgnoreList({
   onChange: () => render(),
 });
 onIgnoredChange(() => render());
+
+let guardedProject: string | null = null;
+tabGuard = initTabGuard({
+  slot: () => mdBar.slot(),
+  project: () => project()?.uid ?? null,
+  warn: (message) => holdStatus(message, 8000, false),
+});
+onProjectChange(() => {
+  const uid = project()?.uid ?? null;
+  if (uid === guardedProject) return;
+  guardedProject = uid;
+  tabGuard?.sync();
+});
 
 initSurvey();
 

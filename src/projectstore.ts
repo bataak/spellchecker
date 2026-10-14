@@ -59,6 +59,7 @@ export interface ProjectView {
   readonly pending: boolean;
   readonly version: number;
   readonly exportedAt: number | null;
+  readonly uid: string;
 }
 
 export interface ProjectBuild {
@@ -143,6 +144,7 @@ export function project(): ProjectView | null {
     pending: s.pending,
     version: s.version,
     exportedAt: s.exportedAt,
+    uid: s.uid,
   };
 }
 
