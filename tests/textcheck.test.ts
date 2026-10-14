@@ -1,6 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isDecimalPoint, splitNumberBoundary } from "../src/textcheck.ts";
+import {
+  isDecimalPoint,
+  nextOccurrence,
+  splitNumberBoundary,
+} from "../src/textcheck.ts";
 
 test("бүхэл тоо ба нэгжийг салгана", () => {
   assert.deepEqual(splitNumberBoundary("10мг"), {
@@ -99,4 +103,20 @@ test("нэрийн товчлол ба жагсаалтын цэг хуваал�
   assert.equal(isDecimalPoint("үг", "2"), false);
   assert.equal(isDecimalPoint("", "5"), false);
   assert.equal(isDecimalPoint("5", ""), false);
+});
+
+test("ижил алдаатай үгийн чип давталтуудаар ээлжлэн шилжинэ", () => {
+  const tokens = [
+    { word: "mmsm", start: 0, end: 4 },
+    { word: "алдаатй", start: 5, end: 12 },
+    { word: "Mmsm", start: 13, end: 17 },
+    { word: "mmsm", start: 18, end: 22 },
+  ];
+  const pick = (start: number, end: number) =>
+    nextOccurrence(tokens, 0, { start, end })?.start;
+  assert.equal(pick(30, 30), 0);
+  assert.equal(pick(0, 4), 13);
+  assert.equal(pick(13, 17), 18);
+  assert.equal(pick(18, 22), 0);
+  assert.equal(nextOccurrence(tokens, 99, { start: 0, end: 0 }), undefined);
 });
