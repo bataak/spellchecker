@@ -5,6 +5,7 @@ import {
   headingClasses,
   isBlankRow,
   isFigure,
+  listTree,
   mathSource,
   metaValue,
   parseInline,
@@ -13,6 +14,7 @@ import {
   type Block,
   type DivBlock,
   type Inline,
+  type ListTree,
 } from "./markdown.ts";
 import { flatten } from "./office/flatten.ts";
 import { columnWidths } from "./office/table.ts";
@@ -162,8 +164,8 @@ const RAGGED = {
 const TEXT_WIDTH_CM = 13.7;
 function oneLine(nodes: readonly Inline[]): string {
   return inline(
-    nodes.map(
-      (n): Inline => (n.type === "break" ? { type: "text", value: " " } : n),
+    nodes.map((n): Inline =>
+      n.type === "break" ? { type: "text", value: " " } : n,
     ),
   );
 }
@@ -174,6 +176,38 @@ export function texImagePath(src: string): string {
     path = decodeURIComponent(src);
   } catch {}
   return path.replace(/[{}%#\\]/g, "_");
+}
+
+const ENUM_COUNTERS = ["enumi", "enumii", "enumiii", "enumiv"];
+
+function listLatex(tree: ListTree, depth: number): string {
+  const env = tree.ordered ? "enumerate" : "itemize";
+  const pad = "  ".repeat(depth);
+  const counter = ENUM_COUNTERS[depth];
+  const start =
+    tree.ordered && tree.start !== 1 && counter
+      ? pad + "\\setcounter{" + counter + "}{" + String(tree.start - 1) + "}\n"
+      : "";
+  const items = tree.entries.map(
+    ({ item, sub }) =>
+      pad +
+      "  \\item " +
+      inline(item) +
+      (sub ? "\n" + listLatex(sub, depth + 1) : ""),
+  );
+  return (
+    pad +
+    "\\begin{" +
+    env +
+    "}\n" +
+    start +
+    items.join("\n") +
+    "\n" +
+    pad +
+    "\\end{" +
+    env +
+    "}"
+  );
 }
 
 function inline(nodes: readonly Inline[]): string {
@@ -319,23 +353,8 @@ function block(b: Block, beamer = false, place?: string): string {
         b.children.map((inner) => block(inner, beamer)).join("\n\n") +
         "\n\\end{quote}"
       );
-    case "list": {
-      const env = b.ordered ? "enumerate" : "itemize";
-      const start =
-        b.ordered && b.start !== 1
-          ? "\\setcounter{enumi}{" + String(b.start - 1) + "}\n"
-          : "";
-      return (
-        "\\begin{" +
-        env +
-        "}\n" +
-        start +
-        b.items.map((it) => "  \\item " + inline(it)).join("\n") +
-        "\n\\end{" +
-        env +
-        "}"
-      );
-    }
+    case "list":
+      return listLatex(listTree(b), 0);
     case "table": {
       const [head, ...body] = b.rows;
       const header = !isBlankRow(head);
