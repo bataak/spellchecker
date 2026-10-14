@@ -173,6 +173,39 @@ export function projectKey(): string | null {
   return state && !state.pending ? String(state.version) : null;
 }
 
+let digestMemo: { id: number; version: number; value: string } | null = null;
+
+export async function projectDigest(): Promise<string | null> {
+  const s = state;
+  if (!s || s.pending || !s.main) return null;
+  if (digestMemo?.id === s.id && digestMemo.version === s.version)
+    return digestMemo.value;
+  const { id, version } = s;
+  const encoder = new TextEncoder();
+  const parts: Uint8Array[] = [encoder.encode(s.main + "\u0000")];
+  const paths = [...s.texts.keys(), ...s.binaries.keys()].sort();
+  for (const path of paths) {
+    const text = s.texts.get(path);
+    const data =
+      text === undefined ? s.binaries.get(path)! : encoder.encode(text);
+    parts.push(
+      encoder.encode(path + "\u0000" + data.length + "\u0000"),
+      data,
+    );
+  }
+  try {
+    const bytes = await new Blob(parts as BlobPart[]).arrayBuffer();
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    const value = [...new Uint8Array(digest)]
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+    digestMemo = { id, version, value };
+    return value;
+  } catch {
+    return null;
+  }
+}
+
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 1);
