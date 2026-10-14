@@ -969,7 +969,14 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     if (!wide.matches && !panel.hidden) show(false);
   });
 
-  onProjectChange(render);
+  let hadProject = project() !== null;
+  onProjectChange(() => {
+    const has = project() !== null;
+    const closed = hadProject && !has;
+    hadProject = has;
+    if (closed && open) show(false);
+    else render();
+  });
   render();
   if (!panel.hidden && floating()) show(false);
 
