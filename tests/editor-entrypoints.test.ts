@@ -11,8 +11,8 @@ const MAIN = read("main.ts");
 const LOOKAHEAD = 40;
 
 const ENTRYPOINTS: readonly [string, RegExp, string][] = [
-  ["main.ts", /els\.editor\.value\s*=[^=]/, "syncFixButtons("],
-  ["drafttext.ts", /editor\.value\s*=\s*draftText/, "deps.onLoaded("],
+  ["main.ts", /swapText\(els\.editor\b/, "syncFixButtons("],
+  ["drafttext.ts", /swapText\(editor, draftText\b/, "deps.onLoaded("],
   ["editortext.ts", /editor\.value\s*=\s*newText/, "deps.onReplaced("],
 ];
 
