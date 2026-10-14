@@ -818,3 +818,15 @@ test("preview зөвхөн аюулгүй холбоос гаргана", () => 
   assert.doesNotMatch(toHtml(parse("[x](&#106;avascript:alert(1))")), /href="j/i);
   assert.match(toHtml(parse("[x](https://bichig.dev)")), /<a href="https:/);
 });
+
+test("холбоос — URL доторх хаалт хадгалагдана", () => {
+  const src =
+    "[Питон хэл](https://en.wikipedia.org/wiki/Python_(programming_language)) ба ![з](a_(1).png)\n";
+  const html = toHtml(parse(src));
+  assert.match(
+    html,
+    /<a href="https:\/\/en\.wikipedia\.org\/wiki\/Python_\(programming_language\)"[^>]*>Питон хэл<\/a> ба /,
+  );
+  assert.match(html, /src="a_\(1\)\.png"/);
+  assert.equal(print(parse(src)), src);
+});
