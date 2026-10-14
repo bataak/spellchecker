@@ -1,6 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { pasteComposed, replaceRange } from "../src/editortext.ts";
+import {
+  composeTypedWord,
+  pasteComposed,
+  replaceRange,
+} from "../src/editortext.ts";
 
 interface FakeEditor {
   value: string;
@@ -159,4 +163,61 @@ test("засварлагч зөвхөн уншихад бол буулгалта
   assert.equal(event.defaultPrevented, false);
   assert.deepEqual(calls, []);
   assert.equal(editor.value, "");
+});
+
+function typed(inputType: string, data: string | null) {
+  return { inputType, data, isComposing: false } as unknown as InputEvent;
+}
+
+function typeAtEnd(text: string, inputType: string, data: string | null) {
+  const editor = Object.assign(fakeEditor(text), { readOnly: false });
+  editor.setSelectionRange(text.length, text.length);
+  let handled = false;
+  withExecCommand(nativeEdit(editor), () => {
+    handled = composeTypedWord(asArea(editor), typed(inputType, data));
+  });
+  return { editor, handled };
+}
+
+test("зай авахад өмнөх үгийн задарсан й, ё нийлнэ", () => {
+  const nfd = "Сайн байна".normalize("NFD");
+  const { editor, handled } = typeAtEnd(nfd + " ", "insertText", " ");
+  assert.equal(handled, true);
+  assert.equal(editor.value, "Сайн байна ");
+  assert.equal(editor.selectionStart, editor.value.length);
+});
+
+test("мөр шилжүүлэх, цэг таслалд ч нийлнэ", () => {
+  const word = "Ёс".normalize("NFD");
+  assert.equal(
+    typeAtEnd(word + "\n", "insertLineBreak", null).editor.value,
+    "Ёс\n",
+  );
+  assert.equal(typeAtEnd(word + ".", "insertText", ".").editor.value, "Ёс.");
+});
+
+test("нийлмэл үг, үсэг шивэх, IME, readOnly үед хөндөхгүй", () => {
+  assert.equal(typeAtEnd("байна ", "insertText", " ").handled, false);
+  const nfd = "байн".normalize("NFD");
+  assert.equal(typeAtEnd(nfd + "а", "insertText", "а").handled, false);
+  const editor = Object.assign(fakeEditor(nfd + " "), { readOnly: true });
+  editor.setSelectionRange(editor.value.length, editor.value.length);
+  assert.equal(
+    composeTypedWord(asArea(editor), typed("insertText", " ")),
+    false,
+  );
+  const ime = Object.assign(fakeEditor(nfd + " "), { readOnly: false });
+  ime.setSelectionRange(ime.value.length, ime.value.length);
+  assert.equal(
+    composeTypedWord(asArea(ime), {
+      inputType: "insertText",
+      data: " ",
+      isComposing: true,
+    } as unknown as InputEvent),
+    false,
+  );
+  assert.equal(
+    typeAtEnd(nfd + " ", "insertFromPaste", nfd + " ").handled,
+    false,
+  );
 });
