@@ -536,6 +536,7 @@ export function initPreview(
 
   const dropPdf = (): void => {
     pdfText = null;
+    texShown = null;
     pdfAbort?.abort();
     pdfAbort = null;
     pdfView?.destroy();
