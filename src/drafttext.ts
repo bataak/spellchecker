@@ -1,4 +1,9 @@
-import { loadDraft, loadDraftFile, saveDraftFile } from "./storage.ts";
+import {
+  dropSharedDraft,
+  loadDraft,
+  loadDraftFile,
+  saveDraftFile,
+} from "./storage.ts";
 
 export interface SlotStore {
   readonly slot: () => string;
@@ -40,7 +45,10 @@ async function migrateShared(store: SlotStore): Promise<void> {
   }
   const slot = store.shared();
   const text = await loadDraft().catch(() => null);
-  if (text !== null && text.trim() !== "") store.write(slot, text);
+  if (text !== null && text.trim() !== "") {
+    store.write(slot, text);
+    if ((await store.read(slot)) !== text) return;
+  }
   const ref = loadDraftFile();
   if (ref !== null) saveDraftFile(ref, slot);
   try {
@@ -49,8 +57,12 @@ async function migrateShared(store: SlotStore): Promise<void> {
       .map(Number);
     if ([start, end, scroll].every((n) => Number.isFinite(n)))
       store.writeCaret(slot, { start: start!, end: end!, scroll: scroll! });
+    localStorage.removeItem(CARET_KEY);
     localStorage.setItem(MIGRATED_KEY, "1");
-  } catch (_) {}
+  } catch (_) {
+    return;
+  }
+  await dropSharedDraft();
 }
 
 export function initDraftText(deps: DraftTextDeps): DraftText {
