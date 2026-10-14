@@ -23,7 +23,9 @@ import {
 } from "./layout.ts";
 
 const STORAGE_KEY = "layout";
+const TEX_STORAGE_KEY = "layout-tex";
 const MD_PREVIEW_KEY = "md-preview";
+const TEX_PREVIEW_KEY = "md-preview-tex";
 
 const SAMPLE =
   "Монгол хэлний үг залгамал бүтэцтэй тул нэлээд урт болдог, " +
@@ -152,32 +154,40 @@ function projectRoom(wrap: HTMLElement, x: Metrics): number {
   return measureVar(wrap, "--project-w", 236) + x.panelGap + x.gutterW;
 }
 
-function load(): Layout {
+function load(tex: boolean): Layout {
   try {
-    return parseLayout(localStorage.getItem(STORAGE_KEY));
+    return parseLayout(
+      localStorage.getItem(tex ? TEX_STORAGE_KEY : STORAGE_KEY),
+    );
   } catch {
     return { ...DEFAULT_LAYOUT };
   }
 }
 
-function save(l: Layout): void {
+function save(l: Layout, tex: boolean): void {
   try {
-    localStorage.setItem(STORAGE_KEY, serializeLayout(l));
+    localStorage.setItem(
+      tex ? TEX_STORAGE_KEY : STORAGE_KEY,
+      serializeLayout(l),
+    );
   } catch {}
 }
 
-function loadMdPreview(): boolean {
+function loadMdPreview(tex: boolean): boolean {
   try {
-    return localStorage.getItem(MD_PREVIEW_KEY) !== "off";
+    return (
+      localStorage.getItem(tex ? TEX_PREVIEW_KEY : MD_PREVIEW_KEY) !== "off"
+    );
   } catch {
     return true;
   }
 }
 
-function saveMdPreview(on: boolean): void {
+function saveMdPreview(on: boolean, tex: boolean): void {
+  const key = tex ? TEX_PREVIEW_KEY : MD_PREVIEW_KEY;
   try {
-    if (on) localStorage.removeItem(MD_PREVIEW_KEY);
-    else localStorage.setItem(MD_PREVIEW_KEY, "off");
+    if (on) localStorage.removeItem(key);
+    else localStorage.setItem(key, "off");
   } catch {}
 }
 
@@ -266,7 +276,7 @@ function describe(l: Layout): string {
 export interface MeasureControl {
   refresh(): void;
   dockRoom(side: "left" | "right", active: boolean): boolean;
-  setPreviewMode(on: boolean): void;
+  setPreviewMode(on: boolean, tex?: boolean): void;
   setPreviewBlocked(on: boolean): void;
   layout(): Layout;
   destroy(): void;
@@ -309,11 +319,12 @@ export function mountMeasureControl(
     btn.classList.remove("is-shown");
   }, 5000);
 
-  let desired: Layout = load();
+  let texMode = false;
+  let desired: Layout = load(texMode);
   let previewMode = false;
   let previewBlocked = false;
   let mdMode = false;
-  let mdPreview = loadMdPreview();
+  let mdPreview = loadMdPreview(texMode);
   let prev: Layout[] = [];
   let metrics: Metrics = { ...DEFAULT_METRICS };
   let shown: Layout = { ...DEFAULT_LAYOUT };
@@ -341,9 +352,9 @@ export function mountMeasureControl(
     previewMode = false;
     if (mdMode && l.preview !== mdPreview) {
       mdPreview = l.preview;
-      saveMdPreview(mdPreview);
+      saveMdPreview(mdPreview, texMode);
     }
-    save(l);
+    save(l, texMode);
     close();
     refresh();
     btn.focus();
@@ -483,8 +494,13 @@ export function mountMeasureControl(
     dockRoom(side, active) {
       return dockColumnFits(shown, metrics, viewportW, side, active);
     },
-    setPreviewMode(on) {
-      if (on === mdMode) return;
+    setPreviewMode(on, tex = false) {
+      if (on === mdMode && tex === texMode) return;
+      if (tex !== texMode) {
+        texMode = tex;
+        desired = load(tex);
+        mdPreview = loadMdPreview(tex);
+      }
       mdMode = on;
       previewMode = on && mdPreview;
       refresh();
