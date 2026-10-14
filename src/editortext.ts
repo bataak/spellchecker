@@ -43,7 +43,8 @@ export function pasteComposed(
   event: ClipboardEvent,
 ): boolean {
   const data = event.clipboardData;
-  if (event.defaultPrevented || !data || data.files.length) return false;
+  if (editor.readOnly || event.defaultPrevented) return false;
+  if (!data || data.files.length) return false;
   const text = data.getData("text");
   const composed = text.normalize("NFC");
   if (composed === text) return false;
