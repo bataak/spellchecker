@@ -702,9 +702,12 @@ async function main(): Promise<void> {
   const engineJs = patchEngine(
     readFileSync(join(ENGINE, "swiftlatexpdftex.js"), "utf8"),
   );
+  const engineWasm = patchWasm(
+    readFileSync(join(ENGINE, "swiftlatexpdftex.wasm")),
+  );
   const engineHash = createHash("sha256")
     .update(engineJs)
-    .update(readFileSync(join(ENGINE, "swiftlatexpdftex.wasm")))
+    .update(engineWasm)
     .digest("hex")
     .slice(0, 12);
 
@@ -718,10 +721,7 @@ async function main(): Promise<void> {
   for (const [name, path] of lazy)
     writeFileSync(join(OUT, fontDir, name), readFileSync(path));
   writeFileSync(join(OUT, engineHash, "swiftlatexpdftex.js"), engineJs);
-  writeFileSync(
-    join(OUT, engineHash, "swiftlatexpdftex.wasm"),
-    readFileSync(join(ENGINE, "swiftlatexpdftex.wasm")),
-  );
+  writeFileSync(join(OUT, engineHash, "swiftlatexpdftex.wasm"), engineWasm);
   writeFileSync(
     MODULE,
     `export const TEX_ENGINE = "tex/${engineHash}/swiftlatexpdftex.js";\n` +
@@ -739,6 +739,17 @@ async function main(): Promise<void> {
       `${lazy.length} lazy fonts`,
   );
   console.log(readdirSync(OUT).join(" "));
+}
+
+const HALT_ON_ERROR = Buffer.from("41f0be1241013602", "hex");
+
+function patchWasm(wasm: Buffer): Buffer {
+  const at = wasm.indexOf(HALT_ON_ERROR);
+  if (at < 0 || wasm.indexOf(HALT_ON_ERROR, at + 1) >= 0)
+    throw new Error("patch anchor: haltonerrorp");
+  const out = Buffer.from(wasm);
+  out[at + 5] = 0;
+  return out;
 }
 
 function patchEngine(js: string): string {
@@ -782,6 +793,12 @@ function patchEngine(js: string): string {
       'else if(cmd==="writetex"){FS.writeFile(TEXCACHEROOT+"/"+data["name"],data["src"])}' +
       'else if(cmd==="misses"){self.postMessage({cmd:"misses",names:[...self.texmisses]})}' +
       'else if(cmd==="fonturl"){self.texfont_endpoint=data["url"]}',
+  );
+  replace(
+    'console.error("Compilation failed, with status code "+status);self.postMessage({"result":"failed","status":status,"log":self.memlog,"cmd":"compile"})',
+    'console.error("Compilation failed, with status code "+status);let pdf=null;' +
+      'try{pdf=FS.readFile(WORKROOT+"/"+self.mainfile.substr(0,self.mainfile.length-4)+".pdf",{encoding:"binary"}).buffer}catch(err){}' +
+      'self.postMessage({"result":"failed","status":status,"log":self.memlog,"pdf":pdf,"cmd":"compile"},pdf?[pdf]:[])',
   );
   return js;
 }
