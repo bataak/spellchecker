@@ -52,3 +52,8 @@ test("tokenize: хоосон бичвэрээс юу ч буцахгүй", () =>
   assert.deepEqual([...tokenize("")], []);
   assert.deepEqual([...tokenize("  ... !")], []);
 });
+
+test("normalizeImport: задарсан й, ё-тэй үгийг нийлүүлж хүлээн авна", () => {
+  assert.equal(normalizeImport("байна".normalize("NFD")), "байна");
+  assert.equal(normalizeImport("Ёсоор".normalize("NFD")), "Ёсоор");
+});

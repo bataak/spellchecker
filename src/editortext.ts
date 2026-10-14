@@ -64,6 +64,7 @@ export function pasteComposed(
 }
 
 const TRAILING_WORD = /[\p{L}\p{M}]+$/u;
+const WORD_REACH = 256;
 const MARK = /\p{M}/u;
 
 export function composeTypedWord(
@@ -79,13 +80,30 @@ export function composeTypedWord(
     event.inputType === "insertText" ? (event.data?.length ?? 0) : 1;
   const end = caret - typed;
   if (end <= 0) return false;
-  const word = TRAILING_WORD.exec(editor.value.slice(0, end))?.[0];
+  const word = TRAILING_WORD.exec(
+    editor.value.slice(Math.max(0, end - WORD_REACH), end),
+  )?.[0];
   if (!word || !MARK.test(word)) return false;
   const composed = word.normalize("NFC");
   if (composed === word) return false;
   replaceRange(editor, end - word.length, end, composed);
   const next = caret - word.length + composed.length;
   editor.setSelectionRange(next, next);
+  return true;
+}
+
+export function composeDropped(
+  editor: HTMLTextAreaElement,
+  event: InputEvent,
+): boolean {
+  if (editor.readOnly || event.inputType !== "insertFromDrop") return false;
+  const start = editor.selectionStart;
+  const end = editor.selectionEnd;
+  const dropped = editor.value.slice(start, end);
+  const composed = dropped.normalize("NFC");
+  if (start === end || composed === dropped) return false;
+  replaceRange(editor, start, end, composed);
+  editor.setSelectionRange(start, start + composed.length);
   return true;
 }
 
