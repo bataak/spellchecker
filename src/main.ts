@@ -135,6 +135,7 @@ import {
   wordAtCaret,
 } from "./wordfix.ts";
 import {
+  composeDropped,
   composeTypedWord,
   initEditorText,
   pasteComposed,
@@ -1202,7 +1203,8 @@ els.editor.addEventListener("paste", (event) =>
   pasteComposed(els.editor, event),
 );
 els.editor.addEventListener("input", (event) => {
-  if (event instanceof InputEvent) composeTypedWord(els.editor, event);
+  if (!(event instanceof InputEvent)) return;
+  if (!composeDropped(els.editor, event)) composeTypedWord(els.editor, event);
 });
 const decode = initDecode(fixButtonDeps);
 const clean = initClean({
@@ -1919,6 +1921,11 @@ exportCtl = initExport({
   isTex: isTexFile,
   onDone: () => flash("#saveBtn", "Хадгаллаа"),
   onBlocked: () => flash("#saveBtn", "Экспорт хийх боломжгүй"),
+  onPrintError: (error) => {
+    flash("#printBtn", "Хэвлэж чадсангүй");
+    if (error instanceof Error && error.name === "PdfError")
+      holdStatus(escapeHtml(error.message), 8000, false);
+  },
   onBusy: (busy) => {
     const button = document.querySelector<HTMLElement>("#saveBtn");
     if (!button) return;
