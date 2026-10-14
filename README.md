@@ -18,6 +18,7 @@ transpile хийдэг бол `tsc --noEmit` нь зөвхөн төрлийн ш
 ```sh
 npm ci             # шаардлагатай сангуудыг суулгах (эхний удаа)
 npm test           # төрлийн шалгалт + бичил шалгалт хийх
+npm run test:e2e   # хөтөч дээр апп-ыг бүхэлд нь шалгах (Playwright)
 npm run typecheck  # зөвхөн төрлийн шалгалт (tsc --noEmit)
 npm run dev        # хөгжүүлэлтийн сервер (localhost)
 npm run preview    # production build хийж урьдчилан үзэх
@@ -26,6 +27,11 @@ npm run build      # production build (dist/)
 
 `dev`, `preview`, `build` командууд эхлэхийн өмнө төрлийн болон бичил
 шалгалт хийгдэнэ (`predev`/`prepreview`/`prebuild` hook)
+
+`npm run test:e2e` нь Vite серверийг өөрөө асааж, хөтөч дээр олон таб,
+цонх солих, LaTeX төсөл, бичвэр оруулах зэргийг шалгана (`tests/e2e/`).
+Анх удаа `npx playwright install chromium` ажиллуулна; Chromium суугаагүй
+бол компьютерт суусан Google Chrome-ыг ашиглана.
 
 Service worker болон офлайн ажиллагааг шалгахдаа `npm run dev` биш
 `npm run preview` ашиглана, учир нь dev сервер precache-ийг алгасдаг.
