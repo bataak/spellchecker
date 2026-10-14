@@ -104,7 +104,6 @@ import {
 } from "./manualfix.ts";
 import {
   initUndoHistory,
-  TEMPLATE_INPUT,
   type UndoControl,
 } from "./undohistory.ts";
 import { initTexImageInput, insertPickedImage } from "./teximages.ts";
@@ -140,6 +139,8 @@ import {
   composeTypedWord,
   initEditorText,
   pasteComposed,
+  swapOrigin,
+  swapText,
 } from "./editortext.ts";
 import { initDraftText } from "./drafttext.ts";
 import { initClean, initDecode } from "./decode.ts";
@@ -1230,7 +1231,7 @@ const draft = initDraftText({
 const saveText = draft.save;
 
 els.editor.addEventListener("input", (e) => {
-  const swapped = e instanceof InputEvent && e.data === TEMPLATE_INPUT;
+  const swapped = swapOrigin(e) !== null;
   if (swapped) {
     badTokens = [];
     renderBackdrop(els.editor.value, []);
@@ -1563,7 +1564,10 @@ async function openDocxFile(
     docx.sync(source, draftText);
   if (draftText !== undefined && draftText !== source && !restored)
     holdStatus("Өмнөх засваруудыг сэргээж чадсангүй", 8000);
-  els.editor.value = restored ? draftText : source;
+  swapText(els.editor, restored ? draftText : source, {
+    origin: "office",
+    notify: false,
+  });
   undoCtl?.baseline();
   if (draftText === undefined) queueOffice(() => saveOfficeFile(file));
   previewCtl?.setSource({ kind: "office", name: file.name });

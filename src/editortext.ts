@@ -15,6 +15,46 @@ export interface EditorText {
   readonly programmatic: () => boolean;
 }
 
+export type SwapOrigin = "slot" | "project" | "office" | "restore";
+
+export interface SwapOptions {
+  readonly origin: SwapOrigin;
+  readonly start?: number;
+  readonly end?: number;
+  readonly notify?: boolean;
+}
+
+const swapEvents = new WeakMap<Event, SwapOrigin>();
+const swapHooks = new Set<(origin: SwapOrigin) => void>();
+
+export function onSwap(hook: (origin: SwapOrigin) => void): () => void {
+  swapHooks.add(hook);
+  return () => swapHooks.delete(hook);
+}
+
+export function swapOrigin(event: Event): SwapOrigin | null {
+  return swapEvents.get(event) ?? null;
+}
+
+export function swapText(
+  editor: HTMLTextAreaElement,
+  text: string,
+  options: SwapOptions,
+): void {
+  for (const hook of swapHooks) hook(options.origin);
+  editor.value = "";
+  editor.value = text;
+  if (options.start !== undefined)
+    editor.setSelectionRange(options.start, options.end ?? options.start);
+  if (options.notify === false) return;
+  const event = new InputEvent("input", {
+    bubbles: true,
+    inputType: "insertReplacementText",
+  });
+  swapEvents.set(event, options.origin);
+  editor.dispatchEvent(event);
+}
+
 export function replaceRange(
   editor: HTMLTextAreaElement | HTMLInputElement,
   from: number,

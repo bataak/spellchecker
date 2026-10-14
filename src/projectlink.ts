@@ -28,7 +28,7 @@ import {
   viewableType,
 } from "./texproject.ts";
 import type { PreviewSource } from "./preview.ts";
-import { TEMPLATE_INPUT } from "./undohistory.ts";
+import { onSwap, swapOrigin, swapText } from "./editortext.ts";
 import { KEYS, read, remove, write } from "./store.ts";
 
 export interface ProjectLinkDeps {
@@ -96,7 +96,6 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
   let boundId = 0;
   const places = new Map<string, Place>();
   let detached = false;
-  let loading = false;
 
   const pushText = (): void => {
     if (bound && boundPath && !detached)
@@ -160,28 +159,13 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
   };
 
   const load = (text: string, place: Place | null): void => {
-    editor.value = "";
-    editor.value = text;
     const end = text.length;
-    if (place)
-      editor.setSelectionRange(
-        Math.min(place.start, end),
-        Math.min(place.end, end),
-      );
-    else editor.setSelectionRange(0, 0);
     editor.focus({ preventScroll: true });
-    loading = true;
-    try {
-      editor.dispatchEvent(
-        new InputEvent("input", {
-          bubbles: true,
-          inputType: "insertReplacementText",
-          data: TEMPLATE_INPUT,
-        }),
-      );
-    } finally {
-      loading = false;
-    }
+    swapText(editor, text, {
+      origin: "project",
+      start: Math.min(place?.start ?? 0, end),
+      end: Math.min(place?.end ?? 0, end),
+    });
     editor.scrollTop = place?.scroll ?? 0;
     deps.afterSwitch();
   };
@@ -331,21 +315,12 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     notify: deps.notify,
   });
 
-  document.addEventListener(
-    "input",
-    (event) => {
-      if (event.target !== editor || loading || !bound || !boundPath) return;
-      if (!(event instanceof InputEvent) || event.data !== TEMPLATE_INPUT)
-        return;
-      if (deps.inSlot()) return;
-      if (projectText(boundPath) !== editor.value) detached = true;
-    },
-    true,
-  );
+  onSwap((origin) => {
+    if (origin !== "project" && bound && !deps.inSlot()) detached = true;
+  });
 
   editor.addEventListener("input", (event) => {
-    if (event instanceof InputEvent && event.data === TEMPLATE_INPUT) return;
-    pushText();
+    if (swapOrigin(event) === null) pushText();
   });
 
   let shownName: string | null = null;
