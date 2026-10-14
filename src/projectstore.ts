@@ -41,12 +41,14 @@ interface Meta {
   readonly active: string | null;
   readonly dirs: readonly string[];
   readonly exportedAt?: number | null;
+  readonly twin?: boolean;
 }
 
 export interface ProjectView {
   readonly id: number;
   readonly kind: ProjectKind;
   readonly name: string;
+  readonly label: string;
   readonly files: readonly string[];
   readonly dirs: readonly string[];
   readonly main: string | null;
@@ -88,6 +90,7 @@ interface State {
   exportedAt: number | null;
   stamps: Map<string, string>;
   crlf: Set<string>;
+  twin: boolean;
 }
 
 let state: State | null = null;
@@ -127,6 +130,7 @@ export function project(): ProjectView | null {
     id: s.id,
     kind: s.kind,
     name: s.name,
+    label: s.twin && s.main ? s.name + " · " + baseName(s.main) : s.name,
     files: [...s.texts.keys(), ...s.binaries.keys()],
     dirs: [...s.dirs],
     main: s.main,
@@ -216,6 +220,7 @@ function metaOf(s: State): Meta {
     active: s.active,
     dirs: [...s.dirs],
     exportedAt: s.exportedAt,
+    twin: s.twin,
   };
 }
 
@@ -314,6 +319,7 @@ function fromEntries(
     exportedAt: null,
     stamps: new Map(),
     crlf,
+    twin: false,
   };
 }
 
@@ -451,6 +457,12 @@ function adopt(next: State): void {
       "Төсөлд \\documentclass болон \\begin{document} бүхий үндсэн .tex файл олдсонгүй",
     );
   next.active = next.main ?? [...next.texts.keys()].find(isTexSource) ?? null;
+  next.twin =
+    state !== null &&
+    state.name === next.name &&
+    state.main !== null &&
+    next.main !== null &&
+    baseName(state.main) !== baseName(next.main);
   state = next;
   void persistMeta(true).then(() =>
     next.kind === "dir" ? dbPut({ [FILES_KEY]: undefined }) : undefined,
@@ -610,6 +622,7 @@ export async function restoreProject(): Promise<boolean> {
     exportedAt: meta.exportedAt ?? null,
     main: meta.main,
     active: meta.active,
+    twin: meta.twin ?? false,
   };
   pendingEdits = edits;
   notify();
@@ -630,6 +643,7 @@ function applyRestored(
   }
   if (meta.main && next.texts.has(meta.main)) next.main = meta.main;
   next.exportedAt = meta.exportedAt ?? null;
+  next.twin = meta.twin ?? false;
   next.active =
     meta.active && next.texts.has(meta.active) ? meta.active : next.main;
   recountDirty(next);

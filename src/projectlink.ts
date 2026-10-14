@@ -328,11 +328,13 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
   });
 
   let shownName: string | null = null;
+  let shownId = 0;
   onProjectChange(() => {
     const view = project();
-    const name = view?.name ?? null;
-    if (name !== shownName) {
+    const name = view?.label ?? null;
+    if (name !== shownName || (view?.id ?? 0) !== shownId) {
       shownName = name;
+      shownId = view?.id ?? 0;
       deps.onProject(name);
     }
     if (bound && !view) {
