@@ -11,6 +11,7 @@ import type {
   PageSpec,
   ParaStyle,
 } from "../docir.ts";
+import { listTree, type ListTree } from "../../markdown.ts";
 import { tabFills } from "../flatten.ts";
 import { columnWidths, officeMetrics } from "../table.ts";
 
@@ -260,20 +261,28 @@ function blockXml(
       );
 
     case "list": {
-      const name = block.ordered ? "L_num" : "L_bullet";
-      const items = block.items
-        .map(
-          (item) =>
-            '<text:list-item><text:p text:style-name="' +
-            styleName(block.style) +
-            '">' +
-            runsXml(item) +
-            "</text:p></text:list-item>",
-        )
-        .join("");
-      return (
-        '<text:list text:style-name="' + name + '">' + items + "</text:list>"
-      );
+      const render = (tree: ListTree<readonly IrRun[]>): string =>
+        '<text:list text:style-name="' +
+        (tree.ordered ? "L_num" : "L_bullet") +
+        '">' +
+        tree.entries
+          .map(
+            ({ item, sub }, i) =>
+              "<text:list-item" +
+              (i === 0 && tree.ordered && tree.start !== 1
+                ? ' text:start-value="' + String(tree.start) + '"'
+                : "") +
+              '><text:p text:style-name="' +
+              styleName(block.style) +
+              '">' +
+              runsXml(item) +
+              "</text:p>" +
+              (sub ? render(sub) : "") +
+              "</text:list-item>",
+          )
+          .join("") +
+        "</text:list>";
+      return render(listTree(block));
     }
 
     case "table": {
@@ -464,6 +473,9 @@ function tocXml(doc: DocIr): string {
   );
 }
 
+const LIST_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+const BULLETS = ["\u2022", "\u25E6", "\u25AA"];
+
 function contentXml(doc: DocIr, options: OdtOptions): string {
   const keys = new Set<string>();
   for (const block of doc.blocks) {
@@ -568,32 +580,30 @@ function stylesXml(doc: DocIr): string {
 
   const lists =
     '<text:list-style style:name="L_bullet">' +
-    [1, 2, 3]
-      .map(
-        (level) =>
-          '<text:list-level-style-bullet text:level="' +
-          String(level) +
-          '" text:bullet-char="\u2022">' +
-          '<style:list-level-properties text:space-before="' +
-          cm(0.6 * level) +
-          '" text:min-label-width="0.6cm"/>' +
-          "</text:list-level-style-bullet>",
-      )
-      .join("") +
+    LIST_LEVELS.map(
+      (level) =>
+        '<text:list-level-style-bullet text:level="' +
+        String(level) +
+        '" text:bullet-char="' +
+        BULLETS[(level - 1) % 3] +
+        '">' +
+        '<style:list-level-properties text:space-before="' +
+        cm(0.6 * level) +
+        '" text:min-label-width="0.6cm"/>' +
+        "</text:list-level-style-bullet>",
+    ).join("") +
     "</text:list-style>" +
     '<text:list-style style:name="L_num">' +
-    [1, 2, 3]
-      .map(
-        (level) =>
-          '<text:list-level-style-number text:level="' +
-          String(level) +
-          '" style:num-suffix="." style:num-format="1">' +
-          '<style:list-level-properties text:space-before="' +
-          cm(0.6 * level) +
-          '" text:min-label-width="0.6cm"/>' +
-          "</text:list-level-style-number>",
-      )
-      .join("") +
+    LIST_LEVELS.map(
+      (level) =>
+        '<text:list-level-style-number text:level="' +
+        String(level) +
+        '" style:num-suffix="." style:num-format="1">' +
+        '<style:list-level-properties text:space-before="' +
+        cm(0.6 * level) +
+        '" text:min-label-width="0.6cm"/>' +
+        "</text:list-level-style-number>",
+    ).join("") +
     "</text:list-style>";
 
   const page = doc.page;

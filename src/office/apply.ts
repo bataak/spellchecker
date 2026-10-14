@@ -289,6 +289,7 @@ export function applyTemplate(
             start: block.start,
             style: STYLE.listItem,
             items: block.items.map(runsOf),
+            ...(block.levels ? { levels: block.levels } : {}),
           });
           afterHeading = false;
           break;
