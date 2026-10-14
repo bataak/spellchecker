@@ -536,6 +536,7 @@ export function initPreview(
 
   const dropPdf = (): void => {
     pdfText = null;
+    texShown = null;
     pdfAbort?.abort();
     pdfAbort = null;
     pdfView?.destroy();
@@ -703,7 +704,10 @@ export function initPreview(
       dropPdf();
       setTexError(null);
     }
-    if (!pdfView) showNotice("PDF бэлтгэж байна…");
+    if (!pdfView) {
+      showNotice("PDF бэлтгэж байна…");
+      texShown = null;
+    }
     void import("./texpdf.ts").then((mod) => {
       if (mod.compileRunningFor() > STALE_COMPILE_MS) mod.cancelCompile();
     });
