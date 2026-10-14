@@ -15,7 +15,7 @@ import {
   toggleWrap,
   wrapLink,
 } from "./mdedit.ts";
-import { replaceRange } from "./editortext.ts";
+import { replaceRange, swapText } from "./editortext.ts";
 import { splitName } from "./office/filename.ts";
 import { freeImagePath, pickImage, putImage } from "./images.ts";
 import { dropSlotText, loadSlotText, saveSlotText } from "./storage.ts";
@@ -29,7 +29,6 @@ import {
   textSum,
   type FileSlot,
 } from "./fileslots.ts";
-import { TEMPLATE_INPUT } from "./undohistory.ts";
 import type { AlignKind, Edit } from "./mdedit.ts";
 import {
   LEGACY_TEMPLATES,
@@ -797,16 +796,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   let loadingKey: string | null = null;
 
   function resetText(text: string, start: number, end: number): void {
-    editor.value = "";
-    editor.value = text;
-    editor.setSelectionRange(start, end);
-    editor.dispatchEvent(
-      new InputEvent("input", {
-        bubbles: true,
-        inputType: "insertReplacementText",
-        data: TEMPLATE_INPUT,
-      }),
-    );
+    swapText(editor, text, { origin: "slot", start, end });
   }
 
   function showDraft(id: string, key: string, stored: string | null): void {

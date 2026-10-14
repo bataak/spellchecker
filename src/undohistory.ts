@@ -1,3 +1,4 @@
+import { swapOrigin } from "./editortext.ts";
 import { minimalDiff } from "./mdedit.ts";
 
 export interface Step {
@@ -192,8 +193,6 @@ async function saveStored(entry: Stored): Promise<void> {
   } catch {}
 }
 
-export const TEMPLATE_INPUT = "\u0000template";
-
 export interface UndoDeps {
   readonly editor: HTMLTextAreaElement;
   readonly slot: () => string;
@@ -317,7 +316,7 @@ export function initUndoHistory(deps: UndoDeps): UndoControl {
   editor.addEventListener("input", (event) => {
     const input = event as InputEvent;
     if (input.inputType === "historyUndo") return;
-    if (input.data === TEMPLATE_INPUT) {
+    if (swapOrigin(input) !== null) {
       baseline();
       return;
     }

@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import {
   composeDropped,
   composeTypedWord,
+  onSwap,
+  swapOrigin,
+  swapText,
   pasteComposed,
   replaceRange,
 } from "../src/editortext.ts";
@@ -236,4 +239,37 @@ test("чирж оруулсан задарсан бичвэрийг нийлүү
   assert.equal(handled, true);
   assert.equal(editor.value, "[Сайн байна]");
   assert.deepEqual([editor.selectionStart, editor.selectionEnd], [1, 11]);
+});
+
+test("swapText: hook өмнө нь дуудагдаж, эх үүсвэр event-ээр дамжина", () => {
+  const saved = (globalThis as { InputEvent?: unknown }).InputEvent;
+  (globalThis as { InputEvent?: unknown }).InputEvent = class extends Event {
+    readonly inputType: string;
+    constructor(type: string, init: { inputType?: string } = {}) {
+      super(type);
+      this.inputType = init.inputType ?? "";
+    }
+  };
+  try {
+    const editor = Object.assign(fakeEditor("хуучин"), {
+      events: [] as Event[],
+      dispatchEvent(event: Event) {
+        this.events.push(event);
+        return true;
+      },
+    });
+    const seen: string[] = [];
+    const off = onSwap((origin) => seen.push(origin + ":" + editor.value));
+    swapText(asArea(editor), "шинэ", { origin: "project", start: 1 });
+    swapText(asArea(editor), "дахин", { origin: "office", notify: false });
+    off();
+    assert.deepEqual(seen, ["project:хуучин", "office:шинэ"]);
+    assert.equal(editor.value, "дахин");
+    assert.equal(editor.events.length, 1);
+    assert.equal(swapOrigin(editor.events[0]!), "project");
+    assert.equal(swapOrigin(new Event("input")), null);
+    assert.equal(editor.selectionStart, 1);
+  } finally {
+    (globalThis as { InputEvent?: unknown }).InputEvent = saved;
+  }
 });
