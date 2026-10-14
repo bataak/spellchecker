@@ -11,7 +11,7 @@ import {
   tokenize,
 } from "./spellchecker.ts";
 import type { SpellChecker } from "./spellchecker.ts";
-import { initFileIO, type OpenFile } from "./fileio.ts";
+import { initFileIO } from "./fileio.ts";
 import { initImageStore } from "./imagestore.ts";
 import { initToolbar } from "./toolbar.ts";
 import { initKeyboardToolbar } from "./kbtoolbar.ts";
@@ -59,9 +59,9 @@ import {
   saveOfficeFile,
   loadOfficeFile,
   dropOfficeFile,
-  type DraftFile,
 } from "./storage.ts";
 import { initMdToolbar, sharedSlot } from "./mdtoolbar.ts";
+import { initSlotSwitch } from "./slotswitch.ts";
 import { initTabGuard, type TabGuard } from "./tabguard.ts";
 import {
   defineHint,
@@ -102,10 +102,7 @@ import {
   countWords,
   filterManualFix,
 } from "./manualfix.ts";
-import {
-  initUndoHistory,
-  type UndoControl,
-} from "./undohistory.ts";
+import { initUndoHistory, type UndoControl } from "./undohistory.ts";
 import { initTexImageInput, insertPickedImage } from "./teximages.ts";
 import { minimalDiff } from "./mdedit.ts";
 import { isLookupKey, wordAt, type WordSpan } from "./lookup.ts";
@@ -216,13 +213,9 @@ let lastFallbackReason: string | null = null;
 let docx: OfficeMode | null = null;
 let docxFile: File | null = null;
 let officeOps: Promise<void> = Promise.resolve();
-const parkedOffice = new Map<string, File>();
-let restoring: { slot: string; name: string } | null = null;
-let swapSeq = 0;
 let undoCtl: UndoControl | null = null;
 let tabGuard: TabGuard | null = null;
 let plainName: string | null = null;
-const templateFiles = new Map<string, OpenFile>();
 let skipCode = true;
 let skipLinks = true;
 let markupSkips = false;
@@ -1591,7 +1584,6 @@ function parkDocx(slot: string): void {
   const file = docxFile;
   if (!docx || !file) return closeDocx();
   detachDocx();
-  parkedOffice.set(slot, file);
   queueOffice(() => saveOfficeFile(file, slot).then(() => dropOfficeFile()));
 }
 
@@ -1679,6 +1671,39 @@ const fileIO = initFileIO({
 
 const MD_NAME_RE = /\.(md|markdown|mdown)$/i;
 
+const slots = initSlotSwitch({
+  editor: els.editor,
+  files: {
+    take: () => fileIO.takeFile(),
+    put: (file) => fileIO.putFile(file),
+    restore: (ref) => fileIO.restoreFile(ref),
+    name: () => fileIO.targetName(),
+  },
+  office: {
+    file: () => docxFile,
+    park: (slot) => parkDocx(slot),
+    open: async (file, text, cancelled) => {
+      await openDocxFile(file, text, cancelled);
+      return docx !== null;
+    },
+    queue: queueOffice,
+    settled: () => officeOps,
+  },
+  project: () => projectLink,
+  draft: (slot) => mdBar.draft(slot),
+  setName: (name) => {
+    plainName = name;
+    syncSaveHint();
+    mdBar.refresh();
+  },
+  refreshPreview: () => previewCtl?.update(),
+  entered: () => {
+    syncSaveHint();
+    mdBar.refresh();
+    enterMdMode(mdActive());
+  },
+});
+
 const mdBar = initMdToolbar({
   editor: els.editor,
   mount: document.querySelector<HTMLElement>("header.topbar") ?? undefined,
@@ -1691,13 +1716,14 @@ const mdBar = initMdToolbar({
     ),
   isTexFile,
   fileName: openFileName,
+  onLeave: (from) => slots.leave(from),
   onTemplate: (id, from) => {
     clearedEmpty = false;
     texTemplate = id === TEX_TEMPLATE;
     inProject = id === PROJECT_SLOT;
     checkTemplate = CHECK_TEMPLATES.has(id);
     clean.sync();
-    swapTemplateFile(from, mdBar.slot());
+    if (from !== mdBar.slot()) slots.enter(mdBar.slot());
     syncTexMode();
     projectLink?.sync();
     enterMdMode(mdActive());
@@ -1706,86 +1732,8 @@ const mdBar = initMdToolbar({
   onExample: () => enterMdMode(!isTexFile()),
   projectDirty: () => project()?.unsaved ?? false,
   onCloseProject: () => projectLink?.close(),
-  onCloseFile: (slot) => {
-    templateFiles.delete(slot);
-    parkedOffice.delete(slot);
-    saveDraftFile(null, slot);
-    queueOffice(() => dropOfficeFile(slot));
-  },
+  onCloseFile: (slot) => slots.forget(slot),
 });
-function swapTemplateFile(from: string, to: string): void {
-  if (from === to) return;
-  const wasBound = projectLink?.bound() ?? false;
-  projectLink?.unbind(true);
-  swapSeq++;
-  const office = docxFile
-    ? docxFile.name
-    : restoring?.slot === from
-      ? restoring.name
-      : null;
-  if (restoring) els.editor.readOnly = false;
-  restoring = null;
-  parkDocx(from);
-  const left = fileIO.takeFile();
-  if (left) templateFiles.set(from, left);
-  else templateFiles.delete(from);
-  saveDraftFile(
-    office
-      ? { name: office, kind: "office" }
-      : left
-        ? { name: left.name, kind: "text" }
-        : null,
-    from,
-  );
-  const stored = loadDraftFile(to);
-  if (stored?.kind === "office") {
-    fileIO.putFile(null);
-    plainName = stored.name;
-    saveDraftFile(stored, to);
-    syncSaveHint();
-    mdBar.refresh();
-    if (wasBound) previewCtl?.update();
-    void unparkDocx(to, stored);
-    return;
-  }
-  const next =
-    templateFiles.get(to) ??
-    (stored ? { handle: null, name: stored.name } : null);
-  fileIO.putFile(next);
-  plainName = next ? next.name : null;
-  saveDraftFile(next ? { name: next.name, kind: "text" } : null, to);
-  syncSaveHint();
-  mdBar.refresh();
-  if (wasBound) previewCtl?.update();
-  if (to === PROJECT_SLOT) projectLink?.enter();
-}
-async function unparkDocx(slot: string, ref: DraftFile): Promise<void> {
-  const seq = swapSeq;
-  const cancelled = (): boolean => seq !== swapSeq;
-  restoring = { slot, name: ref.name };
-  els.editor.readOnly = true;
-  const file =
-    parkedOffice.get(slot) ??
-    (await officeOps.then(() => loadOfficeFile(slot)).catch(() => null));
-  const text = await mdBar.draft(slot);
-  if (cancelled()) return;
-  if (file && file.name === ref.name)
-    await openDocxFile(file, text ?? undefined, cancelled);
-  if (cancelled()) return;
-  restoring = null;
-  if (docx && file) {
-    parkedOffice.delete(slot);
-    queueOffice(() => saveOfficeFile(file).then(() => dropOfficeFile(slot)));
-  } else {
-    els.editor.readOnly = false;
-    fileIO.restoreFile(ref);
-    plainName = fileIO.targetName();
-    saveDraftFile(plainName ? { name: plainName, kind: "text" } : null, slot);
-  }
-  syncSaveHint();
-  mdBar.refresh();
-  enterMdMode(mdActive());
-}
 const find = (sel: string) => (): HTMLElement | null =>
   document.querySelector<HTMLElement>(sel);
 const nudgeHints = initHints(() => {

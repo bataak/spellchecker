@@ -46,6 +46,7 @@ export interface MdToolbarOptions {
   readonly isTexFile?: () => boolean;
   readonly fileName?: () => string | null;
   readonly mount?: HTMLElement;
+  readonly onLeave?: (from: string, to: string) => void;
   readonly onTemplate?: (id: string, from: string) => void;
   readonly onExample?: () => void;
   readonly onDraftError?: () => void;
@@ -840,6 +841,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     if (example !== undefined) saveExampleChoice(id, example);
 
     const key = pickerValue(id);
+    if (key !== from) options.onLeave?.(from, key);
     const seq = ++switchSeq;
     if (loadDraft(key) === LARGE_DRAFT) {
       loadingKey = key;
