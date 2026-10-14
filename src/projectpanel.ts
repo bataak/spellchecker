@@ -445,7 +445,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
           (file.master.startsWith("../")
             ? "Үндсэн файл байгаа дээд хавтсыг сонгоно уу."
             : "Тэр файл байгаа хавтсыг сонгоно уу.")
-        : "Олон файлтай LaTeX төслийг хавтсаар эсвэл zip файлаар нээж засварлана.";
+        : "LaTeX төслийг хавтас эсвэл zip файлаар нээх боломжтой.";
     if (!ready) {
       tree.replaceChildren();
       shownVersion = "";
