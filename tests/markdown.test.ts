@@ -788,10 +788,7 @@ test("жинхэнэ $…$ томьёо хэвээр танигдана", () => 
   const blocks = parse("Томьёо $x^2$ ба $a=b$ мөн $5$.");
   const first = blocks[0];
   assert.ok(first && first.type === "paragraph");
-  assert.equal(
-    first.children.filter((node) => node.type === "math").length,
-    3,
-  );
+  assert.equal(first.children.filter((node) => node.type === "math").length, 3);
 });
 
 test("preview зөвхөн аюулгүй холбоос гаргана", () => {
@@ -815,7 +812,10 @@ test("preview зөвхөн аюулгүй холбоос гаргана", () => 
   ])
     assert.equal(safeHref(url), true, url);
   assert.doesNotMatch(toHtml(parse("[x](javascript:alert(1))")), /<a /);
-  assert.doesNotMatch(toHtml(parse("[x](&#106;avascript:alert(1))")), /href="j/i);
+  assert.doesNotMatch(
+    toHtml(parse("[x](&#106;avascript:alert(1))")),
+    /href="j/i,
+  );
   assert.match(toHtml(parse("[x](https://bichig.dev)")), /<a href="https:/);
 });
 
@@ -829,4 +829,17 @@ test("холбоос — URL доторх хаалт хадгалагдана", 
   );
   assert.match(html, /src="a_\(1\)\.png"/);
   assert.equal(print(parse(src)), src);
+});
+
+test("жагсаалт — дэд жагсаалтын догол хэлбэржүүлэхэд хадгалагдана", () => {
+  const src = "- Хоол\n  - Цуйван\n  - Бууз\n- Ундаа\n  - Цай\n";
+  assert.equal(format(src), src);
+  assert.equal(
+    format("1. Нэг\n    - а\n2. Хоёр\n"),
+    "1. Нэг\n   - а\n2. Хоёр\n",
+  );
+  assert.equal(
+    toHtml(parse(src)),
+    '<ul data-line="0"><li>Хоол<ul><li>Цуйван</li><li>Бууз</li></ul></li><li>Ундаа<ul><li>Цай</li></ul></li></ul>',
+  );
 });
