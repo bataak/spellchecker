@@ -102,8 +102,6 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
   let boundPath: string | null = null;
   let boundId = 0;
   const places = new Map<string, Place>();
-  // Өөр загвар руу шилжихэд засварлагчид тэр загварын бичвэр төсөл холбоотой
-  // байхад орж ирнэ — тэр бичвэрийг төслийн файл руу бичихгүй.
   let detached = false;
   let loading = false;
 
@@ -334,8 +332,6 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     notify: deps.notify,
   });
 
-  // Capture үед — бусад input handler (preview-ийн key() гэх мэт) pushText-ийг
-  // дуудахаас өмнө ажиллана.
   document.addEventListener(
     "input",
     (event) => {

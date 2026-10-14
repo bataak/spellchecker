@@ -131,8 +131,6 @@ function spanWrapped(
   );
 }
 
-// Олон мөрийг нэг хос маркераар хүрээлбэл жагсаалт, гарчиг эвдэрнэ — мөр бүрийн
-// агуулгыг тусад нь хүрээлнэ.
 function toggleWrapLines(
   text: string,
   s: number,

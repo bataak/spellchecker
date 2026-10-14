@@ -136,7 +136,6 @@ export interface ListNode {
   ordered: boolean;
   start: number;
   items: Inline[][];
-  // Дэд жагсаалттай үед мөр бүрийн гүн; байхгүй бол бүгд нэг түвшинд.
   levels?: ListLevel[];
   line: number;
 }

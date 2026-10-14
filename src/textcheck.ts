@@ -173,8 +173,6 @@ export function startsLowerAfterDash(word: string): boolean {
   return ch !== "" && ch === ch.toLowerCase() && ch !== ch.toUpperCase();
 }
 
-// Жагсаалтын нэг чип ижил үгийн бүх давталтыг төлөөлнө: дарах бүрд сонгосон
-// давталтын дараагийнх руу ээлжлэн шилжинэ.
 export function nextOccurrence<T extends Pick<Token, "word" | "start" | "end">>(
   tokens: readonly T[],
   start: number,
