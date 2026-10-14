@@ -1,3 +1,4 @@
+import { swapText } from "./editortext.ts";
 import {
   dropSharedDraft,
   loadDraft,
@@ -94,7 +95,7 @@ export function initDraftText(deps: DraftTextDeps): DraftText {
       const slot = store.slot();
       const draftText = await store.read(slot);
       if (draftText != null) {
-        editor.value = draftText;
+        swapText(editor, draftText, { origin: "restore", notify: false });
         deps.onLoaded();
       }
       const caret = store.caret(slot);
