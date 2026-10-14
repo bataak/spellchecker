@@ -161,6 +161,10 @@ export function projectText(path: string): string | null {
   return state?.texts.get(path) ?? null;
 }
 
+export function projectSavedText(path: string): string | null {
+  return state?.saved.get(path) ?? null;
+}
+
 export function projectKey(): string | null {
   return state && !state.pending ? String(state.version) : null;
 }

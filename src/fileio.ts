@@ -19,6 +19,7 @@ export interface FileIODeps {
   openProjectZip: (file: File) => Promise<void>;
   openProjectDir: (handle: FileSystemDirectoryHandle) => Promise<void>;
   prepareOpen: (name: string) => boolean;
+  openInProject: (name: string, text: string) => boolean;
   onLoaded: () => void;
   onSaved: () => void;
 }
@@ -55,6 +56,7 @@ export function initFileIO({
   openProjectZip,
   openProjectDir,
   prepareOpen,
+  openInProject,
   onLoaded,
   onSaved,
 }: FileIODeps): FileIOControl {
@@ -220,6 +222,10 @@ export function initFileIO({
     }
     if (!office && !sizeOk(file)) return true;
     const text = office ? "" : await readAsText(file);
+    if (!office && openInProject(file.name, text)) {
+      flash("#openBtn", "Нээлээ");
+      return true;
+    }
     if (!prepareOpen(file.name)) return false;
     if (office) {
       currentFileHandle = null;
