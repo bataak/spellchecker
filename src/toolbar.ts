@@ -238,7 +238,7 @@ function initButtons({
     try {
       if (navigator.clipboard && navigator.clipboard.readText) {
         const text = await navigator.clipboard.readText();
-        if (text) insertAtCaret(text);
+        if (text) insertAtCaret(text.normalize("NFC"));
         else els.editor.focus();
         return;
       }
