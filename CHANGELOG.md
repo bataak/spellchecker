@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.105.2](https://github.com/bataak/spellchecker/compare/v1.105.1...v1.105.2) (2026-10-14)
+
+
+### Bug Fixes
+
+* **preview:** re-enable the compile button after restoring a cached PDF ([8a2eef5](https://github.com/bataak/spellchecker/commit/8a2eef58c934faba6e0379ac6dc8adbf32f97d39))
+
 ## [1.105.1](https://github.com/bataak/spellchecker/compare/v1.105.0...v1.105.1) (2026-10-14)
 
 
