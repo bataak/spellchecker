@@ -1,3 +1,4 @@
+import { KEYS, read, write } from "./store.ts";
 export function initAppearance(): void {
   const rootEl = document.documentElement;
 
@@ -5,10 +6,7 @@ export function initAppearance(): void {
     rootEl.setAttribute("data-theme", theme);
   }
   (function initTheme() {
-    let theme: string | null = null;
-    try {
-      theme = localStorage.getItem("theme");
-    } catch (_) {}
+    let theme = read(KEYS.theme);
     if (!theme) {
       theme =
         window.matchMedia &&
@@ -23,27 +21,20 @@ export function initAppearance(): void {
     const next =
       rootEl.getAttribute("data-theme") === "dark" ? "light" : "dark";
     applyTheme(next);
-    try {
-      localStorage.setItem("theme", next);
-    } catch (_) {}
+    write(KEYS.theme, next);
   });
 
-  const FONT_KEY = "mn-spell:scale";
   const FONT_MIN = 0.8;
   const FONT_MAX = 1.8;
   const FONT_STEP = 0.1;
   let fontScale = 1;
-  try {
-    const savedFontScale = parseFloat(localStorage.getItem(FONT_KEY) ?? "");
-    if (!isNaN(savedFontScale)) fontScale = savedFontScale;
-  } catch (_) {}
+  const savedFontScale = parseFloat(read(KEYS.fontScale) ?? "");
+  if (!isNaN(savedFontScale)) fontScale = savedFontScale;
   function applyScale(): void {
     fontScale =
       Math.round(Math.min(FONT_MAX, Math.max(FONT_MIN, fontScale)) * 100) / 100;
     rootEl.style.setProperty("--editor-scale", String(fontScale));
-    try {
-      localStorage.setItem(FONT_KEY, String(fontScale));
-    } catch (_) {}
+    write(KEYS.fontScale, String(fontScale));
   }
   applyScale();
   document.querySelector("#fontIncBtn")!.addEventListener("click", () => {

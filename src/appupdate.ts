@@ -1,3 +1,4 @@
+import { KEYS, at, read, write } from "./store.ts";
 export interface AppUpdate {
   readonly setDictVersion: (version: string | null) => void;
   readonly checkFreshness: () => Promise<void>;
@@ -132,13 +133,8 @@ export function initAppUpdate(
     const selfName = entryUrl.split("/").pop();
     const entry = await fetchFreshEntry();
     if (!selfName || !entry || entry.endsWith("/" + selfName)) return false;
-    const key = "staleReload:" + entry;
-    try {
-      if (sessionStorage.getItem(key)) return false;
-      sessionStorage.setItem(key, "1");
-    } catch (_) {
-      return false;
-    }
+    const key = at(KEYS.staleReload, entry);
+    if (read(key) || !write(key, "1")) return false;
     freshEntry = entry;
     if (reloadEl) reloadEl.hidden = true;
     setStatus("Шинэ хувилбарыг ачаалж байна…");

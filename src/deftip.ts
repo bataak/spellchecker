@@ -11,6 +11,7 @@ import { escapeHtml } from "./htmlutil.ts";
 import { isTouch } from "./input.ts";
 import type { WordSpan } from "./lookup.ts";
 import { emptyNote, type DefDock } from "./defdock.ts";
+import { KEYS, read, remove, write } from "./store.ts";
 
 export type Definition = {
   dicts: number;
@@ -50,7 +51,6 @@ export interface DefTip {
 
 const DEF_TEXT_LIMIT = 3000;
 const DEF_TIP_GRACE_MS = 250;
-const PIN_KEY = "def-pin";
 const PIN_ICON =
   '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" ' +
   'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
@@ -118,27 +118,16 @@ export function initDefTip(deps: DefTipDeps): DefTip {
   }
 
   function savePin(): void {
-    try {
-      if (pinned && defTip)
-        localStorage.setItem(
-          PIN_KEY,
-          `${defTip.offsetLeft},${defTip.offsetTop}`,
-        );
-      else localStorage.removeItem(PIN_KEY);
-    } catch {}
+    if (pinned && defTip)
+      write(KEYS.defPin, `${defTip.offsetLeft},${defTip.offsetTop}`);
+    else remove(KEYS.defPin);
   }
 
   function loadPin(): { left: number; top: number } | null {
-    try {
-      const [left, top] = (localStorage.getItem(PIN_KEY) ?? "")
-        .split(",")
-        .map(Number);
-      return Number.isFinite(left) && Number.isFinite(top)
-        ? { left: left!, top: top! }
-        : null;
-    } catch {
-      return null;
-    }
+    const [left, top] = (read(KEYS.defPin) ?? "").split(",").map(Number);
+    return Number.isFinite(left) && Number.isFinite(top)
+      ? { left: left!, top: top! }
+      : null;
   }
 
   function setPinned(on: boolean): void {

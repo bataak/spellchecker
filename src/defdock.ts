@@ -1,6 +1,6 @@
 import { parseDock, resolveDock, type DockPlace } from "./layout.ts";
+import { KEYS, read, remove, write } from "./store.ts";
 
-const STORAGE_KEY = "def-dock";
 const EMPTY_TEXT = "Тайлбар харах үгэн дээр заагчаа аваачна уу";
 const DRAG_THRESHOLD = 5;
 
@@ -39,18 +39,12 @@ export interface DefDock {
 }
 
 function load(): DockPlace | null {
-  try {
-    return parseDock(localStorage.getItem(STORAGE_KEY));
-  } catch {
-    return null;
-  }
+  return parseDock(read(KEYS.defDock));
 }
 
 function save(place: DockPlace | null): void {
-  try {
-    if (place) localStorage.setItem(STORAGE_KEY, place);
-    else localStorage.removeItem(STORAGE_KEY);
-  } catch {}
+  if (place) write(KEYS.defDock, place);
+  else remove(KEYS.defDock);
 }
 
 export function initDefDock(deps: DefDockDeps): DefDock {

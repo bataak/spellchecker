@@ -29,8 +29,7 @@ import {
 } from "./texproject.ts";
 import type { PreviewSource } from "./preview.ts";
 import { TEMPLATE_INPUT } from "./undohistory.ts";
-
-const SLOT_KEY = "mn-spell:project-slot";
+import { KEYS, read, remove, write } from "./store.ts";
 
 export interface ProjectLinkDeps {
   readonly editor: HTMLTextAreaElement;
@@ -82,18 +81,12 @@ interface Place {
 }
 
 function storedSlot(): string | null {
-  try {
-    return localStorage.getItem(SLOT_KEY);
-  } catch {
-    return null;
-  }
+  return read(KEYS.projectSlot);
 }
 
 function storeSlot(slot: string | null): void {
-  try {
-    if (slot === null) localStorage.removeItem(SLOT_KEY);
-    else localStorage.setItem(SLOT_KEY, slot);
-  } catch {}
+  if (slot === null) remove(KEYS.projectSlot);
+  else write(KEYS.projectSlot, slot);
 }
 
 export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {

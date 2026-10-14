@@ -6,10 +6,10 @@ import {
   NOTES_TITLE,
   SURVEY_QUESTIONS,
 } from "./survey-def.ts";
+import { KEYS, at, read, readJson, write, writeJson } from "./store.ts";
 
 const ENDPOINT = "https://api.bichig.dev/survey";
-const DONE_KEY = "mn-spell:survey-done:" + SURVEY_ID;
-const USE_KEY = "mn-spell:use-days";
+const DONE_KEY = at(KEYS.surveyDone, SURVEY_ID);
 const TRIGGER_BUTTONS = "#copyBtn, #copyErrorsBtn, #saveBtn, #clearBtn";
 
 let overlay: HTMLDivElement | null = null;
@@ -28,17 +28,11 @@ const OFFLINE_RETRY_MS = 60000;
 const MIN_USE_DAYS = 7;
 
 function isDone(): boolean {
-  try {
-    return localStorage.getItem(DONE_KEY) === "1";
-  } catch (_) {
-    return true;
-  }
+  return read(DONE_KEY) === "1";
 }
 
 function markDone(): void {
-  try {
-    localStorage.setItem(DONE_KEY, "1");
-  } catch (_) {}
+  write(DONE_KEY, "1");
 }
 
 function localDate(): string {
@@ -51,16 +45,12 @@ function localDate(): string {
 function ensureLoaded(): void {
   if (loaded) return;
   loaded = true;
-  try {
-    const raw = localStorage.getItem(USE_KEY);
-    if (raw === null) return;
-    const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== "object" || parsed === null) return;
-    const record = parsed as { days?: unknown; last?: unknown };
-    if (typeof record.days === "number" && Number.isFinite(record.days))
-      usedDays = record.days;
-    if (typeof record.last === "string") lastUsedDate = record.last;
-  } catch (_) {}
+  const parsed = readJson(KEYS.useDays);
+  if (typeof parsed !== "object" || parsed === null) return;
+  const record = parsed as { days?: unknown; last?: unknown };
+  if (typeof record.days === "number" && Number.isFinite(record.days))
+    usedDays = record.days;
+  if (typeof record.last === "string") lastUsedDate = record.last;
 }
 
 function markUsedToday(): void {
@@ -68,12 +58,7 @@ function markUsedToday(): void {
   if (today === lastUsedDate) return;
   lastUsedDate = today;
   usedDays += 1;
-  try {
-    localStorage.setItem(
-      USE_KEY,
-      JSON.stringify({ days: usedDays, last: today }),
-    );
-  } catch (_) {}
+  writeJson(KEYS.useDays, { days: usedDays, last: today });
 }
 
 function isTooNew(): boolean {
