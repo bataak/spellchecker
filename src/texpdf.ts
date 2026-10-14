@@ -8,7 +8,7 @@ import {
 } from "./texbundle.ts";
 import { KEYS, at } from "./store.ts";
 
-interface EngineReply {
+export interface EngineReply {
   readonly result?: string;
   readonly cmd?: string;
   readonly status?: number;
@@ -17,6 +17,15 @@ interface EngineReply {
 }
 
 const ENGINE_CRASHED = -254;
+const ERRORS_IGNORED = 1;
+
+export function replyPdf(reply: EngineReply): ArrayBuffer | null {
+  if (!reply.pdf) return null;
+  if (reply.result === "ok") return reply.pdf;
+  return reply.status === ERRORS_IGNORED && !/^!/m.test(reply.log ?? "")
+    ? reply.pdf
+    : null;
+}
 
 function decodeTexBytes(text: string): string {
   const bytes: number[] = [];
@@ -295,8 +304,9 @@ function runOnce(worker: Worker): Promise<Uint8Array<ArrayBuffer>> {
       if (reply.cmd !== "compile") return;
       clearTimeout(timer);
       running = null;
-      if (reply.result === "ok" && reply.pdf) {
-        resolve(new Uint8Array(reply.pdf));
+      const pdf = replyPdf(reply);
+      if (pdf) {
+        resolve(new Uint8Array(pdf));
         return;
       }
       if (reply.status === ENGINE_CRASHED) dropEngine(worker);
