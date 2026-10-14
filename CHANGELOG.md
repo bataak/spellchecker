@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.105.3](https://github.com/bataak/spellchecker/compare/v1.105.2...v1.105.3) (2026-10-14)
+
+
+### Bug Fixes
+
+* **preview:** clear the shown-PDF marker whenever the PDF is dropped so opening a TeX-master file re-shows the main PDF ([af1b943](https://github.com/bataak/spellchecker/commit/af1b943e4bb1be5511b65a2c4a273a0ccec4f412))
+* **preview:** forget the shown PDF once a different compile replaces it so switching back re-renders the right file ([33721f3](https://github.com/bataak/spellchecker/commit/33721f323fd457236cb6b47fe53c569f4c6306b4))
+
 ## [1.105.2](https://github.com/bataak/spellchecker/compare/v1.105.1...v1.105.2) (2026-10-14)
 
 
