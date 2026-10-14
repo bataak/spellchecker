@@ -36,6 +36,17 @@ export function loadDraftFile(slot?: string): DraftFile | null {
   }
 }
 
+export function dropSharedDraft(): Promise<void> {
+  try {
+    localStorage.removeItem(TEXT_KEY);
+    localStorage.removeItem(TIER_KEY);
+    localStorage.removeItem(FILE_KEY);
+  } catch (_) {}
+  return idbDelete(IDB_TEXT_KEY)
+    .then(() => undefined)
+    .catch(() => undefined);
+}
+
 export function loadDraft(): Promise<string | null> {
   if (getTier() === "idb") {
     return idbGet(IDB_TEXT_KEY)

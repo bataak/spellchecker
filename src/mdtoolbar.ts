@@ -221,13 +221,19 @@ const EXAMPLE_KEY = "mdExample:";
 
 function loadExampleChoice(slot: string): string | null {
   try {
-    return localStorage.getItem(EXAMPLE_KEY + slot);
+    return (
+      sessionStorage.getItem(EXAMPLE_KEY + slot) ??
+      localStorage.getItem(EXAMPLE_KEY + slot)
+    );
   } catch (_) {
     return null;
   }
 }
 
 function saveExampleChoice(slot: string, example: string): void {
+  try {
+    sessionStorage.setItem(EXAMPLE_KEY + slot, example);
+  } catch (_) {}
   try {
     localStorage.setItem(EXAMPLE_KEY + slot, example);
   } catch (_) {}
