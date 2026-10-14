@@ -11,6 +11,7 @@ import type {
   PageSpec,
   ParaStyle,
 } from "../docir.ts";
+import { listTree, type ListTree } from "../../markdown.ts";
 import { tabFills } from "../flatten.ts";
 import { columnWidths, officeMetrics } from "../table.ts";
 
@@ -233,23 +234,38 @@ function stylesXml(doc: DocIr): string {
 const NUMBERING_BULLET = 1;
 const NUMBERING_DECIMAL = 2;
 
+const LIST_LEVELS = 9;
+const BULLETS = ["•", "◦", "▪"];
+
+interface NumDef {
+  readonly ordered: boolean;
+  readonly start: number;
+  readonly level: number;
+}
+
 function abstractNum(id: number, ordered: boolean): string {
+  let levels = "";
+  for (let level = 0; level < LIST_LEVELS; level += 1)
+    levels +=
+      '<w:lvl w:ilvl="' +
+      String(level) +
+      '"><w:start w:val="1"/><w:numFmt w:val="' +
+      (ordered ? "decimal" : "bullet") +
+      '"/><w:lvlText w:val="' +
+      (ordered ? "%" + String(level + 1) + "." : BULLETS[level % 3]) +
+      '"/><w:lvlJc w:val="left"/><w:pPr><w:ind w:left="' +
+      String(720 * (level + 1)) +
+      '" w:hanging="360"/></w:pPr></w:lvl>';
   return (
     '<w:abstractNum w:abstractNumId="' +
     String(id) +
-    '"><w:multiLevelType w:val="singleLevel"/>' +
-    '<w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="' +
-    (ordered ? "decimal" : "bullet") +
-    '"/><w:lvlText w:val="' +
-    (ordered ? "%1." : "•") +
-    '"/><w:lvlJc w:val="left"/><w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr>' +
-    "</w:lvl></w:abstractNum>"
+    '"><w:multiLevelType w:val="hybridMultilevel"/>' +
+    levels +
+    "</w:abstractNum>"
   );
 }
 
-function numberingXml(
-  nums: readonly { ordered: boolean; start: number }[],
-): string {
+function numberingXml(nums: readonly NumDef[]): string {
   return (
     XML_HEAD +
     "<w:numbering " +
@@ -266,7 +282,9 @@ function numberingXml(
           String(num.ordered ? NUMBERING_DECIMAL : NUMBERING_BULLET) +
           '"/>' +
           (num.ordered
-            ? '<w:lvlOverride w:ilvl="0"><w:startOverride w:val="' +
+            ? '<w:lvlOverride w:ilvl="' +
+              String(num.level) +
+              '"><w:startOverride w:val="' +
               String(num.start) +
               '"/></w:lvlOverride>'
             : "") +
@@ -279,7 +297,7 @@ function numberingXml(
 
 interface Body {
   readonly links: Rel[];
-  readonly nums: { ordered: boolean; start: number }[];
+  readonly nums: NumDef[];
   bookmark: number;
   drawing: number;
   readonly page: PageSpec;
@@ -445,21 +463,26 @@ function blockXml(block: IrBlock, doc: DocIr, body: Body): string {
       );
     }
     case "list": {
-      body.nums.push({ ordered: block.ordered, start: block.start });
-      const numId = String(body.nums.length);
-      return block.items
-        .map((item) =>
-          paraXml(
-            styled(
-              block.style,
-              '<w:numPr><w:ilvl w:val="0"/><w:numId w:val="' +
-                numId +
-                '"/></w:numPr>',
-            ),
-            runsXml(item, body, false),
-          ),
-        )
-        .join("");
+      const render = (
+        tree: ListTree<readonly IrRun[]>,
+        level: number,
+      ): string => {
+        body.nums.push({ ordered: tree.ordered, start: tree.start, level });
+        const numPr =
+          '<w:numPr><w:ilvl w:val="' +
+          String(level) +
+          '"/><w:numId w:val="' +
+          String(body.nums.length) +
+          '"/></w:numPr>';
+        return tree.entries
+          .map(
+            ({ item, sub }) =>
+              paraXml(styled(block.style, numPr), runsXml(item, body, false)) +
+              (sub ? render(sub, Math.min(level + 1, LIST_LEVELS - 1)) : ""),
+          )
+          .join("");
+      };
+      return render(listTree(block), 0);
     }
     case "table": {
       const header = block.header !== false;

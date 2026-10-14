@@ -1180,14 +1180,19 @@ export function blockImages(
   return out;
 }
 
-export interface ListTree {
+export interface ListTree<T = Inline[]> {
   ordered: boolean;
   start: number;
-  entries: { item: Inline[]; sub: ListTree | null }[];
+  entries: { item: T; sub: ListTree<T> | null }[];
 }
 
-export function listTree(list: ListNode): ListTree {
-  const root: ListTree = {
+export function listTree<T>(list: {
+  readonly ordered: boolean;
+  readonly start: number;
+  readonly items: readonly T[];
+  readonly levels?: readonly ListLevel[];
+}): ListTree<T> {
+  const root: ListTree<T> = {
     ordered: list.ordered,
     start: list.start,
     entries: [],

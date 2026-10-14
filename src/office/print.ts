@@ -8,6 +8,7 @@ import type {
   ParaStyle,
   PreparedImage,
 } from "./docir.ts";
+import { listTree, type ListTree } from "../markdown.ts";
 import { odfFont } from "./fonts.ts";
 import { columnWidths, officeMetrics } from "./table.ts";
 
@@ -168,23 +169,32 @@ function blockHtml(block: IrBlock, doc: DocIr, images: ImageSet): string {
       return para(block.style, block.runs, images);
 
     case "list": {
-      const tag = block.ordered ? "ol" : "ul";
-      const start =
-        block.ordered && block.start !== 1
-          ? ' start="' + String(block.start) + '"'
-          : "";
-      return (
-        "<" +
-        tag +
-        start +
-        ">" +
-        block.items
-          .map((item) => "<li>" + para(block.style, item, images) + "</li>")
-          .join("") +
-        "</" +
-        tag +
-        ">"
-      );
+      const render = (tree: ListTree<readonly IrRun[]>): string => {
+        const tag = tree.ordered ? "ol" : "ul";
+        const start =
+          tree.ordered && tree.start !== 1
+            ? ' start="' + String(tree.start) + '"'
+            : "";
+        return (
+          "<" +
+          tag +
+          start +
+          ">" +
+          tree.entries
+            .map(
+              ({ item, sub }) =>
+                "<li>" +
+                para(block.style, item, images) +
+                (sub ? render(sub) : "") +
+                "</li>",
+            )
+            .join("") +
+          "</" +
+          tag +
+          ">"
+        );
+      };
+      return render(listTree(block));
     }
 
     case "table": {
