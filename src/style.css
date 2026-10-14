@@ -733,6 +733,18 @@ a.tbtn {
   }
 }
 
+.tex-compile.tex-download {
+  margin-inline-start: 0;
+}
+
+.tex-compile.tex-download:disabled {
+  cursor: default;
+}
+
+.tex-compile.tex-download:disabled .tex-compile-glyph {
+  animation: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tex-compile:disabled .tex-compile-glyph {
     animation: none;
