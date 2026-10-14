@@ -126,11 +126,18 @@ export interface Quote {
   children: Block[];
   line: number;
 }
+export interface ListLevel {
+  depth: number;
+  ordered: boolean;
+  start: number;
+}
 export interface ListNode {
   type: "list";
   ordered: boolean;
   start: number;
   items: Inline[][];
+  // Дэд жагсаалттай үед мөр бүрийн гүн; байхгүй бол бүгд нэг түвшинд.
+  levels?: ListLevel[];
   line: number;
 }
 export interface CodeBlock {
@@ -1048,12 +1055,20 @@ function parseBlocks(src: string, top: boolean): Block[] {
       const isOrdered = !!ordered;
       const first = Number(ordered?.[2] ?? 1);
       const items: Inline[][] = [];
+      const levels: ListLevel[] = [];
+      const indents = [(bullet ?? ordered)![1]!.length];
       while (i < lines.length) {
         const b = BULLET_RE.exec(lines[i]!);
         const o = ORDERED_RE.exec(lines[i]!);
-        const hit = isOrdered ? o : b;
+        const hit = b ?? o;
         if (!hit) break;
+        const indent = hit[1]!.length;
+        while (indents.length > 1 && indent < indents.at(-1)!) indents.pop();
+        if (indent > indents.at(-1)!) indents.push(indent);
+        const depth = indents.length - 1;
+        if (depth === 0 && !!o !== isOrdered) break;
         items.push(parseInline(hit[3]!));
+        levels.push({ depth, ordered: !!o, start: Number(o?.[2] ?? 1) });
         i += 1;
       }
       out.push({
@@ -1061,6 +1076,7 @@ function parseBlocks(src: string, top: boolean): Block[] {
         ordered: isOrdered,
         start: first,
         items,
+        ...(levels.some((l) => l.depth > 0) ? { levels } : {}),
         line: start,
       });
       continue;
@@ -1165,6 +1181,51 @@ export function blockImages(
   return out;
 }
 
+export interface ListTree {
+  ordered: boolean;
+  start: number;
+  entries: { item: Inline[]; sub: ListTree | null }[];
+}
+
+export function listTree(list: ListNode): ListTree {
+  const root: ListTree = {
+    ordered: list.ordered,
+    start: list.start,
+    entries: [],
+  };
+  const stack = [root];
+  list.items.forEach((item, i) => {
+    const level = list.levels?.[i];
+    const depth = Math.min(level?.depth ?? 0, stack.length);
+    while (stack.length > depth + 1) stack.pop();
+    let tree = stack.at(-1)!;
+    const parent = tree.entries.at(-1);
+    if (stack.length === depth && level && parent) {
+      parent.sub = { ordered: level.ordered, start: level.start, entries: [] };
+      tree = parent.sub;
+      stack.push(tree);
+    }
+    tree.entries.push({ item, sub: null });
+  });
+  return root;
+}
+
+function listHtml(tree: ListTree, at = ""): string {
+  const tag = tree.ordered ? "ol" : "ul";
+  const startAttr =
+    tree.ordered && tree.start !== 1 ? ` start="${tree.start}"` : "";
+  return (
+    `<${tag}${startAttr}${at}>` +
+    tree.entries
+      .map(
+        ({ item, sub }) =>
+          `<li>${inlineHtml(item)}${sub ? listHtml(sub) : ""}</li>`,
+      )
+      .join("") +
+    `</${tag}>`
+  );
+}
+
 export function toHtml(blocks: readonly Block[]): string {
   let out = "";
   for (const b of blocks) {
@@ -1209,14 +1270,8 @@ export function toHtml(blocks: readonly Block[]): string {
       out += `<div class="${kind}${align}"${width}${at}>${toHtml(b.children)}</div>`;
     } else if (b.type === "quote")
       out += `<blockquote${at}>${toHtml(b.children)}</blockquote>`;
-    else if (b.type === "list") {
-      const tag = b.ordered ? "ol" : "ul";
-      const startAttr = b.ordered && b.start !== 1 ? ` start="${b.start}"` : "";
-      out +=
-        `<${tag}${startAttr}${at}>` +
-        b.items.map((it) => `<li>${inlineHtml(it)}</li>`).join("") +
-        `</${tag}>`;
-    } else {
+    else if (b.type === "list") out += listHtml(listTree(b), at);
+    else {
       const [header, ...body] = b.rows;
       const style = (i: number): string =>
         b.align[i] ? ` style="text-align:${b.align[i]}"` : "";
@@ -1313,6 +1368,18 @@ function fenceFor(value: string): string {
   return "`".repeat(Math.max(3, longest.length + 1));
 }
 
+function listMd(tree: ListTree, indent: string, full: boolean): string {
+  return tree.entries
+    .map(({ item, sub }, i) => {
+      const marker = tree.ordered ? `${tree.start + i}.` : "-";
+      const line = indent + marker + " " + inlineOut(item, false, full);
+      if (!sub) return line;
+      const inner = indent + " ".repeat(marker.length + 1);
+      return line + "\n" + listMd(sub, inner, full);
+    })
+    .join("\n");
+}
+
 function blockMd(b: Block, full: boolean): string {
   switch (b.type) {
     case "heading":
@@ -1361,12 +1428,7 @@ function blockMd(b: Block, full: boolean): string {
         .map((l) => (l ? "> " + l : ">"))
         .join("\n");
     case "list":
-      return b.items
-        .map((it, i) => {
-          const marker = b.ordered ? `${b.start + i}.` : "-";
-          return marker + " " + inlineOut(it, false, full);
-        })
-        .join("\n");
+      return listMd(listTree(b), "", full);
     case "table": {
       const width = Math.max(...b.rows.map((r) => r.length), 1);
       const cells = b.rows.map((r) =>

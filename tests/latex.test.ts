@@ -300,10 +300,15 @@ test("withParatype T1, T2A болон кирилл babel баримтад paraty
     "\\usepackage[mongolian]{babel}",
   ]) {
     const doc =
-      "\\documentclass{article}\n" + pre + "\n\\begin{document}\n\\end{document}";
+      "\\documentclass{article}\n" +
+      pre +
+      "\n\\begin{document}\n\\end{document}";
     assert.equal(
       withParatype(doc),
-      doc.replace("\\begin{document}", "\\usepackage{paratype}\n\\begin{document}"),
+      doc.replace(
+        "\\begin{document}",
+        "\\usepackage{paratype}\n\\begin{document}",
+      ),
     );
   }
 });
@@ -312,7 +317,8 @@ test("withParatype фонттой эсвэл латин OT1 баримтад nul
   const own =
     "\\documentclass{article}\n\\usepackage[T2A]{fontenc}\n\\usepackage{paratype}\n\\begin{document}\n\\end{document}";
   assert.equal(withParatype(own), null);
-  const latin = "\\documentclass{article}\n\\begin{document}\nA\n\\end{document}";
+  const latin =
+    "\\documentclass{article}\n\\begin{document}\nA\n\\end{document}";
   assert.equal(withParatype(latin), null);
 });
 
@@ -322,7 +328,9 @@ test("previewTex begin{document}-ийг давхардуулахгүй, өмнө
   );
   assert.equal(out.match(/\\begin\{document\}/g)?.length, 1);
   assert.equal(out.match(/\\end\{document\}/g)?.length, 1);
-  assert.ok(out.indexOf("\\usepackage{longtable}") < out.indexOf("\\begin{document}"));
+  assert.ok(
+    out.indexOf("\\usepackage{longtable}") < out.indexOf("\\begin{document}"),
+  );
 });
 
 test("previewTex preamble-гүй хэсэгт байгаа usepackage-ийг preamble руу шилжүүлнэ", () => {
@@ -330,4 +338,12 @@ test("previewTex preamble-гүй хэсэгт байгаа usepackage-ийг pre
   const begin = out.indexOf("\\begin{document}");
   assert.ok(out.indexOf("\\usepackage{longtable}") < begin);
   assert.ok(!out.slice(begin).includes("\\usepackage"));
+});
+
+test("toLatexBody: дэд жагсаалт шаталсан орчин болно", () => {
+  assert.equal(
+    body("- Хоол\n  - Цуйван\n- Ундаа\n  1. Цай\n"),
+    "\\begin{itemize}\n  \\item Хоол\n  \\begin{itemize}\n    \\item Цуйван\n  \\end{itemize}\n" +
+      "  \\item Ундаа\n  \\begin{enumerate}\n    \\item Цай\n  \\end{enumerate}\n\\end{itemize}",
+  );
 });
