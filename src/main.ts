@@ -134,7 +134,11 @@ import {
   splitEveryOccurrence,
   wordAtCaret,
 } from "./wordfix.ts";
-import { initEditorText, pasteComposed } from "./editortext.ts";
+import {
+  composeTypedWord,
+  initEditorText,
+  pasteComposed,
+} from "./editortext.ts";
 import { initDraftText } from "./drafttext.ts";
 import { initClean, initDecode } from "./decode.ts";
 import { initAppUpdate } from "./appupdate.ts";
@@ -1197,6 +1201,9 @@ const fixButtonDeps = {
 els.editor.addEventListener("paste", (event) =>
   pasteComposed(els.editor, event),
 );
+els.editor.addEventListener("input", (event) => {
+  if (event instanceof InputEvent) composeTypedWord(els.editor, event);
+});
 const decode = initDecode(fixButtonDeps);
 const clean = initClean({
   ...fixButtonDeps,
