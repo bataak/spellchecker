@@ -37,6 +37,93 @@ const BLOCK_TAGS = new Set([
 
 const PARAGRAPH_TAGS = new Set(["p", "h1", "h2", "h3", "h4", "h5", "h6"]);
 
+const INLINE_TAGS = new Set([
+  "a",
+  "abbr",
+  "area",
+  "audio",
+  "b",
+  "bdi",
+  "bdo",
+  "big",
+  "body",
+  "br",
+  "button",
+  "canvas",
+  "caption",
+  "center",
+  "cite",
+  "code",
+  "col",
+  "colgroup",
+  "data",
+  "del",
+  "details",
+  "dfn",
+  "em",
+  "embed",
+  "font",
+  "head",
+  "html",
+  "i",
+  "iframe",
+  "img",
+  "input",
+  "ins",
+  "kbd",
+  "label",
+  "link",
+  "map",
+  "mark",
+  "menu",
+  "meta",
+  "nobr",
+  "noscript",
+  "object",
+  "option",
+  "path",
+  "picture",
+  "q",
+  "s",
+  "samp",
+  "script",
+  "select",
+  "small",
+  "source",
+  "span",
+  "strike",
+  "strong",
+  "style",
+  "sub",
+  "summary",
+  "sup",
+  "svg",
+  "template",
+  "textarea",
+  "time",
+  "title",
+  "track",
+  "tt",
+  "u",
+  "var",
+  "video",
+  "wbr",
+]);
+
+// <Enter>, <Esc> зэрэг товчны нэрийг шошго гэж андуурахгүйн тулд зөвхөн HTML-ийн
+// элементийг, жижиг эсвэл бүгд том үсгээр бичсэн үед нь шошго гэж үзнэ.
+function isHtmlTag(tag: string): boolean {
+  const name = /^<\/?([a-zA-Z0-9-]+)/.exec(tag)![1]!;
+  if (name !== name.toLowerCase() && name !== name.toUpperCase()) return false;
+  const lower = name.toLowerCase();
+  return (
+    BLOCK_TAGS.has(lower) ||
+    PARAGRAPH_TAGS.has(lower) ||
+    INLINE_TAGS.has(lower) ||
+    lower.includes("-")
+  );
+}
+
 const NAMED_ENTITIES: Record<string, string> = {
   amp: "&",
   lt: "<",
@@ -81,7 +168,8 @@ const PARAGRAPH_MARK = "\u0000";
 
 export function hasMarkup(text: string): boolean {
   let count = 0;
-  for (const _ of text.matchAll(TAG_RE)) {
+  for (const [tag] of text.matchAll(TAG_RE)) {
+    if (!isHtmlTag(tag)) continue;
     count++;
     if (count >= MIN_TAGS) return true;
   }
@@ -104,6 +192,7 @@ export function stripMarkup(text: string): string {
     .replace(/<!doctype[^>]*>/gi, "")
     .replace(/\s+/g, " ")
     .replace(TAG_RE, (tag) => {
+      if (!isHtmlTag(tag)) return tag;
       const name = /^<\/?([a-zA-Z0-9-]+)/.exec(tag)![1]!.toLowerCase();
       if (name === "br") return "\n";
       if (PARAGRAPH_TAGS.has(name)) return "\n" + PARAGRAPH_MARK + "\n";

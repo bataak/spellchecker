@@ -56,3 +56,14 @@ test("cleanText шошго болон үсгийг хамт засна", () => {
     "хүч өгнө",
   );
 });
+
+test("<Enter>, <Esc> зэрэг товчны нэрийг шошго гэж үзэхгүй", () => {
+  const text =
+    "Хадгалахын тулд <Enter> товч, болиулахын тулд <Esc> товч дарна.\nЭнэ бол хоёр дахь мөр. <Del>, <Menu>";
+  assert.equal(hasMarkup(text), false);
+  assert.equal(needsCleanup(text), false);
+  assert.equal(
+    stripMarkup("<p><Enter> дар</p><DIV>хоёр</DIV>"),
+    "<Enter> дар\n\nхоёр",
+  );
+});
