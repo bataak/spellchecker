@@ -2,7 +2,7 @@ import { materializeMark } from "./backdrop.ts";
 import { copyText } from "./clipboard.ts";
 import { escapeHtml } from "./htmlutil.ts";
 import { nf } from "./status.ts";
-import { buildErrorList } from "./textcheck.ts";
+import { buildErrorList, nextOccurrence } from "./textcheck.ts";
 import type { Token } from "./textcheck.ts";
 
 export interface ErrorPanelDeps {
@@ -118,9 +118,10 @@ export function initErrorPanel(deps: ErrorPanelDeps): ErrorPanel {
         return;
       }
       const start = Number(btn.getAttribute("data-start"));
-      const clickedToken = deps
-        .badTokens()
-        .find((token) => token.start === start);
+      const clickedToken = nextOccurrence(deps.badTokens(), start, {
+        start: editor.selectionStart,
+        end: editor.selectionEnd,
+      });
       if (!clickedToken) return;
       deps.onPick();
       editor.focus({ preventScroll: true });

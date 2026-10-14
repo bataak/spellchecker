@@ -173,6 +173,23 @@ export function startsLowerAfterDash(word: string): boolean {
   return ch !== "" && ch === ch.toLowerCase() && ch !== ch.toUpperCase();
 }
 
+// Жагсаалтын нэг чип ижил үгийн бүх давталтыг төлөөлнө: дарах бүрд сонгосон
+// давталтын дараагийнх руу ээлжлэн шилжинэ.
+export function nextOccurrence<T extends Pick<Token, "word" | "start" | "end">>(
+  tokens: readonly T[],
+  start: number,
+  selection: { start: number; end: number },
+): T | undefined {
+  const first = tokens.find((token) => token.start === start);
+  if (!first) return undefined;
+  const key = first.word.toLowerCase();
+  const same = tokens.filter((token) => token.word.toLowerCase() === key);
+  const at = same.findIndex(
+    (token) => token.start === selection.start && token.end === selection.end,
+  );
+  return at < 0 ? first : same[(at + 1) % same.length];
+}
+
 export function buildErrorList(
   tokens: Pick<Token, "word" | "start">[],
 ): ErrorEntry[] {
