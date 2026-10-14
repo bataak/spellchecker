@@ -690,6 +690,7 @@ export function initPreview(
     if (!texRestored && project === null && (await restoreTex(text, seq))) {
       pdfOfProject = false;
       texShown = key;
+      compileBtn.disabled = false;
       return;
     }
     texRestored = true;
