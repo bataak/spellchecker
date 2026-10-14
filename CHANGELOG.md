@@ -1,5 +1,39 @@
 # Changelog
 
+## [1.106.0](https://github.com/bataak/spellchecker/compare/v1.105.3...v1.106.0) (2026-10-14)
+
+
+### Features
+
+* **editor:** compose decomposed letters of a word when it is finished ([2151e3d](https://github.com/bataak/spellchecker/commit/2151e3d077ddff938016d449d5f5720c9776dee8))
+* **layout:** disable preview layouts in the plain text slots ([935c53e](https://github.com/bataak/spellchecker/commit/935c53ede8bdf8c97c50d8430a64812b2fbbefd1))
+* **office:** keep nested list levels in Word, ODT and print ([8865470](https://github.com/bataak/spellchecker/commit/88654700677a16ca82bbdaaf3ec6e4eccb328212))
+* **tabs:** warn when another tab has the same text or a different project open ([37e0808](https://github.com/bataak/spellchecker/commit/37e08087bd28e01771ba2b576a5e9c31c20ea638))
+* **tex:** add a PDF download button to the preview ([873942a](https://github.com/bataak/spellchecker/commit/873942a9446ed26179b269b4287b47f56dc96d74))
+* **tex:** cache compiled PDFs by content so reopened documents and projects skip compiling ([dbde816](https://github.com/bataak/spellchecker/commit/dbde816b8fe5f158b4cf339063d451ee9501a1f7))
+
+
+### Bug Fixes
+
+* **check:** treat decomposed (NFD) й and ё as their composed letters ([f19047b](https://github.com/bataak/spellchecker/commit/f19047baf61048078432f8e9b912a4cbf9423e7c)), closes [#249](https://github.com/bataak/spellchecker/issues/249)
+* **cleanup:** leave key names like &lt;Enter&gt; alone instead of stripping them as HTML ([8fa50cf](https://github.com/bataak/spellchecker/commit/8fa50cf83a7af3d420f0890de7eaece885f671a0)), closes [#248](https://github.com/bataak/spellchecker/issues/248)
+* compose й and ё on every input path, keep typing fast, explain print failures ([04389ce](https://github.com/bataak/spellchecker/commit/04389ce0d96708918f262d9ad533ca46d58bcc9e))
+* **errorpanel:** cycle through every occurrence of a repeated misspelling ([cd70af9](https://github.com/bataak/spellchecker/commit/cd70af972d4e179dabcf4400f92d7968af46c642)), closes [#253](https://github.com/bataak/spellchecker/issues/253)
+* **ignore:** stop one tab from overwriting words ignored in another ([0e2cf3d](https://github.com/bataak/spellchecker/commit/0e2cf3dbcd74c223a68ec9e8f154bc8333167684)), closes [#250](https://github.com/bataak/spellchecker/issues/250)
+* **layout:** keep the LaTeX layout separate from the text layout ([6ed6267](https://github.com/bataak/spellchecker/commit/6ed626720f3ed16191e852fc26e790a647a4d545))
+* **markdown:** keep balanced parentheses inside link and image URLs ([cbf7621](https://github.com/bataak/spellchecker/commit/cbf76210bf6c598c03275ddf8c3304065b8b7578)), closes [#245](https://github.com/bataak/spellchecker/issues/245) [#254](https://github.com/bataak/spellchecker/issues/254)
+* **markdown:** keep nested list levels when formatting and exporting ([efda8ed](https://github.com/bataak/spellchecker/commit/efda8ed35a5238c50fc33f6bf127d8612908716f)), closes [#244](https://github.com/bataak/spellchecker/issues/244) [#252](https://github.com/bataak/spellchecker/issues/252)
+* **mdedit:** bold and italic wrap each selected line on its own ([a1f84fd](https://github.com/bataak/spellchecker/commit/a1f84fd164857d864ca01fa570c6b96bdc2d251e)), closes [#246](https://github.com/bataak/spellchecker/issues/246) [#251](https://github.com/bataak/spellchecker/issues/251)
+* **mdtoolbar:** keep the file menu under its button while closing files ([f6c17e1](https://github.com/bataak/spellchecker/commit/f6c17e15e930e726c1c9c9e59ec42f10a395fb4c)), closes [#243](https://github.com/bataak/spellchecker/issues/243)
+* **paste:** compose decomposed (NFD) letters when pasting ([c11428f](https://github.com/bataak/spellchecker/commit/c11428ff7ffac8b8e0a8ecfd230d82872fe9de15)), closes [#249](https://github.com/bataak/spellchecker/issues/249)
+* **project:** hide the project panel when switching from the project to another file ([45e66a7](https://github.com/bataak/spellchecker/commit/45e66a7e1f59f68576ad9db7dd5b95f0003a6663))
+* **project:** hide the project panel when the project is closed ([c74196d](https://github.com/bataak/spellchecker/commit/c74196d4031168f5256fece38b180a1532708134))
+* **project:** stop a slot switch from overwriting the open project file ([eb5eb8a](https://github.com/bataak/spellchecker/commit/eb5eb8aa8625cca1fceec2a38e198cf5f10a1d09))
+* **storage:** keep each tab's slot, text and project edits from overwriting another tab's ([aa7a453](https://github.com/bataak/spellchecker/commit/aa7a453ca4116b9da5e2914c51a735a7fe7399bc))
+* **tabs:** close the remaining ways tabs and restores overwrite text ([b850bac](https://github.com/bataak/spellchecker/commit/b850bac4e57e6ef20be48c85cb626e1fc4dda288))
+* **tex:** keep a leading [ in list items out of \item's optional argument ([1112b6c](https://github.com/bataak/spellchecker/commit/1112b6c4f1411e78c3505f87f3938a55c46a9f64)), closes [#255](https://github.com/bataak/spellchecker/issues/255)
+* **tex:** skip comments that follow a \\ line break ([b0ff163](https://github.com/bataak/spellchecker/commit/b0ff163708163d539a72c98942399da24654caf1)), closes [#247](https://github.com/bataak/spellchecker/issues/247)
+
 ## [1.105.3](https://github.com/bataak/spellchecker/compare/v1.105.2...v1.105.3) (2026-10-14)
 
 
