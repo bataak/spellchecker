@@ -1,15 +1,24 @@
-import {
-  initDraftStorage,
-  saveDraft,
-  flushDraft,
-  loadDraft,
-} from "./storage.ts";
+import { loadDraft, loadDraftFile, saveDraftFile } from "./storage.ts";
+
+export interface SlotStore {
+  readonly slot: () => string;
+  readonly shared: () => string;
+  readonly read: (slot: string) => Promise<string | null>;
+  readonly write: (slot: string, text: string) => void;
+  readonly caret: (
+    slot: string,
+  ) => { start: number; end: number; scroll: number } | null;
+  readonly writeCaret: (
+    slot: string,
+    caret: { start: number; end: number; scroll: number },
+  ) => void;
+}
 
 export interface DraftTextDeps {
   readonly editor: HTMLTextAreaElement;
-  readonly setStatus: (html: string) => void;
   readonly onLoaded: () => void;
   readonly onCaret: (caret: { start: number; end: number }) => void;
+  readonly store: () => SlotStore;
 }
 
 export interface DraftText {
@@ -21,36 +30,47 @@ export interface DraftText {
 }
 
 const CARET_KEY = "mn-spell:caret";
+const MIGRATED_KEY = "mn-spell:slot-text";
+
+async function migrateShared(store: SlotStore): Promise<void> {
+  try {
+    if (localStorage.getItem(MIGRATED_KEY) !== null) return;
+  } catch (_) {
+    return;
+  }
+  const slot = store.shared();
+  const text = await loadDraft().catch(() => null);
+  if (text !== null && text.trim() !== "") store.write(slot, text);
+  const ref = loadDraftFile();
+  if (ref !== null) saveDraftFile(ref, slot);
+  try {
+    const [start, end, scroll] = (localStorage.getItem(CARET_KEY) ?? "")
+      .split(",")
+      .map(Number);
+    if ([start, end, scroll].every((n) => Number.isFinite(n)))
+      store.writeCaret(slot, { start: start!, end: end!, scroll: scroll! });
+    localStorage.setItem(MIGRATED_KEY, "1");
+  } catch (_) {}
+}
 
 export function initDraftText(deps: DraftTextDeps): DraftText {
   const { editor } = deps;
-  let storageWarned = false;
-
-  function warnStorageFailure(): void {
-    if (storageWarned) return;
-    storageWarned = true;
-    deps.setStatus(
-      "Анхаар: бичвэр автоматаар хадгалагдсангүй — " +
-        "хаахаасаа өмнө файл болгож хадгална уу",
-    );
+  function caretNow(): { start: number; end: number; scroll: number } {
+    return {
+      start: editor.selectionStart,
+      end: editor.selectionEnd,
+      scroll: editor.scrollTop,
+    };
   }
-  initDraftStorage({ onError: warnStorageFailure });
 
   function saveCaret(): void {
-    try {
-      const selectionStart = editor.selectionStart;
-      const selectionEnd = editor.selectionEnd;
-      if (selectionStart != null)
-        localStorage.setItem(
-          CARET_KEY,
-          selectionStart + "," + selectionEnd + "," + editor.scrollTop,
-        );
-    } catch (_) {}
+    const store = deps.store();
+    store.writeCaret(store.slot(), caretNow());
   }
 
   function save(): void {
-    saveDraft(editor.value);
-    saveCaret();
+    const store = deps.store();
+    store.write(store.slot(), editor.value);
   }
 
   let bootScroll: number | null = null;
@@ -67,26 +87,24 @@ export function initDraftText(deps: DraftTextDeps): DraftText {
 
   async function load(): Promise<void> {
     try {
-      const draftText = await loadDraft();
+      const store = deps.store();
+      await migrateShared(store);
+      const slot = store.slot();
+      const draftText = await store.read(slot);
       if (draftText != null) {
         editor.value = draftText;
         deps.onLoaded();
       }
-      const savedCaretRaw = localStorage.getItem(CARET_KEY);
-      if (savedCaretRaw != null) {
-        const parts = savedCaretRaw.split(",");
+      const caret = store.caret(slot);
+      if (caret != null) {
         const len = editor.value.length;
-        const start = Math.min(Math.max(0, parseInt(parts[0], 10) || 0), len);
-        const end = Math.min(
-          Math.max(start, parseInt(parts[1], 10) || start),
-          len,
-        );
+        const start = Math.min(Math.max(0, caret.start), len);
+        const end = Math.min(Math.max(start, caret.end), len);
         try {
           editor.setSelectionRange(start, end);
         } catch (_) {}
         deps.onCaret({ start, end });
-        const top = parseFloat(parts[2] ?? "");
-        if (Number.isFinite(top) && top > 0) bootScroll = top;
+        if (caret.scroll > 0) bootScroll = caret.scroll;
       }
     } catch (_) {}
   }
@@ -106,15 +124,9 @@ export function initDraftText(deps: DraftTextDeps): DraftText {
   document.addEventListener("selectionchange", () => {
     if (document.activeElement === editor) saveCaretSoon();
   });
-  window.addEventListener("pagehide", () => {
-    save();
-    flushDraft();
-  });
+  window.addEventListener("pagehide", save);
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") {
-      save();
-      flushDraft();
-    }
+    if (document.visibilityState === "hidden") save();
   });
 
   return { save, saveSoon, load, restoreBootScroll, dropBootScroll };

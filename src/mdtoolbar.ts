@@ -22,6 +22,7 @@ import { dropSlotText, loadSlotText, saveSlotText } from "./storage.ts";
 import {
   FILE_LIMIT,
   PROJECT_SLOT,
+  SLOTS_KEY,
   isFileSlot,
   loadSlots,
   nextFileId,
@@ -59,6 +60,9 @@ export interface MdToolbar {
   template: () => string;
   slot: () => string;
   draft: (key: string) => Promise<string | null>;
+  caret: (key: string) => Caret | null;
+  writeDraft: (key: string, text: string) => void;
+  writeCaret: (key: string, caret: Caret) => void;
   reset: () => void;
   openFile: (name: string) => boolean;
   closeFile: (id: string, force?: boolean) => void;
@@ -180,9 +184,30 @@ const ALIGN_ROLE: Partial<Record<Role, AlignKind>> = {
 
 const TEMPLATE_KEY = "mdTemplate";
 
-function loadTemplateId(): string {
+function storedTemplateId(): string | null {
   try {
-    const stored = localStorage.getItem(TEMPLATE_KEY);
+    return (
+      sessionStorage.getItem(TEMPLATE_KEY) ?? localStorage.getItem(TEMPLATE_KEY)
+    );
+  } catch (_) {
+    return null;
+  }
+}
+
+export function sharedSlot(): string {
+  try {
+    return pickerValue(validTemplateId(localStorage.getItem(TEMPLATE_KEY)));
+  } catch (_) {
+    return PLAIN;
+  }
+}
+
+function loadTemplateId(): string {
+  return validTemplateId(storedTemplateId());
+}
+
+function validTemplateId(stored: string | null): string {
+  try {
     const raw = stored === null ? null : (LEGACY_TEMPLATES[stored] ?? stored);
     if (raw === null) return PLAIN;
     if (findTemplate(raw) !== undefined || raw === PROJECT_SLOT) return raw;
@@ -310,7 +335,7 @@ function migrateSlotDrafts(): void {
 
 const CARET_PREFIX = "mdCaret:";
 
-interface Caret {
+export interface Caret {
   readonly start: number;
   readonly end: number;
   readonly scroll: number;
@@ -344,6 +369,9 @@ function saveCaret(key: string, caret: Caret): void {
 }
 
 function saveTemplateId(id: string): void {
+  try {
+    sessionStorage.setItem(TEMPLATE_KEY, id);
+  } catch (_) {}
   try {
     if (id === PLAIN) localStorage.removeItem(TEMPLATE_KEY);
     else localStorage.setItem(TEMPLATE_KEY, id);
@@ -496,6 +524,19 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   menu.setAttribute("aria-label", "Баримтын загвар");
   menu.hidden = true;
   let files = loadSlots();
+
+  function storedFiles(): FileSlot[] {
+    const stored = loadSlots();
+    const own = files.find((item) => item.id === templateId);
+    return own && !stored.some((item) => item.id === own.id)
+      ? [...stored, own]
+      : stored;
+  }
+
+  function updateFiles(change: (list: FileSlot[]) => FileSlot[]): void {
+    files = change(storedFiles());
+    saveSlots(files);
+  }
   let lastTemplate =
     isFileSlot(templateId) || templateId === PROJECT_SLOT ? PLAIN : templateId;
   let projectName: string | null = null;
@@ -559,10 +600,9 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     shownFile = name;
     const slot = files.find((item) => item.id === templateId);
     if (slot && name && slot.name !== name) {
-      files = files.map((item) =>
-        item.id === slot.id ? { ...item, name } : item,
+      updateFiles((list) =>
+        list.map((item) => (item.id === slot.id ? { ...item, name } : item)),
       );
-      saveSlots(files);
       rebuildMenu();
     }
     select.textContent = name ? "Файл" : pickedLabel;
@@ -880,10 +920,10 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   }
 
   function openFile(name: string): boolean {
-    if (files.length >= FILE_LIMIT) return false;
-    const id = nextFileId(files);
-    files = [...files, { id, name, sum: null }];
-    saveSlots(files);
+    const current = storedFiles();
+    if (current.length >= FILE_LIMIT) return false;
+    const id = nextFileId(current);
+    updateFiles((list) => [...list, { id, name, sum: null }]);
     rebuildMenu();
     chooseTemplate(id);
     return true;
@@ -904,8 +944,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       const others = files.filter((item) => item.id !== id);
       chooseTemplate(others.at(-1)?.id ?? lastTemplate);
     }
-    files = files.filter((item) => item.id !== id);
-    saveSlots(files);
+    updateFiles((list) => list.filter((item) => item.id !== id));
     dropDraft(id);
     dropCaret(id);
     options.onCloseFile?.(id);
@@ -935,10 +974,9 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   function markSaved(): void {
     if (!isFileSlot(templateId)) return;
     const sum = textSum(editor.value);
-    files = files.map((item) =>
-      item.id === templateId ? { ...item, sum } : item,
+    updateFiles((list) =>
+      list.map((item) => (item.id === templateId ? { ...item, sum } : item)),
     );
-    saveSlots(files);
   }
 
   async function loadDefault(key: string, example: string): Promise<void> {
@@ -1074,6 +1112,12 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   window.addEventListener("resize", onMenuViewport);
   window.addEventListener("scroll", onMenuViewport, true);
   window.visualViewport?.addEventListener("resize", onMenuViewport);
+  const onStorage = (event: StorageEvent): void => {
+    if (event.key !== null && event.key !== SLOTS_KEY) return;
+    files = storedFiles();
+    rebuildMenu();
+  };
+  window.addEventListener("storage", onStorage);
   editor.addEventListener("beforeinput", onBeforeInput);
   editor.addEventListener("input", syncActive);
   document.addEventListener("focusin", onFocus);
@@ -1085,6 +1129,13 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     template: () => templateId,
     slot: () => pickerValue(templateId),
     draft: readDraft,
+    caret: loadCaret,
+    writeDraft(key: string, text: string): void {
+      if (key !== loadingKey) saveDraft(key, text);
+    },
+    writeCaret(key: string, caret: Caret): void {
+      if (key !== loadingKey) saveCaret(key, caret);
+    },
     reset(): void {
       dropDraft(pickerValue(templateId));
       dropLegacyPending();
@@ -1108,6 +1159,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       document.removeEventListener("focusin", onFocus);
       document.removeEventListener("focusout", onFocus);
       document.removeEventListener("selectionchange", onSelectionChange);
+      window.removeEventListener("storage", onStorage);
       document.removeEventListener("pointerdown", onMenuPointer);
       window.removeEventListener("resize", onMenuViewport);
       window.removeEventListener("scroll", onMenuViewport, true);

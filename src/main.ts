@@ -60,7 +60,7 @@ import {
   dropOfficeFile,
   type DraftFile,
 } from "./storage.ts";
-import { initMdToolbar } from "./mdtoolbar.ts";
+import { initMdToolbar, sharedSlot } from "./mdtoolbar.ts";
 import {
   defineHint,
   exportHint,
@@ -1207,11 +1207,18 @@ function syncFixButtons(): void {
 
 const draft = initDraftText({
   editor: els.editor,
-  setStatus,
   onLoaded: () => syncFixButtons(),
   onCaret: (caret) => {
     lastCaret = caret;
   },
+  store: () => ({
+    slot: mdBar.slot,
+    shared: sharedSlot,
+    read: mdBar.draft,
+    write: mdBar.writeDraft,
+    caret: mdBar.caret,
+    writeCaret: mdBar.writeCaret,
+  }),
 });
 const saveText = draft.save;
 
@@ -1624,7 +1631,7 @@ const fileIO = initFileIO({
   onFileOpened: (ref) => {
     projectLink?.unbind(true);
     plainName = ref ? ref.name : null;
-    saveDraftFile(ref);
+    saveDraftFile(ref, mdBar.slot());
     syncSaveHint();
     mdBar.refresh();
     enterMdMode(mdActive());
@@ -1722,7 +1729,7 @@ function swapTemplateFile(from: string, to: string): void {
   if (stored?.kind === "office") {
     fileIO.putFile(null);
     plainName = stored.name;
-    saveDraftFile(stored);
+    saveDraftFile(stored, to);
     syncSaveHint();
     mdBar.refresh();
     if (wasBound) previewCtl?.update();
@@ -1734,7 +1741,7 @@ function swapTemplateFile(from: string, to: string): void {
     (stored ? { handle: null, name: stored.name } : null);
   fileIO.putFile(next);
   plainName = next ? next.name : null;
-  saveDraftFile(next ? { name: next.name, kind: "text" } : null);
+  saveDraftFile(next ? { name: next.name, kind: "text" } : null, to);
   syncSaveHint();
   mdBar.refresh();
   if (wasBound) previewCtl?.update();
@@ -1761,7 +1768,7 @@ async function unparkDocx(slot: string, ref: DraftFile): Promise<void> {
     els.editor.readOnly = false;
     fileIO.restoreFile(ref);
     plainName = fileIO.targetName();
-    saveDraftFile(plainName ? { name: plainName, kind: "text" } : null);
+    saveDraftFile(plainName ? { name: plainName, kind: "text" } : null, slot);
   }
   syncSaveHint();
   mdBar.refresh();
@@ -1826,7 +1833,7 @@ if (workspaceEl)
     bindName: (name) => {
       fileIO.putFile(name ? { handle: null, name } : null);
       plainName = name;
-      saveDraftFile(name ? { name, kind: "text" } : null);
+      saveDraftFile(name ? { name, kind: "text" } : null, mdBar.slot());
       syncSaveHint();
       mdBar.refresh();
       restoreStatus();
@@ -1923,7 +1930,7 @@ async function restoreOfficeFile(name: string): Promise<boolean> {
 }
 
 async function restoreDraftFile(): Promise<void> {
-  const ref = loadDraftFile();
+  const ref = loadDraftFile(mdBar.slot());
   if (!ref) return;
   if (ref.kind === "office" && (await restoreOfficeFile(ref.name))) {
     plainName = ref.name;

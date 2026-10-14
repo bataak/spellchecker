@@ -1,7 +1,7 @@
 export const FILE_LIMIT = 10;
 export const PROJECT_SLOT = "project";
 const FILE_PREFIX = "file-";
-const LIST_KEY = "mdFiles";
+export const SLOTS_KEY = "mdFiles";
 
 export interface FileSlot {
   readonly id: string;
@@ -53,7 +53,7 @@ export function parseSlots(raw: string | null): FileSlot[] {
 
 export function loadSlots(): FileSlot[] {
   try {
-    return parseSlots(localStorage.getItem(LIST_KEY));
+    return parseSlots(localStorage.getItem(SLOTS_KEY));
   } catch {
     return [];
   }
@@ -61,7 +61,7 @@ export function loadSlots(): FileSlot[] {
 
 export function saveSlots(slots: readonly FileSlot[]): void {
   try {
-    if (slots.length) localStorage.setItem(LIST_KEY, JSON.stringify(slots));
-    else localStorage.removeItem(LIST_KEY);
+    if (slots.length) localStorage.setItem(SLOTS_KEY, JSON.stringify(slots));
+    else localStorage.removeItem(SLOTS_KEY);
   } catch {}
 }

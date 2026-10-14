@@ -204,8 +204,14 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     )
       return;
     bind(view.active);
-    pushText();
-    deps.afterSwitch();
+    const text = projectText(view.active);
+    if (text === null || text === editor.value) deps.afterSwitch();
+    else
+      load(text, {
+        start: editor.selectionStart,
+        end: editor.selectionEnd,
+        scroll: editor.scrollTop,
+      });
   };
 
   const opened = (fresh: boolean, prefer?: string): void => {
