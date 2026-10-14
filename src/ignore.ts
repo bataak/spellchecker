@@ -1,5 +1,4 @@
-const KEY = "mn-spell:ignored";
-
+import { KEYS, readJson, writeJson } from "./store.ts";
 type CasePattern = "lower" | "capital" | "upper";
 
 let ignored: string[] = [];
@@ -31,22 +30,15 @@ function rebuild() {
 }
 
 function load() {
-  try {
-    const raw = localStorage.getItem(KEY);
-    const parsed: unknown = raw ? JSON.parse(raw) : [];
-    ignored = Array.isArray(parsed)
-      ? parsed.filter((w): w is string => typeof w === "string")
-      : [];
-  } catch (_) {
-    ignored = [];
-  }
+  const parsed = readJson(KEYS.ignored);
+  ignored = Array.isArray(parsed)
+    ? parsed.filter((w): w is string => typeof w === "string")
+    : [];
   rebuild();
 }
 
 function persist() {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(ignored));
-  } catch (_) {}
+  writeJson(KEYS.ignored, ignored);
 }
 
 export function isIgnored(word: string): boolean {
@@ -111,7 +103,7 @@ export function onIgnoredChange(listener: () => void): void {
 load();
 if (typeof window !== "undefined") {
   window.addEventListener("storage", (event) => {
-    if (event.key !== KEY && event.key !== null) return;
+    if (event.key !== KEYS.ignored.name && event.key !== null) return;
     load();
     for (const listener of listeners) listener();
   });

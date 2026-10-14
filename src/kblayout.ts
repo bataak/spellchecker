@@ -1,4 +1,5 @@
 import { replaceRange } from "./editortext.ts";
+import { KEYS, read, remove, write } from "./store.ts";
 
 export type Layout = "mn" | "en";
 
@@ -88,7 +89,6 @@ const EN: KeyMap = {
 
 const MAPS: Readonly<Record<Layout, KeyMap>> = { mn: MN, en: EN };
 const LETTER = /\p{L}/u;
-const STORAGE_KEY = "keyboard-layout";
 const BADGE_MS = 1100;
 
 export function mapKey(
@@ -113,19 +113,13 @@ export function otherLayout(system: Layout | null): Layout {
 }
 
 function loadForced(): Layout | null {
-  try {
-    const value = localStorage.getItem(STORAGE_KEY);
-    return value === "mn" || value === "en" ? value : null;
-  } catch {
-    return null;
-  }
+  const value = read(KEYS.keyboardLayout);
+  return value === "mn" || value === "en" ? value : null;
 }
 
 function saveForced(layout: Layout | null): void {
-  try {
-    if (layout) localStorage.setItem(STORAGE_KEY, layout);
-    else localStorage.removeItem(STORAGE_KEY);
-  } catch {}
+  if (layout) write(KEYS.keyboardLayout, layout);
+  else remove(KEYS.keyboardLayout);
 }
 
 const MIRROR_STYLES = [

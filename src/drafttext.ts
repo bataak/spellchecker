@@ -1,9 +1,10 @@
 import {
   dropSharedDraft,
   loadDraft,
-  loadDraftFile,
+  loadLegacyDraftFile,
   saveDraftFile,
 } from "./storage.ts";
+import { KEYS, read, remove, write } from "./store.ts";
 
 export interface SlotStore {
   readonly slot: () => string;
@@ -34,34 +35,23 @@ export interface DraftText {
   readonly dropBootScroll: () => void;
 }
 
-const CARET_KEY = "mn-spell:caret";
-const MIGRATED_KEY = "mn-spell:slot-text";
-
 async function migrateShared(store: SlotStore): Promise<void> {
-  try {
-    if (localStorage.getItem(MIGRATED_KEY) !== null) return;
-  } catch (_) {
-    return;
-  }
+  if (read(KEYS.migrated) !== null) return;
   const slot = store.shared();
   const text = await loadDraft().catch(() => null);
   if (text !== null && text.trim() !== "") {
     store.write(slot, text);
     if ((await store.read(slot)) !== text) return;
   }
-  const ref = loadDraftFile();
+  const ref = loadLegacyDraftFile();
   if (ref !== null) saveDraftFile(ref, slot);
-  try {
-    const [start, end, scroll] = (localStorage.getItem(CARET_KEY) ?? "")
-      .split(",")
-      .map(Number);
-    if ([start, end, scroll].every((n) => Number.isFinite(n)))
-      store.writeCaret(slot, { start: start!, end: end!, scroll: scroll! });
-    localStorage.removeItem(CARET_KEY);
-    localStorage.setItem(MIGRATED_KEY, "1");
-  } catch (_) {
-    return;
-  }
+  const [start, end, scroll] = (read(KEYS.legacyCaret) ?? "")
+    .split(",")
+    .map(Number);
+  if ([start, end, scroll].every((n) => Number.isFinite(n)))
+    store.writeCaret(slot, { start: start!, end: end!, scroll: scroll! });
+  remove(KEYS.legacyCaret);
+  if (!write(KEYS.migrated, "1")) return;
   await dropSharedDraft();
 }
 

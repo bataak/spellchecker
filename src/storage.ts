@@ -1,6 +1,12 @@
-const TEXT_KEY = "mn-spell:text";
-const FILE_KEY = "mn-spell:file";
-const TIER_KEY = "mn-spell:tier";
+import {
+  KEYS,
+  at,
+  read,
+  readJson,
+  remove,
+  type StoreKey,
+  writeJson,
+} from "./store.ts";
 const IDB_TEXT_KEY = "text";
 const DB_NAME = "mn-spell";
 const STORE_NAME = "kv";
@@ -12,36 +18,32 @@ export interface DraftFile {
   kind: "text" | "office";
 }
 
-export function saveDraftFile(ref: DraftFile | null, slot?: string): void {
-  const key = slot === undefined ? FILE_KEY : FILE_KEY + ":" + slot;
-  try {
-    if (ref === null) localStorage.removeItem(key);
-    else localStorage.setItem(key, JSON.stringify(ref));
-  } catch (_) {}
+export function saveDraftFile(ref: DraftFile | null, slot: string): void {
+  if (ref === null) remove(at(KEYS.fileRef, slot));
+  else writeJson(at(KEYS.fileRef, slot), ref);
 }
 
-export function loadDraftFile(slot?: string): DraftFile | null {
-  const key = slot === undefined ? FILE_KEY : FILE_KEY + ":" + slot;
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    const value = JSON.parse(raw) as Partial<DraftFile>;
-    if (typeof value.name !== "string" || value.name === "") return null;
-    return {
-      name: value.name,
-      kind: value.kind === "office" ? "office" : "text",
-    };
-  } catch (_) {
-    return null;
-  }
+function draftFile(key: StoreKey): DraftFile | null {
+  const value = readJson(key) as Partial<DraftFile> | null;
+  if (typeof value?.name !== "string" || value.name === "") return null;
+  return {
+    name: value.name,
+    kind: value.kind === "office" ? "office" : "text",
+  };
+}
+
+export function loadDraftFile(slot: string): DraftFile | null {
+  return draftFile(at(KEYS.fileRef, slot));
+}
+
+export function loadLegacyDraftFile(): DraftFile | null {
+  return draftFile(KEYS.legacyFile);
 }
 
 export function dropSharedDraft(): Promise<void> {
-  try {
-    localStorage.removeItem(TEXT_KEY);
-    localStorage.removeItem(TIER_KEY);
-    localStorage.removeItem(FILE_KEY);
-  } catch (_) {}
+  remove(KEYS.legacyText);
+  remove(KEYS.legacyTier);
+  remove(KEYS.legacyFile);
   return idbDelete(IDB_TEXT_KEY)
     .then(() => undefined)
     .catch(() => undefined);
@@ -94,19 +96,11 @@ export function dropSlotText(key: string): Promise<void> {
 }
 
 function readLocal(): string | null {
-  try {
-    return localStorage.getItem(TEXT_KEY);
-  } catch (_) {
-    return null;
-  }
+  return read(KEYS.legacyText);
 }
 
 function getTier(): string | null {
-  try {
-    return localStorage.getItem(TIER_KEY);
-  } catch (_) {
-    return null;
-  }
+  return read(KEYS.legacyTier);
 }
 
 function openDb(): Promise<IDBDatabase> {

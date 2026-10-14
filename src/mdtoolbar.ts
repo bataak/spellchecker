@@ -22,7 +22,6 @@ import { dropSlotText, loadSlotText, saveSlotText } from "./storage.ts";
 import {
   FILE_LIMIT,
   PROJECT_SLOT,
-  SLOTS_KEY,
   isFileSlot,
   loadSlots,
   nextFileId,
@@ -40,6 +39,7 @@ import {
   findTemplate,
   isPlain,
 } from "./templates.ts";
+import { KEYS, at, read, readShared, remove, write } from "./store.ts";
 
 export interface MdToolbarOptions {
   readonly editor: HTMLTextAreaElement;
@@ -182,28 +182,12 @@ const ALIGN_ROLE: Partial<Record<Role, AlignKind>> = {
   signature: "signature",
 };
 
-const TEMPLATE_KEY = "mdTemplate";
-
-function storedTemplateId(): string | null {
-  try {
-    return (
-      sessionStorage.getItem(TEMPLATE_KEY) ?? localStorage.getItem(TEMPLATE_KEY)
-    );
-  } catch (_) {
-    return null;
-  }
-}
-
 export function sharedSlot(): string {
-  try {
-    return pickerValue(validTemplateId(localStorage.getItem(TEMPLATE_KEY)));
-  } catch (_) {
-    return PLAIN;
-  }
+  return pickerValue(validTemplateId(readShared(KEYS.template)));
 }
 
 function loadTemplateId(): string {
-  return validTemplateId(storedTemplateId());
+  return validTemplateId(read(KEYS.template));
 }
 
 function validTemplateId(stored: string | null): string {
@@ -217,26 +201,12 @@ function validTemplateId(stored: string | null): string {
   }
 }
 
-const EXAMPLE_KEY = "mdExample:";
-
 function loadExampleChoice(slot: string): string | null {
-  try {
-    return (
-      sessionStorage.getItem(EXAMPLE_KEY + slot) ??
-      localStorage.getItem(EXAMPLE_KEY + slot)
-    );
-  } catch (_) {
-    return null;
-  }
+  return read(at(KEYS.example, slot));
 }
 
 function saveExampleChoice(slot: string, example: string): void {
-  try {
-    sessionStorage.setItem(EXAMPLE_KEY + slot, example);
-  } catch (_) {}
-  try {
-    localStorage.setItem(EXAMPLE_KEY + slot, example);
-  } catch (_) {}
+  write(at(KEYS.example, slot), example);
 }
 
 function chosenExample(slot: string): string | undefined {
@@ -249,8 +219,6 @@ function pickerValue(slot: string): string {
   const example = chosenExample(slot);
   return example === undefined ? slot : slot + ":" + example;
 }
-
-const DRAFT_PREFIX = "mdDraft:";
 
 const DRAFT_MAX = 200000;
 const LARGE_DRAFT = "\u0000idb";
@@ -266,11 +234,7 @@ function onSlot(id: string, op: () => Promise<void>): void {
 }
 
 function loadDraft(id: string): string | null {
-  try {
-    return localStorage.getItem(DRAFT_PREFIX + id);
-  } catch (_) {
-    return null;
-  }
+  return read(at(KEYS.draft, id));
 }
 
 function smallDraft(id: string): string | null {
@@ -292,10 +256,8 @@ async function readDraft(id: string): Promise<string | null> {
 function saveDraft(id: string, text: string): void {
   const large = text.trim() !== "" && text.length > DRAFT_MAX;
   const wasLarge = loadDraft(id) === LARGE_DRAFT;
-  try {
-    if (text.trim() === "") localStorage.removeItem(DRAFT_PREFIX + id);
-    else localStorage.setItem(DRAFT_PREFIX + id, large ? LARGE_DRAFT : text);
-  } catch (_) {
+  if (text.trim() === "") remove(at(KEYS.draft, id));
+  else if (!write(at(KEYS.draft, id), large ? LARGE_DRAFT : text)) {
     draftFailed?.();
     return;
   }
@@ -305,9 +267,7 @@ function saveDraft(id: string, text: string): void {
 
 function dropDraft(id: string): void {
   const wasLarge = loadDraft(id) === LARGE_DRAFT;
-  try {
-    localStorage.removeItem(DRAFT_PREFIX + id);
-  } catch (_) {}
+  remove(at(KEYS.draft, id));
   if (wasLarge) onSlot(id, () => dropSlotText(id));
 }
 
@@ -339,8 +299,6 @@ function migrateSlotDrafts(): void {
   }
 }
 
-const CARET_PREFIX = "mdCaret:";
-
 export interface Caret {
   readonly start: number;
   readonly end: number;
@@ -348,40 +306,26 @@ export interface Caret {
 }
 
 function loadCaret(key: string): Caret | null {
-  try {
-    const raw = localStorage.getItem(CARET_PREFIX + key);
-    const [start, end, scroll] = (raw ?? "").split(",").map(Number);
-    if (raw === null || [start, end, scroll].some((n) => !Number.isFinite(n)))
-      return null;
-    return { start: start!, end: end!, scroll: scroll! };
-  } catch (_) {
+  const raw = read(at(KEYS.caret, key));
+  const [start, end, scroll] = (raw ?? "").split(",").map(Number);
+  if (raw === null || [start, end, scroll].some((n) => !Number.isFinite(n)))
     return null;
-  }
+  return { start: start!, end: end!, scroll: scroll! };
 }
 
 function dropCaret(key: string): void {
-  try {
-    localStorage.removeItem(CARET_PREFIX + key);
-  } catch (_) {}
+  remove(at(KEYS.caret, key));
 }
 
 function saveCaret(key: string, caret: Caret): void {
-  try {
-    localStorage.setItem(
-      CARET_PREFIX + key,
-      caret.start + "," + caret.end + "," + caret.scroll,
-    );
-  } catch (_) {}
+  write(
+    at(KEYS.caret, key),
+    caret.start + "," + caret.end + "," + caret.scroll,
+  );
 }
 
 function saveTemplateId(id: string): void {
-  try {
-    sessionStorage.setItem(TEMPLATE_KEY, id);
-  } catch (_) {}
-  try {
-    if (id === PLAIN) localStorage.removeItem(TEMPLATE_KEY);
-    else localStorage.setItem(TEMPLATE_KEY, id);
-  } catch (_) {}
+  write(KEYS.template, id);
 }
 
 const TITLE_HOLD_MS = 3000;
@@ -1119,7 +1063,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   window.addEventListener("scroll", onMenuViewport, true);
   window.visualViewport?.addEventListener("resize", onMenuViewport);
   const onStorage = (event: StorageEvent): void => {
-    if (event.key !== null && event.key !== SLOTS_KEY) return;
+    if (event.key !== null && event.key !== KEYS.slots.name) return;
     files = storedFiles();
     rebuildMenu();
   };

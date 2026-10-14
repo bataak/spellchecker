@@ -1,4 +1,4 @@
-const FLAG = "mn-spell:wipe";
+import { KEYS, read, write } from "./store.ts";
 const DATABASES = [
   "mn-spell",
   "mn-spell-user-dicts",
@@ -70,14 +70,8 @@ export function initWipeButton(btn: HTMLElement): void {
 }
 
 export function requestWipe(): void {
-  try {
-    sessionStorage.setItem(FLAG, "1");
-  } catch {
-    wipeNow();
-  }
+  if (!write(KEYS.wipe, "1")) wipeNow();
   location.reload();
 }
 
-try {
-  if (sessionStorage.getItem(FLAG)) wipeNow();
-} catch {}
+if (read(KEYS.wipe)) wipeNow();

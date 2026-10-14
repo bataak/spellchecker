@@ -21,11 +21,7 @@ import {
   type Layout,
   type Metrics,
 } from "./layout.ts";
-
-const STORAGE_KEY = "layout";
-const TEX_STORAGE_KEY = "layout-tex";
-const MD_PREVIEW_KEY = "md-preview";
-const TEX_PREVIEW_KEY = "md-preview-tex";
+import { KEYS, read, remove, write } from "./store.ts";
 
 const SAMPLE =
   "Монгол хэлний үг залгамал бүтэцтэй тул нэлээд урт болдог, " +
@@ -155,40 +151,21 @@ function projectRoom(wrap: HTMLElement, x: Metrics): number {
 }
 
 function load(tex: boolean): Layout {
-  try {
-    return parseLayout(
-      localStorage.getItem(tex ? TEX_STORAGE_KEY : STORAGE_KEY),
-    );
-  } catch {
-    return { ...DEFAULT_LAYOUT };
-  }
+  return parseLayout(read(tex ? KEYS.layoutTex : KEYS.layout));
 }
 
 function save(l: Layout, tex: boolean): void {
-  try {
-    localStorage.setItem(
-      tex ? TEX_STORAGE_KEY : STORAGE_KEY,
-      serializeLayout(l),
-    );
-  } catch {}
+  write(tex ? KEYS.layoutTex : KEYS.layout, serializeLayout(l));
 }
 
 function loadMdPreview(tex: boolean): boolean {
-  try {
-    return (
-      localStorage.getItem(tex ? TEX_PREVIEW_KEY : MD_PREVIEW_KEY) !== "off"
-    );
-  } catch {
-    return true;
-  }
+  return read(tex ? KEYS.mdPreviewTex : KEYS.mdPreview) !== "off";
 }
 
 function saveMdPreview(on: boolean, tex: boolean): void {
-  const key = tex ? TEX_PREVIEW_KEY : MD_PREVIEW_KEY;
-  try {
-    if (on) localStorage.removeItem(key);
-    else localStorage.setItem(key, "off");
-  } catch {}
+  const key = tex ? KEYS.mdPreviewTex : KEYS.mdPreview;
+  if (on) remove(key);
+  else write(key, "off");
 }
 
 function rect(svg: SVGSVGElement, x: number, w: number, cls: string): void {
