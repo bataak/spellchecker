@@ -188,13 +188,18 @@ function listLatex(tree: ListTree, depth: number): string {
     tree.ordered && tree.start !== 1 && counter
       ? pad + "\\setcounter{" + counter + "}{" + String(tree.start - 1) + "}\n"
       : "";
-  const items = tree.entries.map(
-    ({ item, sub }) =>
+  const items = tree.entries.map(({ item, sub }) => {
+    const text = inline(item);
+    // \item-ийн ард шууд орсон [ … ]-г нэмэлт параметр гэж уншихаас сэргийлнэ.
+    const guard = text.startsWith("[") ? "{}" : "";
+    return (
       pad +
       "  \\item " +
-      inline(item) +
-      (sub ? "\n" + listLatex(sub, depth + 1) : ""),
-  );
+      guard +
+      text +
+      (sub ? "\n" + listLatex(sub, depth + 1) : "")
+    );
+  });
   return (
     pad +
     "\\begin{" +
