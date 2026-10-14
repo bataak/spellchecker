@@ -37,6 +37,7 @@ export interface ProjectPanelDeps {
   readonly workspace: HTMLElement;
   readonly tools: () => HTMLElement | null;
   readonly texActive: () => boolean;
+  readonly away: () => string | null;
   readonly openFile: (path: string) => void;
   readonly view: (path: string | null) => boolean;
   readonly beforeOpen: () => boolean;
@@ -218,6 +219,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   toggle.addEventListener("mousedown", (event) => event.preventDefault());
 
   let open = loadOpen() && wide.matches;
+  let awayOpen: string | null = null;
   let laying = false;
   let wasFloating = false;
   const collapsed = new Set<string>();
@@ -250,7 +252,13 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     }
   };
 
-  const visible = (): boolean => open && deps.texActive();
+  const visible = (): boolean => {
+    if (!deps.texActive()) return false;
+    const away = deps.away();
+    if (away !== null) return awayOpen === away;
+    awayOpen = null;
+    return open;
+  };
 
   const place = (): void => {
     const tools = deps.tools();
@@ -309,8 +317,12 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   };
 
   const show = (on: boolean): void => {
-    open = on;
-    saveOpen(on);
+    const away = deps.away();
+    if (away !== null) awayOpen = on ? away : null;
+    if (on || away === null) {
+      open = on;
+      saveOpen(on);
+    }
     syncVisibility();
     if (on) render();
   };

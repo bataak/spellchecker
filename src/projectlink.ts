@@ -280,6 +280,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     workspace: deps.workspace,
     tools: deps.tools,
     texActive: () => bound || deps.texActive(),
+    away: () => (hasProject() && !deps.inSlot() ? deps.slot() : null),
     openFile,
     view: (path) => {
       if (path === null) {
