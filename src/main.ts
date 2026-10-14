@@ -1878,7 +1878,7 @@ function enterMdMode(on: boolean): void {
     markupSkips = markup;
     void render();
   }
-  measureCtl?.setPreviewBlocked(!!openFileName() && !on && !isTexFile());
+  measureCtl?.setPreviewBlocked(!on && !isTexFile());
   measureCtl?.setPreviewMode(on || isTexFile(), isTexFile());
   previewWanted = on || isTexFile();
   syncPreviewClass();
