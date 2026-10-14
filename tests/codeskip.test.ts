@@ -343,6 +343,14 @@ test("latex: skips comments but not escaped percent", () => {
   assert.ok(!texSkipped(text, "Дараах"));
 });
 
+test("latex: a comment right after a \\\\ line break is skipped", () => {
+  const text = "Эхний мөр\\\\% энэ тайлбар алдаатй\nХувь 5\\\\\\% үлдэнэ";
+
+  assert.ok(texSkipped(text, "алдаатй"));
+  assert.ok(!texSkipped(text, "Эхний"));
+  assert.ok(!texSkipped(text, "үлдэнэ"));
+});
+
 test("latex: skips bibitem keys but keeps the reference text", () => {
   const text = "\\bibitem{hunspell} Hunspell толь бичиг";
 
