@@ -1,3 +1,4 @@
+import { isSeparatorInput } from "./input.ts";
 import type { TextEdit } from "./tokenshift.ts";
 
 export interface EditorTextDeps {
@@ -59,6 +60,32 @@ export function pasteComposed(
         data: composed,
       }),
     );
+  return true;
+}
+
+const TRAILING_WORD = /[\p{L}\p{M}]+$/u;
+const MARK = /\p{M}/u;
+
+export function composeTypedWord(
+  editor: HTMLTextAreaElement,
+  event: InputEvent,
+): boolean {
+  if (editor.readOnly || event.isComposing || !isSeparatorInput(event))
+    return false;
+  if (event.inputType.startsWith("insertFrom")) return false;
+  const caret = editor.selectionStart;
+  if (caret !== editor.selectionEnd) return false;
+  const typed =
+    event.inputType === "insertText" ? (event.data?.length ?? 0) : 1;
+  const end = caret - typed;
+  if (end <= 0) return false;
+  const word = TRAILING_WORD.exec(editor.value.slice(0, end))?.[0];
+  if (!word || !MARK.test(word)) return false;
+  const composed = word.normalize("NFC");
+  if (composed === word) return false;
+  replaceRange(editor, end - word.length, end, composed);
+  const next = caret - word.length + composed.length;
+  editor.setSelectionRange(next, next);
   return true;
 }
 
