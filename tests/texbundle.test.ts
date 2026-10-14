@@ -82,3 +82,19 @@ test("ODT гарчгийн жагсаалт сонголтоор", async () => {
   );
   assert.ok(withToc.indexOf("table-of-content") > withToc.indexOf(">Нэр<"));
 });
+
+test("алдааг алгассан engine-ийн PDF-ийг зөвхөн терминалд алдаа гараагүй үед авна", async () => {
+  const { replyPdf } = await import("../src/texpdf.ts");
+  const pdf = new ArrayBuffer(4);
+  assert.equal(replyPdf({ result: "ok", status: 0, log: "", pdf }), pdf);
+  assert.equal(
+    replyPdf({ result: "failed", status: 1, log: "Output written", pdf }),
+    pdf,
+  );
+  assert.equal(
+    replyPdf({ result: "failed", status: 1, log: "! Undefined control sequence.", pdf }),
+    null,
+  );
+  assert.equal(replyPdf({ result: "failed", status: 3, log: "", pdf }), null);
+  assert.equal(replyPdf({ result: "failed", status: 1, log: "" }), null);
+});
