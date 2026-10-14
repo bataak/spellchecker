@@ -102,9 +102,14 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
   let boundPath: string | null = null;
   let boundId = 0;
   const places = new Map<string, Place>();
+  // Өөр загвар руу шилжихэд засварлагчид тэр загварын бичвэр төсөл холбоотой
+  // байхад орж ирнэ — тэр бичвэрийг төслийн файл руу бичихгүй.
+  let detached = false;
+  let loading = false;
 
   const pushText = (): void => {
-    if (bound && boundPath) setProjectText(boundPath, editor.value);
+    if (bound && boundPath && !detached)
+      setProjectText(boundPath, editor.value);
   };
 
   const remember = (): void => {
@@ -120,6 +125,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     bound = true;
     boundPath = path;
     boundId = project()?.id ?? 0;
+    detached = false;
     setLinked(true);
     storeSlot(deps.slot());
   };
@@ -173,13 +179,18 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
       );
     else editor.setSelectionRange(0, 0);
     editor.focus({ preventScroll: true });
-    editor.dispatchEvent(
-      new InputEvent("input", {
-        bubbles: true,
-        inputType: "insertReplacementText",
-        data: TEMPLATE_INPUT,
-      }),
-    );
+    loading = true;
+    try {
+      editor.dispatchEvent(
+        new InputEvent("input", {
+          bubbles: true,
+          inputType: "insertReplacementText",
+          data: TEMPLATE_INPUT,
+        }),
+      );
+    } finally {
+      loading = false;
+    }
     editor.scrollTop = place?.scroll ?? 0;
     deps.afterSwitch();
   };
@@ -322,6 +333,20 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     onLayout: deps.layout,
     notify: deps.notify,
   });
+
+  // Capture үед — бусад input handler (preview-ийн key() гэх мэт) pushText-ийг
+  // дуудахаас өмнө ажиллана.
+  document.addEventListener(
+    "input",
+    (event) => {
+      if (event.target !== editor || loading || !bound || !boundPath) return;
+      if (!(event instanceof InputEvent) || event.data !== TEMPLATE_INPUT)
+        return;
+      if (deps.inSlot()) return;
+      if (projectText(boundPath) !== editor.value) detached = true;
+    },
+    true,
+  );
 
   editor.addEventListener("input", (event) => {
     if (event instanceof InputEvent && event.data === TEMPLATE_INPUT) return;
