@@ -67,7 +67,7 @@ import {
   spellDictHint,
 } from "./hint.ts";
 import { isPlain, PLAIN } from "./templates.ts";
-import { initExport, type ExportControl } from "./export.ts";
+import { initExport, stripExt, type ExportControl } from "./export.ts";
 import {
   initBackdrop,
   renderBackdrop,
@@ -1430,7 +1430,14 @@ if (editorWrap) {
     isLatexText,
     () => projectLink?.key() ?? null,
     () => projectLink?.bound() ?? false,
+    pdfName,
   );
+}
+
+function pdfName(): string {
+  const main = projectLink?.bound() ? project()?.main : null;
+  const name = main?.split("/").pop() ?? fileIO.targetName() ?? plainName;
+  return stripExt(name || "бичвэр") + ".pdf";
 }
 
 const appUpdate = initAppUpdate(setStatus, import.meta.url);

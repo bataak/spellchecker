@@ -162,6 +162,19 @@ function compileGlyph(): SVGSVGElement {
   return svg;
 }
 
+function downloadGlyph(): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", "0 0 16 16");
+  svg.setAttribute("class", "tex-compile-glyph");
+  svg.setAttribute("aria-hidden", "true");
+  for (const d of ["M8 2.5v8", "M4.5 7 8 10.5 11.5 7", "M3 13.5h10"]) {
+    const path = document.createElementNS(SVG_NS, "path");
+    path.setAttribute("d", d);
+    svg.append(path);
+  }
+  return svg;
+}
+
 function contrastGlyph(): SVGSVGElement {
   const svg = document.createElementNS(SVG_NS, "svg");
   svg.setAttribute("viewBox", "0 0 16 16");
@@ -258,6 +271,7 @@ export function initPreview(
   isLatex: (text: string) => boolean = () => false,
   projectKey: () => string | null = () => null,
   inProject: () => boolean = () => false,
+  pdfName: () => string = () => "бичвэр.pdf",
 ): Preview {
   const panel = document.createElement("section");
   panel.className = "preview-panel";
@@ -332,8 +346,16 @@ export function initPreview(
     return button;
   };
   const compileBtn = compileButton("tex-compile");
+  const downloadBtn = document.createElement("button");
+  downloadBtn.type = "button";
+  downloadBtn.className = "tex-compile tex-download";
+  downloadBtn.title = "PDF татах";
+  downloadBtn.setAttribute("aria-label", downloadBtn.title);
+  downloadBtn.disabled = true;
+  downloadBtn.append(downloadGlyph());
+  downloadBtn.addEventListener("mousedown", (event) => event.preventDefault());
 
-  head.append(title, pageNav, compileBtn, zoomBox, invertBtn);
+  head.append(title, pageNav, compileBtn, downloadBtn, zoomBox, invertBtn);
 
   const body = document.createElement("div");
   body.className = "preview-body";
@@ -488,6 +510,7 @@ export function initPreview(
   let texMode = false;
   let texShown: string | null = null;
   let pdfText: string | null = null;
+  let shownPdf: Uint8Array<ArrayBuffer> | null = null;
   let texTimer = 0;
   let texSeq = 0;
   let texRestored = false;
@@ -535,6 +558,8 @@ export function initPreview(
   };
 
   const dropPdf = (): void => {
+    shownPdf = null;
+    downloadBtn.disabled = true;
     pdfText = null;
     texShown = null;
     pdfAbort?.abort();
@@ -621,6 +646,8 @@ export function initPreview(
       return false;
     }
     setPdfView(view);
+    shownPdf = bytes;
+    downloadBtn.disabled = false;
     panel.classList.remove("is-blank");
     body.classList.remove("is-empty");
     body.scrollTop = scroll;
@@ -766,6 +793,13 @@ export function initPreview(
     void renderTex();
   };
   compileBtn.addEventListener("click", recompile);
+  downloadBtn.addEventListener("click", () => {
+    const bytes = shownPdf;
+    if (!bytes) return;
+    void import("./export.ts").then(({ deliverFile }) =>
+      deliverFile(bytes, pdfName(), "application/pdf"),
+    );
+  });
 
   const setTexMode = (on: boolean): void => {
     if (on === texMode) return;

@@ -322,7 +322,7 @@ function escapeAttr(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
-async function deliverFile(
+export async function deliverFile(
   data: BlobPart,
   name: string,
   mime: string,
