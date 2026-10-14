@@ -31,6 +31,7 @@ import { initPreview, type Preview } from "./preview.ts";
 import { initProjectLink, type ProjectLink } from "./projectlink.ts";
 import { FILE_LIMIT, PROJECT_SLOT, isFileSlot } from "./fileslots.ts";
 import { onProjectChange, project } from "./projectstore.ts";
+import { read, write } from "./store.ts";
 
 let previewCtl: Preview | null = null;
 let projectLink: ProjectLink | null = null;
@@ -403,12 +404,7 @@ function applyTexPaint(on: boolean): void {
     void import("./texpdf.ts").then(async (mod) => {
       const ready = await mod.prefetchFonts();
       if (!ready || !navigator.serviceWorker?.controller) return;
-      try {
-        if (localStorage.getItem(mod.OFFLINE_KEY)) return;
-        localStorage.setItem(mod.OFFLINE_KEY, "1");
-      } catch {
-        return;
-      }
+      if (read(mod.OFFLINE_KEY) || !write(mod.OFFLINE_KEY, "1")) return;
       holdStatus("LaTeX файлтай офлайн ажиллахад бэлэн боллоо", 6000, false);
     });
     void import("./pdfview.ts").then((mod) => mod.warmPdf());

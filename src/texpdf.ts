@@ -6,6 +6,7 @@ import {
   TEX_FONT_FILES,
   TEX_FONTS,
 } from "./texbundle.ts";
+import { KEYS, at } from "./store.ts";
 
 interface EngineReply {
   readonly result?: string;
@@ -221,7 +222,7 @@ export function prefetchFonts(): Promise<boolean> {
   return prefetching;
 }
 
-export const OFFLINE_KEY = "tex-offline:" + TEX_BUNDLE + TEX_FONTS;
+export const OFFLINE_KEY = at(KEYS.texOffline, TEX_BUNDLE + TEX_FONTS);
 
 async function start(): Promise<Worker> {
   const worker = new Worker(asset(TEX_ENGINE));

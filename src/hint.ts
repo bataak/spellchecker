@@ -1,6 +1,6 @@
 import "./hint.css";
+import { KEYS, at, read, write } from "./store.ts";
 
-const SEEN_PREFIX = "hintSeen:";
 const SHOW_DELAY_MS = 600;
 const HIDE_AFTER_MS = 12000;
 const COOLDOWN_MS = 20000;
@@ -16,17 +16,11 @@ export interface Hint {
 }
 
 function seen(id: string): boolean {
-  try {
-    return localStorage.getItem(SEEN_PREFIX + id) === "1";
-  } catch {
-    return false;
-  }
+  return read(at(KEYS.hintSeen, id)) === "1";
 }
 
 function markSeen(id: string): void {
-  try {
-    localStorage.setItem(SEEN_PREFIX + id, "1");
-  } catch {}
+  write(at(KEYS.hintSeen, id), "1");
 }
 
 function isMac(): boolean {

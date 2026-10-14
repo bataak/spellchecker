@@ -1,5 +1,4 @@
-const STORAGE_KEY = "mn-spell:en-variants";
-
+import { KEYS, read, write } from "./store.ts";
 export const EN_IDS = ["en_GB", "en_US"] as const;
 
 const EN_SET = new Set<string>(EN_IDS);
@@ -30,21 +29,11 @@ export function serializeEnabled(enabled: Set<string>): string {
 }
 
 export function loadEnabledEnglish(): Set<string> {
-  try {
-    if (typeof localStorage === "undefined") return new Set<string>(EN_IDS);
-    return parseEnabled(localStorage.getItem(STORAGE_KEY));
-  } catch {
-    return new Set<string>(EN_IDS);
-  }
+  return parseEnabled(read(KEYS.enVariants));
 }
 
 export function saveEnabledEnglish(enabled: Set<string>): void {
-  try {
-    if (typeof localStorage === "undefined") return;
-    localStorage.setItem(STORAGE_KEY, serializeEnabled(enabled));
-  } catch {
-    /* хадгалах боломжгүй — алгасна */
-  }
+  write(KEYS.enVariants, serializeEnabled(enabled));
 }
 
 export function activeIds(enabled: Set<string>): string[] {

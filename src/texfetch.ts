@@ -1,10 +1,10 @@
 import { TEX_LIVE_YEAR, TEX_PACKAGE_INDEX } from "./texpackages.ts";
 import { isXz } from "./xz.ts";
+import { KEYS, readJson, writeJson } from "./store.ts";
 
 export { wantedFiles } from "./texmissing.ts";
 
 const CACHE_NAME = "tex-packages";
-const META_KEY = "tex-packages:meta";
 const CACHE_LIMIT_BYTES = 32 * 1024 * 1024;
 const CACHE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const RETRY_AFTER_MS = 60_000;
@@ -82,17 +82,12 @@ export async function packagesFor(
 const failed = new Map<string, { at: number; error: TexPackageError }>();
 
 function readMeta(): Meta {
-  try {
-    return JSON.parse(localStorage.getItem(META_KEY) ?? "{}") as Meta;
-  } catch {
-    return {};
-  }
+  const meta = readJson(KEYS.texMeta);
+  return meta !== null && typeof meta === "object" ? (meta as Meta) : {};
 }
 
 function writeMeta(meta: Meta): void {
-  try {
-    localStorage.setItem(META_KEY, JSON.stringify(meta));
-  } catch {}
+  writeJson(KEYS.texMeta, meta);
 }
 
 async function openCache(): Promise<Cache | null> {
