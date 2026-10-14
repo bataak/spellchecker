@@ -62,6 +62,7 @@ export function isIgnored(word: string): boolean {
 export function addIgnored(word: string): boolean {
   const trimmedWord = word.trim();
   if (!trimmedWord) return false;
+  load();
   const key = trimmedWord.toLowerCase();
   const existing = lookup.get(key);
   if (existing !== undefined) {
@@ -77,6 +78,7 @@ export function addIgnored(word: string): boolean {
 }
 
 export function removeIgnored(word: string): boolean {
+  load();
   const before = ignored.length;
   ignored = ignored.filter((stored) => stored !== word);
   if (ignored.length === before) return false;
@@ -86,6 +88,7 @@ export function removeIgnored(word: string): boolean {
 }
 
 export function clearIgnored(): boolean {
+  load();
   if (!ignored.length) return false;
   ignored = [];
   rebuild();
@@ -97,4 +100,19 @@ export function getIgnored(): string[] {
   return ignored.slice();
 }
 
+// Өөр табад нэмсэн үгийг дарж бичихгүйн тулд өөрчлөх бүрд хадгалсныг дахин уншиж,
+// нөгөө табын өөрчлөлтийг storage үзэгдлээр хүлээн авна.
+const listeners = new Set<() => void>();
+
+export function onIgnoredChange(listener: () => void): void {
+  listeners.add(listener);
+}
+
 load();
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (event) => {
+    if (event.key !== KEY && event.key !== null) return;
+    load();
+    for (const listener of listeners) listener();
+  });
+}
