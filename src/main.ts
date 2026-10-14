@@ -1664,8 +1664,8 @@ const mdBar = initMdToolbar({
     inProject = id === PROJECT_SLOT;
     checkTemplate = CHECK_TEMPLATES.has(id);
     clean.sync();
-    syncTexMode();
     swapTemplateFile(from, mdBar.slot());
+    syncTexMode();
     enterMdMode(mdActive());
   },
   onExample: () => enterMdMode(!isTexFile()),
@@ -1709,10 +1709,7 @@ function swapTemplateFile(from: string, to: string): void {
     saveDraftFile(stored);
     syncSaveHint();
     mdBar.refresh();
-    if (wasBound) {
-      syncTexMode();
-      previewCtl?.update();
-    }
+    if (wasBound) previewCtl?.update();
     void unparkDocx(to, stored);
     return;
   }
@@ -1724,10 +1721,7 @@ function swapTemplateFile(from: string, to: string): void {
   saveDraftFile(next ? { name: next.name, kind: "text" } : null);
   syncSaveHint();
   mdBar.refresh();
-  if (wasBound) {
-    syncTexMode();
-    previewCtl?.update();
-  }
+  if (wasBound) previewCtl?.update();
   if (to === PROJECT_SLOT) projectLink?.enter();
 }
 async function unparkDocx(slot: string, ref: DraftFile): Promise<void> {
