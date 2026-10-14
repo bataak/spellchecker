@@ -7,6 +7,7 @@ import {
   project,
   projectKey,
   projectBinary,
+  projectSavedText,
   projectText,
   refreshProject,
   restoreProject,
@@ -70,6 +71,7 @@ export interface ProjectLink {
   readonly restore: () => Promise<void>;
   readonly sync: () => void;
   readonly fileOpened: (name: string) => void;
+  readonly openExisting: (name: string, text: string) => boolean;
   readonly cleared: () => void;
 }
 
@@ -468,6 +470,19 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     cleared() {
       unbind(true);
       panel.show(false);
+    },
+    openExisting(name, text) {
+      const view = project();
+      if (!view || view.pending) return false;
+      const path = view.files.find(
+        (path) =>
+          (path === name || baseName(path) === name) &&
+          (projectText(path) === text || projectSavedText(path) === text),
+      );
+      if (path === undefined) return false;
+      openFile(path);
+      panel.reveal();
+      return true;
     },
     fileOpened(name) {
       if (project() !== null) return;

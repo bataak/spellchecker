@@ -1623,6 +1623,8 @@ const fileIO = initFileIO({
   openProjectDir: async (handle) => {
     if (projectLink) await projectLink.openDir(handle);
   },
+  openInProject: (name, text) =>
+    projectLink?.openExisting(name, text) ?? false,
   prepareOpen: (name) => {
     if (mdBar.openFile(name)) return true;
     holdStatus(
