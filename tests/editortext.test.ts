@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { replaceRange } from "../src/editortext.ts";
+import { pasteComposed, replaceRange } from "../src/editortext.ts";
 
 interface FakeEditor {
   value: string;
@@ -102,5 +102,48 @@ test("execCommand ажиллахгүй бол setRangeText-ээр солино",
     assert.equal(ok, false);
     assert.equal(editor.value, "hello there");
     assert.equal(editor.selectionStart, 11);
+  }
+});
+
+function pasteEvent(text: string, files = 0) {
+  return {
+    defaultPrevented: false,
+    clipboardData: { files: { length: files }, getData: () => text },
+    preventDefault() {
+      this.defaultPrevented = true;
+    },
+  };
+}
+
+const asPaste = (e: ReturnType<typeof pasteEvent>) =>
+  e as unknown as ClipboardEvent;
+
+test("задарсан й, ё-г нийлмэл болгож буулгана", () => {
+  const editor = fakeEditor("[]");
+  editor.setSelectionRange(1, 1);
+  const event = pasteEvent("Сайхан байна. Ёс".normalize("NFD"));
+  let handled = false;
+  const calls = withExecCommand(nativeEdit(editor), () => {
+    handled = pasteComposed(asArea(editor), asPaste(event));
+  });
+  assert.equal(handled, true);
+  assert.equal(event.defaultPrevented, true);
+  assert.deepEqual(calls, ["insertText:Сайхан байна. Ёс"]);
+  assert.equal(editor.value, "[Сайхан байна. Ёс]");
+});
+
+test("нийлмэл бичвэр болон зурагт хөтчийн буулгалтыг үлдээнэ", () => {
+  for (const event of [
+    pasteEvent("Сайхан байна"),
+    pasteEvent("байна".normalize("NFD"), 1),
+  ]) {
+    const editor = fakeEditor("");
+    let handled = true;
+    const calls = withExecCommand(nativeEdit(editor), () => {
+      handled = pasteComposed(asArea(editor), asPaste(event));
+    });
+    assert.equal(handled, false);
+    assert.equal(event.defaultPrevented, false);
+    assert.deepEqual(calls, []);
   }
 });

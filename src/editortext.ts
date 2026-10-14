@@ -38,6 +38,30 @@ export function replaceRange(
   return false;
 }
 
+// Mac, PDF-ээс хуулсан бичвэрт й, ё задарсан (NFD) байж болох тул NFC болгож буулгана.
+export function pasteComposed(
+  editor: HTMLTextAreaElement,
+  event: ClipboardEvent,
+): boolean {
+  const data = event.clipboardData;
+  if (event.defaultPrevented || !data || data.files.length) return false;
+  const text = data.getData("text");
+  const composed = text.normalize("NFC");
+  if (composed === text) return false;
+  event.preventDefault();
+  if (
+    !replaceRange(editor, editor.selectionStart, editor.selectionEnd, composed)
+  )
+    editor.dispatchEvent(
+      new InputEvent("input", {
+        bubbles: true,
+        inputType: "insertFromPaste",
+        data: composed,
+      }),
+    );
+  return true;
+}
+
 export function initEditorText(deps: EditorTextDeps): EditorText {
   const { editor } = deps;
   let programmaticEdit = false;
