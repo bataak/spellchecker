@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.105.0](https://github.com/bataak/spellchecker/compare/v1.104.0...v1.105.0) (2026-10-14)
+
+
+### Features
+
+* **project:** track the project by id and label same-named projects with their main file ([4ced943](https://github.com/bataak/spellchecker/commit/4ced94379661cf0eb89d421e61fcd6d00e4c0dfa))
+
+
+### Bug Fixes
+
+* **editor:** drop the LaTeX background as soon as a project slot is left ([3d21c52](https://github.com/bataak/spellchecker/commit/3d21c520dd681aade7b85dc1bd34e3f15dc88958))
+* **project:** open an already loaded project file inside the project instead of a new slot ([cfde066](https://github.com/bataak/spellchecker/commit/cfde06633805424903295b9254c20ce00fb55d17))
+* **project:** reword the project panel hint ([21163a8](https://github.com/bataak/spellchecker/commit/21163a83499a9c1e2c69c60b63b11851948e7cf9))
+
 ## [1.104.0](https://github.com/bataak/spellchecker/compare/v1.103.0...v1.104.0) (2026-10-13)
 
 
