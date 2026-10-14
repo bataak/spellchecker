@@ -1,3 +1,5 @@
+import type { ListLevel } from "../markdown.ts";
+
 export type Align = "start" | "center" | "end" | "justify";
 
 export interface IrImage {
@@ -117,6 +119,7 @@ export type IrBlock =
       readonly start: number;
       readonly style: string;
       readonly items: readonly (readonly IrRun[])[];
+      readonly levels?: readonly ListLevel[];
     }
   | {
       readonly kind: "table";
