@@ -42,6 +42,7 @@ interface Meta {
   readonly dirs: readonly string[];
   readonly exportedAt?: number | null;
   readonly twin?: boolean;
+  readonly uid?: string;
 }
 
 export interface ProjectView {
@@ -91,6 +92,8 @@ interface State {
   stamps: Map<string, string>;
   crlf: Set<string>;
   twin: boolean;
+  uid: string;
+  persisted: Record<string, string>;
 }
 
 let state: State | null = null;
@@ -188,10 +191,7 @@ export async function projectDigest(): Promise<string | null> {
     const text = s.texts.get(path);
     const data =
       text === undefined ? s.binaries.get(path)! : encoder.encode(text);
-    parts.push(
-      encoder.encode(path + "\u0000" + data.length + "\u0000"),
-      data,
-    );
+    parts.push(encoder.encode(path + "\u0000" + data.length + "\u0000"), data);
   }
   try {
     const bytes = await new Blob(parts as BlobPart[]).arrayBuffer();
@@ -254,6 +254,7 @@ function metaOf(s: State): Meta {
     dirs: [...s.dirs],
     exportedAt: s.exportedAt,
     twin: s.twin,
+    uid: s.uid,
   };
 }
 
@@ -286,24 +287,73 @@ function savedFilesOf(s: State): Record<string, Uint8Array> {
   return out;
 }
 
-function persistMeta(withFiles = false): Promise<void> {
-  const s = state;
-  if (!s) return Promise.resolve();
-  const entries: Record<string, unknown> = {
-    [META_KEY]: metaOf(s),
-    [EDITS_KEY]: editsOf(s),
+function newUid(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+async function mergedEdits(s: State): Promise<Record<string, string>> {
+  const mine = editsOf(s);
+  const stored = await dbGet<Meta>(META_KEY);
+  if (stored?.uid !== s.uid) {
+    s.persisted = mine;
+    return mine;
+  }
+  const out = { ...((await dbGet<Record<string, string>>(EDITS_KEY)) ?? {}) };
+  for (const path of new Set([
+    ...Object.keys(mine),
+    ...Object.keys(s.persisted),
+  ])) {
+    if (mine[path] === s.persisted[path]) continue;
+    if (path in mine) out[path] = mine[path]!;
+    else delete out[path];
+  }
+  s.persisted = mine;
+  return out;
+}
+
+let writing: Promise<void> = Promise.resolve();
+
+function writeState(withFiles: boolean): Promise<void> {
+  const run = async (): Promise<void> => {
+    const s = state;
+    if (!s) return;
+    const edits = await mergedEdits(s);
+    if (state !== s) return;
+    const entries: Record<string, unknown> = {
+      [META_KEY]: metaOf(s),
+      [EDITS_KEY]: edits,
+    };
+    if (withFiles && s.kind !== "dir") entries[FILES_KEY] = savedFilesOf(s);
+    await dbPut(entries);
   };
-  if (withFiles && s.kind !== "dir") entries[FILES_KEY] = savedFilesOf(s);
-  return dbPut(entries);
+  writing = writing.then(run, run);
+  return writing;
+}
+
+function persistMeta(withFiles = false): Promise<void> {
+  return writeState(withFiles);
 }
 
 function persistEdits(): void {
   if (editsTimer) clearTimeout(editsTimer);
   editsTimer = window.setTimeout(() => {
     editsTimer = 0;
-    const s = state;
-    if (s) void dbPut({ [EDITS_KEY]: editsOf(s), [META_KEY]: metaOf(s) });
+    void writeState(false);
   }, EDITS_DELAY_MS);
+}
+
+function flushEdits(): void {
+  if (!editsTimer) return;
+  clearTimeout(editsTimer);
+  editsTimer = 0;
+  void writeState(false);
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", flushEdits);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushEdits();
+  });
 }
 
 function changed(structure: boolean): void {
@@ -353,6 +403,8 @@ function fromEntries(
     stamps: new Map(),
     crlf,
     twin: false,
+    uid: newUid(),
+    persisted: {},
   };
 }
 
@@ -656,6 +708,7 @@ export async function restoreProject(): Promise<boolean> {
     main: meta.main,
     active: meta.active,
     twin: meta.twin ?? false,
+    uid: meta.uid ?? newUid(),
   };
   pendingEdits = edits;
   notify();
@@ -677,6 +730,8 @@ function applyRestored(
   if (meta.main && next.texts.has(meta.main)) next.main = meta.main;
   next.exportedAt = meta.exportedAt ?? null;
   next.twin = meta.twin ?? false;
+  next.uid = meta.uid ?? next.uid;
+  next.persisted = { ...edits };
   next.active =
     meta.active && next.texts.has(meta.active) ? meta.active : next.main;
   recountDirty(next);
