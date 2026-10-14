@@ -11,6 +11,7 @@ import {
   slotLabel,
   startApp,
   typeAtEnd,
+  until,
   type App,
 } from "./harness.ts";
 
@@ -114,4 +115,35 @@ test("Бичвэр цонхонд preview-тэй байрлал идэвхгүй
   assert.ok((await previews()).every((disabled) => !disabled));
   await chooseSlot(page, "Бичвэр 2");
   assert.ok((await previews()).every(Boolean));
+});
+
+test("Word файлтай цонхноос гараад буцахад баримт сэргэнэ", async () => {
+  const page = await openPage(app, await app.context());
+  await typeAtEnd(page, "Энгийн бичвэр");
+  await settle(page);
+  await openFile(page, app.files.docx);
+  const fileSlot = await page.evaluate(
+    () => sessionStorage.getItem("mdTemplate") ?? "",
+  );
+  await chooseSlot(page, "Бичвэр 1");
+  assert.equal(await editor(page), "Энгийн бичвэр");
+  const back = async () => {
+    await page.click("#editor");
+    await page.waitForTimeout(400);
+    await page.click(".md-template");
+    await page.click(`.md-menu-item[data-value="${fileSlot}"]`);
+    await until(
+      () => page.evaluate(() => document.body.classList.contains("docx-mode")),
+      Boolean,
+    );
+    return editor(page);
+  };
+  assert.equal(await back(), "Ворд баримт байна.");
+  assert.ok(
+    await page.evaluate(() => document.body.classList.contains("docx-mode")),
+  );
+  await chooseSlot(page, "Бичвэр 1");
+  await reload(page);
+  assert.equal(await back(), "Ворд баримт байна.");
+  assert.deepEqual(errors(page), []);
 });
