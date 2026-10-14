@@ -253,7 +253,6 @@ export function linkRanges(text: string): SkipRange[] {
   ]);
 }
 
-// % -ийн өмнөх \ тэгш тоотой бол тайлбар: \\% нь мөр таслал, араас нь тайлбар.
 const TEX_COMMENT = /(?<=(?:^|[^\\])(?:\\\\)*)%[^\n]*/g;
 const TEX_VERBATIM =
   /\\begin\{((?:verbatim|Verbatim|lstlisting|minted|comment|tikzpicture|pspicture|filecontents|alltt)\*?)\}[\s\S]*?\\end\{\1\}/g;

@@ -100,8 +100,6 @@ export function getIgnored(): string[] {
   return ignored.slice();
 }
 
-// Өөр табад нэмсэн үгийг дарж бичихгүйн тулд өөрчлөх бүрд хадгалсныг дахин уншиж,
-// нөгөө табын өөрчлөлтийг storage үзэгдлээр хүлээн авна.
 const listeners = new Set<() => void>();
 
 export function onIgnoredChange(listener: () => void): void {
