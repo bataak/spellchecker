@@ -9,15 +9,17 @@ import {
   textSum,
 } from "../src/fileslots.ts";
 
-test("nextFileId: хамгийн их дугаараас дараагийнхыг өгнө", () => {
-  assert.equal(nextFileId([]), "file-1");
-  assert.equal(
-    nextFileId([
-      { id: "file-2", name: "a.txt", sum: null },
-      { id: "file-7", name: "b.md", sum: null },
-    ]),
-    "file-8",
-  );
+test("nextFileId: хаагдсан файлын дугаарыг дахин өгөхгүй", () => {
+  const slots = [{ id: "file-1", name: "a.txt", sum: null }];
+  const ids = new Set<string>();
+  for (let i = 0; i < 50; i += 1) {
+    const id = nextFileId(slots);
+    assert.ok(isFileSlot(id), id);
+    assert.notEqual(id, "file-1");
+    ids.add(id);
+  }
+  assert.equal(ids.size, 50);
+  assert.ok(isFileSlot(nextFileId([])));
 });
 
 test("isFileSlot: зөвхөн file- угтвартай slot", () => {

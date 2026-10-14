@@ -14,12 +14,13 @@ export function isFileSlot(id: string): boolean {
 }
 
 export function nextFileId(slots: readonly FileSlot[]): string {
-  let max = 0;
-  for (const slot of slots) {
-    const n = Number(slot.id.slice(FILE_PREFIX.length));
-    if (Number.isInteger(n) && n > max) max = n;
+  for (;;) {
+    const id =
+      FILE_PREFIX +
+      Date.now().toString(36) +
+      Math.random().toString(36).slice(2, 8);
+    if (!slots.some((slot) => slot.id === id)) return id;
   }
-  return FILE_PREFIX + String(max + 1);
 }
 
 export function textSum(text: string): string {

@@ -147,3 +147,16 @@ test("нийлмэл бичвэр болон зурагт хөтчийн буу�
     assert.deepEqual(calls, []);
   }
 });
+
+test("засварлагч зөвхөн уншихад бол буулгалтад хүрэхгүй", () => {
+  const editor = Object.assign(fakeEditor(""), { readOnly: true });
+  const event = pasteEvent("байна".normalize("NFD"));
+  let handled = true;
+  const calls = withExecCommand(nativeEdit(editor), () => {
+    handled = pasteComposed(asArea(editor), asPaste(event));
+  });
+  assert.equal(handled, false);
+  assert.equal(event.defaultPrevented, false);
+  assert.deepEqual(calls, []);
+  assert.equal(editor.value, "");
+});
