@@ -110,8 +110,6 @@ const INLINE_TAGS = new Set([
   "wbr",
 ]);
 
-// <Enter>, <Esc> зэрэг товчны нэрийг шошго гэж андуурахгүйн тулд зөвхөн HTML-ийн
-// элементийг, жижиг эсвэл бүгд том үсгээр бичсэн үед нь шошго гэж үзнэ.
 function isHtmlTag(tag: string): boolean {
   const name = /^<\/?([a-zA-Z0-9-]+)/.exec(tag)![1]!;
   if (name !== name.toLowerCase() && name !== name.toUpperCase()) return false;

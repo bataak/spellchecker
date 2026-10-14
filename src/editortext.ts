@@ -38,7 +38,6 @@ export function replaceRange(
   return false;
 }
 
-// Mac, PDF-ээс хуулсан бичвэрт й, ё задарсан (NFD) байж болох тул NFC болгож буулгана.
 export function pasteComposed(
   editor: HTMLTextAreaElement,
   event: ClipboardEvent,
