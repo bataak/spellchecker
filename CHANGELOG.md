@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.105.1](https://github.com/bataak/spellchecker/compare/v1.105.0...v1.105.1) (2026-10-14)
+
+
+### Bug Fixes
+
+* **editor:** sync LaTeX mode after any slot swap so the background follows the new file at once ([4ee767a](https://github.com/bataak/spellchecker/commit/4ee767a405e8cc66072cddfe931d3f0a7d73c07f))
+
 ## [1.105.0](https://github.com/bataak/spellchecker/compare/v1.104.0...v1.105.0) (2026-10-14)
 
 
