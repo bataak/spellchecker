@@ -1623,6 +1623,8 @@ const fileIO = initFileIO({
   openProjectDir: async (handle) => {
     if (projectLink) await projectLink.openDir(handle);
   },
+  openInProject: (name, text) =>
+    projectLink?.openExisting(name, text) ?? false,
   prepareOpen: (name) => {
     if (mdBar.openFile(name)) return true;
     holdStatus(
@@ -1680,7 +1682,6 @@ function swapTemplateFile(from: string, to: string): void {
   if (from === to) return;
   const wasBound = projectLink?.bound() ?? false;
   projectLink?.unbind(true);
-  if (wasBound) previewCtl?.update();
   swapSeq++;
   const office = docxFile
     ? docxFile.name
@@ -1708,6 +1709,10 @@ function swapTemplateFile(from: string, to: string): void {
     saveDraftFile(stored);
     syncSaveHint();
     mdBar.refresh();
+    if (wasBound) {
+      syncTexMode();
+      previewCtl?.update();
+    }
     void unparkDocx(to, stored);
     return;
   }
@@ -1719,6 +1724,10 @@ function swapTemplateFile(from: string, to: string): void {
   saveDraftFile(next ? { name: next.name, kind: "text" } : null);
   syncSaveHint();
   mdBar.refresh();
+  if (wasBound) {
+    syncTexMode();
+    previewCtl?.update();
+  }
   if (to === PROJECT_SLOT) projectLink?.enter();
 }
 async function unparkDocx(slot: string, ref: DraftFile): Promise<void> {

@@ -404,11 +404,11 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     if (syncFloat() || panel.hidden) return;
     const pending = view?.pending ?? false;
     const ready = view !== null && !pending;
-    title.textContent = view ? view.name : "LaTeX төсөл";
+    title.textContent = view ? view.label : "LaTeX төсөл";
     title.title = view
       ? view.kind === "dir"
-        ? view.name + " — дискэн дээрх хавтас"
-        : view.name + " — энэ хөтөч дотор хадгалагдана"
+        ? view.label + " — дискэн дээрх хавтас"
+        : view.label + " — энэ хөтөч дотор хадгалагдана"
       : "";
     headIcon.hidden = view === null;
     closeBtn.hidden = !ready;
@@ -434,7 +434,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     forgetBtn.hidden = !pending;
     emptyText.textContent = pending
       ? "«" +
-        view!.name +
+        view!.label +
         "» хавтсыг дахин нээхийн тулд хандах зөвшөөрөл өгнө үү."
       : file?.master
         ? "«" +
@@ -445,7 +445,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
           (file.master.startsWith("../")
             ? "Үндсэн файл байгаа дээд хавтсыг сонгоно уу."
             : "Тэр файл байгаа хавтсыг сонгоно уу.")
-        : "Олон файлтай LaTeX төслийг хавтсаар эсвэл zip файлаар нээж засварлана.";
+        : "LaTeX төслийг хавтас эсвэл zip файлаар нээх боломжтой.";
     if (!ready) {
       tree.replaceChildren();
       shownVersion = "";
@@ -879,7 +879,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     show(true);
     deps.onOpened(true, prefer);
     const view = project();
-    if (view) deps.notify("«" + view.name + "» төслийг нээлээ");
+    if (view) deps.notify("«" + view.label + "» төслийг нээлээ");
     closeDrawer();
   };
 
