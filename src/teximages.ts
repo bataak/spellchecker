@@ -1,5 +1,6 @@
 import { replaceRange } from "./editortext.ts";
 import { pickImage } from "./images.ts";
+import { expandMacros, pathMacros } from "./texproject.ts";
 
 const INCLUDE = /\\includegraphics\s*(\[[^\]]*\])?\s*\{([^}]*)\}/g;
 const EXAMPLE_BASE = "examples/";
@@ -25,8 +26,9 @@ export function normalizeTexPath(path: string): string {
 
 export function texImagePaths(text: string): string[] {
   const out = new Set<string>();
+  const macros = pathMacros([text]);
   for (const match of text.matchAll(INCLUDE)) {
-    const path = normalizeTexPath(match[2] ?? "");
+    const path = normalizeTexPath(expandMacros(match[2] ?? "", macros));
     if (path) out.add(path);
   }
   return [...out];
@@ -36,8 +38,9 @@ export function rewriteIncludes(
   text: string,
   names: ReadonlyMap<string, string>,
 ): string {
+  const macros = pathMacros([text]);
   return text.replace(INCLUDE, (_, opts: string | undefined, raw: string) => {
-    const path = normalizeTexPath(raw);
+    const path = normalizeTexPath(expandMacros(raw, macros));
     const name = names.get(path);
     if (name) return "\\includegraphics" + (opts ?? "") + "{" + name + "}";
     return "\\fbox{\\ttfamily\\detokenize{" + path + "}}";
