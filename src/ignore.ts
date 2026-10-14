@@ -26,7 +26,7 @@ function caseOf(word: string): CasePattern {
 function rebuild() {
   lookup = new Map();
   for (const word of ignored) {
-    lookup.set(word.toLowerCase(), caseOf(word));
+    lookup.set(word.normalize("NFC").toLowerCase(), caseOf(word));
   }
 }
 
@@ -50,7 +50,7 @@ function persist() {
 }
 
 export function isIgnored(word: string): boolean {
-  const stored = lookup.get(word.toLowerCase());
+  const stored = lookup.get(word.normalize("NFC").toLowerCase());
   if (stored === undefined) return false;
   if (stored === "lower") return true;
   const wordCase = caseOf(word);
@@ -60,7 +60,7 @@ export function isIgnored(word: string): boolean {
 }
 
 export function addIgnored(word: string): boolean {
-  const trimmedWord = word.trim();
+  const trimmedWord = word.trim().normalize("NFC");
   if (!trimmedWord) return false;
   load();
   const key = trimmedWord.toLowerCase();
@@ -69,7 +69,9 @@ export function addIgnored(word: string): boolean {
     if (existing === "lower") return false;
     const wordCase = caseOf(trimmedWord);
     if (existing === wordCase) return false;
-    ignored = ignored.filter((stored) => stored.toLowerCase() !== key);
+    ignored = ignored.filter(
+      (stored) => stored.normalize("NFC").toLowerCase() !== key,
+    );
   }
   ignored.push(trimmedWord);
   rebuild();

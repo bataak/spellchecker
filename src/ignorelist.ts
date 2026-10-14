@@ -77,7 +77,7 @@ const LATIN_WORD_RE =
 const CYR_WORD_RE = /^[\u0400-\u04FF][\u0400-\u04FF-]{1,49}$/u;
 
 export function normalizeImport(raw: string): string | null {
-  const trimmedWord = raw.trim();
+  const trimmedWord = raw.trim().normalize("NFC");
   if (!trimmedWord) return null;
   if (HAS_LATIN.test(trimmedWord)) {
     return LATIN_WORD_RE.test(trimmedWord) ? trimmedWord : null;

@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  composeDropped,
   composeTypedWord,
   pasteComposed,
   replaceRange,
@@ -220,4 +221,19 @@ test("нийлмэл үг, үсэг шивэх, IME, readOnly үед хөндө�
     typeAtEnd(nfd + " ", "insertFromPaste", nfd + " ").handled,
     false,
   );
+});
+
+test("чирж оруулсан задарсан бичвэрийг нийлүүлнэ", () => {
+  const nfd = "Сайн байна".normalize("NFD");
+  const editor = Object.assign(fakeEditor("[" + nfd + "]"), {
+    readOnly: false,
+  });
+  editor.setSelectionRange(1, 1 + nfd.length);
+  let handled = false;
+  withExecCommand(nativeEdit(editor), () => {
+    handled = composeDropped(asArea(editor), typed("insertFromDrop", null));
+  });
+  assert.equal(handled, true);
+  assert.equal(editor.value, "[Сайн байна]");
+  assert.deepEqual([editor.selectionStart, editor.selectionEnd], [1, 11]);
 });

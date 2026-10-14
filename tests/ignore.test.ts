@@ -102,3 +102,13 @@ test("addIgnored: өөр табад хадгалсан үгийг дарж би�
   ]);
   assert.equal(isIgnored("Болд"), true);
 });
+
+test("isIgnored: задарсан ба нийлмэл й, ё ялгаагүй таарна", () => {
+  addIgnored("Хүрэлбаатарай".normalize("NFD"));
+  assert.equal(isIgnored("Хүрэлбаатарай"), true);
+  assert.deepEqual(getIgnored(), ["Хүрэлбаатарай"]);
+  clearIgnored();
+  addIgnored("Ёслол");
+  assert.equal(isIgnored("Ёслол".normalize("NFD")), true);
+  assert.equal(addIgnored("Ёслол".normalize("NFD")), false);
+});

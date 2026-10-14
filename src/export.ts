@@ -259,6 +259,7 @@ export interface ExportOptions {
   readonly template: () => string;
   readonly onDone?: (name: string) => void;
   readonly onBlocked?: () => void;
+  readonly onPrintError?: (error: unknown) => void;
   readonly onBusy?: (busy: boolean) => void;
 }
 
@@ -577,7 +578,8 @@ export function initExport(options: ExportOptions): ExportControl {
   function startPrint(): void {
     print().catch((error: unknown) => {
       console.error("print:", error);
-      options.onBlocked?.();
+      if (options.onPrintError) options.onPrintError(error);
+      else options.onBlocked?.();
     });
   }
 
