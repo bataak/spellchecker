@@ -26,3 +26,15 @@ test("олдсон зургийг engine-ийн нэрээр, олдоогүйг
     String.raw`\includegraphics[width=250px]{image1.png} ба \fbox{\ttfamily\detokenize{x_y.png}}`,
   );
 });
+
+test("макроор өгсөн зургийн замыг задалж олно", () => {
+  const text = String.raw`\newcommand{\InstituteLogo}{img/logo.png}
+\def\Dir{fig}
+\includegraphics[height=1cm]{\InstituteLogo}
+\includegraphics{\Dir/b.jpg}`;
+  assert.deepEqual(texImagePaths(text), ["img/logo.png", "fig/b.jpg"]);
+  assert.match(
+    rewriteIncludes(text, new Map([["img/logo.png", "image1.png"]])),
+    /\\includegraphics\[height=1cm\]\{image1\.png\}/,
+  );
+});
