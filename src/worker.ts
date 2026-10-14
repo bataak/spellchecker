@@ -806,7 +806,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
     const out: Record<string, boolean> = {};
     for (const word of msg.words) {
       try {
-        out[word] = isCorrect(word);
+        out[word] = isCorrect(word.normalize("NFC"));
       } catch (_) {
         out[word] = true;
       }
@@ -819,7 +819,8 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
     const found = await withDicts(async (dicts, broken) => {
       if (!dicts.length) return null;
       const out: Record<string, string> = {};
-      for (const word of msg.words) {
+      for (const raw of msg.words) {
+        const word = raw.normalize("NFC");
         const mode = lookupModeOf(word);
         for (const dict of dicts) {
           const headword = await inDict(
@@ -829,7 +830,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
             null,
           );
           if (headword != null) {
-            out[word] = headword;
+            out[raw] = headword;
             break;
           }
         }
@@ -841,7 +842,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   }
 
   if (msg.type === "define") {
-    const word = msg.word;
+    const word = msg.word.normalize("NFC");
     const mode = lookupModeOf(word);
     const entries = await withDicts(async (dicts, broken) => {
       const out: DictEntry[] = [];
@@ -870,7 +871,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   if (msg.type === "suggest") {
     let suggestions: string[] = [];
     try {
-      suggestions = suggest(msg.word) || [];
+      suggestions = suggest(msg.word.normalize("NFC")) || [];
     } catch (_) {
       suggestions = [];
     }
