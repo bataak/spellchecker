@@ -107,6 +107,68 @@ function wrapped(run: number, marker: string): boolean {
   return marker.length === 2 ? run >= 2 : run % 2 === 1;
 }
 
+const LINE_PREFIX =
+  /^[ \t]*(?:>[ \t]?)*[ \t]*(?:#{1,6}[ \t]+|[-*+][ \t]+(?:\[[ xX]\][ \t]+)?|\d+[.)][ \t]+)?/;
+
+function trimSpan(text: string, start: number, end: number): [number, number] {
+  let s = start;
+  let e = end;
+  while (s < e && /\s/.test(text[s]!)) s += 1;
+  while (e > s && /\s/.test(text[e - 1]!)) e -= 1;
+  return [s, e];
+}
+
+function spanWrapped(
+  text: string,
+  s: number,
+  e: number,
+  marker: string,
+): boolean {
+  const ch = marker[0]!;
+  return wrapped(
+    Math.min(runBefore(text, s, ch), runAfter(text, e, ch)),
+    marker,
+  );
+}
+
+// Олон мөрийг нэг хос маркераар хүрээлбэл жагсаалт, гарчиг эвдэрнэ — мөр бүрийн
+// агуулгыг тусад нь хүрээлнэ.
+function toggleWrapLines(
+  text: string,
+  s: number,
+  e: number,
+  marker: string,
+): Edit {
+  const spans: [number, number][] = [];
+  for (let from = lineStartAt(text, s); from <= e;) {
+    const to = lineEndAt(text, from);
+    const body = from + LINE_PREFIX.exec(text.slice(from, to))![0].length;
+    let [a, b] = trimSpan(text, Math.max(body, s), Math.min(to, e));
+    while (a < b && text[a] === marker[0]) a += 1;
+    while (b > a && text[b - 1] === marker[0]) b -= 1;
+    if (a < b) spans.push([a, b]);
+    from = to + 1;
+  }
+  if (!spans.length) return { text, start: s, end: e };
+  const all = spans.every(([a, b]) => spanWrapped(text, a, b, marker));
+  let out = text;
+  let first = spans[0]![0];
+  let last = spans.at(-1)![1];
+  let lastLength = text.length;
+  for (let i = spans.length - 1; i >= 0; i -= 1) {
+    const [a, b] = spans[i]!;
+    if (!all && spanWrapped(out, a, b, marker)) continue;
+    const edit = toggleWrap(out, a, b, marker);
+    out = edit.text;
+    first = edit.start;
+    if (i === spans.length - 1) {
+      last = edit.end;
+      lastLength = out.length;
+    }
+  }
+  return { text: out, start: first, end: last + out.length - lastLength };
+}
+
 export function toggleWrap(
   text: string,
   start: number,
@@ -116,10 +178,9 @@ export function toggleWrap(
   const m = marker.length;
   const ch = marker[0]!;
 
-  let s = start;
-  let e = end;
-  while (s < e && /\s/.test(text[s]!)) s += 1;
-  while (e > s && /\s/.test(text[e - 1]!)) e -= 1;
+  const [s, e] = trimSpan(text, start, end);
+  if (text.slice(s, e).includes("\n"))
+    return toggleWrapLines(text, s, e, marker);
 
   if (s === e) {
     const run = Math.min(runBefore(text, start, ch), runAfter(text, start, ch));
