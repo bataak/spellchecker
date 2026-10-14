@@ -190,7 +190,6 @@ function listLatex(tree: ListTree, depth: number): string {
       : "";
   const items = tree.entries.map(({ item, sub }) => {
     const text = inline(item);
-    // \item-ийн ард шууд орсон [ … ]-г нэмэлт параметр гэж уншихаас сэргийлнэ.
     const guard = text.startsWith("[") ? "{}" : "";
     return (
       pad +
