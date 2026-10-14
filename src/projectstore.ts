@@ -5,6 +5,7 @@ import {
   commonRoot,
   compilePasses,
   dirName,
+  expandMacros,
   findMain,
   graphicRefs,
   graphicsPaths,
@@ -16,6 +17,7 @@ import {
   mapGraphics,
   movedPath,
   parentDirs,
+  pathMacros,
   resolveGraphic,
   rootedPath,
   skippedPath,
@@ -1074,6 +1076,7 @@ export async function projectBuild(): Promise<ProjectBuild> {
   const has = (path: string): boolean =>
     s.binaries.has(path) || s.texts.has(path);
   const search = [...s.texts.values()].flatMap(graphicsPaths);
+  const macros = pathMacros(s.texts.values());
   const missing: string[] = [];
   const converted = new Map<string, string>();
   const files: Record<string, Uint8Array | string> = {};
@@ -1087,17 +1090,18 @@ export async function projectBuild(): Promise<ProjectBuild> {
   for (const text of s.texts.values())
     for (const raw of graphicRefs(text)) {
       if (resolved.has(raw)) continue;
-      const path = resolveGraphic(raw, root, search, has);
+      const wanted = expandMacros(raw, macros);
+      const path = resolveGraphic(wanted, root, search, has);
       resolved.set(raw, path);
       if (path === null) {
-        missing.push(raw.trim());
+        missing.push(wanted.trim());
         continue;
       }
       if (isPdfGraphic(path) || converted.has(path)) continue;
       const png = await toPng(s.binaries.get(path) ?? new Uint8Array(0));
       if (!png) {
         resolved.set(raw, null);
-        missing.push(raw.trim());
+        missing.push(wanted.trim());
         continue;
       }
       const name = path.replace(/\.[^./]*$/, "") + ".converted.png";

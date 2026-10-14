@@ -194,6 +194,34 @@ export function mapGraphics(
   );
 }
 
+const PATH_MACRO =
+  /\\(?:def|(?:re|provide)?newcommand\*?)\s*\{?\s*\\([A-Za-z@]+)\s*\}?\s*\{([^{}]*)\}/g;
+const MACRO_USE = /\\([A-Za-z@]+)\s*/g;
+
+export function pathMacros(texts: Iterable<string>): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const text of texts)
+    for (const match of uncommented(text).matchAll(PATH_MACRO))
+      out.set(match[1]!, match[2]!.trim());
+  return out;
+}
+
+export function expandMacros(
+  raw: string,
+  macros: ReadonlyMap<string, string>,
+): string {
+  let out = raw;
+  for (let depth = 0; depth < 8; depth += 1) {
+    const next = out.replace(
+      MACRO_USE,
+      (whole, name: string) => macros.get(name) ?? whole,
+    );
+    if (next === out) break;
+    out = next;
+  }
+  return out;
+}
+
 export function graphicRefs(text: string): string[] {
   return [...uncommented(text).matchAll(INCLUDE)].map(
     (match) => match[2] ?? "",

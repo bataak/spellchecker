@@ -6,6 +6,7 @@ import {
   cleanPath,
   commonRoot,
   compilePasses,
+  expandMacros,
   findMain,
   graphicRefs,
   graphicsPaths,
@@ -14,6 +15,7 @@ import {
   mapGraphics,
   movedPath,
   parentDirs,
+  pathMacros,
   referencesFiles,
   resolveGraphic,
   rootedPath,
@@ -237,4 +239,16 @@ test("viewableType: PDF ба зургийн төрлийг өгнө", () => {
   assert.equal(viewableType("logo.svg"), "image/svg+xml");
   assert.equal(viewableType("main.tex"), null);
   assert.equal(viewableType("font.pfb"), null);
+});
+
+test("pathMacros ба expandMacros: \\def, \\newcommand-оор өгсөн замыг задална", () => {
+  const macros = pathMacros([
+    String.raw`\newcommand{\Logo}{\Base/logo}
+\def\Base{img}
+% \def\Base{old}
+\newcommand{\Two}[1]{#1}`,
+  ]);
+  assert.equal(expandMacros(String.raw`\Logo`, macros), "img/logo");
+  assert.equal(macros.has("Two"), false);
+  assert.equal(expandMacros(String.raw`\Unknown`, macros), String.raw`\Unknown`);
 });
