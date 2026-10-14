@@ -404,11 +404,11 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     if (syncFloat() || panel.hidden) return;
     const pending = view?.pending ?? false;
     const ready = view !== null && !pending;
-    title.textContent = view ? view.name : "LaTeX төсөл";
+    title.textContent = view ? view.label : "LaTeX төсөл";
     title.title = view
       ? view.kind === "dir"
-        ? view.name + " — дискэн дээрх хавтас"
-        : view.name + " — энэ хөтөч дотор хадгалагдана"
+        ? view.label + " — дискэн дээрх хавтас"
+        : view.label + " — энэ хөтөч дотор хадгалагдана"
       : "";
     headIcon.hidden = view === null;
     closeBtn.hidden = !ready;
@@ -434,7 +434,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     forgetBtn.hidden = !pending;
     emptyText.textContent = pending
       ? "«" +
-        view!.name +
+        view!.label +
         "» хавтсыг дахин нээхийн тулд хандах зөвшөөрөл өгнө үү."
       : file?.master
         ? "«" +
@@ -879,7 +879,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     show(true);
     deps.onOpened(true, prefer);
     const view = project();
-    if (view) deps.notify("«" + view.name + "» төслийг нээлээ");
+    if (view) deps.notify("«" + view.label + "» төслийг нээлээ");
     closeDrawer();
   };
 
