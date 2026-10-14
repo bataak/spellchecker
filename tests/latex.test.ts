@@ -347,3 +347,10 @@ test("toLatexBody: дэд жагсаалт шаталсан орчин болн�
       "  \\item Ундаа\n  \\begin{enumerate}\n    \\item Цай\n  \\end{enumerate}\n\\end{itemize}",
   );
 });
+
+test("toLatexBody: [ -ээр эхэлсэн жагсаалтын мөр \\item-ийн параметр болохгүй", () => {
+  assert.equal(
+    body("- [1] Монгол улсын хууль\n- Иргэний [2]\n"),
+    "\\begin{itemize}\n  \\item {}[1] Монгол улсын хууль\n  \\item Иргэний [2]\n\\end{itemize}",
+  );
+});
