@@ -29,12 +29,14 @@ import { initIgnoreList, syncIgnoreVisibility } from "./ignorelist.ts";
 import { initAppearance } from "./appearance.ts";
 import { mountMeasureControl, type MeasureControl } from "./measure.ts";
 import { initPreview, type Preview } from "./preview.ts";
+import { initPaneToggle, type PaneToggle } from "./panetoggle.ts";
 import { initProjectLink, type ProjectLink } from "./projectlink.ts";
 import { FILE_LIMIT, PROJECT_SLOT, isFileSlot } from "./fileslots.ts";
 import { onProjectChange, project } from "./projectstore.ts";
 import { read, write } from "./store.ts";
 
 let previewCtl: Preview | null = null;
+let paneCtl: PaneToggle | null = null;
 let projectLink: ProjectLink | null = null;
 import { escapeHtml } from "./htmlutil.ts";
 import { pickDefinitionMarks } from "./defmarks.ts";
@@ -75,7 +77,12 @@ import {
   spellDictHint,
 } from "./hint.ts";
 import { isPlain, PLAIN } from "./templates.ts";
-import { initExport, stripExt, type ExportControl } from "./export.ts";
+import {
+  deliverFile,
+  initExport,
+  stripExt,
+  type ExportControl,
+} from "./export.ts";
 import {
   initBackdrop,
   renderBackdrop,
@@ -1451,6 +1458,11 @@ if (editorWrap) {
     () => projectLink?.bound() ?? false,
     pdfName,
   );
+  const workspace = editorWrap.closest<HTMLElement>(".workspace");
+  if (workspace)
+    paneCtl = initPaneToggle(workspace, els.editor, (on) => {
+      if (on) previewCtl?.update();
+    });
 }
 
 function pdfName(): string {
@@ -1647,6 +1659,8 @@ const fileIO = initFileIO({
       queueMicrotask(() => projectLink?.fileOpened(ref.name));
   },
   saveProject: () => projectLink?.save() ?? Promise.resolve(null),
+  savesPdf,
+  savePdf,
   openProjectZip: async (file) => {
     if (projectLink) await projectLink.openZip(file);
   },
@@ -1853,6 +1867,7 @@ function enterMdMode(on: boolean): void {
   measureCtl?.setPreviewBlocked(!on && !isTexFile());
   measureCtl?.setPreviewMode(on || isTexFile(), isTexFile());
   previewWanted = on || isTexFile();
+  paneCtl?.setAvailable(isTexFile());
   syncPreviewClass();
   previewCtl?.setMarkdownMode(on);
   exportCtl?.syncPrint();
@@ -1872,6 +1887,7 @@ exportCtl = initExport({
   baseName: () => fileIO.targetName() ?? plainName,
   blocked: () => docx !== null,
   isTex: isTexFile,
+  texSource: () => void fileIO.saveSource(),
   onDone: () => flash("#saveBtn", "Хадгаллаа"),
   onBlocked: () => flash("#saveBtn", "Экспорт хийх боломжгүй"),
   onPrintError: (error) => {
@@ -1879,18 +1895,44 @@ exportCtl = initExport({
     if (error instanceof Error && error.name === "PdfError")
       holdStatus(escapeHtml(error.message), 8000, false);
   },
-  onBusy: (busy) => {
-    const button = document.querySelector<HTMLElement>("#saveBtn");
-    if (!button) return;
-    if (busy) {
-      button.dataset.label = button.textContent ?? "";
-      button.textContent = "PDF бэлтгэж байна…";
-    } else {
-      button.textContent = button.dataset.label ?? "";
-    }
-    button.toggleAttribute("aria-busy", busy);
-  },
+  onBusy: saveBusy,
 });
+
+function saveBusy(busy: boolean): void {
+  const button = document.querySelector<HTMLElement>("#saveBtn");
+  if (!button) return;
+  if (busy) {
+    button.dataset.label = button.textContent ?? "";
+    button.textContent = "PDF бэлтгэж байна…";
+  } else {
+    button.textContent = button.dataset.label ?? "";
+  }
+  button.toggleAttribute("aria-busy", busy);
+}
+
+function savesPdf(): boolean {
+  return !desktopMQ.matches && docx === null && isTexFile() && !!previewCtl;
+}
+
+let pdfSaving = false;
+async function savePdf(): Promise<void> {
+  if (pdfSaving || !previewCtl) return;
+  pdfSaving = true;
+  saveBusy(true);
+  try {
+    const bytes = await previewCtl.pdf();
+    saveBusy(false);
+    if (await deliverFile(bytes, pdfName(), "application/pdf"))
+      flash("#saveBtn", "PDF хадгаллаа");
+  } catch (error) {
+    saveBusy(false);
+    flash("#saveBtn", "PDF гаргаж чадсангүй");
+    if (error instanceof Error && error.name === "PdfError")
+      holdStatus(escapeHtml(error.message), 8000, false);
+  } finally {
+    pdfSaving = false;
+  }
+}
 
 async function restoreOfficeFile(name: string): Promise<boolean> {
   const file = await loadOfficeFile().catch(() => null);

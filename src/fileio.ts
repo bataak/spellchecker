@@ -16,6 +16,8 @@ export interface FileIODeps {
   defaultExt: () => string;
   onFileOpened: (file: DraftFile | null) => void;
   saveProject: () => Promise<string | null>;
+  savesPdf: () => boolean;
+  savePdf: () => Promise<void>;
   openProjectZip: (file: File) => Promise<void>;
   openProjectDir: (handle: FileSystemDirectoryHandle) => Promise<void>;
   prepareOpen: (name: string) => boolean;
@@ -36,6 +38,7 @@ export interface FileIOControl {
   restoreFile: (ref: DraftFile) => void;
   targetName: () => string | null;
   targetHandle: () => FileSystemFileHandle | null;
+  saveSource: () => Promise<void>;
 }
 
 export function initFileIO({
@@ -53,6 +56,8 @@ export function initFileIO({
   defaultExt,
   onFileOpened,
   saveProject,
+  savesPdf,
+  savePdf,
   openProjectZip,
   openProjectDir,
   prepareOpen,
@@ -251,13 +256,19 @@ export function initFileIO({
     }
   }
 
-  document.querySelector("#saveBtn")!.addEventListener("click", async () => {
+  async function save(pdf: boolean): Promise<void> {
     if (isDocxActive()) {
       try {
         flash("#saveBtn", (await docxSave()) ? "Хадгаллаа" : "Цуцаллаа");
       } catch (_) {
         flash("#saveBtn", "Боломжгүй");
       }
+      return;
+    }
+
+    if (pdf && savesPdf()) {
+      await saveProject().catch(() => null);
+      await savePdf();
       return;
     }
 
@@ -325,7 +336,11 @@ export function initFileIO({
     } catch (_) {
       flash("#saveBtn", "Боломжгүй");
     }
-  });
+  }
+
+  document
+    .querySelector("#saveBtn")!
+    .addEventListener("click", () => void save(true));
 
   async function readAsText(file: File): Promise<string> {
     return decodeFileBytes(new Uint8Array(await file.arrayBuffer()));
@@ -462,6 +477,7 @@ export function initFileIO({
   });
 
   return {
+    saveSource: () => save(false),
     forgetFile() {
       currentFileHandle = null;
       currentFileName = null;
