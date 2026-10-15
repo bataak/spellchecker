@@ -113,7 +113,7 @@ export function commonRoot(paths: readonly string[]): string {
 }
 
 function uncommented(text: string): string {
-  return text.replace(/(?<!\\)%.*$/gm, "");
+  return text.replace(/(?<=(?:^|[^\\])(?:\\\\)*)%.*$/gm, "");
 }
 
 export function isLatexDocument(text: string): boolean {
