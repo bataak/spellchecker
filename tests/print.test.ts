@@ -90,6 +90,9 @@ test("printHtml: хэвлэлт апптай хамт ирсэн Times-тэй и
     "bichig-print-serif-mn-400i-v1",
     "bichig-print-serif-mn-700i-v1",
     "bichig-print-mono-mn-400-v1",
+    "bichig-print-mono-mn-700-v1",
+    "bichig-print-mono-mn-400i-v1",
+    "bichig-print-mono-mn-700i-v1",
   ])
     assert.ok(html.includes('url("fonts/' + file + '.woff2")'), file);
 });
