@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   normalizeTexPath,
+  imageCandidates,
   rewriteIncludes,
   texImagePaths,
 } from "../src/teximages.ts";
@@ -46,4 +47,24 @@ test("одтой \\includegraphics* хэлбэрийн зургийг ч олж 
     rewriteIncludes(text, new Map([["img/a.png", "image1.png"]])),
     String.raw`\includegraphics*[width=1cm]{image1.png}`,
   );
+});
+
+test("тайлбар доторх \\includegraphics-ийг дутуу зураг гэж тоохгүй", () => {
+  const text = String.raw`\includegraphics{a.png} % \includegraphics{old.png}
+% \includegraphics{older.png}
+50\% \includegraphics{b.png}`;
+  assert.deepEqual(texImagePaths(text), ["a.png", "b.png"]);
+});
+
+test("өргөтгөлгүй замд зургийн өргөтгөлүүдийг нэмж хайна", () => {
+  assert.deepEqual(imageCandidates("img/a.png"), ["img/a.png"]);
+  assert.deepEqual(imageCandidates("img.v2/a"), [
+    "img.v2/a",
+    "img.v2/a.png",
+    "img.v2/a.jpg",
+    "img.v2/a.jpeg",
+    "img.v2/a.PNG",
+    "img.v2/a.JPG",
+    "img.v2/a.JPEG",
+  ]);
 });

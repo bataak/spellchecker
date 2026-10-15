@@ -121,7 +121,7 @@ export function commonRoot(paths: readonly string[]): string {
   return first;
 }
 
-function uncommented(text: string): string {
+export function uncommented(text: string): string {
   return text.replace(/(?<=(?:^|[^\\])(?:\\\\)*)%.*$/gm, "");
 }
 
