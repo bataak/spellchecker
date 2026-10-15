@@ -354,3 +354,19 @@ test("toLatexBody: [ -ээр эхэлсэн жагсаалтын мөр \\item-�
     "\\begin{itemize}\n  \\item {}[1] Монгол улсын хууль\n  \\item Иргэний [2]\n\\end{itemize}",
   );
 });
+
+test("escapeTex: ₮, грек, математик тэмдэгтийг командоор, zero-width-ийг хасна", () => {
+  assert.equal(escapeTex("1500₮"), "1500\\texttugrik{}");
+  assert.equal(escapeTex("αΩΑο"), "\\ensuremath{\\alpha}\\ensuremath{\\Omega}Ao");
+  assert.equal(escapeTex("∑ℝ"), "\\ensuremath{\\sum}\\ensuremath{\\mathbb{R}}");
+  assert.equal(escapeTex("a​b️"), "ab");
+});
+
+test("toLatex: тодорхойгүй Unicode тэмдэгтэд эмхэтгэл зогсохгүй, ₮-ийн тодорхойлолт нэмэгдэнэ", () => {
+  const tex = toLatex(parse("Үнэ 5₮ 😀 ℝ\n"));
+  assert.match(tex, /\\def\\UTFviii@undefined@err/);
+  assert.match(tex, /\\DeclareRobustCommand\\texttugrik/);
+  assert.match(tex, /\\usepackage\{graphicx\}/);
+  assert.match(tex, /\\usepackage\{amssymb\}/);
+  assert.doesNotMatch(toLatex(parse("Энгийн.\n")), /texttugrik/);
+});
