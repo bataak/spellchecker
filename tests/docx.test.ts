@@ -400,3 +400,8 @@ test("writes multi-word replacements with markup characters as plain text", () =
   assert.equal(textOf(out), "өмнө " + fix + " хойно");
   assert.ok(out.includes("&lt;b&gt;x&lt;/b&gt; &amp;"));
 });
+
+test("encodeXmlText: XML-д хориотой удирдах тэмдэгтийг засварт оруулахгүй", async () => {
+  const { encodeXmlText } = await import("../src/office/docx/xml.ts");
+  assert.equal(encodeXmlText("а\u000bб\u0001<в>"), "а б&lt;в&gt;");
+});
