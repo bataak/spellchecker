@@ -20,6 +20,17 @@ export function isJunkEntry(path: string): boolean {
   return path.startsWith("__MACOSX/") || baseName(path).startsWith("._");
 }
 
+export function unpackedSize(bytes: Uint8Array): number {
+  let total = 0;
+  unzipSync(bytes, {
+    filter: (file) => {
+      total += file.originalSize;
+      return false;
+    },
+  });
+  return total;
+}
+
 export async function extractArchive(
   name: string,
   bytes: Uint8Array,

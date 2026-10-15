@@ -3,6 +3,7 @@ import { openDocx, saveDocx } from "./docx/index.ts";
 import { openOdf, saveOdf } from "./odf/index.ts";
 import { openPptx, savePptx } from "./pptx/index.ts";
 import type { SkipReason } from "./docx/edit.ts";
+import { unpackedSize } from "../archive.ts";
 
 export type OfficeFormat = "docx" | "pptx" | "odt" | "odp";
 
@@ -47,6 +48,7 @@ interface Engine {
 }
 
 export const SIZE_LIMIT = 30 * 1024 * 1024;
+const UNPACKED_LIMIT = 512 * 1024 * 1024;
 
 export const MIME: Record<OfficeFormat, string> = {
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -203,7 +205,10 @@ export async function openOfficeMode(file: File): Promise<OfficeMode> {
   if (format === null) throw new Error("unsupported");
   if (file.size > SIZE_LIMIT) throw new Error("too-large:30");
 
-  const engine = makeEngine(format, await readBytes(file));
+  const bytes = await readBytes(file);
+  if (unpackedSize(bytes) > UNPACKED_LIMIT)
+    throw new Error("unpacked-too-large");
+  const engine = makeEngine(format, bytes);
   const source = engine.text;
   const fileName = file.name;
   let edits: OfficeEdit[] = [];
