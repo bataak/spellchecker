@@ -3,6 +3,7 @@ import {
   addIgnored,
   removeIgnored,
   clearIgnored,
+  ignoreStem,
 } from "./ignore.ts";
 
 let overlay: HTMLDivElement | null = null;
@@ -79,6 +80,8 @@ const CYR_WORD_RE = /^[\u0400-\u04FF][\u0400-\u04FF-]{1,49}$/u;
 export function normalizeImport(raw: string): string | null {
   const trimmedWord = raw.trim().normalize("NFC");
   if (!trimmedWord) return null;
+  const stem = ignoreStem(trimmedWord);
+  if (stem !== trimmedWord) return LATIN_WORD_RE.test(stem) ? stem : null;
   if (HAS_LATIN.test(trimmedWord)) {
     return LATIN_WORD_RE.test(trimmedWord) ? trimmedWord : null;
   }
