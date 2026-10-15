@@ -115,9 +115,10 @@ export function parentDirs(path: string): string[] {
 }
 
 export function commonRoot(paths: readonly string[]): string {
-  if (!paths.length) return "";
-  const first = paths[0]!.split("/")[0]!;
-  if (!paths.every((path) => path.startsWith(first + "/"))) return "";
+  const kept = paths.filter((path) => !skippedPath(path));
+  if (!kept.length) return "";
+  const first = kept[0]!.split("/")[0]!;
+  if (!kept.every((path) => path.startsWith(first + "/"))) return "";
   return first;
 }
 

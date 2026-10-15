@@ -47,6 +47,10 @@ test("commonRoot: zip-ийн нийтлэг дээд хавтсыг олно", (
   assert.equal(commonRoot(["p/main.tex", "p/img/a.png"]), "p");
   assert.equal(commonRoot(["main.tex", "img/a.png"]), "");
   assert.equal(commonRoot(["p/main.tex", "q/x.tex"]), "");
+  assert.equal(
+    commonRoot(["p/main.tex", "__MACOSX/p/._main.tex", ".DS_Store"]),
+    "p",
+  );
   assert.equal(rootedPath("p/img/a.png", "p"), "img/a.png");
   assert.equal(rootedPath("other/a.png", "p"), "other/a.png");
 });
