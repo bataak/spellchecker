@@ -258,6 +258,7 @@ export interface ExportOptions {
   /** Экспорт хийж болохгүй төлөв (office горим). */
   readonly blocked?: () => boolean;
   readonly isTex?: () => boolean;
+  readonly texSource?: () => void;
   readonly saveButton?: HTMLElement | null;
   readonly printButton?: HTMLElement | null;
   readonly template: () => string;
@@ -437,6 +438,10 @@ export function initExport(options: ExportOptions): ExportControl {
   function open(): void {
     if (options.blocked?.()) {
       options.onBlocked?.();
+      return;
+    }
+    if (options.texSource && options.isTex?.()) {
+      options.texSource();
       return;
     }
     restoreFocus = document.activeElement as HTMLElement | null;
