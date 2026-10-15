@@ -98,6 +98,8 @@ export async function renderSvg(bytes: Uint8Array): Promise<Uint8Array | null> {
       unit: "pt",
       format: [width, height],
       orientation: width > height ? "landscape" : "portrait",
+      compress: true,
+      putOnlyUsedFonts: true,
     });
     useGenericFamilies(svg);
     if (BEYOND_LATIN1.test(svg.textContent ?? ""))
