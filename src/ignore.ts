@@ -13,9 +13,18 @@ function isMixedScript(word: string): boolean {
   return /\p{Script=Cyrillic}/u.test(word) && /\p{Script=Latin}/u.test(word);
 }
 
+export function ignoreParts(word: string): string[] {
+  const pieces = word.trim().normalize("NFC").split(".");
+  return pieces
+    .map(ignoreStem)
+    .filter(
+      (piece, at) => [...piece].length > (at === pieces.length - 1 ? 1 : 2),
+    );
+}
+
 export function canIgnore(word: string): boolean {
-  const stem = ignoreStem(word.trim().normalize("NFC"));
-  return stem !== "" && !isMixedScript(stem);
+  const parts = ignoreParts(word);
+  return parts.length > 0 && !parts.some(isMixedScript);
 }
 
 let ignored: string[] = [];
@@ -53,7 +62,7 @@ function load() {
         ...new Set(
           parsed
             .filter((w): w is string => typeof w === "string" && canIgnore(w))
-            .map((w) => ignoreStem(w.normalize("NFC"))),
+            .flatMap(ignoreParts),
         ),
       ]
     : [];
@@ -66,8 +75,9 @@ function persist() {
 
 export function isIgnored(word: string): boolean {
   if (matches(word)) return true;
-  const stem = ignoreStem(word);
-  return stem !== word && matches(stem);
+  if (!/[-.\u2010\u2011]/.test(word)) return false;
+  const parts = ignoreParts(word);
+  return parts.length > 0 && parts.every(matches);
 }
 
 function matches(word: string): boolean {
@@ -82,7 +92,12 @@ function matches(word: string): boolean {
 
 export function addIgnored(word: string): boolean {
   if (!canIgnore(word)) return false;
-  const trimmedWord = ignoreStem(word.trim().normalize("NFC"));
+  let added = false;
+  for (const part of ignoreParts(word)) added = addPart(part) || added;
+  return added;
+}
+
+function addPart(trimmedWord: string): boolean {
   load();
   const key = trimmedWord.toLowerCase();
   const existing = lookup.get(key);
