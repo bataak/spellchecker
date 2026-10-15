@@ -182,6 +182,7 @@ export function resolveGraphic(
 export function mapGraphics(
   text: string,
   map: (raw: string) => string | null,
+  label: (raw: string) => string = (raw) => raw.trim(),
 ): string {
   return text.replace(
     INCLUDE,
@@ -190,7 +191,7 @@ export function mapGraphics(
       if (target === raw) return whole;
       if (target !== null)
         return "\\includegraphics" + (opts ?? "") + "{" + target + "}";
-      return "\\fbox{\\ttfamily\\detokenize{" + raw.trim() + "}}";
+      return "\\fbox{\\ttfamily\\detokenize{" + label(raw) + "}}";
     },
   );
 }
