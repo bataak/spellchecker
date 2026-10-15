@@ -81,3 +81,15 @@ test("buildDocx: албан бичигт баруун блок мөр шилжи
   assert.ok(out["word/document.xml"]!.includes("<w:br/>"));
   assert.ok(out["word/styles.xml"]!.includes('w:styleId="SignatureTop"'));
 });
+
+test("XML-д хориотой удирдах тэмдэгтийг хасаж, \\v \\f-ийг зай болгоно", async () => {
+  const { buildOdt } = await import("../src/office/odt/create.ts");
+  const md = "# Гарчиг\f\n\nНэг\vхоёр\u0001 гурав.\n";
+  const doc = applyTemplate(parse(md), findTemplate("plain")!);
+  const docx = strFromU8(unzipSync(buildDocx(doc))["word/document.xml"]!);
+  const odt = strFromU8(unzipSync(buildOdt(doc))["content.xml"]!);
+  for (const xml of [docx, odt]) {
+    assert.doesNotMatch(xml, /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/);
+    assert.match(xml, /Нэг хоёр гурав\./);
+  }
+});

@@ -14,6 +14,7 @@ import type {
 import { listTree, type ListTree } from "../../markdown.ts";
 import { tabFills } from "../flatten.ts";
 import { columnWidths, officeMetrics } from "../table.ts";
+import { xmlText } from "../sanitize.ts";
 
 const encoder = new TextEncoder();
 
@@ -64,7 +65,7 @@ function frameXml(image: IrImage): string {
 const MONO = odfFont("Courier New");
 
 function esc(value: string): string {
-  return value
+  return xmlText(value)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
