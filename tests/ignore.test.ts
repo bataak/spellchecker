@@ -143,3 +143,16 @@ test("хуучин бүтэн бүртгэлийг уншихдаа үндэс �
   assert.deepEqual(getIgnored(), ["iPhone", "ном", "тест"]);
   assert.equal(isIgnored("iPhone-ээс"), true);
 });
+
+test("addIgnored: цэгтэй үгийг хэсэглэж, цэгийн өмнөх 1-2 үсгийг нэмэхгүй", () => {
+  assert.equal(addIgnored("Ш.Нацагдорж"), true);
+  assert.deepEqual(getIgnored(), ["Нацагдорж"]);
+  assert.equal(isIgnored("Ш.Нацагдорж"), true);
+  assert.equal(addIgnored("Бат.Дорж"), true);
+  assert.deepEqual(getIgnored(), ["Нацагдорж", "Бат", "Дорж"]);
+  assert.equal(isIgnored("Бат.Дорж"), true);
+  assert.equal(isIgnored("Бат.Болд"), false);
+  assert.equal(addIgnored("Ж.Ш.Бат"), false);
+  assert.equal(addIgnored("т.г"), false);
+  assert.deepEqual(getIgnored(), ["Нацагдорж", "Бат", "Дорж"]);
+});
