@@ -75,7 +75,8 @@ const APOS = /['\u2019]/g;
 const HAS_LATIN = /[A-Za-z\u00C0-\u024F]/;
 const LATIN_WORD_RE =
   /^[A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F'\u2019-]{1,49}$/;
-const CYR_WORD_RE = /^[\u0400-\u04FF][\u0400-\u04FF-]{1,49}$/u;
+const CYR_WORD_RE =
+  /^[\u0400-\u04FF](?:[\u0400-\u04FF-]|\.(?=[\u0400-\u04FF])){1,49}$/u;
 
 export function normalizeImport(raw: string): string | null {
   const trimmedWord = raw.trim().normalize("NFC");
