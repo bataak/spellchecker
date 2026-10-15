@@ -137,6 +137,10 @@ export function texMaster(text: string): string | null {
   return match?.[1]?.trim() || null;
 }
 
+export function selfMaster(text: string): boolean {
+  return TEX_MASTER.exec(text)?.[2] === "t";
+}
+
 export function masterPath(file: string, master: string): string | null {
   const target = cleanPath(joinPath(dirName(file), master));
   if (!target) return null;
@@ -155,6 +159,7 @@ export function findMain(texts: ReadonlyMap<string, string>): string | null {
     if (!isTexSource(path) || !isLatexDocument(text)) continue;
     let score = 0;
     if (named.has(path)) score += 10 + (named.get(path) ?? 0);
+    else if (selfMaster(text)) score += 10;
     if (/^main\.tex$/i.test(baseName(path))) score += 2;
     score -= path.split("/").length - 1;
     scored.push({ path, score });

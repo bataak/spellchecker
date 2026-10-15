@@ -286,6 +286,19 @@ c \% \includegraphics{kept}`;
   assert.equal(compilePasses([String.raw`x\\%\ref{a}`]), 1);
 });
 
+test("findMain: TeX-master: t гэж тэмдэглэсэн файлыг илүүд үзнэ", () => {
+  const doc = "\\documentclass{article}\\begin{document}\\end{document}";
+  assert.equal(
+    findMain(
+      new Map([
+        ["main.tex", doc],
+        ["notes.tex", doc + "\n%%% TeX-master: t\n"],
+      ]),
+    ),
+    "notes.tex",
+  );
+});
+
 test("relativePath: ажлын хавтаснаас гадуурх файлд ../ нэмнэ", () => {
   assert.equal(relativePath("img/a.png", "src"), "../img/a.png");
   assert.equal(relativePath("src/img/a.png", "src"), "img/a.png");
