@@ -13,6 +13,8 @@ const GRAPHIC_EXTS = [
   ".PNG",
   ".JPG",
   ".JPEG",
+  ".svg",
+  ".SVG",
 ];
 const INCLUDE =
   /\\includegraphics\s*((?:\*\s*)?(?:\[[^\]]*\]\s*)*)\{((?:[^{}]|\{[^{}]*\})*)\}/g;
@@ -47,6 +49,10 @@ export function viewableType(path: string): string | null {
 
 export function isPdfGraphic(path: string): boolean {
   return PDF_GRAPHIC.test(path);
+}
+
+export function isSvgGraphic(path: string): boolean {
+  return /\.svg$/i.test(path);
 }
 
 export function cleanPath(path: string): string | null {
