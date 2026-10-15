@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.107.0](https://github.com/bataak/spellchecker/compare/v1.106.1...v1.107.0) (2026-10-15)
+
+
+### Features
+
+* **fonts:** add bold and italic Bichig Print Mono for printing and SVG export ([98c8e8b](https://github.com/bataak/spellchecker/commit/98c8e8bc5d5bfe7e8a5326dd5408a61fda181941))
+* **tex:** convert \includesvg to vector PDF when the svg package is used ([d72cdc6](https://github.com/bataak/spellchecker/commit/d72cdc66783ca385a876ae0f9246ab9da5d3547c))
+* **tex:** convert SVG files used with \includegraphics to vector PDF ([3c16900](https://github.com/bataak/spellchecker/commit/3c1690039d8c5954b6c44f22e688790c2ad20354))
+
+
+### Bug Fixes
+
+* **tex:** render Cyrillic text in SVG images converted with the svg package ([3afa4c1](https://github.com/bataak/spellchecker/commit/3afa4c1dd1650964baa565c6f6bb39e67dcc44e1))
+
+
+### Performance Improvements
+
+* **tex:** embed only used, compressed fonts in SVG images converted to PDF ([331be8a](https://github.com/bataak/spellchecker/commit/331be8af0e2741371910ac004e23c37813038880))
+
 ## [1.106.1](https://github.com/bataak/spellchecker/compare/v1.106.0...v1.106.1) (2026-10-15)
 
 
