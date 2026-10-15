@@ -14,6 +14,7 @@ const DB_NAME = "bichig-tex";
 const DB_STORE = "handles";
 const DIR_KEY = "imageDir";
 const DIRECT_TYPES = new Set(["image/png", "image/jpeg"]);
+const IMAGE_EXTS = [".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG"];
 
 export interface TexImages {
   readonly files: Record<string, Uint8Array>;
@@ -131,7 +132,24 @@ async function readableDir(): Promise<FileSystemDirectoryHandle | null> {
   }
 }
 
+export function imageCandidates(path: string): string[] {
+  return /\.[A-Za-z0-9]+$/.test(path.slice(path.lastIndexOf("/") + 1))
+    ? [path]
+    : [path, ...IMAGE_EXTS.map((ext) => path + ext)];
+}
+
 async function resolveImage(
+  path: string,
+  dir: FileSystemDirectoryHandle | null,
+): Promise<Blob | null> {
+  for (const candidate of imageCandidates(path)) {
+    const blob = await resolveFile(candidate, dir);
+    if (blob) return blob;
+  }
+  return null;
+}
+
+async function resolveFile(
   path: string,
   dir: FileSystemDirectoryHandle | null,
 ): Promise<Blob | null> {
