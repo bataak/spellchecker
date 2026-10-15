@@ -57,3 +57,10 @@ test("normalizeImport: задарсан й, ё-тэй үгийг нийлүүл�
   assert.equal(normalizeImport("байна".normalize("NFD")), "байна");
   assert.equal(normalizeImport("Ёсоор".normalize("NFD")), "Ёсоор");
 });
+
+test("normalizeImport: латин үндэс ба кирилл нөхцөлтэй үгээс үндсийг авна", () => {
+  assert.equal(normalizeImport("iPhone-ийн"), "iPhone");
+  assert.equal(normalizeImport("Facebook-ээр"), "Facebook");
+  assert.equal(normalizeImport("iPhoneийн"), null);
+  assert.equal(normalizeImport("COVID-19"), null);
+});
