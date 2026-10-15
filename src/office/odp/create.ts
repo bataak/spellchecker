@@ -10,6 +10,7 @@ import {
 } from "../decklayout.ts";
 import { imageKey } from "../docir.ts";
 import type { Align, ImageFiles, IrRun } from "../docir.ts";
+import { xmlText } from "../sanitize.ts";
 
 export interface OdpOptions {
   readonly images?: ImageFiles;
@@ -65,7 +66,7 @@ const NS =
   ' xmlns:xlink="http://www.w3.org/1999/xlink"';
 
 function esc(value: string): string {
-  return value
+  return xmlText(value)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
