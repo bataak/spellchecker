@@ -5,7 +5,8 @@ const BUILD_OUTPUT =
 const SKIPPED_NAME = /^(?:\.|node_modules$|__MACOSX$|Thumbs\.db$)/;
 const PDF_GRAPHIC = /\.(png|jpe?g|pdf)$/i;
 const GRAPHIC_EXTS = [".pdf", ".png", ".jpg", ".jpeg", ".PDF", ".PNG", ".JPG"];
-const INCLUDE = /\\includegraphics\s*(\[[^\]]*\])?\s*\{([^}]*)\}/g;
+const INCLUDE =
+  /\\includegraphics\s*(\[[^\]]*\])?\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g;
 const GRAPHICSPATH = /\\graphicspath\s*\{((?:\s*\{[^}]*\})*)\s*\}/g;
 const CROSS_REF =
   /\\(?:tableofcontents|listof(?:figures|tables)|ref|eqref|pageref|autoref|cref|Cref|cite|label)\b/;
@@ -196,7 +197,7 @@ export function mapGraphics(
 
 const PATH_MACRO =
   /\\(?:def|(?:re|provide)?newcommand\*?)\s*\{?\s*\\([A-Za-z@]+)\s*\}?\s*\{([^{}]*)\}/g;
-const MACRO_USE = /\\([A-Za-z@]+)\s*/g;
+const MACRO_USE = /\\([A-Za-z@]+)\s*(?:\{\})?/g;
 
 export function pathMacros(texts: Iterable<string>): Map<string, string> {
   const out = new Map<string, string>();

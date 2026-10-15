@@ -252,3 +252,21 @@ test("pathMacros ба expandMacros: \\def, \\newcommand-оор өгсөн зам
   assert.equal(macros.has("Two"), false);
   assert.equal(expandMacros(String.raw`\Unknown`, macros), String.raw`\Unknown`);
 });
+
+test("\\includegraphics доторх {}-тэй макрог задалж, хаалтыг тэнцвэртэй үлдээнэ", () => {
+  const text = String.raw`\newcommand{\figdir}{figs}
+\includegraphics[width=2cm]{\figdir{}/b}`;
+  const macros = pathMacros([text]);
+  assert.deepEqual(
+    graphicRefs(text).map((raw) => expandMacros(raw, macros)),
+    ["figs/b"],
+  );
+  assert.equal(
+    mapGraphics(text, () => null).split("\n")[1],
+    String.raw`\fbox{\ttfamily\detokenize{\figdir{}/b}}`,
+  );
+  assert.equal(
+    mapGraphics(text, () => "figs/b.converted.png").split("\n")[1],
+    String.raw`\includegraphics[width=2cm]{figs/b.converted.png}`,
+  );
+});
