@@ -789,7 +789,8 @@ function patchEngine(js: string): string {
   );
   replace(
     'else if(cmd==="flushcache"){cleanDir(WORKROOT)}',
-    'else if(cmd==="flushcache"){cleanDir(WORKROOT);self.texmisses.clear()}' +
+    'else if(cmd==="flushcache"){FS.chdir(WORKROOT);self.workdir="";cleanDir(WORKROOT);self.texmisses.clear()}' +
+      'else if(cmd==="workdir"){self.workdir=data["url"]}' +
       'else if(cmd==="writetex"){FS.writeFile(TEXCACHEROOT+"/"+data["name"],data["src"])}' +
       'else if(cmd==="misses"){self.postMessage({cmd:"misses",names:[...self.texmisses]})}' +
       'else if(cmd==="fonturl"){self.texfont_endpoint=data["url"]}',
@@ -797,8 +798,16 @@ function patchEngine(js: string): string {
   replace(
     'console.error("Compilation failed, with status code "+status);self.postMessage({"result":"failed","status":status,"log":self.memlog,"cmd":"compile"})',
     'console.error("Compilation failed, with status code "+status);let pdf=null;' +
-      'try{pdf=FS.readFile(WORKROOT+"/"+self.mainfile.substr(0,self.mainfile.length-4)+".pdf",{encoding:"binary"}).buffer}catch(err){}' +
+      'try{pdf=FS.readFile(FS.cwd()+"/"+self.mainfile.substr(0,self.mainfile.length-4)+".pdf",{encoding:"binary"}).buffer}catch(err){}' +
       'self.postMessage({"result":"failed","status":status,"log":self.memlog,"pdf":pdf,"cmd":"compile"},pdf?[pdf]:[])',
+  );
+  replace(
+    "closeFSStreams();FS.chdir(WORKROOT)}",
+    'closeFSStreams();FS.chdir(self.workdir?WORKROOT+"/"+self.workdir:WORKROOT)}',
+  );
+  replace(
+    'let pdfurl=WORKROOT+"/"+self.mainfile.substr(',
+    'let pdfurl=FS.cwd()+"/"+self.mainfile.substr(',
   );
   return js;
 }

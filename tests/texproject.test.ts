@@ -17,6 +17,7 @@ import {
   parentDirs,
   pathMacros,
   referencesFiles,
+  relativePath,
   resolveGraphic,
   rootedPath,
   skippedPath,
@@ -283,4 +284,12 @@ c \% \includegraphics{kept}`;
   assert.deepEqual(graphicRefs(text), ["kept"]);
   assert.equal(pathMacros([text]).get("dir"), "new");
   assert.equal(compilePasses([String.raw`x\\%\ref{a}`]), 1);
+});
+
+test("relativePath: ажлын хавтаснаас гадуурх файлд ../ нэмнэ", () => {
+  assert.equal(relativePath("img/a.png", "src"), "../img/a.png");
+  assert.equal(relativePath("src/img/a.png", "src"), "img/a.png");
+  assert.equal(relativePath("a/b/c.png", "a/d/e"), "../../b/c.png");
+  assert.equal(relativePath("img/a.png", ""), "img/a.png");
+  assert.equal(relativePath("src.png", "src"), "../src.png");
 });
