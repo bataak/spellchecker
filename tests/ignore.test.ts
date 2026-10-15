@@ -143,3 +143,44 @@ test("хуучин бүтэн бүртгэлийг уншихдаа үндэс �
   assert.deepEqual(getIgnored(), ["iPhone", "ном", "тест"]);
   assert.equal(isIgnored("iPhone-ээс"), true);
 });
+
+test("addIgnored: цэгтэй үгийг хэсэглэж, цэгийн өмнөх 1-2 үсгийг нэмэхгүй", () => {
+  assert.equal(addIgnored("Ш.Нацагдорж"), true);
+  assert.deepEqual(getIgnored(), ["Нацагдорж"]);
+  assert.equal(isIgnored("Ш.Нацагдорж"), true);
+  assert.equal(addIgnored("Бат.Дорж"), true);
+  assert.deepEqual(getIgnored(), ["Нацагдорж", "Бат", "Дорж"]);
+  assert.equal(isIgnored("Бат.Дорж"), true);
+  assert.equal(isIgnored("Бат.Болд"), false);
+  assert.equal(addIgnored("Ж.Ш.Бат"), false);
+  assert.equal(addIgnored("т.г"), false);
+  assert.deepEqual(getIgnored(), ["Нацагдорж", "Бат", "Дорж"]);
+});
+
+test("addIgnored: кирилл зураастай үгийг бүтнээр нь нэмнэ", () => {
+  for (const word of ["д-р", "хар-цагаан"])
+    assert.equal(addIgnored(word), true, word);
+  assert.deepEqual(getIgnored(), ["д-р", "хар-цагаан"]);
+  assert.equal(isIgnored("д-р"), true);
+  assert.equal(isIgnored("хар"), false);
+});
+
+test("addIgnored: зураасны ард тийн ялгалын нөхцөл байвал хасна", () => {
+  for (const word of ["СӨБ-ийн", "МУИС-д", "НҮБ-тайгаа", "АНУ-аас"])
+    assert.equal(addIgnored(word), true, word);
+  assert.deepEqual(getIgnored(), ["СӨБ", "МУИС", "НҮБ", "АНУ"]);
+  for (const word of [
+    "СӨБ-ийг",
+    "МУИС-ийнхаа",
+    "МУИС-ийнхны",
+    "МУИС-ийнхэнд",
+    "НҮБ",
+    "АНУ-руу",
+  ])
+    assert.equal(isIgnored(word), true, word);
+});
+
+test("addIgnored: -ийнхны, -ийнхэн зэрэг хэлбэрээс үндсийг авна", () => {
+  assert.equal(addIgnored("МУИС-ийнхны"), true);
+  assert.deepEqual(getIgnored(), ["МУИС"]);
+});

@@ -64,3 +64,10 @@ test("normalizeImport: латин үндэс ба кирилл нөхцөлтэ�
   assert.equal(normalizeImport("iPhoneийн"), null);
   assert.equal(normalizeImport("COVID-19"), null);
 });
+
+test("normalizeImport: овгийн эхний үсэгтэй нэрийг хүлээн авна", () => {
+  for (const word of ["Ш.Нацагдорж", "Ж.Ш.Бат", "Д.Нацагдоржийн", "т.г"])
+    assert.equal(normalizeImport(word), word);
+  for (const word of ["Нацагдорж.", ".Бат", "Ш..Бат"])
+    assert.equal(normalizeImport(word), null, word);
+});
