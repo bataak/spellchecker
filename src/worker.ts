@@ -598,7 +598,8 @@ function englishStemsOf(word: string): string[] {
   for (const { inst } of english) {
     if (!inst.stem) continue;
     try {
-      for (const form of [word, lower]) stringList(inst.stem(form)).forEach(add);
+      for (const form of [word, lower])
+        stringList(inst.stem(form)).forEach(add);
     } catch (_) {}
   }
   if (out.length) return out;
@@ -684,6 +685,27 @@ function isCorrect(word: string): boolean {
   return list.some(({ inst }) => inst.spell(word));
 }
 
+const SUGGEST_CACHE_MAX = 200;
+const suggestCache = new WeakMap<SpellerInstance, Map<string, string[]>>();
+
+function cachedSuggest(inst: SpellerInstance, word: string): string[] {
+  let memo = suggestCache.get(inst);
+  if (!memo) {
+    memo = new Map();
+    suggestCache.set(inst, memo);
+  }
+  const hit = memo.get(word);
+  if (hit) {
+    memo.delete(word);
+    memo.set(word, hit);
+    return hit;
+  }
+  const result = inst.suggest(word) || [];
+  memo.set(word, result);
+  if (memo.size > SUGGEST_CACHE_MAX) memo.delete(memo.keys().next().value!);
+  return result;
+}
+
 function suggest(word: string): string[] {
   const base = activeInstances();
   const cyr = /[\u0400-\u04FF\u1800-\u18AF]/.test(word);
@@ -699,7 +721,7 @@ function suggest(word: string): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const { inst } of list) {
-    for (const suggestion of inst.suggest(word) || []) {
+    for (const suggestion of cachedSuggest(inst, word)) {
       if (!seen.has(suggestion)) {
         seen.add(suggestion);
         out.push(suggestion);
