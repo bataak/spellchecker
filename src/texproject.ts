@@ -4,7 +4,15 @@ const BUILD_OUTPUT =
   /\.(aux|log|out|toc|lof|lot|fls|fdb_latexmk|blg|xdv|nav|snm|vrb|bcf|run\.xml|synctex(?:\.gz)?|synctex\(busy\))$/i;
 const SKIPPED_NAME = /^(?:\.|node_modules$|__MACOSX$|Thumbs\.db$)/;
 const PDF_GRAPHIC = /\.(png|jpe?g|pdf)$/i;
-const GRAPHIC_EXTS = [".pdf", ".png", ".jpg", ".jpeg", ".PDF", ".PNG", ".JPG"];
+const GRAPHIC_EXTS = [
+  ".pdf",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".PDF",
+  ".PNG",
+  ".JPG",
+];
 const INCLUDE =
   /\\includegraphics\s*((?:\*\s*)?(?:\[[^\]]*\]\s*)*)\{((?:[^{}]|\{[^{}]*\})*)\}/g;
 const GRAPHICSPATH = /\\graphicspath\s*\{((?:\s*\{[^}]*\})*)\s*\}/g;
@@ -245,6 +253,15 @@ export function compilePasses(texts: Iterable<string>): number {
     if (CROSS_REF.test(body)) passes = 2;
   }
   return passes;
+}
+
+export function relativePath(path: string, from: string): string {
+  const up = from ? from.split("/") : [];
+  const down = path.split("/");
+  let same = 0;
+  while (same < up.length && same < down.length - 1 && up[same] === down[same])
+    same += 1;
+  return [...up.slice(same).map(() => ".."), ...down.slice(same)].join("/");
 }
 
 export function rootedPath(path: string, root: string): string {
