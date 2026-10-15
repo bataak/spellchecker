@@ -19,6 +19,9 @@ try {
 
 const base = process.env.VITE_BASE || "/hunspell-mn/";
 
+const svgPdfModule = (id: string): boolean =>
+  /node_modules\/(?:jspdf|svg2pdf\.js|html2canvas|dompurify|canvg)\//.test(id);
+
 function packDict(): Plugin {
   return {
     name: "pack-dict",
@@ -69,10 +72,12 @@ export default defineConfig({
     target: "es2020",
     rollupOptions: {
       output: {
-        chunkFileNames: (chunk: { name?: string }) =>
+        chunkFileNames: (chunk: { name?: string; moduleIds: string[] }) =>
           chunk.name && /^pdf/.test(chunk.name)
             ? "assets/pdfjs-[hash].js"
-            : "assets/[name]-[hash].js",
+            : chunk.name === "svgpdf" || chunk.moduleIds.some(svgPdfModule)
+              ? "assets/svgpdf/[name]-[hash].js"
+              : "assets/[name]-[hash].js",
       },
     },
   },
@@ -88,7 +93,12 @@ export default defineConfig({
         globPatterns: [
           "**/*.{js,mjs,css,html,ico,png,svg,webmanifest,wasm,gz,json,woff2}",
         ],
-        globIgnores: ["**/dict/stardict/**", "**/tex/**", "**/examples/**"],
+        globIgnores: [
+          "**/dict/stardict/**",
+          "**/tex/**",
+          "**/examples/**",
+          "**/assets/svgpdf/**",
+        ],
         navigateFallback: base + "index.html",
         cleanupOutdatedCaches: true,
         clientsClaim: true,
@@ -96,7 +106,7 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 20 * 1024 * 1024,
         runtimeCaching: [
           {
-            urlPattern: /\/(?:tex|examples)\//,
+            urlPattern: /\/(?:tex|examples|assets\/svgpdf)\//,
             handler: "CacheFirst",
             options: {
               cacheName: "tex-assets",

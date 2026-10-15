@@ -1,6 +1,13 @@
 import { replaceRange } from "./editortext.ts";
 import { pickImage } from "./images.ts";
 import { expandMacros, pathMacros, uncommented } from "./texproject.ts";
+import {
+  rewriteSvg,
+  svgCandidates,
+  svgRefs,
+  svgToPdf,
+  usesSvgPackage,
+} from "./texsvg.ts";
 
 const INCLUDE =
   /\\includegraphics\s*((?:\*\s*)?(?:\[[^\]]*\]\s*)*)\{((?:[^{}]|\{[^{}]*\})*)\}/g;
@@ -196,7 +203,8 @@ async function encode(
 
 export async function texImageFiles(text: string): Promise<TexImages> {
   const paths = texImagePaths(text);
-  const dir = paths.length ? await readableDir() : null;
+  const dir =
+    paths.length || svgRefs(text).length ? await readableDir() : null;
   const names = new Map<string, string>();
   const files: Record<string, Uint8Array> = {};
   const missing: string[] = [];
@@ -211,7 +219,48 @@ export async function texImageFiles(text: string): Promise<TexImages> {
     names.set(path, name);
     files[name] = file.bytes;
   }
-  return { files, missing, rewrite: (tex) => rewriteIncludes(tex, names) };
+  if (!usesSvgPackage([text]))
+    return { files, missing, rewrite: (tex) => rewriteIncludes(tex, names) };
+  const macros = pathMacros([text]);
+  const svgPath = (raw: string): string =>
+    normalizeTexPath(expandMacros(raw, macros));
+  const svgNames = new Map<string, string>();
+  for (const raw of svgRefs(text)) {
+    const path = svgPath(raw);
+    if (!path || svgNames.has(path) || missing.includes(path)) continue;
+    const blob = await resolveSvg(path, dir);
+    const pdf = blob
+      ? await svgToPdf(new Uint8Array(await blob.arrayBuffer()))
+      : null;
+    if (!pdf) {
+      missing.push(path);
+      continue;
+    }
+    const name = "image" + String(names.size + svgNames.size + 1) + ".pdf";
+    svgNames.set(path, name);
+    files[name] = pdf;
+  }
+  return {
+    files,
+    missing,
+    rewrite: (tex) =>
+      rewriteSvg(
+        rewriteIncludes(tex, names),
+        (raw) => svgNames.get(svgPath(raw)) ?? null,
+        svgPath,
+      ),
+  };
+}
+
+async function resolveSvg(
+  path: string,
+  dir: FileSystemDirectoryHandle | null,
+): Promise<Blob | null> {
+  for (const candidate of svgCandidates(path)) {
+    const blob = await resolveFile(candidate, dir);
+    if (blob) return blob;
+  }
+  return null;
 }
 
 export async function chooseImageFolder(): Promise<void> {
