@@ -833,6 +833,18 @@ async function writeDisk(
   await stream.close();
 }
 
+async function readDisk(path: string): Promise<Uint8Array | null> {
+  const s = state;
+  if (!s?.handle || s.kind !== "dir") return null;
+  try {
+    const dir = await dirHandleFor(s.handle, dirName(path), false);
+    const file = await (await dir.getFileHandle(baseName(path))).getFile();
+    return new Uint8Array(await file.arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
 async function removeDisk(path: string): Promise<void> {
   const s = state;
   if (!s?.handle || s.kind !== "dir") return;
@@ -923,7 +935,9 @@ async function moveDisk(
 ): Promise<void> {
   for (const [path, text] of s.saved) {
     const next = movedPath(path, from, target);
-    if (next !== null) await writeDisk(next, diskText(s, path, text));
+    if (next === null) continue;
+    const bytes = await readDisk(movedPath(path, from, source) ?? path);
+    await writeDisk(next, bytes ?? diskText(s, path, text));
   }
   for (const [path, bytes] of s.binaries) {
     const next = movedPath(path, from, target);
