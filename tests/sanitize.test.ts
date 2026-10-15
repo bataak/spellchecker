@@ -43,3 +43,8 @@ test("цэвэр текст өөрчлөгдөхгүй", () => {
 test("зөвхөн удирдах тэмдэгтээс бүрдсэн мөр хоосон болно", () => {
   assert.equal(stripInvisible("\u0000\u0001\u0002"), "");
 });
+
+test("dropControls: \\v \\f-ийг зай болгож, бусад удирдах тэмдэгтийг хасна", async () => {
+  const { dropControls } = await import("../src/office/sanitize.ts");
+  assert.equal(dropControls("а\vб\fв\u0001г\u001bд\tе\r\nё"), "а б вгд\tе\r\nё");
+});
