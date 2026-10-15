@@ -285,7 +285,10 @@ export function fontFaces(fontBase: string): string {
     face("Bichig Print Sans", "bichig-print-sans-mn-700-v1.woff2", 700, "normal") +
     face("Bichig Print Sans", "bichig-print-sans-mn-400i-v1.woff2", 400, "italic") +
     face("Bichig Print Sans", "bichig-print-sans-mn-700i-v1.woff2", 700, "italic") +
-    face("Bichig Print Mono", "bichig-print-mono-mn-400-v1.woff2", 400, "normal")
+    face("Bichig Print Mono", "bichig-print-mono-mn-400-v1.woff2", 400, "normal") +
+    face("Bichig Print Mono", "bichig-print-mono-mn-700-v1.woff2", 700, "normal") +
+    face("Bichig Print Mono", "bichig-print-mono-mn-400i-v1.woff2", 400, "italic") +
+    face("Bichig Print Mono", "bichig-print-mono-mn-700i-v1.woff2", 700, "italic")
   );
 }
 

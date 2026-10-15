@@ -1,16 +1,12 @@
 import { jsPDF } from "jspdf";
 import { svg2pdf } from "svg2pdf.js";
-import { svgSize } from "./texsvg.ts";
+import { genericCss, genericFamily, svgSize } from "./texsvg.ts";
 
 const FONT_DIR = "fonts/svgpdf/";
 const FAMILIES = [
   { id: "times", file: "serif", used: /./ },
-  {
-    id: "helvetica",
-    file: "sans",
-    used: /sans|arial|helvetica|verdana|tahoma|calibri|segoe|roboto/i,
-  },
-  { id: "courier", file: "mono", used: /mono|courier|consol|fixed|terminal/i },
+  { id: "helvetica", file: "sans", used: /sans-serif/ },
+  { id: "courier", file: "mono", used: /monospace/ },
 ];
 const STYLES = [
   { style: "normal", weight: "400", used: /./ },
@@ -22,8 +18,7 @@ const STYLES = [
     used: /(?=[\s\S]*(?:bold|[6-9]00))(?=[\s\S]*(?:italic|oblique))/i,
   },
 ];
-const SINGLE_WEIGHT: ReadonlySet<string> = new Set(["mono"]);
-const BEYOND_LATIN1 = /[^\u0000-ÿ]/;
+const BEYOND_LATIN1 = /[^\u0000-\u00ff]/;
 
 const fonts = new Map<string, Promise<string | null>>();
 
@@ -62,7 +57,7 @@ async function addUnicodeFonts(pdf: jsPDF, source: string): Promise<void> {
           "bichig-print-" +
           family.file +
           "-mn-" +
-          (SINGLE_WEIGHT.has(family.file) ? "400" : style.weight) +
+          style.weight +
           "-v1.ttf",
       })),
   );
@@ -73,6 +68,18 @@ async function addUnicodeFonts(pdf: jsPDF, source: string): Promise<void> {
     pdf.addFileToVFS(font.name, data);
     pdf.addFont(font.name, font.id, font.style, undefined, "Identity-H");
   });
+}
+
+function useGenericFamilies(svg: Element): void {
+  for (const element of [svg, ...svg.querySelectorAll("*")]) {
+    const family = element.getAttribute("font-family");
+    if (family !== null)
+      element.setAttribute("font-family", genericFamily(family));
+    const style = element.getAttribute("style");
+    if (style !== null) element.setAttribute("style", genericCss(style));
+    if (element.localName === "style")
+      element.textContent = genericCss(element.textContent ?? "");
+  }
 }
 
 export async function renderSvg(bytes: Uint8Array): Promise<Uint8Array | null> {
@@ -92,8 +99,9 @@ export async function renderSvg(bytes: Uint8Array): Promise<Uint8Array | null> {
       format: [width, height],
       orientation: width > height ? "landscape" : "portrait",
     });
+    useGenericFamilies(svg);
     if (BEYOND_LATIN1.test(svg.textContent ?? ""))
-      await addUnicodeFonts(pdf, source);
+      await addUnicodeFonts(pdf, new XMLSerializer().serializeToString(svg));
     await svg2pdf(svg, pdf, { x: 0, y: 0, width, height });
     return new Uint8Array(pdf.output("arraybuffer"));
   } catch {
