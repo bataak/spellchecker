@@ -66,5 +66,7 @@ test("өргөтгөлгүй замд зургийн өргөтгөлүүдий�
     "img.v2/a.PNG",
     "img.v2/a.JPG",
     "img.v2/a.JPEG",
+    "img.v2/a.svg",
+    "img.v2/a.SVG",
   ]);
 });

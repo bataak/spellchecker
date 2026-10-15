@@ -18,6 +18,7 @@ import {
   pathMacros,
   referencesFiles,
   relativePath,
+  isSvgGraphic,
   resolveGraphic,
   rootedPath,
   sameOnDisk,
@@ -95,6 +96,15 @@ test("graphicsPaths ба resolveGraphic: өргөтгөлгүй, \\graphicspath-
   assert.equal(resolveGraphic("plot", "", search, has), "fig/plot.pdf");
   assert.equal(resolveGraphic("./logo.jpg", "", search, has), "logo.jpg");
   assert.equal(resolveGraphic("none", "", search, has), null);
+});
+
+test("resolveGraphic: өргөтгөлгүй замд svg-г растер зургийн дараа хайна", () => {
+  const files = new Set(["fig/a.svg", "fig/b.svg", "fig/b.png"]);
+  const has = (path: string): boolean => files.has(path);
+  assert.equal(resolveGraphic("fig/a", "", [], has), "fig/a.svg");
+  assert.equal(resolveGraphic("fig/b", "", [], has), "fig/b.png");
+  assert.equal(isSvgGraphic("fig/a.SVG"), true);
+  assert.equal(isSvgGraphic("fig/b.png"), false);
 });
 
 test("resolveGraphic: үндсэн файлын хавтсаас эхэлж хайна", () => {

@@ -21,7 +21,16 @@ const DB_NAME = "bichig-tex";
 const DB_STORE = "handles";
 const DIR_KEY = "imageDir";
 const DIRECT_TYPES = new Set(["image/png", "image/jpeg"]);
-const IMAGE_EXTS = [".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG"];
+const IMAGE_EXTS = [
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".PNG",
+  ".JPG",
+  ".JPEG",
+  ".svg",
+  ".SVG",
+];
 
 export interface TexImages {
   readonly files: Record<string, Uint8Array>;
@@ -148,10 +157,10 @@ export function imageCandidates(path: string): string[] {
 async function resolveImage(
   path: string,
   dir: FileSystemDirectoryHandle | null,
-): Promise<Blob | null> {
+): Promise<{ blob: Blob; path: string } | null> {
   for (const candidate of imageCandidates(path)) {
     const blob = await resolveFile(candidate, dir);
-    if (blob) return blob;
+    if (blob) return { blob, path: candidate };
   }
   return null;
 }
@@ -177,7 +186,12 @@ async function resolveFile(
 
 async function encode(
   blob: Blob,
+  path: string,
 ): Promise<{ bytes: Uint8Array; ext: string } | null> {
+  if (blob.type === "image/svg+xml" || /\.svg$/i.test(path)) {
+    const pdf = await svgToPdf(new Uint8Array(await blob.arrayBuffer()));
+    return pdf ? { bytes: pdf, ext: "pdf" } : null;
+  }
   if (DIRECT_TYPES.has(blob.type))
     return {
       bytes: new Uint8Array(await blob.arrayBuffer()),
@@ -209,8 +223,8 @@ export async function texImageFiles(text: string): Promise<TexImages> {
   const files: Record<string, Uint8Array> = {};
   const missing: string[] = [];
   for (const path of paths) {
-    const blob = await resolveImage(path, dir);
-    const file = blob ? await encode(blob) : null;
+    const found = await resolveImage(path, dir);
+    const file = found ? await encode(found.blob, found.path) : null;
     if (!file) {
       missing.push(path);
       continue;
