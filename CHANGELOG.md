@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.107.2](https://github.com/bataak/spellchecker/compare/v1.107.1...v1.107.2) (2026-10-15)
+
+
+### Performance Improvements
+
+* **suggest:** cache suggestions and show a computing notice ([a69399a](https://github.com/bataak/spellchecker/commit/a69399ac0aa50edfb22564c498cb3ec392ea15fd))
+* **suggest:** rebuild hunspell-wasm with ngram pruning ([c373f33](https://github.com/bataak/spellchecker/commit/c373f334ee1aeda7a09408f464d5dfc029e8d69f))
+
 ## [1.107.1](https://github.com/bataak/spellchecker/compare/v1.107.0...v1.107.1) (2026-10-15)
 
 
