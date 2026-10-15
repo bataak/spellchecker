@@ -12,6 +12,7 @@ import {
   isEditablePath,
   isLatexDocument,
   isPdfGraphic,
+  isSvgGraphic,
   isTexSource,
   joinPath,
   mapGraphics,
@@ -1156,15 +1157,19 @@ export async function projectBuild(): Promise<ProjectBuild> {
         continue;
       }
       if (isPdfGraphic(path) || converted.has(path)) continue;
-      const png = await toPng(s.binaries.get(path) ?? new Uint8Array(0));
-      if (!png) {
+      const bytes = s.binaries.get(path) ?? new Uint8Array(0);
+      const svg = isSvgGraphic(path);
+      const data = svg ? await svgToPdf(bytes) : await toPng(bytes);
+      if (!data) {
         resolved.set(raw, null);
         missing.push(wanted.trim());
         continue;
       }
-      const name = path.replace(/\.[^./]*$/, "") + ".converted.png";
+      const name =
+        path.replace(/\.[^./]*$/, "") +
+        (svg ? ".converted.pdf" : ".converted.png");
       converted.set(path, name);
-      put(name, png);
+      put(name, data);
     }
   const graphic = (raw: string): string | null => {
     const path = resolved.get(raw) ?? null;
