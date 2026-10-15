@@ -47,3 +47,10 @@ test("одтой \\includegraphics* хэлбэрийн зургийг ч олж 
     String.raw`\includegraphics*[width=1cm]{image1.png}`,
   );
 });
+
+test("тайлбар доторх \\includegraphics-ийг дутуу зураг гэж тоохгүй", () => {
+  const text = String.raw`\includegraphics{a.png} % \includegraphics{old.png}
+% \includegraphics{older.png}
+50\% \includegraphics{b.png}`;
+  assert.deepEqual(texImagePaths(text), ["a.png", "b.png"]);
+});
