@@ -67,11 +67,15 @@ async function latexFor(
   templateId: string,
   options: BuildOptions,
 ): Promise<string> {
-  const { toBeamer, toLatex } = await import("./latex.ts");
+  const [{ toBeamer, toLatex }, { dropControls }] = await Promise.all([
+    import("./latex.ts"),
+    import("./office/sanitize.ts"),
+  ]);
   const frame = findTemplate(templateId)?.frame;
+  const blocks = parse(dropControls(text));
   return frame === "slides"
-    ? toBeamer(parse(text))
-    : toLatex(parse(text), undefined, {
+    ? toBeamer(blocks)
+    : toLatex(blocks, undefined, {
         toc: tocFor(options, templateId, text),
         pageNumbers: frame !== "letter" || hasSections(text, templateId),
         letter: frame === "letter",

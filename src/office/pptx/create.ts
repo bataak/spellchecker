@@ -10,7 +10,7 @@ import {
 } from "../decklayout.ts";
 import { imageKey } from "../docir.ts";
 import type { Align, ImageFiles, IrRun } from "../docir.ts";
-import { xmlText } from "../sanitize.ts";
+import { dropControls } from "../sanitize.ts";
 
 export interface PptxOptions {
   readonly images?: ImageFiles;
@@ -41,7 +41,7 @@ const CT = "application/vnd.openxmlformats-officedocument.presentationml.";
 const XML_HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
 
 function esc(value: string): string {
-  return xmlText(value)
+  return dropControls(value)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
