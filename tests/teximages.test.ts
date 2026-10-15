@@ -38,3 +38,12 @@ test("макроор өгсөн зургийн замыг задалж олно"
     /\\includegraphics\[height=1cm\]\{image1\.png\}/,
   );
 });
+
+test("одтой \\includegraphics* хэлбэрийн зургийг ч олж солино", () => {
+  const text = String.raw`\includegraphics*[width=1cm]{img/a.png}`;
+  assert.deepEqual(texImagePaths(text), ["img/a.png"]);
+  assert.equal(
+    rewriteIncludes(text, new Map([["img/a.png", "image1.png"]])),
+    String.raw`\includegraphics*[width=1cm]{image1.png}`,
+  );
+});

@@ -6,7 +6,7 @@ const SKIPPED_NAME = /^(?:\.|node_modules$|__MACOSX$|Thumbs\.db$)/;
 const PDF_GRAPHIC = /\.(png|jpe?g|pdf)$/i;
 const GRAPHIC_EXTS = [".pdf", ".png", ".jpg", ".jpeg", ".PDF", ".PNG", ".JPG"];
 const INCLUDE =
-  /\\includegraphics\s*(\[[^\]]*\])?\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g;
+  /\\includegraphics\s*((?:\*\s*)?(?:\[[^\]]*\]\s*)*)\{((?:[^{}]|\{[^{}]*\})*)\}/g;
 const GRAPHICSPATH = /\\graphicspath\s*\{((?:\s*\{[^}]*\})*)\s*\}/g;
 const CROSS_REF =
   /\\(?:tableofcontents|listof(?:figures|tables)|ref|eqref|pageref|autoref|cref|Cref|cite|label)\b/;
@@ -231,7 +231,7 @@ export function graphicRefs(text: string): string[] {
 }
 
 const FILE_REFERENCE =
-  /\\(?:input|include|subfile|import|subimport|includegraphics|bibliography|addbibresource|lstinputlisting|verbatiminput)\b\s*(?:\[[^\]]*\]\s*)?\{/;
+  /\\(?:input|include|subfile|import|subimport|includegraphics|bibliography|addbibresource|lstinputlisting|verbatiminput)\b\*?\s*(?:\[[^\]]*\]\s*)*\{/;
 
 export function referencesFiles(text: string): boolean {
   return FILE_REFERENCE.test(uncommented(text));

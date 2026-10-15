@@ -269,6 +269,7 @@ test("\\includegraphics доторх {}-тэй макрог задалж, хаа
     mapGraphics(text, () => null, (raw) => expandMacros(raw, macros)).split("\n")[1],
     String.raw`\fbox{\ttfamily\detokenize{figs/b}}`,
   );
+  assert.equal(referencesFiles(String.raw`\includegraphics*{a}`), true);
   assert.equal(
     mapGraphics(text, () => "figs/b.converted.png").split("\n")[1],
     String.raw`\includegraphics[width=2cm]{figs/b.converted.png}`,
