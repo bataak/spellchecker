@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  genericCss,
+  genericFamily,
   graphicOptions,
   resolveSvg,
   rewriteSvg,
@@ -65,4 +67,19 @@ test("svg-ийн хэмжээг пункт рүү хөрвүүлнэ", () => {
   assert.deepEqual(svgSize("2in", null, "0 0 200 100"), { width: 144, height: 72 });
   assert.deepEqual(svgSize("100%", "100%", "0 0 400 200"), { width: 300, height: 150 });
   assert.deepEqual(svgSize(null, null, null), { width: 225, height: 112.5 });
+});
+
+test("svg-ийн фонтын нэрийг serif, sans-serif, monospace болгож буулгана", () => {
+  assert.equal(genericFamily("'Courier New', monospace"), "monospace");
+  assert.equal(genericFamily("DejaVu Sans Mono"), "monospace");
+  assert.equal(genericFamily("Arial, Helvetica"), "sans-serif");
+  assert.equal(genericFamily("Times New Roman"), "serif");
+  assert.equal(
+    genericCss(`font-family:'Courier New';fill:red`),
+    "font-family:monospace;fill:red",
+  );
+  assert.equal(
+    genericCss(`.t{font-family: "Times New Roman", serif} .s{font-family:Arial}`),
+    ".t{font-family: serif} .s{font-family:sans-serif}",
+  );
 });

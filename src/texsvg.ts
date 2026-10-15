@@ -28,6 +28,10 @@ const PT_PER: Readonly<Record<string, number>> = {
   in: 72,
 };
 const DEFAULT_SIZE = { width: 225, height: 112.5 };
+const MONO_FAMILY = /mono|courier|consol|fixed|terminal|menlo/i;
+const SANS_FAMILY =
+  /sans|arial|helvetica|verdana|tahoma|calibri|segoe|roboto|inter\b|lato|ubuntu/i;
+const CSS_FONT_FAMILY = /(font-family\s*:\s*)([^;}]+)/g;
 
 function packageNames(list: string): string[] {
   return list
@@ -146,4 +150,17 @@ export function svgSize(
 export async function svgToPdf(bytes: Uint8Array): Promise<Uint8Array | null> {
   const { renderSvg } = await import("./svgpdf.ts");
   return renderSvg(bytes);
+}
+
+export function genericFamily(family: string): string {
+  if (MONO_FAMILY.test(family)) return "monospace";
+  if (SANS_FAMILY.test(family)) return "sans-serif";
+  return "serif";
+}
+
+export function genericCss(css: string): string {
+  return css.replace(
+    CSS_FONT_FAMILY,
+    (_, property: string, family: string) => property + genericFamily(family),
+  );
 }
