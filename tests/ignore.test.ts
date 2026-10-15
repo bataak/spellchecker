@@ -122,3 +122,24 @@ test("addIgnored: том үсгээр эхэлсэн үгийн дараа бү�
   assert.equal(addIgnored("ном"), true);
   assert.deepEqual(getIgnored(), ["ном"]);
 });
+
+test("addIgnored: латин үндэс ба кирилл нөхцөлтэй үгийн үндсийг алгасна", () => {
+  assert.equal(addIgnored("iPhone-ийн"), true);
+  assert.deepEqual(getIgnored(), ["iPhone"]);
+  for (const word of ["iPhone-ийн", "iPhone-ийг", "iPhone-оор", "iPhone"])
+    assert.equal(isIgnored(word), true, word);
+  assert.equal(isIgnored("Android-ийн"), false);
+});
+
+test("addIgnored: латин кирилл холилдсон үгийг нэмэхгүй", () => {
+  assert.equal(addIgnored("iPhoneийн"), false);
+  assert.equal(addIgnored("iPhone-ИЙН"), false);
+  assert.deepEqual(getIgnored(), []);
+});
+
+test("хуучин бүтэн бүртгэлийг уншихдаа үндэс болгож, холимог үгийг хасна", () => {
+  rawSet(KEY, JSON.stringify(["iPhone-ийн", "iPhoneийн", "ном"]));
+  addIgnored("тест");
+  assert.deepEqual(getIgnored(), ["iPhone", "ном", "тест"]);
+  assert.equal(isIgnored("iPhone-ээс"), true);
+});

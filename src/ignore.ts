@@ -2,6 +2,22 @@ import { KEYS, readJson, writeJson } from "./store.ts";
 type CasePattern = "lower" | "capital" | "upper";
 const REACH: Record<CasePattern, number> = { upper: 0, capital: 1, lower: 2 };
 
+const FOREIGN_STEM =
+  /^(\P{Script=Cyrillic}*\p{L}\P{Script=Cyrillic}*?)[-\u2010\u2011](?=\p{Ll})[\u0400-\u04FF]+$/u;
+
+export function ignoreStem(word: string): string {
+  return FOREIGN_STEM.exec(word)?.[1] ?? word;
+}
+
+function isMixedScript(word: string): boolean {
+  return /\p{Script=Cyrillic}/u.test(word) && /\p{Script=Latin}/u.test(word);
+}
+
+export function canIgnore(word: string): boolean {
+  const stem = ignoreStem(word.trim().normalize("NFC"));
+  return stem !== "" && !isMixedScript(stem);
+}
+
 let ignored: string[] = [];
 let lookup = new Map<string, CasePattern>();
 
@@ -33,7 +49,13 @@ function rebuild() {
 function load() {
   const parsed = readJson(KEYS.ignored);
   ignored = Array.isArray(parsed)
-    ? parsed.filter((w): w is string => typeof w === "string")
+    ? [
+        ...new Set(
+          parsed
+            .filter((w): w is string => typeof w === "string" && canIgnore(w))
+            .map((w) => ignoreStem(w.normalize("NFC"))),
+        ),
+      ]
     : [];
   rebuild();
 }
@@ -43,6 +65,12 @@ function persist() {
 }
 
 export function isIgnored(word: string): boolean {
+  if (matches(word)) return true;
+  const stem = ignoreStem(word);
+  return stem !== word && matches(stem);
+}
+
+function matches(word: string): boolean {
   const stored = lookup.get(word.normalize("NFC").toLowerCase());
   if (stored === undefined) return false;
   if (stored === "lower") return true;
@@ -53,8 +81,8 @@ export function isIgnored(word: string): boolean {
 }
 
 export function addIgnored(word: string): boolean {
-  const trimmedWord = word.trim().normalize("NFC");
-  if (!trimmedWord) return false;
+  if (!canIgnore(word)) return false;
+  const trimmedWord = ignoreStem(word.trim().normalize("NFC"));
   load();
   const key = trimmedWord.toLowerCase();
   const existing = lookup.get(key);
