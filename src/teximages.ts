@@ -3,7 +3,7 @@ import { pickImage } from "./images.ts";
 import { expandMacros, pathMacros } from "./texproject.ts";
 
 const INCLUDE =
-  /\\includegraphics\s*(\[[^\]]*\])?\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g;
+  /\\includegraphics\s*((?:\*\s*)?(?:\[[^\]]*\]\s*)*)\{((?:[^{}]|\{[^{}]*\})*)\}/g;
 const EXAMPLE_BASE = "examples/";
 const EXAMPLE_IMAGES: ReadonlySet<string> = new Set([
   "img/transformer-model-architecture.png",
