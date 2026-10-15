@@ -1,5 +1,6 @@
 import { KEYS, readJson, writeJson } from "./store.ts";
 type CasePattern = "lower" | "capital" | "upper";
+const REACH: Record<CasePattern, number> = { upper: 0, capital: 1, lower: 2 };
 
 let ignored: string[] = [];
 let lookup = new Map<string, CasePattern>();
@@ -58,9 +59,7 @@ export function addIgnored(word: string): boolean {
   const key = trimmedWord.toLowerCase();
   const existing = lookup.get(key);
   if (existing !== undefined) {
-    if (existing === "lower") return false;
-    const wordCase = caseOf(trimmedWord);
-    if (existing === wordCase) return false;
+    if (REACH[existing] >= REACH[caseOf(trimmedWord)]) return false;
     ignored = ignored.filter(
       (stored) => stored.normalize("NFC").toLowerCase() !== key,
     );
