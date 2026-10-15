@@ -20,6 +20,7 @@ import { initSurvey, surveyOnErrorCount } from "./survey.ts";
 import {
   isIgnored,
   addIgnored,
+  canIgnore,
   getIgnored,
   onIgnoredChange,
 } from "./ignore.ts";
@@ -882,7 +883,9 @@ async function showPopoverFor(token: Token): Promise<void> {
     '<button class="pop-more-btn" type="button" aria-label="Доош гүйлгэх">' +
     "</button></div>" +
     "</div>" +
-    '<button class="sg sg-ignore" type="button">Энэ үгийг алгасах</button>';
+    (canIgnore(token.word)
+      ? '<button class="sg sg-ignore" type="button">Энэ үгийг алгасах</button>'
+      : "");
   const list = pop.list();
   if (list) {
     list.scrollTop = 0;
