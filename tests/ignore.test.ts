@@ -169,6 +169,18 @@ test("addIgnored: зураасны ард тийн ялгалын нөхцөл �
   for (const word of ["СӨБ-ийн", "МУИС-д", "НҮБ-тайгаа", "АНУ-аас"])
     assert.equal(addIgnored(word), true, word);
   assert.deepEqual(getIgnored(), ["СӨБ", "МУИС", "НҮБ", "АНУ"]);
-  for (const word of ["СӨБ-ийг", "МУИС-ийнхаа", "НҮБ", "АНУ-руу"])
+  for (const word of [
+    "СӨБ-ийг",
+    "МУИС-ийнхаа",
+    "МУИС-ийнхны",
+    "МУИС-ийнхэнд",
+    "НҮБ",
+    "АНУ-руу",
+  ])
     assert.equal(isIgnored(word), true, word);
+});
+
+test("addIgnored: -ийнхны, -ийнхэн зэрэг хэлбэрээс үндсийг авна", () => {
+  assert.equal(addIgnored("МУИС-ийнхны"), true);
+  assert.deepEqual(getIgnored(), ["МУИС"]);
 });
