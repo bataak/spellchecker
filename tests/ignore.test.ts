@@ -112,3 +112,13 @@ test("isIgnored: задарсан ба нийлмэл й, ё ялгаагүй т
   assert.equal(isIgnored("Ёслол".normalize("NFD")), true);
   assert.equal(addIgnored("Ёслол".normalize("NFD")), false);
 });
+
+test("addIgnored: том үсгээр эхэлсэн үгийн дараа бүхэлдээ том хувилбар нэмэхэд хамрах хүрээ багасахгүй", () => {
+  addIgnored("Ном");
+  assert.equal(addIgnored("НОМ"), false);
+  assert.deepEqual(getIgnored(), ["Ном"]);
+  assert.equal(isIgnored("Ном"), true);
+  assert.equal(isIgnored("НОМ"), true);
+  assert.equal(addIgnored("ном"), true);
+  assert.deepEqual(getIgnored(), ["ном"]);
+});
