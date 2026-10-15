@@ -263,6 +263,7 @@ export interface Preview {
   setFileName(name: string | null): void;
   setMarkdownMode(on: boolean): void;
   setSource(src: PreviewSource | null): void;
+  pdf(): Promise<Uint8Array<ArrayBuffer>>;
   destroy(): void;
 }
 
@@ -624,7 +625,8 @@ export function initPreview(
   };
 
   const previewShown = (): boolean =>
-    document.documentElement.dataset.preview === "on";
+    document.documentElement.dataset.preview === "on" ||
+    document.documentElement.dataset.pane === "preview";
 
   const showPdfBytes = async (
     bytes: Uint8Array<ArrayBuffer>,
@@ -993,6 +995,12 @@ export function initPreview(
     setFileName,
     setMarkdownMode,
     setSource,
+    async pdf() {
+      if (texMode && shownPdf && !downloadBtn.disabled && texShown === texKey())
+        return shownPdf;
+      const { compileTexDocument } = await import("./texpdf.ts");
+      return (await compileTexDocument(area.value)).pdf;
+    },
     destroy() {
       if (imageUrl) URL.revokeObjectURL(imageUrl);
       if (raf) cancelAnimationFrame(raf);
