@@ -4,7 +4,16 @@ const BUILD_OUTPUT =
   /\.(aux|log|out|toc|lof|lot|fls|fdb_latexmk|blg|xdv|nav|snm|vrb|bcf|run\.xml|synctex(?:\.gz)?|synctex\(busy\))$/i;
 const SKIPPED_NAME = /^(?:\.|node_modules$|__MACOSX$|Thumbs\.db$)/;
 const PDF_GRAPHIC = /\.(png|jpe?g|pdf)$/i;
-const GRAPHIC_EXTS = [".pdf", ".png", ".jpg", ".jpeg", ".PDF", ".PNG", ".JPG"];
+const GRAPHIC_EXTS = [
+  ".pdf",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".PDF",
+  ".PNG",
+  ".JPG",
+  ".JPEG",
+];
 const INCLUDE =
   /\\includegraphics\s*((?:\*\s*)?(?:\[[^\]]*\]\s*)*)\{((?:[^{}]|\{[^{}]*\})*)\}/g;
 const GRAPHICSPATH = /\\graphicspath\s*\{((?:\s*\{[^}]*\})*)\s*\}/g;
@@ -128,6 +137,10 @@ export function texMaster(text: string): string | null {
   return match?.[1]?.trim() || null;
 }
 
+export function selfMaster(text: string): boolean {
+  return TEX_MASTER.exec(text)?.[2] === "t";
+}
+
 export function masterPath(file: string, master: string): string | null {
   const target = cleanPath(joinPath(dirName(file), master));
   if (!target) return null;
@@ -146,6 +159,7 @@ export function findMain(texts: ReadonlyMap<string, string>): string | null {
     if (!isTexSource(path) || !isLatexDocument(text)) continue;
     let score = 0;
     if (named.has(path)) score += 10 + (named.get(path) ?? 0);
+    else if (selfMaster(text)) score += 10;
     if (/^main\.tex$/i.test(baseName(path))) score += 2;
     score -= path.split("/").length - 1;
     scored.push({ path, score });
@@ -245,6 +259,15 @@ export function compilePasses(texts: Iterable<string>): number {
     if (CROSS_REF.test(body)) passes = 2;
   }
   return passes;
+}
+
+export function relativePath(path: string, from: string): string {
+  const up = from ? from.split("/") : [];
+  const down = path.split("/");
+  let same = 0;
+  while (same < up.length && same < down.length - 1 && up[same] === down[same])
+    same += 1;
+  return [...up.slice(same).map(() => ".."), ...down.slice(same)].join("/");
 }
 
 export function rootedPath(path: string, root: string): string {

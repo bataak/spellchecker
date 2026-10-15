@@ -18,6 +18,7 @@ import {
   movedPath,
   parentDirs,
   pathMacros,
+  relativePath,
   resolveGraphic,
   rootedPath,
   skippedPath,
@@ -65,6 +66,7 @@ export interface ProjectView {
 }
 
 export interface ProjectBuild {
+  readonly workdir: string;
   readonly main: string;
   readonly mainText: string;
   readonly files: Record<string, Uint8Array | string>;
@@ -1081,10 +1083,10 @@ export async function projectBuild(): Promise<ProjectBuild> {
   const converted = new Map<string, string>();
   const files: Record<string, Uint8Array | string> = {};
   const dirs = new Set<string>();
+  for (const dir of parentDirs(main)) dirs.add(dir);
   const put = (path: string, data: Uint8Array | string): void => {
-    const target = rootedPath(path, root);
-    files[target] = data;
-    for (const dir of parentDirs(target)) dirs.add(dir);
+    files[path] = data;
+    for (const dir of parentDirs(path)) dirs.add(dir);
   };
   const resolved = new Map<string, string | null>();
   for (const text of s.texts.values())
@@ -1112,7 +1114,7 @@ export async function projectBuild(): Promise<ProjectBuild> {
     const path = resolved.get(raw) ?? null;
     if (path === null) return null;
     const name = converted.get(path);
-    return name ? rootedPath(name, root) : raw;
+    return name ? relativePath(name, root) : raw;
   };
   let mainText = "";
   for (const [path, text] of s.texts) {
@@ -1122,6 +1124,7 @@ export async function projectBuild(): Promise<ProjectBuild> {
   }
   for (const [path, bytes] of s.binaries) put(path, bytes);
   return {
+    workdir: root,
     main: rootedPath(main, root),
     mainText,
     files,

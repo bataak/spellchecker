@@ -17,6 +17,7 @@ import {
   parentDirs,
   pathMacros,
   referencesFiles,
+  relativePath,
   resolveGraphic,
   rootedPath,
   skippedPath,
@@ -283,4 +284,30 @@ c \% \includegraphics{kept}`;
   assert.deepEqual(graphicRefs(text), ["kept"]);
   assert.equal(pathMacros([text]).get("dir"), "new");
   assert.equal(compilePasses([String.raw`x\\%\ref{a}`]), 1);
+});
+
+test("findMain: TeX-master: t гэж тэмдэглэсэн файлыг илүүд үзнэ", () => {
+  const doc = "\\documentclass{article}\\begin{document}\\end{document}";
+  assert.equal(
+    findMain(
+      new Map([
+        ["main.tex", doc],
+        ["notes.tex", doc + "\n%%% TeX-master: t\n"],
+      ]),
+    ),
+    "notes.tex",
+  );
+});
+
+test("relativePath: ажлын хавтаснаас гадуурх файлд ../ нэмнэ", () => {
+  assert.equal(relativePath("img/a.png", "src"), "../img/a.png");
+  assert.equal(relativePath("src/img/a.png", "src"), "img/a.png");
+  assert.equal(relativePath("a/b/c.png", "a/d/e"), "../../b/c.png");
+  assert.equal(relativePath("img/a.png", ""), "img/a.png");
+  assert.equal(relativePath("src.png", "src"), "../src.png");
+});
+
+test("resolveGraphic: .JPEG өргөтгөлтэй зургийг олно", () => {
+  const files = new Set(["photo.JPEG"]);
+  assert.equal(resolveGraphic("photo", "", [], (p) => files.has(p)), "photo.JPEG");
 });

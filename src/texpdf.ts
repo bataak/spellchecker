@@ -317,11 +317,12 @@ function runOnce(worker: Worker): Promise<Uint8Array<ArrayBuffer>> {
 }
 
 export interface CompileLayout {
+  readonly workdir: string;
   readonly main: string;
   readonly dirs: readonly string[];
 }
 
-const SINGLE: CompileLayout = { main: "main.tex", dirs: [] };
+const SINGLE: CompileLayout = { workdir: "", main: "main.tex", dirs: [] };
 
 type SourceFiles = Readonly<Record<string, Uint8Array | string>>;
 
@@ -336,7 +337,12 @@ async function compileOn(
   for (const url of layout.dirs) worker.postMessage({ cmd: "mkdir", url });
   for (const [url, src] of Object.entries(files))
     worker.postMessage({ cmd: "writefile", url, src });
-  worker.postMessage({ cmd: "writefile", url: layout.main, src: tex });
+  worker.postMessage({
+    cmd: "writefile",
+    url: layout.workdir ? layout.workdir + "/" + layout.main : layout.main,
+    src: tex,
+  });
+  worker.postMessage({ cmd: "workdir", url: layout.workdir });
   worker.postMessage({ cmd: "setmainfile", url: layout.main });
   let pdf = await runOnce(worker);
   for (let pass = 1; pass < passes; pass += 1) pdf = await runOnce(worker);
@@ -360,7 +366,11 @@ async function compileProjectDocument(): Promise<TexDocument> {
     ]);
   const build = await projectBuild();
   const tex = toPdfLatex(build.mainText);
-  const layout = { main: build.main, dirs: build.dirs };
+  const layout = {
+    workdir: build.workdir,
+    main: build.main,
+    dirs: build.dirs,
+  };
   try {
     return {
       pdf: await compilePdf(tex, build.passes, build.files, layout),
