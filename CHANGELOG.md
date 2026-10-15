@@ -1,5 +1,38 @@
 # Changelog
 
+## [1.106.1](https://github.com/bataak/spellchecker/compare/v1.106.0...v1.106.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* **export:** drop control characters before building the PDF's LaTeX ([7d9d50f](https://github.com/bataak/spellchecker/commit/7d9d50f3030af38d6854ed70c11e3ece69f97c6b))
+* **export:** keep PDF export from failing on emoji, Greek, ₮ and other symbols ([0cde019](https://github.com/bataak/spellchecker/commit/0cde01911d70cadd5cefb450c471360b25fbd62b))
+* **ignore:** drop a case ending after a hyphen and ignore the word before it ([107d22e](https://github.com/bataak/spellchecker/commit/107d22ed9a9de48ae4cc24ba589904dbc02aed08))
+* **ignore:** ignore the Latin stem of words like iPhone-ийн instead of the whole word ([f90ae0f](https://github.com/bataak/spellchecker/commit/f90ae0fc9b49cd67a175915eeb766da873ef8dee))
+* **ignore:** keep Cyrillic hyphenated words like д-р whole ([ffc14fe](https://github.com/bataak/spellchecker/commit/ffc14fe0894d88a9aa672883b0e6a10142547aa5))
+* **ignore:** keep names with initials like Ш.Нацагдорж through export and import ([0ea2623](https://github.com/bataak/spellchecker/commit/0ea26236bcb1884cf006878fa26ee45a75ce87a9))
+* **ignore:** never narrow an ignored word when a capitalised form is added ([698f822](https://github.com/bataak/spellchecker/commit/698f822edfeadaf8e7c1f74dded598cb03dc9760))
+* **ignore:** recognise -ийнх forms such as МУИС-ийнхны as case endings ([8f3b32c](https://github.com/bataak/spellchecker/commit/8f3b32c8fc24525b17f58615b04aa6fc89b734fc))
+* **ignore:** split names with initials into the words worth ignoring ([6e4f02a](https://github.com/bataak/spellchecker/commit/6e4f02ac3aa260bd0d0024f4946b4501c05d295a))
+* **office:** drop control characters that make Word and ODF files invalid XML ([1e30d6f](https://github.com/bataak/spellchecker/commit/1e30d6f50e6ae2dc34289f67a09ca34ec2f79c6e))
+* **office:** keep edits written back into docx, pptx and odt valid XML ([98f9d4b](https://github.com/bataak/spellchecker/commit/98f9d4bea6c61eedd126f7046742984ac244bcae))
+* **project:** keep file bytes as they are when renaming a folder on disk ([fdd8da9](https://github.com/bataak/spellchecker/commit/fdd8da9ea9e27db9572802087688b23c40dd77b2))
+* **project:** stop losing files to case-only renames on case-insensitive disks ([91f395b](https://github.com/bataak/spellchecker/commit/91f395bf9510f32849822ec309a315426b25ef22))
+* **project:** strip the top folder of zips made by macOS Finder ([bd32309](https://github.com/bataak/spellchecker/commit/bd32309e3b569516bb108fbbdac553275203016d))
+* **security:** refuse office files and project zips that unpack to huge sizes ([2dfd662](https://github.com/bataak/spellchecker/commit/2dfd66276945d3c9fc3ed70dfe699ba42a2369c9))
+* **security:** stop a long mixed-format paragraph from exhausting memory on save ([dc52221](https://github.com/bataak/spellchecker/commit/dc522219b0a2b88040da245185eeadd965952cd7))
+* **tex:** accept braces inside \includegraphics paths such as \figdir{}/b ([7f2abbb](https://github.com/bataak/spellchecker/commit/7f2abbb3bed8c567d126e23199360124824feb48))
+* **tex:** compile projects whose files sit outside the main file's folder ([fcd82a0](https://github.com/bataak/spellchecker/commit/fcd82a066aa97791e640674f0772ad1f3dff233c))
+* **tex:** find a document's images given without an extension ([3d6c785](https://github.com/bataak/spellchecker/commit/3d6c785875ef638346749c68f206951cf5e4326b))
+* **tex:** find and convert graphics included with \includegraphics* ([0e662da](https://github.com/bataak/spellchecker/commit/0e662da5787b0fe1caa4068aff39fd79bd37aee5))
+* **tex:** find graphics with an upper-case .JPEG extension as pdfTeX does ([abd1087](https://github.com/bataak/spellchecker/commit/abd10876e6860eafab0c3d6a6580f9048b8ef492))
+* **tex:** ignore commented-out \includegraphics when collecting a document's images ([8be17f6](https://github.com/bataak/spellchecker/commit/8be17f6f451b129bf3b03e81d9c4434be460fd9e))
+* **tex:** label a missing macro-given graphic by its expanded path ([89e4880](https://github.com/bataak/spellchecker/commit/89e48801d4c08bea79f456f9143d4209a118e371))
+* **tex:** prefer a file marked "%%% TeX-master: t" as the project's main file ([9e9ea75](https://github.com/bataak/spellchecker/commit/9e9ea75437be1abe5bd859797543ee8e8820a176))
+* **tex:** resolve \includegraphics paths given through \def/\newcommand macros ([98255f6](https://github.com/bataak/spellchecker/commit/98255f62765dd81745254ab08a67cd0f10f5b66f))
+* **tex:** stop the engine from halting on errors the LaTeX kernel ignores on purpose ([6c124d1](https://github.com/bataak/spellchecker/commit/6c124d12f9f69d6a25733b89e7090e1f902b615e))
+* **tex:** treat % after \\ as a comment when scanning project files ([ea4c2e3](https://github.com/bataak/spellchecker/commit/ea4c2e3ec25a909fc0af73cfac7841d19279872d))
+
 ## [1.106.0](https://github.com/bataak/spellchecker/compare/v1.105.3...v1.106.0) (2026-10-14)
 
 
