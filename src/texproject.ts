@@ -12,6 +12,7 @@ const GRAPHIC_EXTS = [
   ".PDF",
   ".PNG",
   ".JPG",
+  ".JPEG",
 ];
 const INCLUDE =
   /\\includegraphics\s*((?:\*\s*)?(?:\[[^\]]*\]\s*)*)\{((?:[^{}]|\{[^{}]*\})*)\}/g;

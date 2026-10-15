@@ -293,3 +293,8 @@ test("relativePath: ажлын хавтаснаас гадуурх файлд ..
   assert.equal(relativePath("img/a.png", ""), "img/a.png");
   assert.equal(relativePath("src.png", "src"), "../src.png");
 });
+
+test("resolveGraphic: .JPEG өргөтгөлтэй зургийг олно", () => {
+  const files = new Set(["photo.JPEG"]);
+  assert.equal(resolveGraphic("photo", "", [], (p) => files.has(p)), "photo.JPEG");
+});
