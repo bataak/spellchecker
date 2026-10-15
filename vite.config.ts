@@ -81,7 +81,7 @@ export default defineConfig({
       },
     },
   },
-  optimizeDeps: { exclude: ["hunspell-wasm"] },
+  optimizeDeps: { include: ["nspell"], exclude: ["hunspell-wasm"] },
   server: { fs: { allow: [".", "../hunspell-wasm"] } },
   plugins: [
     packDict(),
