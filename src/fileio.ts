@@ -16,6 +16,8 @@ export interface FileIODeps {
   defaultExt: () => string;
   onFileOpened: (file: DraftFile | null) => void;
   saveProject: () => Promise<string | null>;
+  savesPdf: () => boolean;
+  savePdf: () => Promise<void>;
   openProjectZip: (file: File) => Promise<void>;
   openProjectDir: (handle: FileSystemDirectoryHandle) => Promise<void>;
   prepareOpen: (name: string) => boolean;
@@ -53,6 +55,8 @@ export function initFileIO({
   defaultExt,
   onFileOpened,
   saveProject,
+  savesPdf,
+  savePdf,
   openProjectZip,
   openProjectDir,
   prepareOpen,
@@ -258,6 +262,12 @@ export function initFileIO({
       } catch (_) {
         flash("#saveBtn", "Боломжгүй");
       }
+      return;
+    }
+
+    if (savesPdf()) {
+      await saveProject().catch(() => null);
+      await savePdf();
       return;
     }
 
