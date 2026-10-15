@@ -1116,7 +1116,7 @@ export async function projectBuild(): Promise<ProjectBuild> {
   };
   let mainText = "";
   for (const [path, text] of s.texts) {
-    const body = isTexSource(path) ? mapGraphics(text, graphic) : text;
+    const body = isTexSource(path) ? mapGraphics(text, graphic, (raw) => expandMacros(raw, macros).trim()) : text;
     if (path === main) mainText = body;
     else put(path, body);
   }
