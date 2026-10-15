@@ -1,6 +1,6 @@
 import { replaceRange } from "./editortext.ts";
 import { pickImage } from "./images.ts";
-import { expandMacros, pathMacros } from "./texproject.ts";
+import { expandMacros, pathMacros, uncommented } from "./texproject.ts";
 
 const INCLUDE =
   /\\includegraphics\s*((?:\*\s*)?(?:\[[^\]]*\]\s*)*)\{((?:[^{}]|\{[^{}]*\})*)\}/g;
@@ -28,7 +28,7 @@ export function normalizeTexPath(path: string): string {
 export function texImagePaths(text: string): string[] {
   const out = new Set<string>();
   const macros = pathMacros([text]);
-  for (const match of text.matchAll(INCLUDE)) {
+  for (const match of uncommented(text).matchAll(INCLUDE)) {
     const path = normalizeTexPath(expandMacros(match[2] ?? "", macros));
     if (path) out.add(path);
   }
