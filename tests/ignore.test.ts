@@ -156,3 +156,11 @@ test("addIgnored: цэгтэй үгийг хэсэглэж, цэгийн өмн�
   assert.equal(addIgnored("т.г"), false);
   assert.deepEqual(getIgnored(), ["Нацагдорж", "Бат", "Дорж"]);
 });
+
+test("addIgnored: кирилл зураастай үгийг бүтнээр нь нэмнэ", () => {
+  for (const word of ["д-р", "хар-цагаан", "СӨБ-ийн"])
+    assert.equal(addIgnored(word), true, word);
+  assert.deepEqual(getIgnored(), ["д-р", "хар-цагаан", "СӨБ-ийн"]);
+  assert.equal(isIgnored("д-р"), true);
+  assert.equal(isIgnored("хар"), false);
+});

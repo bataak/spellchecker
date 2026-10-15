@@ -3,7 +3,7 @@ type CasePattern = "lower" | "capital" | "upper";
 const REACH: Record<CasePattern, number> = { upper: 0, capital: 1, lower: 2 };
 
 const FOREIGN_STEM =
-  /^(\P{Script=Cyrillic}*\p{L}\P{Script=Cyrillic}*?)[-\u2010\u2011](?=\p{Ll})[\u0400-\u04FF]+$/u;
+  /^(\P{Script=Cyrillic}*(?!\p{Script=Cyrillic})\p{L}\P{Script=Cyrillic}*?)[-\u2010\u2011](?=\p{Ll})[\u0400-\u04FF]+$/u;
 
 export function ignoreStem(word: string): string {
   return FOREIGN_STEM.exec(word)?.[1] ?? word;
