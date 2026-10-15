@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.107.1](https://github.com/bataak/spellchecker/compare/v1.107.0...v1.107.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* **e2e:** pre-bundle nspell so Vite does not reload the page mid-test ([460d589](https://github.com/bataak/spellchecker/commit/460d589de6db90bba333bb7a8efb3b4201b38e25))
+
 ## [1.107.0](https://github.com/bataak/spellchecker/compare/v1.106.1...v1.107.0) (2026-10-15)
 
 
