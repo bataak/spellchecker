@@ -2,7 +2,8 @@ import { replaceRange } from "./editortext.ts";
 import { pickImage } from "./images.ts";
 import { expandMacros, pathMacros } from "./texproject.ts";
 
-const INCLUDE = /\\includegraphics\s*(\[[^\]]*\])?\s*\{([^}]*)\}/g;
+const INCLUDE =
+  /\\includegraphics\s*(\[[^\]]*\])?\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g;
 const EXAMPLE_BASE = "examples/";
 const EXAMPLE_IMAGES: ReadonlySet<string> = new Set([
   "img/transformer-model-architecture.png",
