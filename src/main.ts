@@ -1887,6 +1887,7 @@ exportCtl = initExport({
   baseName: () => fileIO.targetName() ?? plainName,
   blocked: () => docx !== null,
   isTex: isTexFile,
+  texSource: () => void fileIO.saveSource(),
   onDone: () => flash("#saveBtn", "Хадгаллаа"),
   onBlocked: () => flash("#saveBtn", "Экспорт хийх боломжгүй"),
   onPrintError: (error) => {
