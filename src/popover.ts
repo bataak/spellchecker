@@ -344,7 +344,7 @@ export function initPopover(deps: PopoverDeps): Popover {
     defTip.resetDefinitions();
     popover.innerHTML =
       '<div class="pop-scroll">' +
-      '<div class="pop-list"><div class="muted pop-empty">…</div></div>' +
+      '<div class="pop-list"><div class="muted pop-empty">тооцоолж байна…</div></div>' +
       "</div>";
     activeStart = start;
     popoverScrollTop = editor.scrollTop;
