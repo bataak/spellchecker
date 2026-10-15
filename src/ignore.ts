@@ -5,8 +5,16 @@ const REACH: Record<CasePattern, number> = { upper: 0, capital: 1, lower: 2 };
 const FOREIGN_STEM =
   /^(\P{Script=Cyrillic}*(?!\p{Script=Cyrillic})\p{L}\P{Script=Cyrillic}*?)[-\u2010\u2011](?=\p{Ll})[\u0400-\u04FF]+$/u;
 
+const CASE_ENDING =
+  "ийн|ын|ний|ны|гийн|ий|ы|ийг|ыг|г|д|т|ад|эд|од|өд|нд|аас|ээс|оос|өөс|иас|иэс|гаас|гээс|гоос|гөөс|наас|нээс|ноос|нөөс|аар|ээр|оор|өөр|иар|иэр|гаар|гээр|гоор|гөөр|тай|тэй|той|руу|рүү|луу|лүү";
+const REFLEXIVE = "г?аа|г?ээ|г?оо|г?өө";
+const CASE_SUFFIX = new RegExp(
+  `^(.+?)[-\\u2010\\u2011](?:(?:${CASE_ENDING})(?:нх)?(?:${REFLEXIVE})?|${REFLEXIVE})$`,
+  "u",
+);
+
 export function ignoreStem(word: string): string {
-  return FOREIGN_STEM.exec(word)?.[1] ?? word;
+  return FOREIGN_STEM.exec(word)?.[1] ?? CASE_SUFFIX.exec(word)?.[1] ?? word;
 }
 
 function isMixedScript(word: string): boolean {

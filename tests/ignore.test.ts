@@ -158,9 +158,17 @@ test("addIgnored: цэгтэй үгийг хэсэглэж, цэгийн өмн�
 });
 
 test("addIgnored: кирилл зураастай үгийг бүтнээр нь нэмнэ", () => {
-  for (const word of ["д-р", "хар-цагаан", "СӨБ-ийн"])
+  for (const word of ["д-р", "хар-цагаан"])
     assert.equal(addIgnored(word), true, word);
-  assert.deepEqual(getIgnored(), ["д-р", "хар-цагаан", "СӨБ-ийн"]);
+  assert.deepEqual(getIgnored(), ["д-р", "хар-цагаан"]);
   assert.equal(isIgnored("д-р"), true);
   assert.equal(isIgnored("хар"), false);
+});
+
+test("addIgnored: зураасны ард тийн ялгалын нөхцөл байвал хасна", () => {
+  for (const word of ["СӨБ-ийн", "МУИС-д", "НҮБ-тайгаа", "АНУ-аас"])
+    assert.equal(addIgnored(word), true, word);
+  assert.deepEqual(getIgnored(), ["СӨБ", "МУИС", "НҮБ", "АНУ"]);
+  for (const word of ["СӨБ-ийг", "МУИС-ийнхаа", "НҮБ", "АНУ-руу"])
+    assert.equal(isIgnored(word), true, word);
 });

@@ -81,10 +81,9 @@ const CYR_WORD_RE =
 export function normalizeImport(raw: string): string | null {
   const trimmedWord = raw.trim().normalize("NFC");
   if (!trimmedWord) return null;
-  const stem = ignoreStem(trimmedWord);
-  if (stem !== trimmedWord) return LATIN_WORD_RE.test(stem) ? stem : null;
   if (HAS_LATIN.test(trimmedWord)) {
-    return LATIN_WORD_RE.test(trimmedWord) ? trimmedWord : null;
+    const stem = ignoreStem(trimmedWord);
+    return LATIN_WORD_RE.test(stem) ? stem : null;
   }
   const stripped = trimmedWord.replace(APOS, "");
   return CYR_WORD_RE.test(stripped) ? stripped : null;
