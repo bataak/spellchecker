@@ -106,7 +106,7 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 20 * 1024 * 1024,
         runtimeCaching: [
           {
-            urlPattern: /\/(?:tex|examples|assets\/svgpdf)\//,
+            urlPattern: /\/(?:tex|examples|assets\/svgpdf|fonts\/svgpdf)\//,
             handler: "CacheFirst",
             options: {
               cacheName: "tex-assets",

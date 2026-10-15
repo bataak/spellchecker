@@ -95,6 +95,8 @@ used by the deployment, together with their licenses.
   "Bichig Print Serif", "Bichig Print Sans" and "Bichig Print Mono", so the
   modified version does not carry the Reserved Font Name. They are used only
   for printing, because their glyph widths match the fonts named in ODT files
+- The same fonts are also shipped as `.ttf` in `public/fonts/svgpdf/`; they are
+  embedded by jsPDF when SVG images with non-Latin text are converted to PDF
 
 ## Other production dependencies
 
