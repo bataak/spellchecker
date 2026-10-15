@@ -104,6 +104,10 @@ export function movedPath(
   return null;
 }
 
+export function sameOnDisk(a: string, b: string): boolean {
+  return a.normalize("NFC").toLowerCase() === b.normalize("NFC").toLowerCase();
+}
+
 export function within(path: string, dir: string): boolean {
   return path === dir || path.startsWith(dir + "/");
 }

@@ -20,6 +20,7 @@ import {
   relativePath,
   resolveGraphic,
   rootedPath,
+  sameOnDisk,
   skippedPath,
   texMaster,
   validName,
@@ -314,4 +315,11 @@ test("relativePath: ажлын хавтаснаас гадуурх файлд ..
 test("resolveGraphic: .JPEG өргөтгөлтэй зургийг олно", () => {
   const files = new Set(["photo.JPEG"]);
   assert.equal(resolveGraphic("photo", "", [], (p) => files.has(p)), "photo.JPEG");
+});
+
+test("sameOnDisk: том жижиг үсэг, NFC/NFD-ээр ялгаатай нэрийг дискэн дээр нэг гэж үзнэ", () => {
+  assert.equal(sameOnDisk("img/a.tex", "IMG/A.tex"), true);
+  assert.equal(sameOnDisk("бүлэг.tex", "Бүлэг.tex"), true);
+  assert.equal(sameOnDisk("\u0451.tex", "\u0435\u0308.tex"), true);
+  assert.equal(sameOnDisk("a.tex", "b.tex"), false);
 });
