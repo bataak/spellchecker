@@ -14,7 +14,7 @@ import type {
 import { listTree, type ListTree } from "../../markdown.ts";
 import { tabFills } from "../flatten.ts";
 import { columnWidths, officeMetrics } from "../table.ts";
-import { xmlText } from "../sanitize.ts";
+import { dropControls } from "../sanitize.ts";
 
 export interface DocxOptions {
   readonly toc?: boolean;
@@ -44,7 +44,7 @@ const CT = "application/vnd.openxmlformats-officedocument.wordprocessingml.";
 const XML_HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
 
 function esc(value: string): string {
-  return xmlText(value)
+  return dropControls(value)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
