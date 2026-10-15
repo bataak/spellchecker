@@ -26,6 +26,14 @@ import {
   within,
 } from "./texproject.ts";
 import { unpackedSize } from "./archive.ts";
+import {
+  resolveSvg,
+  rewriteSvg,
+  svgPaths,
+  svgRefs,
+  svgToPdf,
+  usesSvgPackage,
+} from "./texsvg.ts";
 
 const MAX_FILES = 3000;
 const MAX_BYTES = 200 * 1024 * 1024;
@@ -1164,9 +1172,39 @@ export async function projectBuild(): Promise<ProjectBuild> {
     const name = converted.get(path);
     return name ? relativePath(name, root) : raw;
   };
+  const svg = usesSvgPackage(s.texts.values());
+  const svgs = new Map<string, string | null>();
+  if (svg) {
+    const svgSearch = [...s.texts.values()].flatMap(svgPaths);
+    const pdfs = new Map<string, string | null>();
+    for (const text of s.texts.values())
+      for (const raw of svgRefs(text)) {
+        if (svgs.has(raw)) continue;
+        const wanted = expandMacros(raw, macros);
+        const path = resolveSvg(wanted, root, [...svgSearch, ...search], has);
+        if (path !== null && !pdfs.has(path)) {
+          const pdf = await svgToPdf(
+            s.binaries.get(path) ?? new Uint8Array(0),
+          );
+          const name = pdf
+            ? path.replace(/\.[^./]*$/, "") + ".converted.pdf"
+            : null;
+          if (pdf && name) put(name, pdf);
+          pdfs.set(path, name);
+        }
+        const name = path === null ? null : (pdfs.get(path) ?? null);
+        if (name === null) missing.push(wanted.trim());
+        svgs.set(raw, name === null ? null : relativePath(name, root));
+      }
+  }
+  const label = (raw: string): string => expandMacros(raw, macros).trim();
   let mainText = "";
   for (const [path, text] of s.texts) {
-    const body = isTexSource(path) ? mapGraphics(text, graphic, (raw) => expandMacros(raw, macros).trim()) : text;
+    const mapped = isTexSource(path) ? mapGraphics(text, graphic, label) : text;
+    const body =
+      svg && isTexSource(path)
+        ? rewriteSvg(mapped, (raw) => svgs.get(raw) ?? null, label)
+        : mapped;
     if (path === main) mainText = body;
     else put(path, body);
   }

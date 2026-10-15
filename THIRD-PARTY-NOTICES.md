@@ -103,10 +103,17 @@ All MIT licensed; see the `LICENSE` file inside each package.
 | Package                                | Source                                                          |
 | -------------------------------------- | --------------------------------------------------------------- |
 | `@napi-rs/canvas`                      | https://github.com/Brooooooklyn/canvas                          |
+| `canvg`                                | https://github.com/canvg/canvg                                  |
 | `fflate`                               | https://github.com/101arrowz/fflate                             |
+| `html2canvas`                          | https://github.com/niklasvh/html2canvas                         |
 | `is-buffer`                            | https://github.com/feross/is-buffer                             |
+| `jspdf`                                | https://github.com/parallax/jsPDF                               |
 | `katex`                                | https://github.com/KaTeX/KaTeX                                  |
 | `node-readable-to-web-readable-stream` | https://github.com/Borewit/node-readable-to-web-readable-stream |
+| `svg2pdf.js`                           | https://github.com/yWorks/svg2pdf.js                            |
+
+`dompurify` (https://github.com/cure53/DOMPurify) is bundled with `jspdf` and
+is used under Apache-2.0 (dual licensed MPL-2.0 OR Apache-2.0).
 
 ## Fonts
 
