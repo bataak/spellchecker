@@ -5,6 +5,7 @@ import {
   applyRawEdits,
   narrowEdit,
   planParagraph,
+  splitEdit,
 } from "../src/office/docx/edit.ts";
 import {
   buildIndex,
@@ -399,4 +400,20 @@ test("writes multi-word replacements with markup characters as plain text", () =
   const out = rewrite(xml, [edit(5, 13, fix)]);
   assert.equal(textOf(out), "өмнө " + fix + " хойно");
   assert.ok(out.includes("&lt;b&gt;x&lt;/b&gt; &amp;"));
+});
+
+test("encodeXmlText: XML-д хориотой удирдах тэмдэгтийг засварт оруулахгүй", async () => {
+  const { encodeXmlText } = await import("../src/office/docx/xml.ts");
+  assert.equal(encodeXmlText("а\u000bб\u0001<в>"), "а б&lt;в&gt;");
+});
+
+test("splitEdit: урт догол мөрийг квадрат санах ойгүйгээр хэсэглэнэ", () => {
+  const words = Array.from({ length: 3000 }, (_, i) => "үг" + i);
+  const oldText = words.join(" ");
+  const newText = "Х" + oldText.slice(1, -1) + "Ч";
+  const hunks = splitEdit(oldText, newText, 10);
+  assert.deepEqual(hunks, [
+    { start: 10, end: 11, text: "Х" },
+    { start: 10 + oldText.length - 1, end: 10 + oldText.length, text: "Ч" },
+  ]);
 });

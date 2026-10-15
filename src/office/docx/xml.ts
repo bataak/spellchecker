@@ -1,3 +1,5 @@
+import { dropControls } from "../sanitize.ts";
+
 export interface TagInfo {
   name: string;
   kind: "open" | "close" | "self";
@@ -165,10 +167,11 @@ export function decodeXmlText(value: string): string {
 }
 
 export function encodeXmlText(value: string): string {
+  const clean = dropControls(value);
   let result = "";
 
-  for (let index = 0; index < value.length; index += 1) {
-    const char = value[index];
+  for (let index = 0; index < clean.length; index += 1) {
+    const char = clean[index];
     if (char === "&") result += "&amp;";
     else if (char === "<") result += "&lt;";
     else if (char === ">") result += "&gt;";

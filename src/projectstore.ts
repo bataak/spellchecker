@@ -25,6 +25,7 @@ import {
   skippedPath,
   within,
 } from "./texproject.ts";
+import { unpackedSize } from "./archive.ts";
 
 const MAX_FILES = 3000;
 const MAX_BYTES = 200 * 1024 * 1024;
@@ -639,8 +640,17 @@ async function openFileList(list: readonly File[]): Promise<void> {
 export async function openZip(file: File): Promise<void> {
   const { unzipSync } = await import("fflate");
   let entries: Record<string, Uint8Array>;
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let size: number;
   try {
-    entries = unzipSync(new Uint8Array(await file.arrayBuffer()));
+    size = unpackedSize(bytes);
+  } catch {
+    throw new ProjectError("Zip файлыг задалж чадсангүй");
+  }
+  if (size > MAX_BYTES)
+    throw new ProjectError("Төсөл хэт том байна (200 MB-аас ихгүй)");
+  try {
+    entries = unzipSync(bytes);
   } catch {
     throw new ProjectError("Zip файлыг задалж чадсангүй");
   }

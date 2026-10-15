@@ -118,3 +118,13 @@ test("tar.bz2 архиваас толины файлуудыг гаргана", 
     "hello",
   );
 });
+
+test("unpackedSize: zip-ийг задлахгүйгээр зарласан нийт хэмжээг уншина", async () => {
+  const { zipSync, strToU8 } = await import("fflate");
+  const { unpackedSize } = await import("../src/archive.ts");
+  const zip = zipSync({
+    "a.xml": strToU8("x".repeat(5000)),
+    "b.bin": [new Uint8Array(3000), { level: 0 }],
+  });
+  assert.equal(unpackedSize(zip), 8000);
+});
