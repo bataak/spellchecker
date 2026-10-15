@@ -19,9 +19,11 @@
   "dependencies": {
     "fflate": "^0.8.3",
     "hunspell-wasm": "file:vendor/hunspell-wasm",
+    "jspdf": "^4.2.1",
     "katex": "^0.18.9",
     "nspell": "^2.1.5",
-    "pdfjs-dist": "5.4.624"
+    "pdfjs-dist": "5.4.624",
+    "svg2pdf.js": "^2.8.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
