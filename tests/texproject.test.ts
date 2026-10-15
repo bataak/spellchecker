@@ -275,3 +275,12 @@ test("\\includegraphics доторх {}-тэй макрог задалж, хаа
     String.raw`\includegraphics[width=2cm]{figs/b.converted.png}`,
   );
 });
+
+test("\\\\% дараах тайлбар доторх зураг, макро, ишлэлийг тоохгүй", () => {
+  const text = String.raw`a \\% \includegraphics{old}
+\def\dir{new} b \\% \def\dir{old}
+c \% \includegraphics{kept}`;
+  assert.deepEqual(graphicRefs(text), ["kept"]);
+  assert.equal(pathMacros([text]).get("dir"), "new");
+  assert.equal(compilePasses([String.raw`x\\%\ref{a}`]), 1);
+});
