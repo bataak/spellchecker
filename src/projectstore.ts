@@ -21,6 +21,7 @@ import {
   relativePath,
   resolveGraphic,
   rootedPath,
+  sameOnDisk,
   skippedPath,
   within,
 } from "./texproject.ts";
@@ -844,8 +845,14 @@ async function removeDisk(path: string): Promise<void> {
   }
 }
 
-function exists(s: State, path: string): boolean {
-  return s.texts.has(path) || s.binaries.has(path) || s.dirs.has(path);
+function exists(s: State, path: string, moving?: string): boolean {
+  if (s.texts.has(path) || s.binaries.has(path) || s.dirs.has(path))
+    return true;
+  if (s.kind !== "dir") return false;
+  return [...s.texts.keys(), ...s.binaries.keys(), ...s.dirs].some(
+    (key) =>
+      sameOnDisk(key, path) && (moving === undefined || !within(key, moving)),
+  );
 }
 
 function requireState(): State {
@@ -908,29 +915,46 @@ function movedKeys<T>(map: Map<string, T>, from: string, to: string): void {
   }
 }
 
+async function moveDisk(
+  s: State,
+  from: string,
+  source: string,
+  target: string,
+): Promise<void> {
+  for (const [path, text] of s.saved) {
+    const next = movedPath(path, from, target);
+    if (next !== null) await writeDisk(next, diskText(s, path, text));
+  }
+  for (const [path, bytes] of s.binaries) {
+    const next = movedPath(path, from, target);
+    if (next !== null) await writeDisk(next, bytes);
+  }
+  if (s.dirs.has(from) && s.handle)
+    for (const dir of s.dirs) {
+      const next = movedPath(dir, from, target);
+      if (next !== null) await dirHandleFor(s.handle, next, true);
+    }
+  await removeDisk(source);
+}
+
 export async function renamePath(from: string, to: string): Promise<void> {
   const s = requireState();
   const target = cleanPath(to);
   if (!target) throw new ProjectError("Нэр буруу байна");
   if (target === from) return;
-  if (exists(s, target)) throw new ProjectError("Ийм нэртэй зүйл байна");
+  if (exists(s, target, from))
+    throw new ProjectError("Ийм нэртэй зүйл байна");
   if (within(target, from))
     throw new ProjectError("Хавтсыг өөр дотор нь зөөх боломжгүй");
   if (s.kind === "dir") {
-    for (const [path, text] of s.saved) {
-      const next = movedPath(path, from, target);
-      if (next !== null) await writeDisk(next, diskText(s, path, text));
-    }
-    for (const [path, bytes] of s.binaries) {
-      const next = movedPath(path, from, target);
-      if (next !== null) await writeDisk(next, bytes);
-    }
-    if (s.dirs.has(from) && s.handle)
-      for (const dir of s.dirs) {
-        const next = movedPath(dir, from, target);
-        if (next !== null) await dirHandleFor(s.handle, next, true);
-      }
-    await removeDisk(from);
+    if (sameOnDisk(from, target)) {
+      const temp = joinPath(
+        dirName(from),
+        "." + baseName(from) + "-" + Date.now().toString(36),
+      );
+      await moveDisk(s, from, from, temp);
+      await moveDisk(s, from, temp, target);
+    } else await moveDisk(s, from, from, target);
   }
   movedKeys(s.texts, from, target);
   movedKeys(s.saved, from, target);
