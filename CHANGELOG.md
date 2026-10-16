@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.108.5](https://github.com/bataak/spellchecker/compare/v1.108.4...v1.108.5) (2026-10-16)
+
+
+### Bug Fixes
+
+* **boot:** keep the editor layout steady on reload instead of hiding it ([2ab6914](https://github.com/bataak/spellchecker/commit/2ab69143b0c0a542fed62d37ff183fa24545e128))
+
 ## [1.108.4](https://github.com/bataak/spellchecker/compare/v1.108.3...v1.108.4) (2026-10-16)
 
 
