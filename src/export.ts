@@ -268,7 +268,7 @@ export interface ExportOptions {
   readonly onDone?: (name: string) => void;
   readonly onBlocked?: () => void;
   readonly onPrintError?: (error: unknown) => void;
-  readonly onBusy?: (busy: boolean) => void;
+  readonly onBusy?: (busy: boolean, ext?: string) => void;
 }
 
 export interface ExportControl {
@@ -505,7 +505,7 @@ export function initExport(options: ExportOptions): ExportControl {
 
     close();
     const format = chosen;
-    if (format.slow) options.onBusy?.(true);
+    if (format.slow) options.onBusy?.(true, format.ext);
     try {
       const data = await format.build(text, options.template(), {
         toc: tocInput.checked,
