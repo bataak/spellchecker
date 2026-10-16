@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.109.0](https://github.com/bataak/spellchecker/compare/v1.108.5...v1.109.0) (2026-10-16)
+
+
+### Features
+
+* **kblayout:** color selections by keyboard layout and picked word script ([446dd34](https://github.com/bataak/spellchecker/commit/446dd34d847d7e170f97bf06a39aa3cf94d51db4))
+* **kblayout:** match selection and lookup colors to error panel words by script ([b609b65](https://github.com/bataak/spellchecker/commit/b609b655ebdac9c50c8c131221148ab6208e79c5))
+
+
+### Bug Fixes
+
+* **kblayout:** keep the layout badge orange instead of error red ([c5e6fc9](https://github.com/bataak/spellchecker/commit/c5e6fc9a0020b10875ee395085cb9e96e34f59c2))
+
 ## [1.108.5](https://github.com/bataak/spellchecker/compare/v1.108.4...v1.108.5) (2026-10-16)
 
 
