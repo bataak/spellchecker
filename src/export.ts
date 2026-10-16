@@ -1,13 +1,3 @@
-/**
- * Экспорт (Save As).
- *
- * Нээгдэх замууд: `Ctrl+Alt+S`, хадгалах товчийг Shift-тэй эсвэл удаан
- * дарах, `open()` дуудах. Формат бүр `FORMATS`-д нэг бичлэг — `.odt`, `.pdf`
- * бэлэн болоход энэ цонхны код өөрчлөгдөхгүй.
- *
- * `Ctrl+S` -т хамаарахгүй: тэр нь одоогийн баримтаа шууд хадгална.
- */
-
 import { imageFiles, prepareImages } from "./images.ts";
 import { blockImages, parse } from "./markdown.ts";
 import { docImages, imageKey } from "./office/docir.ts";
@@ -21,9 +11,7 @@ export interface ExportFormat {
   readonly ext: string;
   readonly mime: string;
   readonly slow?: boolean;
-  /** Файлыг хүргэсний дараа. */
   readonly delivered?: () => void;
-  /** Бэлтгэх, хүргэхийн оронд файлыг өөрөө хадгална. */
   readonly save?: (name: string) => Promise<void>;
   readonly build: (
     text: string,
@@ -34,7 +22,6 @@ export interface ExportFormat {
 
 export interface BuildOptions {
   readonly toc: boolean;
-  /** Файлын нэр, өргөтгөлгүй. */
   readonly name?: string;
 }
 
@@ -259,17 +246,12 @@ export const FORMATS: readonly ExportFormat[] = [
 
 export interface ExportOptions {
   readonly editor: HTMLTextAreaElement;
-  /** Нэрийн үндэс — нээлттэй файлын нэр, эсвэл `null`. */
   readonly baseName: () => string | null;
-  /** Экспорт хийж болохгүй төлөв (office горим). */
   readonly blocked?: () => boolean;
   readonly isTex?: () => boolean;
-  /** LaTeX баримт, түүний зургуудыг (эсвэл төслийг) нэг архив болгоно. */
   readonly texZip?: (text: string, name: string) => Promise<Blob>;
   readonly texZipped?: () => void;
-  /** LaTeX баримтыг PDF болгон хөрвүүлнэ. */
   readonly texPdf?: () => Promise<Uint8Array<ArrayBuffer>>;
-  /** LaTeX эхийг ердийн хадгалах замаар (файл, төсөл) хадгална. */
   readonly texSource?: (name: string) => Promise<void>;
   readonly saveButton?: HTMLElement | null;
   readonly printButton?: HTMLElement | null;

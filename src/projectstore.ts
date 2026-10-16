@@ -1100,10 +1100,6 @@ export function projectSnapshot(): ProjectSnapshot {
   return { id: s.id, texts: new Map(s.texts), added: new Set(s.added) };
 }
 
-/**
- * Төслийг архив болгон гаргасныг тэмдэглэнэ. `snap` нь архивт орсон төлөв —
- * түүнээс хойшхи засвар хадгалаагүй хэвээр үлдэнэ.
- */
 export function markExported(snap: ProjectSnapshot = projectSnapshot()): void {
   const s = state;
   if (!s || s.id !== snap.id) return;

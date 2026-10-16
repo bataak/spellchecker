@@ -52,7 +52,6 @@ export function texImagePaths(text: string): string[] {
   return [...out];
 }
 
-/** `keep` үед `names`-д ороогүй зургийг хэвээр нь үлдээнэ. */
 export function rewriteIncludes(
   text: string,
   names: ReadonlyMap<string, string>,
@@ -272,13 +271,8 @@ export async function texImageFiles(text: string): Promise<TexImages> {
 }
 
 const UNSAFE_PATH = /^\/|^[a-z]:|(?:^|\/)\.\.(?:\/|$)/i;
-/** pdfLaTeX шууд уншдаг зураг — архивт анхны замаараа орно. */
 const PDFLATEX_IMAGE = /\.(?:png|jpe?g|pdf)$/i;
 
-/**
- * Архивт орох зургууд. pdfLaTeX уншдаг зураг анхны замаараа орно; бусдыг
- * (svg, webp…, эсвэл архиваас гадуурх зам) хөрвүүлж, шинэ нэр өгнө.
- */
 export async function texImageSources(text: string): Promise<TexImages> {
   const paths = texImagePaths(text);
   const macros = pathMacros([text]);

@@ -410,7 +410,6 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     adopt,
     async save(diskOnly = false) {
       if (!bound || !hasProject()) return null;
-      // Zip and folder projects save by downloading; skip them here.
       if (diskOnly && project()?.kind !== "dir") return null;
       pushText();
       const result = await saveProject();
