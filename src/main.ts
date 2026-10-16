@@ -1470,7 +1470,8 @@ function pdfName(): string {
   return stripExt(name || "бичвэр") + ".pdf";
 }
 
-const appUpdate = initAppUpdate(setStatus, import.meta.url);
+// Шинэчлэлийн мессеж нь import амжилтгүй болсны алдааны hold-ыг давж харагдана.
+const appUpdate = initAppUpdate((html) => holdStatus(html), import.meta.url);
 
 function isPdfFile(file: File): boolean {
   return file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
