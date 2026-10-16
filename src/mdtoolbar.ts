@@ -64,7 +64,8 @@ export interface MdToolbar {
   caret: (key: string) => Caret | null;
   writeDraft: (key: string, text: string) => void;
   writeCaret: (key: string, caret: Caret) => void;
-  reset: () => void;
+  /** `closeFile` — нээлттэй файлыг цэснээс хасна. */
+  reset: (closeFile: boolean) => void;
   openFile: (name: string, hash?: string) => boolean;
   /** Ижил файл нээлттэй бол түүний slot. */
   findFile: (name: string, hash: string, text: string | null) => string | null;
@@ -929,7 +930,8 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       list.map((item) => {
         if (item.id !== templateId) return item;
         if (!written) return { ...item, sum };
-        return { id: item.id, name: item.name, sum };
+        const { hash: _opened, ...rest } = item;
+        return { ...rest, sum };
       }),
     );
   }
@@ -1091,12 +1093,12 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     writeCaret(key: string, caret: Caret): void {
       if (key !== loadingKey) saveCaret(key, caret);
     },
-    reset(): void {
+    reset(close: boolean): void {
       dropDraft(pickerValue(templateId));
       dropLegacyPending();
       holdTitle();
       // Цэвэрлэсэн файл цэснээс хасагдана.
-      if (isFileSlot(templateId)) closeFile(templateId, true);
+      if (close && isFileSlot(templateId)) closeFile(templateId, true);
     },
     openFile,
     findFile: (name, hash, text) =>

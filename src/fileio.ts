@@ -23,16 +23,18 @@ export interface FileIODeps {
   openProjectDir: (handle: FileSystemDirectoryHandle) => Promise<void>;
   /**
    * Файл нээхийн өмнө: "new" — шинэ slot бэлэн, "open" — ижил файл аль хэдийн
-   * нээлттэй (түүн рүү шилжсэн), `false` — нээхгүй.
+   * нээлттэй (түүн рүү шилжсэн), "reload" — нээлттэй slot-д нь дахин ачаална,
+   * `false` — нээхгүй.
    */
   prepareOpen: (
     name: string,
     hash: string,
     text: string | null,
-  ) => "new" | "open" | false;
+  ) => "new" | "open" | "reload" | false;
   openInProject: (name: string, text: string) => boolean;
   onLoaded: () => void;
-  onSaved: () => void;
+  /** `written` — анх нээсэн файл руу бичсэн (хуулбар татсан биш). */
+  onSaved: (written: boolean) => void;
 }
 
 export interface OpenFile {
@@ -250,6 +252,10 @@ export function initFileIO({
       bytes ? bytesSum(bytes) : await fileSum(file),
       office ? null : text,
     );
+    if (prepared === "reload") {
+      await loadFileContent(text, file.name, handle);
+      return true;
+    }
     if (prepared === "open") {
       // Сэргээсэн slot-д бичих эрх алга байж болно — шинээр сонгосныг өгнө.
       if (handle) {
@@ -316,8 +322,8 @@ export function initFileIO({
     }
 
     const text = els.editor.value || "";
-    const saved = (): void => {
-      if (!source?.inProject) onSaved();
+    const saved = (written: boolean): void => {
+      if (!source?.inProject) onSaved(written);
     };
 
     if (
@@ -329,7 +335,7 @@ export function initFileIO({
         await writableStream.write(text);
         await writableStream.close();
         flash("#saveBtn", "Хадгаллаа");
-        saved();
+        saved(true);
         return;
       } catch (_) {}
     }
@@ -344,7 +350,7 @@ export function initFileIO({
       try {
         const done = await deliverText(text, fileName);
         flash("#saveBtn", done ? "Хадгалав" : "Цуцаллаа");
-        if (done) saved();
+        if (done) saved(false);
       } catch (_) {
         flash("#saveBtn", "Боломжгүй");
       }
@@ -362,7 +368,7 @@ export function initFileIO({
         await writableStream.close();
         currentFileHandle = handle;
         flash("#saveBtn", "Хадгаллаа");
-        onSaved();
+        onSaved(true);
         return;
       } catch (e) {
         if (e instanceof DOMException && e.name === "AbortError") return;
