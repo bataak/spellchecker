@@ -1,4 +1,5 @@
 import { decodeFileBytes } from "./cp1251.ts";
+import { bytesSum } from "./fileslots.ts";
 import type { DraftFile } from "./storage.ts";
 
 export interface FileIODeps {
@@ -20,7 +21,15 @@ export interface FileIODeps {
   savePdf: () => Promise<void>;
   openProjectZip: (file: File) => Promise<void>;
   openProjectDir: (handle: FileSystemDirectoryHandle) => Promise<void>;
-  prepareOpen: (name: string) => boolean;
+  /**
+   * Файл нээхийн өмнө: "new" — шинэ slot бэлэн, "open" — ижил файл аль хэдийн
+   * нээлттэй (түүн рүү шилжсэн), `false` — нээхгүй.
+   */
+  prepareOpen: (
+    name: string,
+    hash: string,
+    text: string | null,
+  ) => "new" | "open" | false;
   openInProject: (name: string, text: string) => boolean;
   onLoaded: () => void;
   onSaved: () => void;
@@ -230,12 +239,22 @@ export function initFileIO({
       return true;
     }
     if (!office && !sizeOk(file)) return true;
-    const text = office ? "" : await readAsText(file);
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const text = office ? "" : decodeFileBytes(bytes);
     if (!office && openInProject(file.name, text)) {
       flash("#openBtn", "Нээлээ");
       return true;
     }
-    if (!prepareOpen(file.name)) return false;
+    const prepared = prepareOpen(
+      file.name,
+      bytesSum(bytes),
+      office ? null : text,
+    );
+    if (prepared === "open") {
+      flash("#openBtn", "Нээлттэй байна");
+      return true;
+    }
+    if (!prepared) return false;
     if (office) {
       currentFileHandle = null;
       currentFileName = null;
@@ -356,10 +375,6 @@ export function initFileIO({
   document
     .querySelector("#saveBtn")!
     .addEventListener("click", () => void save());
-
-  async function readAsText(file: File): Promise<string> {
-    return decodeFileBytes(new Uint8Array(await file.arrayBuffer()));
-  }
 
   async function loadFileContent(
     content: string,
