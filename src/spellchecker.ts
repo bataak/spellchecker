@@ -292,7 +292,6 @@ export interface RawToken {
   joined?: string;
 }
 
-// Хаалт, хашилтын хаах тал. Монголд „…“ тул “ нь хаах тэмдэг.
 const CLOSING_DASH = /^[”“‘’«»‹›()[\]"]+-$/;
 
 function isSuffix(word: string): boolean {

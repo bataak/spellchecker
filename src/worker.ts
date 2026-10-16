@@ -264,12 +264,9 @@ async function refreshPrimary(): Promise<void> {
     if (previous && previous.dispose) {
       try {
         previous.dispose();
-      } catch (_) {
-        /* dispose дэмжигдээгүй */
-      }
+      } catch (_) {}
     }
   } catch (_) {
-    /* сүлжээ эсвэл толь бэлтгэхэд алдаа — хуучин толь хэвээр */
   } finally {
     refreshing = false;
   }

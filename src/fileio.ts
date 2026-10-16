@@ -21,11 +21,6 @@ export interface FileIODeps {
   savePdf: () => Promise<void>;
   openProjectZip: (file: File) => Promise<void>;
   openProjectDir: (handle: FileSystemDirectoryHandle) => Promise<void>;
-  /**
-   * Файл нээхийн өмнө: "new" — шинэ slot бэлэн, "open" — ижил файл аль хэдийн
-   * нээлттэй (түүн рүү шилжсэн), "reload" — нээлттэй slot-д нь дахин ачаална,
-   * `false` — нээхгүй.
-   */
   prepareOpen: (
     name: string,
     hash: string,
@@ -33,7 +28,6 @@ export interface FileIODeps {
   ) => "new" | "open" | "reload" | false;
   openInProject: (name: string, text: string) => boolean;
   onLoaded: () => void;
-  /** `written` — анх нээсэн файл руу бичсэн (хуулбар татсан биш). */
   onSaved: (written: boolean) => void;
 }
 
@@ -49,10 +43,6 @@ export interface FileIOControl {
   restoreFile: (ref: DraftFile) => void;
   targetName: () => string | null;
   targetHandle: () => FileSystemFileHandle | null;
-  /**
-   * Эхийг `name` нэрээр хадгална. Нээлттэй файлын нэр бол түүн рүү бичнэ.
-   * Төслийн (`inProject`) файл зөвхөн хуулбар болж гарна.
-   */
   saveSource: (name: string, inProject: boolean) => Promise<void>;
 }
 
@@ -257,7 +247,6 @@ export function initFileIO({
       return true;
     }
     if (prepared === "open") {
-      // Сэргээсэн slot-д бичих эрх алга байж болно — шинээр сонгосныг өгнө.
       if (handle) {
         currentFileHandle = handle;
         currentFileName = file.name;

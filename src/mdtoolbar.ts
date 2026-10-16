@@ -64,10 +64,8 @@ export interface MdToolbar {
   caret: (key: string) => Caret | null;
   writeDraft: (key: string, text: string) => void;
   writeCaret: (key: string, caret: Caret) => void;
-  /** `closeFile` — нээлттэй файлыг цэснээс хасна. */
   reset: (closeFile: boolean) => void;
   openFile: (name: string, hash?: string) => boolean;
-  /** Ижил файл нээлттэй бол түүний slot. */
   findFile: (name: string, hash: string, text: string | null) => string | null;
   showFile: (id: string) => void;
   closeFile: (id: string, force?: boolean) => void;
@@ -75,7 +73,6 @@ export interface MdToolbar {
   setProject: (name: string | null) => void;
   enterProject: () => void;
   leaveProject: () => void;
-  /** `written` — файл руу бичсэн; анх нээсэн байтын hash хүчингүй болно. */
   markSaved: (written?: boolean) => void;
   fileDirty: (id: string) => boolean;
   destroy: () => void;
@@ -1097,7 +1094,6 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       dropDraft(pickerValue(templateId));
       dropLegacyPending();
       holdTitle();
-      // Цэвэрлэсэн файл цэснээс хасагдана.
       if (close && isFileSlot(templateId)) closeFile(templateId, true);
     },
     openFile,

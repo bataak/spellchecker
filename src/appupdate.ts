@@ -47,7 +47,6 @@ async function servesEntry(entry: string): Promise<boolean> {
 
 const IDLE_RELOAD_MS = 10 * 60 * 1000;
 
-// Дараагийн ачааллыг бүдгэрүүлэхийг app-init.js-д мэдэгдээд ачаална.
 function reloadForUpdate(): void {
   write(KEYS.updateReload, "1");
   location.reload();
@@ -112,8 +111,6 @@ export function initAppUpdate(
     reloadForUpdate();
   }
 
-  // Шинэ хувилбарыг чимээгүй бэлдээд, бичих явцад саад болохгүйн тулд
-  // зөвхөн товч дарах эсвэл удаан идэвхгүй байх үед ачаална.
   function markActive(): void {
     lastActivity = Date.now();
   }
@@ -152,8 +149,6 @@ export function initAppUpdate(
     }, 30 * 1000);
   }
 
-  // Шинэ SW идэвхжсэний дараа хуучин хувилбарын lazy chunk кэшээс
-  // устдаг тул ийм import амжилтгүй болбол дахин ачаалахыг санал болгоно.
   window.addEventListener("vite:preloadError", async () => {
     if (appUpdating) return;
     const selfName = entryUrl.split("/").pop();
@@ -161,7 +156,6 @@ export function initAppUpdate(
     if (!selfName || !entry || entry.endsWith("/" + selfName)) return;
     freshEntry = entry;
     if (reloadEl) reloadEl.hidden = false;
-    // Экспортын өөрийн алдааны мессежийн дараа харагдуулна.
     await waitMs(0);
     setStatus(
       "Шинэ хувилбар суусан тул энэ үйлдлийг хийхийн тулд ↻ товчийг дарж хуудсыг дахин ачаална уу",

@@ -28,15 +28,12 @@ function __showBody() {
 window.addEventListener("DOMContentLoaded", __showBody);
 window.addEventListener("load", __showBody);
 setTimeout(__showBody, 1500);
-// Шинэчлэлийн дараах reload-ыг зөвхөн бүдгэрүүлнэ (appupdate.ts тэмдэглэнэ).
 try {
   if (sessionStorage.getItem("mn-spell:update-reload")) {
     sessionStorage.removeItem("mn-spell:update-reload");
     document.documentElement.classList.add("settling");
   }
 } catch (e) {}
-// Shift+reload нь SW-ийг алгасдаг: өмнө нь SW удирдаж байсан таб
-// удирдлагагүй дахин ачаалагдвал бүдгэрүүлнэ.
 try {
   var sw = navigator.serviceWorker;
   if (sw && sw.controller) {
@@ -47,7 +44,6 @@ try {
       document.documentElement.classList.add("settling");
   }
 } catch (e) {}
-// main.ts ачаалагдаж чадахгүй бол хуудас бүдгэрсэн хэвээр үлдэхгүй.
 setTimeout(function () {
   document.documentElement.classList.remove("settling");
 }, 3000);

@@ -38,4 +38,3 @@ for (const item of content.items) {
     show(item.str),
   );
 }
-// await doc.destroy();

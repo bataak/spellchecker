@@ -7,7 +7,6 @@ export interface FileSlot {
   readonly id: string;
   readonly name: string;
   readonly sum: string | null;
-  /** Нээсэн файлын байтын hash — ижил файлыг дахин нээхэд танина. */
   readonly hash?: string;
 }
 
@@ -50,7 +49,6 @@ export function bytesSum(bytes: Uint8Array): string {
 
 const SAMPLE = 256 * 1024;
 
-/** Файлын hash; том файлын эхний, сүүлийн хэсэг ба хэмжээгээр. */
 export async function fileSum(file: Blob): Promise<string> {
   const part = async (blob: Blob): Promise<Uint8Array> =>
     new Uint8Array(await blob.arrayBuffer());
@@ -62,7 +60,6 @@ export async function fileSum(file: Blob): Promise<string> {
   return bytesSum(head) + "." + bytesSum(tail) + "." + file.size.toString(36);
 }
 
-/** Нээх гэж буй файл аль хэдийн нээлттэй slot-той ижил эсэх. */
 export function sameFile(
   slot: FileSlot,
   name: string,
