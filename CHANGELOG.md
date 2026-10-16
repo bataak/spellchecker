@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.108.4](https://github.com/bataak/spellchecker/compare/v1.108.3...v1.108.4) (2026-10-16)
+
+
+### Bug Fixes
+
+* **boot:** blur a shift+reload that bypasses the service worker ([33d3fef](https://github.com/bataak/spellchecker/commit/33d3fef79bc7322d5f73bc9166d70b8064aea007))
+* **deploy:** compare kept-asset dates as numbers so dash can expire them ([44db3b5](https://github.com/bataak/spellchecker/commit/44db3b59c3f10e583a8d5448b3107391f7da8861))
+
 ## [1.108.3](https://github.com/bataak/spellchecker/compare/v1.108.2...v1.108.3) (2026-10-16)
 
 
