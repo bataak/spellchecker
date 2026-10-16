@@ -15,7 +15,7 @@ days=${3:-7}
 manifest=assets-kept.txt
 
 today=$(date -u +%F)
-cutoff=$(date -u -d "$days days ago" +%F)
+cutoff=$(date -u -d "$days days ago" +%Y%m%d)
 prev=$(mktemp)
 next=$(mktemp)
 trap 'rm -f "$prev" "$next"' EXIT
@@ -44,7 +44,12 @@ while read -r seen path; do
     *..*) continue ;;
   esac
   [ -e "$dist/$path" ] && continue
-  if [ "$seen" \< "$cutoff" ]; then
+  # dash-ийн test-д мөр харьцуулах "<" байхгүй тул тоогоор харьцуулна.
+  case "$seen" in
+    [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
+    *) continue ;;
+  esac
+  if [ "$(echo "$seen" | tr -d -)" -lt "$cutoff" ]; then
     dropped=$((dropped + 1))
     continue
   fi
