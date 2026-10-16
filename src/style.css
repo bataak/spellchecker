@@ -196,6 +196,20 @@ main {
   flex-direction: column;
 }
 
+/* Ачаалах үеийн байрлалын шилжилтийг бүдгэрүүлж нуугаад зөөлөн тодруулна. */
+main {
+  transition: filter 0.25s ease;
+}
+html.settling main {
+  filter: blur(6px);
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  main {
+    transition: none;
+  }
+}
+
 h1 {
   font-family: var(--serif);
   font-weight: 600;

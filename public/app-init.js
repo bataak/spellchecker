@@ -28,3 +28,7 @@ function __showBody() {
 window.addEventListener("DOMContentLoaded", __showBody);
 window.addEventListener("load", __showBody);
 setTimeout(__showBody, 1500);
+// main.ts ачаалагдаж чадахгүй бол хуудас бүдгэрсэн хэвээр үлдэхгүй.
+setTimeout(function () {
+  document.documentElement.classList.remove("settling");
+}, 3000);
