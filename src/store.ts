@@ -47,6 +47,8 @@ export const KEYS = {
   texMeta: shared("tex-packages:meta"),
   texOffline: shared("tex-offline:"),
   wipe: session("mn-spell:wipe"),
+  // public/app-init.js ижил нэрийг шууд уншина.
+  updateReload: session("mn-spell:update-reload"),
   staleReload: session("staleReload:"),
 } as const;
 
