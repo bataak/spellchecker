@@ -45,6 +45,8 @@ async function servesEntry(entry: string): Promise<boolean> {
   }
 }
 
+const IDLE_RELOAD_MS = 10 * 60 * 1000;
+
 function waitMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)));
 }
@@ -58,8 +60,11 @@ export function initAppUpdate(
   let appUpdating = false;
   let verBase = "";
 
-  async function reloadToLatest(): Promise<void> {
-    appUpdating = true;
+  let prepared: Promise<void> | null = null;
+  let lastActivity = Date.now();
+  let composing = false;
+
+  async function prepareLatest(): Promise<void> {
     const deadline = Date.now() + 2 * 60 * 1000;
     try {
       const reg = navigator.serviceWorker
@@ -83,7 +88,50 @@ export function initAppUpdate(
         }
       }
     } catch (_) {}
+  }
+
+  function prepareOnce(): Promise<void> {
+    prepared ??= prepareLatest();
+    return prepared;
+  }
+
+  async function reloadToLatest(): Promise<void> {
+    appUpdating = true;
+    await prepareOnce();
     location.reload();
+  }
+
+  // Шинэ хувилбарыг чимээгүй бэлдээд, бичих явцад саад болохгүйн тулд
+  // зөвхөн товч дарах эсвэл удаан идэвхгүй байх үед ачаална.
+  function markActive(): void {
+    lastActivity = Date.now();
+  }
+  for (const type of ["keydown", "pointerdown", "wheel", "touchstart", "input"])
+    document.addEventListener(type, markActive, {
+      capture: true,
+      passive: true,
+    });
+  document.addEventListener("compositionstart", () => {
+    composing = true;
+    markActive();
+  });
+  document.addEventListener("compositionend", () => {
+    composing = false;
+    markActive();
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") markActive();
+  });
+
+  function armIdleReload(): void {
+    const timer = setInterval(() => {
+      if (appUpdating) return clearInterval(timer);
+      if (composing || document.querySelector("dialog[open]")) return;
+      if (Date.now() - lastActivity < IDLE_RELOAD_MS) return;
+      clearInterval(timer);
+      appUpdating = true;
+      location.reload();
+    }, 30 * 1000);
   }
 
   if (reloadEl) {
@@ -125,7 +173,10 @@ export function initAppUpdate(
     const entry = await fetchFreshEntry();
     if (!selfName || !entry || entry.endsWith("/" + selfName)) return;
     freshEntry = entry;
+    await prepareOnce();
+    if (appUpdating || !reloadEl.hidden) return;
     reloadEl.hidden = false;
+    armIdleReload();
   }
 
   async function recoverStale(): Promise<boolean> {
