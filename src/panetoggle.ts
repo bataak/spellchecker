@@ -5,8 +5,6 @@ const TO_EDITOR = "Бичвэр рүү буцах";
 
 export interface PaneToggle {
   setAvailable(on: boolean): void;
-  showsPreview(): boolean;
-  destroy(): void;
 }
 
 function chevron(): SVGSVGElement {
@@ -23,9 +21,9 @@ function chevron(): SVGSVGElement {
 export function initPaneToggle(
   workspace: HTMLElement,
   area: HTMLTextAreaElement,
+  wide: MediaQueryList,
   onChange: (preview: boolean) => void,
 ): PaneToggle {
-  const wide = window.matchMedia("(min-width: 1024px)");
   const root = document.documentElement;
 
   const button = document.createElement("button");
@@ -65,8 +63,7 @@ export function initPaneToggle(
   };
 
   button.addEventListener("click", () => set(!preview));
-  const onWide = (): void => sync();
-  wide.addEventListener("change", onWide);
+  wide.addEventListener("change", sync);
   paint();
 
   return {
@@ -74,12 +71,6 @@ export function initPaneToggle(
       if (on === available) return;
       available = on;
       sync();
-    },
-    showsPreview: () => preview,
-    destroy() {
-      wide.removeEventListener("change", onWide);
-      set(false);
-      button.remove();
     },
   };
 }

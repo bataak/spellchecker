@@ -2071,7 +2071,7 @@ html.booting .empty-state {
   transform: scaleX(-1);
 }
 
-@media (max-width: 1023px) {
+@media not all and (min-width: 1024px) {
   :root[data-pane="preview"] .editor-wrap {
     visibility: hidden;
   }
@@ -2086,12 +2086,6 @@ html.booting .empty-state {
     border-radius: 12px;
     background: var(--editor-bg);
     overflow: hidden;
-  }
-}
-
-@media (min-width: 1024px) {
-  .pane-toggle {
-    display: none;
   }
 }
 
