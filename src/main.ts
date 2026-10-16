@@ -1895,11 +1895,11 @@ exportCtl = initExport({
   isTex: isTexFile,
   texZip: async (text, name) => {
     if (projectLink?.bound()) return projectLink.zip();
-    const [{ zipSync, strToU8 }, { texImageFiles }] = await Promise.all([
+    const [{ zipSync, strToU8 }, { texImageSources }] = await Promise.all([
       import("fflate"),
       import("./teximages.ts"),
     ]);
-    const images = await texImageFiles(text);
+    const images = await texImageSources(text);
     if (images.missing.length)
       holdStatus(
         "Архивт ороогүй зураг: " + escapeHtml(images.missing.join(", ")),
@@ -1908,12 +1908,16 @@ exportCtl = initExport({
       );
     const zip = zipSync({
       ...images.files,
-      [name + ".tex"]: strToU8(images.rewrite(text)),
+      [name + ".tex"]: strToU8(text),
     });
     return new Blob([zip as Uint8Array<ArrayBuffer>], {
       type: "application/zip",
     });
   },
+  texZipped: () => projectLink?.zipped(),
+  // Memory projects save only as a zip, so the source goes out as a file.
+  texSource: (name) =>
+    fileIO.saveSource(name, project()?.kind !== "memory"),
   onDone: () => flash("#saveBtn", "Хадгаллаа"),
   onBlocked: () => flash("#saveBtn", "Экспорт хийх боломжгүй"),
   onPrintError: (error) => {
@@ -1953,9 +1957,17 @@ async function savePdf(): Promise<void> {
   pdfSaving = true;
   saveBusy(true);
   try {
-    await projectLink?.save(true).catch(() => null);
     const name = pdfName();
-    const { pdf, missing } = await previewCtl.pdf();
+    // Start first: saving the project bumps its version and the PDF key.
+    const compiled = previewCtl.pdf();
+    compiled.catch(() => {});
+    const saved = await projectLink?.save(true).then(
+      () => true,
+      () => false,
+    );
+    const { pdf, missing } = await compiled;
+    if (saved === false)
+      holdStatus("Төслийн файлуудыг хадгалж чадсангүй", 8000, false);
     saveBusy(false);
     if (missing.length)
       holdStatus(
