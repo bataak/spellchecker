@@ -1,5 +1,5 @@
 import { decodeFileBytes } from "./cp1251.ts";
-import { bytesSum } from "./fileslots.ts";
+import { bytesSum, fileSum } from "./fileslots.ts";
 import type { DraftFile } from "./storage.ts";
 
 export interface FileIODeps {
@@ -239,18 +239,23 @@ export function initFileIO({
       return true;
     }
     if (!office && !sizeOk(file)) return true;
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const text = office ? "" : decodeFileBytes(bytes);
+    const bytes = office ? null : new Uint8Array(await file.arrayBuffer());
+    const text = bytes ? decodeFileBytes(bytes) : "";
     if (!office && openInProject(file.name, text)) {
       flash("#openBtn", "Нээлээ");
       return true;
     }
     const prepared = prepareOpen(
       file.name,
-      bytesSum(bytes),
+      bytes ? bytesSum(bytes) : await fileSum(file),
       office ? null : text,
     );
     if (prepared === "open") {
+      // Сэргээсэн slot-д бичих эрх алга байж болно — шинээр сонгосныг өгнө.
+      if (handle) {
+        currentFileHandle = handle;
+        currentFileName = file.name;
+      }
       flash("#openBtn", "Нээлттэй байна");
       return true;
     }

@@ -1670,10 +1670,22 @@ const fileIO = initFileIO({
     projectLink?.openExisting(name, text) ?? false,
   prepareOpen: (name, hash, text) => {
     const open = mdBar.findFile(name, hash, text);
-    if (open !== null) {
+    // Office файлыг шинээр сонгосон хувиар нь, засварласан бичвэрийг
+    // зөвшөөрвөл дискнийхээр солино; бусад үед нээлттэйг нь харуулна.
+    const reload =
+      open !== null &&
+      (text === null ||
+        (mdBar.fileDirty(open) &&
+          window.confirm(
+            "«" +
+              name +
+              "» нээлттэй бөгөөд хадгалаагүй өөрчлөлттэй. Файлаас дахин нээх үү?",
+          )));
+    if (open !== null && !reload) {
       mdBar.showFile(open);
       return "open";
     }
+    if (open !== null) mdBar.closeFile(open, true);
     if (mdBar.openFile(name, hash)) return "new";
     holdStatus(
       "Нэг дор " +
@@ -1689,7 +1701,7 @@ const fileIO = initFileIO({
     undoCtl?.reset();
     mdBar.markSaved();
   },
-  onSaved: () => mdBar.markSaved(),
+  onSaved: () => mdBar.markSaved(true),
 });
 
 const MD_NAME_RE = /\.(md|markdown|mdown)$/i;

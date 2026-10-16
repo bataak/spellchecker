@@ -74,7 +74,9 @@ export interface MdToolbar {
   setProject: (name: string | null) => void;
   enterProject: () => void;
   leaveProject: () => void;
-  markSaved: () => void;
+  /** `written` — файл руу бичсэн; анх нээсэн байтын hash хүчингүй болно. */
+  markSaved: (written?: boolean) => void;
+  fileDirty: (id: string) => boolean;
   destroy: () => void;
 }
 
@@ -920,11 +922,15 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     options.onCloseFile?.(PROJECT_SLOT);
   }
 
-  function markSaved(): void {
+  function markSaved(written = false): void {
     if (!isFileSlot(templateId)) return;
     const sum = textSum(editor.value);
     updateFiles((list) =>
-      list.map((item) => (item.id === templateId ? { ...item, sum } : item)),
+      list.map((item) => {
+        if (item.id !== templateId) return item;
+        if (!written) return { ...item, sum };
+        return { id: item.id, name: item.name, sum };
+      }),
     );
   }
 
@@ -1094,10 +1100,13 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     },
     openFile,
     findFile: (name, hash, text) =>
-      storedFiles().find((slot) => sameFile(slot, name, hash, text))?.id ??
-      null,
+      files.find((slot) => sameFile(slot, name, hash, text))?.id ?? null,
     showFile: (id) => {
-      if (storedFiles().some((slot) => slot.id === id)) chooseTemplate(id);
+      if (files.some((slot) => slot.id === id)) chooseTemplate(id);
+    },
+    fileDirty: (id) => {
+      const slot = files.find((item) => item.id === id);
+      return slot ? isDirty(slot) : false;
     },
     closeFile,
     fileSlots: () =>
