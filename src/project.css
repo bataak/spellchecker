@@ -33,7 +33,7 @@
   }
 }
 
-@media (max-width: 1023.98px) {
+@media not all and (min-width: 1024px) {
   .project-panel {
     position: fixed;
     z-index: 60;

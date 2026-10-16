@@ -38,6 +38,8 @@ export interface FileIOControl {
   restoreFile: (ref: DraftFile) => void;
   targetName: () => string | null;
   targetHandle: () => FileSystemFileHandle | null;
+  /** Эхийг хадгална: файл руу, төсөл рүү (`project`), эсвэл `name` нэрээр. */
+  saveSource: (name: string, project: boolean) => Promise<void>;
 }
 
 export function initFileIO({
@@ -255,7 +257,10 @@ export function initFileIO({
     }
   }
 
-  async function save(): Promise<void> {
+  async function save(source?: {
+    readonly name: string;
+    readonly project: boolean;
+  }): Promise<void> {
     if (isDocxActive()) {
       try {
         flash("#saveBtn", (await docxSave()) ? "Хадгаллаа" : "Цуцаллаа");
@@ -265,20 +270,22 @@ export function initFileIO({
       return;
     }
 
-    if (savesPdf()) {
+    if (!source && savesPdf()) {
       await savePdf();
       return;
     }
 
-    try {
-      const label = await saveProject();
-      if (label !== null) {
-        flash("#saveBtn", label);
+    if (!source || source.project) {
+      try {
+        const label = await saveProject();
+        if (label !== null) {
+          flash("#saveBtn", label);
+          return;
+        }
+      } catch (_) {
+        flash("#saveBtn", "Боломжгүй");
         return;
       }
-    } catch (_) {
-      flash("#saveBtn", "Боломжгүй");
-      return;
     }
 
     const text = els.editor.value || "";
@@ -294,14 +301,15 @@ export function initFileIO({
       } catch (_) {}
     }
 
-    if (!text.trim() && !currentFileName) {
+    const fileName = source?.name ?? currentFileName;
+    if (!text.trim() && !fileName) {
       flash("#saveBtn", "Хоосон байна");
       return;
     }
 
-    if (currentFileName) {
+    if (fileName) {
       try {
-        const done = await deliverText(text, currentFileName);
+        const done = await deliverText(text, fileName);
         flash("#saveBtn", done ? "Хадгалав" : "Цуцаллаа");
         if (done) onSaved();
       } catch (_) {
@@ -475,6 +483,7 @@ export function initFileIO({
   });
 
   return {
+    saveSource: (name, project) => save({ name, project }),
     forgetFile() {
       currentFileHandle = null;
       currentFileName = null;

@@ -10,6 +10,7 @@ import {
   projectSavedText,
   projectText,
   projectZip,
+  markExported,
   refreshProject,
   restoreProject,
   saveProject,
@@ -67,6 +68,7 @@ export interface ProjectLink {
   readonly close: () => void;
   readonly save: (diskOnly?: boolean) => Promise<string | null>;
   readonly zip: () => Promise<Blob>;
+  readonly zipped: () => void;
   readonly openZip: (file: File) => Promise<void>;
   readonly openDir: (handle: FileSystemDirectoryHandle) => Promise<void>;
   readonly restore: () => Promise<void>;
@@ -423,6 +425,9 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     zip() {
       pushText();
       return projectZip();
+    },
+    zipped() {
+      if (bound && hasProject()) markExported();
     },
     async openZip(file) {
       const view = project();
