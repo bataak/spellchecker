@@ -25,22 +25,33 @@ export function nextFileId(slots: readonly FileSlot[]): string {
   }
 }
 
-export function textSum(text: string): string {
+function fnv(length: number, at: (index: number) => number): string {
   let hash = 2166136261;
-  for (let i = 0; i < text.length; i += 1) {
-    hash ^= text.charCodeAt(i);
+  for (let i = 0; i < length; i += 1) {
+    hash ^= at(i);
     hash = Math.imul(hash, 16777619);
   }
-  return (hash >>> 0).toString(36) + ":" + text.length.toString(36);
+  return (hash >>> 0).toString(36) + ":" + length.toString(36);
+}
+
+export function textSum(text: string): string {
+  return fnv(text.length, (i) => text.charCodeAt(i));
 }
 
 export function bytesSum(bytes: Uint8Array): string {
-  let hash = 2166136261;
-  for (let i = 0; i < bytes.length; i += 1) {
-    hash ^= bytes[i]!;
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(36) + ":" + bytes.length.toString(36);
+  return fnv(bytes.length, (i) => bytes[i]!);
+}
+
+const SAMPLE = 256 * 1024;
+
+/** Файлын hash; том файлын эхний, сүүлийн хэсэг ба хэмжээгээр. */
+export async function fileSum(file: Blob): Promise<string> {
+  const part = async (blob: Blob): Promise<Uint8Array> =>
+    new Uint8Array(await blob.arrayBuffer());
+  if (file.size <= 2 * SAMPLE) return bytesSum(await part(file));
+  const head = await part(file.slice(0, SAMPLE));
+  const tail = await part(file.slice(file.size - SAMPLE));
+  return bytesSum(head) + "." + bytesSum(tail) + "." + file.size.toString(36);
 }
 
 /** Нээх гэж буй файл аль хэдийн нээлттэй slot-той ижил эсэх. */
