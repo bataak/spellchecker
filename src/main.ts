@@ -1670,22 +1670,19 @@ const fileIO = initFileIO({
     projectLink?.openExisting(name, text) ?? false,
   prepareOpen: (name, hash, text) => {
     const open = mdBar.findFile(name, hash, text);
-    // Office файлыг шинээр сонгосон хувиар нь, засварласан бичвэрийг
-    // зөвшөөрвөл дискнийхээр солино; бусад үед нээлттэйг нь харуулна.
-    const reload =
-      open !== null &&
-      (text === null ||
-        (mdBar.fileDirty(open) &&
-          window.confirm(
-            "«" +
-              name +
-              "» нээлттэй бөгөөд хадгалаагүй өөрчлөлттэй. Файлаас дахин нээх үү?",
-          )));
-    if (open !== null && !reload) {
+    if (open !== null) {
       mdBar.showFile(open);
-      return "open";
+      // Засварласан бичвэрийг зөвшөөрвөл дискнийхээр солино.
+      const reload =
+        text !== null &&
+        mdBar.fileDirty(open) &&
+        window.confirm(
+          "«" +
+            name +
+            "» нээлттэй бөгөөд хадгалаагүй өөрчлөлттэй. Файлаас дахин нээх үү?",
+        );
+      return reload ? "reload" : "open";
     }
-    if (open !== null) mdBar.closeFile(open, true);
     if (mdBar.openFile(name, hash)) return "new";
     holdStatus(
       "Нэг дор " +
@@ -1701,7 +1698,7 @@ const fileIO = initFileIO({
     undoCtl?.reset();
     mdBar.markSaved();
   },
-  onSaved: () => mdBar.markSaved(true),
+  onSaved: (written) => mdBar.markSaved(written),
 });
 
 const MD_NAME_RE = /\.(md|markdown|mdown)$/i;
@@ -2174,8 +2171,8 @@ initToolbar({
     fileIO.forgetFile();
     syncPreviewClass();
   },
-  afterClear: () => {
-    mdBar.reset();
+  afterClear: (cleared) => {
+    mdBar.reset(cleared);
     rotateEmptyTips();
   },
   hasOpenFile: () => openFileName() !== null,
