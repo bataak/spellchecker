@@ -25,6 +25,7 @@ import {
   isFileSlot,
   loadSlots,
   nextFileId,
+  sameFile,
   saveSlots,
   textSum,
   type FileSlot,
@@ -64,7 +65,10 @@ export interface MdToolbar {
   writeDraft: (key: string, text: string) => void;
   writeCaret: (key: string, caret: Caret) => void;
   reset: () => void;
-  openFile: (name: string) => boolean;
+  openFile: (name: string, hash?: string) => boolean;
+  /** Ижил файл нээлттэй бол түүний slot. */
+  findFile: (name: string, hash: string, text: string | null) => string | null;
+  showFile: (id: string) => void;
   closeFile: (id: string, force?: boolean) => void;
   fileSlots: () => { id: string; name: string; text: string | null }[];
   setProject: (name: string | null) => void;
@@ -861,11 +865,14 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     syncVisible();
   }
 
-  function openFile(name: string): boolean {
+  function openFile(name: string, hash?: string): boolean {
     const current = storedFiles();
     if (current.length >= FILE_LIMIT) return false;
     const id = nextFileId(current);
-    updateFiles((list) => [...list, { id, name, sum: null }]);
+    updateFiles((list) => [
+      ...list,
+      { id, name, sum: null, ...(hash ? { hash } : {}) },
+    ]);
     rebuildMenu();
     chooseTemplate(id);
     return true;
@@ -1082,8 +1089,16 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       dropDraft(pickerValue(templateId));
       dropLegacyPending();
       holdTitle();
+      // Цэвэрлэсэн файл цэснээс хасагдана.
+      if (isFileSlot(templateId)) closeFile(templateId, true);
     },
     openFile,
+    findFile: (name, hash, text) =>
+      storedFiles().find((slot) => sameFile(slot, name, hash, text))?.id ??
+      null,
+    showFile: (id) => {
+      if (storedFiles().some((slot) => slot.id === id)) chooseTemplate(id);
+    },
     closeFile,
     fileSlots: () =>
       files.map((slot) => ({
