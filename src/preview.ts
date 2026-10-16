@@ -266,7 +266,10 @@ export interface Preview {
   setFileName(name: string | null): void;
   setMarkdownMode(on: boolean): void;
   setSource(src: PreviewSource | null): void;
-  pdf(): Promise<Uint8Array<ArrayBuffer>>;
+  pdf(): Promise<{
+    readonly pdf: Uint8Array<ArrayBuffer>;
+    readonly missing: readonly string[];
+  }>;
   destroy(): void;
 }
 
@@ -1001,12 +1004,27 @@ export function initPreview(
     setMarkdownMode,
     setSource,
     async pdf() {
-      if (texMode && shownPdf && !downloadBtn.disabled && texShown === texKey())
-        return shownPdf;
+      const text = area.value;
+      const project = projectKey();
+      const key = texKey();
+      const kept = keptPdfs.get(key);
+      if (kept) return kept;
+      if (texMode && shownPdf && !downloadBtn.disabled && texShown === key)
+        return { pdf: shownPdf, missing: [] };
+      const digest = await digestOf(text, project);
+      const cached = digest === null ? null : await cachedPdf(digest);
+      if (cached) return { pdf: cached, missing: [] };
       const { compileTexDocument } = await import("./texpdf.ts");
       savingPdf++;
       try {
-        return (await compileTexDocument(area.value)).pdf;
+        const { pdf, missing } = await compileTexDocument(text);
+        keptPdfs.delete(key);
+        keptPdfs.set(key, { text, pdf, missing });
+        while (keptPdfs.size > KEPT_PDFS)
+          keptPdfs.delete(keptPdfs.keys().next().value!);
+        if (!missing.length && digest !== null)
+          void saveCachedPdf(digest, pdf, project === null ? text : null);
+        return { pdf, missing };
       } finally {
         savingPdf--;
       }
