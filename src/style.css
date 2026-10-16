@@ -18,8 +18,9 @@ html {
   --lookup-blend: multiply;
   --editor-bg: #ffffff;
   --focus: #b9b1a1;
-  --layout-accent: #0066b3;
-  --layout-accent-en: #b4541a;
+  --layout-accent-mn: #b4541a;
+  --layout-accent: var(--layout-accent-mn);
+  --layout-accent-en: #0066b3;
   --layout-on: #ffffff;
   --tex-bg: #fbf1c7;
   --tex-ink: #3c3836;
@@ -134,8 +135,9 @@ html {
   --lookup-blend: screen;
   --editor-bg: #211d16;
   --focus: #4a4438;
-  --layout-accent: #5aa9e6;
-  --layout-accent-en: #e8a06a;
+  --layout-accent-mn: #e8a06a;
+  --layout-accent: var(--layout-accent-mn);
+  --layout-accent-en: #5aa9e6;
   --layout-on: #17150f;
   --tex-bg: #282828;
   --tex-ink: #ebdbb2;
@@ -2879,6 +2881,19 @@ html.booting .empty-state {
 
 .editor-wrap > .editor.layout-forced {
   caret-color: var(--layout-accent);
+}
+
+.editor-wrap > .editor::selection,
+.pop-fix-input::selection {
+  background: color-mix(in srgb, var(--layout-accent) 35%, transparent);
+}
+
+.editor-wrap > .editor[data-pick="other"]::selection {
+  background: color-mix(in srgb, var(--layout-accent-mn) 35%, transparent);
+}
+
+.editor-wrap > .editor[data-pick="latin"]::selection {
+  background: color-mix(in srgb, var(--layout-accent-en) 35%, transparent);
 }
 
 .layout-badge {
