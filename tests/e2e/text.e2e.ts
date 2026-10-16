@@ -196,7 +196,6 @@ test("SW-гүй shift+reload бүдгэрнэ, шинээр нээхэд бүд�
   });
   const blurred = (): Promise<string | null> =>
     page.evaluate(() => sessionStorage.getItem("e2e:blurred"));
-  // Dev сервер SW-гүй тул өмнө нь удирдагдаж байсныг дуурайна.
   await page.evaluate(() =>
     sessionStorage.setItem("mn-spell:sw-controlled", "1"),
   );

@@ -1,12 +1,4 @@
 #!/bin/sh
-# Өмнөх хувилбаруудын assets/ файлыг шинэ build-д хуулна. Шинэ хувилбар
-# суусны дараа хуучин код ажиллаж буй таб lazy chunk-аа (баримт уншигч,
-# PDF, экспорт г.м.) ачаалж чадахгүй болохоос сэргийлнэ.
-#
-# Хэрэглээ: keep-old-assets.sh <амьд сайтын URL> [dist] [хоног]
-#
-# dist/assets-kept.txt нь "огноо зам" мөрүүдтэй: огноо нь тухайн файл
-# хамгийн сүүлд амьд хувилбарт байсан өдөр. Хугацаа хэтэрсэн файлыг хаяна.
 set -e
 
 site=${1%/}
@@ -20,9 +12,7 @@ prev=$(mktemp)
 next=$(mktemp)
 trap 'rm -f "$prev" "$next"' EXIT
 
-# CDN-ийн кэшийг тойрч хамгийн сүүлийн жагсаалтыг авна.
 if ! curl -fsS "$site/$manifest?t=$(date +%s)" -o "$prev"; then
-  # Жагсаалтгүй анхны deploy: амьд sw.js-ийн precache-ээс авна.
   echo "keep-old-assets: өмнөх жагсаалт олдсонгүй, sw.js-ээс уншина"
   curl -fsS "$site/sw.js?t=$(date +%s)" 2>/dev/null |
     grep -o 'url:"assets/[^"]*"' |
@@ -44,7 +34,6 @@ while read -r seen path; do
     *..*) continue ;;
   esac
   [ -e "$dist/$path" ] && continue
-  # dash-ийн test-д мөр харьцуулах "<" байхгүй тул тоогоор харьцуулна.
   case "$seen" in
     [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
     *) continue ;;

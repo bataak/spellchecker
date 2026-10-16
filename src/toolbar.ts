@@ -7,7 +7,6 @@ export interface ToolbarDeps {
   isDocxActive: () => boolean;
   closeDocx: () => void;
   forgetFile: () => void;
-  /** Цэвэрлэсний дараа; `cleared` — нээлттэй файл, бичвэр байсан. */
   afterClear: (cleared: boolean) => void;
   hasOpenFile: () => boolean;
   flash: (sel: string, msg: string) => void;

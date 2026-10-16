@@ -196,7 +196,6 @@ main {
   flex-direction: column;
 }
 
-/* Ачаалах үеийн байрлалын шилжилтийг бүдгэрүүлж нуугаад зөөлөн тодруулна. */
 main {
   transition: filter 0.25s ease;
 }
@@ -1418,9 +1417,6 @@ a.tbtn {
   font-family: var(--mono);
   font-size: calc(1.14rem * var(--editor-scale, 1) * var(--mono-fit, 0.85));
 }
-/* A fixed 8x4 SVG wave instead of `wavy`, whose size differs per browser.
-   A 1.5px stroke keeps the core pixels at full color; 1px antialiases too faint.
-   Painted as a background, not a mask: Safari ignores masks on inline marks. */
 .backdrop mark {
   color: transparent;
   background: var(--squiggle-wave) left bottom / 8px 4px repeat-x;

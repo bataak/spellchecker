@@ -1470,7 +1470,6 @@ function pdfName(): string {
   return stripExt(name || "бичвэр") + ".pdf";
 }
 
-// Шинэчлэлийн мессеж нь import амжилтгүй болсны алдааны hold-ыг давж харагдана.
 const appUpdate = initAppUpdate((html) => holdStatus(html), import.meta.url);
 
 function isPdfFile(file: File): boolean {
@@ -1673,7 +1672,6 @@ const fileIO = initFileIO({
     const open = mdBar.findFile(name, hash, text);
     if (open !== null) {
       mdBar.showFile(open);
-      // Засварласан бичвэрийг зөвшөөрвөл дискнийхээр солино.
       const reload =
         text !== null &&
         mdBar.fileDirty(open) &&
@@ -1976,7 +1974,6 @@ async function savePdf(): Promise<void> {
   const notes: string[] = [];
   try {
     const name = pdfName();
-    // Start first: saving the project bumps its version and the PDF key.
     const compiled = previewCtl.pdf();
     compiled.catch(() => {});
     const saved = await projectLink?.save(true).then(
