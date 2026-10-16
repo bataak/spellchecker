@@ -1084,18 +1084,36 @@ export async function saveProject(): Promise<SaveResult> {
 }
 
 export async function exportZip(): Promise<void> {
+  const snap = projectSnapshot();
   download(await projectZip(), requireState().name + ".zip");
-  markExported();
+  markExported(snap);
 }
 
-/** Төслийг архив болгон гаргасныг тэмдэглэнэ. */
-export function markExported(): void {
+export interface ProjectSnapshot {
+  readonly id: number;
+  readonly texts: ReadonlyMap<string, string>;
+  readonly added: ReadonlySet<string>;
+}
+
+export function projectSnapshot(): ProjectSnapshot {
   const s = requireState();
+  return { id: s.id, texts: new Map(s.texts), added: new Set(s.added) };
+}
+
+/**
+ * Төслийг архив болгон гаргасныг тэмдэглэнэ. `snap` нь архивт орсон төлөв —
+ * түүнээс хойшхи засвар хадгалаагүй хэвээр үлдэнэ.
+ */
+export function markExported(snap: ProjectSnapshot = projectSnapshot()): void {
+  const s = state;
+  if (!s || s.id !== snap.id) return;
   s.exportedAt = Date.now();
   if (s.kind === "memory") {
-    for (const [path, text] of s.texts) s.saved.set(path, text);
-    s.added.clear();
-    s.unsynced = false;
+    for (const [path, text] of snap.texts) s.saved.set(path, text);
+    for (const path of snap.added) s.added.delete(path);
+    s.unsynced = [...s.texts].some(
+      ([path, text]) => snap.texts.get(path) !== text,
+    );
     recountDirty(s);
   }
   changed(true);
