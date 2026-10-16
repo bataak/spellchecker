@@ -14,13 +14,16 @@ html {
   --squiggle-wave: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4'%3E%3Cpath d='M0 3.5C2 3.5 2 .5 4 .5S6 3.5 8 3.5' fill='none' stroke='%23ff0000' stroke-width='1.5'/%3E%3C/svg%3E");
   --count-bg: #c45650;
   --accent: #2c3a2e;
-  --lookup: rgba(240, 100, 30, 0.3);
-  --lookup-blend: multiply;
+  --lookup: var(--layout-select-mn);
+  --lookup-blend: darken;
   --editor-bg: #ffffff;
   --focus: #b9b1a1;
-  --layout-accent-mn: #b4541a;
+  --layout-accent-mn: var(--proof);
   --layout-accent: var(--layout-accent-mn);
   --layout-accent-en: #0066b3;
+  --layout-select-mn: var(--proof-soft);
+  --layout-select-en: color-mix(in srgb, var(--layout-accent-en) 15%, var(--editor-bg));
+  --layout-select: var(--layout-select-mn);
   --layout-on: #ffffff;
   --tex-bg: #fbf1c7;
   --tex-ink: #3c3836;
@@ -131,13 +134,16 @@ html {
   --proof-soft: #3a2420;
   --count-bg: #ff8579;
   --accent: #86b08c;
-  --lookup: rgba(240, 100, 30, 0.22);
-  --lookup-blend: screen;
+  --lookup: var(--layout-select-mn);
+  --lookup-blend: lighten;
   --editor-bg: #211d16;
   --focus: #4a4438;
-  --layout-accent-mn: #e8a06a;
+  --layout-accent-mn: var(--proof);
   --layout-accent: var(--layout-accent-mn);
   --layout-accent-en: #5aa9e6;
+  --layout-select-mn: var(--proof-soft);
+  --layout-select-en: color-mix(in srgb, var(--layout-accent-en) 15%, var(--editor-bg));
+  --layout-select: var(--layout-select-mn);
   --layout-on: #17150f;
   --tex-bg: #282828;
   --tex-ink: #ebdbb2;
@@ -1371,6 +1377,10 @@ a.tbtn {
   transition: opacity 120ms ease-out;
 }
 
+.word-anchor[data-script="latin"] {
+  --lookup: var(--layout-select-en);
+}
+
 .word-anchor.is-lit {
   opacity: 1;
 }
@@ -1687,6 +1697,7 @@ a.tbtn {
 }
 .pop-fix-input[data-layout="en"] {
   --layout-accent: var(--layout-accent-en);
+  --layout-select: var(--layout-select-en);
 }
 .pop-fix-ok {
   flex: 0 0 auto;
@@ -2873,6 +2884,7 @@ html.booting .empty-state {
 .layout-badge[data-layout="en"],
 .editor[data-layout="en"] {
   --layout-accent: var(--layout-accent-en);
+  --layout-select: var(--layout-select-en);
 }
 
 .layout-chip[hidden] {
@@ -2885,15 +2897,15 @@ html.booting .empty-state {
 
 .editor-wrap > .editor::selection,
 .pop-fix-input::selection {
-  background: color-mix(in srgb, var(--layout-accent) 35%, transparent);
+  background: var(--layout-select);
 }
 
 .editor-wrap > .editor[data-pick="other"]::selection {
-  background: color-mix(in srgb, var(--layout-accent-mn) 35%, transparent);
+  background: var(--layout-select-mn);
 }
 
 .editor-wrap > .editor[data-pick="latin"]::selection {
-  background: color-mix(in srgb, var(--layout-accent-en) 35%, transparent);
+  background: var(--layout-select-en);
 }
 
 .layout-badge {
