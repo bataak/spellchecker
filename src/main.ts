@@ -1908,16 +1908,14 @@ exportCtl = initExport({
       );
     const zip = zipSync({
       ...images.files,
-      [name + ".tex"]: strToU8(text),
+      [name + ".tex"]: strToU8(images.rewrite(text)),
     });
     return new Blob([zip as Uint8Array<ArrayBuffer>], {
       type: "application/zip",
     });
   },
   texZipped: () => projectLink?.zipped(),
-  // Memory projects save only as a zip, so the source goes out as a file.
-  texSource: (name) =>
-    fileIO.saveSource(name, project()?.kind !== "memory"),
+  texSource: (name) => fileIO.saveSource(name, !!projectLink?.bound()),
   onDone: () => flash("#saveBtn", "Хадгаллаа"),
   onBlocked: () => flash("#saveBtn", "Экспорт хийх боломжгүй"),
   onPrintError: (error) => {
@@ -1956,6 +1954,7 @@ async function savePdf(): Promise<void> {
   if (pdfSaving || !previewCtl) return;
   pdfSaving = true;
   saveBusy(true);
+  const notes: string[] = [];
   try {
     const name = pdfName();
     // Start first: saving the project bumps its version and the PDF key.
@@ -1965,23 +1964,20 @@ async function savePdf(): Promise<void> {
       () => true,
       () => false,
     );
+    if (saved === false) notes.push("Төслийн файлуудыг хадгалж чадсангүй");
     const { pdf, missing } = await compiled;
-    if (saved === false)
-      holdStatus("Төслийн файлуудыг хадгалж чадсангүй", 8000, false);
     saveBusy(false);
     if (missing.length)
-      holdStatus(
-        "PDF-д ороогүй зураг: " + escapeHtml(missing.join(", ")),
-        8000,
-        false,
-      );
+      notes.push("PDF-д ороогүй зураг: " + escapeHtml(missing.join(", ")));
+    if (notes.length) holdStatus(notes.join(" · "), 8000, false);
     if (await deliverFile(pdf, name, "application/pdf"))
       flash("#saveBtn", "PDF хадгаллаа");
   } catch (error) {
     saveBusy(false);
     flash("#saveBtn", "PDF гаргаж чадсангүй");
     if (error instanceof Error && error.name === "PdfError")
-      holdStatus(escapeHtml(error.message), 8000, false);
+      notes.push(escapeHtml(error.message));
+    if (notes.length) holdStatus(notes.join(" · "), 8000, false);
   } finally {
     pdfSaving = false;
   }

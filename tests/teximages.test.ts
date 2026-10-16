@@ -28,6 +28,14 @@ test("олдсон зургийг engine-ийн нэрээр, олдоогүйг
   );
 });
 
+test("keep үед мэдэгдэхгүй зургийг хэвээр үлдээнэ", () => {
+  const text = String.raw`\includegraphics[width=2cm]{img/a.svg} ба \includegraphics{img/b}`;
+  assert.equal(
+    rewriteIncludes(text, new Map([["img/a.svg", "image1.pdf"]]), true),
+    String.raw`\includegraphics[width=2cm]{image1.pdf} ба \includegraphics{img/b}`,
+  );
+});
+
 test("макроор өгсөн зургийн замыг задалж олно", () => {
   const text = String.raw`\newcommand{\InstituteLogo}{img/logo.png}
 \def\Dir{fig}
