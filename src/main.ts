@@ -2074,6 +2074,12 @@ async function runOfflineReadyIndicator() {
   if (idle()) setStatus(baseStatus);
 }
 
+function settle(): void {
+  document.documentElement.classList.remove("settling");
+}
+for (const type of ["keydown", "pointerdown", "touchstart"])
+  document.addEventListener(type, settle, { once: true, capture: true });
+
 async function boot() {
   requestDurableStorage();
   if (!import.meta.env.DEV) void appUpdate.recoverStale();
@@ -2113,6 +2119,9 @@ async function boot() {
     appUpdate.setDictVersion(mnVersion);
     cache.clear();
     await render();
+    void Promise.resolve(document.fonts?.ready).then(() =>
+      requestAnimationFrame(() => requestAnimationFrame(settle)),
+    );
     if (loaded.length) {
       lastFailed = failed;
       lastFallbackReason = fallbackReason;
@@ -2153,6 +2162,7 @@ async function boot() {
       maybeRefreshDict();
     });
   } catch (e) {
+    settle();
     if (await appUpdate.recoverStale()) return;
     setStatus(
       "Ачаалахад алдаа гарлаа: " +
@@ -2171,6 +2181,7 @@ boot();
 setTimeout(() => {
   document.documentElement.classList.remove("booting");
 }, 2000);
+setTimeout(settle, 1500);
 
 initToolbar({
   els,
