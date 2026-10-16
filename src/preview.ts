@@ -41,7 +41,10 @@ const PDF_TEXT_KEY = "tex-preview/last.tex";
 const CACHED_PDFS = 6;
 const KEPT_PDFS = 3;
 
-const pdfUrl = (digest: string): string => "tex-preview/" + digest + ".pdf";
+// Bump when the compile output changes for the same source.
+const PDF_VERSION = "v2";
+const pdfUrl = (digest: string): string =>
+  "tex-preview/" + PDF_VERSION + "-" + digest + ".pdf";
 
 async function textKey(text: string): Promise<string | null> {
   try {
@@ -690,6 +693,7 @@ export function initPreview(
   let retries = 0;
   let triedText: string | null = null;
   let compiling: string | null = null;
+  let savingPdf = 0;
   let forced = false;
   const STALE_COMPILE_MS = 3000;
 
@@ -768,7 +772,8 @@ export function initPreview(
       texShown = null;
     }
     void import("./texpdf.ts").then((mod) => {
-      if (mod.compileRunningFor() > STALE_COMPILE_MS) mod.cancelCompile();
+      if (!savingPdf && mod.compileRunningFor() > STALE_COMPILE_MS)
+        mod.cancelCompile();
     });
     compiling = key;
     try {
@@ -999,7 +1004,12 @@ export function initPreview(
       if (texMode && shownPdf && !downloadBtn.disabled && texShown === texKey())
         return shownPdf;
       const { compileTexDocument } = await import("./texpdf.ts");
-      return (await compileTexDocument(area.value)).pdf;
+      savingPdf++;
+      try {
+        return (await compileTexDocument(area.value)).pdf;
+      } finally {
+        savingPdf--;
+      }
     },
     destroy() {
       if (imageUrl) URL.revokeObjectURL(imageUrl);
