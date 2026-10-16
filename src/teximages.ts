@@ -52,17 +52,23 @@ export function texImagePaths(text: string): string[] {
   return [...out];
 }
 
+/** `keep` үед `names`-д ороогүй зургийг хэвээр нь үлдээнэ. */
 export function rewriteIncludes(
   text: string,
   names: ReadonlyMap<string, string>,
+  keep = false,
 ): string {
   const macros = pathMacros([text]);
-  return text.replace(INCLUDE, (_, opts: string | undefined, raw: string) => {
-    const path = normalizeTexPath(expandMacros(raw, macros));
-    const name = names.get(path);
-    if (name) return "\\includegraphics" + (opts ?? "") + "{" + name + "}";
-    return "\\fbox{\\ttfamily\\detokenize{" + path + "}}";
-  });
+  return text.replace(
+    INCLUDE,
+    (match: string, opts: string | undefined, raw: string) => {
+      const path = normalizeTexPath(expandMacros(raw, macros));
+      const name = names.get(path);
+      if (name) return "\\includegraphics" + (opts ?? "") + "{" + name + "}";
+      if (keep) return match;
+      return "\\fbox{\\ttfamily\\detokenize{" + path + "}}";
+    },
+  );
 }
 
 const local = new Map<string, Blob>();
@@ -241,9 +247,9 @@ export async function texImageFiles(text: string): Promise<TexImages> {
   for (const raw of svgRefs(text)) {
     const path = svgPath(raw);
     if (!path || svgNames.has(path) || missing.includes(path)) continue;
-    const blob = await resolveSvg(path, dir);
-    const pdf = blob
-      ? await svgToPdf(new Uint8Array(await blob.arrayBuffer()))
+    const found = await resolveSvg(path, dir);
+    const pdf = found
+      ? await svgToPdf(new Uint8Array(await found.blob.arrayBuffer()))
       : null;
     if (!pdf) {
       missing.push(path);
@@ -266,50 +272,70 @@ export async function texImageFiles(text: string): Promise<TexImages> {
 }
 
 const UNSAFE_PATH = /^\/|^[a-z]:|(?:^|\/)\.\.(?:\/|$)/i;
+/** pdfLaTeX шууд уншдаг зураг — архивт анхны замаараа орно. */
+const PDFLATEX_IMAGE = /\.(?:png|jpe?g|pdf)$/i;
 
-/** Бичвэрт орсон зургууд, анхны нэр, байрлалаар нь (архивт). */
-export async function texImageSources(text: string): Promise<{
-  readonly files: Record<string, Uint8Array>;
-  readonly missing: readonly string[];
-}> {
+/**
+ * Архивт орох зургууд. pdfLaTeX уншдаг зураг анхны замаараа орно; бусдыг
+ * (svg, webp…, эсвэл архиваас гадуурх зам) хөрвүүлж, шинэ нэр өгнө.
+ */
+export async function texImageSources(text: string): Promise<TexImages> {
   const paths = texImagePaths(text);
   const macros = pathMacros([text]);
   const svgs = usesSvgPackage([text])
-    ? svgRefs(text)
-        .map((raw) => normalizeTexPath(expandMacros(raw, macros)))
-        .filter(Boolean)
-    : [];
-  const dir = paths.length || svgs.length ? await readableDir() : null;
+    ? new Set(
+        svgRefs(text)
+          .map((raw) => normalizeTexPath(expandMacros(raw, macros)))
+          .filter(Boolean),
+      )
+    : new Set<string>();
+  const dir = paths.length || svgs.size ? await readableDir() : null;
   const files: Record<string, Uint8Array> = {};
   const missing: string[] = [];
-  const add = async (path: string, blob: Blob | null): Promise<boolean> => {
-    if (!blob || UNSAFE_PATH.test(path)) return false;
-    files[path] = new Uint8Array(await blob.arrayBuffer());
-    return true;
-  };
+  const names = new Map<string, string>();
+  const bytes = async (blob: Blob): Promise<Uint8Array> =>
+    new Uint8Array(await blob.arrayBuffer());
   for (const path of paths) {
     const found = await resolveImage(path, dir);
-    if (!(await add(found?.path ?? path, found?.blob ?? null)))
-      missing.push(path);
-  }
-  for (const path of new Set(svgs)) {
-    let added = false;
-    for (const candidate of svgCandidates(path)) {
-      added = await add(candidate, await resolveFile(candidate, dir));
-      if (added) break;
+    if (
+      found &&
+      PDFLATEX_IMAGE.test(found.path) &&
+      !UNSAFE_PATH.test(found.path)
+    ) {
+      files[found.path] = await bytes(found.blob);
+      continue;
     }
-    if (!added && !missing.includes(path)) missing.push(path);
+    const file = found ? await encode(found.blob, found.path) : null;
+    if (!file) {
+      missing.push(path);
+      continue;
+    }
+    let index = names.size + 1;
+    while ("image" + String(index) + "." + file.ext in files) index++;
+    const name = "image" + String(index) + "." + file.ext;
+    names.set(path, name);
+    files[name] = file.bytes;
   }
-  return { files, missing };
+  for (const path of svgs) {
+    const found = await resolveSvg(path, dir);
+    if (found && !UNSAFE_PATH.test(found.path))
+      files[found.path] = await bytes(found.blob);
+    else if (!missing.includes(path)) missing.push(path);
+  }
+  return {
+    files,
+    missing,
+    rewrite: (tex) => (names.size ? rewriteIncludes(tex, names, true) : tex),
+  };
 }
 
 async function resolveSvg(
   path: string,
   dir: FileSystemDirectoryHandle | null,
-): Promise<Blob | null> {
+): Promise<{ blob: Blob; path: string } | null> {
   for (const candidate of svgCandidates(path)) {
     const blob = await resolveFile(candidate, dir);
-    if (blob) return blob;
+    if (blob) return { blob, path: candidate };
   }
   return null;
 }
