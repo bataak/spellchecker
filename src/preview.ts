@@ -696,7 +696,30 @@ export function initPreview(
   let retries = 0;
   let triedText: string | null = null;
   let compiling: string | null = null;
+  let running: {
+    readonly key: string;
+    readonly run: Promise<{
+      readonly pdf: Uint8Array<ArrayBuffer>;
+      readonly missing: readonly string[];
+    }>;
+  } | null = null;
   let savingPdf = 0;
+
+  const keepPdf = (
+    key: string,
+    text: string,
+    pdf: Uint8Array<ArrayBuffer>,
+    missing: readonly string[],
+    digest: string | null,
+    project: string | null,
+  ): void => {
+    keptPdfs.delete(key);
+    keptPdfs.set(key, { text, pdf, missing });
+    while (keptPdfs.size > KEPT_PDFS)
+      keptPdfs.delete(keptPdfs.keys().next().value!);
+    if (!missing.length && digest !== null)
+      void saveCachedPdf(digest, pdf, project === null ? text : null);
+  };
   let forced = false;
   const STALE_COMPILE_MS = 3000;
 
@@ -789,20 +812,19 @@ export function initPreview(
         if (seq === texSeq && texMode && !pdfView)
           showNotice(message ?? "PDF бэлтгэж байна…");
       });
-      const { pdf, missing } = await compileTexDocument(text);
+      const run = compileTexDocument(text);
+      running = { key, run };
+      const { pdf, missing } = await run.finally(() => {
+        if (running?.run === run) running = null;
+      });
+      keepPdf(key, text, pdf, missing, digest, project);
       if (!(await showPdfBytes(pdf, seq))) return;
       pdfText = text;
       markShown(key);
       pdfOfProject = project !== null;
-      keptPdfs.delete(key);
-      keptPdfs.set(key, { text, pdf, missing });
-      while (keptPdfs.size > KEPT_PDFS)
-        keptPdfs.delete(keptPdfs.keys().next().value!);
       retries = 0;
       setTexError(null);
       setTexMissing(missing);
-      if (!missing.length && digest !== null)
-        void saveCachedPdf(digest, pdf, project === null ? text : null);
     } catch (error) {
       if (seq !== texSeq || !texMode) return;
       texShown = key;
@@ -1011,6 +1033,10 @@ export function initPreview(
       if (kept) return kept;
       if (texMode && shownPdf && !downloadBtn.disabled && texShown === key)
         return { pdf: shownPdf, missing: [] };
+      if (running?.key === key) {
+        const result = await running.run.catch(() => null);
+        if (result) return result;
+      }
       const digest = await digestOf(text, project);
       const cached = digest === null ? null : await cachedPdf(digest);
       if (cached) return { pdf: cached, missing: [] };
@@ -1018,12 +1044,7 @@ export function initPreview(
       savingPdf++;
       try {
         const { pdf, missing } = await compileTexDocument(text);
-        keptPdfs.delete(key);
-        keptPdfs.set(key, { text, pdf, missing });
-        while (keptPdfs.size > KEPT_PDFS)
-          keptPdfs.delete(keptPdfs.keys().next().value!);
-        if (!missing.length && digest !== null)
-          void saveCachedPdf(digest, pdf, project === null ? text : null);
+        keepPdf(key, text, pdf, missing, digest, project);
         return { pdf, missing };
       } finally {
         savingPdf--;
