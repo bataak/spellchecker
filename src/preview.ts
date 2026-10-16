@@ -705,6 +705,25 @@ export function initPreview(
   } | null = null;
   let savingPdf = 0;
 
+  /** Ижил түлхүүрийн явж буй хөрвүүлэлтийг (харагдац, хадгалалт) хуваалцана. */
+  const compileShared = (
+    key: string,
+    compile: () => Promise<{
+      readonly pdf: Uint8Array<ArrayBuffer>;
+      readonly missing: readonly string[];
+    }>,
+  ): Promise<{
+    readonly pdf: Uint8Array<ArrayBuffer>;
+    readonly missing: readonly string[];
+  }> => {
+    if (running?.key === key) return running.run;
+    const run = compile().finally(() => {
+      if (running?.run === run) running = null;
+    });
+    running = { key, run };
+    return run;
+  };
+
   const keepPdf = (
     key: string,
     text: string,
@@ -812,11 +831,9 @@ export function initPreview(
         if (seq === texSeq && texMode && !pdfView)
           showNotice(message ?? "PDF бэлтгэж байна…");
       });
-      const run = compileTexDocument(text);
-      running = { key, run };
-      const { pdf, missing } = await run.finally(() => {
-        if (running?.run === run) running = null;
-      });
+      const { pdf, missing } = await compileShared(key, () =>
+        compileTexDocument(text),
+      );
       keepPdf(key, text, pdf, missing, digest, project);
       if (!(await showPdfBytes(pdf, seq))) return;
       pdfText = text;
@@ -1033,17 +1050,19 @@ export function initPreview(
       if (kept) return kept;
       if (texMode && shownPdf && !downloadBtn.disabled && texShown === key)
         return { pdf: shownPdf, missing: [] };
-      if (running?.key === key) {
-        const result = await running.run.catch(() => null);
-        if (result) return result;
-      }
-      const digest = await digestOf(text, project);
-      const cached = digest === null ? null : await cachedPdf(digest);
-      if (cached) return { pdf: cached, missing: [] };
-      const { compileTexDocument } = await import("./texpdf.ts");
       savingPdf++;
       try {
-        const { pdf, missing } = await compileTexDocument(text);
+        if (running?.key === key) {
+          const result = await running.run.catch(() => null);
+          if (result) return result;
+        }
+        const digest = await digestOf(text, project);
+        const cached = digest === null ? null : await cachedPdf(digest);
+        if (cached) return { pdf: cached, missing: [] };
+        const { compileTexDocument } = await import("./texpdf.ts");
+        const { pdf, missing } = await compileShared(key, () =>
+          compileTexDocument(text),
+        );
         keepPdf(key, text, pdf, missing, digest, project);
         return { pdf, missing };
       } finally {
