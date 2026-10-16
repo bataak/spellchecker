@@ -7,8 +7,8 @@ export interface ToolbarDeps {
   isDocxActive: () => boolean;
   closeDocx: () => void;
   forgetFile: () => void;
-  /** Цэвэрлэсний дараа (бичвэр хоосорсон, хадгалагдсан). */
-  afterClear: () => void;
+  /** Цэвэрлэсний дараа; `cleared` — нээлттэй файл, бичвэр байсан. */
+  afterClear: (cleared: boolean) => void;
   hasOpenFile: () => boolean;
   flash: (sel: string, msg: string) => void;
   setStatus: (html: string, animate?: boolean) => void;
@@ -200,7 +200,7 @@ function initButtons({
   initWipeButton(clearBtn);
   clearBtn.addEventListener("click", () => {
     if (!els.editor.value && !hasOpenFile()) {
-      afterClear();
+      afterClear(false);
       els.editor.focus();
       return;
     }
@@ -211,7 +211,7 @@ function initButtons({
     hidePopover();
     render();
     saveText();
-    afterClear();
+    afterClear(true);
   });
 
   function insertAtCaret(text: string): void {

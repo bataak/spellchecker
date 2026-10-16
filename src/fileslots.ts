@@ -25,21 +25,27 @@ export function nextFileId(slots: readonly FileSlot[]): string {
   }
 }
 
-function fnv(length: number, at: (index: number) => number): string {
-  let hash = 2166136261;
-  for (let i = 0; i < length; i += 1) {
-    hash ^= at(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(36) + ":" + length.toString(36);
-}
+const FNV_SEED = 2166136261;
+const FNV_PRIME = 16777619;
+const fnvOut = (hash: number, length: number): string =>
+  (hash >>> 0).toString(36) + ":" + length.toString(36);
 
 export function textSum(text: string): string {
-  return fnv(text.length, (i) => text.charCodeAt(i));
+  let hash = FNV_SEED;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, FNV_PRIME);
+  }
+  return fnvOut(hash, text.length);
 }
 
 export function bytesSum(bytes: Uint8Array): string {
-  return fnv(bytes.length, (i) => bytes[i]!);
+  let hash = FNV_SEED;
+  for (let i = 0; i < bytes.length; i += 1) {
+    hash ^= bytes[i]!;
+    hash = Math.imul(hash, FNV_PRIME);
+  }
+  return fnvOut(hash, bytes.length);
 }
 
 const SAMPLE = 256 * 1024;
@@ -49,8 +55,10 @@ export async function fileSum(file: Blob): Promise<string> {
   const part = async (blob: Blob): Promise<Uint8Array> =>
     new Uint8Array(await blob.arrayBuffer());
   if (file.size <= 2 * SAMPLE) return bytesSum(await part(file));
-  const head = await part(file.slice(0, SAMPLE));
-  const tail = await part(file.slice(file.size - SAMPLE));
+  const [head, tail] = await Promise.all([
+    part(file.slice(0, SAMPLE)),
+    part(file.slice(file.size - SAMPLE)),
+  ]);
   return bytesSum(head) + "." + bytesSum(tail) + "." + file.size.toString(36);
 }
 
