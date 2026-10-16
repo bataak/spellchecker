@@ -30,7 +30,7 @@ test("XeLaTeX-ийн багц, фонт, хэлний тохиргоог pdfLaTe
     assert.ok(!out.includes(gone), gone);
   assert.match(
     out,
-    /^\\documentclass\{article\}\n\\usepackage\[T2A\]\{fontenc\}/,
+    /^\\documentclass\[a4paper\]\{article\}\n\\usepackage\[T2A\]\{fontenc\}/,
   );
   assert.ok(out.includes("\\usepackage{paratype}"));
   assert.ok(out.includes("\\usepackage[english,mongolian]{babel}"));
@@ -67,17 +67,17 @@ test("кирилл үсэгтэй баримтад T2A кодчилол нэмн
   );
   assert.ok(
     out.startsWith(
-      "\\documentclass[12pt]{article}\n\\usepackage[T2A]{fontenc}\n\\usepackage{pgfplots}",
+      "\\documentclass[a4paper,12pt]{article}\n\\usepackage[T2A]{fontenc}\n\\usepackage{pgfplots}",
     ),
   );
 });
 
 test("кирилл тохиргоотой эсвэл латин баримтыг өөрчлөхгүй", () => {
   const ready =
-    "\\documentclass{article}\n\\usepackage[T1,T2A]{fontenc}\n\\begin{document}\nөнөөдөр\n\\end{document}\n";
+    "\\documentclass[a4paper]{article}\n\\usepackage[T1,T2A]{fontenc}\n\\begin{document}\nөнөөдөр\n\\end{document}\n";
   assert.equal(toPdfLatex(ready), ready);
   const latin =
-    "\\documentclass{article}\n\\begin{document}\ntoday\n\\end{document}\n";
+    "\\documentclass[a4paper]{article}\n\\begin{document}\ntoday\n\\end{document}\n";
   assert.equal(toPdfLatex(latin), latin);
   assert.equal(toPdfLatex("өнөөдөр"), "өнөөдөр");
 });
@@ -87,4 +87,36 @@ test("гарчиг дахь кирилл үсгийг ч тооцно", () => {
     "\\documentclass{article}\n\\title{Монгол}\n\\begin{document}\n\\maketitle\n\\end{document}\n",
   );
   assert.ok(out.includes("\\usepackage[T2A]{fontenc}"));
+});
+
+const doc = (head: string): string =>
+  head + "\n\\begin{document}\ntoday\n\\end{document}\n";
+
+test("цаасны хэмжээ заагаагүй баримтыг A4 болгоно", () => {
+  for (const [from, to] of [
+    ["\\documentclass{article}", "\\documentclass[a4paper]{article}"],
+    ["\\documentclass[]{report}", "\\documentclass[a4paper]{report}"],
+    ["\\documentclass[11pt]{book}", "\\documentclass[a4paper,11pt]{book}"],
+    [
+      "\\documentclass[11pt, % note\n]{amsart}",
+      "\\documentclass[a4paper,11pt, % note\n]{amsart}",
+    ],
+    [
+      "% \\documentclass{book}\n\\documentclass{article}",
+      "% \\documentclass{book}\n\\documentclass[a4paper]{article}",
+    ],
+  ])
+    assert.equal(toPdfLatex(doc(from)), doc(to));
+});
+
+test("цаасны хэмжээ заасан эсвэл өөр классыг өөрчлөхгүй", () => {
+  for (const head of [
+    "\\documentclass[letterpaper]{article}",
+    "\\documentclass[a5paper,12pt]{report}",
+    "\\documentclass[paper=a5]{article}",
+    "\\documentclass{beamer}",
+    "\\documentclass{scrartcl}",
+    "\\documentclass{memoir}",
+  ])
+    assert.equal(toPdfLatex(doc(head)), doc(head));
 });

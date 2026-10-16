@@ -178,6 +178,7 @@ const els = {
 
 const desktopMQ = window.matchMedia("(min-width: 1024px)");
 const narrowMQ = window.matchMedia("(max-width: 700px)");
+const touchMQ = window.matchMedia("(pointer: coarse)");
 setLineBlocks(!narrowMQ.matches);
 initBackdrop(els.backdrop);
 narrowMQ.addEventListener("change", () => {
@@ -449,8 +450,13 @@ function syncPreviewClass(): void {
   );
 }
 
+function syncPane(): void {
+  paneCtl?.setAvailable(previewWanted && els.editor.value.length > 0);
+}
+
 function syncEmptyState(text: string): void {
   const empty = text.length === 0;
+  syncPane();
   if (!empty && clearedEmpty) {
     clearedEmpty = false;
     syncPreviewClass();
@@ -1460,7 +1466,7 @@ if (editorWrap) {
   );
   const workspace = editorWrap.closest<HTMLElement>(".workspace");
   if (workspace)
-    paneCtl = initPaneToggle(workspace, els.editor, (on) => {
+    paneCtl = initPaneToggle(workspace, els.editor, desktopMQ, (on) => {
       if (on) previewCtl?.update();
     });
 }
@@ -1867,7 +1873,7 @@ function enterMdMode(on: boolean): void {
   measureCtl?.setPreviewBlocked(!on && !isTexFile());
   measureCtl?.setPreviewMode(on || isTexFile(), isTexFile());
   previewWanted = on || isTexFile();
-  paneCtl?.setAvailable(previewWanted);
+  syncPane();
   syncPreviewClass();
   previewCtl?.setMarkdownMode(on);
   exportCtl?.syncPrint();
@@ -1887,7 +1893,27 @@ exportCtl = initExport({
   baseName: () => fileIO.targetName() ?? plainName,
   blocked: () => docx !== null,
   isTex: isTexFile,
-  texSource: () => void fileIO.saveSource(),
+  texZip: async (text, name) => {
+    if (projectLink?.bound()) return projectLink.zip();
+    const [{ zipSync, strToU8 }, { texImageFiles }] = await Promise.all([
+      import("fflate"),
+      import("./teximages.ts"),
+    ]);
+    const images = await texImageFiles(text);
+    if (images.missing.length)
+      holdStatus(
+        "Архивт ороогүй зураг: " + escapeHtml(images.missing.join(", ")),
+        8000,
+        false,
+      );
+    const zip = zipSync({
+      ...images.files,
+      [name + ".tex"]: strToU8(images.rewrite(text)),
+    });
+    return new Blob([zip as Uint8Array<ArrayBuffer>], {
+      type: "application/zip",
+    });
+  },
   onDone: () => flash("#saveBtn", "Хадгаллаа"),
   onBlocked: () => flash("#saveBtn", "Экспорт хийх боломжгүй"),
   onPrintError: (error) => {
@@ -1902,7 +1928,7 @@ function saveBusy(busy: boolean): void {
   const button = document.querySelector<HTMLElement>("#saveBtn");
   if (!button) return;
   if (busy) {
-    button.dataset.label = button.textContent ?? "";
+    button.dataset.label ||= button.textContent ?? "";
     button.textContent = "PDF бэлтгэж байна…";
   } else {
     button.textContent = button.dataset.label ?? "";
@@ -1911,7 +1937,13 @@ function saveBusy(busy: boolean): void {
 }
 
 function savesPdf(): boolean {
-  return !desktopMQ.matches && docx === null && isTexFile() && !!previewCtl;
+  return (
+    touchMQ.matches &&
+    !desktopMQ.matches &&
+    docx === null &&
+    isTexFile() &&
+    !!previewCtl
+  );
 }
 
 let pdfSaving = false;
@@ -1920,9 +1952,17 @@ async function savePdf(): Promise<void> {
   pdfSaving = true;
   saveBusy(true);
   try {
-    const bytes = await previewCtl.pdf();
+    await projectLink?.save(true).catch(() => null);
+    const name = pdfName();
+    const { pdf, missing } = await previewCtl.pdf();
     saveBusy(false);
-    if (await deliverFile(bytes, pdfName(), "application/pdf"))
+    if (missing.length)
+      holdStatus(
+        "PDF-д ороогүй зураг: " + escapeHtml(missing.join(", ")),
+        8000,
+        false,
+      );
+    if (await deliverFile(pdf, name, "application/pdf"))
       flash("#saveBtn", "PDF хадгаллаа");
   } catch (error) {
     saveBusy(false);

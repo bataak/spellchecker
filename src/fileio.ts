@@ -38,7 +38,6 @@ export interface FileIOControl {
   restoreFile: (ref: DraftFile) => void;
   targetName: () => string | null;
   targetHandle: () => FileSystemFileHandle | null;
-  saveSource: () => Promise<void>;
 }
 
 export function initFileIO({
@@ -256,7 +255,7 @@ export function initFileIO({
     }
   }
 
-  async function save(pdf: boolean): Promise<void> {
+  async function save(): Promise<void> {
     if (isDocxActive()) {
       try {
         flash("#saveBtn", (await docxSave()) ? "Хадгаллаа" : "Цуцаллаа");
@@ -266,8 +265,7 @@ export function initFileIO({
       return;
     }
 
-    if (pdf && savesPdf()) {
-      await saveProject().catch(() => null);
+    if (savesPdf()) {
       await savePdf();
       return;
     }
@@ -340,7 +338,7 @@ export function initFileIO({
 
   document
     .querySelector("#saveBtn")!
-    .addEventListener("click", () => void save(true));
+    .addEventListener("click", () => void save());
 
   async function readAsText(file: File): Promise<string> {
     return decodeFileBytes(new Uint8Array(await file.arrayBuffer()));
@@ -477,7 +475,6 @@ export function initFileIO({
   });
 
   return {
-    saveSource: () => save(false),
     forgetFile() {
       currentFileHandle = null;
       currentFileName = null;

@@ -41,7 +41,10 @@ const PDF_TEXT_KEY = "tex-preview/last.tex";
 const CACHED_PDFS = 6;
 const KEPT_PDFS = 3;
 
-const pdfUrl = (digest: string): string => "tex-preview/" + digest + ".pdf";
+// Bump when the compile output changes for the same source.
+const PDF_VERSION = "v2";
+const pdfUrl = (digest: string): string =>
+  "tex-preview/" + PDF_VERSION + "-" + digest + ".pdf";
 
 async function textKey(text: string): Promise<string | null> {
   try {
@@ -263,7 +266,10 @@ export interface Preview {
   setFileName(name: string | null): void;
   setMarkdownMode(on: boolean): void;
   setSource(src: PreviewSource | null): void;
-  pdf(): Promise<Uint8Array<ArrayBuffer>>;
+  pdf(): Promise<{
+    readonly pdf: Uint8Array<ArrayBuffer>;
+    readonly missing: readonly string[];
+  }>;
   destroy(): void;
 }
 
@@ -690,6 +696,7 @@ export function initPreview(
   let retries = 0;
   let triedText: string | null = null;
   let compiling: string | null = null;
+  let savingPdf = 0;
   let forced = false;
   const STALE_COMPILE_MS = 3000;
 
@@ -768,7 +775,8 @@ export function initPreview(
       texShown = null;
     }
     void import("./texpdf.ts").then((mod) => {
-      if (mod.compileRunningFor() > STALE_COMPILE_MS) mod.cancelCompile();
+      if (!savingPdf && mod.compileRunningFor() > STALE_COMPILE_MS)
+        mod.cancelCompile();
     });
     compiling = key;
     try {
@@ -996,10 +1004,30 @@ export function initPreview(
     setMarkdownMode,
     setSource,
     async pdf() {
-      if (texMode && shownPdf && !downloadBtn.disabled && texShown === texKey())
-        return shownPdf;
+      const text = area.value;
+      const project = projectKey();
+      const key = texKey();
+      const kept = keptPdfs.get(key);
+      if (kept) return kept;
+      if (texMode && shownPdf && !downloadBtn.disabled && texShown === key)
+        return { pdf: shownPdf, missing: [] };
+      const digest = await digestOf(text, project);
+      const cached = digest === null ? null : await cachedPdf(digest);
+      if (cached) return { pdf: cached, missing: [] };
       const { compileTexDocument } = await import("./texpdf.ts");
-      return (await compileTexDocument(area.value)).pdf;
+      savingPdf++;
+      try {
+        const { pdf, missing } = await compileTexDocument(text);
+        keptPdfs.delete(key);
+        keptPdfs.set(key, { text, pdf, missing });
+        while (keptPdfs.size > KEPT_PDFS)
+          keptPdfs.delete(keptPdfs.keys().next().value!);
+        if (!missing.length && digest !== null)
+          void saveCachedPdf(digest, pdf, project === null ? text : null);
+        return { pdf, missing };
+      } finally {
+        savingPdf--;
+      }
     },
     destroy() {
       if (imageUrl) URL.revokeObjectURL(imageUrl);

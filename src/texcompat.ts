@@ -298,10 +298,58 @@ function addCyrillicEncoding(preamble: string): string {
   );
 }
 
+const A4_CLASSES = new Set([
+  "article",
+  "report",
+  "book",
+  "letter",
+  "amsart",
+  "amsbook",
+  "amsproc",
+  "extarticle",
+  "extreport",
+  "extbook",
+  "extletter",
+]);
+
+function inComment(text: string, at: number): boolean {
+  const prefix = text.slice(text.lastIndexOf("\n", at - 1) + 1, at);
+  return /(?:^|[^\\])(?:\\\\)*%/.test(prefix);
+}
+
+function defaultA4(preamble: string): string {
+  for (const match of preamble.matchAll(/\\documentclass(?![a-zA-Z@])/g)) {
+    if (inComment(preamble, match.index)) continue;
+    const name = match.index + match[0].length;
+    let at = skipSpace(preamble, name);
+    let options: { start: number; end: number } | null = null;
+    if (preamble[at] === "[") {
+      const end = readGroup(preamble, at, "[", "]");
+      if (end < 0) return preamble;
+      options = { start: at + 1, end: end - 1 };
+      at = skipSpace(preamble, end);
+    }
+    if (preamble[at] !== "{") return preamble;
+    const close = readGroup(preamble, at, "{", "}");
+    if (close < 0) return preamble;
+    const cls = preamble.slice(at + 1, close - 1).trim();
+    if (!A4_CLASSES.has(cls)) return preamble;
+    if (!options)
+      return preamble.slice(0, name) + "[a4paper]" + preamble.slice(name);
+    const list = preamble.slice(options.start, options.end);
+    if (/paper/i.test(list)) return preamble;
+    const joined = list.trim() ? "a4paper," + list : "a4paper";
+    return (
+      preamble.slice(0, options.start) + joined + preamble.slice(options.end)
+    );
+  }
+  return preamble;
+}
+
 export function toPdfLatex(tex: string): string {
   const begin = tex.search(/\\begin\s*\{document\}/);
   if (begin < 0) return tex;
-  let preamble = convertXetex(tex.slice(0, begin));
+  let preamble = defaultA4(convertXetex(tex.slice(0, begin)));
   const body = tex.slice(begin);
   if (CYRILLIC.test(tex) && !T2A_FONTENC.test(preamble))
     preamble = addCyrillicEncoding(preamble);
