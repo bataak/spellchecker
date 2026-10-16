@@ -35,6 +35,18 @@ try {
     document.documentElement.classList.add("settling");
   }
 } catch (e) {}
+// Shift+reload нь SW-ийг алгасдаг: өмнө нь SW удирдаж байсан таб
+// удирдлагагүй дахин ачаалагдвал бүдгэрүүлнэ.
+try {
+  var sw = navigator.serviceWorker;
+  if (sw && sw.controller) {
+    sessionStorage.setItem("mn-spell:sw-controlled", "1");
+  } else if (sw && sessionStorage.getItem("mn-spell:sw-controlled")) {
+    var nav = performance.getEntriesByType("navigation")[0];
+    if (nav && nav.type === "reload")
+      document.documentElement.classList.add("settling");
+  }
+} catch (e) {}
 // main.ts ачаалагдаж чадахгүй бол хуудас бүдгэрсэн хэвээр үлдэхгүй.
 setTimeout(function () {
   document.documentElement.classList.remove("settling");
