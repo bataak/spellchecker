@@ -23,6 +23,8 @@ export interface ExportFormat {
   readonly slow?: boolean;
   /** Файлыг хүргэсний дараа. */
   readonly delivered?: () => void;
+  /** Бэлтгэх, хүргэхийн оронд файлыг өөрөө хадгална. */
+  readonly save?: (name: string) => Promise<void>;
   readonly build: (
     text: string,
     templateId: string,
@@ -380,6 +382,7 @@ export function initExport(options: ExportOptions): ExportControl {
       name: "LaTeX эх",
       ext: "tex",
       mime: "application/x-tex;charset=utf-8",
+      save: options.texSource,
       build: (text) => text,
     },
   ];
@@ -511,8 +514,8 @@ export function initExport(options: ExportOptions): ExportControl {
 
     close();
     const format = chosen;
-    if (format.id === "tex-source" && options.texSource) {
-      await options.texSource(name);
+    if (format.save) {
+      await format.save(name);
       return;
     }
     if (format.slow) options.onBusy?.(true, format.ext);
