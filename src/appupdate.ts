@@ -60,18 +60,19 @@ export function initAppUpdate(
   let appUpdating = false;
   let verBase = "";
 
-  let prepared: Promise<void> | null = null;
+  let prepared: Promise<boolean> | null = null;
   let lastActivity = Date.now();
   let composing = false;
 
-  async function prepareLatest(): Promise<void> {
+  async function prepareLatest(): Promise<boolean> {
     const deadline = Date.now() + 2 * 60 * 1000;
     try {
       const reg = navigator.serviceWorker
         ? await navigator.serviceWorker.getRegistration()
         : null;
       const entry = freshEntry ?? (await fetchFreshEntry());
-      if (reg && entry) {
+      if (!reg) return true;
+      if (entry) {
         while (Date.now() < deadline) {
           const pending = reg.installing || reg.waiting;
           if (pending && pending.state !== "redundant") {
@@ -81,17 +82,21 @@ export function initAppUpdate(
             ]);
             continue;
           }
-          if (await servesEntry(entry)) break;
+          if (await servesEntry(entry)) return true;
           await reg.update().catch(() => undefined);
           const next = reg.installing || reg.waiting;
           if (!next || next.state === "redundant") await waitMs(5000);
         }
       }
     } catch (_) {}
+    return false;
   }
 
-  function prepareOnce(): Promise<void> {
-    prepared ??= prepareLatest();
+  function prepareOnce(): Promise<boolean> {
+    prepared ??= prepareLatest().then((ok) => {
+      if (!ok) prepared = null;
+      return ok;
+    });
     return prepared;
   }
 
@@ -134,6 +139,22 @@ export function initAppUpdate(
     }, 30 * 1000);
   }
 
+  // Шинэ SW идэвхжсэний дараа хуучин хувилбарын lazy chunk кэшээс
+  // устдаг тул ийм import амжилтгүй болбол дахин ачаалахыг санал болгоно.
+  window.addEventListener("vite:preloadError", async () => {
+    if (appUpdating) return;
+    const selfName = entryUrl.split("/").pop();
+    const entry = freshEntry ?? (await fetchFreshEntry());
+    if (!selfName || !entry || entry.endsWith("/" + selfName)) return;
+    freshEntry = entry;
+    if (reloadEl) reloadEl.hidden = false;
+    // Экспортын өөрийн алдааны мессежийн дараа харагдуулна.
+    await waitMs(0);
+    setStatus(
+      "Шинэ хувилбар суусан тул энэ үйлдлийг хийхийн тулд ↻ товчийг дарж хуудсыг дахин ачаална уу",
+    );
+  });
+
   if (reloadEl) {
     reloadEl.addEventListener("click", () => {
       reloadEl.hidden = true;
@@ -173,10 +194,10 @@ export function initAppUpdate(
     const entry = await fetchFreshEntry();
     if (!selfName || !entry || entry.endsWith("/" + selfName)) return;
     freshEntry = entry;
-    await prepareOnce();
+    const ready = await prepareOnce();
     if (appUpdating || !reloadEl.hidden) return;
     reloadEl.hidden = false;
-    armIdleReload();
+    if (ready) armIdleReload();
   }
 
   async function recoverStale(): Promise<boolean> {
