@@ -200,6 +200,7 @@ function initButtons({
   initWipeButton(clearBtn);
   clearBtn.addEventListener("click", () => {
     if (!els.editor.value && !hasOpenFile()) {
+      afterClear();
       els.editor.focus();
       return;
     }
