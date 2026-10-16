@@ -30,6 +30,8 @@ export interface ExportFormat {
 
 export interface BuildOptions {
   readonly toc: boolean;
+  /** Файлын нэр, өргөтгөлгүй. */
+  readonly name?: string;
 }
 
 const TOC_FRAMES: ReadonlySet<Frame> = new Set(["letter", "structured"]);
@@ -258,7 +260,8 @@ export interface ExportOptions {
   /** Экспорт хийж болохгүй төлөв (office горим). */
   readonly blocked?: () => boolean;
   readonly isTex?: () => boolean;
-  readonly texSource?: () => void;
+  /** LaTeX баримт, түүний зургуудыг (эсвэл төслийг) нэг архив болгоно. */
+  readonly texZip?: (text: string, name: string) => Promise<Blob>;
   readonly saveButton?: HTMLElement | null;
   readonly printButton?: HTMLElement | null;
   readonly template: () => string;
@@ -291,6 +294,7 @@ const KNOWN_EXT = new RegExp(
         "odt",
         "odp",
         "pdf",
+        "zip",
       ]),
     ].join("|") +
     ")$",
@@ -364,6 +368,29 @@ export async function deliverFile(
 export function initExport(options: ExportOptions): ExportControl {
   const { editor } = options;
 
+  const texFormats: ExportFormat[] = [
+    {
+      id: "tex-source",
+      frames: [],
+      name: "LaTeX эх",
+      ext: "tex",
+      mime: "application/x-tex;charset=utf-8",
+      build: (text) => text,
+    },
+  ];
+  const { texZip } = options;
+  if (texZip)
+    texFormats.push({
+      id: "tex-zip",
+      frames: [],
+      name: "Архив",
+      ext: "zip",
+      mime: "application/zip",
+      slow: true,
+      build: (text, _template, { name }) => texZip(text, name ?? "main"),
+    });
+  const formats = [...FORMATS, ...texFormats];
+
   const overlay = document.createElement("div");
   overlay.className = "export-backdrop";
   overlay.hidden = true;
@@ -376,7 +403,7 @@ export function initExport(options: ExportOptions): ExportControl {
     'autocapitalize="off" spellcheck="false" />' +
     "</label>" +
     '<div class="export-formats">' +
-    FORMATS.map(
+    formats.map(
       (format, index) =>
         '<button type="button" class="tbtn export-format' +
         (index === 0 ? " is-on" : "") +
@@ -418,6 +445,7 @@ export function initExport(options: ExportOptions): ExportControl {
   }
 
   function available(): ExportFormat[] {
+    if (options.isTex?.()) return texFormats;
     const frame = findTemplate(options.template())?.frame ?? "plain";
     return FORMATS.filter((format) => format.frames.includes(frame));
   }
@@ -438,10 +466,6 @@ export function initExport(options: ExportOptions): ExportControl {
   function open(): void {
     if (options.blocked?.()) {
       options.onBlocked?.();
-      return;
-    }
-    if (options.texSource && options.isTex?.()) {
-      options.texSource();
       return;
     }
     restoreFocus = document.activeElement as HTMLElement | null;
@@ -485,6 +509,7 @@ export function initExport(options: ExportOptions): ExportControl {
     try {
       const data = await format.build(text, options.template(), {
         toc: tocInput.checked,
+        name: stripExt(name),
       });
       if (format.slow) options.onBusy?.(false);
       if (await deliverFile(data, name, format.mime)) options.onDone?.(name);
@@ -506,6 +531,11 @@ export function initExport(options: ExportOptions): ExportControl {
   ): void {
     open();
     if (overlay.hidden) return;
+    if (!available().includes(format)) {
+      close();
+      options.onBlocked?.();
+      return;
+    }
     chosen = format;
     syncFormat();
     nameInput.value = name;
@@ -521,7 +551,7 @@ export function initExport(options: ExportOptions): ExportControl {
     }
     const picked = target?.closest<HTMLElement>(".export-format");
     if (picked) {
-      const found = FORMATS.find((item) => item.id === picked.dataset.format);
+      const found = formats.find((item) => item.id === picked.dataset.format);
       if (found) {
         chosen = found;
         userPicked = true;
