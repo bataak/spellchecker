@@ -21,6 +21,7 @@ html {
   --layout-accent-mn: var(--proof);
   --layout-accent: var(--layout-accent-mn);
   --layout-accent-en: #0066b3;
+  --layout-mark-mn: #b4541a;
   --layout-select-mn: var(--proof-soft);
   --layout-select-en: color-mix(in srgb, var(--layout-accent-en) 15%, var(--editor-bg));
   --layout-select: var(--layout-select-mn);
@@ -141,6 +142,7 @@ html {
   --layout-accent-mn: var(--proof);
   --layout-accent: var(--layout-accent-mn);
   --layout-accent-en: #5aa9e6;
+  --layout-mark-mn: #e8a06a;
   --layout-select-mn: var(--proof-soft);
   --layout-select-en: color-mix(in srgb, var(--layout-accent-en) 15%, var(--editor-bg));
   --layout-select: var(--layout-select-mn);
@@ -2878,6 +2880,11 @@ html.booting .empty-state {
   font-weight: 700;
   letter-spacing: 0.04em;
   cursor: pointer;
+}
+
+.layout-chip,
+.layout-badge {
+  --layout-accent: var(--layout-mark-mn);
 }
 
 .layout-chip[data-layout="en"],
