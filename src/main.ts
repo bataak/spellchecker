@@ -1922,6 +1922,17 @@ exportCtl = initExport({
     });
   },
   texZipped: () => projectLink?.zipped(),
+  texPdf: async () => {
+    if (!previewCtl) throw new Error("no preview");
+    const { pdf, missing } = await previewCtl.pdf();
+    if (missing.length)
+      holdStatus(
+        "PDF-д ороогүй зураг: " + escapeHtml(missing.join(", ")),
+        8000,
+        false,
+      );
+    return pdf;
+  },
   texSource: (name) => fileIO.saveSource(name, !!projectLink?.bound()),
   onDone: () => flash("#saveBtn", "Хадгаллаа"),
   onBlocked: () => flash("#saveBtn", "Экспорт хийх боломжгүй"),
