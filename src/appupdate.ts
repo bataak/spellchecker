@@ -47,6 +47,12 @@ async function servesEntry(entry: string): Promise<boolean> {
 
 const IDLE_RELOAD_MS = 10 * 60 * 1000;
 
+// Дараагийн ачааллыг бүдгэрүүлэхийг app-init.js-д мэдэгдээд ачаална.
+function reloadForUpdate(): void {
+  write(KEYS.updateReload, "1");
+  location.reload();
+}
+
 function waitMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)));
 }
@@ -103,7 +109,7 @@ export function initAppUpdate(
   async function reloadToLatest(): Promise<void> {
     appUpdating = true;
     await prepareOnce();
-    location.reload();
+    reloadForUpdate();
   }
 
   // Шинэ хувилбарыг чимээгүй бэлдээд, бичих явцад саад болохгүйн тулд
@@ -142,7 +148,7 @@ export function initAppUpdate(
       if (Date.now() - lastActivity < IDLE_RELOAD_MS) return;
       clearInterval(timer);
       appUpdating = true;
-      location.reload();
+      reloadForUpdate();
     }, 30 * 1000);
   }
 
