@@ -71,9 +71,21 @@ export function initDraftText(deps: DraftTextDeps): DraftText {
     store.writeCaret(store.slot(), caretNow());
   }
 
+  let persisted: { slot: string; text: string } | null = null;
+
   function save(): void {
     const store = deps.store();
-    store.write(store.slot(), editor.value);
+    const slot = store.slot();
+    store.write(slot, editor.value);
+    persisted = { slot, text: editor.value };
+  }
+
+  // Энэ табад өөрчлөгдөөгүй бичвэрийг дахин бичвэл өөр табын хадгалсан
+  // шинэ засварыг хуучнаар дарна.
+  function saveChanged(): void {
+    const slot = deps.store().slot();
+    if (persisted?.slot === slot && persisted.text === editor.value) return;
+    save();
   }
 
   let bootScroll: number | null = null;
@@ -96,6 +108,7 @@ export function initDraftText(deps: DraftTextDeps): DraftText {
       const draftText = await store.read(slot);
       if (draftText != null) {
         swapText(editor, draftText, { origin: "restore", notify: false });
+        persisted = { slot, text: editor.value };
         deps.onLoaded();
       }
       const caret = store.caret(slot);
@@ -127,9 +140,9 @@ export function initDraftText(deps: DraftTextDeps): DraftText {
   document.addEventListener("selectionchange", () => {
     if (document.activeElement === editor) saveCaretSoon();
   });
-  window.addEventListener("pagehide", save);
+  window.addEventListener("pagehide", saveChanged);
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") save();
+    if (document.visibilityState === "hidden") saveChanged();
   });
 
   return { save, saveSoon, load, restoreBootScroll, dropBootScroll };

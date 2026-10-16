@@ -43,6 +43,19 @@ test("хоёр таб өөр цонхны бичвэрийг дарж бичих
   assert.equal(await editor(a), "БББ");
 });
 
+test("өөрчлөгдөөгүй таб reload хийхэд нөгөө табын засварыг дарахгүй", async () => {
+  const context = await app.context();
+  const a = await openPage(app, context);
+  await typeAtEnd(a, "Хуучин");
+  await settle(a);
+  const b = await openPage(app, context);
+  assert.equal(await editor(b), "Хуучин");
+  await typeAtEnd(b, " шинэ");
+  await settle(b);
+  await reload(a);
+  assert.equal(await editor(a), "Хуучин шинэ");
+});
+
 test("хоёр табад нээсэн файлууд хоёулаа жагсаалтад үлдэнэ", async () => {
   const context = await app.context();
   const a = await openPage(app, context);

@@ -28,6 +28,8 @@ export interface Fixtures {
 }
 
 async function launch(): Promise<Browser> {
+  const path = process.env.E2E_BROWSER;
+  if (path) return chromium.launch({ executablePath: path });
   try {
     return await chromium.launch();
   } catch {
@@ -35,7 +37,7 @@ async function launch(): Promise<Browser> {
       return await chromium.launch({ channel: "chrome" });
     } catch {
       return chromium.launch({
-        executablePath: process.env.E2E_BROWSER ?? "/usr/bin/brave",
+        executablePath: "/usr/bin/brave",
       });
     }
   }

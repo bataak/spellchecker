@@ -111,7 +111,14 @@ export function initAppUpdate(
   function markActive(): void {
     lastActivity = Date.now();
   }
-  for (const type of ["keydown", "pointerdown", "wheel", "touchstart", "input"])
+  for (const type of [
+    "keydown",
+    "pointerdown",
+    "pointermove",
+    "wheel",
+    "touchstart",
+    "input",
+  ])
     document.addEventListener(type, markActive, {
       capture: true,
       passive: true,
