@@ -267,6 +267,8 @@ export interface ExportOptions {
   /** LaTeX баримт, түүний зургуудыг (эсвэл төслийг) нэг архив болгоно. */
   readonly texZip?: (text: string, name: string) => Promise<Blob>;
   readonly texZipped?: () => void;
+  /** LaTeX баримтыг PDF болгон хөрвүүлнэ. */
+  readonly texPdf?: () => Promise<Uint8Array<ArrayBuffer>>;
   /** LaTeX эхийг ердийн хадгалах замаар (файл, төсөл) хадгална. */
   readonly texSource?: (name: string) => Promise<void>;
   readonly saveButton?: HTMLElement | null;
@@ -379,6 +381,7 @@ export function initExport(options: ExportOptions): ExportControl {
     {
       id: "tex-source",
       frames: [],
+      preferred: true,
       name: "LaTeX эх",
       ext: "tex",
       mime: "application/x-tex;charset=utf-8",
@@ -386,6 +389,17 @@ export function initExport(options: ExportOptions): ExportControl {
       build: (text) => text,
     },
   ];
+  const { texPdf } = options;
+  if (texPdf)
+    texFormats.push({
+      id: "tex-pdf",
+      frames: [],
+      name: "PDF",
+      ext: "pdf",
+      mime: "application/pdf",
+      slow: true,
+      build: () => texPdf(),
+    });
   const { texZip } = options;
   if (texZip)
     texFormats.push({
