@@ -449,8 +449,13 @@ function syncPreviewClass(): void {
   );
 }
 
+function syncPane(): void {
+  paneCtl?.setAvailable(previewWanted && els.editor.value.length > 0);
+}
+
 function syncEmptyState(text: string): void {
   const empty = text.length === 0;
+  syncPane();
   if (!empty && clearedEmpty) {
     clearedEmpty = false;
     syncPreviewClass();
@@ -1867,7 +1872,7 @@ function enterMdMode(on: boolean): void {
   measureCtl?.setPreviewBlocked(!on && !isTexFile());
   measureCtl?.setPreviewMode(on || isTexFile(), isTexFile());
   previewWanted = on || isTexFile();
-  paneCtl?.setAvailable(previewWanted);
+  syncPane();
   syncPreviewClass();
   previewCtl?.setMarkdownMode(on);
   exportCtl?.syncPrint();
