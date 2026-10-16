@@ -178,6 +178,7 @@ const els = {
 
 const desktopMQ = window.matchMedia("(min-width: 1024px)");
 const narrowMQ = window.matchMedia("(max-width: 700px)");
+const touchMQ = window.matchMedia("(pointer: coarse)");
 setLineBlocks(!narrowMQ.matches);
 initBackdrop(els.backdrop);
 narrowMQ.addEventListener("change", () => {
@@ -1916,7 +1917,13 @@ function saveBusy(busy: boolean): void {
 }
 
 function savesPdf(): boolean {
-  return !desktopMQ.matches && docx === null && isTexFile() && !!previewCtl;
+  return (
+    touchMQ.matches &&
+    !desktopMQ.matches &&
+    docx === null &&
+    isTexFile() &&
+    !!previewCtl
+  );
 }
 
 let pdfSaving = false;
