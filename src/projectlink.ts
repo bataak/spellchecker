@@ -9,6 +9,7 @@ import {
   projectBinary,
   projectSavedText,
   projectText,
+  projectZip,
   refreshProject,
   restoreProject,
   saveProject,
@@ -65,6 +66,7 @@ export interface ProjectLink {
   readonly enter: () => void;
   readonly close: () => void;
   readonly save: (diskOnly?: boolean) => Promise<string | null>;
+  readonly zip: () => Promise<Blob>;
   readonly openZip: (file: File) => Promise<void>;
   readonly openDir: (handle: FileSystemDirectoryHandle) => Promise<void>;
   readonly restore: () => Promise<void>;
@@ -417,6 +419,10 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
           : result === "saved"
             ? "Хадгаллаа"
             : "Өөрчлөлт алга";
+    },
+    zip() {
+      pushText();
+      return projectZip();
     },
     async openZip(file) {
       const view = project();

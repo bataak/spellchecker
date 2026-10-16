@@ -1466,7 +1466,7 @@ if (editorWrap) {
   );
   const workspace = editorWrap.closest<HTMLElement>(".workspace");
   if (workspace)
-    paneCtl = initPaneToggle(workspace, els.editor, (on) => {
+    paneCtl = initPaneToggle(workspace, els.editor, desktopMQ, (on) => {
       if (on) previewCtl?.update();
     });
 }
@@ -1893,7 +1893,27 @@ exportCtl = initExport({
   baseName: () => fileIO.targetName() ?? plainName,
   blocked: () => docx !== null,
   isTex: isTexFile,
-  texSource: () => void fileIO.saveSource(),
+  texZip: async (text, name) => {
+    if (projectLink?.bound()) return projectLink.zip();
+    const [{ zipSync, strToU8 }, { texImageFiles }] = await Promise.all([
+      import("fflate"),
+      import("./teximages.ts"),
+    ]);
+    const images = await texImageFiles(text);
+    if (images.missing.length)
+      holdStatus(
+        "Архивт ороогүй зураг: " + escapeHtml(images.missing.join(", ")),
+        8000,
+        false,
+      );
+    const zip = zipSync({
+      ...images.files,
+      [name + ".tex"]: strToU8(images.rewrite(text)),
+    });
+    return new Blob([zip as Uint8Array<ArrayBuffer>], {
+      type: "application/zip",
+    });
+  },
   onDone: () => flash("#saveBtn", "Хадгаллаа"),
   onBlocked: () => flash("#saveBtn", "Экспорт хийх боломжгүй"),
   onPrintError: (error) => {
@@ -1934,9 +1954,15 @@ async function savePdf(): Promise<void> {
   try {
     await projectLink?.save(true).catch(() => null);
     const name = pdfName();
-    const bytes = await previewCtl.pdf();
+    const { pdf, missing } = await previewCtl.pdf();
     saveBusy(false);
-    if (await deliverFile(bytes, name, "application/pdf"))
+    if (missing.length)
+      holdStatus(
+        "PDF-д ороогүй зураг: " + escapeHtml(missing.join(", ")),
+        8000,
+        false,
+      );
+    if (await deliverFile(pdf, name, "application/pdf"))
       flash("#saveBtn", "PDF хадгаллаа");
   } catch (error) {
     saveBusy(false);
