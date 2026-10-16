@@ -1,5 +1,37 @@
 # Changelog
 
+## [1.108.0](https://github.com/bataak/spellchecker/compare/v1.107.2...v1.108.0) (2026-10-16)
+
+
+### Features
+
+* **preview:** mobile preview toggle for markdown too ([f860dbc](https://github.com/bataak/spellchecker/commit/f860dbcfc233a1d9f130260a9881aadadabe646a))
+* **tex:** default to A4 paper when a document sets no paper size ([b1b7927](https://github.com/bataak/spellchecker/commit/b1b7927ddcb89873e6155af35633ca3c25abe2cf))
+* **tex:** long press on save keeps the .tex source ([27d5a95](https://github.com/bataak/spellchecker/commit/27d5a953f1426afae5405d93091225c533fc0289))
+* **tex:** long press on save offers the .tex source or a zip ([08272ef](https://github.com/bataak/spellchecker/commit/08272ef20a36c90108a16ed83295547874bfd78e))
+* **tex:** mobile preview toggle and PDF on save ([5a7ec2a](https://github.com/bataak/spellchecker/commit/5a7ec2a61471baca926c731797f88846cb196612))
+* **tex:** offer PDF in the LaTeX save dialog ([56ff07e](https://github.com/bataak/spellchecker/commit/56ff07e70d5936cf7bb701db4fc2b0d17637b99b))
+
+
+### Bug Fixes
+
+* **examples:** use A4 paper in the research article example ([2447fb2](https://github.com/bataak/spellchecker/commit/2447fb2bc6a25e563bcc2223d0475ffea8c4b50a))
+* **export:** honour the chosen name and mark only archived state saved ([d587fd5](https://github.com/bataak/spellchecker/commit/d587fd5d18532f406d33cd729988c6c21a9a0283))
+* **export:** say the archive is being made while zipping ([55916ad](https://github.com/bataak/spellchecker/commit/55916add3b37a3e43cbc2765761c0d94928d2206))
+* **files:** keep office edits on reopen and reload text in place ([6dcd709](https://github.com/bataak/spellchecker/commit/6dcd709c707fdd02dfb6842d779babae4e830dc2))
+* **files:** reload changed or office files and keep the picked handle ([6c11ddc](https://github.com/bataak/spellchecker/commit/6c11ddcc29d0ca73f9bf7d3ee3767685747d1542))
+* **files:** reopen an open file instead of adding it again, close on clear ([0b47e7e](https://github.com/bataak/spellchecker/commit/0b47e7e6546a8dc9143fad66862a610afaa20a09))
+* **preview:** close the 1023-1024px breakpoint gap ([52630b3](https://github.com/bataak/spellchecker/commit/52630b3f9d79ddbf29097eae7054515627450bc1))
+* **preview:** hide the pane toggle when the editor is empty ([fec84e6](https://github.com/bataak/spellchecker/commit/fec84e6e70c158b858aa4f166cbd6a3e103bf4ce))
+* **preview:** keep the save compile alive and drop stale cached PDFs ([4ea4e57](https://github.com/bataak/spellchecker/commit/4ea4e57cf6a26d26606771a79dfea744c96ffc1d))
+* **preview:** reuse cached PDFs on save and report missing images ([7a1091e](https://github.com/bataak/spellchecker/commit/7a1091ef2586dc53facb25bff8ccae80bfcadd79))
+* **preview:** share a running compile with save and align breakpoints ([818b092](https://github.com/bataak/spellchecker/commit/818b092542381ba21e776d8cb25c2770cb46e3e3))
+* **preview:** share compiles both ways between preview and save ([94cc1c3](https://github.com/bataak/spellchecker/commit/94cc1c396f2fa7005008ad386b501a71a2338e1c))
+* **tex:** convert only what pdfLaTeX cannot read in the archive ([8caabc3](https://github.com/bataak/spellchecker/commit/8caabc36f2cda9269baabeb2596bca4742917fa0))
+* **tex:** save PDF on tap only on touch devices ([0eca799](https://github.com/bataak/spellchecker/commit/0eca79994b71a71feffc7123506ec6922756b0fc))
+* **tex:** save the source in place and archive the original images ([449e7a0](https://github.com/bataak/spellchecker/commit/449e7a02640eaae2c16a5de70b8522c6067996e5))
+* **tex:** stop the PDF tap from downloading the whole project ([12af444](https://github.com/bataak/spellchecker/commit/12af444ad346ed6a00de75a243ca54656a79e786))
+
 ## [1.107.2](https://github.com/bataak/spellchecker/compare/v1.107.1...v1.107.2) (2026-10-15)
 
 
