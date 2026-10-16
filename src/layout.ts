@@ -48,7 +48,7 @@ export interface Metrics {
 }
 
 export const DEFAULT_METRICS: Readonly<Metrics> = {
-  per: 9.125,
+  per: 9.149,
   scale: 1,
   padX: 22,
   gutterW: 42,

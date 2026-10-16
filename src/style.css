@@ -35,7 +35,7 @@ html {
   --editor-pad-x: 22px;
   --editor-pad-y: 20px;
 
-  --editor-per: 9.07px;
+  --editor-per: 9.149px;
   --editor-measure: 75;
 
   --gutter-digits: 2;
@@ -196,19 +196,6 @@ main {
   flex-direction: column;
 }
 
-main {
-  transition: filter 0.25s ease;
-}
-html.settling main {
-  filter: blur(6px);
-  transition: none;
-}
-@media (prefers-reduced-motion: reduce) {
-  main {
-    transition: none;
-  }
-}
-
 h1 {
   font-family: var(--serif);
   font-weight: 600;
@@ -281,6 +268,31 @@ h1 {
 }
 #statusText.status-reveal {
   animation: statusReveal 480ms ease-out;
+}
+@keyframes textReveal {
+  from {
+    opacity: 0.3;
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+.text-reveal {
+  animation: textReveal 320ms ease-out;
+}
+@keyframes glyphReveal {
+  from {
+    color: transparent;
+    text-shadow: 0 0 6px var(--ink);
+  }
+}
+.editor.glyph-reveal {
+  animation: glyphReveal 320ms ease-out;
+}
+.is-tex > .editor.glyph-reveal {
+  animation: none;
 }
 .muted {
   color: var(--muted);
@@ -1913,10 +1925,16 @@ a.tbtn {
   overflow: hidden;
   color: var(--muted);
   opacity: 1;
-  transition: opacity 0.4s ease;
+  transition:
+    opacity 0.32s ease-out,
+    filter 0.32s ease-out;
+}
+html.booting .empty-state,
+.empty-state.is-hidden {
+  opacity: 0;
+  filter: blur(4px);
 }
 html.booting .empty-state {
-  opacity: 0;
   transition: none;
 }
 .empty-state::before {
@@ -2127,7 +2145,7 @@ html.booting .empty-state {
     overflow: hidden;
   }
   :root:not([data-preview="on"]) .preview-panel,
-  body:not(.has-text):not(.preview-mode) .preview-panel {
+  :root:not(.has-text) body:not(.preview-mode) .preview-panel {
     display: none;
   }
   :root[data-preview="on"] body.preview-mode .empty-state {
@@ -2143,11 +2161,11 @@ html.booting .empty-state {
     background: var(--editor-bg);
     overflow: hidden;
   }
-  body:not(.has-text):not(.preview-mode) .editor-wrap,
-  :root:not([data-preview="on"]) body:not(.has-text) .editor-wrap {
+  :root:not(.has-text) body:not(.preview-mode) .editor-wrap,
+  :root:not([data-preview="on"]):not(.has-text) .editor-wrap {
     flex: 1 1 auto;
   }
-  body:not(.has-text) .error-panel,
+  :root:not(.has-text) .error-panel,
   :root[data-panel="off"] .error-panel {
     display: none;
   }
@@ -2164,7 +2182,7 @@ html.booting .empty-state {
   .def-dock[data-place="left"] {
     order: -1;
   }
-  body:not(.has-text) .def-dock {
+  :root:not(.has-text) .def-dock {
     display: none;
   }
   .error-panel > .def-dock {

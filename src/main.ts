@@ -33,7 +33,7 @@ import { initPaneToggle, type PaneToggle } from "./panetoggle.ts";
 import { initProjectLink, type ProjectLink } from "./projectlink.ts";
 import { FILE_LIMIT, PROJECT_SLOT, isFileSlot } from "./fileslots.ts";
 import { onProjectChange, project } from "./projectstore.ts";
-import { read, write } from "./store.ts";
+import { KEYS, read, write } from "./store.ts";
 
 let previewCtl: Preview | null = null;
 let paneCtl: PaneToggle | null = null;
@@ -126,7 +126,7 @@ import { splitName } from "./office/filename.ts";
 import { casePattern } from "./caseform.ts";
 import type { CasePattern } from "./caseform.ts";
 import type { OfficeMode } from "./office/mode.ts";
-import { initStatus, nf } from "./status.ts";
+import { initStatus, nf, reveal } from "./status.ts";
 import { isBulkDelete, isSeparatorInput, isTouch } from "./input.ts";
 import { copyText, flash } from "./clipboard.ts";
 import {
@@ -463,9 +463,13 @@ function syncEmptyState(text: string): void {
   }
   if (empty) defTip.clear();
   if (!els.emptyState) return;
-  els.emptyState.style.opacity = empty ? "" : "0";
+  els.emptyState.classList.toggle("is-hidden", !empty);
   els.emptyState.setAttribute("aria-hidden", empty ? "false" : "true");
-  document.body.classList.toggle("has-text", !empty);
+  const root = document.documentElement;
+  if (root.classList.contains("has-text") === empty) {
+    root.classList.toggle("has-text", !empty);
+    write(KEYS.hasText, empty ? "0" : "1");
+  }
   syncEmptyTips(empty);
 }
 
@@ -1224,7 +1228,10 @@ function syncFixButtons(): void {
 
 const draft = initDraftText({
   editor: els.editor,
-  onLoaded: () => syncFixButtons(),
+  onLoaded: () => {
+    syncFixButtons();
+    if (els.editor.value) reveal(els.editor, "glyph-reveal");
+  },
   onCaret: (caret) => {
     lastCaret = caret;
   },
@@ -2072,12 +2079,6 @@ async function runOfflineReadyIndicator() {
   if (idle()) setStatus(baseStatus);
 }
 
-function settle(): void {
-  document.documentElement.classList.remove("settling");
-}
-for (const type of ["keydown", "pointerdown", "touchstart"])
-  document.addEventListener(type, settle, { once: true, capture: true });
-
 async function boot() {
   requestDurableStorage();
   if (!import.meta.env.DEV) void appUpdate.recoverStale();
@@ -2117,9 +2118,6 @@ async function boot() {
     appUpdate.setDictVersion(mnVersion);
     cache.clear();
     await render();
-    void Promise.resolve(document.fonts?.ready).then(() =>
-      requestAnimationFrame(() => requestAnimationFrame(settle)),
-    );
     if (loaded.length) {
       lastFailed = failed;
       lastFallbackReason = fallbackReason;
@@ -2160,7 +2158,6 @@ async function boot() {
       maybeRefreshDict();
     });
   } catch (e) {
-    settle();
     if (await appUpdate.recoverStale()) return;
     setStatus(
       "Ачаалахад алдаа гарлаа: " +
@@ -2179,7 +2176,6 @@ boot();
 setTimeout(() => {
   document.documentElement.classList.remove("booting");
 }, 2000);
-setTimeout(settle, 1500);
 
 initToolbar({
   els,

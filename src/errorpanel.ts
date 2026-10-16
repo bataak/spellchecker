@@ -1,7 +1,7 @@
 import { materializeMark } from "./backdrop.ts";
 import { copyText } from "./clipboard.ts";
 import { escapeHtml } from "./htmlutil.ts";
-import { nf } from "./status.ts";
+import { nf, reveal } from "./status.ts";
 import { buildErrorList, nextOccurrence } from "./textcheck.ts";
 import type { Token } from "./textcheck.ts";
 
@@ -27,20 +27,30 @@ export function initErrorPanel(deps: ErrorPanelDeps): ErrorPanel {
   const list = document.querySelector<HTMLElement>("#errorList");
   const copy = document.querySelector<HTMLButtonElement>("#copyErrorsBtn");
   const title = document.querySelector<HTMLElement>("#errorPanelTitle");
+  let settled = false;
+
+  function setTitle(text: string, animate: boolean): void {
+    if (!title || title.textContent === text) return;
+    title.textContent = text;
+    if (animate) reveal(title);
+  }
 
   function render(): void {
     if (!list) return;
     if (!desktopMQ.matches) return;
+    const animate = !settled;
+    settled = true;
     const tokens = deps.badTokens();
     const items = buildErrorList(tokens);
     if (!items.length) {
-      if (title) title.textContent = "Алдаагүй";
+      setTitle("Алдаагүй", animate);
       list.innerHTML = "";
       if (copy) copy.disabled = true;
       return;
     }
-    if (title) title.textContent = "Нийт алдаатай үг: " + nf(tokens.length);
+    setTitle("Нийт алдаатай үг: " + nf(tokens.length), animate);
     if (copy) copy.disabled = false;
+    if (animate) reveal(list);
     list.innerHTML = items
       .map((item) => {
         const repeatCountLabel = item.count > 99 ? "99+" : item.count;
@@ -63,8 +73,9 @@ export function initErrorPanel(deps: ErrorPanelDeps): ErrorPanel {
   function clear(calculating: boolean): void {
     if (list) list.innerHTML = "";
     if (copy) copy.disabled = true;
-    if (title && calculating && desktopMQ.matches) {
-      title.textContent = "Тооцоолж байна…";
+    if (calculating && desktopMQ.matches) {
+      settled = false;
+      setTitle("Тооцоолж байна…", true);
     }
   }
 
