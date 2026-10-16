@@ -1084,8 +1084,13 @@ export async function saveProject(): Promise<SaveResult> {
 }
 
 export async function exportZip(): Promise<void> {
+  download(await projectZip(), requireState().name + ".zip");
+  markExported();
+}
+
+/** Төслийг архив болгон гаргасныг тэмдэглэнэ. */
+export function markExported(): void {
   const s = requireState();
-  download(await projectZip(), s.name + ".zip");
   s.exportedAt = Date.now();
   if (s.kind === "memory") {
     for (const [path, text] of s.texts) s.saved.set(path, text);

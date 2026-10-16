@@ -21,6 +21,8 @@ export interface ExportFormat {
   readonly ext: string;
   readonly mime: string;
   readonly slow?: boolean;
+  /** Файлыг хүргэсний дараа. */
+  readonly delivered?: () => void;
   readonly build: (
     text: string,
     templateId: string,
@@ -262,6 +264,9 @@ export interface ExportOptions {
   readonly isTex?: () => boolean;
   /** LaTeX баримт, түүний зургуудыг (эсвэл төслийг) нэг архив болгоно. */
   readonly texZip?: (text: string, name: string) => Promise<Blob>;
+  readonly texZipped?: () => void;
+  /** LaTeX эхийг ердийн хадгалах замаар (файл, төсөл) хадгална. */
+  readonly texSource?: (name: string) => Promise<void>;
   readonly saveButton?: HTMLElement | null;
   readonly printButton?: HTMLElement | null;
   readonly template: () => string;
@@ -387,6 +392,7 @@ export function initExport(options: ExportOptions): ExportControl {
       ext: "zip",
       mime: "application/zip",
       slow: true,
+      delivered: options.texZipped,
       build: (text, _template, { name }) => texZip(text, name ?? "main"),
     });
   const formats = [...FORMATS, ...texFormats];
@@ -505,6 +511,10 @@ export function initExport(options: ExportOptions): ExportControl {
 
     close();
     const format = chosen;
+    if (format.id === "tex-source" && options.texSource) {
+      await options.texSource(name);
+      return;
+    }
     if (format.slow) options.onBusy?.(true, format.ext);
     try {
       const data = await format.build(text, options.template(), {
@@ -512,7 +522,10 @@ export function initExport(options: ExportOptions): ExportControl {
         name: stripExt(name),
       });
       if (format.slow) options.onBusy?.(false);
-      if (await deliverFile(data, name, format.mime)) options.onDone?.(name);
+      if (await deliverFile(data, name, format.mime)) {
+        format.delivered?.();
+        options.onDone?.(name);
+      }
     } catch (error) {
       if (format.slow) options.onBusy?.(false);
       console.error("export:", error);
