@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.108.3](https://github.com/bataak/spellchecker/compare/v1.108.2...v1.108.3) (2026-10-16)
+
+
+### Bug Fixes
+
+* **deploy:** keep the previous builds' assets for open tabs ([a199db7](https://github.com/bataak/spellchecker/commit/a199db771bc19acfa1086a0e3e1463e87b4c857d))
+* **update:** show the reload prompt over a held import error ([70fcc4b](https://github.com/bataak/spellchecker/commit/70fcc4bdc4e77eada410b14585719b77a9d3c33e))
+
 ## [1.108.2](https://github.com/bataak/spellchecker/compare/v1.108.1...v1.108.2) (2026-10-16)
 
 
