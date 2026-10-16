@@ -10,7 +10,9 @@ import {
   projectSavedText,
   projectText,
   projectZip,
+  projectSnapshot,
   markExported,
+  type ProjectSnapshot,
   refreshProject,
   restoreProject,
   saveProject,
@@ -100,6 +102,8 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
   let boundId = 0;
   const places = new Map<string, Place>();
   let detached = false;
+
+  let zipSnap: ProjectSnapshot | null = null;
 
   const pushText = (): void => {
     if (bound && boundPath && !detached)
@@ -424,10 +428,12 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     },
     zip() {
       pushText();
+      zipSnap = projectSnapshot();
       return projectZip();
     },
     zipped() {
-      if (bound && hasProject()) markExported();
+      if (zipSnap) markExported(zipSnap);
+      zipSnap = null;
     },
     async openZip(file) {
       const view = project();
