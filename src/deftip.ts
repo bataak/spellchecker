@@ -13,6 +13,8 @@ import type { WordSpan } from "./lookup.ts";
 import { emptyNote, type DefDock } from "./defdock.ts";
 import { KEYS, read, remove, write } from "./store.ts";
 
+const LATIN = /\p{Script=Latin}/u;
+
 export type Definition = {
   dicts: number;
   source: string;
@@ -580,7 +582,9 @@ export function initDefTip(deps: DefTipDeps): DefTip {
       );
       return;
     }
-    await show(anchorAtRect(rect), span.word);
+    const anchor = anchorAtRect(rect);
+    anchor.dataset.script = LATIN.test(span.word) ? "latin" : "other";
+    await show(anchor, span.word);
   }
 
   return {
