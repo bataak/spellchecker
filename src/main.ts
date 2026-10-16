@@ -1921,15 +1921,16 @@ exportCtl = initExport({
     if (error instanceof Error && error.name === "PdfError")
       holdStatus(escapeHtml(error.message), 8000, false);
   },
-  onBusy: saveBusy,
+  onBusy: (busy, ext) =>
+    saveBusy(busy, ext === "zip" ? "Архивлаж байна…" : undefined),
 });
 
-function saveBusy(busy: boolean): void {
+function saveBusy(busy: boolean, text = "PDF бэлтгэж байна…"): void {
   const button = document.querySelector<HTMLElement>("#saveBtn");
   if (!button) return;
   if (busy) {
     button.dataset.label ||= button.textContent ?? "";
-    button.textContent = "PDF бэлтгэж байна…";
+    button.textContent = text;
   } else {
     button.textContent = button.dataset.label ?? "";
   }
