@@ -1908,7 +1908,7 @@ function saveBusy(busy: boolean): void {
   const button = document.querySelector<HTMLElement>("#saveBtn");
   if (!button) return;
   if (busy) {
-    button.dataset.label = button.textContent ?? "";
+    button.dataset.label ||= button.textContent ?? "";
     button.textContent = "PDF бэлтгэж байна…";
   } else {
     button.textContent = button.dataset.label ?? "";
@@ -1932,9 +1932,11 @@ async function savePdf(): Promise<void> {
   pdfSaving = true;
   saveBusy(true);
   try {
+    await projectLink?.save(true).catch(() => null);
+    const name = pdfName();
     const bytes = await previewCtl.pdf();
     saveBusy(false);
-    if (await deliverFile(bytes, pdfName(), "application/pdf"))
+    if (await deliverFile(bytes, name, "application/pdf"))
       flash("#saveBtn", "PDF хадгаллаа");
   } catch (error) {
     saveBusy(false);

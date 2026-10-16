@@ -267,7 +267,6 @@ export function initFileIO({
     }
 
     if (pdf && savesPdf()) {
-      await saveProject().catch(() => null);
       await savePdf();
       return;
     }
