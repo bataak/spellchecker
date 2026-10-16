@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.108.2](https://github.com/bataak/spellchecker/compare/v1.108.1...v1.108.2) (2026-10-16)
+
+
+### Bug Fixes
+
+* **boot:** blur only the reload that applies an update ([b596017](https://github.com/bataak/spellchecker/commit/b596017cc3cf7608b005091e5c863ea1bb556304))
+* **draft:** skip unchanged saves on hide so idle tabs keep other tabs' edits ([756156e](https://github.com/bataak/spellchecker/commit/756156e3f0f4c6dd3e8d1e80d9799e987b8c2b98))
+
 ## [1.108.1](https://github.com/bataak/spellchecker/compare/v1.108.0...v1.108.1) (2026-10-16)
 
 
