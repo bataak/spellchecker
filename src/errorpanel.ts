@@ -5,6 +5,8 @@ import { nf, reveal } from "./status.ts";
 import { buildErrorList, nextOccurrence } from "./textcheck.ts";
 import type { Token } from "./textcheck.ts";
 
+const LATIN = /\p{Script=Latin}/u;
+
 export interface ErrorPanelDeps {
   readonly editor: HTMLTextAreaElement;
   readonly backdrop: HTMLElement;
@@ -28,6 +30,18 @@ export function initErrorPanel(deps: ErrorPanelDeps): ErrorPanel {
   const copy = document.querySelector<HTMLButtonElement>("#copyErrorsBtn");
   const title = document.querySelector<HTMLElement>("#errorPanelTitle");
   let settled = false;
+  let picked: { start: number; end: number } | null = null;
+
+  document.addEventListener("selectionchange", () => {
+    if (
+      picked &&
+      (editor.selectionStart !== picked.start ||
+        editor.selectionEnd !== picked.end)
+    ) {
+      picked = null;
+      delete editor.dataset.pick;
+    }
+  });
 
   function setTitle(text: string, animate: boolean): void {
     if (!title || title.textContent === text) return;
@@ -143,6 +157,8 @@ export function initErrorPanel(deps: ErrorPanelDeps): ErrorPanel {
           "forward",
         );
       } catch (_) {}
+      picked = { start: editor.selectionStart, end: editor.selectionEnd };
+      editor.dataset.pick = LATIN.test(clickedToken.word) ? "latin" : "other";
       deps.setLastCaret({ start: clickedToken.end, end: clickedToken.end });
       scrollMarkIntoView(clickedToken.start);
       deps.showPopoverFor(clickedToken);
