@@ -217,8 +217,7 @@ async function encode(
 
 export async function texImageFiles(text: string): Promise<TexImages> {
   const paths = texImagePaths(text);
-  const dir =
-    paths.length || svgRefs(text).length ? await readableDir() : null;
+  const dir = paths.length || svgRefs(text).length ? await readableDir() : null;
   const names = new Map<string, string>();
   const files: Record<string, Uint8Array> = {};
   const missing: string[] = [];
@@ -264,6 +263,44 @@ export async function texImageFiles(text: string): Promise<TexImages> {
         svgPath,
       ),
   };
+}
+
+const UNSAFE_PATH = /^\/|^[a-z]:|(?:^|\/)\.\.(?:\/|$)/i;
+
+/** Бичвэрт орсон зургууд, анхны нэр, байрлалаар нь (архивт). */
+export async function texImageSources(text: string): Promise<{
+  readonly files: Record<string, Uint8Array>;
+  readonly missing: readonly string[];
+}> {
+  const paths = texImagePaths(text);
+  const macros = pathMacros([text]);
+  const svgs = usesSvgPackage([text])
+    ? svgRefs(text)
+        .map((raw) => normalizeTexPath(expandMacros(raw, macros)))
+        .filter(Boolean)
+    : [];
+  const dir = paths.length || svgs.length ? await readableDir() : null;
+  const files: Record<string, Uint8Array> = {};
+  const missing: string[] = [];
+  const add = async (path: string, blob: Blob | null): Promise<boolean> => {
+    if (!blob || UNSAFE_PATH.test(path)) return false;
+    files[path] = new Uint8Array(await blob.arrayBuffer());
+    return true;
+  };
+  for (const path of paths) {
+    const found = await resolveImage(path, dir);
+    if (!(await add(found?.path ?? path, found?.blob ?? null)))
+      missing.push(path);
+  }
+  for (const path of new Set(svgs)) {
+    let added = false;
+    for (const candidate of svgCandidates(path)) {
+      added = await add(candidate, await resolveFile(candidate, dir));
+      if (added) break;
+    }
+    if (!added && !missing.includes(path)) missing.push(path);
+  }
+  return { files, missing };
 }
 
 async function resolveSvg(
