@@ -5,7 +5,9 @@ import {
   FILE_LIMIT,
   isFileSlot,
   nextFileId,
+  bytesSum,
   parseSlots,
+  sameFile,
   textSum,
 } from "../src/fileslots.ts";
 
@@ -54,4 +56,32 @@ test("parseSlots: эвдэрсэн, давхардсан, хэтэрсэн би�
 test("textSum: ижил бичвэрт ижил, өөрт өөр утга", () => {
   assert.equal(textSum("Сайн уу"), textSum("Сайн уу"));
   assert.notEqual(textSum("Сайн уу"), textSum("Сайн уу!"));
+});
+
+test("sameFile: нэр ба байтын hash, эсвэл хадгалсан бичвэрээр танина", () => {
+  const bytes = new TextEncoder().encode("сайн\r\nбайна");
+  const hash = bytesSum(bytes);
+  const slot = {
+    id: "file-1",
+    name: "a.txt",
+    sum: textSum("сайн\nбайна"),
+    hash,
+  };
+  assert.equal(sameFile(slot, "a.txt", hash, null), true);
+  assert.equal(sameFile(slot, "b.txt", hash, null), false);
+  assert.equal(sameFile(slot, "a.txt", "x", "сайн\r\nбайна"), true);
+  assert.equal(sameFile(slot, "a.txt", "x", "өөр"), false);
+  assert.notEqual(
+    bytesSum(new Uint8Array([1, 2])),
+    bytesSum(new Uint8Array([2, 1])),
+  );
+});
+
+test("parseSlots: hash-ийг хадгална", () => {
+  assert.deepEqual(
+    parseSlots(
+      JSON.stringify([{ id: "file-1", name: "a.odt", sum: null, hash: "h" }]),
+    ),
+    [{ id: "file-1", name: "a.odt", sum: null, hash: "h" }],
+  );
 });
