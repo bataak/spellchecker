@@ -31,7 +31,13 @@ async function launch(): Promise<Browser> {
   try {
     return await chromium.launch();
   } catch {
-    return chromium.launch({ channel: "chrome" });
+    try {
+      return await chromium.launch({ channel: "chrome" });
+    } catch {
+      return chromium.launch({
+        executablePath: process.env.E2E_BROWSER ?? "/usr/bin/brave",
+      });
+    }
   }
 }
 
