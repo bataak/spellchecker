@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.108.1](https://github.com/bataak/spellchecker/compare/v1.108.0...v1.108.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* **boot:** blur the page until layout settles after load ([7886d66](https://github.com/bataak/spellchecker/commit/7886d667a0193cdc12018b34ad3208acff0dfe28))
+* **update:** prepare new versions silently and reload only on demand or idle ([65b1fff](https://github.com/bataak/spellchecker/commit/65b1fffc08b31abcb01577fbada74f1dec8a039a))
+* **update:** retry unready updates and prompt reload when old chunks are gone ([a230cab](https://github.com/bataak/spellchecker/commit/a230cab18972346380ee7007d39ab9a0e9d3ba99))
+
 ## [1.108.0](https://github.com/bataak/spellchecker/compare/v1.107.2...v1.108.0) (2026-10-16)
 
 
