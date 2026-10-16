@@ -50,7 +50,7 @@ test("засварлагчид текст оруулах зам бүр товч�
     [],
     "дараах мөрийн ойролцоо товч шинэчлэгдээгүй байна:\n" + missing.join("\n"),
   );
-  assert.match(MAIN, /onLoaded: \(\) => syncFixButtons\(\)/);
+  assert.match(MAIN, /onLoaded: \(\) => \{?\s*syncFixButtons\(\)/);
   assert.match(MAIN, /onReplaced: \(\) => syncFixButtons\(\)/);
   assert.match(MAIN, /decode\.sync\(\);\s*clean\.sync\(\);/);
 });

@@ -1,3 +1,4 @@
+import { reveal } from "./status.ts";
 import { KEYS, at, read, write } from "./store.ts";
 export interface AppUpdate {
   readonly setDictVersion: (version: string | null) => void;
@@ -48,7 +49,6 @@ async function servesEntry(entry: string): Promise<boolean> {
 const IDLE_RELOAD_MS = 10 * 60 * 1000;
 
 function reloadForUpdate(): void {
-  write(KEYS.updateReload, "1");
   location.reload();
 }
 
@@ -179,6 +179,7 @@ export function initAppUpdate(
     verBase = (av ? "v" + av : "") + (hv ? " · hunspell " + hv : "");
     verEl.dataset.full = verBase;
     verEl.textContent = verEl.dataset.short;
+    if (verEl.textContent) reveal(verEl);
     verEl.style.cursor = "pointer";
     verEl.addEventListener("click", () => {
       const expanded = verEl.textContent !== verEl.dataset.short;

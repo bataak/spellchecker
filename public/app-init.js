@@ -22,28 +22,27 @@
     );
 })();
 
+(function () {
+  try {
+    var style = document.documentElement.style;
+    var scale = parseFloat(localStorage.getItem("mn-spell:scale") || "");
+    if (scale >= 0.8 && scale <= 1.8)
+      style.setProperty("--editor-scale", String(scale));
+    var metrics = JSON.parse(localStorage.getItem("mn-spell:metrics") || "{}");
+    if (metrics.per > 0) style.setProperty("--editor-per", metrics.per + "px");
+    if (metrics.monoFit > 0)
+      style.setProperty("--mono-fit", String(metrics.monoFit));
+  } catch (e) {}
+})();
+
+try {
+  if (sessionStorage.getItem("mn-spell:has-text") === "1")
+    document.documentElement.classList.add("has-text");
+} catch (e) {}
+
 function __showBody() {
   document.body && document.body.classList.add("ready");
 }
 window.addEventListener("DOMContentLoaded", __showBody);
 window.addEventListener("load", __showBody);
 setTimeout(__showBody, 1500);
-try {
-  if (sessionStorage.getItem("mn-spell:update-reload")) {
-    sessionStorage.removeItem("mn-spell:update-reload");
-    document.documentElement.classList.add("settling");
-  }
-} catch (e) {}
-try {
-  var sw = navigator.serviceWorker;
-  if (sw && sw.controller) {
-    sessionStorage.setItem("mn-spell:sw-controlled", "1");
-  } else if (sw && sessionStorage.getItem("mn-spell:sw-controlled")) {
-    var nav = performance.getEntriesByType("navigation")[0];
-    if (nav && nav.type === "reload")
-      document.documentElement.classList.add("settling");
-  }
-} catch (e) {}
-setTimeout(function () {
-  document.documentElement.classList.remove("settling");
-}, 3000);
