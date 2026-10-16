@@ -7,6 +7,8 @@ export interface ToolbarDeps {
   isDocxActive: () => boolean;
   closeDocx: () => void;
   forgetFile: () => void;
+  /** Цэвэрлэсний дараа (бичвэр хоосорсон, хадгалагдсан). */
+  afterClear: () => void;
   hasOpenFile: () => boolean;
   flash: (sel: string, msg: string) => void;
   setStatus: (html: string, animate?: boolean) => void;
@@ -192,6 +194,7 @@ function initButtons({
   buildErrorList,
   getBadTokens,
   copyText,
+  afterClear,
 }: ToolbarDeps): void {
   const clearBtn = document.querySelector<HTMLElement>("#clearBtn")!;
   initWipeButton(clearBtn);
@@ -207,6 +210,7 @@ function initButtons({
     hidePopover();
     render();
     saveText();
+    afterClear();
   });
 
   function insertAtCaret(text: string): void {

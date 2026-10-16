@@ -1266,13 +1266,6 @@ els.editor.addEventListener("input", (e) => {
   clean.afterInput(e);
 });
 
-const clearBtnEl = document.querySelector("#clearBtn");
-if (clearBtnEl) {
-  clearBtnEl.addEventListener("click", () => {
-    mdBar.reset();
-    rotateEmptyTips();
-  });
-}
 els.editor.addEventListener("blur", () => {
   pendingFix = null;
   lastCaret = {
@@ -1675,8 +1668,13 @@ const fileIO = initFileIO({
   },
   openInProject: (name, text) =>
     projectLink?.openExisting(name, text) ?? false,
-  prepareOpen: (name) => {
-    if (mdBar.openFile(name)) return true;
+  prepareOpen: (name, hash, text) => {
+    const open = mdBar.findFile(name, hash, text);
+    if (open !== null) {
+      mdBar.showFile(open);
+      return "open";
+    }
+    if (mdBar.openFile(name, hash)) return "new";
     holdStatus(
       "Нэг дор " +
         FILE_LIMIT +
@@ -2163,6 +2161,10 @@ initToolbar({
     projectLink?.cleared();
     fileIO.forgetFile();
     syncPreviewClass();
+  },
+  afterClear: () => {
+    mdBar.reset();
+    rotateEmptyTips();
   },
   hasOpenFile: () => openFileName() !== null,
   flash,

@@ -7,6 +7,8 @@ export interface FileSlot {
   readonly id: string;
   readonly name: string;
   readonly sum: string | null;
+  /** Нээсэн файлын байтын hash — ижил файлыг дахин нээхэд танина. */
+  readonly hash?: string;
 }
 
 export function isFileSlot(id: string): boolean {
@@ -32,6 +34,31 @@ export function textSum(text: string): string {
   return (hash >>> 0).toString(36) + ":" + text.length.toString(36);
 }
 
+export function bytesSum(bytes: Uint8Array): string {
+  let hash = 2166136261;
+  for (let i = 0; i < bytes.length; i += 1) {
+    hash ^= bytes[i]!;
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36) + ":" + bytes.length.toString(36);
+}
+
+/** Нээх гэж буй файл аль хэдийн нээлттэй slot-той ижил эсэх. */
+export function sameFile(
+  slot: FileSlot,
+  name: string,
+  hash: string,
+  text: string | null,
+): boolean {
+  if (slot.name !== name) return false;
+  if (slot.hash === hash) return true;
+  return (
+    text !== null &&
+    slot.sum !== null &&
+    slot.sum === textSum(text.replace(/\r\n?/g, "\n"))
+  );
+}
+
 export function parseSlots(raw: string | null): FileSlot[] {
   if (!raw) return [];
   try {
@@ -40,11 +67,16 @@ export function parseSlots(raw: string | null): FileSlot[] {
     const out: FileSlot[] = [];
     for (const item of value) {
       if (!item || typeof item !== "object") continue;
-      const { id, name, sum } = item as Record<string, unknown>;
+      const { id, name, sum, hash } = item as Record<string, unknown>;
       if (typeof id !== "string" || !isFileSlot(id)) continue;
       if (typeof name !== "string" || name === "") continue;
       if (out.some((slot) => slot.id === id)) continue;
-      out.push({ id, name, sum: typeof sum === "string" ? sum : null });
+      out.push({
+        id,
+        name,
+        sum: typeof sum === "string" ? sum : null,
+        ...(typeof hash === "string" ? { hash } : {}),
+      });
     }
     return out.slice(0, FILE_LIMIT);
   } catch {
