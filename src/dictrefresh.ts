@@ -44,9 +44,7 @@ export async function loadDictBytes(
         fetchGzBytes(dicUrl, fetcher),
       ]);
       if (plausibleDict(aff, dic)) return [aff, dic];
-    } catch (_) {
-      /* дараагийн эх сурвалж уруу шилжинэ */
-    }
+    } catch (_) {}
   }
   return null;
 }

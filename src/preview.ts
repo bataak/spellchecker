@@ -41,7 +41,6 @@ const PDF_TEXT_KEY = "tex-preview/last.tex";
 const CACHED_PDFS = 6;
 const KEPT_PDFS = 3;
 
-// Bump when the compile output changes for the same source.
 const PDF_VERSION = "v2";
 const pdfUrl = (digest: string): string =>
   "tex-preview/" + PDF_VERSION + "-" + digest + ".pdf";
@@ -705,7 +704,6 @@ export function initPreview(
   } | null = null;
   let savingPdf = 0;
 
-  /** Ижил түлхүүрийн явж буй хөрвүүлэлтийг (харагдац, хадгалалт) хуваалцана. */
   const compileShared = (
     key: string,
     compile: () => Promise<{

@@ -4,7 +4,6 @@ import {
   editor,
   errors,
   openPage,
-  ready,
   reload,
   settle,
   startApp,
@@ -151,58 +150,4 @@ test("санал сонгох, undo хийх, алгассан үг дахин �
     30000,
   );
   assert.deepEqual(chips, ["алдаатй"]);
-});
-
-test("зөвхөн шинэчлэлийн дараах reload бүдгэрнэ", async () => {
-  const page = await openPage(app, await app.context());
-  await page.addInitScript(() => {
-    document.addEventListener("DOMContentLoaded", () => {
-      sessionStorage.setItem(
-        "e2e:blurred",
-        String(document.documentElement.classList.contains("settling")),
-      );
-    });
-  });
-  const blurred = (): Promise<string | null> =>
-    page.evaluate(() => sessionStorage.getItem("e2e:blurred"));
-  await reload(page);
-  assert.equal(await blurred(), "false");
-  await page.evaluate(() =>
-    sessionStorage.setItem("mn-spell:update-reload", "1"),
-  );
-  await reload(page);
-  assert.equal(await blurred(), "true");
-  const cleared = await until(
-    () =>
-      page.evaluate(
-        () => !document.documentElement.classList.contains("settling"),
-      ),
-    (done) => done,
-  );
-  assert.equal(cleared, true);
-  await reload(page);
-  assert.equal(await blurred(), "false");
-});
-
-test("SW-гүй shift+reload бүдгэрнэ, шинээр нээхэд бүдгэрэхгүй", async () => {
-  const page = await openPage(app, await app.context());
-  await page.addInitScript(() => {
-    document.addEventListener("DOMContentLoaded", () => {
-      sessionStorage.setItem(
-        "e2e:blurred",
-        String(document.documentElement.classList.contains("settling")),
-      );
-    });
-  });
-  const blurred = (): Promise<string | null> =>
-    page.evaluate(() => sessionStorage.getItem("e2e:blurred"));
-  // Dev сервер SW-гүй тул өмнө нь удирдагдаж байсныг дуурайна.
-  await page.evaluate(() =>
-    sessionStorage.setItem("mn-spell:sw-controlled", "1"),
-  );
-  await reload(page);
-  assert.equal(await blurred(), "true");
-  await page.goto(app.url);
-  await ready(page);
-  assert.equal(await blurred(), "false");
 });

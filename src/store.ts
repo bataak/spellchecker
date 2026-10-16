@@ -29,6 +29,7 @@ export const KEYS = {
   projectPanel: shared("mn-spell:project-panel"),
   theme: shared("theme"),
   fontScale: shared("mn-spell:scale"),
+  metrics: shared("mn-spell:metrics"),
   toolbarScroll: shared("mn-spell:toolbar-scroll"),
   keyboardLayout: shared("keyboard-layout"),
   layout: shared("layout"),
@@ -47,8 +48,7 @@ export const KEYS = {
   texMeta: shared("tex-packages:meta"),
   texOffline: shared("tex-offline:"),
   wipe: session("mn-spell:wipe"),
-  // public/app-init.js ижил нэрийг шууд уншина.
-  updateReload: session("mn-spell:update-reload"),
+  hasText: session("mn-spell:has-text"),
   staleReload: session("staleReload:"),
 } as const;
 

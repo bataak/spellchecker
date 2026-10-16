@@ -80,8 +80,6 @@ export function initDraftText(deps: DraftTextDeps): DraftText {
     persisted = { slot, text: editor.value };
   }
 
-  // Энэ табад өөрчлөгдөөгүй бичвэрийг дахин бичвэл өөр табын хадгалсан
-  // шинэ засварыг хуучнаар дарна.
   function saveChanged(): void {
     const slot = deps.store().slot();
     if (persisted?.slot === slot && persisted.text === editor.value) return;

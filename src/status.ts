@@ -6,6 +6,12 @@ export interface StatusControl {
 
 const STATUS_HOLD_MS = 6000;
 
+export function reveal(el: HTMLElement, name = "text-reveal"): void {
+  el.classList.remove(name);
+  void el.offsetWidth;
+  el.classList.add(name);
+}
+
 export const nf = (num: number): string => num.toLocaleString("en-US");
 
 export function initStatus(

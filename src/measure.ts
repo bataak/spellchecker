@@ -21,7 +21,7 @@ import {
   type Layout,
   type Metrics,
 } from "./layout.ts";
-import { KEYS, read, remove, write } from "./store.ts";
+import { KEYS, read, remove, write, writeJson } from "./store.ts";
 
 const SAMPLE =
   "Монгол хэлний үг залгамал бүтэцтэй тул нэлээд урт болдог, " +
@@ -67,7 +67,22 @@ function fitMono(ctx: CanvasRenderingContext2D, cs: CSSStyleDeclaration): void {
   document.documentElement.style.setProperty("--mono-fit", (a / b).toFixed(4));
 }
 
-function measurePer(el: HTMLElement): number {
+function fontsLoaded(el: HTMLElement): boolean {
+  const fonts = (document as Document & { fonts?: FontFaceSet }).fonts;
+  if (!fonts) return true;
+  const cs = getComputedStyle(el);
+  const root = getComputedStyle(document.documentElement);
+  return [
+    cs.fontFamily,
+    root.getPropertyValue("--serif").trim(),
+    root.getPropertyValue("--mono").trim(),
+  ]
+    .filter(Boolean)
+    .every((family) => fonts.check(`${cs.fontSize} ${family}`, SAMPLE));
+}
+
+function measurePer(el: HTMLElement): number | null {
+  if (!fontsLoaded(el)) return null;
   const ctx = document.createElement("canvas").getContext("2d");
   if (!ctx) return DEFAULT_METRICS.per;
   fitMono(ctx, getComputedStyle(el));
@@ -122,13 +137,32 @@ function measureScrollbar(): number {
   return scrollbarWidth;
 }
 
+let savedMetrics = "";
+
 function readMetrics(area: HTMLElement, wrap: HTMLElement): Metrics {
   const root = getComputedStyle(document.documentElement);
   const areaCs = getComputedStyle(area);
   const scale = px(root, "--editor-scale", DEFAULT_METRICS.scale);
   const main = wrap.closest<HTMLElement>("main");
+  const raw = measurePer(area);
+  if (raw !== null) {
+    const fit = Number.parseFloat(
+      document.documentElement.style.getPropertyValue("--mono-fit"),
+    );
+    const saved = JSON.stringify({
+      per: Number(normalizePer(raw, scale).toFixed(3)),
+      monoFit: Number.isFinite(fit) ? fit : undefined,
+    });
+    if (saved !== savedMetrics) {
+      savedMetrics = saved;
+      writeJson(KEYS.metrics, JSON.parse(saved));
+    }
+  }
   return {
-    per: normalizePer(measurePer(area), scale),
+    per:
+      raw === null
+        ? px(root, "--editor-per", DEFAULT_METRICS.per)
+        : normalizePer(raw, scale),
     scale,
     padX: Number.parseFloat(areaCs.paddingLeft) || DEFAULT_METRICS.padX,
     pagePad: main
