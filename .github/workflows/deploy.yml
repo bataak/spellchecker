@@ -33,6 +33,10 @@ jobs:
         env:
           VITE_BASE: /
           VITE_TEX_PACKAGES_URL: ${{ vars.TEX_PACKAGES_URL }}
+      - id: pages
+        uses: actions/configure-pages@v5
+      # Хуучин хувилбартай нээлттэй таб lazy chunk-аа ачаалж чадахаар үлдээнэ.
+      - run: sh scripts/keep-old-assets.sh "${{ steps.pages.outputs.base_url }}" dist 7
       - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
