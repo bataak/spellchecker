@@ -64,7 +64,7 @@ export interface ProjectLink {
   readonly adopt: (strict: boolean) => void;
   readonly enter: () => void;
   readonly close: () => void;
-  readonly save: () => Promise<string | null>;
+  readonly save: (diskOnly?: boolean) => Promise<string | null>;
   readonly openZip: (file: File) => Promise<void>;
   readonly openDir: (handle: FileSystemDirectoryHandle) => Promise<void>;
   readonly restore: () => Promise<void>;
@@ -400,8 +400,10 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     },
     unbind,
     adopt,
-    async save() {
+    async save(diskOnly = false) {
       if (!bound || !hasProject()) return null;
+      // Zip and folder projects save by downloading; skip them here.
+      if (diskOnly && project()?.kind !== "dir") return null;
       pushText();
       const result = await saveProject();
       if (result === "files")
