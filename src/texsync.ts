@@ -105,27 +105,73 @@ export function locate(
     for (const j of index.get(word.word) ?? []) candidates.add(j - d);
   }
 
-  const expected = (center / source.length) * pdf.length;
-  let best: number | null = null;
-  let bestScore = 0;
-  for (const p of candidates) {
-    let score = 0;
+  const score = (p: number): number => {
+    let total = 0;
     for (let d = -WINDOW; d <= WINDOW; d++) {
       const word = source[center + d];
       if (!word) continue;
-      for (let e = -SLACK; e <= SLACK; e++) {
-        if (pdf[p + d + e]?.word === word.word) {
-          score += d === 0 ? 1.5 : 1;
+      const weight = d === 0 ? 1.5 : 1;
+      if (pdf[p + d]?.word === word.word) {
+        total += weight;
+        continue;
+      }
+      for (let e = 1; e <= SLACK; e++) {
+        if (
+          pdf[p + d - e]?.word === word.word ||
+          pdf[p + d + e]?.word === word.word
+        ) {
+          total += weight * 0.75;
           break;
         }
       }
     }
-    score -= Math.abs(p - expected) / pdf.length;
-    if (score > bestScore) {
-      bestScore = score;
-      best = p;
+    return total;
+  };
+
+  let top = 0;
+  const scored: [number, number][] = [];
+  for (const p of candidates) {
+    const value = score(p);
+    scored.push([p, value]);
+    if (value > top) top = value;
+  }
+  if (top < 1) return null;
+  const tied = scored
+    .filter(([, value]) => value === top)
+    .map(([p]) => p)
+    .sort((x, y) => x - y);
+
+  let best: number;
+  if (tied.length === 1) best = tied[0]!;
+  else {
+    const { before, total } = repeats(source, center);
+    if (tied.length >= total)
+      best = tied[tied.length - total + Math.min(before, total - 1)]!;
+    else {
+      const expected = (center / source.length) * pdf.length;
+      best = tied.reduce((x, y) =>
+        Math.abs(y - expected) < Math.abs(x - expected) ? y : x,
+      );
     }
   }
-  if (best === null || bestScore < 1) return null;
   return pdf[Math.min(Math.max(best, 0), pdf.length - 1)]!;
+}
+
+function repeats(
+  source: readonly SourceWord[],
+  center: number,
+): { before: number; total: number } {
+  const from = Math.max(center - WINDOW, 0);
+  const to = Math.min(center + WINDOW, source.length - 1);
+  let before = 0;
+  let total = 0;
+  for (let q = 0; q < source.length; q++) {
+    let same = true;
+    for (let i = from; i <= to && same; i++)
+      same = source[q + i - center]?.word === source[i]!.word;
+    if (!same) continue;
+    total++;
+    if (q < center) before++;
+  }
+  return { before, total: Math.max(total, 1) };
 }
