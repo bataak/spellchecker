@@ -1307,6 +1307,23 @@ a.tbtn {
   align-items: flex-start;
   gap: 12px;
   width: 100%;
+  position: relative;
+}
+
+.sync-mark {
+  position: absolute;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--layout-accent-mn) 22%, transparent);
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+}
+
+.preview-body[data-layout="en"] .sync-mark {
+  background: color-mix(in srgb, var(--layout-accent-en) 22%, transparent);
+}
+
+.sync-mark.is-fading {
+  opacity: 0;
 }
 
 .pdf-page {

@@ -4,7 +4,7 @@ import { stripInvisible } from "./office/sanitize.ts";
 
 const MAX_PDF_MB = 30;
 
-interface TextItem {
+export interface TextItem {
   str: string;
   hasEOL?: boolean;
   width?: number;
@@ -15,7 +15,7 @@ export function isPdf(file: File): boolean {
   return file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
 }
 
-interface Line {
+export interface Line {
   text: string;
   y: number;
 }
@@ -88,7 +88,7 @@ function mergePieces(pieces: Piece[]): string {
   return out;
 }
 
-function pageLines(items: TextItem[]): Line[] {
+export function pageLines(items: TextItem[]): Line[] {
   const lines: Line[] = [];
   let pieces: Piece[] = [];
   let y: number | null = null;
