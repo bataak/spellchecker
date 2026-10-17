@@ -2915,6 +2915,18 @@ html.booting .empty-state {
   background: var(--layout-select-en);
 }
 
+.editor-wrap.is-tex > .editor::selection {
+  background: color-mix(in srgb, var(--layout-accent) 35%, transparent);
+}
+
+.editor-wrap.is-tex > .editor[data-pick="other"]::selection {
+  background: color-mix(in srgb, var(--layout-accent-mn) 35%, transparent);
+}
+
+.editor-wrap.is-tex > .editor[data-pick="latin"]::selection {
+  background: color-mix(in srgb, var(--layout-accent-en) 35%, transparent);
+}
+
 .layout-badge {
   position: fixed;
   z-index: 70;
