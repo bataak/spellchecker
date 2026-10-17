@@ -4,6 +4,7 @@ import {
   completionContext,
   completions,
   expand,
+  unchanged,
 } from "../src/texcompletion.ts";
 
 function at(marked: string) {
@@ -105,4 +106,17 @@ test("\\begin командаас орчны жагсаалт руу шилжин
   assert.equal(first, "\\begin{|}");
   const { text, caret } = at(first);
   assert.equal(completionContext(text, caret)?.kind, "env");
+});
+
+test("бүтэн бичсэн команд хэвээр үлдэнэ", () => {
+  for (const name of ["in", "par", "pi", "to"]) {
+    const { text, caret } = at("$x \\" + name + "|");
+    const ctx = completionContext(text, caret)!;
+    const first = completions(ctx)[0]!;
+    assert.equal(first.label, name);
+    assert.ok(unchanged(ctx, first), name);
+  }
+  const { text, caret } = at("\\para|");
+  const ctx = completionContext(text, caret)!;
+  assert.ok(!unchanged(ctx, completions(ctx)[0]!));
 });
