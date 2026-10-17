@@ -279,9 +279,13 @@ function initButtons({
     const clear = () => {
       if (timer) clearTimeout(timer);
     };
+    const drop = (event: PointerEvent) => {
+      clear();
+      if (event.type === "pointercancel" || event.buttons) armed = false;
+    };
     btn.addEventListener("pointerup", clear);
-    btn.addEventListener("pointercancel", clear);
-    btn.addEventListener("pointerleave", clear);
+    btn.addEventListener("pointercancel", drop);
+    btn.addEventListener("pointerleave", drop);
     btn.addEventListener("contextmenu", (e) => e.preventDefault());
     btn.addEventListener("click", async () => {
       if (armed) {

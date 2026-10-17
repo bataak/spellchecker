@@ -670,6 +670,11 @@ export function initExport(options: ExportOptions): ExportControl {
     pressTimer = null;
   };
 
+  const dropPress = (event: PointerEvent): void => {
+    cancelPress();
+    if (event.type === "pointercancel" || event.buttons) held = false;
+  };
+
   const onPressStart = (event: PointerEvent): void => {
     if (event.button !== 0) return;
     held = false;
@@ -703,8 +708,8 @@ export function initExport(options: ExportOptions): ExportControl {
   if (saveButton) {
     saveButton.addEventListener("pointerdown", onPressStart);
     saveButton.addEventListener("pointerup", cancelPress);
-    saveButton.addEventListener("pointerleave", cancelPress);
-    saveButton.addEventListener("pointercancel", cancelPress);
+    saveButton.addEventListener("pointerleave", dropPress);
+    saveButton.addEventListener("pointercancel", dropPress);
     saveButton.addEventListener("contextmenu", onContextMenu);
     saveButton.addEventListener("click", onSaveClick, true);
   }
@@ -719,8 +724,8 @@ export function initExport(options: ExportOptions): ExportControl {
       if (saveButton) {
         saveButton.removeEventListener("pointerdown", onPressStart);
         saveButton.removeEventListener("pointerup", cancelPress);
-        saveButton.removeEventListener("pointerleave", cancelPress);
-        saveButton.removeEventListener("pointercancel", cancelPress);
+        saveButton.removeEventListener("pointerleave", dropPress);
+        saveButton.removeEventListener("pointercancel", dropPress);
         saveButton.removeEventListener("contextmenu", onContextMenu);
         saveButton.removeEventListener("click", onSaveClick, true);
       }

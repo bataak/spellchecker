@@ -764,8 +764,13 @@ defineBtn?.addEventListener("pointerdown", (event) => {
     definePressArmed = true;
   }, LONG_PRESS_MS);
 });
-for (const type of ["pointerup", "pointercancel", "pointerleave"])
-  defineBtn?.addEventListener(type, () => clearTimeout(definePressTimer));
+defineBtn?.addEventListener("pointerup", () => clearTimeout(definePressTimer));
+for (const type of ["pointercancel", "pointerleave"])
+  defineBtn?.addEventListener(type, (event) => {
+    clearTimeout(definePressTimer);
+    if (type === "pointercancel" || (event as PointerEvent).buttons)
+      definePressArmed = false;
+  });
 defineBtn?.addEventListener("contextmenu", (event) => event.preventDefault());
 
 defineBtn?.addEventListener("click", async (event) => {

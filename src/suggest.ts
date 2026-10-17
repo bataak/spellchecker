@@ -467,8 +467,13 @@ function build(): void {
   };
   viewBtn.addEventListener("pointerdown", startPress);
   viewBtn.addEventListener("pointerup", cancelPress);
-  viewBtn.addEventListener("pointerleave", cancelPress);
-  viewBtn.addEventListener("pointercancel", cancelPress);
+  const dropPress = (e: Event) => {
+    cancelPress();
+    if (e.type === "pointercancel" || (e as PointerEvent).buttons)
+      longPressed = false;
+  };
+  viewBtn.addEventListener("pointerleave", dropPress);
+  viewBtn.addEventListener("pointercancel", dropPress);
   viewBtn.addEventListener("contextmenu", (e) => {
     if (issuesHidden()) e.preventDefault();
   });
