@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.110.0](https://github.com/bataak/spellchecker/compare/v1.109.0...v1.110.0) (2026-10-17)
+
+
+### Features
+
+* **preview:** sync the preview to the caret in LaTeX and Markdown modes ([d1d9b26](https://github.com/bataak/spellchecker/commit/d1d9b2603885c1ba9c88a4083591ed2a0d068275))
+
+
+### Bug Fixes
+
+* **latex:** keep selected text visible with a translucent selection ([9b94447](https://github.com/bataak/spellchecker/commit/9b94447f46db9cc98618b3a712b751d2a5cf8841))
+* **latex:** let Enter add a newline after a complete command like \in or \par ([372ebd6](https://github.com/bataak/spellchecker/commit/372ebd6c1daed4b3a65d40821ad2450f6bfd573b))
+* **latex:** let the touch keyboard Enter add a newline after a complete command ([757bcc0](https://github.com/bataak/spellchecker/commit/757bcc0a236c8a0057bd0d1eb85c878871a481c3))
+* **markdown:** insert a single line break inside $$ display math ([85b9f85](https://github.com/bataak/spellchecker/commit/85b9f858c0492405024879e31abaac26456395d3))
+* **markdown:** keep single line breaks inside closed $$ blocks and end math at a blank line ([0f04e90](https://github.com/bataak/spellchecker/commit/0f04e90fdb6a5b517ea19c5e8863719b3719975c))
+* **preview:** resync the preview after edits that keep the caret in place ([785309d](https://github.com/bataak/spellchecker/commit/785309dae789aa7ee7436dd665dd38b1f40f1548))
+* **toolbar:** forget a cancelled long press so shortcuts act normally ([f674edf](https://github.com/bataak/spellchecker/commit/f674edf0c933559e02389225d7b8d7f54bebc774))
+
 ## [1.109.0](https://github.com/bataak/spellchecker/compare/v1.108.5...v1.109.0) (2026-10-16)
 
 
