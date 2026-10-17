@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.109.1](https://github.com/bataak/spellchecker/compare/v1.109.0...v1.109.1) (2026-10-17)
+
+
+### Bug Fixes
+
+* **latex:** let Enter add a newline after a complete command like \in or \par ([372ebd6](https://github.com/bataak/spellchecker/commit/372ebd6c1daed4b3a65d40821ad2450f6bfd573b))
+* **markdown:** insert a single line break inside $$ display math ([85b9f85](https://github.com/bataak/spellchecker/commit/85b9f858c0492405024879e31abaac26456395d3))
+* **toolbar:** forget a cancelled long press so shortcuts act normally ([f674edf](https://github.com/bataak/spellchecker/commit/f674edf0c933559e02389225d7b8d7f54bebc774))
+
 ## [1.109.0](https://github.com/bataak/spellchecker/compare/v1.108.5...v1.109.0) (2026-10-16)
 
 
