@@ -624,6 +624,31 @@ function refreshLineInfo(knownLine?: number): void {
   setStatus(statsMessage(knownLine), false);
 }
 
+function revealRange(start: number, end: number): void {
+  const editor = els.editor;
+  editor.focus({ preventScroll: true });
+  try {
+    editor.setSelectionRange(start, end, "forward");
+  } catch (_) {}
+  const box = editor.getBoundingClientRect();
+  const rect = rangeRectAt(start, Math.max(end, start + 1));
+  const pad = 24;
+  const lines = (text: string): number => text.split("\n").length;
+  const top = rect
+    ? rect.top - box.top + editor.scrollTop
+    : ((lines(editor.value.slice(0, start)) - 1) / lines(editor.value)) *
+      editor.scrollHeight;
+  const view = editor.scrollTop;
+  if (top < view + pad || top > view + editor.clientHeight - pad) {
+    const max = editor.scrollHeight - editor.clientHeight;
+    editor.scrollTop = Math.max(
+      0,
+      Math.min(top - Math.min(editor.clientHeight * 0.3, 160), max),
+    );
+  }
+  syncScroll();
+}
+
 function syncScroll() {
   els.backdrop.scrollTop = els.editor.scrollTop;
   els.backdrop.scrollLeft = els.editor.scrollLeft;
@@ -1468,6 +1493,7 @@ if (editorWrap) {
     () => projectLink?.key() ?? null,
     () => projectLink?.bound() ?? false,
     pdfName,
+    revealRange,
   );
   const workspace = editorWrap.closest<HTMLElement>(".workspace");
   if (workspace)

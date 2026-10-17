@@ -18,6 +18,8 @@ export function isPdf(file: File): boolean {
 export interface Line {
   text: string;
   y: number;
+  left?: number;
+  right?: number;
 }
 
 interface Piece {
@@ -95,7 +97,10 @@ export function pageLines(items: TextItem[]): Line[] {
   const flush = (): void => {
     if (pieces.length) {
       const text = mergePieces(pieces);
-      if (text.trim()) lines.push({ text: text.trim(), y: y ?? 0 });
+      const left = Math.min(...pieces.map((piece) => piece.x));
+      const right = Math.max(...pieces.map((piece) => piece.x + piece.width));
+      if (text.trim())
+        lines.push({ text: text.trim(), y: y ?? 0, left, right });
     }
     pieces = [];
     y = null;

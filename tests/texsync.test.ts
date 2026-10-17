@@ -1,6 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { locate, pdfWords, sourceWords } from "../src/texsync.ts";
+import {
+  locate,
+  locateSource,
+  pdfWordAt,
+  pdfWords,
+  sourceWords,
+} from "../src/texsync.ts";
 
 const TEX = [
   "\\documentclass{article}",
@@ -142,4 +148,58 @@ test("гарчгийн жагсаалтад давхардсан гарчгий�
   const words = pdfWords(pages, [800, 800]);
   const hit = locate(sourceWords(tex), tex.indexOf("бүтэц"), words)!;
   assert.equal(hit.page, 2);
+});
+
+test("PDF дээр дарсан цэгийн үгийг олно", () => {
+  const pages = [
+    [
+      { text: "нэг хоёр гурав", y: 700, left: 100, right: 400 },
+      { text: "дөрөв тав", y: 680, left: 100, right: 300 },
+    ],
+  ];
+  const words = pdfWords(pages, [800], [500]);
+  const at = (x: number, y: number) => words[pdfWordAt(words, 1, x, y)]!.word;
+  assert.equal(at(0.25, 1 - 700 / 800), "нэг");
+  assert.equal(at(0.7, 1 - 700 / 800), "гурав");
+  assert.equal(at(0.5, 1 - 681 / 800), "тав");
+  assert.equal(pdfWordAt(words, 2, 0.5, 0.5), -1);
+});
+
+test("PDF-ийн үгээс эх бичвэрийн байрлалыг олно", () => {
+  const src = sourceWords(TEX);
+  const index = pdf.findIndex((w) => w.word === "механизм");
+  const hit = locateSource(src, pdf, index)!;
+  assert.equal(TEX.slice(hit.at, hit.at + 8), "механизм");
+  const split = pdf.findIndex((w) => w.word === "суралцдаг");
+  const joined = locateSource(src, pdf, split)!;
+  assert.equal(TEX.slice(joined.at, joined.at + 9), "суралцдаг");
+});
+
+test("давтагдсан хэллэгийг PDF-ээс эх рүү буцааж тоолно", () => {
+  const tex = [PHRASE, filler("а", 10), PHRASE, filler("б", 10), PHRASE].join(
+    "\n",
+  );
+  const pages = [
+    [
+      { text: PHRASE, y: 700 },
+      { text: filler("в", 200), y: 600 },
+    ],
+    [
+      { text: PHRASE, y: 500 },
+      { text: filler("б", 10), y: 400 },
+    ],
+    [{ text: PHRASE, y: 300 }],
+  ];
+  const words = pdfWords(pages, [800, 800, 800]);
+  const src = sourceWords(tex);
+  const nth = (n: number): number => {
+    let at = -1;
+    for (let i = 0; i <= n; i++) at = tex.indexOf(PHRASE, at + 1);
+    return at;
+  };
+  for (const page of [1, 2, 3]) {
+    const index = words.findIndex((w) => w.page === page && w.word === "ижил");
+    const hit = locateSource(src, words, index)!;
+    assert.ok(hit.at > nth(page - 1) && hit.at < nth(page - 1) + PHRASE.length);
+  }
 });
