@@ -1,4 +1,4 @@
-import { codeRanges, inRanges } from "./codeskip.ts";
+import { codeRanges, fencedCode, inRanges } from "./codeskip.ts";
 import { replaceRange } from "./editortext.ts";
 import { imageAttrs, parseImageAttrs } from "./markdown.ts";
 import type { ImageSize } from "./markdown.ts";
@@ -341,7 +341,7 @@ const MATH_OPEN: Record<string, string> = { $$: "$$", "\\[": "\\]" };
 
 function inMath(text: string, caret: number): boolean {
   if (!text.includes("$$") && !text.includes("\\[")) return false;
-  const code = codeRanges(text);
+  const code = fencedCode(text);
   let close: string | null = null;
   let at = 0;
   while (at <= caret) {
@@ -349,7 +349,8 @@ function inMath(text: string, caret: number): boolean {
     if (!inRanges(code, at)) {
       const line = text.slice(at, end).trim();
       if (close) {
-        if (line.includes(close)) close = null;
+        const blank = !text.slice(at, lineEndAt(text, at)).trim();
+        if (blank || line.includes(close)) close = null;
       } else {
         const opener = line.startsWith("$$")
           ? "$$"
