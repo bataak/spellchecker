@@ -759,10 +759,15 @@ export function initPreview(
     syncTimer = window.setTimeout(() => void syncToCaret(), 250);
   }
 
+  const onEdit = (): void => {
+    syncedAt = -1;
+  };
+
   const onSelection = (): void => {
     if (document.activeElement === area) scheduleSync();
   };
   document.addEventListener("selectionchange", onSelection);
+  area.addEventListener("input", onEdit);
 
   const showPdfBytes = async (
     bytes: Uint8Array<ArrayBuffer>,
@@ -1213,6 +1218,7 @@ export function initPreview(
       clearTimeout(syncTimer);
       clearTimeout(lineMarkTimer);
       document.removeEventListener("selectionchange", onSelection);
+      area.removeEventListener("input", onEdit);
       area.removeEventListener("input", onTyping);
       area.removeEventListener("input", update);
       tidy.remove();
