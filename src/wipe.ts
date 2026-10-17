@@ -53,8 +53,13 @@ export function initWipeButton(btn: HTMLElement): void {
       armed = true;
     }, LONG_PRESS_MS);
   });
-  for (const type of ["pointerup", "pointercancel", "pointerleave"])
-    btn.addEventListener(type, () => clearTimeout(timer));
+  btn.addEventListener("pointerup", () => clearTimeout(timer));
+  for (const type of ["pointercancel", "pointerleave"])
+    btn.addEventListener(type, (event) => {
+      clearTimeout(timer);
+      if (type === "pointercancel" || (event as PointerEvent).buttons)
+        armed = false;
+    });
   btn.addEventListener("contextmenu", (event) => event.preventDefault());
   btn.addEventListener(
     "click",
