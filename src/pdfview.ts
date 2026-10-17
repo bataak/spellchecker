@@ -53,6 +53,10 @@ export interface PdfView {
   goTo(page: number): void;
   words(): Promise<readonly PdfWord[]>;
   reveal(page: number, y: number): void;
+  pointAt(
+    clientX: number,
+    clientY: number,
+  ): { page: number; x: number; y: number } | null;
   destroy(): void;
 }
 
@@ -211,14 +215,16 @@ export async function renderPdfInto(
     ]);
     const lines: Line[][] = [];
     const heights: number[] = [];
+    const widths: number[] = [];
     for (let i = 1; i <= doc.numPages; i++) {
       const page = await doc.getPage(i);
       const content = await page.getTextContent();
       lines.push(pageLines(content.items as TextItem[]));
       heights.push(page.view[3]! - page.view[1]!);
+      widths.push(page.view[2]! - page.view[0]!);
       page.cleanup();
     }
-    return pdfWords(lines, heights);
+    return pdfWords(lines, heights, widths);
   };
 
   let mark: HTMLElement | null = null;
@@ -296,6 +302,19 @@ export async function renderPdfInto(
     words() {
       found ??= readWords().catch(() => []);
       return found;
+    },
+    pointAt(clientX, clientY) {
+      for (const slot of slots) {
+        const box = slot.el.getBoundingClientRect();
+        if (clientY < box.top || clientY > box.bottom) continue;
+        if (clientX < box.left || clientX > box.right) return null;
+        return {
+          page: slot.index,
+          x: (clientX - box.left) / box.width,
+          y: (clientY - box.top) / box.height,
+        };
+      }
+      return null;
     },
     reveal(page, y) {
       const slot = slots[page - 1];

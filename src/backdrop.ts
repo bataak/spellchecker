@@ -424,7 +424,7 @@ function spotIn(host: Element, offset: number): TextSpot | null {
   return null;
 }
 
-function caretSpotAt(
+export function caretSpotAt(
   x: number,
   y: number,
 ): { node: Node; offset: number } | null {

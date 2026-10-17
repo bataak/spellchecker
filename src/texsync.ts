@@ -8,6 +8,7 @@ export interface SourceWord {
 export interface PdfWord {
   readonly word: string;
   readonly page: number;
+  readonly x: number;
   readonly y: number;
 }
 
@@ -46,23 +47,59 @@ export function sourceWords(text: string): SourceWord[] {
 export function pdfWords(
   pages: readonly (readonly Line[])[],
   heights: readonly number[],
+  widths: readonly number[] = [],
 ): PdfWord[] {
   const out: PdfWord[] = [];
-  let carry = "";
+  let carry: { head: string; x: number } | null = null;
   pages.forEach((lines, index) => {
     const page = index + 1;
     const height = heights[index] || 1;
+    const width = widths[index] || 0;
     for (const line of lines) {
       const y = Math.min(Math.max(1 - line.y / height, 0), 1);
-      const words = [...line.text.matchAll(WORD)].map((m) => m[0]);
-      if (carry) words[0] = carry + (words[0] ?? "");
-      carry = /[-\u2010\u00AD]$/.test(line.text) ? (words.pop() ?? "") : "";
-      for (const word of words) out.push({ word: norm(word), page, y });
+      const left = line.left ?? 0;
+      const span = (line.right ?? left) - left;
+      const xAt = (at: number, length: number): number =>
+        width && span > 0
+          ? Math.min(
+              Math.max(
+                (left + ((at + length / 2) / line.text.length) * span) / width,
+                0,
+              ),
+              1,
+            )
+          : 0.5;
+      const words = [...line.text.matchAll(WORD)].map((m) => ({
+        word: m[0],
+        x: xAt(m.index, m[0].length),
+      }));
+      if (carry) {
+        const first = words.shift();
+        out.push({
+          word: norm(carry.head + (first?.word ?? "")),
+          page,
+          x: carry.x,
+          y,
+        });
+      }
+      carry = null;
+      if (/[-\u2010\u00AD]$/.test(line.text)) {
+        const last = words.pop();
+        if (last) carry = { head: last.word, x: last.x };
+      }
+      for (const word of words)
+        out.push({ word: norm(word.word), page, x: word.x, y });
     }
   });
   if (carry) {
+    const tail: { head: string; x: number } = carry;
     const last = out[out.length - 1];
-    out.push({ word: norm(carry), page: last?.page ?? 1, y: last?.y ?? 0 });
+    out.push({
+      word: norm(tail.head),
+      page: last?.page ?? 1,
+      x: tail.x,
+      y: last?.y ?? 0,
+    });
   }
   return out.filter((w) => w.word.length >= 2);
 }
@@ -90,36 +127,85 @@ export function locate(
   pdf: readonly PdfWord[],
 ): PdfWord | null {
   if (!source.length || !pdf.length) return null;
-  const center = nearestWord(source, caret);
-  const index = new Map<string, number[]>();
+  const at = align(
+    source.map((w) => w.word),
+    nearestWord(source, caret),
+    pdf.map((w) => w.word),
+    true,
+  );
+  return at === null ? null : pdf[at]!;
+}
+
+export function locateSource(
+  source: readonly SourceWord[],
+  pdf: readonly PdfWord[],
+  index: number,
+): SourceWord | null {
+  if (!source.length || !pdf[index]) return null;
+  const at = align(
+    pdf.map((w) => w.word),
+    index,
+    source.map((w) => w.word),
+    false,
+  );
+  return at === null ? null : source[at]!;
+}
+
+export function pdfWordAt(
+  pdf: readonly PdfWord[],
+  page: number,
+  x: number,
+  y: number,
+): number {
+  let line = Infinity;
+  for (const w of pdf)
+    if (w.page === page) line = Math.min(line, Math.abs(w.y - y));
+  if (line === Infinity) return -1;
+  let best = -1;
+  let gap = Infinity;
   pdf.forEach((w, i) => {
-    const list = index.get(w.word);
+    if (w.page !== page || Math.abs(w.y - y) > line + 0.004) return;
+    const dx = Math.abs(w.x - x);
+    if (dx < gap) {
+      gap = dx;
+      best = i;
+    }
+  });
+  return best;
+}
+
+function align(
+  from: readonly string[],
+  center: number,
+  to: readonly string[],
+  extraFirst: boolean,
+): number | null {
+  const index = new Map<string, number[]>();
+  to.forEach((word, i) => {
+    const list = index.get(word);
     if (list) list.push(i);
-    else index.set(w.word, [i]);
+    else index.set(word, [i]);
   });
 
   const candidates = new Set<number>();
   for (let d = -WINDOW; d <= WINDOW; d++) {
-    const word = source[center + d];
-    if (!word) continue;
-    for (const j of index.get(word.word) ?? []) candidates.add(j - d);
+    const word = from[center + d];
+    if (word === undefined) continue;
+    for (const j of index.get(word) ?? []) candidates.add(j - d);
   }
 
   const score = (p: number): number => {
     let total = 0;
     for (let d = -WINDOW; d <= WINDOW; d++) {
-      const word = source[center + d];
-      if (!word) continue;
+      const word = from[center + d];
+      if (word === undefined) continue;
       const weight = d === 0 ? 1.5 : 1;
-      if (pdf[p + d]?.word === word.word) {
+      if (to[p + d] === word) {
         total += weight;
         continue;
       }
       for (let e = 1; e <= SLACK; e++) {
-        if (
-          pdf[p + d - e]?.word === word.word ||
-          pdf[p + d + e]?.word === word.word
-        ) {
+        if (to[p + d - e] === word || to[p + d + e] === word) {
           total += weight * 0.75;
           break;
         }
@@ -144,31 +230,32 @@ export function locate(
   let best: number;
   if (tied.length === 1) best = tied[0]!;
   else {
-    const { before, total } = repeats(source, center);
-    if (tied.length >= total)
+    const { before, total } = repeats(from, center);
+    if (tied.length === total) best = tied[before]!;
+    else if (tied.length > total && extraFirst)
       best = tied[tied.length - total + Math.min(before, total - 1)]!;
     else {
-      const expected = (center / source.length) * pdf.length;
+      const expected = (center / from.length) * to.length;
       best = tied.reduce((x, y) =>
         Math.abs(y - expected) < Math.abs(x - expected) ? y : x,
       );
     }
   }
-  return pdf[Math.min(Math.max(best, 0), pdf.length - 1)]!;
+  return Math.min(Math.max(best, 0), to.length - 1);
 }
 
 function repeats(
-  source: readonly SourceWord[],
+  words: readonly string[],
   center: number,
 ): { before: number; total: number } {
   const from = Math.max(center - WINDOW, 0);
-  const to = Math.min(center + WINDOW, source.length - 1);
+  const to = Math.min(center + WINDOW, words.length - 1);
   let before = 0;
   let total = 0;
-  for (let q = 0; q < source.length; q++) {
+  for (let q = 0; q < words.length; q++) {
     let same = true;
     for (let i = from; i <= to && same; i++)
-      same = source[q + i - center]?.word === source[i]!.word;
+      same = words[q + i - center] === words[i];
     if (!same) continue;
     total++;
     if (q < center) before++;

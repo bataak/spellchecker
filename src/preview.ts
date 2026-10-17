@@ -1,3 +1,4 @@
+import { caretSpotAt } from "./backdrop.ts";
 import { initImageEdit } from "./imageedit.ts";
 import {
   allowRemoteImages,
@@ -280,6 +281,7 @@ export function initPreview(
   projectKey: () => string | null = () => null,
   inProject: () => boolean = () => false,
   pdfName: () => string = () => "бичвэр.pdf",
+  jump: (start: number, end: number) => void = () => undefined,
 ): Preview {
   const panel = document.createElement("section");
   panel.className = "preview-panel";
@@ -759,6 +761,103 @@ export function initPreview(
     syncTimer = window.setTimeout(() => void syncToCaret(), 250);
   }
 
+  const WORD_CHAR = /[\p{L}\p{N}]/u;
+  const WORDS = /[\p{L}\p{N}]+/gu;
+
+  const lineOffset = (text: string, line: number): number => {
+    let at = 0;
+    for (let i = 0; i < line; i++) {
+      const next = text.indexOf("\n", at);
+      if (next < 0) return text.length;
+      at = next + 1;
+    }
+    return at;
+  };
+
+  const jumpFromHtml = (clientX: number, clientY: number): void => {
+    const spot = caretSpotAt(clientX, clientY);
+    if (!spot || !body.contains(spot.node)) return;
+    let block =
+      spot.node instanceof HTMLElement ? spot.node : spot.node.parentElement;
+    while (block && block.parentElement !== body) block = block.parentElement;
+    if (!block?.dataset.line) return;
+    const blocks = [...body.children].filter(
+      (el): el is HTMLElement =>
+        el instanceof HTMLElement && el.dataset.line !== undefined,
+    );
+    const text = area.value;
+    const startLine = Number(block.dataset.line);
+    const next = blocks[blocks.indexOf(block) + 1];
+    const from = lineOffset(text, startLine);
+    const to = next ? lineOffset(text, Number(next.dataset.line)) : text.length;
+
+    let word = "";
+    let wordStart = spot.offset;
+    if (spot.node instanceof Text) {
+      const data = spot.node.data;
+      let a = spot.offset;
+      let b = spot.offset;
+      while (a > 0 && WORD_CHAR.test(data[a - 1]!)) a--;
+      while (b < data.length && WORD_CHAR.test(data[b]!)) b++;
+      word = data.slice(a, b).toLowerCase();
+      wordStart = a;
+    }
+    if (!word) {
+      jump(from, from);
+      return;
+    }
+    const range = document.createRange();
+    range.setStart(block, 0);
+    range.setEnd(spot.node, wordStart);
+    const nth = [...range.toString().matchAll(WORDS)].filter(
+      (m) => m[0].toLowerCase() === word,
+    ).length;
+    const hits = [...text.slice(from, to).matchAll(WORDS)].filter(
+      (m) => m[0].toLowerCase() === word,
+    );
+    const hit = hits[Math.min(nth, hits.length - 1)];
+    if (!hit) {
+      jump(from, from);
+      return;
+    }
+    jump(from + hit.index, from + hit.index + hit[0].length);
+  };
+
+  const jumpFromPdf = async (
+    view: import("./pdfview.ts").PdfView,
+    clientX: number,
+    clientY: number,
+  ): Promise<void> => {
+    const point = view.pointAt(clientX, clientY);
+    if (!point) return;
+    const [{ locateSource, pdfWordAt, sourceWords }, pdf] = await Promise.all([
+      import("./texsync.ts"),
+      view.words(),
+    ]);
+    if (view !== pdfView) return;
+    const index = pdfWordAt(pdf, point.page, point.x, point.y);
+    if (index < 0) return;
+    const text = area.value;
+    if (sourceCache?.text !== text)
+      sourceCache = { text, words: sourceWords(text) };
+    const hit = locateSource(sourceCache.words, pdf, index);
+    if (hit) jump(hit.at, hit.at + hit.word.length);
+  };
+
+  const onJump = (event: MouseEvent): void => {
+    if (event.button !== 0) return;
+    const view = pdfView;
+    if (texMode && view) {
+      void jumpFromPdf(view, event.clientX, event.clientY);
+      return;
+    }
+    if (texMode || view || source || !shownHtml) return;
+    if ((event.target as Element | null)?.closest("img, a, button, input"))
+      return;
+    jumpFromHtml(event.clientX, event.clientY);
+  };
+  body.addEventListener("dblclick", onJump);
+
   const onEdit = (): void => {
     syncedAt = -1;
   };
@@ -1219,6 +1318,7 @@ export function initPreview(
       clearTimeout(lineMarkTimer);
       document.removeEventListener("selectionchange", onSelection);
       area.removeEventListener("input", onEdit);
+      body.removeEventListener("dblclick", onJump);
       area.removeEventListener("input", onTyping);
       area.removeEventListener("input", update);
       tidy.remove();
