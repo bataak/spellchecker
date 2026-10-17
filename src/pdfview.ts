@@ -1,3 +1,6 @@
+import type { Line, TextItem } from "./pdftext.ts";
+import type { PdfWord } from "./texsync.ts";
+
 let pdfjsPromise: Promise<typeof import("pdfjs-dist")> | null = null;
 
 function loadPdfjs(): Promise<typeof import("pdfjs-dist")> {
@@ -48,6 +51,8 @@ export interface PdfView {
   readonly pages: number;
   setZoom(zoom: number, origin?: { x: number; y: number }): void;
   goTo(page: number): void;
+  words(): Promise<readonly PdfWord[]>;
+  reveal(page: number, y: number): void;
   destroy(): void;
 }
 
@@ -198,6 +203,27 @@ export async function renderPdfInto(
     }
   };
 
+  let found: Promise<readonly PdfWord[]> | null = null;
+  const readWords = async (): Promise<readonly PdfWord[]> => {
+    const [{ pageLines }, { pdfWords }] = await Promise.all([
+      import("./pdftext.ts"),
+      import("./texsync.ts"),
+    ]);
+    const lines: Line[][] = [];
+    const heights: number[] = [];
+    for (let i = 1; i <= doc.numPages; i++) {
+      const page = await doc.getPage(i);
+      const content = await page.getTextContent();
+      lines.push(pageLines(content.items as TextItem[]));
+      heights.push(page.view[3]! - page.view[1]!);
+      page.cleanup();
+    }
+    return pdfWords(lines, heights);
+  };
+
+  let mark: HTMLElement | null = null;
+  let markTimer = 0;
+
   const visible = new Set<PageSlot>();
   let zooming = false;
 
@@ -267,6 +293,40 @@ export async function renderPdfInto(
       shownPage = 0;
       reportPage();
     },
+    words() {
+      found ??= readWords().catch(() => []);
+      return found;
+    },
+    reveal(page, y) {
+      const slot = slots[page - 1];
+      if (!slot) return;
+      const frame = host.getBoundingClientRect();
+      const top = frame.top + host.clientTop + inset();
+      const box = slot.el.getBoundingClientRect();
+      const at = box.top + slot.el.clientTop + y * slot.el.clientHeight;
+      const room = frame.bottom - top;
+      if (at < top + room * 0.15 || at > top + room * 0.85)
+        host.scrollTop += at - (top + room * 0.35);
+      mark ??= document.createElement("div");
+      mark.className = "sync-mark";
+      const band = slot.el.clientHeight * 0.022;
+      mark.style.top =
+        slot.el.offsetTop +
+        slot.el.clientTop +
+        y * slot.el.clientHeight -
+        band +
+        "px";
+      mark.style.left = slot.el.offsetLeft + "px";
+      mark.style.width = slot.el.offsetWidth + "px";
+      mark.style.height = band * 1.3 + "px";
+      mark.classList.remove("is-fading");
+      list.append(mark);
+      clearTimeout(markTimer);
+      markTimer = window.setTimeout(
+        () => mark?.classList.add("is-fading"),
+        900,
+      );
+    },
     setZoom(next, origin) {
       if (next === zoom) return;
       const frame = host.getBoundingClientRect();
@@ -301,6 +361,7 @@ export async function renderPdfInto(
       host.removeEventListener("scroll", onScroll);
       if (snapFrame) cancelAnimationFrame(snapFrame);
       clearTimeout(resizeTimer);
+      clearTimeout(markTimer);
       ro.disconnect();
       io.disconnect();
       for (const slot of slots) release(slot);

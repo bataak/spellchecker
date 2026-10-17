@@ -523,6 +523,12 @@ export function initPreview(
   let texSeq = 0;
   let texRestored = false;
   let pdfOfProject = false;
+  let syncTimer = 0;
+  let syncedAt = -1;
+  let sourceCache: {
+    readonly text: string;
+    readonly words: readonly import("./texsync.ts").SourceWord[];
+  } | null = null;
   const keptPdfs = new Map<
     string,
     {
@@ -633,6 +639,131 @@ export function initPreview(
     document.documentElement.dataset.preview === "on" ||
     document.documentElement.dataset.pane === "preview";
 
+  let lineMark: HTMLElement | null = null;
+  let lineMarkTimer = 0;
+
+  const lineTarget = (
+    el: HTMLElement,
+    lines: readonly string[],
+    start: number,
+    line: number,
+    end: number,
+  ): { readonly box: DOMRect; readonly height: number } => {
+    const box = el.getBoundingClientRect();
+    const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 24;
+    const before = lines.slice(start, line).filter((l) => l.trim());
+    if (el instanceof HTMLTableElement) {
+      const rows = before.filter((l) => !/^[\s|:-]*-[\s|:-]*$/.test(l));
+      const index = rows.length - (el.tHead ? 0 : 1);
+      const row = el.rows[Math.min(Math.max(index, 0), el.rows.length - 1)];
+      if (row) {
+        const rect = row.getBoundingClientRect();
+        return { box: rect, height: rect.height };
+      }
+    }
+    if (el instanceof HTMLOListElement || el instanceof HTMLUListElement) {
+      const indent = /^\s*/.exec(lines[start] ?? "")![0].length;
+      const marker = /^(\s*)(?:[-*+]|\d+[.)])\s/;
+      const count = before.filter((l) => {
+        const m = marker.exec(l);
+        return m && m[1]!.length === indent;
+      }).length;
+      const current = marker.exec(lines[line] ?? "");
+      const index =
+        current && current[1]!.length === indent ? count : count - 1;
+      const items = [...el.children].filter((c) => c.tagName === "LI");
+      const item = items[Math.min(Math.max(index, 0), items.length - 1)];
+      if (item) {
+        const rect = item.getBoundingClientRect();
+        return { box: rect, height: Math.min(rect.height, lineHeight) };
+      }
+    }
+    const filled = lines.slice(start, end).filter((l) => l.trim()).length;
+    const fraction = filled > 1 ? before.length / filled : 0;
+    const top = Math.min(
+      box.top + fraction * box.height,
+      box.top + Math.max(box.height - lineHeight, 0),
+    );
+    return {
+      box: new DOMRect(box.left, top, box.width, lineHeight),
+      height: lineHeight,
+    };
+  };
+
+  const revealLine = (line: number): void => {
+    const blocks = [...body.children].filter(
+      (el): el is HTMLElement =>
+        el instanceof HTMLElement && el.dataset.line !== undefined,
+    );
+    if (!blocks.length) return;
+    let k = 0;
+    while (k + 1 < blocks.length && Number(blocks[k + 1]!.dataset.line) <= line)
+      k++;
+    const el = blocks[k]!;
+    const lines = area.value.split("\n");
+    const start = Number(el.dataset.line);
+    const next = blocks[k + 1];
+    const end = next ? Number(next.dataset.line) : lines.length;
+    const { box, height } = lineTarget(el, lines, start, line, end);
+    const frame = body.getBoundingClientRect();
+    const at = box.top - frame.top - body.clientTop + body.scrollTop;
+    const inset = head.offsetHeight;
+    const top = body.scrollTop + inset;
+    const room = body.clientHeight - inset;
+    if (at < top + room * 0.15 || at + height > top + room * 0.85)
+      body.scrollTop = at - inset - room * 0.35;
+    const left = el.getBoundingClientRect().left - frame.left - body.clientLeft;
+    lineMark ??= document.createElement("div");
+    lineMark.className = "sync-mark";
+    lineMark.style.top = at + "px";
+    lineMark.style.left = left - 6 + "px";
+    lineMark.style.width = el.offsetWidth + 12 + "px";
+    lineMark.style.height = height + "px";
+    lineMark.classList.remove("is-fading");
+    body.append(lineMark);
+    clearTimeout(lineMarkTimer);
+    lineMarkTimer = window.setTimeout(
+      () => lineMark?.classList.add("is-fading"),
+      900,
+    );
+  };
+
+  const syncToCaret = async (): Promise<void> => {
+    if (!previewShown() || document.activeElement !== area) return;
+    const caret = area.selectionStart;
+    if (caret === syncedAt) return;
+    if (area.dataset.layout) body.dataset.layout = area.dataset.layout;
+    else delete body.dataset.layout;
+    const view = pdfView;
+    if (!texMode) {
+      if (view || source || !shownHtml) return;
+      syncedAt = caret;
+      revealLine(area.value.slice(0, caret).split("\n").length - 1);
+      return;
+    }
+    if (!view) return;
+    syncedAt = caret;
+    const { locate, sourceWords } = await import("./texsync.ts");
+    const text = area.value;
+    if (sourceCache?.text !== text)
+      sourceCache = { text, words: sourceWords(text) };
+    const words = sourceCache.words;
+    const pdf = await view.words();
+    if (view !== pdfView) return;
+    const hit = locate(words, caret, pdf);
+    if (hit) view.reveal(hit.page, hit.y);
+  };
+
+  function scheduleSync(): void {
+    clearTimeout(syncTimer);
+    syncTimer = window.setTimeout(() => void syncToCaret(), 250);
+  }
+
+  const onSelection = (): void => {
+    if (document.activeElement === area) scheduleSync();
+  };
+  document.addEventListener("selectionchange", onSelection);
+
   const showPdfBytes = async (
     bytes: Uint8Array<ArrayBuffer>,
     seq: number,
@@ -660,6 +791,8 @@ export function initPreview(
     panel.classList.remove("is-blank");
     body.classList.remove("is-empty");
     body.scrollTop = scroll;
+    syncedAt = -1;
+    scheduleSync();
     return true;
   };
 
@@ -1077,6 +1210,9 @@ export function initPreview(
       offTexImages?.();
       imageEdit.destroy();
       if (typingTimer) clearTimeout(typingTimer);
+      clearTimeout(syncTimer);
+      clearTimeout(lineMarkTimer);
+      document.removeEventListener("selectionchange", onSelection);
       area.removeEventListener("input", onTyping);
       area.removeEventListener("input", update);
       tidy.remove();
