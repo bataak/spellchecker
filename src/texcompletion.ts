@@ -27,6 +27,7 @@ const COMMANDS = [
   "section*{#}",
   "subsection*{#}",
   "paragraph{#}",
+  "par",
   "chapter{#}",
   "part{#}",
   "textbf{#}",
@@ -334,6 +335,17 @@ export function completions(context: CompletionContext): Completion[] {
   return found;
 }
 
+export function unchanged(
+  context: CompletionContext,
+  item: Completion,
+): boolean {
+  return (
+    context.kind === "cmd" &&
+    item.snippet === item.label &&
+    item.label === context.prefix
+  );
+}
+
 function lineIndent(text: string, at: number): string {
   const lineStart = text.lastIndexOf("\n", at - 1) + 1;
   const match = /^[ \t]*/.exec(text.slice(lineStart, at));
@@ -349,7 +361,8 @@ export function expand(
   if (context.kind === "cmd") {
     const body = "\\" + item.snippet;
     const mark = body.indexOf("#");
-    const inserted = mark < 0 ? body : body.slice(0, mark) + body.slice(mark + 1);
+    const inserted =
+      mark < 0 ? body : body.slice(0, mark) + body.slice(mark + 1);
     return {
       from: context.from,
       to: caret,

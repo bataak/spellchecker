@@ -1,6 +1,11 @@
 import "./texcomplete.css";
 import { replaceRange } from "./editortext.ts";
-import { completionContext, completions, expand } from "./texcompletion.ts";
+import {
+  completionContext,
+  completions,
+  expand,
+  unchanged,
+} from "./texcompletion.ts";
 import type { Completion, CompletionContext } from "./texcompletion.ts";
 
 export interface TexCompleteDeps {
@@ -144,6 +149,7 @@ export function initTexComplete(deps: TexCompleteDeps): void {
     const caret = editor.selectionStart;
     const edit = expand(editor.value, caret, context, item);
     const image = context.kind === "cmd" && item.label === "includegraphics";
+    if (unchanged(context, item)) dismissedAt = context.from;
     close();
     editor.focus({ preventScroll: true });
     applying = true;
@@ -184,6 +190,16 @@ export function initTexComplete(deps: TexCompleteDeps): void {
         case "Enter":
         case "Tab":
           if (e.shiftKey) {
+            close();
+            return;
+          }
+          if (
+            e.key === "Enter" &&
+            context &&
+            items[index] &&
+            unchanged(context, items[index])
+          ) {
+            dismissedAt = context.from;
             close();
             return;
           }
