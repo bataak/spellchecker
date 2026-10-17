@@ -86,3 +86,60 @@ test("хоосон үед юу ч олохгүй", () => {
   assert.equal(locate([], 0, pdf), null);
   assert.equal(locate(sourceWords(TEX), 0, []), null);
 });
+
+const PHRASE =
+  "энэ хэллэг баримтад гурван удаа яг ижил үгээр давтагдан бичигдсэн байгаа юм";
+
+function filler(word: string, count: number): string {
+  return Array.from({ length: count }, (_, i) => word + i).join(" ");
+}
+
+test("давтагдсан хэллэгийн хэд дэхийг тоолж олно", () => {
+  const tex = [
+    PHRASE,
+    filler("эхний", 10),
+    PHRASE,
+    filler("хоёрдахь", 10),
+    PHRASE,
+  ].join("\n");
+  const pages = [
+    [
+      { text: PHRASE, y: 700 },
+      { text: filler("оруулсан", 200), y: 600 },
+    ],
+    [
+      { text: PHRASE, y: 500 },
+      { text: filler("хоёрдахь", 10), y: 400 },
+    ],
+    [{ text: PHRASE, y: 300 }],
+  ];
+  const words = pdfWords(pages, [800, 800, 800]);
+  const src = sourceWords(tex);
+  const middle = (n: number): number => {
+    let at = -1;
+    for (let i = 0; i <= n; i++) at = tex.indexOf(PHRASE, at + 1);
+    return at + PHRASE.indexOf("ижил");
+  };
+  assert.equal(locate(src, middle(0), words)!.page, 1);
+  assert.equal(locate(src, middle(1), words)!.page, 2);
+  assert.equal(locate(src, middle(2), words)!.page, 3);
+});
+
+test("гарчгийн жагсаалтад давхардсан гарчгийг алгасна", () => {
+  const heading = "Хувиргагч архитектурын үндсэн бүтэц ба ажиллах зарчим";
+  const tex = [
+    "\\tableofcontents",
+    "\\section{" + heading + "}",
+    "Энд догол мөрийн бичвэр байна.",
+  ].join("\n");
+  const pages = [
+    [{ text: "1 " + heading + " 2", y: 700 }],
+    [
+      { text: "1 " + heading, y: 700 },
+      { text: "Энд догол мөрийн бичвэр байна.", y: 680 },
+    ],
+  ];
+  const words = pdfWords(pages, [800, 800]);
+  const hit = locate(sourceWords(tex), tex.indexOf("бүтэц"), words)!;
+  assert.equal(hit.page, 2);
+});
