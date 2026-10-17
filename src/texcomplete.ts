@@ -230,6 +230,11 @@ export function initTexComplete(deps: TexCompleteDeps): void {
     if (list.hidden) return;
     if (e.inputType !== "insertLineBreak" && e.inputType !== "insertParagraph")
       return;
+    if (context && items[index] && unchanged(context, items[index])) {
+      dismissedAt = context.from;
+      close();
+      return;
+    }
     e.preventDefault();
     accept();
   });
