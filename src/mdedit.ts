@@ -337,6 +337,36 @@ function inFence(text: string, caret: number): boolean {
   return inRanges(codeRanges(text), caret);
 }
 
+const MATH_OPEN: Record<string, string> = { $$: "$$", "\\[": "\\]" };
+
+function inMath(text: string, caret: number): boolean {
+  if (!text.includes("$$") && !text.includes("\\[")) return false;
+  const code = codeRanges(text);
+  let close: string | null = null;
+  let at = 0;
+  while (at <= caret) {
+    const end = Math.min(lineEndAt(text, at), caret);
+    if (!inRanges(code, at)) {
+      const line = text.slice(at, end).trim();
+      if (close) {
+        if (line.includes(close)) close = null;
+      } else {
+        const opener = line.startsWith("$$")
+          ? "$$"
+          : line.startsWith("\\[")
+            ? "\\["
+            : "";
+        if (opener) {
+          const shut = MATH_OPEN[opener]!;
+          if (!line.slice(opener.length).includes(shut)) close = shut;
+        }
+      }
+    }
+    at = end + 1;
+  }
+  return close !== null;
+}
+
 export function enterInsert(text: string, caret: number): "\n" | "\n\n" {
   const from = lineStartAt(text, caret);
   const to = lineEndAt(text, caret);
@@ -347,6 +377,7 @@ export function enterInsert(text: string, caret: number): "\n" | "\n\n" {
   if (ANY_QUOTE.test(line)) return "\n";
   if (inTable(text, from, to, line)) return "\n";
   if (inFence(text, caret)) return "\n";
+  if (inMath(text, caret)) return "\n";
 
   return "\n\n";
 }
