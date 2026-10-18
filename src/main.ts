@@ -32,13 +32,14 @@ import { initSaveHints } from "./savehints.ts";
 import { createPdfSaver, missingNote, setSaveBusy } from "./savepdf.ts";
 import { zipTexText } from "./tex/texzip.ts";
 import { createPreviewMode } from "./previewmode.ts";
+import { createDocMode } from "./docmode.ts";
 import { initProjectLink, type ProjectLink } from "./project/projectlink.ts";
 import { FILE_LIMIT, PROJECT_SLOT, isFileSlot } from "./fileslots.ts";
 import { onProjectChange, project } from "./project/projectstore.ts";
 import { KEYS, read, write } from "./store.ts";
 
 import { escapeHtml } from "./htmlutil.ts";
-import { looksLatex, mergeRanges } from "./spell/codeskip.ts";
+import { mergeRanges } from "./spell/codeskip.ts";
 import { isDashSuffix, buildErrorList } from "./spell/textcheck.ts";
 import { saveDraftFile, loadDraftFile } from "./storage.ts";
 import { initMdToolbar, sharedSlot } from "./mdtoolbar.ts";
@@ -228,20 +229,15 @@ function debounce<A extends unknown[]>(
   };
 }
 
-const TEX_NAME_RE = /\.(tex|ltx)$/i;
+const docMode = createDocMode({
+  officeActive: () => office.active() !== null,
+  projectBound: () => projectLink?.bound() ?? false,
+  fileName: () => plainName,
+});
 
 function isLatexText(text: string): boolean {
-  if (office.active()) return false;
-  if (inProject || projectLink?.bound()) return true;
-  if (plainName) return TEX_NAME_RE.test(plainName);
-  return texTemplate || looksLatex(text);
+  return docMode.isLatex(text);
 }
-
-const TEX_TEMPLATE = "article";
-let texTemplate = false;
-let inProject = false;
-const CHECK_TEMPLATES: ReadonlySet<string> = new Set([PLAIN, "plain2"]);
-let checkTemplate = false;
 
 function isTexFile(): boolean {
   return isLatexText(els.editor.value);
@@ -657,7 +653,7 @@ els.editor.addEventListener("input", (event) => {
 });
 const clean = initClean({
   ...fixButtonDeps,
-  skip: () => !checkTemplate || isTexFile(),
+  skip: () => !docMode.checksLetters() || isTexFile(),
 });
 function syncFixButtons(): void {
   decode.sync();
@@ -972,9 +968,7 @@ const mdBar = initMdToolbar({
   onLeave: (from) => slots.leave(from),
   onTemplate: (id, from) => {
     previewMode.templateChanged();
-    texTemplate = id === TEX_TEMPLATE;
-    inProject = id === PROJECT_SLOT;
-    checkTemplate = CHECK_TEMPLATES.has(id);
+    docMode.setTemplate(id);
     clean.sync();
     if (from !== mdBar.slot()) slots.enter(mdBar.slot());
     syncTexMode();
@@ -1019,9 +1013,7 @@ const nudgeHints = initHints(() => {
 });
 let exportCtl: ExportControl | null = null;
 
-texTemplate = mdBar.template() === TEX_TEMPLATE;
-inProject = mdBar.template() === PROJECT_SLOT;
-checkTemplate = CHECK_TEMPLATES.has(mdBar.template());
+docMode.setTemplate(mdBar.template());
 clean.sync();
 lastTex = isTexFile();
 applyTexPaint(lastTex);
