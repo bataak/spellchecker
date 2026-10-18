@@ -1,4 +1,10 @@
-import { baseName, dirName, joinPath, skippedPath } from "../tex/texproject.ts";
+import {
+  baseName,
+  dirName,
+  joinPath,
+  movedPath,
+  skippedPath,
+} from "../tex/texproject.ts";
 import { ProjectError } from "./projecterror.ts";
 
 const MAX_FILES = 3000;
@@ -136,4 +142,41 @@ export async function copyDir(
     await stream.write(file);
     await stream.close();
   }
+}
+
+export async function moveEntry(
+  root: FileSystemDirectoryHandle,
+  move: {
+    readonly from: string;
+    readonly source: string;
+    readonly target: string;
+    readonly dir: boolean;
+  },
+  files: Iterable<readonly [string, Uint8Array | string]>,
+): Promise<void> {
+  const { from, source, target } = move;
+  if (move.dir) {
+    let dir: FileSystemDirectoryHandle;
+    try {
+      dir = await dirHandleFor(root, source, false);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "NotFoundError")
+        return;
+      throw error;
+    }
+    await copyDir(dir, await dirHandleFor(root, target, true));
+    await removeEntry(root, source);
+    return;
+  }
+  for (const [path, data] of files) {
+    const next = movedPath(path, from, target);
+    if (next === null) continue;
+    if (typeof data !== "string") {
+      await writeEntry(root, next, data);
+      continue;
+    }
+    const bytes = await readEntry(root, movedPath(path, from, source) ?? path);
+    await writeEntry(root, next, bytes ?? data);
+  }
+  await removeEntry(root, source);
 }
