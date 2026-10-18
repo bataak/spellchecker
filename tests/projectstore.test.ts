@@ -10,6 +10,7 @@ import {
   projectHas,
   projectText,
   renamePath,
+  saveProject,
   setProjectText,
 } from "../src/projectstore.ts";
 
@@ -72,4 +73,35 @@ test("баталгаажуулсны дараа файлыг солиход ха
   assert.equal(root.read("a.tex"), "шинэ");
   assert.equal(projectText("a.tex"), "шинэ");
   assert.equal(project()?.dirty.has("a.tex"), false);
+});
+
+test("folder горимд оруулсан шинэ файлыг хадгалахад татна", async (t) => {
+  const names: string[] = [];
+  const saved = (globalThis as { document?: unknown }).document;
+  (globalThis as { document?: unknown }).document = {
+    createElement: () => ({
+      set download(name: string) {
+        names.push(name);
+      },
+      click() {},
+      remove() {},
+    }),
+    body: { append() {} },
+  };
+  t.after(() => {
+    (globalThis as { document?: unknown }).document = saved;
+  });
+  const root = new FakeDir("төсөл", "denied");
+  root.put("main.tex", MAIN);
+  await openDirHandle(root.asHandle());
+  assert.equal(project()?.kind, "folder");
+
+  await addFile("new.tex", new TextEncoder().encode("шинэ"));
+  await addFile("fig.png", new Uint8Array([1, 2]));
+
+  assert.equal(project()?.unsaved, true);
+  assert.equal(await saveProject(), "files");
+  assert.deepEqual(names.sort(), ["fig.png", "new.tex"]);
+  assert.equal(project()?.unsaved, false);
+  assert.equal(await saveProject(), "clean");
 });

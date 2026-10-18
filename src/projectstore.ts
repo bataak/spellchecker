@@ -98,6 +98,7 @@ interface State {
   texts: Map<string, string>;
   saved: Map<string, string>;
   added: Set<string>;
+  fresh: Set<string>;
   dirty: Set<string>;
   dirs: Set<string>;
   main: string | null;
@@ -155,7 +156,8 @@ export function project(): ProjectView | null {
     main: s.main,
     active: s.active,
     dirty,
-    unsaved: dirty.size > 0 || (s.kind === "memory" && s.unsynced),
+    unsaved:
+      dirty.size > 0 || s.fresh.size > 0 || (s.kind === "memory" && s.unsynced),
     pending: s.pending,
     version: s.version,
     exportedAt: s.exportedAt,
@@ -410,6 +412,7 @@ function fromEntries(
     texts,
     saved: new Map(texts),
     added: new Set(),
+    fresh: new Set(),
     dirty: new Set(),
     dirs: new Set(dirs),
     main: findMain(texts),
@@ -931,6 +934,7 @@ export async function addFile(path: string, bytes: Uint8Array): Promise<void> {
     s.saved.set(clean, text);
     s.added.delete(clean);
   } else s.binaries.set(clean, bytes);
+  if (s.kind === "folder") s.fresh.add(clean);
   for (const dir of parentDirs(clean)) s.dirs.add(dir);
   s.unsynced = true;
   recountDirty(s);
@@ -1041,6 +1045,9 @@ export async function renamePath(from: string, to: string): Promise<void> {
   s.added = new Set(
     [...s.added].map((path) => movedPath(path, from, target) ?? path),
   );
+  s.fresh = new Set(
+    [...s.fresh].map((path) => movedPath(path, from, target) ?? path),
+  );
   s.dirs = new Set(
     [...s.dirs].map((dir) => movedPath(dir, from, target) ?? dir),
   );
@@ -1058,6 +1065,7 @@ export async function removePath(path: string): Promise<void> {
   for (const map of [s.texts, s.saved, s.binaries] as Map<string, unknown>[])
     for (const key of [...map.keys()]) if (within(key, path)) map.delete(key);
   for (const key of [...s.added]) if (within(key, path)) s.added.delete(key);
+  for (const key of [...s.fresh]) if (within(key, path)) s.fresh.delete(key);
   for (const key of [...s.crlf]) if (within(key, path)) s.crlf.delete(key);
   for (const dir of [...s.dirs]) if (within(dir, path)) s.dirs.delete(dir);
   if (s.main && within(s.main, path)) s.main = findMain(s.texts);
@@ -1103,18 +1111,31 @@ export async function saveProject(): Promise<SaveResult> {
     return "saved";
   }
   if (s.kind === "folder") {
-    const dirty = [...dirtySet(s)].filter((path) => s.texts.has(path));
-    if (!dirty.length) return "clean";
-    for (const path of dirty) {
-      const text = s.texts.get(path)!;
-      download(
-        new Blob([diskText(s, path, text)], {
-          type: "text/plain;charset=utf-8",
-        }),
-        baseName(path),
-      );
-      s.saved.set(path, text);
-      s.added.delete(path);
+    const paths = new Set([
+      ...[...dirtySet(s)].filter((path) => s.texts.has(path)),
+      ...s.fresh,
+    ]);
+    if (!paths.size) return "clean";
+    for (const path of paths) {
+      const text = s.texts.get(path);
+      if (text === undefined) {
+        const bytes = s.binaries.get(path);
+        if (bytes)
+          download(
+            new Blob([bytes as Uint8Array<ArrayBuffer>]),
+            baseName(path),
+          );
+      } else {
+        download(
+          new Blob([diskText(s, path, text)], {
+            type: "text/plain;charset=utf-8",
+          }),
+          baseName(path),
+        );
+        s.saved.set(path, text);
+        s.added.delete(path);
+      }
+      s.fresh.delete(path);
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
     s.unsynced = false;
