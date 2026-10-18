@@ -167,8 +167,12 @@ export function mergeRanges(ranges: SkipRange[]): SkipRange[] {
   return merged;
 }
 
-const BARE_URL = /\b(?:https?|ftps?|mailto|file):\/*[^\s<>()[\]"'`]+/gi;
-const WWW_URL = /\bwww\.[^\s<>()[\]"'`]+/gi;
+const URL_CHARS = String.raw`(?:[^\s<>()[\]"'\`]|\([^\s<>()[\]"'\`]*\))`;
+const BARE_URL = new RegExp(
+  String.raw`\b(?:https?|ftps?|mailto|file):\/*${URL_CHARS}+`,
+  "gi",
+);
+const WWW_URL = new RegExp(String.raw`\bwww\.${URL_CHARS}+`, "gi");
 const MD_TARGET = /\]\(\s*((?:[^()]|\([^()]*\))*)\)/g;
 const MD_ATTRS = /\]\((?:[^()]|\([^()]*\))*\)(\{[^{}\n]*\})/g;
 const MD_DEFINITION = /^[ \t]{0,3}\[[^\]]+\]:[ \t]*(\S+)/gm;
@@ -177,7 +181,7 @@ const TLD =
   "com|org|net|io|dev|mn|edu|gov|info|app|ai|co|me|ru|uk|de|fr|jp|cn|kr|tv|xyz|tech|online|site|page|blog|cloud|sh|gg";
 
 const DOMAIN = new RegExp(
-  String.raw`\b(?:[A-Za-z0-9][A-Za-z0-9-]*\.)+(?:${TLD})\b(?:\/[^\s<>()[\]"'\`]*)?`,
+  String.raw`\b(?:[A-Za-z0-9][A-Za-z0-9-]*\.)+(?:${TLD})\b(?:\/${URL_CHARS}*)?`,
   "g",
 );
 
