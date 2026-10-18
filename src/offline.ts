@@ -92,3 +92,44 @@ export function dictStatusMessage(
   }
   return msg;
 }
+
+export interface OfflineIndicatorDeps {
+  readonly idle: () => boolean;
+  readonly setStatus: (html: string, animate?: boolean) => void;
+  readonly base: () => string;
+  readonly setActive: (on: boolean) => void;
+}
+
+const wait = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+export async function runOfflineIndicator(
+  deps: OfflineIndicatorDeps,
+): Promise<void> {
+  const transient = (message: string, animate = true): void => {
+    if (deps.idle()) deps.setStatus(message, animate);
+  };
+
+  if (import.meta.env.DEV || !offlineCapable()) {
+    if (deps.idle()) deps.setStatus(deps.base());
+    return;
+  }
+
+  deps.setActive(true);
+  transient("Офлайн горимд ажиллахад бэлтгэж байна…");
+
+  let ready = await isOfflineReady();
+  const deadline = Date.now() + 20000;
+  while (!ready && Date.now() < deadline) {
+    await wait(700);
+    ready = await isOfflineReady();
+  }
+
+  if (ready) {
+    transient("Офлайн горимд ажиллахад бэлэн", false);
+    await wait(1500);
+  }
+
+  deps.setActive(false);
+  if (deps.idle()) deps.setStatus(deps.base());
+}
