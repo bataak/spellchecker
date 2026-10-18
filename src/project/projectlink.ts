@@ -44,26 +44,36 @@ import type { PreviewSource } from "../preview/preview.ts";
 import { onSwap, swapOrigin, swapText } from "../editortext.ts";
 import { KEYS, read, remove, write } from "../store.ts";
 
+export interface SlotFile {
+  readonly id: string;
+  readonly name: string;
+  readonly text: string | null;
+}
+
+export interface SlotPort {
+  readonly current: () => string;
+  readonly inProject: () => boolean;
+  readonly enterProject: () => void;
+  readonly close: (id: string) => void;
+  readonly files: () => SlotFile[];
+}
+
+export interface OpenFilePort {
+  readonly name: () => string | null;
+  readonly handle: () => FileSystemFileHandle | null;
+  readonly bind: (name: string | null) => void;
+}
+
 export interface ProjectLinkDeps {
   readonly editor: HTMLTextAreaElement;
   readonly workspace: HTMLElement;
   readonly tools: () => HTMLElement | null;
-  readonly slot: () => string;
-  readonly fileName: () => string | null;
-  readonly fileHandle: () => FileSystemFileHandle | null;
+  readonly slots: SlotPort;
+  readonly file: OpenFilePort;
   readonly texActive: () => boolean;
-  readonly bindName: (name: string | null) => void;
   readonly afterSwitch: () => void;
   readonly onChange: () => void;
   readonly onProject: (name: string | null) => void;
-  readonly inSlot: () => boolean;
-  readonly enterSlot: () => void;
-  readonly closeFileSlot: (id: string) => void;
-  readonly fileSlots: () => {
-    id: string;
-    name: string;
-    text: string | null;
-  }[];
   readonly layout: () => void;
   readonly notify: (message: string) => void;
   readonly show: (source: PreviewSource | null) => void;
@@ -134,7 +144,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     boundId = project()?.id ?? 0;
     detached = false;
     setLinked(true);
-    storeSlot(deps.slot());
+    storeSlot(deps.slots.current());
   };
 
   const unbind = (forget: boolean): void => {
@@ -152,10 +162,10 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     const view = project();
     if (!view || view.pending) return;
     if (projectText(path) === null) return;
-    if (!deps.inSlot()) {
+    if (!deps.slots.inProject()) {
       entering = true;
       try {
-        deps.enterSlot();
+        deps.slots.enterProject();
       } finally {
         entering = false;
       }
@@ -171,7 +181,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     bound = false;
     setActive(path);
     bind(path);
-    deps.bindName(baseName(path));
+    deps.file.bind(baseName(path));
     load(text, places.get(path) ?? null);
   };
 
@@ -190,11 +200,11 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
   const adopt = (strict: boolean): void => {
     const view = project();
     if (!view?.active || view.pending || bound) return;
-    if (deps.fileName() !== baseName(view.active)) return;
+    if (deps.file.name() !== baseName(view.active)) return;
     if (
       strict
         ? projectText(view.active) !== editor.value
-        : storedSlot() !== deps.slot()
+        : storedSlot() !== deps.slots.current()
     )
       return;
     bind(view.active);
@@ -212,15 +222,15 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     const view = project();
     if (!view?.active) return;
     if (!fresh) {
-      if (deps.inSlot()) adopt(false);
+      if (deps.slots.inProject()) adopt(false);
       if (!bound) openFile(view.active);
       absorb();
       return;
     }
-    const fromSlot = deps.slot();
+    const fromSlot = deps.slots.current();
     const fromText = editor.value;
     const target =
-      prefer !== undefined && deps.fileName() === prefer
+      prefer !== undefined && deps.file.name() === prefer
         ? locateFile(view.files, prefer, fromText, projectText)
         : null;
     if (target !== null) {
@@ -231,23 +241,23 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
       else if (main !== null && projectText(main) !== null) setMain(main);
     }
     openFile(target ?? view.active);
-    if (target !== null && fromSlot !== deps.slot())
-      deps.closeFileSlot(fromSlot);
+    if (target !== null && fromSlot !== deps.slots.current())
+      deps.slots.close(fromSlot);
     absorb();
   };
 
   const absorb = (): void => {
     const view = project();
     if (!view || view.pending) return;
-    for (const slot of deps.fileSlots()) {
-      if (slot.text === null || slot.id === deps.slot()) continue;
+    for (const slot of deps.slots.files()) {
+      if (slot.text === null || slot.id === deps.slots.current()) continue;
       const text = slot.text;
       const same = findSameFile(
         view.files,
         slot.name,
         (path) => projectText(path) === text,
       );
-      if (same !== undefined) deps.closeFileSlot(slot.id);
+      if (same !== undefined) deps.slots.close(slot.id);
     }
   };
 
@@ -270,7 +280,8 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     workspace: deps.workspace,
     tools: deps.tools,
     texActive: () => bound || deps.texActive(),
-    away: () => (hasProject() && !deps.inSlot() ? deps.slot() : null),
+    away: () =>
+      hasProject() && !deps.slots.inProject() ? deps.slots.current() : null,
     openFile,
     view: (path) => {
       if (path === null) {
@@ -295,9 +306,9 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     beforeOpen: () => confirmReplace(project()?.unsaved),
     onOpened: opened,
     openedFile: () => {
-      const name = deps.fileName();
+      const name = deps.file.name();
       return isTexName(name) && !bound
-        ? { name, handle: deps.fileHandle(), master: texMaster(editor.value) }
+        ? { name, handle: deps.file.handle(), master: texMaster(editor.value) }
         : null;
     },
     onClosed: () => storeSlot(null),
@@ -306,7 +317,8 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
   });
 
   onSwap((origin) => {
-    if (origin !== "project" && bound && !deps.inSlot()) detached = true;
+    if (origin !== "project" && bound && !deps.slots.inProject())
+      detached = true;
   });
 
   editor.addEventListener("input", (event) => {
@@ -325,7 +337,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     }
     if (bound && !view) {
       unbind(true);
-      deps.bindName(null);
+      deps.file.bind(null);
       deps.afterSwitch();
     } else if (bound && view && view.id !== boundId) {
       unbind(false);
@@ -334,7 +346,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
         unbind(false);
         if (view.main) openFile(view.main);
         else {
-          deps.bindName(null);
+          deps.file.bind(null);
           deps.afterSwitch();
         }
         return;
@@ -344,7 +356,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
         if (moved && boundPath) places.delete(boundPath);
         boundPath = view.active;
         if (moved) places.set(view.active, moved);
-        deps.bindName(baseName(view.active));
+        deps.file.bind(baseName(view.active));
       }
       const text = boundPath === null ? null : projectText(boundPath);
       if (
@@ -410,7 +422,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     },
     async openDir(handle) {
       if (!confirmReplace(project()?.unsaved)) return;
-      const name = deps.fileName();
+      const name = deps.file.name();
       const prefer = isTexName(name) && !bound ? name : undefined;
       try {
         await openDirHandle(handle);

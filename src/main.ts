@@ -25,7 +25,7 @@ import { getIgnored, onIgnoredChange } from "./spell/ignore.ts";
 import type { Token } from "./spell/textcheck.ts";
 import { initIgnoreList } from "./ignorelist.ts";
 import { initAppearance } from "./appearance.ts";
-import { mountMeasureControl, type MeasureControl } from "./measure.ts";
+import { initMeasureControl, type MeasureControl } from "./measure.ts";
 import { initPreview, type Preview } from "./preview/preview.ts";
 import { initPaneToggle, type PaneToggle } from "./panetoggle.ts";
 import { initSaveHints } from "./savehints.ts";
@@ -803,7 +803,7 @@ initAppearance();
 const editorWrap = els.editor.closest<HTMLElement>(".editor-wrap");
 let measureCtl: MeasureControl | null = null;
 if (editorWrap) {
-  measureCtl = mountMeasureControl(editorWrap, els.editor, (l) => {
+  measureCtl = initMeasureControl(editorWrap, els.editor, (l) => {
     defDock.sync(l.panel);
     paneCtl?.sync();
     if (l.preview) previewCtl?.update();
@@ -1031,18 +1031,26 @@ if (workspaceEl)
     workspace: workspaceEl,
     tools: () =>
       editorWrap?.querySelector<HTMLElement>(".editor-tools") ?? null,
-    slot: () => mdBar.slot(),
-    fileName: () => plainName,
-    fileHandle: () => fileIO.targetHandle(),
-    texActive: isTexFile,
-    bindName: (name) => {
-      fileIO.putFile(name ? { handle: null, name } : null);
-      plainName = name;
-      saveDraftFile(name ? { name, kind: "text" } : null, mdBar.slot());
-      syncSaveHint();
-      mdBar.refresh();
-      restoreStatus();
+    slots: {
+      current: () => mdBar.slot(),
+      inProject: () => mdBar.template() === PROJECT_SLOT,
+      enterProject: () => mdBar.enterProject(),
+      close: (id) => mdBar.closeFile(id, true),
+      files: () => mdBar.fileSlots(),
     },
+    file: {
+      name: () => plainName,
+      handle: () => fileIO.targetHandle(),
+      bind: (name) => {
+        fileIO.putFile(name ? { handle: null, name } : null);
+        plainName = name;
+        saveDraftFile(name ? { name, kind: "text" } : null, mdBar.slot());
+        syncSaveHint();
+        mdBar.refresh();
+        restoreStatus();
+      },
+    },
+    texActive: isTexFile,
     afterSwitch: () => {
       undoCtl?.baseline();
       syncTexMode();
@@ -1054,10 +1062,6 @@ if (workspaceEl)
       mdBar.setProject(name);
       if (name === null) mdBar.leaveProject();
     },
-    inSlot: () => mdBar.template() === PROJECT_SLOT,
-    enterSlot: () => mdBar.enterProject(),
-    closeFileSlot: (id) => mdBar.closeFile(id, true),
-    fileSlots: () => mdBar.fileSlots(),
     onChange: () => {
       syncTexMode();
       previewCtl?.update();
