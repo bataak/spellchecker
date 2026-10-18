@@ -163,3 +163,34 @@ test("хоёр табад нэг төслийн өөр файлын засвар
   assert.ok(sty.endsWith("% Б-гийн засвар"), sty);
   assert.ok(sty.includes("\\ProvidesPackage"));
 });
+
+test("урт хадгалаагүй файлыг өөр цонхноос хаахад асууна", async () => {
+  const context = await app.context();
+  const a = await openPage(app, context);
+  await openFile(a, app.files.a);
+  await a.evaluate(() => {
+    const box = document.querySelector<HTMLTextAreaElement>("#editor")!;
+    box.value = "урт ".repeat(60000);
+    box.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await settle(a);
+  await chooseSlot(a, "Бичвэр 1");
+  await a.click(".md-template");
+  const asked = await a.evaluate(() => {
+    const id = (
+      JSON.parse(localStorage.getItem("mdFiles")!) as { id: string }[]
+    )[0]!.id;
+    const messages: string[] = [];
+    window.confirm = (message) => {
+      messages.push(String(message));
+      return false;
+    };
+    document
+      .querySelector<HTMLElement>(`.md-menu-close[data-close="${id}"]`)
+      ?.click();
+    return { messages, kept: localStorage.getItem("mdFiles")!.includes(id) };
+  });
+  assert.equal(asked.messages.length, 1);
+  assert.match(asked.messages[0]!, /хадгалагдаагүй/);
+  assert.ok(asked.kept);
+});
