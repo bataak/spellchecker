@@ -506,7 +506,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   function isDirty(slot: FileSlot): boolean {
     if (slot.sum === null) return false;
     const text = slotText(slot);
-    return text !== null && textSum(text) !== slot.sum;
+    return text === null || textSum(text) !== slot.sum;
   }
 
   function rebuildMenu(): void {
