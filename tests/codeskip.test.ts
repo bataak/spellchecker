@@ -432,3 +432,31 @@ test("fencedCode: зөвхөн хаагдсан кодын блокийг буц
   assert.deepEqual(fencedCode("helo\n```\nhelo"), []);
   assert.deepEqual(fencedCode("`helo` ба helo"), []);
 });
+
+test("a bare url keeps balanced parentheses", () => {
+  const text = "Холбоос https://example.com/(алдаатй) энд.";
+  const ranges = skipRanges(text);
+
+  assert.ok(inRanges(ranges, text.indexOf("алдаатй")));
+  assert.ok(!inRanges(ranges, text.indexOf("энд")));
+});
+
+test("a url inside parentheses leaves out the closing one", () => {
+  const text = "(https://example.com/a) алдаатй";
+  const ranges = skipRanges(text);
+
+  assert.ok(inRanges(ranges, text.indexOf("example")));
+  assert.ok(!inRanges(ranges, text.indexOf(")")));
+  assert.ok(!inRanges(ranges, text.indexOf("алдаатй")));
+});
+
+test("www and bare domains keep balanced parentheses", () => {
+  for (const text of [
+    "www.example.com/wiki/Foo_(алдаатй) ба",
+    "example.com/wiki/Foo_(алдаатй) ба",
+  ]) {
+    const ranges = skipRanges(text);
+    assert.ok(inRanges(ranges, text.indexOf("алдаатй")), text);
+    assert.ok(!inRanges(ranges, text.indexOf("ба")), text);
+  }
+});
