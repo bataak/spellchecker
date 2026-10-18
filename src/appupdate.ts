@@ -3,7 +3,7 @@ import { KEYS, at, read, write } from "./store.ts";
 export interface AppUpdate {
   readonly setDictVersion: (version: string | null) => void;
   readonly checkFreshness: () => Promise<void>;
-  readonly recoverStale: () => Promise<boolean>;
+  readonly recoverStale: (deferIfActive?: boolean) => Promise<boolean>;
 }
 
 function swSettled(worker: ServiceWorker): Promise<void> {
@@ -208,14 +208,27 @@ export function initAppUpdate(
     if (ready) armIdleReload();
   }
 
-  async function recoverStale(): Promise<boolean> {
+  async function recoverStale(deferIfActive = false): Promise<boolean> {
     if (appUpdating) return true;
+    const startedAt = Date.now();
     const selfName = entryUrl.split("/").pop();
     const entry = await fetchFreshEntry();
     if (!selfName || !entry || entry.endsWith("/" + selfName)) return false;
     const key = at(KEYS.staleReload, entry);
     if (read(key) || !write(key, "1")) return false;
     freshEntry = entry;
+    if (deferIfActive) {
+      const ready = await prepareOnce();
+      if (appUpdating) return true;
+      if (lastActivity > startedAt) {
+        if (reloadEl) reloadEl.hidden = false;
+        if (ready) armIdleReload();
+        return false;
+      }
+      appUpdating = true;
+      reloadForUpdate();
+      return true;
+    }
     if (reloadEl) reloadEl.hidden = true;
     setStatus("Шинэ хувилбарыг ачаалж байна…");
     void reloadToLatest();
