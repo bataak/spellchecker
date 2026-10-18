@@ -34,6 +34,11 @@ export interface ProjectBuild {
   readonly missing: readonly string[];
 }
 
+export interface TexProject {
+  build(): Promise<ProjectBuild>;
+  digest(): Promise<string | null>;
+}
+
 async function toPng(bytes: Uint8Array): Promise<Uint8Array | null> {
   try {
     const bitmap = await createImageBitmap(

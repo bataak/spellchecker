@@ -1,3 +1,5 @@
+import type { TexProject } from "../project/projectbuild.ts";
+
 const PDF_CACHE = "tex-preview";
 const PDF_TEXT_KEY = "tex-preview/last.tex";
 const CACHED_PDFS = 6;
@@ -94,11 +96,10 @@ async function saveCachedPdf(
 
 export async function digestOf(
   text: string,
-  project: string | null,
+  project: TexProject | null,
 ): Promise<string | null> {
   if (project === null) return textKey(text);
-  const { projectDigest } = await import("../project/projectstore.ts");
-  return projectDigest();
+  return project.digest();
 }
 
 export interface PdfPool {

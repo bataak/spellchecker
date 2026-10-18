@@ -291,18 +291,8 @@ export function createProjectStore() {
     };
   }
 
-  let linked = false;
-
   function hasProject(): boolean {
     return state !== null && !state.pending;
-  }
-
-  function setLinked(on: boolean): void {
-    linked = on;
-  }
-
-  function projectLinked(): boolean {
-    return linked && hasProject();
   }
 
   function projectBinary(path: string): Uint8Array | null {
@@ -1069,8 +1059,6 @@ export function createProjectStore() {
     onProjectChange,
     project,
     hasProject,
-    setLinked,
-    projectLinked,
     projectBinary,
     projectText,
     projectSavedText,
@@ -1102,38 +1090,3 @@ export function createProjectStore() {
 }
 
 export type ProjectStore = ReturnType<typeof createProjectStore>;
-
-export const {
-  onProjectChange,
-  project,
-  hasProject,
-  setLinked,
-  projectLinked,
-  projectBinary,
-  projectText,
-  projectSavedText,
-  projectKey,
-  projectDigest,
-  refreshProject,
-  openDirHandle,
-  pickFolder,
-  openZip,
-  restoreProject,
-  grantProject,
-  closeProject,
-  setProjectText,
-  setActive,
-  setMain,
-  createFile,
-  projectHas,
-  addFile,
-  createDir,
-  renamePath,
-  removePath,
-  projectZip,
-  saveProject,
-  exportZip,
-  projectSnapshot,
-  markExported,
-  projectBuild,
-} = createProjectStore();
