@@ -77,3 +77,26 @@ test("талбар цэвэрлэсний дараа хэвлэх алдааг �
   assert.match(label, /Хэвлэж чадсангүй/);
   assert.match(await status(page), /PDF үүсгэж чадсангүй/);
 });
+
+test("LaTeX командын хаалтуудын хооронд Tab-аар шилжинэ", async () => {
+  const page = await openPage(app, await app.context());
+  await openFile(page, app.files.project);
+  await projectFile(page, "main.tex");
+  await typeAtEnd(page, "$\\frac");
+  await page.waitForSelector(".tex-complete:not([hidden])");
+  await page.keyboard.press("Tab");
+  await page.keyboard.type("a");
+  await page.keyboard.press("Tab");
+  await page.keyboard.type("b");
+  await page.keyboard.press("Tab");
+  await page.keyboard.type("$");
+  assert.ok(
+    (await editor(page)).endsWith("$\\frac{a}{b}$"),
+    await editor(page),
+  );
+  await page.keyboard.press("Tab");
+  assert.notEqual(
+    await page.evaluate(() => document.activeElement?.id),
+    "editor",
+  );
+});
