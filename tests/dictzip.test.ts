@@ -8,7 +8,7 @@ import {
   parseDictZip,
   terminate,
   type DictZip,
-} from "../src/dictzip.ts";
+} from "../src/dict/dictzip.ts";
 
 const CHUNK = 64;
 

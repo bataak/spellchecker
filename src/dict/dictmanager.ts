@@ -1,5 +1,5 @@
 import "./dictmanager.css";
-import type { DictInfo } from "./messages.ts";
+import type { DictInfo } from "../spell/messages.ts";
 import {
   importDictFiles,
   moveItem,

@@ -4,12 +4,12 @@ import {
   placeTip,
   placeTipAtPointer,
 } from "./defmarks.ts";
-import type { DictEntry } from "./stardict.ts";
+import type { DictEntry } from "./dict/stardict.ts";
 import { rangeRectAt } from "./backdrop.ts";
 import { KEYBOARD_LAYOUT_EVENT } from "./kbtoolbar.ts";
 import { escapeHtml } from "./htmlutil.ts";
 import { isTouch } from "./input.ts";
-import type { WordSpan } from "./lookup.ts";
+import type { WordSpan } from "./spell/lookup.ts";
 import { emptyNote, type DefDock } from "./defdock.ts";
 import { KEYS, read, remove, write } from "./store.ts";
 

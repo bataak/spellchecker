@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { tokenize } from "../src/spellchecker.ts";
-import { checkable } from "../src/textcheck.ts";
+import { tokenize } from "../src/spell/spellchecker.ts";
+import { checkable } from "../src/spell/textcheck.ts";
 
 function words(text: string): string[] {
   return [...tokenize(text)].map((token) => token.word);

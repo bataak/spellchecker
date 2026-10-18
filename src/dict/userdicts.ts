@@ -6,7 +6,7 @@ import {
   extractArchive,
   isArchiveName,
   isJunkEntry,
-} from "./archive.ts";
+} from "../archive/archive.ts";
 
 export type DictPart = "ifo" | "idx" | "dict" | "syn";
 

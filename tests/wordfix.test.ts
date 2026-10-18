@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { replaceAllWord, splitEveryOccurrence } from "../src/wordfix.ts";
-import { skipRanges } from "../src/codeskip.ts";
+import { replaceAllWord, splitEveryOccurrence } from "../src/spell/wordfix.ts";
+import { skipRanges } from "../src/spell/codeskip.ts";
 
 test("алгассан код блок дахь үгийг солихгүй", () => {
   const text = "helo\n\n```js\nconst helo = 1;\n```";

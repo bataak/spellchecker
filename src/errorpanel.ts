@@ -2,8 +2,8 @@ import { materializeMark } from "./backdrop.ts";
 import { copyText } from "./clipboard.ts";
 import { escapeHtml } from "./htmlutil.ts";
 import { nf, reveal } from "./status.ts";
-import { buildErrorList, nextOccurrence } from "./textcheck.ts";
-import type { Token } from "./textcheck.ts";
+import { buildErrorList, nextOccurrence } from "./spell/textcheck.ts";
+import type { Token } from "./spell/textcheck.ts";
 
 const LATIN = /\p{Script=Latin}/u;
 

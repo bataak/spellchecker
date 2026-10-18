@@ -1,7 +1,7 @@
-import { sameRoot } from "./morphology.ts";
+import { sameRoot } from "./spell/morphology.ts";
 import { getSubmitted, addSubmitted } from "./submitted.ts";
-import { startsLowerAfterDash } from "./textcheck.ts";
-import type { Token, ErrorEntry } from "./textcheck.ts";
+import { startsLowerAfterDash } from "./spell/textcheck.ts";
+import type { Token, ErrorEntry } from "./spell/textcheck.ts";
 
 interface Turnstile {
   render(

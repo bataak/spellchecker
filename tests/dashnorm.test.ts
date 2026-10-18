@@ -7,8 +7,8 @@ import {
   isAbbrev,
   dashCompound,
   isLexicalHyphen,
-} from "../src/textcheck.ts";
-import { skipRanges } from "../src/codeskip.ts";
+} from "../src/spell/textcheck.ts";
+import { skipRanges } from "../src/spell/codeskip.ts";
 
 test("span covers abbreviation, dash and suffix", () => {
   const text = "ОЖД\u2013аас ирсэн";

@@ -1,5 +1,5 @@
-import { replaceRange } from "./editortext.ts";
-import { pickImage } from "./images.ts";
+import { replaceRange } from "../editortext.ts";
+import { pickImage } from "../images.ts";
 import { expandMacros, pathMacros, uncommented } from "./texproject.ts";
 import {
   rewriteSvg,

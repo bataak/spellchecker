@@ -15,10 +15,10 @@ import {
   type DivBlock,
   type Inline,
   type ListTree,
-} from "./markdown.ts";
-import { flatten } from "./office/flatten.ts";
-import { columnWidths } from "./office/table.ts";
-import { splitSlides, type Slide } from "./slides.ts";
+} from "../markdown.ts";
+import { flatten } from "../office/flatten.ts";
+import { columnWidths } from "../office/table.ts";
+import { splitSlides, type Slide } from "../slides.ts";
 
 const BASE_PREAMBLE = `\\documentclass[12pt,a4paper]{article}
 \\usepackage[T2A]{fontenc}

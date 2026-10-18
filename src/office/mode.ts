@@ -3,7 +3,7 @@ import { openDocx, saveDocx } from "./docx/index.ts";
 import { openOdf, saveOdf } from "./odf/index.ts";
 import { openPptx, savePptx } from "./pptx/index.ts";
 import type { SkipReason } from "./docx/edit.ts";
-import { unpackedSize } from "../archive.ts";
+import { unpackedSize } from "../archive/archive.ts";
 
 export type OfficeFormat = "docx" | "pptx" | "odt" | "odp";
 

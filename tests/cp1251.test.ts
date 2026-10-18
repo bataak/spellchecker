@@ -11,7 +11,7 @@ import {
   fixSlotsInWords,
   repairCyrillic,
   repairCyrillicDetailed,
-} from "../src/cp1251.ts";
+} from "../src/archive/cp1251.ts";
 
 const T2A_LOWER_BROKEN = "àáâãäå¼æçèéêëìíî°ïðñòó³ôõö÷øùúûüýþÿ";
 const T2A_LOWER_PLAIN = "абвгдеёжзийклмноөпрстуүфхцчшщъыьэюя";

@@ -19,7 +19,7 @@ import {
   previewTex,
   toBeamer,
   toLatex,
-} from "../../src/latex.ts";
+} from "../../src/tex/latex.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "../..");
@@ -28,7 +28,7 @@ const ENGINE = join(CACHE, "swiftlatex");
 const OUT = process.env["TEX_OUT"] ?? join(ROOT, "public/tex");
 const MODULE = process.env["TEX_OUT"]
   ? join(OUT, "texbundle.ts")
-  : join(ROOT, "src/texbundle.ts");
+  : join(ROOT, "src/tex/texbundle.ts");
 
 const RELEASE =
   "https://github.com/SwiftLaTeX/SwiftLaTeX/releases/download/v20022022/20-02-2022.zip";
@@ -639,7 +639,7 @@ function trimMap(
 }
 
 async function main(): Promise<void> {
-  if (!existsSync(join(ROOT, "src/latex.ts"))) throw new Error("wrong root");
+  if (!existsSync(join(ROOT, "src/tex/latex.ts"))) throw new Error("wrong root");
   execFileSync("kpsewhich", ["--version"]);
   await fetchEngine();
 

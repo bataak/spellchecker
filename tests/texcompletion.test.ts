@@ -5,7 +5,7 @@ import {
   completions,
   expand,
   unchanged,
-} from "../src/texcompletion.ts";
+} from "../src/tex/texcompletion.ts";
 
 function at(marked: string) {
   const caret = marked.indexOf("|");

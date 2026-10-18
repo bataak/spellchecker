@@ -4,7 +4,7 @@ import {
   completionContext,
   completions,
   expand,
-} from "../src/texcompletion.ts";
+} from "../src/tex/texcompletion.ts";
 import {
   breakDisplay,
   caretPatch,
@@ -15,8 +15,8 @@ import {
   tabStop,
   typeBracket,
   typeDollar,
-} from "../src/texstops.ts";
-import type { TabStops } from "../src/texstops.ts";
+} from "../src/tex/texstops.ts";
+import type { TabStops } from "../src/tex/texstops.ts";
 
 interface State {
   text: string;

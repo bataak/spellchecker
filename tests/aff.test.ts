@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { unionChain } from "../src/morphology.ts";
+import { unionChain } from "../src/spell/morphology.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 

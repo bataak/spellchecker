@@ -4,7 +4,7 @@ import {
   removeIgnored,
   clearIgnored,
   ignoreStem,
-} from "./ignore.ts";
+} from "./spell/ignore.ts";
 
 let overlay: HTMLDivElement | null = null;
 let onChange: (() => void) | null = null;

@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { countLines, markedHtml, plainHtml } from "../src/backdrop.ts";
-import { texSpans } from "../src/texhighlight.ts";
-import type { Token } from "../src/textcheck.ts";
+import { texSpans } from "../src/tex/texhighlight.ts";
+import type { Token } from "../src/spell/textcheck.ts";
 
 function blocks(html: string): number {
   return (html.match(/<div class="bl">/g) ?? []).length;

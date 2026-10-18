@@ -8,7 +8,7 @@ import {
   openStarDict,
   parseIfo,
   stardictCompare,
-} from "../src/stardict.ts";
+} from "../src/dict/stardict.ts";
 
 const HELP = `Хэрэглээ:
   node --experimental-strip-types scripts/check-stardict.ts [base] [үг ...]

@@ -1,5 +1,5 @@
-import { untar } from "./tar.ts";
-import { unxz } from "./xz.ts";
+import { untar } from "../archive/tar.ts";
+import { unxz } from "../archive/xz.ts";
 
 interface UnpackRequest {
   readonly id: number;

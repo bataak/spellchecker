@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { memoryBytes } from "../src/dictbytes.ts";
-import { openStarDict } from "../src/stardict.ts";
+import { memoryBytes } from "../src/dict/dictbytes.ts";
+import { openStarDict } from "../src/dict/stardict.ts";
 import {
   checkCoverage,
   DictReadError,
@@ -10,7 +10,7 @@ import {
   guardReads,
   loadStarDict,
   loadStarDicts,
-} from "../src/stardictload.ts";
+} from "../src/dict/stardictload.ts";
 
 const encoder = new TextEncoder();
 

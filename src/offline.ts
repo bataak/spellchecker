@@ -1,4 +1,4 @@
-import { DICTIONARIES } from "./spellchecker.ts";
+import { DICTIONARIES } from "./spell/spellchecker.ts";
 import { escapeHtml } from "./htmlutil.ts";
 
 export async function requestDurableStorage(): Promise<void> {

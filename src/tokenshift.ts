@@ -1,4 +1,4 @@
-import type { Token } from "./textcheck.ts";
+import type { Token } from "./spell/textcheck.ts";
 
 export interface TextEdit {
   start: number;

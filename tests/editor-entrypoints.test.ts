@@ -11,7 +11,7 @@ const MAIN = read("main.ts");
 const LOOKAHEAD = 40;
 
 const ENTRYPOINTS: readonly [string, RegExp, string][] = [
-  ["main.ts", /swapText\(els\.editor\b/, "syncFixButtons("],
+  ["office/session.ts", /swapText\(editor\b/, "deps.syncFixButtons("],
   ["drafttext.ts", /swapText\(editor, draftText\b/, "deps.onLoaded("],
   ["editortext.ts", /editor\.value\s*=\s*newText/, "deps.onReplaced("],
 ];
@@ -57,7 +57,7 @@ test("засварлагчид текст оруулах зам бүр товч�
 
 test("товчийн илрүүлэгч main.ts-д холбогдсон байна", () => {
   const decode = read("decode.ts");
-  assert.match(decode, /from "\.\/cp1251\.ts"/);
+  assert.match(decode, /from "\.\/archive\/cp1251\.ts"/);
   assert.match(decode, /hasMojibake/);
   assert.match(decode, /#decodeBtn/);
   assert.match(decode, /#cleanBtn/);

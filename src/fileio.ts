@@ -1,4 +1,4 @@
-import { decodeFileBytes } from "./cp1251.ts";
+import { decodeFileBytes } from "./archive/cp1251.ts";
 import { bytesSum, fileSum } from "./fileslots.ts";
 import type { DraftFile } from "./storage.ts";
 

@@ -1,6 +1,6 @@
-import { repairCyrillic } from "./cp1251.ts";
-import { isSoftHyphenBreak } from "./office/pdf/dehyphen.ts";
-import { stripInvisible } from "./office/sanitize.ts";
+import { repairCyrillic } from "../archive/cp1251.ts";
+import { isSoftHyphenBreak } from "../office/pdf/dehyphen.ts";
+import { stripInvisible } from "../office/sanitize.ts";
 
 const MAX_PDF_MB = 30;
 

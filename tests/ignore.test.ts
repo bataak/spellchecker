@@ -7,7 +7,7 @@ import {
   removeIgnored,
   clearIgnored,
   getIgnored,
-} from "../src/ignore.ts";
+} from "../src/spell/ignore.ts";
 
 const KEY = "mn-spell:ignored";
 
