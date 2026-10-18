@@ -28,6 +28,9 @@ import { initAppearance } from "./appearance.ts";
 import { mountMeasureControl, type MeasureControl } from "./measure.ts";
 import { initPreview, type Preview } from "./preview/preview.ts";
 import { initPaneToggle, type PaneToggle } from "./panetoggle.ts";
+import { initSaveHints } from "./savehints.ts";
+import { createPdfSaver, missingNote, setSaveBusy } from "./savepdf.ts";
+import { zipTexText } from "./tex/texzip.ts";
 import { createPreviewMode } from "./previewmode.ts";
 import { initProjectLink, type ProjectLink } from "./project/projectlink.ts";
 import { FILE_LIMIT, PROJECT_SLOT, isFileSlot } from "./fileslots.ts";
@@ -52,7 +55,7 @@ import {
   spellDictHint,
 } from "./hint.ts";
 import { isPlain, PLAIN } from "./templates.ts";
-import { deliverFile, initExport, type ExportControl } from "./export.ts";
+import { initExport, type ExportControl } from "./export.ts";
 import { stripExt } from "./exportformats.ts";
 import {
   initBackdrop,
@@ -108,9 +111,8 @@ import { initClean, initDecode } from "./decode.ts";
 import { initAppUpdate } from "./appupdate.ts";
 import {
   dictStatusMessage,
-  isOfflineReady,
-  offlineCapable,
   requestDurableStorage,
+  runOfflineIndicator,
 } from "./offline.ts";
 import { initShortcuts } from "./shortcuts.ts";
 import { initDefTip } from "./deftip.ts";
@@ -395,40 +397,15 @@ function currentStatus(knownLine?: number): string {
   );
 }
 
-let saveTitleBase: string | null = null;
-let clearTitleBase: string | null = null;
-const CLEAR_TITLE = "Талбарыг цэвэрлэх";
-const CLOSE_CLEAR_TITLE = "Файлыг хааж, талбарыг цэвэрлэх";
-
-function syncClearHint(open: boolean): void {
-  const btn = document.querySelector<HTMLElement>("#clearBtn");
-  if (!btn) return;
-  if (clearTitleBase === null) clearTitleBase = btn.title;
-  btn.title =
-    open && clearTitleBase.startsWith(CLEAR_TITLE)
-      ? CLOSE_CLEAR_TITLE + clearTitleBase.slice(CLEAR_TITLE.length)
-      : clearTitleBase;
-}
+const syncSaveTitles = initSaveHints();
 
 function syncSaveHint(): void {
-  const btn = document.querySelector<HTMLElement>("#saveBtn");
-  if (!btn) return;
-
-  if (saveTitleBase === null) saveTitleBase = btn.title;
-
-  const combo = saveTitleBase.includes(" · ")
-    ? saveTitleBase.slice(saveTitleBase.lastIndexOf(" · "))
-    : "";
-
   const target = fileIO.targetName();
   const docx = office.active();
-  syncClearHint(!!(docx || target || plainName));
-
-  btn.title = docx
-    ? docx.outputName() + " болгож хадгална" + combo
-    : target
-      ? target + " болгож хадгална" + combo
-      : saveTitleBase;
+  syncSaveTitles(
+    docx ? docx.outputName() : target || null,
+    !!(docx || target || plainName),
+  );
 }
 
 function openFileName(): string | null {
@@ -1153,35 +1130,17 @@ exportCtl = initExport({
   isTex: isTexFile,
   texZip: async (text, name) => {
     if (projectLink?.bound()) return projectLink.zip();
-    const [{ zipSync, strToU8 }, { texImageSources }] = await Promise.all([
-      import("fflate"),
-      import("./tex/teximages.ts"),
-    ]);
-    const images = await texImageSources(text);
-    if (images.missing.length)
-      holdStatus(
-        "Архивт ороогүй зураг: " + escapeHtml(images.missing.join(", ")),
-        8000,
-        false,
-      );
-    const zip = zipSync({
-      ...images.files,
-      [name + ".tex"]: strToU8(images.rewrite(text)),
-    });
-    return new Blob([zip as Uint8Array<ArrayBuffer>], {
-      type: "application/zip",
-    });
+    const { blob, missing } = await zipTexText(text, name);
+    if (missing.length)
+      holdStatus(missingNote("Архивт ороогүй зураг: ", missing), 8000, false);
+    return blob;
   },
   texZipped: () => projectLink?.zipped(),
   texPdf: async () => {
     if (!previewCtl) throw new Error("no preview");
     const { pdf, missing } = await previewCtl.pdf();
     if (missing.length)
-      holdStatus(
-        "PDF-д ороогүй зураг: " + escapeHtml(missing.join(", ")),
-        8000,
-        false,
-      );
+      holdStatus(missingNote("PDF-д ороогүй зураг: ", missing), 8000, false);
     return pdf;
   },
   texSource: (name) => fileIO.saveSource(name, !!projectLink?.bound()),
@@ -1193,20 +1152,9 @@ exportCtl = initExport({
       holdStatus(escapeHtml(error.message), 8000, false);
   },
   onBusy: (busy, ext) =>
-    saveBusy(busy, ext === "zip" ? "Архивлаж байна…" : undefined),
+    setSaveBusy(busy, ext === "zip" ? "Архивлаж байна…" : undefined),
 });
 
-function saveBusy(busy: boolean, text = "PDF бэлтгэж байна…"): void {
-  const button = document.querySelector<HTMLElement>("#saveBtn");
-  if (!button) return;
-  if (busy) {
-    button.dataset.label ||= button.textContent ?? "";
-    button.textContent = text;
-  } else {
-    button.textContent = button.dataset.label ?? "";
-  }
-  button.toggleAttribute("aria-busy", busy);
-}
 
 function savesPdf(): boolean {
   return (
@@ -1218,37 +1166,15 @@ function savesPdf(): boolean {
   );
 }
 
-let pdfSaving = false;
+const savePdfFile = createPdfSaver({
+  name: pdfName,
+  saveProject: () => projectLink?.save(true),
+  notify: (html) => holdStatus(html, 8000, false),
+});
+
 async function savePdf(): Promise<void> {
-  if (pdfSaving || !previewCtl) return;
-  pdfSaving = true;
-  saveBusy(true);
-  const notes: string[] = [];
-  try {
-    const name = pdfName();
-    const compiled = previewCtl.pdf();
-    compiled.catch(() => {});
-    const saved = await projectLink?.save(true).then(
-      () => true,
-      () => false,
-    );
-    if (saved === false) notes.push("Төслийн файлуудыг хадгалж чадсангүй");
-    const { pdf, missing } = await compiled;
-    saveBusy(false);
-    if (missing.length)
-      notes.push("PDF-д ороогүй зураг: " + escapeHtml(missing.join(", ")));
-    if (notes.length) holdStatus(notes.join(" · "), 8000, false);
-    if (await deliverFile(pdf, name, "application/pdf"))
-      flash("#saveBtn", "PDF хадгаллаа");
-  } catch (error) {
-    saveBusy(false);
-    flash("#saveBtn", "PDF гаргаж чадсангүй");
-    if (error instanceof Error && error.name === "PdfError")
-      notes.push(escapeHtml(error.message));
-    if (notes.length) holdStatus(notes.join(" · "), 8000, false);
-  } finally {
-    pdfSaving = false;
-  }
+  const preview = previewCtl;
+  if (preview) await savePdfFile(() => preview.pdf());
 }
 
 async function restoreDraftFile(): Promise<void> {
@@ -1287,34 +1213,15 @@ function maybeRefreshDict(): void {
   void appUpdate.checkFreshness();
 }
 
-async function runOfflineReadyIndicator() {
-  const idle = () => els.editor.value.trim() === "";
-  const transient = (msg: string, animate = true): void => {
-    if (idle()) setStatus(msg, animate);
-  };
-
-  if (import.meta.env.DEV || !offlineCapable()) {
-    if (idle()) setStatus(baseStatus);
-    return;
-  }
-
-  offlineIndicatorActive = true;
-  transient("Офлайн горимд ажиллахад бэлтгэж байна…");
-
-  let isReady = await isOfflineReady();
-  const deadline = Date.now() + 20000;
-  while (!isReady && Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, 700));
-    isReady = await isOfflineReady();
-  }
-
-  if (isReady) {
-    transient("Офлайн горимд ажиллахад бэлэн", false);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-  }
-
-  offlineIndicatorActive = false;
-  if (idle()) setStatus(baseStatus);
+function runOfflineReadyIndicator(): void {
+  void runOfflineIndicator({
+    idle: () => els.editor.value.trim() === "",
+    setStatus,
+    base: () => baseStatus,
+    setActive: (on) => {
+      offlineIndicatorActive = on;
+    },
+  });
 }
 
 async function boot() {
