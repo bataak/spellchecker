@@ -1,24 +1,15 @@
 import { initImageEdit } from "./imageedit.ts";
 import { onImagesChange } from "../images.ts";
 import { fitBlanks, format, parse, toHtml } from "../markdown.ts";
-import { isEditOf } from "../samedoc.ts";
 import { createHtmlSync } from "./htmlsync.ts";
 import { handleImageClick, resolveImages } from "./mdimages.ts";
-import {
-  cachedPdf,
-  createPdfPool,
-  digestOf,
-  lastTex,
-  type CompiledPdf,
-} from "./pdfcache.ts";
+import type { CompiledPdf } from "./pdfcache.ts";
+import { createPdfPane } from "./pdfpane.ts";
 import { buildPreviewHead, HEAD_TEXT } from "./previewhead.ts";
-import { loadZoom, saveZoom, stepZoom, wheelZoom } from "./viewprefs.ts";
+import { createTexPreview } from "./texpreview.ts";
 
 const TIDY_LIMIT = 400_000;
 const TIDY_IDLE_MS = 5000;
-const TEX_DELAY_MS = 700;
-const RETRY_MS = [2000, 5000, 15000];
-const STALE_COMPILE_MS = 3000;
 const MD_NAME = /\.(md|markdown|mdown|mkd)$/i;
 
 function isSameDocument(next: string, ref: string): boolean {
@@ -26,17 +17,6 @@ function isSameDocument(next: string, ref: string): boolean {
   const n = Math.min(200, ref.length);
   if (n === 0) return next.length === 0;
   return next.slice(0, n) === ref.slice(0, n);
-}
-
-const NETWORK_ERROR =
-  /fake worker|dynamically imported module|Failed to fetch|NetworkError|Load failed|татагдсангүй|ачаалагдсангүй/i;
-
-function explainTexError(error: unknown): string {
-  const message = error instanceof Error ? error.message : "";
-  if (!NETWORK_ERROR.test(message)) return message || "PDF үүсгэж чадсангүй";
-  if (!window.isSecureContext)
-    return "Сервертэй холбогдож чадсангүй. Энэ хаяг HTTPS биш тул офлайн горим ажиллахгүй, localhost эсвэл HTTPS хаягаар нээнэ үү";
-  return "Сервертэй холбогдож чадсангүй. Офлайн ажиллахын тулд нэг удаа онлайн үед хөрвүүлсэн байх шаардлагатай";
 }
 
 export type PreviewSource =
@@ -81,12 +61,9 @@ export function initPreview(deps: PreviewDeps): Preview {
   panel.setAttribute("aria-label", "Харагдац");
 
   const ui = buildPreviewHead(panel, {
-    onZoom: (action) =>
-      setZoom(
-        action === "reset" ? 1 : stepZoom(zoom, action === "in" ? 1 : -1),
-      ),
-    onGoTo: (page) => pdfView?.goTo(page),
-    canNavigate: () => pdfView !== null,
+    onZoom: (action) => pane.zoom(action),
+    onGoTo: (page) => pane.goTo(page),
+    canNavigate: () => pane.view() !== null,
   });
   const { head, title, compileBtn, downloadBtn } = ui;
 
@@ -117,6 +94,8 @@ export function initPreview(deps: PreviewDeps): Preview {
   notes.append(texMissing, texError);
 
   panel.append(head, body, notes);
+  const pane = createPdfPane(panel, body, () => ui);
+  pane.syncZoom();
   const imageEdit = initImageEdit(body, area);
   const htmlSync = createHtmlSync(body, area, () => head.offsetHeight, jump);
   wrap.after(panel);
@@ -137,7 +116,8 @@ export function initPreview(deps: PreviewDeps): Preview {
   let tidied: string | null = null;
   let typingTimer = 0;
   const showTidy = (): void => {
-    tidy.hidden = tidied === null || typingTimer !== 0 || !!source || texMode;
+    tidy.hidden =
+      tidied === null || typingTimer !== 0 || !!source || tex.active();
   };
   const onTyping = (event: Event): void => {
     if (!event.isTrusted) return;
@@ -153,58 +133,14 @@ export function initPreview(deps: PreviewDeps): Preview {
   let source: PreviewSource | null = null;
   let imageUrl: string | null = null;
   let sourceText = "";
-  let pdfView: import("./pdfview.ts").PdfView | null = null;
-
-  let zoom = loadZoom();
-  const setZoom = (next: number, origin?: { x: number; y: number }): void => {
-    zoom = next;
-    saveZoom(zoom);
-    ui.showZoom(zoom);
-    pdfView?.setZoom(zoom, origin);
-  };
-  setZoom(zoom);
-
-  const pdfOptions = {
-    inset: () => head.offsetHeight,
-    onPage: ui.showPage,
-  };
-  const setPdfView = (view: import("./pdfview.ts").PdfView | null): void => {
-    pdfView = view;
-    panel.classList.toggle("has-pages", view !== null);
-    if (!view) ui.closePageInput();
-  };
-
-  body.addEventListener(
-    "wheel",
-    (event) => {
-      if (!pdfView || !(event.ctrlKey || event.metaKey)) return;
-      event.preventDefault();
-      if (!event.deltaY) return;
-      setZoom(wheelZoom(zoom, event), {
-        x: event.clientX,
-        y: event.clientY,
-      });
-    },
-    { passive: false },
-  );
-  let pdfAbort: AbortController | null = null;
   let shownHtml: string | null = null;
   let mathView: typeof import("./mathview.ts") | null = null;
-  let texMode = false;
-  let texShown: string | null = null;
-  let pdfText: string | null = null;
-  let shownPdf: Uint8Array<ArrayBuffer> | null = null;
-  let texTimer = 0;
-  let texSeq = 0;
-  let texRestored = false;
-  let pdfOfProject = false;
   let syncTimer = 0;
   let syncedAt = -1;
   let sourceCache: {
     readonly text: string;
     readonly words: readonly import("../tex/texsync.ts").SourceWord[];
   } | null = null;
-  const pool = createPdfPool();
 
   const renderMarkdown = (): void => {
     const text = area.value;
@@ -239,63 +175,12 @@ export function initPreview(deps: PreviewDeps): Preview {
     showTidy();
   };
 
-  const dropPdf = (): void => {
-    shownPdf = null;
-    downloadBtn.disabled = true;
-    pdfText = null;
-    texShown = null;
-    pdfAbort?.abort();
-    pdfAbort = null;
-    pdfView?.destroy();
-    setPdfView(null);
-  };
-
-  const renderPdf = async (file: File): Promise<void> => {
-    const controller = new AbortController();
-    pdfAbort = controller;
-    body.classList.remove("is-empty");
-    shownHtml = null;
-    body.replaceChildren();
-    try {
-      const mod = await import("./pdfview.ts");
-      if (controller.signal.aborted) return;
-      const view = await mod.renderPdfInto(
-        body,
-        file,
-        controller.signal,
-        zoom,
-        pdfOptions,
-      );
-      if (controller.signal.aborted) {
-        view.destroy();
-        return;
-      }
-      setPdfView(view);
-    } catch {
-      if (controller.signal.aborted) return;
-      showNotice("PDF хуудсыг зурж чадсангүй");
-    }
-  };
-
   const setTexMissing = (paths: readonly string[]): void => {
     texMissing.hidden = paths.length === 0;
     texFolder.hidden = projectKey() !== null;
     texMissingText.textContent = paths.length
       ? "Зураг олдсонгүй: " + paths.join(", ")
       : "";
-  };
-
-  let offTexImages: (() => void) | null = null;
-  let watchingImages = false;
-  const watchImages = (mod: typeof import("../tex/teximages.ts")): void => {
-    if (watchingImages) return;
-    watchingImages = true;
-    offTexImages = mod.onTexImagesChange(() => {
-      if (!texMode) return;
-      texShown = null;
-      forced = true;
-      update();
-    });
   };
 
   const setTexError = (message: string | null): void => {
@@ -324,8 +209,8 @@ export function initPreview(deps: PreviewDeps): Preview {
     if (caret === syncedAt) return;
     if (area.dataset.layout) body.dataset.layout = area.dataset.layout;
     else delete body.dataset.layout;
-    const view = pdfView;
-    if (!texMode) {
+    const view = pane.view();
+    if (!tex.active()) {
       if (view || source || !shownHtml) return;
       syncedAt = caret;
       htmlSync.revealLine(area.value.slice(0, caret).split("\n").length - 1);
@@ -336,7 +221,7 @@ export function initPreview(deps: PreviewDeps): Preview {
     const { locate, sourceWords } = await import("../tex/texsync.ts");
     const words = sourceWordsOf(area.value, sourceWords);
     const pdf = await view.words();
-    if (view !== pdfView) return;
+    if (view !== pane.view()) return;
     const hit = locate(words, caret, pdf);
     if (hit) view.reveal(hit.page, hit.y);
   };
@@ -357,7 +242,7 @@ export function initPreview(deps: PreviewDeps): Preview {
       import("../tex/texsync.ts"),
       view.words(),
     ]);
-    if (view !== pdfView) return;
+    if (view !== pane.view()) return;
     const index = pdfWordAt(pdf, point.page, point.x, point.y);
     if (index < 0) return;
     const words = sourceWordsOf(area.value, sourceWords);
@@ -367,12 +252,12 @@ export function initPreview(deps: PreviewDeps): Preview {
 
   const onJump = (event: MouseEvent): void => {
     if (event.button !== 0) return;
-    const view = pdfView;
-    if (texMode && view) {
+    const view = pane.view();
+    if (tex.active() && view) {
       void jumpFromPdf(view, event.clientX, event.clientY);
       return;
     }
-    if (texMode || view || source || !shownHtml) return;
+    if (tex.active() || view || source || !shownHtml) return;
     if ((event.target as Element | null)?.closest("img, a, button, input"))
       return;
     htmlSync.jumpFrom(event.clientX, event.clientY);
@@ -389,194 +274,27 @@ export function initPreview(deps: PreviewDeps): Preview {
   document.addEventListener("selectionchange", onSelection);
   area.addEventListener("input", onEdit);
 
-  const showPdfBytes = async (
-    bytes: Uint8Array<ArrayBuffer>,
-    seq: number,
-  ): Promise<boolean> => {
-    const mod = await import("./pdfview.ts");
-    if (seq !== texSeq || !texMode) return false;
-    const scroll = body.scrollTop;
-    dropPdf();
-    const controller = new AbortController();
-    pdfAbort = controller;
-    const file = new File([bytes], "preview.pdf", { type: "application/pdf" });
-    const view = await mod.renderPdfInto(
-      body,
-      file,
-      controller.signal,
-      zoom,
-      pdfOptions,
-    );
-    if (controller.signal.aborted) {
-      view.destroy();
-      return false;
-    }
-    setPdfView(view);
-    shownPdf = bytes;
-    panel.classList.remove("is-blank");
-    body.classList.remove("is-empty");
-    body.scrollTop = scroll;
-    syncedAt = -1;
-    scheduleSync();
-    return true;
-  };
+  const tex = createTexPreview({
+    area,
+    pane,
+    compileBtn,
+    downloadBtn,
+    projectKey,
+    inProject,
+    visible: previewShown,
+    showNotice: (text) => showNotice(text),
+    setError: setTexError,
+    setMissing: setTexMissing,
+    onShown: () => {
+      syncedAt = -1;
+      scheduleSync();
+    },
+    onImagesChanged: () => update(),
+  });
 
-  const restoreTex = async (text: string, seq: number): Promise<void> => {
-    texRestored = true;
-    const last = await lastTex();
-    if (!last || seq !== texSeq || !texMode || !isEditOf(text, last.text))
-      return;
-    const bytes = await cachedPdf(last.digest);
-    if (!bytes || seq !== texSeq || !texMode) return;
-    if (await showPdfBytes(bytes, seq).catch(() => false)) {
-      pdfText = last.text;
-      pdfOfProject = false;
-    }
-  };
-
-  const markShown = (key: string): void => {
-    texShown = key;
-    downloadBtn.disabled = shownPdf === null;
-  };
-
-  const showCompiled = (
-    key: string,
-    text: string,
-    project: string | null,
-    missing: readonly string[],
-  ): void => {
-    texRestored = true;
-    pdfText = text;
-    pdfOfProject = project !== null;
-    markShown(key);
-    setTexError(null);
-    setTexMissing(missing);
-  };
-
-  let retryTimer = 0;
-  let retries = 0;
-  let triedText: string | null = null;
-  let compiling: string | null = null;
-  let savingPdf = 0;
-  let forced = false;
-
-  const cancelRetry = (): void => {
-    if (retryTimer) clearTimeout(retryTimer);
-    retryTimer = 0;
-  };
-
-  const texKey = (): string => {
-    const project = projectKey();
-    return project === null ? area.value : "\u0000project:" + project;
-  };
-
-  const renderTex = async (): Promise<void> => {
-    texTimer = 0;
-    cancelRetry();
-    const text = area.value;
-    const project = projectKey();
-    const key = texKey();
-    if (!texMode || key === texShown || key === compiling || !previewShown())
-      return;
-    if (key !== triedText) {
-      triedText = key;
-      retries = 0;
-    }
-    const seq = ++texSeq;
-    const force = forced;
-    forced = false;
-    compileBtn.disabled = true;
-    const kept = force ? undefined : pool.touch(key);
-    if (kept) {
-      const shown = await showPdfBytes(kept.pdf, seq).catch(() => false);
-      if (seq !== texSeq) return;
-      compileBtn.disabled = false;
-      if (shown) {
-        showCompiled(key, kept.text, project, kept.missing);
-        return;
-      }
-    }
-    const digest = await digestOf(text, project);
-    if (seq !== texSeq || !texMode) return;
-    const cached = digest === null || force ? null : await cachedPdf(digest);
-    if (cached && (await showPdfBytes(cached, seq).catch(() => false))) {
-      pool.put(key, { text, pdf: cached, missing: [] });
-      showCompiled(key, text, project, []);
-      compileBtn.disabled = false;
-      return;
-    }
-    if (seq !== texSeq || !texMode) return;
-    if (!texRestored && project === null) await restoreTex(text, seq);
-    texRestored = true;
-    if (seq !== texSeq || !texMode) return;
-    if (
-      pdfView &&
-      (pdfOfProject !== (project !== null) ||
-        (project === null && (pdfText === null || !isEditOf(text, pdfText))))
-    ) {
-      dropPdf();
-      setTexError(null);
-    }
-    if (!pdfView) {
-      showNotice("PDF бэлтгэж байна…");
-      texShown = null;
-    }
-    void import("../tex/texpdf.ts").then((mod) => {
-      if (!savingPdf && mod.compileRunningFor() > STALE_COMPILE_MS)
-        mod.cancelCompile();
-    });
-    compiling = key;
-    try {
-      const [{ compileTexDocument, onTexPackage }, images] = await Promise.all([
-        import("../tex/texpdf.ts"),
-        import("../tex/teximages.ts"),
-      ]);
-      watchImages(images);
-      onTexPackage((message) => {
-        if (seq === texSeq && texMode && !pdfView)
-          showNotice(message ?? "PDF бэлтгэж байна…");
-      });
-      const { pdf, missing } = await pool.compile(key, () =>
-        compileTexDocument(text),
-      );
-      pool.keep(key, { text, pdf, missing }, digest, project);
-      if (!(await showPdfBytes(pdf, seq))) return;
-      retries = 0;
-      showCompiled(key, text, project, missing);
-    } catch (error) {
-      if (seq !== texSeq || !texMode) return;
-      texShown = key;
-      const delay = RETRY_MS[retries];
-      const message =
-        explainTexError(error) + (delay ? " — дахин оролдож байна…" : "");
-      if (pdfView) setTexError(message);
-      else showNotice(message);
-      if (delay) {
-        retries++;
-        retryTimer = window.setTimeout(() => {
-          retryTimer = 0;
-          if (!texMode || texKey() !== key) return;
-          texShown = null;
-          void renderTex();
-        }, delay);
-      }
-    } finally {
-      if (compiling === key) compiling = null;
-      if (seq === texSeq) compileBtn.disabled = false;
-    }
-  };
-
-  const recompile = (): void => {
-    if (compiling !== null) return;
-    forced = true;
-    retries = 0;
-    triedText = null;
-    texShown = null;
-    void renderTex();
-  };
-  compileBtn.addEventListener("click", recompile);
+  compileBtn.addEventListener("click", () => tex.recompile());
   downloadBtn.addEventListener("click", () => {
-    const bytes = shownPdf;
+    const bytes = pane.shown();
     if (!bytes) return;
     void import("../export.ts").then(({ deliverFile }) =>
       deliverFile(bytes, pdfName(), "application/pdf"),
@@ -584,20 +302,8 @@ export function initPreview(deps: PreviewDeps): Preview {
   });
 
   const setTexMode = (on: boolean): void => {
-    if (on === texMode) return;
-    texMode = on;
-    texSeq++;
-    texRestored = false;
-    compiling = null;
-    cancelRetry();
-    compileBtn.disabled = false;
+    if (!tex.setActive(on)) return;
     panel.classList.toggle("tex-mode", on);
-    if (texTimer) clearTimeout(texTimer);
-    texTimer = 0;
-    texShown = null;
-    dropPdf();
-    setTexError(null);
-    setTexMissing([]);
     shownHtml = null;
     body.replaceChildren();
     panel.classList.remove("is-blank");
@@ -611,23 +317,8 @@ export function initPreview(deps: PreviewDeps): Preview {
       return;
     }
     setTexMode(isLatex(area.value));
-    if (texMode) {
-      if (texKey() !== texShown) downloadBtn.disabled = true;
-      const project = inProject();
-      if (
-        pdfView &&
-        (pdfOfProject !== project ||
-          (!project && pdfText !== null && !isEditOf(area.value, pdfText)))
-      ) {
-        dropPdf();
-        setTexError(null);
-        setTexMissing([]);
-      }
-      if (texTimer) clearTimeout(texTimer);
-      texTimer = window.setTimeout(
-        () => void renderTex(),
-        texShown === null ? 0 : TEX_DELAY_MS,
-      );
+    if (tex.active()) {
+      tex.schedule();
       return;
     }
     if (raf) return;
@@ -651,7 +342,7 @@ export function initPreview(deps: PreviewDeps): Preview {
     source = next;
     setTexMode(false);
     tidy.hidden = true;
-    dropPdf();
+    tex.drop();
     if (imageUrl) URL.revokeObjectURL(imageUrl);
     imageUrl = null;
 
@@ -672,7 +363,12 @@ export function initPreview(deps: PreviewDeps): Preview {
     panel.classList.toggle("is-pdf", next.kind === "pdf");
 
     if (next.kind === "pdf") {
-      void renderPdf(next.file);
+      body.classList.remove("is-empty");
+      shownHtml = null;
+      body.replaceChildren();
+      void pane.render(next.file, () =>
+        showNotice("PDF хуудсыг зурж чадсангүй"),
+      );
       return;
     }
     if (next.kind === "image") {
@@ -702,7 +398,7 @@ export function initPreview(deps: PreviewDeps): Preview {
   );
 
   const offImages = onImagesChange(() => {
-    if (source || texMode) return;
+    if (source || tex.active()) return;
     shownHtml = null;
     update();
   });
@@ -728,42 +424,12 @@ export function initPreview(deps: PreviewDeps): Preview {
     setFileName,
     setMarkdownMode,
     setSource,
-    async pdf() {
-      const text = area.value;
-      const project = projectKey();
-      const key = texKey();
-      const kept = pool.get(key);
-      if (kept) return kept;
-      if (texMode && shownPdf && !downloadBtn.disabled && texShown === key)
-        return { pdf: shownPdf, missing: [] };
-      savingPdf++;
-      try {
-        const running = pool.running(key);
-        if (running) {
-          const result = await running.catch(() => null);
-          if (result) return result;
-        }
-        const digest = await digestOf(text, project);
-        const cached = digest === null ? null : await cachedPdf(digest);
-        if (cached) return { pdf: cached, missing: [] };
-        const { compileTexDocument } = await import("../tex/texpdf.ts");
-        const { pdf, missing } = await pool.compile(key, () =>
-          compileTexDocument(text),
-        );
-        pool.keep(key, { text, pdf, missing }, digest, project);
-        return { pdf, missing };
-      } finally {
-        savingPdf--;
-      }
-    },
+    pdf: () => tex.pdf(),
     destroy() {
       if (imageUrl) URL.revokeObjectURL(imageUrl);
       if (raf) cancelAnimationFrame(raf);
-      if (texTimer) clearTimeout(texTimer);
-      cancelRetry();
-      dropPdf();
+      tex.destroy();
       offImages();
-      offTexImages?.();
       imageEdit.destroy();
       htmlSync.destroy();
       if (typingTimer) clearTimeout(typingTimer);

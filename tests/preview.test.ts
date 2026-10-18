@@ -3,6 +3,7 @@ import { beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { lineOffset, nthWordHit } from "../src/preview/htmlsync.ts";
 import { createPdfPool, type KeptPdf } from "../src/preview/pdfcache.ts";
+import { explainTexError } from "../src/preview/texpreview.ts";
 import {
   clampZoom,
   loadInvert,
@@ -96,4 +97,18 @@ test("createPdfPool: ижил түлхүүрийн хөрвүүлэлтийг н
   await first;
   assert.equal(runs, 1);
   assert.equal(pool.running("k"), null);
+});
+
+test("explainTexError тайлбаргүй алдаанд ерөнхий мэдэгдэл өгнө", () => {
+  assert.equal(explainTexError(null, true), "PDF үүсгэж чадсангүй");
+  assert.equal(
+    explainTexError(new Error("Undefined control"), true),
+    "Undefined control",
+  );
+});
+
+test("explainTexError сүлжээний алдааг аюулгүй байдлаар нь ялгана", () => {
+  const error = new Error("Failed to fetch dynamically imported module");
+  assert.match(explainTexError(error, true), /нэг удаа онлайн/);
+  assert.match(explainTexError(error, false), /HTTPS биш/);
 });
