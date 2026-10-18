@@ -5,6 +5,7 @@ import { FakeDir } from "./helpers/fake-fs.ts";
 import {
   addFile,
   createDir,
+  createFile,
   openDirHandle,
   project,
   projectBinary,
@@ -99,10 +100,11 @@ test("folder горимд оруулсан шинэ файлыг хадгала�
 
   await addFile("new.tex", new TextEncoder().encode("шинэ"));
   await addFile("fig.png", new Uint8Array([1, 2]));
+  await createFile("empty.tex");
 
   assert.equal(project()?.unsaved, true);
   assert.equal(await saveProject(), "files");
-  assert.deepEqual(names.sort(), ["fig.png", "new.tex"]);
+  assert.deepEqual(names.sort(), ["empty.tex", "fig.png", "new.tex"]);
   assert.equal(project()?.unsaved, false);
   assert.equal(await saveProject(), "clean");
 });
