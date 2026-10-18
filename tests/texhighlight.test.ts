@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spansInRange, texSpans } from "../src/texhighlight.ts";
-import type { TexKind } from "../src/texhighlight.ts";
+import { spansInRange, texSpans } from "../src/tex/texhighlight.ts";
+import type { TexKind } from "../src/tex/texhighlight.ts";
 
 function pieces(text: string): [TexKind, string][] {
   return texSpans(text).map((s) => [s.kind, text.slice(s.start, s.end)]);

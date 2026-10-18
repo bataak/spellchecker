@@ -30,10 +30,10 @@ import {
   referencesFiles,
   texMaster,
   viewableType,
-} from "./texproject.ts";
-import type { PreviewSource } from "./preview.ts";
-import { onSwap, swapOrigin, swapText } from "./editortext.ts";
-import { KEYS, read, remove, write } from "./store.ts";
+} from "../tex/texproject.ts";
+import type { PreviewSource } from "../preview/preview.ts";
+import { onSwap, swapOrigin, swapText } from "../editortext.ts";
+import { KEYS, read, remove, write } from "../store.ts";
 
 export interface ProjectLinkDeps {
   readonly editor: HTMLTextAreaElement;

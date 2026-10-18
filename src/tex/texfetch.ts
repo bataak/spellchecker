@@ -1,6 +1,6 @@
 import { TEX_LIVE_YEAR, TEX_PACKAGE_INDEX } from "./texpackages.ts";
-import { isXz } from "./xz.ts";
-import { KEYS, readJson, writeJson } from "./store.ts";
+import { isXz } from "../archive/xz.ts";
+import { KEYS, readJson, writeJson } from "../store.ts";
 
 export { wantedFiles } from "./texmissing.ts";
 

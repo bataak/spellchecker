@@ -1,5 +1,5 @@
 import type { Line, TextItem } from "./pdftext.ts";
-import type { PdfWord } from "./texsync.ts";
+import type { PdfWord } from "../tex/texsync.ts";
 
 let pdfjsPromise: Promise<typeof import("pdfjs-dist")> | null = null;
 
@@ -211,7 +211,7 @@ export async function renderPdfInto(
   const readWords = async (): Promise<readonly PdfWord[]> => {
     const [{ pageLines }, { pdfWords }] = await Promise.all([
       import("./pdftext.ts"),
-      import("./texsync.ts"),
+      import("../tex/texsync.ts"),
     ]);
     const lines: Line[][] = [];
     const heights: number[] = [];

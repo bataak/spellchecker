@@ -1,4 +1,4 @@
-import type { Line } from "./pdftext.ts";
+import type { Line } from "../preview/pdftext.ts";
 
 export interface SourceWord {
   readonly word: string;

@@ -9,7 +9,7 @@ import {
   looksLatex,
   mergeRanges,
   skipRanges,
-} from "../src/codeskip.ts";
+} from "../src/spell/codeskip.ts";
 
 function skipped(text: string, word: string): boolean {
   return inRanges(codeRanges(text), text.indexOf(word));

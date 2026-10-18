@@ -29,8 +29,8 @@ import {
   validName,
   viewableType,
   type TreeNode,
-} from "./texproject.ts";
-import { KEYS, read, remove, write } from "./store.ts";
+} from "../tex/texproject.ts";
+import { KEYS, read, remove, write } from "../store.ts";
 
 const PEEK_MS = 5000;
 

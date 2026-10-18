@@ -1,4 +1,4 @@
-import type { DictEntry } from "./stardict.ts";
+import type { DictEntry } from "../dict/stardict.ts";
 
 export interface DictFailure {
   id: string;

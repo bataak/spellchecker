@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { test } from "node:test";
 
 import { FORMATS } from "../src/export.ts";
-import { TEX_BUNDLE, TEX_ENGINE } from "../src/texbundle.ts";
+import { TEX_BUNDLE, TEX_ENGINE } from "../src/tex/texbundle.ts";
 
 test("PDF экспортын хөдөлгүүр ба TeX багц public/-д байна", () => {
   assert.ok(existsSync("public/" + TEX_ENGINE));
@@ -19,7 +19,7 @@ test("PDF формат баримт, слайдад санал болгогдо�
 });
 
 test("PDF алдааны мессеж шалтгаан ба байршлыг Монгол үсгээр харуулна", async () => {
-  const { PdfError } = await import("../src/texpdf.ts");
+  const { PdfError } = await import("../src/tex/texpdf.ts");
   const log = [
     "! LaTeX Error: Bad math environment delimiter.",
     "",
@@ -84,7 +84,7 @@ test("ODT гарчгийн жагсаалт сонголтоор", async () => {
 });
 
 test("алдааг алгассан engine-ийн PDF-ийг зөвхөн терминалд алдаа гараагүй үед авна", async () => {
-  const { replyPdf } = await import("../src/texpdf.ts");
+  const { replyPdf } = await import("../src/tex/texpdf.ts");
   const pdf = new ArrayBuffer(4);
   assert.equal(replyPdf({ result: "ok", status: 0, log: "", pdf }), pdf);
   assert.equal(

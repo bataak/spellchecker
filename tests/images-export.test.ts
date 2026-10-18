@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { strFromU8, unzipSync } from "fflate";
 
-import { toLatex } from "../src/latex.ts";
+import { toLatex } from "../src/tex/latex.ts";
 import { parse } from "../src/markdown.ts";
 import { applyTemplate } from "../src/office/apply.ts";
 import { docImages, imageKey, imageSizeCm } from "../src/office/docir.ts";

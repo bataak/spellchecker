@@ -1,4 +1,4 @@
-import type { Patch } from "./mdedit.ts";
+import type { Patch } from "../mdedit.ts";
 import { inComment, lineIndent } from "./texcompletion.ts";
 import type { Expansion } from "./texcompletion.ts";
 

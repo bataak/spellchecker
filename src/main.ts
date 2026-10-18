@@ -4,65 +4,36 @@ import "./gutter.css";
 import "./md-toolbar.css";
 import "./export.css";
 import "./deftip.css";
-import "./project.css";
-import {
-  MultiSpellChecker,
-  checkWordsBatched,
-  tokenize,
-} from "./spellchecker.ts";
-import type { SpellChecker } from "./spellchecker.ts";
+import "./project/project.css";
+import { MultiSpellChecker } from "./spell/spellchecker.ts";
+import { createSpellSession, tokenizeAll } from "./spell/spellsession.ts";
+import type { SpellChecker } from "./spell/spellchecker.ts";
 import { initFileIO } from "./fileio.ts";
 import { initImageStore } from "./imagestore.ts";
 import { initToolbar } from "./toolbar.ts";
 import { initKeyboardToolbar } from "./kbtoolbar.ts";
 import { initSuggest } from "./suggest.ts";
 import { initSurvey, surveyOnErrorCount } from "./survey.ts";
-import {
-  isIgnored,
-  addIgnored,
-  canIgnore,
-  getIgnored,
-  onIgnoredChange,
-} from "./ignore.ts";
-import type { Token } from "./textcheck.ts";
-import { initIgnoreList, syncIgnoreVisibility } from "./ignorelist.ts";
+import { getIgnored, onIgnoredChange } from "./spell/ignore.ts";
+import type { Token } from "./spell/textcheck.ts";
+import { initIgnoreList } from "./ignorelist.ts";
 import { initAppearance } from "./appearance.ts";
 import { mountMeasureControl, type MeasureControl } from "./measure.ts";
-import { initPreview, type Preview } from "./preview.ts";
+import { initPreview, type Preview } from "./preview/preview.ts";
 import { initPaneToggle, type PaneToggle } from "./panetoggle.ts";
-import { initProjectLink, type ProjectLink } from "./projectlink.ts";
+import { initProjectLink, type ProjectLink } from "./project/projectlink.ts";
 import { FILE_LIMIT, PROJECT_SLOT, isFileSlot } from "./fileslots.ts";
-import { onProjectChange, project } from "./projectstore.ts";
+import { onProjectChange, project } from "./project/projectstore.ts";
 import { KEYS, read, write } from "./store.ts";
 
-let previewCtl: Preview | null = null;
-let paneCtl: PaneToggle | null = null;
-let projectLink: ProjectLink | null = null;
 import { escapeHtml } from "./htmlutil.ts";
-import { pickDefinitionMarks } from "./defmarks.ts";
+import { inRanges, looksLatex, mergeRanges } from "./spell/codeskip.ts";
 import {
-  fencedCode,
-  inRanges,
-  looksLatex,
-  mergeRanges,
-  skipRanges,
-  type SkipRange,
-} from "./codeskip.ts";
-import {
-  checkable,
   isDashSuffix,
   buildErrorList,
-  dashSpan,
-  dashCompound,
   dashNormalizeApply,
-} from "./textcheck.ts";
-import {
-  saveDraftFile,
-  loadDraftFile,
-  saveOfficeFile,
-  loadOfficeFile,
-  dropOfficeFile,
-} from "./storage.ts";
+} from "./spell/textcheck.ts";
+import { saveDraftFile, loadDraftFile } from "./storage.ts";
 import { initMdToolbar, sharedSlot } from "./mdtoolbar.ts";
 import { initSlotSwitch } from "./slotswitch.ts";
 import { initTabGuard, type TabGuard } from "./tabguard.ts";
@@ -91,61 +62,54 @@ import {
   refreshBackdropMarks,
   captureTopAnchor,
   anchoredScrollTop,
-  materializeMark,
   setActiveLine,
   setLineBlocks,
   backdropLineCount,
   marksAtY,
-  offsetAtPoint,
   rangeRectAt,
 } from "./backdrop.ts";
 import { shiftTokens } from "./tokenshift.ts";
-import { texSpans } from "./texhighlight.ts";
-import { initTexComplete } from "./texcomplete.ts";
+import { texSpans } from "./tex/texhighlight.ts";
+import { initTexComplete } from "./tex/texcomplete.ts";
 import { caretPoint, initKeyboardLayout } from "./kblayout.ts";
-import {
-  MANUAL_FIX_MAX,
-  MANUAL_FIX_WORDS,
-  cleanManualFix,
-  countWords,
-  filterManualFix,
-} from "./manualfix.ts";
 import { initUndoHistory, type UndoControl } from "./undohistory.ts";
-import { initTexImageInput, insertPickedImage } from "./teximages.ts";
+import { initTexImageInput, insertPickedImage } from "./tex/teximages.ts";
 import { minimalDiff } from "./mdedit.ts";
-import { isLookupKey, wordAt, type WordSpan } from "./lookup.ts";
-import { openDictManager } from "./dictmanager.ts";
+import { initDefineControls } from "./definecontrols.ts";
+import { initSuggestPopover } from "./suggestpopover.ts";
 import { rotateEmptyTips, syncEmptyTips } from "./emptytips.ts";
 import {
   initDictMenu,
   loadEnabledEnglish,
   activeIds,
   visibleIds,
-} from "./dictmenu.ts";
-import { splitName } from "./office/filename.ts";
-import { casePattern } from "./caseform.ts";
-import type { CasePattern } from "./caseform.ts";
-import type { OfficeMode } from "./office/mode.ts";
-import { initStatus, nf, reveal } from "./status.ts";
+} from "./dict/dictmenu.ts";
+import { casePattern } from "./spell/caseform.ts";
+import type { CasePattern } from "./spell/caseform.ts";
+import { createOfficeSession } from "./office/session.ts";
+import {
+  caretLine,
+  NO_STATS,
+  statsBody,
+  statsMessage,
+  type DocStats,
+  type LinePosition,
+} from "./statusline.ts";
+import { initStatus, reveal } from "./status.ts";
 import { isBulkDelete, isSeparatorInput, isTouch } from "./input.ts";
 import { copyText, flash } from "./clipboard.ts";
 import {
-  dashFixes,
-  numberSplits,
   periodSplitDot,
-  periodSplits,
   replaceAllWord,
-  scopeToSuffix,
   splitEveryOccurrence,
   wordAtCaret,
-} from "./wordfix.ts";
+} from "./spell/wordfix.ts";
 import {
   composeDropped,
   composeTypedWord,
   initEditorText,
   pasteComposed,
   swapOrigin,
-  swapText,
 } from "./editortext.ts";
 import { initDraftText } from "./drafttext.ts";
 import { initClean, initDecode } from "./decode.ts";
@@ -165,6 +129,10 @@ import { installErrorLog } from "./errorlog.ts";
 import { initReportButton } from "./reportbtn.ts";
 
 installErrorLog();
+
+let previewCtl: Preview | null = null;
+let paneCtl: PaneToggle | null = null;
+let projectLink: ProjectLink | null = null;
 
 document.body.classList.add("ready");
 
@@ -202,6 +170,15 @@ document.addEventListener("selectionchange", () => {
 });
 
 const checker: SpellChecker = new MultiSpellChecker();
+const spell = createSpellSession({
+  checker,
+  markup: () => markupSkips,
+  isLatex: isLatexText,
+  progress: async (message, animate) => {
+    setStatus(message, animate);
+    await nextFrame();
+  },
+});
 interface PendingFix {
   original: string;
   originalPattern: CasePattern;
@@ -209,7 +186,6 @@ interface PendingFix {
   start: number;
 }
 
-const cache = new Map<string, boolean>();
 let ready = false;
 let badTokens: Token[] = [];
 let baseStatus = "";
@@ -219,14 +195,9 @@ let pendingFix: PendingFix | null = null;
 let enabledEnglish = loadEnabledEnglish();
 let lastFailed: { id: string; error: string }[] | null = null;
 let lastFallbackReason: string | null = null;
-let docx: OfficeMode | null = null;
-let docxFile: File | null = null;
-let officeOps: Promise<void> = Promise.resolve();
 let undoCtl: UndoControl | null = null;
 let tabGuard: TabGuard | null = null;
 let plainName: string | null = null;
-let skipCode = true;
-let skipLinks = true;
 let markupSkips = false;
 let lastCaret: { start: number; end: number } | null = null;
 
@@ -235,7 +206,23 @@ const setStatus = status.set;
 const holdStatus = status.hold;
 const releaseStatusHold = status.release;
 
-const PREPARE_HOLD_MS = 3000;
+const office = createOfficeSession({
+  editor: els.editor,
+  setStatus,
+  holdStatus,
+  releaseStatusHold,
+  setEditorText: (text, caret) => setEditorText(text, caret),
+  hidePopover: () => hidePopover(),
+  render: () => render(),
+  saveText: () => saveText(),
+  showSource: (source) => previewCtl?.setSource(source),
+  baseline: () => undoCtl?.baseline(),
+  syncFixButtons: () => syncFixButtons(),
+  onModeChange: () => {
+    syncSaveHint();
+    exportCtl?.syncPrint();
+  },
+});
 
 function restoreStatus(): void {
   if (!ready) return;
@@ -243,51 +230,7 @@ function restoreStatus(): void {
     if (baseStatus && !offlineIndicatorActive) setStatus(baseStatus);
     return;
   }
-  setStatus(statsMessage(), false);
-}
-function isCorrect(word: string): boolean {
-  return cache.has(word) ? cache.get(word)! : true;
-}
-const CHECK_NOTICE_MIN = 2000;
-const CHECK_BATCH = 8000;
-type Tokenized =
-  ReturnType<typeof tokenize> extends Iterable<infer T> ? T : never;
-function tokenizeAll(text: string): Tokenized[] {
-  return Array.from(tokenize(text), (item) => ({ ...item }));
-}
-async function ensureChecked(
-  text: string,
-  tokens: Iterable<Tokenized> = tokenize(text),
-): Promise<void> {
-  const need = new Set<string>();
-  let prev: Tokenized | null = null;
-  for (const token of tokens) {
-    const { word, joined } = token;
-    const probe = joined ?? word;
-    if (checkable(word) && !cache.has(probe)) need.add(probe);
-    const compound = prev && dashCompound(text, prev, token);
-    if (compound && !cache.has(compound.word)) need.add(compound.word);
-    prev = token;
-  }
-  if (!need.size) return;
-  const words = [...need];
-  const notify = words.length > CHECK_NOTICE_MIN;
-  if (notify) {
-    setStatus("Алдааг шалгаж байна… 0%", true);
-    await nextFrame();
-  }
-  const results = await checkWordsBatched(
-    checker,
-    words,
-    CHECK_BATCH,
-    async (done, total) => {
-      if (!notify) return;
-      const pct = Math.floor((done / total) * 100);
-      setStatus("Алдааг шалгаж байна… " + pct + "%", false);
-      await nextFrame();
-    },
-  );
-  for (const [word, correct] of results) cache.set(word, correct);
+  setStatus(currentStatus(), false);
 }
 function afterPaint(): Promise<void> {
   return new Promise<void>((resolve) =>
@@ -296,13 +239,6 @@ function afterPaint(): Promise<void> {
 }
 function nextFrame(): Promise<void> {
   return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-}
-async function correctNow(word: string): Promise<boolean> {
-  if (cache.has(word)) return cache.get(word)!;
-  const checkResults = await checker.checkWords([word]);
-  const correct = checkResults[word] === true;
-  cache.set(word, correct);
-  return correct;
 }
 function debounce<A extends unknown[]>(
   fn: (...args: A) => void,
@@ -315,60 +251,10 @@ function debounce<A extends unknown[]>(
   };
 }
 
-function skipFor(text: string): SkipRange[] {
-  const latex = isLatexText(text);
-  return skipRanges(text, {
-    code: skipCode && (markupSkips || latex),
-    links: skipLinks,
-    latex,
-  });
-}
-
-const LATIN_WORD = /\p{Script=Latin}/u;
-
-function plainFences(text: string, word: string): SkipRange[] {
-  return markupSkips || !LATIN_WORD.test(word) ? [] : fencedCode(text);
-}
-
-function computeBad(
-  text: string,
-  tokens: Iterable<Tokenized> = tokenize(text),
-): { bad: Token[]; total: number } {
-  const bad: Token[] = [];
-  const skip = skipFor(text);
-  let total = 0;
-  let prev: Tokenized | null = null;
-  for (const token of tokens) {
-    const { word, index, joined } = token;
-    const left = prev;
-    prev = token;
-    total++;
-    if (skip.length && inRanges(skip, index)) continue;
-    const compound =
-      left && !inRanges(skip, left.index) && dashCompound(text, left, token);
-    if (compound && !isCorrect(compound.word) && !isIgnored(compound.word)) {
-      if (bad[bad.length - 1]?.start === compound.start) bad.pop();
-      bad.push(compound);
-      prev = null;
-      continue;
-    }
-    if (!checkable(word) || isCorrect(joined ?? word) || isIgnored(word))
-      continue;
-    const span = dashSpan(text, { word, start: index });
-    const last = bad[bad.length - 1];
-    if (span && !isIgnored(span.word) && (!last || last.end <= span.start)) {
-      bad.push(span);
-      continue;
-    }
-    bad.push({ word, start: index, end: index + word.length, joined });
-  }
-  return { bad, total };
-}
-
 const TEX_NAME_RE = /\.(tex|ltx)$/i;
 
 function isLatexText(text: string): boolean {
-  if (docx) return false;
+  if (office.active()) return false;
   if (inProject || projectLink?.bound()) return true;
   if (plainName) return TEX_NAME_RE.test(plainName);
   return texTemplate || looksLatex(text);
@@ -404,15 +290,15 @@ function applyTexPaint(on: boolean): void {
   texPaint = on;
   setHighlighter(on ? texSpans : null);
   if (on) {
-    void import("./texpdf.ts").then(async (mod) => {
+    void import("./tex/texpdf.ts").then(async (mod) => {
       const ready = await mod.prefetchFonts();
       if (!ready || !navigator.serviceWorker?.controller) return;
       if (read(mod.OFFLINE_KEY) || !write(mod.OFFLINE_KEY, "1")) return;
       holdStatus("LaTeX файлтай офлайн ажиллахад бэлэн боллоо", 6000, false);
     });
-    void import("./pdfview.ts").then((mod) => mod.warmPdf());
-    void import("./teximages.ts");
-    void import("./latex.ts");
+    void import("./preview/pdfview.ts").then((mod) => mod.warmPdf());
+    void import("./tex/teximages.ts");
+    void import("./tex/latex.ts");
   }
   els.editor.parentElement?.classList.toggle("is-tex", on);
   const text = els.editor.value;
@@ -492,9 +378,9 @@ async function render() {
   }
 
   const tokens = tokenizeAll(text);
-  await ensureChecked(text, tokens);
+  await spell.ensureChecked(text, tokens);
   if (seq !== renderSeq) return;
-  const { bad, total } = computeBad(text, tokens);
+  const { bad, total } = spell.computeBad(text, tokens);
   badTokens = bad;
 
   renderBackdrop(text, bad);
@@ -508,37 +394,27 @@ async function render() {
     if (text.trim() === "" && !openFileName()) {
       if (baseStatus && !offlineIndicatorActive) setStatus(baseStatus);
     } else {
-      statWords = total;
-      statBad = bad.length;
-      statChars = text.length;
-      setStatus(statsMessage(), false);
+      stats = { words: total, bad: bad.length, chars: text.length };
+      setStatus(currentStatus(), false);
     }
   }
 }
 
-let statWords = 0;
-let statBad = 0;
-let statChars = 0;
+let stats: DocStats = NO_STATS;
 
-function caretLineIndex(value: string): number {
-  const caret = Math.min(els.editor.selectionStart ?? 0, value.length);
-  let line = 0;
-  for (let i = 0; i < caret; i++) {
-    if (value.charCodeAt(i) === 10) line++;
-  }
-  return line;
+function linePosition(knownLine?: number): LinePosition | null {
+  const value = els.editor.value;
+  if (!narrowMQ.matches || value === "") return null;
+  const line =
+    (knownLine ?? caretLine(value, els.editor.selectionStart ?? 0)) + 1;
+  return { line, total: backdropLineCount() + (value.endsWith("\n") ? 1 : 0) };
 }
 
-function lineInfo(knownLine?: number): string {
-  if (!narrowMQ.matches) return "";
-
-  const value = els.editor.value;
-  if (value === "") return "";
-
-  const line = (knownLine ?? caretLineIndex(value)) + 1;
-  const total = backdropLineCount() + (value.endsWith("\n") ? 1 : 0);
-
-  return ", Мөр: " + nf(line) + " / " + nf(Math.max(total, line));
+function currentStatus(knownLine?: number): string {
+  return statsMessage(
+    openFileName(),
+    statsBody(stats, desktopMQ.matches, linePosition(knownLine)),
+  );
 }
 
 let saveTitleBase: string | null = null;
@@ -556,22 +432,6 @@ function syncClearHint(open: boolean): void {
       : clearTitleBase;
 }
 
-function statsBody(knownLine?: number): string {
-  if (desktopMQ.matches) {
-    return "Үгийн тоо: " + nf(statWords) + ", Нийт тэмдэгт: " + nf(statChars);
-  }
-
-  return (
-    "Үгийн тоо: " +
-    nf(statWords) +
-    ", <b>Алдаатай үг</b>: <b>" +
-    nf(statBad) +
-    "</b>, Нийт тэмдэгт: " +
-    nf(statChars) +
-    lineInfo(knownLine)
-  );
-}
-
 function syncSaveHint(): void {
   const btn = document.querySelector<HTMLElement>("#saveBtn");
   if (!btn) return;
@@ -583,6 +443,7 @@ function syncSaveHint(): void {
     : "";
 
   const target = fileIO.targetName();
+  const docx = office.active();
   syncClearHint(!!(docx || target || plainName));
 
   btn.title = docx
@@ -593,35 +454,13 @@ function syncSaveHint(): void {
 }
 
 function openFileName(): string | null {
-  return docx ? docx.fileName() : plainName;
-}
-
-function statsMessage(knownLine?: number): string {
-  const full = openFileName();
-  if (!full) return statsBody(knownLine);
-
-  const parts = splitName(full);
-
-  return (
-    '<b class="doc-head" title="' +
-    escapeHtml(full) +
-    '">' +
-    escapeHtml(parts.head) +
-    "</b>" +
-    '<b class="doc-keep">' +
-    escapeHtml(parts.tail) +
-    "</b>" +
-    '<span class="doc-rest">' +
-    '<span class="doc-sep">, </span>' +
-    statsBody(knownLine) +
-    "</span>"
-  );
+  return office.active()?.fileName() ?? plainName;
 }
 
 function refreshLineInfo(knownLine?: number): void {
   if (!ready || !narrowMQ.matches) return;
   if (!els.status.innerHTML.includes("Үгийн тоо:")) return;
-  setStatus(statsMessage(knownLine), false);
+  setStatus(currentStatus(knownLine), false);
 }
 
 function revealRange(start: number, end: number): void {
@@ -655,7 +494,7 @@ function syncScroll() {
 }
 
 function syncActiveLine() {
-  const line = caretLineIndex(els.editor.value);
+  const line = caretLine(els.editor.value, els.editor.selectionStart ?? 0);
   setActiveLine(line);
   refreshLineInfo(line);
 }
@@ -711,360 +550,33 @@ const errorPanel = initErrorPanel({
   showPopoverFor: (token) => void showPopoverFor(token),
 });
 
-const WORD_CHAR = /[\p{L}\p{M}\p{N}]/u;
-
-let latinDicts: boolean | null = null;
-checker.onDictScripts = (latin) => {
-  latinDicts = latin;
-};
-const latinLookup = (): boolean => latinDicts !== false;
-
-const ENGLISH_REMIND_MS = 60000;
-let englishRemindedAt = -Infinity;
-function remindEnglish(word: string): void {
-  if (!LATIN_WORD.test(word)) return;
-  const loaded = checker.loadedIds.some(
-    (id) => id.startsWith("en") && enabledEnglish.has(id),
-  );
-  if (loaded) return;
-  const now = performance.now();
-  if (now - englishRemindedAt < ENGLISH_REMIND_MS) return;
-  englishRemindedAt = now;
-  holdStatus(
-    "Англи үгийн үндсийг танихын тулд англи толийг асаана уу (" +
-      (/mac|iphone|ipad/i.test(navigator.platform) ? "⌘⇧L" : "Ctrl+Shift+L") +
-      ")",
-    6000,
-    false,
-  );
-}
-
-function wordForLookup(): WordSpan | null {
-  const { value, selectionStart, selectionEnd } = els.editor;
-  if (selectionStart === selectionEnd)
-    return wordAt(value, selectionStart, latinLookup());
-  let start = selectionStart;
-  let end = selectionEnd;
-  while (start < end && !WORD_CHAR.test(value.charAt(start))) start++;
-  while (end > start && !WORD_CHAR.test(value.charAt(end - 1))) end--;
-  if (start >= end) return null;
-  const span = wordAt(value, start, latinLookup());
-  return span && span.start <= start && span.end >= end ? span : null;
-}
-
-const LONG_PRESS_MS = 550;
-const NO_DICT_MESSAGE =
-  "Толь нэмэхийн тулд Shift товчийг Үгийн тайлбар харах товчтой хамт дарна уу";
-const NO_DICT_TOUCH_MESSAGE =
-  "Толь нэмэхийн тулд Үгийн тайлбар харах товчийг удаан дарна уу";
-
-function isDictManagerKey(event: KeyboardEvent): boolean {
-  return (
-    (event.ctrlKey || event.metaKey) &&
-    event.shiftKey &&
-    event.altKey &&
-    event.code === "Space"
-  );
-}
-
-function manageDicts(): Promise<void> {
-  return openDictManager({
-    list: () => checker.listDicts?.() ?? Promise.resolve([]),
-    reload: () => checker.reloadDicts?.(),
-    reorder: () => checker.reorderDicts?.(),
-    changed: () => defTip.resetDefinitions(),
-    status: (message) => holdStatus(message, 5000, false),
-  });
-}
-
-const defineBtn = document.querySelector<HTMLButtonElement>("#defineBtn");
-let definePressTimer: ReturnType<typeof setTimeout> | undefined;
-let definePressArmed = false;
-
-defineBtn?.addEventListener("pointerdown", (event) => {
-  if (event.pointerType === "mouse") return;
-  definePressArmed = false;
-  clearTimeout(definePressTimer);
-  definePressTimer = setTimeout(() => {
-    definePressArmed = true;
-  }, LONG_PRESS_MS);
-});
-defineBtn?.addEventListener("pointerup", () => clearTimeout(definePressTimer));
-for (const type of ["pointercancel", "pointerleave"])
-  defineBtn?.addEventListener(type, (event) => {
-    clearTimeout(definePressTimer);
-    if (type === "pointercancel" || (event as PointerEvent).buttons)
-      definePressArmed = false;
-  });
-defineBtn?.addEventListener("contextmenu", (event) => event.preventDefault());
-
-defineBtn?.addEventListener("click", async (event) => {
-  if (definePressArmed || event.shiftKey || event.ctrlKey || event.metaKey) {
-    definePressArmed = false;
-    void manageDicts();
-    return;
-  }
-  const caretToken = tokenAtCaret();
-  if (caretToken) {
-    void showPopoverFor(caretToken);
-    return;
-  }
-  if (!checker.define) return;
-  const span = wordForLookup();
-  if (!span) {
-    holdStatus("Тайлбар харах үг дээрээ товшоод дахин дарна уу", 3000, false);
-    return;
-  }
-  const definition = await defTip.definitionFor(
-    els.editor.value.slice(span.start, span.end),
-  );
-  if (definition.dicts === 0) {
-    holdStatus(
-      isTouch() ? NO_DICT_TOUCH_MESSAGE : NO_DICT_MESSAGE,
-      6000,
-      false,
-    );
-    return;
-  }
-  if (isTouch()) void pop.openWordPanel(span);
-  else
-    void defTip.showWordDefinition(span).then(() => remindEnglish(span.word));
+initDefineControls({
+  editor: els.editor,
+  backdrop: els.backdrop,
+  checker,
+  defTip,
+  defDock,
+  pop,
+  holdStatus,
+  englishEnabled: () => enabledEnglish,
+  errorAtCaret: tokenAtCaret,
+  showErrorPopover: (token) => void suggestPopover.showFor(token),
 });
 
-els.editor.addEventListener("keydown", (e) => {
-  if (!e.isComposing && isDictManagerKey(e)) {
-    e.preventDefault();
-    void manageDicts();
-    return;
-  }
-  if (e.isComposing || !isLookupKey(e)) return;
-  const caretToken = tokenAtCaret();
-  if (caretToken) {
-    e.preventDefault();
-    void showPopoverFor(caretToken);
-    return;
-  }
-  if (!checker.define) return;
-  const span = wordForLookup();
-  if (!span) return;
-  e.preventDefault();
-  void defTip.showWordDefinition(span).then(() => remindEnglish(span.word));
+const suggestPopover = initSuggestPopover({
+  editor: els.editor,
+  backdrop: els.backdrop,
+  popover: els.popover,
+  pop,
+  defTip,
+  checker,
+  desktopMQ,
+  render: () => render(),
+  apply: (token, replacement) => applySuggestion(token, replacement),
+  attachKeyboard: (input) => kbLayout.attach(input),
+  errorAtCaret: tokenAtCaret,
 });
-
-const checkWords = (words: string[]) => checker.checkWords(words);
-
-const reducedMotionMQ = window.matchMedia("(prefers-reduced-motion: reduce)");
-
-async function showPopoverFor(token: Token): Promise<void> {
-  materializeMark(token.start);
-  let mark = els.backdrop.querySelector(
-    'mark[data-start="' + token.start + '"]',
-  );
-  if (!mark) {
-    await render();
-    materializeMark(token.start);
-    mark = els.backdrop.querySelector('mark[data-start="' + token.start + '"]');
-  }
-  if (!mark) {
-    hidePopover();
-    return;
-  }
-
-  pop.open(token.start);
-
-  const [dashes, splits, numbers, offered] = await Promise.all([
-    dashFixes(token, checkWords),
-    periodSplits(token.word, checkWords),
-    numberSplits(token.word, checkWords),
-    checker.suggest(token.joined ?? token.word),
-  ]);
-  const scoped = scopeToSuffix(token, offered);
-  const ahead = [
-    ...dashes,
-    ...splits.filter((item) => !dashes.includes(item)),
-    ...numbers.filter(
-      (item) => !splits.includes(item) && !dashes.includes(item),
-    ),
-  ];
-  const suggestions = [
-    ...ahead,
-    ...scoped.filter((item) => !ahead.includes(item)),
-  ].slice(0, desktopMQ.matches ? 15 : 8);
-  const found =
-    checker.lookup && suggestions.length
-      ? await checker.lookup(suggestions)
-      : null;
-  if (!pop.isOpenAt(token.start)) return;
-  const marks = pickDefinitionMarks(suggestions, found);
-  const sgHtml = suggestions.length
-    ? suggestions
-        .map((suggestion) => {
-          const button =
-            '<button class="sg" type="button">' +
-            escapeHtml(suggestion) +
-            "</button>";
-          if (!marks.has(suggestion)) return button;
-          return (
-            '<div class="sg-row">' +
-            button +
-            '<button class="sg-dot" type="button"' +
-            ' aria-expanded="false" aria-controls="defTip" aria-label="' +
-            escapeHtml(suggestion) +
-            ' — тайлбар"></button></div>'
-          );
-        })
-        .join("")
-    : els.editor.readOnly
-      ? '<button class="sg sg-manual pop-fix-open" type="button">' +
-        'санал алга — <span class="pop-fix-cue">засах</span></button>'
-      : '<div class="muted pop-empty">санал алга</div>';
-  els.popover.innerHTML =
-    '<div class="pop-scroll">' +
-    '<div class="pop-list">' +
-    sgHtml +
-    "</div>" +
-    '<div class="pop-less" hidden>' +
-    '<button class="pop-less-btn" type="button" aria-label="Дээш гүйлгэх">' +
-    "</button></div>" +
-    '<div class="pop-more" hidden>' +
-    '<button class="pop-more-btn" type="button" aria-label="Доош гүйлгэх">' +
-    "</button></div>" +
-    "</div>" +
-    (canIgnore(token.word)
-      ? '<button class="sg sg-ignore" type="button">Энэ үгийг алгасах</button>'
-      : "");
-  const list = pop.list();
-  if (list) {
-    list.scrollTop = 0;
-    list.addEventListener("scroll", pop.updateScrollHint, { passive: true });
-    list.addEventListener("scroll", defTip.hide, { passive: true });
-  }
-  pop.measure();
-  pop.place();
-
-  els.popover
-    .querySelector<HTMLElement>(".pop-fix-open")
-    ?.addEventListener("click", (event) => {
-      if (event.currentTarget instanceof HTMLElement)
-        openManualFix(token, event.currentTarget);
-    });
-  els.popover
-    .querySelectorAll(".sg:not(.sg-ignore, .sg-manual)")
-    .forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const covered = pop.obscuredBy(btn);
-        if (covered > 0 && list) {
-          list.scrollBy({
-            top: covered,
-            behavior: reducedMotionMQ.matches ? "auto" : "smooth",
-          });
-          return;
-        }
-        applySuggestion(token, btn.textContent);
-      });
-    });
-  els.popover.querySelectorAll<HTMLElement>(".sg-dot").forEach(defTip.bindDot);
-  const pageBy = (sign: number) => {
-    if (!list) return;
-    list.scrollBy({
-      top: sign * Math.max(60, list.clientHeight - 48),
-      behavior: reducedMotionMQ.matches ? "auto" : "smooth",
-    });
-  };
-  els.popover
-    .querySelectorAll(".pop-more-btn, .pop-less-btn")
-    .forEach((btn) => {
-      btn.addEventListener("mousedown", (e) => e.preventDefault());
-      btn.addEventListener("click", () =>
-        pageBy(btn.classList.contains("pop-less-btn") ? -1 : 1),
-      );
-    });
-  const ignoreBtn = els.popover.querySelector(".sg-ignore");
-  if (ignoreBtn) {
-    ignoreBtn.addEventListener("click", () => {
-      addIgnored(token.word);
-      syncIgnoreVisibility();
-      hidePopover();
-      render();
-    });
-  }
-}
-
-function openManualFix(token: Token, trigger: HTMLElement): void {
-  const original = token.word.replace(/\s+$/, "");
-  const form = document.createElement("form");
-  form.className = "pop-fix";
-  const input = document.createElement("input");
-  input.type = "text";
-  input.className = "pop-fix-input";
-  input.value = filterManualFix(original);
-  input.maxLength = MANUAL_FIX_MAX;
-  input.spellcheck = false;
-  input.autocomplete = "off";
-  input.setAttribute("autocapitalize", "off");
-  input.setAttribute("enterkeyhint", "done");
-  input.setAttribute("aria-label", "Зөв бичлэгийг өөрөө бичих");
-  const submit = document.createElement("button");
-  submit.type = "submit";
-  submit.className = "pop-fix-ok";
-  submit.textContent = "Засах";
-  form.append(input, submit);
-  trigger.replaceWith(form);
-  kbLayout.attach(input);
-
-  let accepted = input.value;
-  const refresh = () => {
-    submit.disabled = cleanManualFix(input.value, original) === null;
-  };
-  const enforce = () => {
-    const raw = input.value;
-    const caret = input.selectionStart ?? raw.length;
-    const next = filterManualFix(raw);
-    const over = countWords(next) > MANUAL_FIX_WORDS;
-    const value = over ? accepted : next;
-    if (value !== raw) {
-      const at = over
-        ? Math.max(0, caret - (raw.length - accepted.length))
-        : filterManualFix(raw.slice(0, caret)).length;
-      input.value = value;
-      input.setSelectionRange(at, at);
-    }
-    accepted = input.value;
-    refresh();
-  };
-  input.addEventListener("input", (event) => {
-    if (event instanceof InputEvent && event.isComposing) return;
-    enforce();
-  });
-  input.addEventListener("compositionend", enforce);
-  refresh();
-
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const fix = cleanManualFix(input.value, original);
-    if (fix === null) return;
-    if (els.editor.value.slice(token.start, token.end) !== token.word) {
-      hidePopover();
-      return;
-    }
-    void applySuggestion(token, fix);
-  });
-
-  pop.measure();
-  pop.place();
-  input.focus({ preventScroll: true });
-  input.select();
-}
-
-function suggestAtCaret() {
-  const caretToken = tokenAtCaret();
-  if (!caretToken) {
-    hidePopover();
-    return;
-  }
-  if (pop.isOpenAt(caretToken.start)) return;
-  showPopoverFor(caretToken);
-}
+const showPopoverFor = suggestPopover.showFor;
 
 async function maybePropagateManual() {
   if (!pendingFix) return;
@@ -1089,7 +601,7 @@ async function maybePropagateManual() {
   const lower = manualFixToken.word.toLowerCase();
   if (lower === fix.original) return;
   if (fix.original.length - manualFixToken.word.length > 2) return;
-  if (!(await correctNow(manualFixToken.word))) return;
+  if (!(await spell.correctNow(manualFixToken.word))) return;
   if (pendingFix !== fix || els.editor.value !== text) return;
   const original = fix.original;
   const primaryPattern = fix.originalPattern || "lower";
@@ -1101,7 +613,7 @@ async function maybePropagateManual() {
     pos,
     primaryPattern,
     null,
-    mergeRanges([...skipFor(text), ...plainFences(text, original)]),
+    mergeRanges([...spell.skipFor(text), ...spell.plainFences(text, original)]),
   );
   if (nt === text) return;
   const top = els.editor.scrollTop;
@@ -1139,8 +651,8 @@ async function applySuggestion(
 ): Promise<void> {
   pendingFix = null;
   const editorText = els.editor.value;
-  const fences = plainFences(editorText, token.word);
-  const skip = mergeRanges([...skipFor(editorText), ...fences]);
+  const fences = spell.plainFences(editorText, token.word);
+  const skip = mergeRanges([...spell.skipFor(editorText), ...fences]);
 
   const dashFix = dashNormalizeApply(editorText, token, replacement, skip);
   if (dashFix) {
@@ -1173,7 +685,7 @@ async function applySuggestion(
     token.end,
     casePattern(token.word),
     onlyAt,
-    inFence ? skipFor(editorText) : skip,
+    inFence ? spell.skipFor(editorText) : skip,
   );
   if (nt === editorText) {
     hidePopover();
@@ -1219,6 +731,7 @@ const editorText = initEditorText({
   },
   onReplace: () => previewCtl?.setSource(null),
   accept: (old, next) => {
+    const docx = office.active();
     if (docx && !docx.sync(old, next)) {
       holdStatus("Энэ өөрчлөлтийг docx файлд буулгах боломжгүй");
       return false;
@@ -1234,7 +747,7 @@ const fixButtonDeps = {
   editor: els.editor,
   setEditorText,
   refresh: () => {
-    cache.clear();
+    spell.clear();
     return render();
   },
   saveText: () => saveText(),
@@ -1339,7 +852,7 @@ els.editor.addEventListener("click", () => {
     suppressNextClick = false;
     return;
   }
-  suggestAtCaret();
+  suggestPopover.atCaret();
 });
 els.editor.addEventListener("keyup", (e) => {
   const nav = [
@@ -1389,74 +902,6 @@ els.editor.addEventListener("pointerdown", (e) => {
   showPopoverFor(markToken);
 });
 
-function wordAtPoint(x: number, y: number): WordSpan | null {
-  const { editor, backdrop } = els;
-  editor.style.pointerEvents = "none";
-  backdrop.style.pointerEvents = "auto";
-  backdrop.style.userSelect = "text";
-  const offset = offsetAtPoint(x, y);
-  editor.style.pointerEvents = "";
-  backdrop.style.pointerEvents = "";
-  backdrop.style.userSelect = "";
-  if (offset === null) return null;
-  const span = wordAt(editor.value, offset, latinLookup());
-  const rect = span && rangeRectAt(span.start, span.end);
-  if (!rect) return null;
-  if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom)
-    return null;
-  return span;
-}
-
-function isHoverDefineKey(e: KeyboardEvent | PointerEvent): boolean {
-  return (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey;
-}
-
-let hoverPoint: { x: number; y: number } | null = null;
-let hoverSpan: WordSpan | null = null;
-
-function defineAtPoint(x: number, y: number): void {
-  if (!checker.define) return;
-  const span = wordAtPoint(x, y);
-  if (!span) {
-    hoverSpan = null;
-    defTip.hideWordTip();
-    return;
-  }
-  if (hoverSpan?.start === span.start && hoverSpan.end === span.end) return;
-  hoverSpan = span;
-  void defTip.showWordDefinition(span, x).then(() => remindEnglish(span.word));
-}
-
-let hoverFrame = 0;
-
-els.editor.addEventListener("pointermove", (e) => {
-  if (e.pointerType !== "mouse") return;
-  const always = (defDock.body() || defTip.pinned()) && !defTip.paused();
-  if (always && e.shiftKey) return;
-  hoverPoint = { x: e.clientX, y: e.clientY };
-  if (e.buttons !== 0 || !(isHoverDefineKey(e) || always)) {
-    hoverSpan = null;
-    return;
-  }
-  if (hoverFrame) return;
-  hoverFrame = requestAnimationFrame(() => {
-    hoverFrame = 0;
-    if (hoverPoint) defineAtPoint(hoverPoint.x, hoverPoint.y);
-  });
-});
-
-els.editor.addEventListener("pointerleave", () => {
-  hoverPoint = null;
-  hoverSpan = null;
-});
-
-document.addEventListener("keydown", (e) => {
-  if (e.repeat || (e.key !== "Control" && e.key !== "Meta")) return;
-  if (!hoverPoint || !isHoverDefineKey(e)) return;
-  hoverSpan = null;
-  defineAtPoint(hoverPoint.x, hoverPoint.y);
-});
-
 els.editor.addEventListener("contextmenu", (e) => {
   const caretToken = tokenAtCaret();
   if (caretToken) {
@@ -1476,10 +921,10 @@ if (editorWrap) {
     projectLink?.sync();
   });
   defDock.sync();
-  previewCtl = initPreview(
-    editorWrap,
-    els.editor,
-    (next) => {
+  previewCtl = initPreview({
+    wrap: editorWrap,
+    area: els.editor,
+    onFormat: (next) => {
       const caret = Math.min(els.editor.selectionStart, next.length);
       const scrollTop = els.editor.scrollTop;
       const scrollLeft = els.editor.scrollLeft;
@@ -1492,12 +937,12 @@ if (editorWrap) {
       void Promise.resolve(render()).then(restoreView);
       saveText();
     },
-    isLatexText,
-    () => projectLink?.key() ?? null,
-    () => projectLink?.bound() ?? false,
+    isLatex: isLatexText,
+    projectKey: () => projectLink?.key() ?? null,
+    inProject: () => projectLink?.bound() ?? false,
     pdfName,
-    revealRange,
-  );
+    jump: revealRange,
+  });
   const workspace = editorWrap.closest<HTMLElement>(".workspace");
   if (workspace)
     paneCtl = initPaneToggle(workspace, els.editor, desktopMQ, (on) => {
@@ -1513,174 +958,12 @@ function pdfName(): string {
 
 const appUpdate = initAppUpdate((html) => holdStatus(html), import.meta.url);
 
-function isPdfFile(file: File): boolean {
-  return file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
-}
-
-async function openPdfFile(file: File): Promise<boolean> {
-  releaseStatusHold();
-  setStatus("PDF файлыг уншиж байна…");
-  let text: string;
-  let stallTimer: number | null = null;
-  const armStall = (): void => {
-    if (stallTimer) clearTimeout(stallTimer);
-    stallTimer = window.setTimeout(() => {
-      stallTimer = null;
-      setStatus("Бичвэрийг бэлдэж байна…", false);
-    }, 5000);
-  };
-  try {
-    const mod = await import("./pdftext.ts");
-    armStall();
-    text = await mod.extractPdfText(file, (page, total) => {
-      armStall();
-      if (total > 1)
-        setStatus("PDF уншиж байна — " + page + " / " + total, false);
-    });
-  } catch (e) {
-    if (stallTimer) clearTimeout(stallTimer);
-    const reason = e instanceof Error ? e.message : "";
-    const tooLarge = reason.startsWith("too-large");
-    holdStatus(
-      tooLarge
-        ? "Файл хэт том байна — " +
-            (reason.split(":")[1] || "20") +
-            " мегабайтаас хэтэрч болохгүй"
-        : reason === "no-text"
-          ? "Сканердсан баримт байна — текстийн давхарга агуулаагүй тул уншиж чадсангүй"
-          : "PDF файлыг уншиж чадсангүй",
-    );
-    return true;
-  }
-  if (stallTimer) clearTimeout(stallTimer);
-  holdStatus("Бичвэрийг бэлдэж байна…", PREPARE_HOLD_MS, false);
-  await new Promise((resolve) =>
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve(null))),
-  );
-  closeDocx();
-  setEditorText(text, text.length);
-  hidePopover();
-  await render();
-  saveText();
-  previewCtl?.setSource({ kind: "pdf", file });
-  return true;
-}
-
-function queueOffice(op: () => Promise<void>): void {
-  officeOps = officeOps.then(op).catch(() => undefined);
-}
-
-async function openDocxFile(
-  file: File,
-  draftText?: string,
-  cancelled?: () => boolean,
-): Promise<boolean> {
-  if (isPdfFile(file)) return openPdfFile(file);
-  let mod: typeof import("./office/mode.ts");
-  try {
-    mod = await import("./office/mode.ts");
-  } catch (_) {
-    holdStatus("Баримт уншигчийг ачаалж чадсангүй");
-    return true;
-  }
-
-  if (mod.officeFormat(file) === null) return false;
-
-  let opened: OfficeMode;
-  try {
-    opened = await mod.openOfficeMode(file);
-  } catch (e) {
-    const reason = e instanceof Error ? e.message : "";
-    holdStatus(
-      reason.startsWith("too-large")
-        ? "Файл хэт том байна — " +
-            (reason.split(":")[1] || "12") +
-            " мегабайтаас хэтэрч болохгүй"
-        : reason === "unpacked-too-large"
-          ? "Файлыг задлахад хэт том болж байна — гэмтсэн эсвэл хортой файл байж магадгүй"
-          : "Файлыг уншиж чадсангүй",
-    );
-    return true;
-  }
-  if (cancelled?.()) return true;
-  docx = opened;
-  docxFile = file;
-
-  els.editor.readOnly = true;
-  const source = docx.text();
-  const restored =
-    draftText !== undefined &&
-    draftText !== source &&
-    docx.sync(source, draftText);
-  if (draftText !== undefined && draftText !== source && !restored)
-    holdStatus("Өмнөх засваруудыг сэргээж чадсангүй", 8000);
-  swapText(els.editor, restored ? draftText : source, {
-    origin: "office",
-    notify: false,
-  });
-  undoCtl?.baseline();
-  if (draftText === undefined) queueOffice(() => saveOfficeFile(file));
-  previewCtl?.setSource({ kind: "office", name: file.name });
-  document.body.classList.add("docx-mode");
-  syncSaveHint();
-  exportCtl?.syncPrint();
-  hidePopover();
-  syncFixButtons();
-  await render();
-  saveText();
-  return true;
-}
-
-function closeDocx(): void {
-  if (!docx) return;
-  detachDocx();
-  queueOffice(() => dropOfficeFile());
-}
-
-function parkDocx(slot: string): void {
-  const file = docxFile;
-  if (!docx || !file) return closeDocx();
-  detachDocx();
-  queueOffice(() => saveOfficeFile(file, slot).then(() => dropOfficeFile()));
-}
-
-function detachDocx(): void {
-  docx = null;
-  docxFile = null;
-  els.editor.readOnly = false;
-  document.body.classList.remove("docx-mode");
-  syncSaveHint();
-  exportCtl?.syncPrint();
-}
-
-async function docxSave(): Promise<boolean> {
-  if (!docx) return false;
-  const out = await docx.save();
-  if (out.delivered === "cancelled") return false;
-
-  if (out.skipped > 0) {
-    console.warn("docx: алгасагдсан засвар", out.skippedWords);
-    const names = out.skippedWords
-      .map((item) => '"' + item.word + '" (' + item.reason + ")")
-      .join(", ");
-    holdStatus(
-      "Засагдсангүй: " +
-        names +
-        " — үлдсэн " +
-        out.applied +
-        " засвар хадгалагдлаа",
-      12000,
-    );
-  }
-  return true;
-}
-
 const fileIO = initFileIO({
   els,
-  openDocxFile,
-  closeDocx,
-  isDocxActive: () => docx !== null,
-  docxSave,
+  openDocxFile: office.open,
+  closeDocx: office.close,
+  isDocxActive: () => office.active() !== null,
+  docxSave: office.save,
   flash,
   setStatus,
   setEditorText,
@@ -1752,14 +1035,14 @@ const slots = initSlotSwitch({
     name: () => fileIO.targetName(),
   },
   office: {
-    file: () => docxFile,
-    park: (slot) => parkDocx(slot),
+    file: office.file,
+    park: office.park,
     open: async (file, text, cancelled) => {
-      await openDocxFile(file, text, cancelled);
-      return docx !== null;
+      await office.open(file, text, cancelled);
+      return office.active() !== null;
     },
-    queue: queueOffice,
-    settled: () => officeOps,
+    queue: office.queue,
+    settled: office.settled,
   },
   project: () => projectLink,
   draft: (slot) => mdBar.draft(slot),
@@ -1906,7 +1189,7 @@ enterMdMode(mdActive());
 els.editor.addEventListener("input", nudgeHints);
 
 function isMdFileOpen(): boolean {
-  if (docx) return false;
+  if (office.active()) return false;
   const name = fileIO.targetName() ?? plainName;
   return !!name && MD_NAME_RE.test(name);
 }
@@ -1938,13 +1221,13 @@ exportCtl = initExport({
     return isMdFileOpen() ? "report" : PLAIN;
   },
   baseName: () => fileIO.targetName() ?? plainName,
-  blocked: () => docx !== null,
+  blocked: () => office.active() !== null,
   isTex: isTexFile,
   texZip: async (text, name) => {
     if (projectLink?.bound()) return projectLink.zip();
     const [{ zipSync, strToU8 }, { texImageSources }] = await Promise.all([
       import("fflate"),
-      import("./teximages.ts"),
+      import("./tex/teximages.ts"),
     ]);
     const images = await texImageSources(text);
     if (images.missing.length)
@@ -2001,7 +1284,7 @@ function savesPdf(): boolean {
   return (
     touchMQ.matches &&
     !desktopMQ.matches &&
-    docx === null &&
+    office.active() === null &&
     isTexFile() &&
     !!previewCtl
   );
@@ -2040,17 +1323,10 @@ async function savePdf(): Promise<void> {
   }
 }
 
-async function restoreOfficeFile(name: string): Promise<boolean> {
-  const file = await loadOfficeFile().catch(() => null);
-  if (!file || file.name !== name) return false;
-  await openDocxFile(file, els.editor.value);
-  return docx !== null;
-}
-
 async function restoreDraftFile(): Promise<void> {
   const ref = loadDraftFile(mdBar.slot());
   if (!ref) return;
-  if (ref.kind === "office" && (await restoreOfficeFile(ref.name))) {
+  if (ref.kind === "office" && (await office.restore(ref.name))) {
     plainName = ref.name;
     syncSaveHint();
     mdBar.refresh();
@@ -2150,7 +1426,7 @@ async function boot() {
     ready = true;
     checker.setActive(activeIds(enabledEnglish));
     appUpdate.setDictVersion(mnVersion);
-    cache.clear();
+    spell.clear();
     await render();
     if (loaded.length) {
       lastFailed = failed;
@@ -2170,7 +1446,7 @@ async function boot() {
     checker.onDictUpdated = (id) => {
       if (id !== "mn_MN") return;
       appUpdate.setDictVersion(checker.mnVersion);
-      cache.clear();
+      spell.clear();
       void render();
     };
     document.addEventListener("visibilitychange", () => {
@@ -2179,7 +1455,7 @@ async function boot() {
     window.addEventListener("online", () => maybeRefreshDict());
     setInterval(maybeRefreshDict, DICT_REFRESH_POLL_MS);
     checker.whenComplete().then((done) => {
-      cache.clear();
+      spell.clear();
       lastFailed = [...(failed || []), ...done.failed];
       baseStatus = dictStatusMessage(
         visibleIds(checker.loadedIds, enabledEnglish),
@@ -2213,8 +1489,8 @@ setTimeout(() => {
 
 initToolbar({
   els,
-  isDocxActive: () => docx !== null,
-  closeDocx,
+  isDocxActive: () => office.active() !== null,
+  closeDocx: office.close,
   forgetFile: () => {
     clearedEmpty = true;
     projectLink?.cleared();
@@ -2277,9 +1553,9 @@ initReportButton(() => {
   return {
     entryUrl: import.meta.url,
     activeDicts: checker.loadedIds.filter((id) => active.includes(id)),
-    officeActive: docx !== null,
+    officeActive: office.active() !== null,
     markdownActive: mdActive(),
-    fileName: docx ? docx.fileName() : plainName,
+    fileName: openFileName(),
     layout: measureCtl?.layout() ?? null,
     text: els.editor.value,
     errorWords: badTokens.map((token) => token.word),
@@ -2294,7 +1570,7 @@ const openDictMenu = initDictMenu({
   onApply: (next) => {
     enabledEnglish = next;
     checker.setActive(activeIds(enabledEnglish));
-    cache.clear();
+    spell.clear();
     baseStatus = dictStatusMessage(
       visibleIds(checker.loadedIds, enabledEnglish),
       lastFailed,

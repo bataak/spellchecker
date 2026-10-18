@@ -2,7 +2,7 @@ import "./helpers/mock-storage.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { normalizeImport } from "../src/ignorelist.ts";
-import { tokenize } from "../src/spellchecker.ts";
+import { tokenize } from "../src/spell/spellchecker.ts";
 
 test("normalizeImport: кирилл үгийг зөвшөөрнө", () => {
   assert.equal(normalizeImport("тест"), "тест");

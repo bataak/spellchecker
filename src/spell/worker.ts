@@ -1,5 +1,5 @@
 import type { WorkerRequest, WorkerResponse, DictFailure } from "./messages.ts";
-import { fetchGzBytes, loadDictBytes } from "./dictrefresh.ts";
+import { fetchGzBytes, loadDictBytes } from "../dict/dictrefresh.ts";
 import {
   findHeadword,
   findTaggedHeadword,
@@ -9,15 +9,15 @@ import {
   type DictEntry,
   type StarDict,
   hasLatinHeadwords,
-} from "./stardict.ts";
-import { DictReadError, loadStarDicts } from "./stardictload.ts";
-import type { DictListEntry } from "./dictindex.ts";
+} from "../dict/stardict.ts";
+import { DictReadError, loadStarDicts } from "../dict/stardictload.ts";
+import type { DictListEntry } from "../dict/dictindex.ts";
 import {
   loadDictOrder,
   loadUserDicts,
   sortByOrder,
   idxDigest,
-} from "./userdicts.ts";
+} from "../dict/userdicts.ts";
 import stardictList from "virtual:stardict-index";
 import { englishStems } from "./lookup.ts";
 import {

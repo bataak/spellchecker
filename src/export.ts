@@ -61,7 +61,7 @@ async function latexFor(
   options: BuildOptions,
 ): Promise<string> {
   const [{ toBeamer, toLatex }, { dropControls }] = await Promise.all([
-    import("./latex.ts"),
+    import("./tex/latex.ts"),
     import("./office/sanitize.ts"),
   ]);
   const frame = findTemplate(templateId)?.frame;
@@ -158,8 +158,8 @@ export const FORMATS: readonly ExportFormat[] = [
     build: async (text, templateId, options) => {
       const [source, { compilePdf }, { texImagePath }] = await Promise.all([
         latexFor(text, templateId, options),
-        import("./texpdf.ts"),
-        import("./latex.ts"),
+        import("./tex/texpdf.ts"),
+        import("./tex/latex.ts"),
       ]);
       const { tex, files } = await pdfImages(text, source, texImagePath);
       return compilePdf(tex, tocFor(options, templateId, text) ? 2 : 1, files);
@@ -588,7 +588,7 @@ export function initExport(options: ExportOptions): ExportControl {
     options.onBusy?.(true);
     try {
       const [{ compileTex }, { printPdf }] = await Promise.all([
-        import("./texpdf.ts"),
+        import("./tex/texpdf.ts"),
         import("./office/print.ts"),
       ]);
       await printPdf(await compileTex(editor.value));

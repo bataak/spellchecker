@@ -1,14 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { memoryBytes } from "../src/dictbytes.ts";
+import { memoryBytes } from "../src/dict/dictbytes.ts";
 import {
   defineWord,
   hasEntry,
   findHeadword,
   openStarDict,
   resolveDefinitions,
-} from "../src/stardict.ts";
+} from "../src/dict/stardict.ts";
 
 const encoder = new TextEncoder();
 

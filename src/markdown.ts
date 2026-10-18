@@ -1,4 +1,4 @@
-import { dollarMath } from "./codeskip.ts";
+import { dollarMath } from "./spell/codeskip.ts";
 
 export type MathOpen = "$" | "$$" | "\\(" | "\\begin{math}";
 

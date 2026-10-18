@@ -4,7 +4,7 @@ import {
   isDecimalPoint,
   nextOccurrence,
   splitNumberBoundary,
-} from "../src/textcheck.ts";
+} from "../src/spell/textcheck.ts";
 
 test("бүхэл тоо ба нэгжийг салгана", () => {
   assert.deepEqual(splitNumberBoundary("10мг"), {

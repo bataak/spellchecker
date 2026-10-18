@@ -5,7 +5,7 @@ import {
   imageCandidates,
   rewriteIncludes,
   texImagePaths,
-} from "../src/teximages.ts";
+} from "../src/tex/teximages.ts";
 
 test("зургийн замыг ./-гүйгээр жигдлэнэ", () => {
   assert.equal(normalizeTexPath(" ./img/a.png "), "img/a.png");

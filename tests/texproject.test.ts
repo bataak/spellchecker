@@ -26,7 +26,7 @@ import {
   texMaster,
   validName,
   viewableType,
-} from "../src/texproject.ts";
+} from "../src/tex/texproject.ts";
 
 test("cleanPath: цэг, давхар зураас, .. замыг цэгцэлнэ", () => {
   assert.equal(cleanPath("./a//b/./c.tex"), "a/b/c.tex");

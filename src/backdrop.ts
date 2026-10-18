@@ -1,7 +1,7 @@
 import { escapeHtml } from "./htmlutil.ts";
-import type { Token } from "./textcheck.ts";
-import { spansInRange } from "./texhighlight.ts";
-import type { TexSpan } from "./texhighlight.ts";
+import type { Token } from "./spell/textcheck.ts";
+import { spansInRange } from "./tex/texhighlight.ts";
+import type { TexSpan } from "./tex/texhighlight.ts";
 
 interface ChunkNode extends HTMLDivElement {
   _start: number;

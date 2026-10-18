@@ -1,4 +1,4 @@
-import { decodeFileBytes } from "./cp1251.ts";
+import { decodeFileBytes } from "../archive/cp1251.ts";
 import {
   baseName,
   cleanPath,
@@ -25,8 +25,8 @@ import {
   sameOnDisk,
   skippedPath,
   within,
-} from "./texproject.ts";
-import { unpackedSize } from "./archive.ts";
+} from "../tex/texproject.ts";
+import { unpackedSize } from "../archive/archive.ts";
 import {
   resolveSvg,
   rewriteSvg,
@@ -34,7 +34,7 @@ import {
   svgRefs,
   svgToPdf,
   usesSvgPackage,
-} from "./texsvg.ts";
+} from "../tex/texsvg.ts";
 
 const MAX_FILES = 3000;
 const MAX_BYTES = 200 * 1024 * 1024;

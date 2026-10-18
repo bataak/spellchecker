@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { unwrapLog, wantedFiles } from "../src/texmissing.ts";
+import { unwrapLog, wantedFiles } from "../src/tex/texmissing.ts";
 
 test("дутуу .sty файлыг LaTeX-ийн алдаанаас олно", () => {
   const log =

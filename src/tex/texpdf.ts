@@ -6,7 +6,7 @@ import {
   TEX_FONT_FILES,
   TEX_FONTS,
 } from "./texbundle.ts";
-import { KEYS, at } from "./store.ts";
+import { KEYS, at } from "../store.ts";
 
 export interface EngineReply {
   readonly result?: string;
@@ -360,7 +360,7 @@ export interface TexDocument {
 async function compileProjectDocument(): Promise<TexDocument> {
   const [{ projectBuild }, { withParatype }, { toPdfLatex }] =
     await Promise.all([
-      import("./projectstore.ts"),
+      import("../project/projectstore.ts"),
       import("./latex.ts"),
       import("./texcompat.ts"),
     ]);
@@ -387,7 +387,7 @@ async function compileProjectDocument(): Promise<TexDocument> {
 }
 
 export async function compileTexDocument(text: string): Promise<TexDocument> {
-  const { projectLinked } = await import("./projectstore.ts");
+  const { projectLinked } = await import("../project/projectstore.ts");
   if (projectLinked()) return compileProjectDocument();
   const [{ previewTex, withParatype }, { texImageFiles }, { toPdfLatex }] =
     await Promise.all([
