@@ -293,7 +293,7 @@ export interface MeasureControl {
   destroy(): void;
 }
 
-export function mountMeasureControl(
+export function initMeasureControl(
   wrap: HTMLElement,
   area: HTMLElement,
   onChange?: (l: Layout) => void,
