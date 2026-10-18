@@ -946,12 +946,49 @@ function movedKeys<T>(map: Map<string, T>, from: string, to: string): void {
   }
 }
 
+async function copyDiskDir(
+  source: FileSystemDirectoryHandle,
+  target: FileSystemDirectoryHandle,
+): Promise<void> {
+  for await (const entry of (
+    source as FileSystemDirectoryHandle & {
+      values(): AsyncIterable<FileSystemHandle>;
+    }
+  ).values()) {
+    if (entry.kind === "directory") {
+      await copyDiskDir(
+        entry as FileSystemDirectoryHandle,
+        await target.getDirectoryHandle(entry.name, { create: true }),
+      );
+      continue;
+    }
+    const file = await (entry as FileSystemFileHandle).getFile();
+    const out = await target.getFileHandle(entry.name, { create: true });
+    const stream = await out.createWritable();
+    await stream.write(file);
+    await stream.close();
+  }
+}
+
 async function moveDisk(
   s: State,
   from: string,
   source: string,
   target: string,
 ): Promise<void> {
+  if (s.dirs.has(from) && s.handle) {
+    let dir: FileSystemDirectoryHandle;
+    try {
+      dir = await dirHandleFor(s.handle, source, false);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "NotFoundError")
+        return;
+      throw error;
+    }
+    await copyDiskDir(dir, await dirHandleFor(s.handle, target, true));
+    await removeDisk(source);
+    return;
+  }
   for (const [path, text] of s.saved) {
     const next = movedPath(path, from, target);
     if (next === null) continue;
@@ -962,11 +999,6 @@ async function moveDisk(
     const next = movedPath(path, from, target);
     if (next !== null) await writeDisk(next, bytes);
   }
-  if (s.dirs.has(from) && s.handle)
-    for (const dir of s.dirs) {
-      const next = movedPath(dir, from, target);
-      if (next !== null) await dirHandleFor(s.handle, next, true);
-    }
   await removeDisk(source);
 }
 
@@ -975,8 +1007,7 @@ export async function renamePath(from: string, to: string): Promise<void> {
   const target = cleanPath(to);
   if (!target) throw new ProjectError("Нэр буруу байна");
   if (target === from) return;
-  if (exists(s, target, from))
-    throw new ProjectError("Ийм нэртэй зүйл байна");
+  if (exists(s, target, from)) throw new ProjectError("Ийм нэртэй зүйл байна");
   if (within(target, from))
     throw new ProjectError("Хавтсыг өөр дотор нь зөөх боломжгүй");
   if (s.kind === "dir") {
@@ -1207,9 +1238,7 @@ export async function projectBuild(): Promise<ProjectBuild> {
         const wanted = expandMacros(raw, macros);
         const path = resolveSvg(wanted, root, [...svgSearch, ...search], has);
         if (path !== null && !pdfs.has(path)) {
-          const pdf = await svgToPdf(
-            s.binaries.get(path) ?? new Uint8Array(0),
-          );
+          const pdf = await svgToPdf(s.binaries.get(path) ?? new Uint8Array(0));
           const name = pdf
             ? path.replace(/\.[^./]*$/, "") + ".converted.pdf"
             : null;
