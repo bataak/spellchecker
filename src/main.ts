@@ -48,12 +48,8 @@ import {
   spellDictHint,
 } from "./hint.ts";
 import { isPlain, PLAIN } from "./templates.ts";
-import {
-  deliverFile,
-  initExport,
-  stripExt,
-  type ExportControl,
-} from "./export.ts";
+import { deliverFile, initExport, type ExportControl } from "./export.ts";
+import { stripExt } from "./exportformats.ts";
 import {
   initBackdrop,
   renderBackdrop,

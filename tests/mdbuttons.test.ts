@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import {
   BUTTONS,
   buildButtons,
-  escapeAttr,
   formatEdit,
 } from "../src/mdbuttons.ts";
+import { escapeAttr } from "../src/htmlutil.ts";
 import { pickerOptions } from "../src/slotmenu.ts";
 
 const NOW = new Date(2026, 9, 18);
