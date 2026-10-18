@@ -4,22 +4,13 @@ import {
   fillDefinition,
   type Definition,
 } from "./definitions.ts";
-import {
-  CLOSE_ICON,
-  PAUSE_ICON,
-  PAUSE_LABEL,
-  PIN_ICON,
-  PLAY_ICON,
-  RESUME_LABEL,
-  iconButton,
-} from "./deficons.ts";
+import { createPauseToggle, createTipWindow } from "./tipwindow.ts";
 import { rangeRectAt } from "./backdrop.ts";
 import { KEYBOARD_LAYOUT_EVENT } from "./kbtoolbar.ts";
 import { escapeHtml } from "./htmlutil.ts";
 import { isTouch } from "./input.ts";
 import type { WordSpan } from "./spell/lookup.ts";
 import { emptyNote, type DefDock } from "./defdock.ts";
-import { KEYS, read, remove, write } from "./store.ts";
 
 const LATIN = /\p{Script=Latin}/u;
 
@@ -59,10 +50,6 @@ const DEF_TIP_GRACE_MS = 250;
 
 export function initDefTip(deps: DefTipDeps): DefTip {
   const { editor, popover } = deps;
-  let defTip: HTMLDivElement | null = null;
-  let defTipBody: HTMLDivElement | null = null;
-  let pinBtn: HTMLButtonElement | null = null;
-  let pinned = false;
   let shownWord = "";
   let dockedWord = "";
   let defTipAnchor: HTMLElement | null = null;
@@ -72,11 +59,7 @@ export function initDefTip(deps: DefTipDeps): DefTip {
   let wordTicket = 0;
   let wordPointerX: number | null = null;
   let keyboardShiftUntil = 0;
-  let grab: { dx: number; dy: number } | null = null;
-  let zone: ReturnType<DefDock["zoneAt"]> = null;
-  let dragBar: HTMLElement | null = null;
-  let paused = false;
-  const pauseBtns: HTMLButtonElement[] = [];
+  const pause = createPauseToggle();
 
   function cancelHide(): void {
     if (defTipHideTimer) clearTimeout(defTipHideTimer);
@@ -96,163 +79,43 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     if (defTipAnchor) defTipAnchor.setAttribute("aria-expanded", "false");
     defTipAnchor = null;
     wordAnchor?.classList.remove("is-lit");
-    if (defTip && !pinned) defTip.hidden = true;
-  }
-
-  function savePin(): void {
-    if (pinned && defTip)
-      write(KEYS.defPin, `${defTip.offsetLeft},${defTip.offsetTop}`);
-    else remove(KEYS.defPin);
-  }
-
-  function loadPin(): { left: number; top: number } | null {
-    const [left, top] = (read(KEYS.defPin) ?? "").split(",").map(Number);
-    return Number.isFinite(left) && Number.isFinite(top)
-      ? { left: left!, top: top! }
-      : null;
-  }
-
-  function setPinned(on: boolean): void {
-    if (!defTip || pinned === on) return;
-    const rect = defTip.getBoundingClientRect();
-    pinned = on;
-    defTip.classList.toggle("is-pinned", on);
-    pinBtn?.setAttribute("aria-pressed", String(on));
-    if (pinBtn) pinBtn.title = on ? "Бэхэлгээг авах" : "Энэ байрлалд бэхлэх";
-    defTip.style.left = (on ? 0 : window.scrollX) + rect.left + "px";
-    defTip.style.top = (on ? 0 : window.scrollY) + rect.top + "px";
-    savePin();
-  }
-
-  function pauseButton(className: string): HTMLButtonElement {
-    const button = iconButton(className, PAUSE_ICON, PAUSE_LABEL);
-    button.setAttribute("aria-pressed", "false");
-    button.addEventListener("mousedown", (e) => e.preventDefault());
-    button.addEventListener("click", () => setPaused(!paused));
-    pauseBtns.push(button);
-    return button;
-  }
-
-  function setPaused(on: boolean): void {
-    paused = on;
-    for (const button of pauseBtns) {
-      button.setAttribute("aria-pressed", String(on));
-      button.title = on ? RESUME_LABEL : PAUSE_LABEL;
-      button.setAttribute("aria-label", button.title);
-      button.innerHTML = on ? PLAY_ICON : PAUSE_ICON;
-    }
+    const tip = win.el();
+    if (tip && !win.pinned()) tip.hidden = true;
   }
 
   function closePinned(): void {
-    setPinned(false);
+    win.setPinned(false);
     hide();
   }
 
-  function moveTip(left: number, top: number): void {
-    if (!defTip) return;
-    const maxLeft = window.innerWidth - defTip.offsetWidth;
-    const maxTop = window.innerHeight - defTip.offsetHeight;
-    defTip.style.left = Math.max(0, Math.min(left, maxLeft)) + "px";
-    defTip.style.top = Math.max(0, Math.min(top, maxTop)) + "px";
-  }
+  const win = createTipWindow({
+    dock: deps.dock,
+    pause,
+    onEnter: cancelHide,
+    onLeave: () => {
+      if (defTipAnchor) scheduleHide();
+    },
+    onClose: closePinned,
+  });
 
-  function buildTip(): HTMLDivElement {
-    const tip = document.createElement("div");
-    tip.id = "defTip";
-    tip.className = "def-tip";
-    tip.setAttribute("role", "tooltip");
-    tip.hidden = true;
-    tip.addEventListener("pointerenter", (e) => {
-      if (e.pointerType !== "touch") cancelHide();
-    });
-    tip.addEventListener("pointerleave", (e) => {
-      if (e.pointerType !== "touch" && defTipAnchor) scheduleHide();
-    });
-
-    const bar = document.createElement("div");
-    bar.className = "def-tip-bar";
-    pinBtn = iconButton(
-      "def-tip-btn def-tip-pin",
-      PIN_ICON,
-      "Энэ байрлалд бэхлэх",
-    );
-    pinBtn.setAttribute("aria-pressed", "false");
-    pinBtn.addEventListener("click", () => setPinned(!pinned));
-    const closeBtn = iconButton(
-      "def-tip-btn def-tip-close",
-      CLOSE_ICON,
-      "Хаах",
-    );
-    closeBtn.addEventListener("click", closePinned);
-    bar.append(pauseButton("def-tip-btn def-tip-pause"), pinBtn, closeBtn);
-
-    bar.addEventListener("mousedown", (e) => e.preventDefault());
-    dragBar = bar;
-    bar.addEventListener("pointerdown", (e) => {
-      if (e.button !== 0 || e.pointerType === "touch") return;
-      if ((e.target as Element).closest(".def-tip-btn")) return;
-      e.preventDefault();
-      setPinned(true);
-      const rect = tip.getBoundingClientRect();
-      startDrag(e.pointerId, e.clientX - rect.left, e.clientY - rect.top);
-    });
-    bar.addEventListener("pointermove", (e) => {
-      if (!grab) return;
-      moveTip(e.clientX - grab.dx, e.clientY - grab.dy);
-      zone = deps.dock.zoneAt(e.clientX, e.clientY);
-      deps.dock.hint(zone);
-    });
-    const release = () => {
-      grab = null;
-      deps.dock.hint(null);
-      savePin();
-    };
-    bar.addEventListener("pointerup", () => {
-      const target = zone;
-      zone = null;
-      release();
-      if (!target || !defTipBody) return;
-      deps.dock.dock(target, [...defTipBody.childNodes]);
-      closePinned();
-    });
-    bar.addEventListener("pointercancel", () => {
-      zone = null;
-      release();
-    });
-
-    defTipBody = document.createElement("div");
-    defTipBody.className = "def-tip-body";
-    tip.append(bar, defTipBody);
-    document.body.appendChild(tip);
-    return tip;
-  }
-
-  function startDrag(pointerId: number, dx: number, dy: number): void {
-    grab = { dx, dy };
-    dragBar?.setPointerCapture(pointerId);
-  }
-
-  function showPinned(content: Node[]): HTMLDivElement {
-    const tip = (defTip ??= buildTip());
-    defTipBody!.replaceChildren(...(content.length ? content : [emptyNote()]));
+  function showPinned(content: Node[]): void {
+    win.showPinned(content);
     shownWord = "";
-    tip.hidden = false;
-    tip.scrollTop = 0;
-    setPinned(true);
-    return tip;
   }
 
   deps.dock.onDragOut((e, content) => {
     showPinned(content);
-    moveTip(e.clientX - 40, e.clientY - 12);
-    startDrag(e.pointerId, 40, 12);
+    win.move(e.clientX - 40, e.clientY - 12);
+    win.startDrag(e.pointerId, 40, 12);
   });
 
-  deps.dock.addControl(pauseButton("error-copy def-dock-pause"));
+  deps.dock.addControl(pause.button("error-copy def-dock-pause"));
 
   deps.dock.onShow((body) => {
-    if (!pinned || !defTip || defTip.hidden || !defTipBody) return;
-    const content = [...defTipBody.childNodes].filter(
+    const tip = win.el();
+    const tipBody = win.body();
+    if (!win.pinned() || !tip || tip.hidden || !tipBody) return;
+    const content = [...tipBody.childNodes].filter(
       (node) => !(node as Element).classList?.contains("def-empty"),
     );
     if (content.length) {
@@ -262,19 +125,14 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     closePinned();
   });
 
-  const savedPin = loadPin();
+  const savedPin = win.savedPin();
   if (savedPin && window.matchMedia("(hover: hover)").matches) {
     requestAnimationFrame(() => {
       if (deps.dock.body()) return;
       showPinned([]);
-      moveTip(savedPin.left, savedPin.top);
+      win.move(savedPin.left, savedPin.top);
     });
   }
-
-  window.addEventListener("resize", () => {
-    if (pinned && defTip && !defTip.hidden)
-      moveTip(defTip.offsetLeft, defTip.offsetTop);
-  });
 
   const definitions = createDefinitionCache(deps.define);
   const definitionFor = definitions.get;
@@ -292,7 +150,8 @@ export function initDefTip(deps: DefTipDeps): DefTip {
   }
 
   function position(): void {
-    if (!defTip || defTip.hidden || !defTipAnchor || pinned) return;
+    const defTip = win.el();
+    if (!defTip || defTip.hidden || !defTipAnchor || win.pinned()) return;
     if (!defTipAnchor.isConnected) {
       hide();
       return;
@@ -332,9 +191,11 @@ export function initDefTip(deps: DefTipDeps): DefTip {
 
   async function show(anchor: HTMLElement, word: string): Promise<void> {
     cancelHide();
+    const pinned = win.pinned();
+    const open = win.el();
     if (
-      defTip &&
-      !defTip.hidden &&
+      open &&
+      !open.hidden &&
       (pinned ? shownWord === word : defTipAnchor === anchor)
     ) {
       if (pinned) {
@@ -361,9 +222,10 @@ export function initDefTip(deps: DefTipDeps): DefTip {
       light(anchor);
       return;
     }
-    if (!defTip) defTip = buildTip();
-    fillDefinition(defTipBody!, word, def);
-    if (!defTip.hidden && shownWord !== word) reveal(defTipBody!);
+    const defTip = win.ensure();
+    const defTipBody = win.body()!;
+    fillDefinition(defTipBody, word, def);
+    if (!defTip.hidden && shownWord !== word) reveal(defTipBody);
     shownWord = word;
     defTip.hidden = false;
     defTip.scrollTop = 0;
@@ -481,7 +343,7 @@ export function initDefTip(deps: DefTipDeps): DefTip {
       hide();
     wordTipSpan = span;
     wordPointerX = pointerX ?? null;
-    if (!deps.dock.body() && !pinned) deps.hidePopover();
+    if (!deps.dock.body() && !win.pinned()) deps.hidePopover();
     if (!def.entries.length) {
       deps.holdStatus(
         "Тайлбар олдсонгүй: " + escapeHtml(span.word),
@@ -507,14 +369,14 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     followWordTip,
     showWordDefinition,
     keyboardShifting: () => performance.now() < keyboardShiftUntil,
-    pinned: () => pinned && !!defTip && !defTip.hidden,
-    paused: () => paused,
+    pinned: () => win.pinned() && !(win.el()?.hidden ?? true),
+    paused: pause.paused,
     clear: () => {
       hide();
       wordTipSpan = null;
       deps.dock.clear();
       dockedWord = "";
-      if (defTipBody) defTipBody.replaceChildren(emptyNote());
+      win.body()?.replaceChildren(emptyNote());
       shownWord = "";
     },
   };
