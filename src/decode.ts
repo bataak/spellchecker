@@ -124,6 +124,14 @@ function initFixButton(deps: DecodeDeps, spec: FixButtonSpec): DecodeControl {
     if (spec.detect(value.slice(from, to))) reveal();
   }
 
+  function checkNearCaretSoon(inserted: number): void {
+    if (decodeCheckTimer) clearTimeout(decodeCheckTimer);
+    decodeCheckTimer = window.setTimeout(() => {
+      decodeCheckTimer = null;
+      checkNearCaret(inserted);
+    }, DECODE_CHECK_DELAY);
+  }
+
   function checkInPasted(text: string): boolean {
     if (!text || !decodeBtn || !decodeBtn.hidden) return false;
     if (!spec.detect(text)) return false;
@@ -145,8 +153,11 @@ function initFixButton(deps: DecodeDeps, spec: FixButtonSpec): DecodeControl {
     const kind = editKind(event);
     if (decodeBtn.hidden) {
       if (kind === "other") syncSoon();
-      else if (kind === "insert" && isSeparatorInput(event as InputEvent))
-        checkNearCaret((event as InputEvent).data?.length ?? 0);
+      else if (kind === "insert") {
+        const inserted = (event as InputEvent).data?.length ?? 0;
+        if (isSeparatorInput(event as InputEvent)) checkNearCaret(inserted);
+        else checkNearCaretSoon(inserted);
+      }
       return;
     }
     if (kind === "insert") return;
