@@ -905,6 +905,7 @@ export async function createFile(path: string): Promise<void> {
     s.texts.set(clean, "");
     s.saved.set(clean, "");
   } else s.binaries.set(clean, new Uint8Array(0));
+  if (s.kind === "folder") s.fresh.add(clean);
   for (const dir of parentDirs(clean)) s.dirs.add(dir);
   s.unsynced = true;
   recountDirty(s);
