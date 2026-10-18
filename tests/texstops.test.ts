@@ -6,11 +6,14 @@ import {
   expand,
 } from "../src/texcompletion.ts";
 import {
+  breakDisplay,
   caretPatch,
+  deleteBracket,
   deleteDollar,
   shiftStops,
   snippetStops,
   tabStop,
+  typeBracket,
   typeDollar,
 } from "../src/texstops.ts";
 import type { TabStops } from "../src/texstops.ts";
@@ -240,4 +243,66 @@ test("хоосон хосыг Backspace нэг дор устгана", () => {
   const filled = backspace(type(dollar(start("|")), "a"));
   assert.equal(show(filled), "$|$");
   assert.equal(show(backspace(filled)), "|");
+});
+
+type Planner = (
+  stack: TabStops[],
+  text: string,
+  from: number,
+  to: number,
+) => ReturnType<typeof typeDollar>;
+
+function run(s: State, plan: Planner, fallback: string): State {
+  const p = plan(s.stack, s.text, s.caret, s.caret);
+  if (!p) return type(s, fallback);
+  const text = p.patch
+    ? s.text.slice(0, p.patch.from) + p.patch.insert + s.text.slice(p.patch.to)
+    : s.text;
+  return { text, caret: p.caret, stack: p.stack };
+}
+
+const enter = (s: State): State => run(s, breakDisplay, "\n");
+const bracket = (s: State): State => run(s, typeBracket, "[");
+
+test("хоосон $$|$$ дээр Enter дарвал томьёог тусдаа мөрөнд задална", () => {
+  let s = enter(dollar(dollar(start("|"))));
+  assert.equal(show(s), "$$\n  |\n$$");
+  s = tab(type(s, "E=mc^2"))!;
+  assert.equal(show(s), "$$\n  E=mc^2\n$$|");
+});
+
+test("доголтой мөрөнд доголыг хадгална", () => {
+  const s = enter(dollar(dollar(start("  |"))));
+  assert.equal(show(s), "  $$\n    |\n  $$");
+});
+
+test("бөглөсөн эсвэл escape хийсэн $$ дээр Enter хэвийн", () => {
+  assert.equal(show(enter(start("$$x|$$"))), "$$x\n|$$");
+  assert.equal(show(enter(start("\\$$|$$"))), "\\$$\n|$$");
+});
+
+test("\\[ бичихэд \\[|\\] болж, Enter-ээр задарна", () => {
+  let s = bracket(start("\\|"));
+  assert.equal(show(s), "\\[|\\]");
+  s = enter(s);
+  assert.equal(show(s), "\\[\n  |\n\\]");
+  s = tab(type(s, "a"))!;
+  assert.equal(show(s), "\\[\n  a\n\\]|");
+});
+
+test("\\[ дотор Tab гадагш гаргана", () => {
+  const s = tab(type(bracket(start("\\|")), "x"))!;
+  assert.equal(show(s), "\\[x\\]|");
+});
+
+test("\\\\[ болон энгийн [ хос үүсгэхгүй", () => {
+  assert.equal(show(bracket(start("\\\\|"))), "\\\\[|");
+  assert.equal(show(bracket(start("a|"))), "a[|");
+});
+
+test("хоосон \\[|\\]-ийг Backspace устгана", () => {
+  const s = bracket(start("\\|"));
+  const p = deleteBracket(s.stack, s.text, s.caret)!;
+  assert.deepEqual(p.patch, { from: 1, to: 4, insert: "" });
+  assert.equal(p.caret, 1);
 });

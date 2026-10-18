@@ -118,3 +118,22 @@ test("LaTeX горимд $-ийг хос болгож, \\$-ийг ганцаар
   await page.keyboard.press("Control+z");
   assert.ok(!(await editor(page)).endsWith("\\$5"));
 });
+
+test("хоосон $$ болон \\[ дээр Enter томьёог тусдаа мөрөнд задална", async () => {
+  const page = await openPage(app, await app.context());
+  await openFile(page, app.files.project);
+  await projectFile(page, "main.tex");
+  await typeAtEnd(page, "$$");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("a");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("\\[");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("b");
+  await page.keyboard.press("Tab");
+  assert.ok(
+    (await editor(page)).endsWith("$$\n  a\n$$\n\\[\n  b\n\\]"),
+    JSON.stringify(await editor(page)),
+  );
+});

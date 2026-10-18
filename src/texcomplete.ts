@@ -9,13 +9,16 @@ import {
 import type { Completion, CompletionContext } from "./texcompletion.ts";
 import {
   caretPatch,
+  breakDisplay,
+  deleteBracket,
   deleteDollar,
   shiftStops,
   snippetStops,
   tabStop,
+  typeBracket,
   typeDollar,
 } from "./texstops.ts";
-import type { DollarEdit, TabStops } from "./texstops.ts";
+import type { PairEdit, TabStops } from "./texstops.ts";
 
 export interface TexCompleteDeps {
   readonly editor: HTMLTextAreaElement;
@@ -221,18 +224,13 @@ export function initTexComplete(deps: TexCompleteDeps): void {
     editor.setSelectionRange(next.caret, next.caret);
   }
 
-  function dollar(e: InputEvent): void {
-    if (!deps.active() || e.isComposing) return;
+  function pair(e: InputEvent): void {
+    if (e.defaultPrevented || !deps.active() || e.isComposing) return;
     if (editor.value !== seen) stops = [];
     const text = editor.value;
     const from = editor.selectionStart;
-    const plan: DollarEdit | null =
-      e.inputType === "insertText" && e.data === "$"
-        ? typeDollar(stops, text, from, editor.selectionEnd)
-        : e.inputType === "deleteContentBackward" &&
-            from === editor.selectionEnd
-          ? deleteDollar(stops, text, from)
-          : null;
+    const to = editor.selectionEnd;
+    const plan = planPair(e, text, from, to);
     if (!plan) return;
     e.preventDefault();
     close();
@@ -256,7 +254,30 @@ export function initTexComplete(deps: TexCompleteDeps): void {
     if (!native) editor.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
-  editor.addEventListener("beforeinput", dollar);
+  function planPair(
+    e: InputEvent,
+    text: string,
+    from: number,
+    to: number,
+  ): PairEdit | null {
+    switch (e.inputType) {
+      case "insertText":
+        if (e.data === "$") return typeDollar(stops, text, from, to);
+        if (e.data === "[") return typeBracket(stops, text, from, to);
+        return null;
+      case "deleteContentBackward":
+        if (from !== to) return null;
+        return (
+          deleteDollar(stops, text, from) ?? deleteBracket(stops, text, from)
+        );
+      case "insertLineBreak":
+      case "insertParagraph":
+        return breakDisplay(stops, text, from, to);
+    }
+    return null;
+  }
+
+  editor.addEventListener("beforeinput", pair);
   onSwap(() => {
     stops = [];
   });

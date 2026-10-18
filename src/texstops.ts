@@ -1,5 +1,5 @@
 import type { Patch } from "./mdedit.ts";
-import { inComment } from "./texcompletion.ts";
+import { inComment, lineIndent } from "./texcompletion.ts";
 import type { Expansion } from "./texcompletion.ts";
 
 export interface TabStops {
@@ -8,7 +8,7 @@ export interface TabStops {
   readonly body: number | null;
 }
 
-export interface DollarEdit {
+export interface PairEdit {
   readonly patch: Patch | null;
   readonly caret: number;
   readonly stack: TabStops[];
@@ -121,7 +121,7 @@ export function typeDollar(
   text: string,
   from: number,
   to: number,
-): DollarEdit | null {
+): PairEdit | null {
   if (from !== to || escaped(text, from) || inComment(text, from)) return null;
   const live = stack.filter((s) => valid(s, text));
   const empty = live.some(
@@ -160,7 +160,7 @@ export function deleteDollar(
   stack: readonly TabStops[],
   text: string,
   caret: number,
-): DollarEdit | null {
+): PairEdit | null {
   if (text[caret - 1] !== "$" || text[caret] !== "$") return null;
   const live = stack.filter((s) => valid(s, text));
   const pair = live.some(
@@ -174,4 +174,72 @@ export function deleteDollar(
   if (!pair) return null;
   const patch = { from: caret - 1, to: caret + 1, insert: "" };
   return { patch, caret: caret - 1, stack: shiftStops(live, patch) };
+}
+
+export function typeBracket(
+  stack: readonly TabStops[],
+  text: string,
+  from: number,
+  to: number,
+): PairEdit | null {
+  if (from !== to || !escaped(text, from) || inComment(text, from)) return null;
+  if (from < text.length && !PAIR_BEFORE.test(text[from]!)) return null;
+  const live = stack.filter((s) => valid(s, text));
+  const patch = { from, to: from, insert: "[\\]" };
+  return {
+    patch,
+    caret: from + 1,
+    stack: [
+      ...shiftStops(live, patch),
+      { from: from + 1, closes: [from + 2], body: null },
+    ],
+  };
+}
+
+export function deleteBracket(
+  stack: readonly TabStops[],
+  text: string,
+  caret: number,
+): PairEdit | null {
+  if (text.slice(caret - 2, caret + 2) !== "\\[\\]") return null;
+  const live = stack.filter((s) => valid(s, text));
+  const pair = live.some(
+    (s) =>
+      s.from === caret && s.closes.length === 1 && s.closes[0] === caret + 1,
+  );
+  if (!pair) return null;
+  const patch = { from: caret - 1, to: caret + 2, insert: "" };
+  return { patch, caret: caret - 1, stack: shiftStops(live, patch) };
+}
+
+export function breakDisplay(
+  stack: readonly TabStops[],
+  text: string,
+  from: number,
+  to: number,
+): PairEdit | null {
+  if (from !== to || inComment(text, from) || escaped(text, from - 2))
+    return null;
+  const open = text.slice(from - 2, from);
+  const close = text.slice(from, from + 2);
+  if (
+    !(open === "$$" && close === "$$") &&
+    !(open === "\\[" && close === "\\]")
+  )
+    return null;
+  const indent = lineIndent(text, from);
+  const insert = "\n" + indent + "  \n" + indent;
+  const patch = { from, to: from, insert };
+  const caret = from + 1 + indent.length + 2;
+  const live = stack.filter(
+    (s) => valid(s, text) && !s.closes.includes(from + 1),
+  );
+  return {
+    patch,
+    caret,
+    stack: [
+      ...shiftStops(live, patch),
+      { from: caret, closes: [from + insert.length + 1], body: null },
+    ],
+  };
 }
