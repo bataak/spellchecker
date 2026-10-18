@@ -151,3 +151,24 @@ test("санал сонгох, undo хийх, алгассан үг дахин �
   );
   assert.deepEqual(chips, ["алдаатй"]);
 });
+
+test("гараар зассан алдаатай үгийг бусад давталтад тараана", async () => {
+  const page = await openPage(app, await app.context());
+  await typeAtEnd(page, "Би байнаа. Тэр байнаа гэж хэлэв.\n");
+  await page.waitForSelector(".ew", { timeout: 30000 });
+  await page.evaluate(() => {
+    const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
+    area.focus();
+    area.setSelectionRange(9, 9);
+  });
+  await page.keyboard.press("Backspace");
+  assert.equal(
+    await until(
+      () => editor(page),
+      (text) => text === "Би байна. Тэр байна гэж хэлэв.\n",
+      10000,
+    ),
+    "Би байна. Тэр байна гэж хэлэв.\n",
+  );
+  assert.deepEqual(errors(page), []);
+});

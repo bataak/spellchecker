@@ -1,6 +1,20 @@
 import { decodeFileBytes } from "./archive/cp1251.ts";
 import { bytesSum, fileSum } from "./fileslots.ts";
+import { initFileDrop } from "./filedrop.ts";
+import {
+  OPEN_TYPES,
+  isTextFile,
+  isZip,
+  looksOffice,
+  restoredName,
+  saveTypes,
+  sizeVerdict,
+  stampName,
+  textName,
+  toMb,
+} from "./filetypes.ts";
 import type { DraftFile } from "./storage.ts";
+import { deliverText, isDesktopApp } from "./textfile.ts";
 
 export interface FileIODeps {
   els: { editor: HTMLTextAreaElement };
@@ -70,162 +84,30 @@ export function initFileIO({
   onLoaded,
   onSaved,
 }: FileIODeps): FileIOControl {
-  const MAX_OPEN_BYTES = 10 * 1024 * 1024;
-  const BIG_NOTICE_BYTES = 2 * 1024 * 1024;
   const hasFSSave = "showSaveFilePicker" in window;
   const hasFSOpen = "showOpenFilePicker" in window;
   let currentFileHandle: FileSystemFileHandle | null = null;
   let currentFileName: string | null = null;
 
-  function isDesktopApp() {
-    if (!window.matchMedia) return false;
-    const installed =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      window.matchMedia("(display-mode: window-controls-overlay)").matches ||
-      window.matchMedia("(display-mode: minimal-ui)").matches;
-    return installed && window.matchMedia("(pointer: fine)").matches;
-  }
+  const stamp = (): string =>
+    stampName(
+      defaultExt(),
+      window.matchMedia?.("(max-width: 700px)").matches ?? false,
+      new Date(),
+    );
 
-  function stampName() {
-    const now = new Date();
-    const pad2 = (num: number): string => String(num).padStart(2, "0");
-    const ts =
-      now.getFullYear() +
-      "-" +
-      pad2(now.getMonth() + 1) +
-      "-" +
-      pad2(now.getDate()) +
-      "-" +
-      pad2(now.getHours()) +
-      pad2(now.getMinutes());
-    const isMobile =
-      window.matchMedia && window.matchMedia("(max-width: 700px)").matches;
-    return (isMobile ? "" : "бичвэр-") + ts + "." + defaultExt();
-  }
-
-  const OFFICE_EXT_RE = /\.(docx|pptx|odt|odp|pdf)$/i;
-  const TEXT_EXT_RE = /\.(txt|md|markdown|mdown|text|tex|ltx)$/i;
-  const MD_EXT_RE = /\.(md|markdown|mdown)$/i;
-  const TEX_EXT_RE = /\.(tex|ltx)$/i;
-
-  function ensureTextName(name: string): string {
-    name = (name || "").trim();
-    if (!name) return stampName();
-    return TEXT_EXT_RE.test(name) ? name : name + "." + defaultExt();
-  }
-
-  function textMime(name: string): string {
-    if (TEX_EXT_RE.test(name)) return "text/x-tex;charset=utf-8";
-    return MD_EXT_RE.test(name)
-      ? "text/markdown;charset=utf-8"
-      : "text/plain;charset=utf-8";
-  }
-
-  function downloadText(text: string, name: string): void {
-    const fileName = ensureTextName(name);
-    const blob = new Blob([text], { type: textMime(fileName) });
-    const url = URL.createObjectURL(blob);
-    const downloadLink = document.createElement("a");
-    downloadLink.href = url;
-    downloadLink.download = fileName;
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    downloadLink.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
-  async function deliverText(text: string, name: string): Promise<boolean> {
-    const fileName = ensureTextName(name);
-    const touch = window.matchMedia?.("(pointer: coarse)").matches;
-    if (touch && typeof navigator.canShare === "function") {
-      const file = new File([text], fileName, { type: "text/plain" });
-      if (navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({ files: [file] });
-          return true;
-        } catch (error) {
-          if (error instanceof DOMException && error.name === "AbortError")
-            return false;
-        }
-      }
-    }
-    downloadText(text, fileName);
-    return true;
-  }
-
-  const TXT_TYPES = [
-    { description: "Текст файл", accept: { "text/plain": [".txt"] } },
-  ];
-
-  const MD_TYPES = [
-    { description: "Markdown файл", accept: { "text/markdown": [".md"] } },
-  ];
-
-  const TEX_TYPES = [
-    { description: "LaTeX файл", accept: { "text/x-tex": [".tex"] } },
-  ];
-
-  function saveTypes() {
-    const ext = defaultExt();
-    return ext === "md" ? MD_TYPES : ext === "tex" ? TEX_TYPES : TXT_TYPES;
-  }
-
-  const PDF_MIME = "application/pdf";
-
-  const OFFICE_MIME: Record<string, string> = {
-    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    odt: "application/vnd.oasis.opendocument.text",
-    odp: "application/vnd.oasis.opendocument.presentation",
-  };
-
-  const OPEN_TYPES: {
-    description: string;
-    accept: Record<string, string[]>;
-  }[] = [
-    {
-      description: "Текст файл",
-      accept: { "text/plain": [".txt", ".md", ".markdown", ".text"] },
-    },
-    {
-      description: "LaTeX файл",
-      accept: { "text/x-tex": [".tex", ".ltx"] },
-    },
-    {
-      description: "Баримт",
-      accept: {
-        [OFFICE_MIME.docx]: [".docx"],
-        [OFFICE_MIME.pptx]: [".pptx"],
-        [OFFICE_MIME.odt]: [".odt"],
-        [OFFICE_MIME.odp]: [".odp"],
-      },
-    },
-    {
-      description: "PDF",
-      accept: { [PDF_MIME]: [".pdf"] },
-    },
-    {
-      description: "LaTeX төсөл (zip)",
-      accept: { "application/zip": [".zip"] },
-    },
-  ];
-
-  function looksDocx(file: File | null | undefined): boolean {
-    if (!file) return false;
-    if (file.type === PDF_MIME) return true;
-    if (Object.values(OFFICE_MIME).includes(file.type)) return true;
-    return /\.(docx|pptx|odt|odp|pdf)$/i.test(file.name);
-  }
+  const deliver = (text: string, name: string): Promise<boolean> =>
+    deliverText(text, textName(name, defaultExt(), stamp));
 
   async function openOne(
     file: File,
     handle: FileSystemFileHandle | null,
   ): Promise<boolean> {
-    if (/\.zip$/i.test(file.name)) {
+    if (isZip(file.name)) {
       await openProjectZip(file);
       return true;
     }
-    const office = looksDocx(file);
+    const office = looksOffice(file);
     if (!office && !isTextFile(file)) {
       refuse();
       return true;
@@ -337,7 +219,7 @@ export function initFileIO({
 
     if (fileName) {
       try {
-        const done = await deliverText(text, fileName);
+        const done = await deliver(text, fileName);
         flash("#saveBtn", done ? "Хадгалав" : "Цуцаллаа");
         if (done) saved(false);
       } catch (_) {
@@ -349,8 +231,8 @@ export function initFileIO({
     if (isDesktopApp() && hasFSSave) {
       try {
         const handle = await window.showSaveFilePicker!({
-          suggestedName: stampName(),
-          types: saveTypes(),
+          suggestedName: stamp(),
+          types: saveTypes(defaultExt()),
         });
         const writableStream = await handle.createWritable();
         await writableStream.write(text);
@@ -365,7 +247,7 @@ export function initFileIO({
     }
 
     try {
-      const done = await deliverText(text, stampName());
+      const done = await deliver(text, stamp());
       flash("#saveBtn", done ? "Хадгаллаа" : "Цуцаллаа");
     } catch (_) {
       flash("#saveBtn", "Боломжгүй");
@@ -431,9 +313,9 @@ export function initFileIO({
     flash("#openBtn", "Нээх боломжгүй");
   }
 
-  function sizeOk(file: File | null | undefined): boolean {
-    if (!file) return true;
-    if (file.size > MAX_OPEN_BYTES) {
+  function sizeOk(file: File): boolean {
+    const verdict = sizeVerdict(file.size);
+    if (verdict === "too-big") {
       setStatus(
         "Файл хэт том байна (" +
           toMb(file.size) +
@@ -442,68 +324,16 @@ export function initFileIO({
       flash("#openBtn", "Хэт том");
       return false;
     }
-    if (file.size > BIG_NOTICE_BYTES) {
+    if (verdict === "big")
       setStatus(
         "Том файл (" + toMb(file.size) + " MB) уншиж буй тул шалгалт удна",
       );
-    }
     return true;
   }
 
-  function toMb(bytes: number): string {
-    return (bytes / (1024 * 1024)).toFixed(1);
-  }
-
-  function dragHasFiles(e: DragEvent): boolean {
-    const transferTypes = e.dataTransfer && e.dataTransfer.types;
-    return !!transferTypes && Array.from(transferTypes).includes("Files");
-  }
-  function isTextFile(file: File | null | undefined): file is File {
-    return (
-      !!file &&
-      ((file.type && file.type.indexOf("text/") === 0) ||
-        TEXT_EXT_RE.test(file.name) ||
-        !file.type)
-    );
-  }
-  els.editor.addEventListener("dragover", (e) => {
-    if (!dragHasFiles(e)) return;
-    e.preventDefault();
-    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
-    els.editor.classList.add("drag-over");
-  });
-  els.editor.addEventListener("dragleave", () =>
-    els.editor.classList.remove("drag-over"),
-  );
-  els.editor.addEventListener("drop", async (e) => {
-    if (!dragHasFiles(e)) return;
-    e.preventDefault();
-    els.editor.classList.remove("drag-over");
-    const dt = e.dataTransfer;
-    if (!dt) return;
-    const files = [...dt.files];
-    const pending = [...dt.items]
-      .filter((item) => item.kind === "file")
-      .map((item) =>
-        item.getAsFileSystemHandle
-          ? item.getAsFileSystemHandle().catch(() => null)
-          : Promise.resolve(null),
-      );
-    const handles = await Promise.all(pending);
-    const dir = handles.find((handle) => handle?.kind === "directory");
-    if (dir) {
-      await openProjectDir(dir as FileSystemDirectoryHandle);
-      return;
-    }
-    const entries = [];
-    for (const [index, file] of files.entries()) {
-      const handle = handles[index];
-      entries.push({
-        file: handle?.kind === "file" ? await (handle as FileSystemFileHandle).getFile() : file,
-        handle: handle?.kind === "file" ? (handle as FileSystemFileHandle) : null,
-      });
-    }
-    await openAll(entries);
+  initFileDrop(els.editor, {
+    openFiles: openAll,
+    openDir: openProjectDir,
   });
 
   return {
@@ -527,10 +357,7 @@ export function initFileIO({
     },
     restoreFile(ref: DraftFile) {
       currentFileHandle = null;
-      currentFileName =
-        ref.kind === "office"
-          ? ref.name.replace(OFFICE_EXT_RE, "") + ".txt"
-          : ref.name;
+      currentFileName = restoredName(ref);
     },
     targetName() {
       return currentFileName;
