@@ -1018,6 +1018,25 @@ async function moveDisk(
   await removeDisk(source);
 }
 
+function retype(s: State, path: string): void {
+  const bytes = s.binaries.get(path);
+  if (bytes && isEditablePath(path)) {
+    const { text, crlf } = readText(bytes);
+    s.binaries.delete(path);
+    noteEol(s, path, crlf);
+    s.texts.set(path, text);
+    s.saved.set(path, text);
+    return;
+  }
+  const text = s.saved.get(path);
+  if (text === undefined || isEditablePath(path)) return;
+  s.binaries.set(path, new TextEncoder().encode(diskText(s, path, text)));
+  s.texts.delete(path);
+  s.saved.delete(path);
+  s.crlf.delete(path);
+  s.added.delete(path);
+}
+
 export async function renamePath(from: string, to: string): Promise<void> {
   const s = requireState();
   const target = cleanPath(to);
@@ -1026,6 +1045,10 @@ export async function renamePath(from: string, to: string): Promise<void> {
   if (exists(s, target, from)) throw new ProjectError("Ийм нэртэй зүйл байна");
   if (within(target, from))
     throw new ProjectError("Хавтсыг өөр дотор нь зөөх боломжгүй");
+  if (s.dirty.has(from) && !isEditablePath(target))
+    throw new ProjectError(
+      "Хадгалаагүй өөрчлөлттэй файлыг засах боломжгүй төрөл рүү нэрлэхгүй",
+    );
   if (s.kind === "dir") {
     if (sameOnDisk(from, target)) {
       const temp = joinPath(
@@ -1052,8 +1075,11 @@ export async function renamePath(from: string, to: string): Promise<void> {
     [...s.dirs].map((dir) => movedPath(dir, from, target) ?? dir),
   );
   for (const dir of parentDirs(target)) s.dirs.add(dir);
+  retype(s, target);
   if (s.main) s.main = movedPath(s.main, from, target) ?? s.main;
   if (s.active) s.active = movedPath(s.active, from, target) ?? s.active;
+  if (s.main && !s.texts.has(s.main)) s.main = findMain(s.texts);
+  if (s.active && !s.texts.has(s.active)) s.active = null;
   s.unsynced = true;
   recountDirty(s);
   changed(true);

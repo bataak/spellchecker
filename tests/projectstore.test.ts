@@ -7,6 +7,7 @@ import {
   createDir,
   openDirHandle,
   project,
+  projectBinary,
   projectHas,
   projectText,
   renamePath,
@@ -104,4 +105,37 @@ test("folder горимд оруулсан шинэ файлыг хадгала�
   assert.deepEqual(names.sort(), ["fig.png", "new.tex"]);
   assert.equal(project()?.unsaved, false);
   assert.equal(await saveProject(), "clean");
+});
+
+test("өргөтгөл солиход файлыг засах боломжтой эсэхийг дахин тогтооно", async () => {
+  const root = new FakeDir("төсөл");
+  root.put("main.tex", MAIN);
+  root.put("chapter.bak", "бүлэг\r\nхоёр");
+  root.put("notes.txt", "тэмдэглэл");
+  await openDirHandle(root.asHandle());
+  assert.equal(projectText("chapter.bak"), null);
+
+  await renamePath("chapter.bak", "chapter.tex");
+  assert.equal(projectText("chapter.tex"), "бүлэг\nхоёр");
+  assert.equal(project()?.dirty.has("chapter.tex"), false);
+  assert.equal(root.read("chapter.tex"), "бүлэг\r\nхоёр");
+
+  await renamePath("notes.txt", "notes.old");
+  assert.equal(projectText("notes.old"), null);
+  assert.equal(
+    new TextDecoder().decode(projectBinary("notes.old")!),
+    "тэмдэглэл",
+  );
+});
+
+test("хадгалаагүй файлыг засах боломжгүй төрөл рүү нэрлэхгүй", async () => {
+  const root = new FakeDir("төсөл");
+  root.put("main.tex", MAIN);
+  root.put("a.tex", "а");
+  await openDirHandle(root.asHandle());
+  setProjectText("a.tex", "засвар");
+
+  await assert.rejects(renamePath("a.tex", "a.bak"));
+  assert.equal(projectText("a.tex"), "засвар");
+  assert.equal(root.read("a.tex"), "а");
 });
