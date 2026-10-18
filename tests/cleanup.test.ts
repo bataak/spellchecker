@@ -40,6 +40,32 @@ test("Кирилл үгийн доторх v, є, ї-г ү, ө болгоно", 
   assert.equal(fixMisletters("їзэх"), "үзэх");
 });
 
+test("Кирилл үгийн доторх латин e-г е болгоно", () => {
+  assert.equal(
+    fixMisletters("үeийн үeэр Eрөнхий тvвшин"),
+    "үеийн үеэр Ерөнхий түвшин",
+  );
+  assert.equal(hasMisletters("судалгааны үeэр"), true);
+});
+
+test("Кирилл үгийн доторх латин a, o, p, c, x, T, B-г кирилл болгоно", () => {
+  assert.equal(
+    fixMisletters(
+      "тaлбaр мoнгoл хүpээ cүүл Taлбай Bикипедиа Aав Oюун Pаш Cар xүн Xан",
+    ),
+    "талбар монгол хүрээ сүүл Талбай Википедиа Аав Оюун Раш Сар хүн Хан",
+  );
+});
+
+test("Латин үг, холимог нэрийн e-д хүрэхгүй", () => {
+  assert.equal(
+    fixMisletters("hello Excel-ийн iPhoneийн"),
+    "hello Excel-ийн iPhoneийн",
+  );
+  assert.equal(hasMisletters("e Ee eve cap TOP Bob box"), false);
+  assert.equal(fixMisletters("Bluetooth-ийн"), "Bluetooth-ийн");
+});
+
 test("Латин үгийн v-д хүрэхгүй", () => {
   assert.equal(fixMisletters("TV, vector, Davaaгийн"), "TV, vector, Davaaгийн");
   assert.equal(hasMisletters("vector TV v"), false);

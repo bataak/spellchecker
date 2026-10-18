@@ -214,12 +214,32 @@ export function stripMarkup(text: string): string {
 const LETTER_RUN_RE = /[\p{L}\u00AA\u00AF\u00BA\u00BF]+/gu;
 const SLOT_RE = /[\u00AA\u00AF\u00BA\u00BF\u0404\u0407\u0454\u0457]/u;
 const CYRILLIC_RE = /\p{Script=Cyrillic}/u;
-const OTHER_LATIN_RE = /[A-UW-Za-uw-z]/;
+const LATIN_TO_MN: Record<string, string> = {
+  v: "\u04AF",
+  V: "\u04AE",
+  a: "\u0430",
+  A: "\u0410",
+  B: "\u0412",
+  c: "\u0441",
+  C: "\u0421",
+  e: "\u0435",
+  E: "\u0415",
+  o: "\u043E",
+  O: "\u041E",
+  p: "\u0440",
+  P: "\u0420",
+  T: "\u0422",
+  x: "\u0445",
+  X: "\u0425",
+};
+const MAPPED_LATIN_RE = /[vVaABcCeEoOpPTxX]/;
+const MAPPED_LATIN_GLOBAL_RE = /[vVaABcCeEoOpPTxX]/g;
+const OTHER_LATIN_RE = /[DF-NQ-SUWYZbdf-nq-uwyz]/;
 
-function fixLatinV(word: string): string {
-  if (!/[vV]/.test(word)) return word;
+function fixLatinLetters(word: string): string {
+  if (!MAPPED_LATIN_RE.test(word)) return word;
   if (!CYRILLIC_RE.test(word) || OTHER_LATIN_RE.test(word)) return word;
-  return word.replace(/v/g, "\u04AF").replace(/V/g, "\u04AE");
+  return word.replace(MAPPED_LATIN_GLOBAL_RE, (ch) => LATIN_TO_MN[ch]!);
 }
 
 function hasSlotInCyrillicWord(word: string): boolean {
@@ -229,13 +249,14 @@ function hasSlotInCyrillicWord(word: string): boolean {
 
 export function hasMisletters(text: string): boolean {
   for (const [word] of text.matchAll(LETTER_RUN_RE)) {
-    if (fixLatinV(word) !== word || hasSlotInCyrillicWord(word)) return true;
+    if (fixLatinLetters(word) !== word || hasSlotInCyrillicWord(word))
+      return true;
   }
   return false;
 }
 
 export function fixMisletters(text: string): string {
-  return fixSlotsInWords(text.replace(LETTER_RUN_RE, fixLatinV));
+  return fixSlotsInWords(text.replace(LETTER_RUN_RE, fixLatinLetters));
 }
 
 export function needsCleanup(text: string): boolean {

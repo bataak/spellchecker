@@ -1247,10 +1247,7 @@ els.editor.addEventListener("paste", (event) => {
 });
 els.editor.addEventListener("input", (event) => {
   if (!(event instanceof InputEvent)) return;
-  if (
-    composeDropped(els.editor, event) ||
-    composeTypedWord(els.editor, event)
-  )
+  if (composeDropped(els.editor, event) || composeTypedWord(els.editor, event))
     decode.announce(STANDARD_LETTERS_MESSAGE);
 });
 const clean = initClean({
