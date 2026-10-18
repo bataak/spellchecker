@@ -1,7 +1,8 @@
+import { failureMessage } from "./projecterror.ts";
 import { initProjectPanel, type ProjectPanel } from "./projectpanel.ts";
 import {
+  confirmClose,
   confirmReplace,
-  failureMessage,
   FILES_SAVED_NOTICE,
   findSameFile,
   isTexName,
@@ -260,12 +261,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
   };
 
   const close = (): void => {
-    const view = project();
-    if (
-      view?.unsaved &&
-      !window.confirm("Төсөлд хадгалагдаагүй файл байна. Төслийг хаах уу?")
-    )
-      return;
+    if (!confirmClose(project()?.unsaved)) return;
     closeProject();
     storeSlot(null);
   };
@@ -377,7 +373,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
   document.addEventListener("visibilitychange", refresh);
 
   const fail = (error: unknown): void => {
-    const message = failureMessage(error);
+    const message = failureMessage(error, "Төслийг нээж чадсангүй");
     if (message !== null) deps.notify(message);
   };
 

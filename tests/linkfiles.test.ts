@@ -1,13 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  failureMessage,
   findSameFile,
   isTexName,
   locateFile,
   saveMessage,
 } from "../src/project/linkfiles.ts";
-import { ProjectError } from "../src/project/projecterror.ts";
+import { failureMessage, ProjectError } from "../src/project/projecterror.ts";
 
 const files = ["main.tex", "ch/intro.tex", "a/b/intro.tex", "img/fig.png"];
 
@@ -49,12 +48,18 @@ test("saveMessage үр дүн бүрт мессеж өгнө", () => {
 });
 
 test("failureMessage цуцлалтыг чимээгүй өнгөрөөнө", () => {
-  assert.equal(failureMessage(new ProjectError("Буруу архив")), "Буруу архив");
-  assert.equal(failureMessage(new DOMException("stop", "AbortError")), null);
+  assert.equal(
+    failureMessage(new ProjectError("Буруу архив"), "x"),
+    "Буруу архив",
+  );
+  assert.equal(
+    failureMessage(new DOMException("stop", "AbortError"), "x"),
+    null,
+  );
   const error = console.error;
   console.error = () => undefined;
   try {
-    assert.equal(failureMessage(new Error("x")), "Төслийг нээж чадсангүй");
+    assert.equal(failureMessage(new Error("x"), "Алдаа"), "Алдаа");
   } finally {
     console.error = error;
   }

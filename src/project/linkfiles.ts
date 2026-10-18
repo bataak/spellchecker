@@ -1,5 +1,4 @@
 import { baseName } from "../tex/texproject.ts";
-import { ProjectError } from "./projecterror.ts";
 import type { SaveResult } from "./projectstore.ts";
 
 export const FILES_SAVED_NOTICE =
@@ -16,11 +15,11 @@ export function saveMessage(result: SaveResult): string {
   return SAVE_MESSAGES[result];
 }
 
-export function failureMessage(error: unknown): string | null {
-  if (error instanceof ProjectError) return error.message;
-  if (error instanceof DOMException && error.name === "AbortError") return null;
-  console.error("project:", error);
-  return "Төслийг нээж чадсангүй";
+export function confirmClose(unsaved: boolean | undefined): boolean {
+  return (
+    !unsaved ||
+    window.confirm("Төсөлд хадгалагдаагүй файл байна. Төслийг хаах уу?")
+  );
 }
 
 export function confirmReplace(unsaved: boolean | undefined): boolean {
