@@ -81,13 +81,9 @@ import { minimalDiff } from "./mdedit.ts";
 import { initDefineControls } from "./definecontrols.ts";
 import { initSuggestPopover } from "./suggestpopover.ts";
 import { rotateEmptyTips, syncEmptyTips } from "./emptytips.ts";
-import {
-  initDictMenu,
-  loadEnabledEnglish,
-  activeIds,
-  visibleIds,
-} from "./dict/dictmenu.ts";
+import { initDictMenu } from "./dict/dictmenu.ts";
 import { createOfficeSession } from "./office/session.ts";
+import { createDictStatus, createRefreshGate } from "./dict/dictstatus.ts";
 import {
   caretLine,
   NO_STATS,
@@ -109,11 +105,7 @@ import {
 import { initDraftText } from "./drafttext.ts";
 import { initClean, initDecode } from "./decode.ts";
 import { initAppUpdate } from "./appupdate.ts";
-import {
-  dictStatusMessage,
-  requestDurableStorage,
-  runOfflineIndicator,
-} from "./offline.ts";
+import { requestDurableStorage, runOfflineIndicator } from "./offline.ts";
 import { initShortcuts } from "./shortcuts.ts";
 import { initDefTip } from "./deftip.ts";
 import { initDefDock } from "./defdock.ts";
@@ -176,13 +168,10 @@ const spell = createSpellSession({
 
 let ready = false;
 let badTokens: Token[] = [];
-let baseStatus = "";
-let offlineIndicatorActive = false;
-let lastDictRefresh = 0;
+const DICT_REFRESH_GAP_MS = 24 * 60 * 60 * 1000;
+const dicts = createDictStatus();
+const refreshDue = createRefreshGate(DICT_REFRESH_GAP_MS);
 let pendingFix: PendingFix | null = null;
-let enabledEnglish = loadEnabledEnglish();
-let lastFailed: { id: string; error: string }[] | null = null;
-let lastFallbackReason: string | null = null;
 let undoCtl: UndoControl | null = null;
 let tabGuard: TabGuard | null = null;
 let plainName: string | null = null;
@@ -215,7 +204,7 @@ const office = createOfficeSession({
 function restoreStatus(): void {
   if (!ready) return;
   if (els.editor.value.trim() === "" && !openFileName()) {
-    if (baseStatus && !offlineIndicatorActive) setStatus(baseStatus);
+    if (dicts.base() && !dicts.indicating()) setStatus(dicts.base());
     return;
   }
   setStatus(currentStatus(), false);
@@ -372,7 +361,7 @@ async function render() {
 
   if (ready) {
     if (text.trim() === "" && !openFileName()) {
-      if (baseStatus && !offlineIndicatorActive) setStatus(baseStatus);
+      if (dicts.base() && !dicts.indicating()) setStatus(dicts.base());
     } else {
       stats = { words: total, bad: bad.length, chars: text.length };
       setStatus(currentStatus(), false);
@@ -513,7 +502,7 @@ initDefineControls({
   defDock,
   pop,
   holdStatus,
-  englishEnabled: () => enabledEnglish,
+  englishEnabled: dicts.english,
   errorAtCaret: tokenAtCaret,
   showErrorPopover: (token) => void suggestPopover.showFor(token),
 });
@@ -1200,15 +1189,12 @@ initShortcuts({
   lastCaret: () => lastCaret,
 });
 
-const DICT_REFRESH_GAP_MS = 24 * 60 * 60 * 1000;
 const DICT_REFRESH_POLL_MS = 3 * 60 * 60 * 1000;
 
 function maybeRefreshDict(): void {
   if (import.meta.env.DEV) return;
   if (!ready || !navigator.onLine) return;
-  const now = Date.now();
-  if (lastDictRefresh && now - lastDictRefresh < DICT_REFRESH_GAP_MS) return;
-  lastDictRefresh = now;
+  if (!refreshDue(Date.now())) return;
   checker.refresh();
   void appUpdate.checkFreshness();
 }
@@ -1217,10 +1203,8 @@ function runOfflineReadyIndicator(): void {
   void runOfflineIndicator({
     idle: () => els.editor.value.trim() === "",
     setStatus,
-    base: () => baseStatus,
-    setActive: (on) => {
-      offlineIndicatorActive = on;
-    },
+    base: dicts.base,
+    setActive: dicts.setIndicating,
   });
 }
 
@@ -1259,18 +1243,12 @@ async function boot() {
       import.meta.env.BASE_URL,
     );
     ready = true;
-    checker.setActive(activeIds(enabledEnglish));
+    checker.setActive(dicts.active());
     appUpdate.setDictVersion(mnVersion);
     spell.clear();
     await render();
     if (loaded.length) {
-      lastFailed = failed;
-      lastFallbackReason = fallbackReason;
-      baseStatus = dictStatusMessage(
-        visibleIds(loaded, enabledEnglish),
-        failed,
-        fallbackReason,
-      );
+      dicts.loaded(loaded, failed, fallbackReason);
       runOfflineReadyIndicator();
     } else {
       setStatus(
@@ -1291,14 +1269,13 @@ async function boot() {
     setInterval(maybeRefreshDict, DICT_REFRESH_POLL_MS);
     checker.whenComplete().then((done) => {
       spell.clear();
-      lastFailed = [...(failed || []), ...done.failed];
-      baseStatus = dictStatusMessage(
-        visibleIds(checker.loadedIds, enabledEnglish),
-        lastFailed,
+      dicts.completed(
+        checker.loadedIds,
+        [...(failed || []), ...done.failed],
         fallbackReason,
       );
-      if (els.editor.value.trim() === "" && !offlineIndicatorActive)
-        setStatus(baseStatus, false);
+      if (els.editor.value.trim() === "" && !dicts.indicating())
+        setStatus(dicts.base(), false);
       render();
       maybeRefreshDict();
     });
@@ -1384,7 +1361,7 @@ onProjectChange(() => {
 initSurvey();
 
 initReportButton(() => {
-  const active = activeIds(enabledEnglish);
+  const active = dicts.active();
   return {
     entryUrl: import.meta.url,
     activeDicts: checker.loadedIds.filter((id) => active.includes(id)),
@@ -1401,19 +1378,14 @@ initReportButton(() => {
 
 const openDictMenu = initDictMenu({
   statusEl: els.status,
-  getEnabled: () => enabledEnglish,
+  getEnabled: dicts.english,
   onApply: (next) => {
-    enabledEnglish = next;
-    checker.setActive(activeIds(enabledEnglish));
+    dicts.setEnglish(next, checker.loadedIds);
+    checker.setActive(dicts.active());
     spell.clear();
-    baseStatus = dictStatusMessage(
-      visibleIds(checker.loadedIds, enabledEnglish),
-      lastFailed,
-      lastFallbackReason,
-    );
     render();
-    if (els.editor.value.trim() === "" && !offlineIndicatorActive) {
-      setStatus(baseStatus, false);
+    if (els.editor.value.trim() === "" && !dicts.indicating()) {
+      setStatus(dicts.base(), false);
     }
   },
   onClose: () => els.editor.focus(),
