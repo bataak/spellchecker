@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.111.0](https://github.com/bataak/spellchecker/compare/v1.110.0...v1.111.0) (2026-10-18)
+
+
+### Features
+
+* **preview:** count repeated phrases to sync the LaTeX preview to the right occurrence ([c028703](https://github.com/bataak/spellchecker/commit/c02870328e48d10cfdebdce67c35e6fb24e891d4))
+* **preview:** double-click the preview to jump the editor to that word ([3dfad81](https://github.com/bataak/spellchecker/commit/3dfad81b2ed3b5030c249109e64f80748c85eaa5))
+* **tex:** auto-pair $ and $$ in LaTeX mode ([fe88abf](https://github.com/bataak/spellchecker/commit/fe88abf887f33d72dbbac9ed3f9de302a16e864e))
+* **tex:** jump between completion argument slots with Tab ([6a0c286](https://github.com/bataak/spellchecker/commit/6a0c286ae287a2b54d937ff92692d30690698525))
+* **tex:** split empty display math on Enter and auto-pair \[ ([139eb9f](https://github.com/bataak/spellchecker/commit/139eb9f9ec69d0d987de437542e6ded531cab9b3))
+
+
+### Bug Fixes
+
+* **update:** don't reload on boot once the user starts typing ([f4ff33e](https://github.com/bataak/spellchecker/commit/f4ff33e4c3f7f619d0e0ec32c1912a148a1a3444))
+
 ## [1.110.0](https://github.com/bataak/spellchecker/compare/v1.109.0...v1.110.0) (2026-10-17)
 
 
