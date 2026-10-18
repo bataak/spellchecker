@@ -108,8 +108,21 @@ function openDb(): Promise<IDBDatabase> {
   dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, 1);
     req.onupgradeneeded = () => req.result.createObjectStore(STORE_NAME);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      const db = req.result;
+      db.onclose = () => {
+        dbPromise = null;
+      };
+      db.onversionchange = () => {
+        db.close();
+        dbPromise = null;
+      };
+      resolve(db);
+    };
+    req.onerror = () => {
+      dbPromise = null;
+      reject(req.error);
+    };
   });
   return dbPromise;
 }
@@ -123,8 +136,8 @@ function idbRequest<T>(
       new Promise<T>((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, mode);
         const req = run(tx.objectStore(STORE_NAME));
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
+        tx.oncomplete = () => resolve(req.result);
+        tx.onabort = () => reject(tx.error ?? req.error);
       }),
   );
 }
