@@ -908,16 +908,28 @@ export async function createFile(path: string): Promise<void> {
   changed(true);
 }
 
+export function projectHas(path: string): boolean {
+  const s = state;
+  const clean = cleanPath(path);
+  return !!s && !!clean && exists(s, clean);
+}
+
 export async function addFile(path: string, bytes: Uint8Array): Promise<void> {
   const s = requireState();
   const clean = cleanPath(path);
   if (!clean) throw new ProjectError("Файлын нэр буруу байна");
+  if (
+    s.dirs.has(clean) ||
+    (exists(s, clean) && !s.texts.has(clean) && !s.binaries.has(clean))
+  )
+    throw new ProjectError("Ийм нэртэй зүйл байна");
   if (s.kind === "dir") await writeDisk(clean, bytes);
   if (isEditablePath(clean)) {
     const { text, crlf } = readText(bytes);
     noteEol(s, clean, crlf);
     s.texts.set(clean, text);
     s.saved.set(clean, text);
+    s.added.delete(clean);
   } else s.binaries.set(clean, bytes);
   for (const dir of parentDirs(clean)) s.dirs.add(dir);
   s.unsynced = true;
