@@ -1,3 +1,4 @@
+import { escapeAttr } from "./htmlutil.ts";
 import {
   cycleCase,
   insertPageBreak,
@@ -120,14 +121,6 @@ export const ALIGN_ROLE: Partial<Record<Role, AlignKind>> = {
   right: "right",
   signature: "signature",
 };
-
-export function escapeAttr(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
 
 export function buildButtons(): string {
   return BUTTONS.map(
