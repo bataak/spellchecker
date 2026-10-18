@@ -100,3 +100,21 @@ test("LaTeX командын хаалтуудын хооронд Tab-аар ши
     "editor",
   );
 });
+
+test("LaTeX горимд $-ийг хос болгож, \\$-ийг ганцаар нь үлдээнэ", async () => {
+  const page = await openPage(app, await app.context());
+  await openFile(page, app.files.project);
+  await projectFile(page, "main.tex");
+  await typeAtEnd(page, "$x");
+  assert.ok((await editor(page)).endsWith("$x$"), await editor(page));
+  await page.keyboard.type("$ $$y");
+  assert.ok((await editor(page)).endsWith("$x$ $$y$$"), await editor(page));
+  await page.keyboard.press("Tab");
+  await page.keyboard.type(" \\$5");
+  assert.ok(
+    (await editor(page)).endsWith("$x$ $$y$$ \\$5"),
+    await editor(page),
+  );
+  await page.keyboard.press("Control+z");
+  assert.ok(!(await editor(page)).endsWith("\\$5"));
+});

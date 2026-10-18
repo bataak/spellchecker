@@ -1,10 +1,17 @@
 import type { Patch } from "./mdedit.ts";
+import { inComment } from "./texcompletion.ts";
 import type { Expansion } from "./texcompletion.ts";
 
 export interface TabStops {
   readonly from: number;
   readonly closes: readonly number[];
   readonly body: number | null;
+}
+
+export interface DollarEdit {
+  readonly patch: Patch | null;
+  readonly caret: number;
+  readonly stack: TabStops[];
 }
 
 export interface TabJump {
@@ -47,7 +54,9 @@ function exitOf(stops: TabStops): number {
 
 function valid(stops: TabStops, text: string): boolean {
   if (stops.body !== null && text[stops.body] !== "\n") return false;
-  return stops.closes.every((c) => text[c] === "}" || text[c] === "]");
+  return stops.closes.every(
+    (c) => text[c] === "}" || text[c] === "]" || text[c] === "$",
+  );
 }
 
 export function shiftStops(
@@ -97,4 +106,72 @@ export function tabStop(
     return { stack: rest, caret: exitOf(top) };
   }
   return { stack: rest, caret: null };
+}
+
+const PAIR_BEFORE = /[\s)\]}.,;:!?]/;
+
+function escaped(text: string, at: number): boolean {
+  let n = 0;
+  while (at - 1 - n >= 0 && text[at - 1 - n] === "\\") n += 1;
+  return n % 2 === 1;
+}
+
+export function typeDollar(
+  stack: readonly TabStops[],
+  text: string,
+  from: number,
+  to: number,
+): DollarEdit | null {
+  if (from !== to || escaped(text, from) || inComment(text, from)) return null;
+  const live = stack.filter((s) => valid(s, text));
+  const empty = live.some(
+    (s) =>
+      s.from === from &&
+      s.closes.length === 1 &&
+      s.closes[0] === from &&
+      text[from - 1] === "$" &&
+      text[from] === "$",
+  );
+  if (!empty) {
+    const over =
+      text[from] === "$" &&
+      live.some((s) =>
+        s.closes.some(
+          (c) =>
+            text[c] === "$" &&
+            (c === from || (c === from + 1 && text[from + 1] === "$")),
+        ),
+      );
+    if (over) return { patch: null, caret: from + 1, stack: live };
+    if (from < text.length && !PAIR_BEFORE.test(text[from]!)) return null;
+  }
+  const patch = { from, to: from, insert: "$$" };
+  const shifted = shiftStops(live, patch);
+  return {
+    patch,
+    caret: from + 1,
+    stack: empty
+      ? shifted
+      : [...shifted, { from: from + 1, closes: [from + 1], body: null }],
+  };
+}
+
+export function deleteDollar(
+  stack: readonly TabStops[],
+  text: string,
+  caret: number,
+): DollarEdit | null {
+  if (text[caret - 1] !== "$" || text[caret] !== "$") return null;
+  const live = stack.filter((s) => valid(s, text));
+  const pair = live.some(
+    (s) =>
+      s.closes.length === 1 &&
+      text[s.closes[0]!] === "$" &&
+      s.closes[0]! - caret === caret - s.from &&
+      caret - s.from <= 1 &&
+      caret - s.from >= 0,
+  );
+  if (!pair) return null;
+  const patch = { from: caret - 1, to: caret + 1, insert: "" };
+  return { patch, caret: caret - 1, stack: shiftStops(live, patch) };
 }

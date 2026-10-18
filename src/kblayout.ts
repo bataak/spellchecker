@@ -329,6 +329,13 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): KeyboardLayout {
         );
         if (text === null) return;
         event.preventDefault();
+        const before = new InputEvent("beforeinput", {
+          inputType: "insertText",
+          data: text,
+          bubbles: true,
+          cancelable: true,
+        });
+        if (!field.dispatchEvent(before)) return;
         const start = field.selectionStart ?? field.value.length;
         const end = field.selectionEnd ?? start;
         if (!replaceRange(field, start, end, text))

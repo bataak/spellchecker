@@ -7,9 +7,11 @@ import {
 } from "../src/texcompletion.ts";
 import {
   caretPatch,
+  deleteDollar,
   shiftStops,
   snippetStops,
   tabStop,
+  typeDollar,
 } from "../src/texstops.ts";
 import type { TabStops } from "../src/texstops.ts";
 
@@ -165,4 +167,77 @@ test("курсорын байрлалаар засварын байрыг зөв
   });
   assert.equal(caretPatch("abc", "abc", 1), null);
   assert.deepEqual(caretPatch("aaa", "aa", 1), { from: 1, to: 2, insert: "" });
+});
+
+function dollar(s: State): State {
+  const plan = typeDollar(s.stack, s.text, s.caret, s.caret);
+  if (!plan) return type(s, "$");
+  const text = plan.patch
+    ? s.text.slice(0, plan.patch.from) +
+      plan.patch.insert +
+      s.text.slice(plan.patch.to)
+    : s.text;
+  return { text, caret: plan.caret, stack: plan.stack };
+}
+
+function backspace(s: State): State {
+  const plan = deleteDollar(s.stack, s.text, s.caret);
+  if (!plan)
+    return edit(
+      s,
+      s.text.slice(0, s.caret - 1) + s.text.slice(s.caret),
+      s.caret - 1,
+    );
+  const p = plan.patch!;
+  return {
+    text: s.text.slice(0, p.from) + p.insert + s.text.slice(p.to),
+    caret: plan.caret,
+    stack: plan.stack,
+  };
+}
+
+test("$ бичихэд $|$, дахин бичихэд $$|$$ болно", () => {
+  let s = dollar(start("Тэгшитгэл |"));
+  assert.equal(show(s), "Тэгшитгэл $|$");
+  s = dollar(s);
+  assert.equal(show(s), "Тэгшитгэл $$|$$");
+});
+
+test("\\$ болон тайлбар дотор хос нэмэхгүй", () => {
+  assert.equal(show(dollar(start("Үнэ \\|"))), "Үнэ \\$|");
+  assert.equal(show(dollar(start("\\\\|"))), "\\\\$|$");
+  assert.equal(show(dollar(start("% тайлбар |"))), "% тайлбар $|");
+});
+
+test("хаах $-ийг дахин бичвэл давхарлахгүй, дээгүүр нь гарна", () => {
+  let s = type(dollar(start("|")), "x^2");
+  s = dollar(s);
+  assert.equal(show(s), "$x^2$|");
+  s = type(dollar(dollar(start("|"))), "y");
+  assert.equal(show(s), "$$y|$$");
+  s = dollar(dollar(s));
+  assert.equal(show(s), "$$y$$|");
+});
+
+test("бусдын бичсэн $-ийн өмнө бичихэд дээгүүр гарахгүй", () => {
+  assert.equal(show(dollar(start("|$a$"))), "$|$a$");
+  assert.equal(show(dollar(start("|үг"))), "$|үг");
+});
+
+test("Tab $...$ дотроос гадагш гаргана", () => {
+  const s = tab(type(dollar(start("|")), "a"))!;
+  assert.equal(show(s), "$a$|");
+  const display = tab(type(dollar(dollar(start("|"))), "b"))!;
+  assert.equal(show(display), "$$b$$|");
+});
+
+test("хоосон хосыг Backspace нэг дор устгана", () => {
+  let s = dollar(dollar(start("|")));
+  s = backspace(s);
+  assert.equal(show(s), "$|$");
+  s = backspace(s);
+  assert.equal(show(s), "|");
+  const filled = backspace(type(dollar(start("|")), "a"));
+  assert.equal(show(filled), "$|$");
+  assert.equal(show(backspace(filled)), "|");
 });
