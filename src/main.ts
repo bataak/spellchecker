@@ -913,6 +913,7 @@ let measureCtl: MeasureControl | null = null;
 if (editorWrap) {
   measureCtl = mountMeasureControl(editorWrap, els.editor, (l) => {
     defDock.sync(l.panel);
+    paneCtl?.sync();
     if (l.preview) previewCtl?.update();
     projectLink?.sync();
   });
@@ -941,9 +942,14 @@ if (editorWrap) {
   });
   const workspace = editorWrap.closest<HTMLElement>(".workspace");
   if (workspace)
-    paneCtl = initPaneToggle(workspace, els.editor, desktopMQ, (on) => {
-      if (on) previewCtl?.update();
-    });
+    paneCtl = initPaneToggle(
+      workspace,
+      els.editor,
+      () => desktopMQ.matches && (measureCtl?.layout().preview ?? false),
+      (on) => {
+        if (on) previewCtl?.update();
+      },
+    );
 }
 
 function pdfName(): string {
@@ -1473,6 +1479,7 @@ async function boot() {
 }
 
 desktopMQ.addEventListener("change", () => {
+  paneCtl?.sync();
   hidePopover();
   errorPanel.render();
 });
