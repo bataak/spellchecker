@@ -6,6 +6,7 @@ import {
   isFileSlot,
   nextFileId,
   bytesSum,
+  fileSum,
   parseSlots,
   sameFile,
   textSum,
@@ -84,4 +85,16 @@ test("parseSlots: hash-ийг хадгална", () => {
     ),
     [{ id: "file-1", name: "a.odt", sum: null, hash: "h" }],
   );
+});
+
+test("fileSum: том файлын дунд хэсгийн өөрчлөлтийг ялгана", async () => {
+  const size = 600 * 1024;
+  const first = new Uint8Array(size);
+  const second = new Uint8Array(size);
+  second[size / 2] = 1;
+  assert.notEqual(
+    await fileSum(new Blob([first])),
+    await fileSum(new Blob([second])),
+  );
+  assert.equal(await fileSum(new Blob([first])), bytesSum(first));
 });
