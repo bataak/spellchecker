@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.112.0](https://github.com/bataak/spellchecker/compare/v1.111.0...v1.112.0) (2026-10-18)
+
+
+### Features
+
+* **cleanup:** fix Latin a, o, p, c, e, x, T, B inside Mongolian words ([0abb1ae](https://github.com/bataak/spellchecker/commit/0abb1ae3c1e4024852a4e159c00ab0f946843cef))
+
+
+### Bug Fixes
+
+* **check:** keep parentheses inside a URL from ending it ([df695a4](https://github.com/bataak/spellchecker/commit/df695a45c678a339587306e92c6a06daa9ed1cee)), closes [#277](https://github.com/bataak/spellchecker/issues/277)
+* **check:** treat look-alike ё, ө, ү codes as the standard letters ([c173a17](https://github.com/bataak/spellchecker/commit/c173a176514ac5c12efcf1a7dbd75ae38abf3525))
+* **cleanup:** replace Latin H and M inside Cyrillic words ([f9702e3](https://github.com/bataak/spellchecker/commit/f9702e3d7fc896bd21f8cfdd346120c84524e8d3))
+* **cleanup:** show the fix buttons when a letter is replaced mid-text ([67db657](https://github.com/bataak/spellchecker/commit/67db6579ef1f4bc1618202ff11ef29bb65fe9f9a))
+* **drafts:** keep saving drafts after IndexedDB fails to open or closes ([7eb219e](https://github.com/bataak/spellchecker/commit/7eb219ee48303b6895a5b179b376abcacb148925))
+* **open:** tell large office and PDF files apart by their whole content ([abc2531](https://github.com/bataak/spellchecker/commit/abc25317408133467c3cede74bc4e37b0ad23180)), closes [#283](https://github.com/bataak/spellchecker/issues/283)
+* **project:** ask before a dropped file replaces one with the same name ([ea8ba9d](https://github.com/bataak/spellchecker/commit/ea8ba9d9b61e7e25a886370ef18c972cf9c13824)), closes [#280](https://github.com/bataak/spellchecker/issues/280)
+* **project:** download files added to a read-only folder on save ([dfc954d](https://github.com/bataak/spellchecker/commit/dfc954dd17866269fe7af65ebad169a6fe714b4a)), closes [#281](https://github.com/bataak/spellchecker/issues/281)
+* **project:** download new files created in a read-only folder on save ([14f8a3d](https://github.com/bataak/spellchecker/commit/14f8a3d111c89533a654eb8754d1e979848c0aa6))
+* **project:** keep hidden and build files when renaming a folder ([03197a4](https://github.com/bataak/spellchecker/commit/03197a445a1e3b9b6027824658476e8ca4fb2dc9)), closes [#279](https://github.com/bataak/spellchecker/issues/279)
+* **project:** open a file renamed to an editable extension ([cc7932f](https://github.com/bataak/spellchecker/commit/cc7932f5f0a3306a6f9ebcb279d88a947cbead4c)), closes [#282](https://github.com/bataak/spellchecker/issues/282)
+* **tabs:** ask before closing a long unsaved file from another tab ([e173f6c](https://github.com/bataak/spellchecker/commit/e173f6caa130a1f80a6d853a3ad1021fa555061e))
+
 ## [1.111.0](https://github.com/bataak/spellchecker/compare/v1.110.0...v1.111.0) (2026-10-18)
 
 
