@@ -1,8 +1,5 @@
 import {
-  addFile,
   closeProject,
-  createDir,
-  createFile,
   grantProject,
   onProjectChange,
   openZip,
@@ -10,38 +7,22 @@ import {
   pickFolder,
   refreshProject,
   project,
-  projectHas,
-  projectText,
-  removePath,
-  renamePath,
-  setMain,
 } from "./projectstore.ts";
-import {
-  baseName,
-  dirName,
-  isEditablePath,
-  isLatexDocument,
-  isTexSource,
-  joinPath,
-} from "../tex/texproject.ts";
 import { KEYS, read, remove, write } from "../store.ts";
 import { confirmClose } from "./linkfiles.ts";
 import { failureMessage } from "./projecterror.ts";
-import { editName } from "./nameeditor.ts";
 import { buildPanel } from "./panelmarkup.ts";
 import {
   emptyMessage,
   exportTitle,
   folderLabel,
   projectTitle,
-  removeQuestion,
-  replaceQuestion,
   treeStamp,
   type OpenedFile,
 } from "./panelview.ts";
-import { createProjectMenu, type MenuItem } from "./projectmenu.ts";
-import { initTreeDrag, movedPath } from "./treedrag.ts";
-import { rowOf, rowSelector, treeRows } from "./treerows.ts";
+import { createProjectMenu } from "./projectmenu.ts";
+import { createTreeState, initTreeControl } from "./treecontrol.ts";
+import { treeRows } from "./treerows.ts";
 
 const PEEK_MS = 5000;
 
@@ -110,11 +91,8 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   let awayOpen: string | null = null;
   let laying = false;
   let wasFloating = false;
-  const collapsed = new Set<string>();
-  let selected: string | null = null;
-  let editing: HTMLInputElement | null = null;
+  const state = createTreeState();
   let busy = false;
-  let shownVersion = "";
 
   const fail = (error: unknown): void => {
     const message = failureMessage(
@@ -254,20 +232,20 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
 
     if (!ready) {
       tree.replaceChildren();
-      shownVersion = "";
+      state.shown = "";
       return;
     }
 
-    const stamp = treeStamp(view, collapsed, selected);
-    if (editing || stamp === shownVersion) return;
-    shownVersion = stamp;
+    const stamp = treeStamp(view, state.collapsed, state.selected);
+    if (state.editing || stamp === state.shown) return;
+    state.shown = stamp;
     const focusPath =
       document.activeElement instanceof HTMLElement &&
       tree.contains(document.activeElement)
         ? document.activeElement.closest<HTMLElement>(".project-row")?.dataset
             .path
         : undefined;
-    const rows = treeRows(view, collapsed, selected);
+    const rows = treeRows(view, state.collapsed, state.selected);
     tree.replaceChildren(...rows);
     const first =
       rows.find((row) => row.dataset.path === focusPath) ??
@@ -277,223 +255,16 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     if (focusPath !== undefined && first) first.focus({ preventScroll: true });
   };
 
-  const isDir = (path: string): boolean =>
-    project()?.dirs.includes(path) ?? false;
-
-  const activate = (path: string): void => {
-    if (isDir(path)) {
-      if (collapsed.has(path)) collapsed.delete(path);
-      else collapsed.add(path);
-      render();
-      return;
-    }
-    if (!isEditablePath(path)) {
-      if (deps.view(path)) {
-        selected = path;
-        render();
-        closeDrawer();
-        return;
-      }
-      deps.notify(baseName(path) + " — нээх боломжгүй файл");
-      return;
-    }
-    deps.view(null);
-    deps.openFile(path);
-    closeDrawer();
-  };
-
-  const targetDir = (): string => {
-    if (selected === null) return "";
-    return isDir(selected) ? selected : dirName(selected);
-  };
-
-  const finishEdit = (): void => {
-    editing = null;
-    shownVersion = "";
-    render();
-  };
-
-  const nameEditor = { run, notify: deps.notify, done: finishEdit };
-
-  const insertRow = (input: HTMLInputElement): void => {
-    editing = input;
-    const holder = document.createElement("div");
-    holder.className = "project-row is-new";
-    const dir = targetDir();
-    const depth = dir ? dir.split("/").length : 0;
-    holder.style.setProperty("--depth", String(depth));
-    holder.append(input);
-    const anchor = dir
-      ? tree.querySelector<HTMLElement>(rowSelector(dir))
-      : null;
-    if (anchor) anchor.after(holder);
-    else tree.prepend(holder);
-  };
-
-  const startCreate = (dir: boolean): void => {
-    const parent = targetDir();
-    if (parent) collapsed.delete(parent);
-    shownVersion = "";
-    render();
-    editName(nameEditor, insertRow, dir ? "" : "*.tex", async (name) => {
-      const path = joinPath(parent, name);
-      if (dir) {
-        await createDir(path);
-        selected = path;
-        return;
-      }
-      await createFile(path);
-      selected = path;
-      if (isEditablePath(path)) deps.openFile(path);
-    });
-  };
-
-  const startRename = (path: string): void => {
-    const row = tree.querySelector<HTMLElement>(rowSelector(path));
-    if (!row) return;
-    const inRow = (input: HTMLInputElement): void => {
-      editing = input;
-      row.querySelector(".project-name")?.replaceWith(input);
-    };
-    editName(nameEditor, inRow, baseName(path), async (name) => {
-      const next = joinPath(dirName(path), name);
-      await renamePath(path, next);
-      selected = next;
-    });
-  };
-
-  const replaceOk = (path: string): boolean => {
-    const view = project();
-    return window.confirm(
-      replaceQuestion(
-        baseName(path),
-        view?.dirty.has(path) ?? false,
-        view?.kind === "dir",
-      ),
-    );
-  };
-
-  const confirmRemove = (path: string): void => {
-    const view = project();
-    if (!view) return;
-    const question = removeQuestion(
-      baseName(path),
-      isDir(path),
-      view.kind === "dir",
-    );
-    if (!window.confirm(question)) return;
-    void run(async () => {
-      await removePath(path);
-      if (selected === path) selected = null;
-    });
-  };
-
-  const openMenu = (path: string, x: number, y: number): void => {
-    const view = project();
-    if (!view || view.pending) return;
-    selected = path;
-    const dir = isDir(path);
-    const items: MenuItem[] = [];
-    const text = dir ? null : projectText(path);
-    if (
-      text !== null &&
-      isTexSource(path) &&
-      view.main !== path &&
-      isLatexDocument(text)
-    )
-      items.push({ label: "Үндсэн файл болгох", run: () => setMain(path) });
-    if (dir) {
-      items.push({ label: "Шинэ файл үүсгэх", run: () => startCreate(false) });
-      items.push({ label: "Шинэ хавтас үүсгэх", run: () => startCreate(true) });
-    }
-    items.push({ label: "Нэр солих", run: () => startRename(path) });
-    items.push({
-      label: "Устгах",
-      run: () => confirmRemove(path),
-      danger: true,
-    });
-    menu.open(items, x, y);
-  };
-
-  tree.addEventListener("click", (event) => {
-    const row = rowOf(event.target);
-    if (!row || row.classList.contains("is-new")) return;
-    const path = row.dataset.path ?? "";
-    if ((event.target as Element).closest(".project-more")) {
-      const box = (event.target as Element)
-        .closest(".project-more")!
-        .getBoundingClientRect();
-      openMenu(path, box.left, box.bottom + 4);
-      return;
-    }
-    selected = path;
-    activate(path);
-    render();
-  });
-
-  tree.addEventListener("contextmenu", (event) => {
-    const row = rowOf(event.target);
-    if (!row || row.classList.contains("is-new")) return;
-    event.preventDefault();
-    openMenu(row.dataset.path ?? "", event.clientX, event.clientY);
-  });
-
-  tree.addEventListener("keydown", (event) => {
-    const row = rowOf(event.target);
-    if (!row || editing) return;
-    const rows = [...tree.querySelectorAll<HTMLElement>(".project-row")];
-    const at = rows.indexOf(row);
-    const path = row.dataset.path ?? "";
-    const focusRow = (next: HTMLElement | undefined): void => {
-      if (!next) return;
-      row.tabIndex = -1;
-      next.tabIndex = 0;
-      next.focus();
-    };
-    if (event.key === "ArrowDown") focusRow(rows[at + 1]);
-    else if (event.key === "ArrowUp") focusRow(rows[at - 1]);
-    else if (event.key === "ArrowRight" && isDir(path) && collapsed.has(path))
-      activate(path);
-    else if (event.key === "ArrowLeft" && isDir(path) && !collapsed.has(path))
-      activate(path);
-    else if (event.key === "Enter" || event.key === " ") {
-      selected = path;
-      activate(path);
-    } else if (event.key === "F2") startRename(path);
-    else if (event.key === "Delete") confirmRemove(path);
-    else if (
-      event.key === "ContextMenu" ||
-      (event.shiftKey && event.key === "F10")
-    ) {
-      const box = row.getBoundingClientRect();
-      openMenu(path, box.left + 24, box.bottom);
-    } else return;
-    event.preventDefault();
-  });
-
-  initTreeDrag({
+  const treeControl = initTreeControl({
     tree,
-    active: () => project() !== null,
-    editing: () => editing !== null,
-    isDir,
-    closeMenu,
-    move: (from, dir) => {
-      const to = movedPath(from, dir);
-      void run(async () => {
-        await renamePath(from, to);
-        if (dir) collapsed.delete(dir);
-        selected = to;
-      });
-    },
-    add: (dir, files) => {
-      void run(async () => {
-        for (const file of files) {
-          const target = joinPath(dir, file.name);
-          if (projectHas(target) && !replaceOk(target)) continue;
-          await addFile(target, new Uint8Array(await file.arrayBuffer()));
-        }
-      });
-    },
+    state,
+    menu,
+    render: () => render(),
+    run,
+    notify: deps.notify,
+    openFile: deps.openFile,
+    view: deps.view,
+    closeDrawer: () => closeDrawer(),
   });
 
   document.addEventListener("pointerdown", (event) => {
@@ -510,9 +281,9 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   });
 
   const opened = (prefer?: string): void => {
-    collapsed.clear();
-    selected = null;
-    shownVersion = "";
+    state.collapsed.clear();
+    state.selected = null;
+    state.shown = "";
     show(true);
     deps.onOpened(true, prefer);
     const view = project();
@@ -554,7 +325,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     closeProject();
     deps.onClosed();
   });
-  newFileBtn.addEventListener("click", () => startCreate(false));
+  newFileBtn.addEventListener("click", () => treeControl.startCreate(false));
   refreshBtn.addEventListener("click", () => {
     void run(async () => {
       deps.notify(
@@ -564,7 +335,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
       );
     });
   });
-  newDirBtn.addEventListener("click", () => startCreate(true));
+  newDirBtn.addEventListener("click", () => treeControl.startCreate(true));
   const runExport = (): void => {
     void run(async () => {
       await exportZip();

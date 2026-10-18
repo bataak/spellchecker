@@ -7,6 +7,13 @@ import "./deftip.css";
 import "./project/project.css";
 import { MultiSpellChecker } from "./spell/spellchecker.ts";
 import { createSpellSession, tokenizeAll } from "./spell/spellsession.ts";
+import {
+  nextFixStep,
+  pendingFixFor,
+  planSuggestion,
+  propagateFix,
+  type PendingFix,
+} from "./spell/applyfix.ts";
 import type { SpellChecker } from "./spell/spellchecker.ts";
 import { initFileIO } from "./fileio.ts";
 import { initImageStore } from "./imagestore.ts";
@@ -18,21 +25,22 @@ import { getIgnored, onIgnoredChange } from "./spell/ignore.ts";
 import type { Token } from "./spell/textcheck.ts";
 import { initIgnoreList } from "./ignorelist.ts";
 import { initAppearance } from "./appearance.ts";
-import { mountMeasureControl, type MeasureControl } from "./measure.ts";
+import { initMeasureControl, type MeasureControl } from "./measure.ts";
 import { initPreview, type Preview } from "./preview/preview.ts";
 import { initPaneToggle, type PaneToggle } from "./panetoggle.ts";
+import { initSaveHints } from "./savehints.ts";
+import { createPdfSaver, missingNote, setSaveBusy } from "./savepdf.ts";
+import { zipTexText } from "./tex/texzip.ts";
+import { createPreviewMode } from "./previewmode.ts";
+import { createDocMode } from "./docmode.ts";
 import { initProjectLink, type ProjectLink } from "./project/projectlink.ts";
 import { FILE_LIMIT, PROJECT_SLOT, isFileSlot } from "./fileslots.ts";
 import { onProjectChange, project } from "./project/projectstore.ts";
 import { KEYS, read, write } from "./store.ts";
 
 import { escapeHtml } from "./htmlutil.ts";
-import { inRanges, looksLatex, mergeRanges } from "./spell/codeskip.ts";
-import {
-  isDashSuffix,
-  buildErrorList,
-  dashNormalizeApply,
-} from "./spell/textcheck.ts";
+import { mergeRanges } from "./spell/codeskip.ts";
+import { isDashSuffix, buildErrorList } from "./spell/textcheck.ts";
 import { saveDraftFile, loadDraftFile } from "./storage.ts";
 import { initMdToolbar, sharedSlot } from "./mdtoolbar.ts";
 import { initSlotSwitch } from "./slotswitch.ts";
@@ -48,7 +56,7 @@ import {
   spellDictHint,
 } from "./hint.ts";
 import { isPlain, PLAIN } from "./templates.ts";
-import { deliverFile, initExport, type ExportControl } from "./export.ts";
+import { initExport, type ExportControl } from "./export.ts";
 import { stripExt } from "./exportformats.ts";
 import {
   initBackdrop,
@@ -74,15 +82,9 @@ import { minimalDiff } from "./mdedit.ts";
 import { initDefineControls } from "./definecontrols.ts";
 import { initSuggestPopover } from "./suggestpopover.ts";
 import { rotateEmptyTips, syncEmptyTips } from "./emptytips.ts";
-import {
-  initDictMenu,
-  loadEnabledEnglish,
-  activeIds,
-  visibleIds,
-} from "./dict/dictmenu.ts";
-import { casePattern } from "./spell/caseform.ts";
-import type { CasePattern } from "./spell/caseform.ts";
+import { initDictMenu } from "./dict/dictmenu.ts";
 import { createOfficeSession } from "./office/session.ts";
+import { createDictStatus, createRefreshGate } from "./dict/dictstatus.ts";
 import {
   caretLine,
   NO_STATS,
@@ -95,12 +97,6 @@ import { initStatus, reveal } from "./status.ts";
 import { isBulkDelete, isSeparatorInput, isTouch } from "./input.ts";
 import { copyText, flash } from "./clipboard.ts";
 import {
-  periodSplitDot,
-  replaceAllWord,
-  splitEveryOccurrence,
-  wordAtCaret,
-} from "./spell/wordfix.ts";
-import {
   composeDropped,
   composeTypedWord,
   initEditorText,
@@ -110,12 +106,7 @@ import {
 import { initDraftText } from "./drafttext.ts";
 import { initClean, initDecode } from "./decode.ts";
 import { initAppUpdate } from "./appupdate.ts";
-import {
-  dictStatusMessage,
-  isOfflineReady,
-  offlineCapable,
-  requestDurableStorage,
-} from "./offline.ts";
+import { requestDurableStorage, runOfflineIndicator } from "./offline.ts";
 import { initShortcuts } from "./shortcuts.ts";
 import { initDefTip } from "./deftip.ts";
 import { initDefDock } from "./defdock.ts";
@@ -175,22 +166,13 @@ const spell = createSpellSession({
     await nextFrame();
   },
 });
-interface PendingFix {
-  original: string;
-  originalPattern: CasePattern;
-  dashSuffix: boolean;
-  start: number;
-}
 
 let ready = false;
 let badTokens: Token[] = [];
-let baseStatus = "";
-let offlineIndicatorActive = false;
-let lastDictRefresh = 0;
+const DICT_REFRESH_GAP_MS = 24 * 60 * 60 * 1000;
+const dicts = createDictStatus();
+const refreshDue = createRefreshGate(DICT_REFRESH_GAP_MS);
 let pendingFix: PendingFix | null = null;
-let enabledEnglish = loadEnabledEnglish();
-let lastFailed: { id: string; error: string }[] | null = null;
-let lastFallbackReason: string | null = null;
 let undoCtl: UndoControl | null = null;
 let tabGuard: TabGuard | null = null;
 let plainName: string | null = null;
@@ -223,7 +205,7 @@ const office = createOfficeSession({
 function restoreStatus(): void {
   if (!ready) return;
   if (els.editor.value.trim() === "" && !openFileName()) {
-    if (baseStatus && !offlineIndicatorActive) setStatus(baseStatus);
+    if (dicts.base() && !dicts.indicating()) setStatus(dicts.base());
     return;
   }
   setStatus(currentStatus(), false);
@@ -247,20 +229,15 @@ function debounce<A extends unknown[]>(
   };
 }
 
-const TEX_NAME_RE = /\.(tex|ltx)$/i;
+const docMode = createDocMode({
+  officeActive: () => office.active() !== null,
+  projectBound: () => projectLink?.bound() ?? false,
+  fileName: () => plainName,
+});
 
 function isLatexText(text: string): boolean {
-  if (office.active()) return false;
-  if (inProject || projectLink?.bound()) return true;
-  if (plainName) return TEX_NAME_RE.test(plainName);
-  return texTemplate || looksLatex(text);
+  return docMode.isLatex(text);
 }
-
-const TEX_TEMPLATE = "article";
-let texTemplate = false;
-let inProject = false;
-const CHECK_TEMPLATES: ReadonlySet<string> = new Set([PLAIN, "plain2"]);
-let checkTemplate = false;
 
 function isTexFile(): boolean {
   return isLatexText(els.editor.value);
@@ -322,27 +299,19 @@ function mdActive(): boolean {
   return openFileName() ? isMdFileOpen() : !isPlain(mdBar.template());
 }
 
-let previewWanted = false;
-let clearedEmpty = false;
-
-function syncPreviewClass(): void {
-  document.body.classList.toggle(
-    "preview-mode",
-    previewWanted && !clearedEmpty,
-  );
-}
-
-function syncPane(): void {
-  paneCtl?.setAvailable(previewWanted && els.editor.value.length > 0);
-}
+const previewMode = createPreviewMode({
+  hasText: () => els.editor.value.length > 0,
+  setPaneAvailable: (on) => paneCtl?.setAvailable(on),
+  setBodyMode: (on) => document.body.classList.toggle("preview-mode", on),
+  setLayout: (blocked, wanted, tex) => {
+    measureCtl?.setPreviewBlocked(blocked);
+    measureCtl?.setPreviewMode(wanted, tex);
+  },
+});
 
 function syncEmptyState(text: string): void {
   const empty = text.length === 0;
-  syncPane();
-  if (!empty && clearedEmpty) {
-    clearedEmpty = false;
-    syncPreviewClass();
-  }
+  previewMode.textChanged();
   if (empty) defTip.clear();
   if (!els.emptyState) return;
   els.emptyState.classList.toggle("is-hidden", !empty);
@@ -388,7 +357,7 @@ async function render() {
 
   if (ready) {
     if (text.trim() === "" && !openFileName()) {
-      if (baseStatus && !offlineIndicatorActive) setStatus(baseStatus);
+      if (dicts.base() && !dicts.indicating()) setStatus(dicts.base());
     } else {
       stats = { words: total, bad: bad.length, chars: text.length };
       setStatus(currentStatus(), false);
@@ -413,40 +382,15 @@ function currentStatus(knownLine?: number): string {
   );
 }
 
-let saveTitleBase: string | null = null;
-let clearTitleBase: string | null = null;
-const CLEAR_TITLE = "Талбарыг цэвэрлэх";
-const CLOSE_CLEAR_TITLE = "Файлыг хааж, талбарыг цэвэрлэх";
-
-function syncClearHint(open: boolean): void {
-  const btn = document.querySelector<HTMLElement>("#clearBtn");
-  if (!btn) return;
-  if (clearTitleBase === null) clearTitleBase = btn.title;
-  btn.title =
-    open && clearTitleBase.startsWith(CLEAR_TITLE)
-      ? CLOSE_CLEAR_TITLE + clearTitleBase.slice(CLEAR_TITLE.length)
-      : clearTitleBase;
-}
+const syncSaveTitles = initSaveHints();
 
 function syncSaveHint(): void {
-  const btn = document.querySelector<HTMLElement>("#saveBtn");
-  if (!btn) return;
-
-  if (saveTitleBase === null) saveTitleBase = btn.title;
-
-  const combo = saveTitleBase.includes(" · ")
-    ? saveTitleBase.slice(saveTitleBase.lastIndexOf(" · "))
-    : "";
-
   const target = fileIO.targetName();
   const docx = office.active();
-  syncClearHint(!!(docx || target || plainName));
-
-  btn.title = docx
-    ? docx.outputName() + " болгож хадгална" + combo
-    : target
-      ? target + " болгож хадгална" + combo
-      : saveTitleBase;
+  syncSaveTitles(
+    docx ? docx.outputName() : target || null,
+    !!(docx || target || plainName),
+  );
 }
 
 function openFileName(): string | null {
@@ -554,7 +498,7 @@ initDefineControls({
   defDock,
   pop,
   holdStatus,
-  englishEnabled: () => enabledEnglish,
+  englishEnabled: dicts.english,
   errorAtCaret: tokenAtCaret,
   showErrorPopover: (token) => void suggestPopover.showFor(token),
 });
@@ -575,45 +519,29 @@ const suggestPopover = initSuggestPopover({
 const showPopoverFor = suggestPopover.showFor;
 
 async function maybePropagateManual() {
-  if (!pendingFix) return;
-  if (pendingFix.dashSuffix) {
-    pendingFix = null;
-    return;
-  }
+  const fix = pendingFix;
+  if (!fix) return;
   const text = els.editor.value;
   const pos = els.editor.selectionStart;
-  let manualFixToken = null;
-  if (pos > 0 && /[\s\p{P}\p{S}]/u.test(text.charAt(pos - 1))) {
-    const prev = wordAtCaret(text, pos - 1);
-    if (prev && prev.end === pos - 1) manualFixToken = prev;
-  }
-  if (!manualFixToken) manualFixToken = wordAtCaret(text, pos);
-  if (!manualFixToken) return;
-  if (manualFixToken.start !== pendingFix.start) {
-    pendingFix = null;
-    return;
-  }
-  const fix = pendingFix;
-  const lower = manualFixToken.word.toLowerCase();
-  if (lower === fix.original) return;
-  if (fix.original.length - manualFixToken.word.length > 2) return;
-  if (!(await spell.correctNow(manualFixToken.word))) return;
+  const step = nextFixStep(fix, text, pos);
+  if (step.kind === "drop") pendingFix = null;
+  if (step.kind !== "check") return;
+  if (!(await spell.correctNow(step.word))) return;
   if (pendingFix !== fix || els.editor.value !== text) return;
-  const original = fix.original;
-  const primaryPattern = fix.originalPattern || "lower";
   pendingFix = null;
-  const { text: nt, caret } = replaceAllWord(
+  const next = propagateFix(
     text,
-    original,
-    manualFixToken.word,
     pos,
-    primaryPattern,
-    null,
-    mergeRanges([...spell.skipFor(text), ...spell.plainFences(text, original)]),
+    fix,
+    step.word,
+    mergeRanges([
+      ...spell.skipFor(text),
+      ...spell.plainFences(text, fix.original),
+    ]),
   );
-  if (nt === text) return;
+  if (!next) return;
   const top = els.editor.scrollTop;
-  setEditorText(nt, caret);
+  setEditorText(next.text, next.caret);
   els.editor.scrollTop = top;
   render();
 }
@@ -646,48 +574,19 @@ async function applySuggestion(
   replacement: string,
 ): Promise<void> {
   pendingFix = null;
-  const editorText = els.editor.value;
-  const fences = spell.plainFences(editorText, token.word);
-  const skip = mergeRanges([...spell.skipFor(editorText), ...fences]);
-
-  const dashFix = dashNormalizeApply(editorText, token, replacement, skip);
-  if (dashFix) {
-    await commitReplacement(dashFix.text, dashFix.caret);
-    return;
-  }
-
-  const dot = periodSplitDot(token.word, replacement);
-  if (dot >= 0) {
-    const split = splitEveryOccurrence(
-      editorText,
-      token.word,
-      dot,
-      token.start,
-      skip,
-    );
-    if (split) {
-      await commitReplacement(split.text, split.caret);
-      return;
-    }
-  }
-
-  const inFence = inRanges(fences, token.start);
-  const onlyAt =
-    inFence || isDashSuffix(editorText, token) ? token.start : null;
-  const { text: nt, caret } = replaceAllWord(
-    editorText,
-    token.word.toLowerCase(),
+  const text = els.editor.value;
+  const next = planSuggestion(
+    text,
+    token,
     replacement,
-    token.end,
-    casePattern(token.word),
-    onlyAt,
-    inFence ? spell.skipFor(editorText) : skip,
+    spell.skipFor(text),
+    spell.plainFences(text, token.word),
   );
-  if (nt === editorText) {
+  if (!next) {
     hidePopover();
     return;
   }
-  await commitReplacement(nt, caret);
+  await commitReplacement(next.text, next.caret);
 }
 
 const deferredCheck = debounce(() => recheck(), 1500);
@@ -710,14 +609,7 @@ els.editor.addEventListener("beforeinput", () => {
   hadSelection = els.editor.selectionStart !== els.editor.selectionEnd;
   if (editorText.programmatic()) return;
   const caretToken = tokenAtCaret();
-  pendingFix = caretToken
-    ? {
-        original: caretToken.word.toLowerCase(),
-        originalPattern: casePattern(caretToken.word),
-        dashSuffix: isDashSuffix(els.editor.value, caretToken),
-        start: caretToken.start,
-      }
-    : null;
+  pendingFix = caretToken ? pendingFixFor(els.editor.value, caretToken) : null;
 });
 
 const editorText = initEditorText({
@@ -761,7 +653,7 @@ els.editor.addEventListener("input", (event) => {
 });
 const clean = initClean({
   ...fixButtonDeps,
-  skip: () => !checkTemplate || isTexFile(),
+  skip: () => !docMode.checksLetters() || isTexFile(),
 });
 function syncFixButtons(): void {
   decode.sync();
@@ -911,7 +803,7 @@ initAppearance();
 const editorWrap = els.editor.closest<HTMLElement>(".editor-wrap");
 let measureCtl: MeasureControl | null = null;
 if (editorWrap) {
-  measureCtl = mountMeasureControl(editorWrap, els.editor, (l) => {
+  measureCtl = initMeasureControl(editorWrap, els.editor, (l) => {
     defDock.sync(l.panel);
     paneCtl?.sync();
     if (l.preview) previewCtl?.update();
@@ -1075,10 +967,8 @@ const mdBar = initMdToolbar({
   fileName: openFileName,
   onLeave: (from) => slots.leave(from),
   onTemplate: (id, from) => {
-    clearedEmpty = false;
-    texTemplate = id === TEX_TEMPLATE;
-    inProject = id === PROJECT_SLOT;
-    checkTemplate = CHECK_TEMPLATES.has(id);
+    previewMode.templateChanged();
+    docMode.setTemplate(id);
     clean.sync();
     if (from !== mdBar.slot()) slots.enter(mdBar.slot());
     syncTexMode();
@@ -1123,9 +1013,7 @@ const nudgeHints = initHints(() => {
 });
 let exportCtl: ExportControl | null = null;
 
-texTemplate = mdBar.template() === TEX_TEMPLATE;
-inProject = mdBar.template() === PROJECT_SLOT;
-checkTemplate = CHECK_TEMPLATES.has(mdBar.template());
+docMode.setTemplate(mdBar.template());
 clean.sync();
 lastTex = isTexFile();
 applyTexPaint(lastTex);
@@ -1143,18 +1031,26 @@ if (workspaceEl)
     workspace: workspaceEl,
     tools: () =>
       editorWrap?.querySelector<HTMLElement>(".editor-tools") ?? null,
-    slot: () => mdBar.slot(),
-    fileName: () => plainName,
-    fileHandle: () => fileIO.targetHandle(),
-    texActive: isTexFile,
-    bindName: (name) => {
-      fileIO.putFile(name ? { handle: null, name } : null);
-      plainName = name;
-      saveDraftFile(name ? { name, kind: "text" } : null, mdBar.slot());
-      syncSaveHint();
-      mdBar.refresh();
-      restoreStatus();
+    slots: {
+      current: () => mdBar.slot(),
+      inProject: () => mdBar.template() === PROJECT_SLOT,
+      enterProject: () => mdBar.enterProject(),
+      close: (id) => mdBar.closeFile(id, true),
+      files: () => mdBar.fileSlots(),
     },
+    file: {
+      name: () => plainName,
+      handle: () => fileIO.targetHandle(),
+      bind: (name) => {
+        fileIO.putFile(name ? { handle: null, name } : null);
+        plainName = name;
+        saveDraftFile(name ? { name, kind: "text" } : null, mdBar.slot());
+        syncSaveHint();
+        mdBar.refresh();
+        restoreStatus();
+      },
+    },
+    texActive: isTexFile,
     afterSwitch: () => {
       undoCtl?.baseline();
       syncTexMode();
@@ -1166,10 +1062,6 @@ if (workspaceEl)
       mdBar.setProject(name);
       if (name === null) mdBar.leaveProject();
     },
-    inSlot: () => mdBar.template() === PROJECT_SLOT,
-    enterSlot: () => mdBar.enterProject(),
-    closeFileSlot: (id) => mdBar.closeFile(id, true),
-    fileSlots: () => mdBar.fileSlots(),
     onChange: () => {
       syncTexMode();
       previewCtl?.update();
@@ -1202,11 +1094,7 @@ function enterMdMode(on: boolean): void {
     markupSkips = markup;
     void render();
   }
-  measureCtl?.setPreviewBlocked(!on && !isTexFile());
-  measureCtl?.setPreviewMode(on || isTexFile(), isTexFile());
-  previewWanted = on || isTexFile();
-  syncPane();
-  syncPreviewClass();
+  previewMode.enter(on, isTexFile());
   previewCtl?.setMarkdownMode(on);
   exportCtl?.syncPrint();
   nudgeHints();
@@ -1227,35 +1115,17 @@ exportCtl = initExport({
   isTex: isTexFile,
   texZip: async (text, name) => {
     if (projectLink?.bound()) return projectLink.zip();
-    const [{ zipSync, strToU8 }, { texImageSources }] = await Promise.all([
-      import("fflate"),
-      import("./tex/teximages.ts"),
-    ]);
-    const images = await texImageSources(text);
-    if (images.missing.length)
-      holdStatus(
-        "Архивт ороогүй зураг: " + escapeHtml(images.missing.join(", ")),
-        8000,
-        false,
-      );
-    const zip = zipSync({
-      ...images.files,
-      [name + ".tex"]: strToU8(images.rewrite(text)),
-    });
-    return new Blob([zip as Uint8Array<ArrayBuffer>], {
-      type: "application/zip",
-    });
+    const { blob, missing } = await zipTexText(text, name);
+    if (missing.length)
+      holdStatus(missingNote("Архивт ороогүй зураг: ", missing), 8000, false);
+    return blob;
   },
   texZipped: () => projectLink?.zipped(),
   texPdf: async () => {
     if (!previewCtl) throw new Error("no preview");
     const { pdf, missing } = await previewCtl.pdf();
     if (missing.length)
-      holdStatus(
-        "PDF-д ороогүй зураг: " + escapeHtml(missing.join(", ")),
-        8000,
-        false,
-      );
+      holdStatus(missingNote("PDF-д ороогүй зураг: ", missing), 8000, false);
     return pdf;
   },
   texSource: (name) => fileIO.saveSource(name, !!projectLink?.bound()),
@@ -1267,20 +1137,9 @@ exportCtl = initExport({
       holdStatus(escapeHtml(error.message), 8000, false);
   },
   onBusy: (busy, ext) =>
-    saveBusy(busy, ext === "zip" ? "Архивлаж байна…" : undefined),
+    setSaveBusy(busy, ext === "zip" ? "Архивлаж байна…" : undefined),
 });
 
-function saveBusy(busy: boolean, text = "PDF бэлтгэж байна…"): void {
-  const button = document.querySelector<HTMLElement>("#saveBtn");
-  if (!button) return;
-  if (busy) {
-    button.dataset.label ||= button.textContent ?? "";
-    button.textContent = text;
-  } else {
-    button.textContent = button.dataset.label ?? "";
-  }
-  button.toggleAttribute("aria-busy", busy);
-}
 
 function savesPdf(): boolean {
   return (
@@ -1292,37 +1151,15 @@ function savesPdf(): boolean {
   );
 }
 
-let pdfSaving = false;
+const savePdfFile = createPdfSaver({
+  name: pdfName,
+  saveProject: () => projectLink?.save(true),
+  notify: (html) => holdStatus(html, 8000, false),
+});
+
 async function savePdf(): Promise<void> {
-  if (pdfSaving || !previewCtl) return;
-  pdfSaving = true;
-  saveBusy(true);
-  const notes: string[] = [];
-  try {
-    const name = pdfName();
-    const compiled = previewCtl.pdf();
-    compiled.catch(() => {});
-    const saved = await projectLink?.save(true).then(
-      () => true,
-      () => false,
-    );
-    if (saved === false) notes.push("Төслийн файлуудыг хадгалж чадсангүй");
-    const { pdf, missing } = await compiled;
-    saveBusy(false);
-    if (missing.length)
-      notes.push("PDF-д ороогүй зураг: " + escapeHtml(missing.join(", ")));
-    if (notes.length) holdStatus(notes.join(" · "), 8000, false);
-    if (await deliverFile(pdf, name, "application/pdf"))
-      flash("#saveBtn", "PDF хадгаллаа");
-  } catch (error) {
-    saveBusy(false);
-    flash("#saveBtn", "PDF гаргаж чадсангүй");
-    if (error instanceof Error && error.name === "PdfError")
-      notes.push(escapeHtml(error.message));
-    if (notes.length) holdStatus(notes.join(" · "), 8000, false);
-  } finally {
-    pdfSaving = false;
-  }
+  const preview = previewCtl;
+  if (preview) await savePdfFile(() => preview.pdf());
 }
 
 async function restoreDraftFile(): Promise<void> {
@@ -1348,47 +1185,23 @@ initShortcuts({
   lastCaret: () => lastCaret,
 });
 
-const DICT_REFRESH_GAP_MS = 24 * 60 * 60 * 1000;
 const DICT_REFRESH_POLL_MS = 3 * 60 * 60 * 1000;
 
 function maybeRefreshDict(): void {
   if (import.meta.env.DEV) return;
   if (!ready || !navigator.onLine) return;
-  const now = Date.now();
-  if (lastDictRefresh && now - lastDictRefresh < DICT_REFRESH_GAP_MS) return;
-  lastDictRefresh = now;
+  if (!refreshDue(Date.now())) return;
   checker.refresh();
   void appUpdate.checkFreshness();
 }
 
-async function runOfflineReadyIndicator() {
-  const idle = () => els.editor.value.trim() === "";
-  const transient = (msg: string, animate = true): void => {
-    if (idle()) setStatus(msg, animate);
-  };
-
-  if (import.meta.env.DEV || !offlineCapable()) {
-    if (idle()) setStatus(baseStatus);
-    return;
-  }
-
-  offlineIndicatorActive = true;
-  transient("Офлайн горимд ажиллахад бэлтгэж байна…");
-
-  let isReady = await isOfflineReady();
-  const deadline = Date.now() + 20000;
-  while (!isReady && Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, 700));
-    isReady = await isOfflineReady();
-  }
-
-  if (isReady) {
-    transient("Офлайн горимд ажиллахад бэлэн", false);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-  }
-
-  offlineIndicatorActive = false;
-  if (idle()) setStatus(baseStatus);
+function runOfflineReadyIndicator(): void {
+  void runOfflineIndicator({
+    idle: () => els.editor.value.trim() === "",
+    setStatus,
+    base: dicts.base,
+    setActive: dicts.setIndicating,
+  });
 }
 
 async function boot() {
@@ -1426,18 +1239,12 @@ async function boot() {
       import.meta.env.BASE_URL,
     );
     ready = true;
-    checker.setActive(activeIds(enabledEnglish));
+    checker.setActive(dicts.active());
     appUpdate.setDictVersion(mnVersion);
     spell.clear();
     await render();
     if (loaded.length) {
-      lastFailed = failed;
-      lastFallbackReason = fallbackReason;
-      baseStatus = dictStatusMessage(
-        visibleIds(loaded, enabledEnglish),
-        failed,
-        fallbackReason,
-      );
+      dicts.loaded(loaded, failed, fallbackReason);
       runOfflineReadyIndicator();
     } else {
       setStatus(
@@ -1458,14 +1265,13 @@ async function boot() {
     setInterval(maybeRefreshDict, DICT_REFRESH_POLL_MS);
     checker.whenComplete().then((done) => {
       spell.clear();
-      lastFailed = [...(failed || []), ...done.failed];
-      baseStatus = dictStatusMessage(
-        visibleIds(checker.loadedIds, enabledEnglish),
-        lastFailed,
+      dicts.completed(
+        checker.loadedIds,
+        [...(failed || []), ...done.failed],
         fallbackReason,
       );
-      if (els.editor.value.trim() === "" && !offlineIndicatorActive)
-        setStatus(baseStatus, false);
+      if (els.editor.value.trim() === "" && !dicts.indicating())
+        setStatus(dicts.base(), false);
       render();
       maybeRefreshDict();
     });
@@ -1495,10 +1301,9 @@ initToolbar({
   isDocxActive: () => office.active() !== null,
   closeDocx: office.close,
   forgetFile: () => {
-    clearedEmpty = true;
+    previewMode.cleared();
     projectLink?.cleared();
     fileIO.forgetFile();
-    syncPreviewClass();
   },
   afterClear: (cleared) => {
     mdBar.reset(cleared);
@@ -1552,7 +1357,7 @@ onProjectChange(() => {
 initSurvey();
 
 initReportButton(() => {
-  const active = activeIds(enabledEnglish);
+  const active = dicts.active();
   return {
     entryUrl: import.meta.url,
     activeDicts: checker.loadedIds.filter((id) => active.includes(id)),
@@ -1569,19 +1374,14 @@ initReportButton(() => {
 
 const openDictMenu = initDictMenu({
   statusEl: els.status,
-  getEnabled: () => enabledEnglish,
+  getEnabled: dicts.english,
   onApply: (next) => {
-    enabledEnglish = next;
-    checker.setActive(activeIds(enabledEnglish));
+    dicts.setEnglish(next, checker.loadedIds);
+    checker.setActive(dicts.active());
     spell.clear();
-    baseStatus = dictStatusMessage(
-      visibleIds(checker.loadedIds, enabledEnglish),
-      lastFailed,
-      lastFallbackReason,
-    );
     render();
-    if (els.editor.value.trim() === "" && !offlineIndicatorActive) {
-      setStatus(baseStatus, false);
+    if (els.editor.value.trim() === "" && !dicts.indicating()) {
+      setStatus(dicts.base(), false);
     }
   },
   onClose: () => els.editor.focus(),

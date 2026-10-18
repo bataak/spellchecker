@@ -2,19 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { FakeDir } from "./helpers/fake-fs.ts";
-import {
-  addFile,
-  createDir,
-  createFile,
-  openDirHandle,
-  project,
-  projectBinary,
-  projectHas,
-  projectText,
-  renamePath,
-  saveProject,
-  setProjectText,
-} from "../src/project/projectstore.ts";
+import { createProjectStore } from "../src/project/projectstore.ts";
 
 (globalThis as { window?: unknown }).window ??= globalThis;
 
@@ -22,6 +10,7 @@ const MAIN =
   "\\documentclass{article}\n\\begin{document}\nА\n\\end{document}\n";
 
 test("хавтасны нэр солиход далд болон build файлууд хамт зөөгдөнө", async () => {
+  const { openDirHandle, renamePath } = createProjectStore();
   const root = new FakeDir("төсөл");
   root.put("main.tex", MAIN);
   root.put("chapter/body.tex", "бие");
@@ -40,6 +29,7 @@ test("хавтасны нэр солиход далд болон build файл�
 });
 
 test("файлын нэр солиход дискэн дээр зөөгдөнө", async () => {
+  const { openDirHandle, renamePath } = createProjectStore();
   const root = new FakeDir("төсөл");
   root.put("main.tex", MAIN);
   root.put("a.tex", "а");
@@ -52,6 +42,8 @@ test("файлын нэр солиход дискэн дээр зөөгдөнө"
 });
 
 test("байгаа файлын нэрийг projectHas мэдээлнэ, хавтсыг файлаар солихгүй", async () => {
+  const { addFile, createDir, openDirHandle, projectHas, projectText } =
+    createProjectStore();
   const root = new FakeDir("төсөл");
   root.put("main.tex", MAIN);
   await openDirHandle(root.asHandle());
@@ -64,6 +56,8 @@ test("байгаа файлын нэрийг projectHas мэдээлнэ, хав
 });
 
 test("баталгаажуулсны дараа файлыг солиход хадгалаагүй төлөв арилна", async () => {
+  const { addFile, openDirHandle, project, projectText, setProjectText } =
+    createProjectStore();
   const root = new FakeDir("төсөл");
   root.put("main.tex", MAIN);
   root.put("a.tex", "хуучин");
@@ -78,6 +72,8 @@ test("баталгаажуулсны дараа файлыг солиход ха
 });
 
 test("folder горимд оруулсан шинэ файлыг хадгалахад татна", async (t) => {
+  const { addFile, createFile, openDirHandle, project, saveProject } =
+    createProjectStore();
   const names: string[] = [];
   const saved = (globalThis as { document?: unknown }).document;
   (globalThis as { document?: unknown }).document = {
@@ -110,6 +106,8 @@ test("folder горимд оруулсан шинэ файлыг хадгала�
 });
 
 test("өргөтгөл солиход файлыг засах боломжтой эсэхийг дахин тогтооно", async () => {
+  const { openDirHandle, project, projectBinary, projectText, renamePath } =
+    createProjectStore();
   const root = new FakeDir("төсөл");
   root.put("main.tex", MAIN);
   root.put("chapter.bak", "бүлэг\r\nхоёр");
@@ -131,6 +129,8 @@ test("өргөтгөл солиход файлыг засах боломжтой
 });
 
 test("хадгалаагүй файлыг засах боломжгүй төрөл рүү нэрлэхгүй", async () => {
+  const { openDirHandle, projectText, renamePath, setProjectText } =
+    createProjectStore();
   const root = new FakeDir("төсөл");
   root.put("main.tex", MAIN);
   root.put("a.tex", "а");
@@ -140,4 +140,18 @@ test("хадгалаагүй файлыг засах боломжгүй төрө
   await assert.rejects(renamePath("a.tex", "a.bak"));
   assert.equal(projectText("a.tex"), "засвар");
   assert.equal(root.read("a.tex"), "а");
+});
+
+test("хоёр store төлөв болон сонсогчоо хуваалцахгүй", async () => {
+  const first = createProjectStore();
+  const second = createProjectStore();
+  let heard = 0;
+  second.onProjectChange(() => heard++);
+  const root = new FakeDir("төсөл");
+  root.put("main.tex", MAIN);
+  await first.openDirHandle(root.asHandle());
+  assert.equal(first.project()?.name, "төсөл");
+  assert.equal(second.project(), null);
+  assert.equal(second.hasProject(), false);
+  assert.equal(heard, 0);
 });
