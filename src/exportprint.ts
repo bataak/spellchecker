@@ -2,6 +2,7 @@ import { prepareImages } from "./images.ts";
 import { parse } from "./markdown.ts";
 import { docImages } from "./office/docir.ts";
 import { findTemplate, type Frame } from "./templates.ts";
+import type { TexProject } from "./project/projectbuild.ts";
 
 const PRINT_FRAMES: ReadonlySet<Frame> = new Set([
   "letter",
@@ -13,6 +14,7 @@ export interface PrintDeps {
   readonly editor: HTMLTextAreaElement;
   readonly blocked?: () => boolean;
   readonly isTex?: () => boolean;
+  readonly texProject?: () => TexProject | null;
   readonly template: () => string;
   readonly onBlocked?: () => void;
   readonly onPrintError?: (error: unknown) => void;
@@ -32,7 +34,9 @@ export function createPrinter(deps: PrintDeps): Printer {
         import("./tex/texpdf.ts"),
         import("./office/print.ts"),
       ]);
-      await printPdf(await compileTex(deps.editor.value));
+      await printPdf(
+        await compileTex(deps.editor.value, deps.texProject?.() ?? null),
+      );
     } finally {
       deps.onBusy?.(false);
     }

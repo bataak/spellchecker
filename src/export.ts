@@ -9,12 +9,14 @@ import {
 } from "./exportformats.ts";
 import { escapeAttr } from "./htmlutil.ts";
 import { findTemplate } from "./templates.ts";
+import type { TexProject } from "./project/projectbuild.ts";
 
 export interface ExportOptions {
   readonly editor: HTMLTextAreaElement;
   readonly baseName: () => string | null;
   readonly blocked?: () => boolean;
   readonly isTex?: () => boolean;
+  readonly texProject?: () => TexProject | null;
   readonly texZip?: (text: string, name: string) => Promise<Blob>;
   readonly texZipped?: () => void;
   readonly texPdf?: () => Promise<Uint8Array<ArrayBuffer>>;

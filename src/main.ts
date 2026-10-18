@@ -35,7 +35,7 @@ import { createPreviewMode } from "./previewmode.ts";
 import { createDocMode } from "./docmode.ts";
 import { initProjectLink, type ProjectLink } from "./project/projectlink.ts";
 import { FILE_LIMIT, PROJECT_SLOT, isFileSlot } from "./fileslots.ts";
-import { onProjectChange, project } from "./project/projectstore.ts";
+import { createProjectStore } from "./project/projectstore.ts";
 import { KEYS, read, write } from "./store.ts";
 
 import { escapeHtml } from "./htmlutil.ts";
@@ -116,6 +116,9 @@ import { installErrorLog } from "./errorlog.ts";
 import { initReportButton } from "./reportbtn.ts";
 
 installErrorLog();
+
+const projectStore = createProjectStore();
+const { onProjectChange, project } = projectStore;
 
 let previewCtl: Preview | null = null;
 let paneCtl: PaneToggle | null = null;
@@ -829,6 +832,7 @@ if (editorWrap) {
     isLatex: isLatexText,
     projectKey: () => projectLink?.key() ?? null,
     inProject: () => projectLink?.bound() ?? false,
+    texProject: () => projectLink?.texProject() ?? null,
     pdfName,
     jump: revealRange,
   });
@@ -1027,6 +1031,7 @@ initTexImageInput({ editor: els.editor, active: () => texPaint });
 const workspaceEl = document.querySelector<HTMLElement>(".workspace");
 if (workspaceEl)
   projectLink = initProjectLink({
+    store: projectStore,
     editor: els.editor,
     workspace: workspaceEl,
     tools: () =>
@@ -1113,6 +1118,7 @@ exportCtl = initExport({
   baseName: () => fileIO.targetName() ?? plainName,
   blocked: () => office.active() !== null,
   isTex: isTexFile,
+  texProject: () => projectLink?.texProject() ?? null,
   texZip: async (text, name) => {
     if (projectLink?.bound()) return projectLink.zip();
     const { blob, missing } = await zipTexText(text, name);
