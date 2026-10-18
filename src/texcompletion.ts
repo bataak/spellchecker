@@ -16,6 +16,8 @@ export interface Expansion {
   to: number;
   text: string;
   caret: number;
+  closes: number[];
+  body: number | null;
 }
 
 const COMMANDS = [
@@ -368,6 +370,8 @@ export function expand(
       to: caret,
       text: inserted,
       caret: context.from + (mark < 0 ? inserted.length : mark),
+      closes: mark < 0 ? [] : groupCloses(inserted, mark, context.from),
+      body: null,
     };
   }
 
@@ -384,6 +388,8 @@ export function expand(
       to,
       text: inserted,
       caret: context.from + inserted.length,
+      closes: [],
+      body: null,
     };
   }
 
@@ -396,5 +402,28 @@ export function expand(
     mark < 0
       ? context.from + head.length + inner.length
       : context.from + name.length + 1 + mark;
-  return { from: context.from, to, text: inserted, caret: caretAt };
+  if (mark < 0)
+    return {
+      from: context.from,
+      to,
+      text: inserted,
+      caret: caretAt,
+      closes: [],
+      body: null,
+    };
+  return {
+    from: context.from,
+    to,
+    text: inserted,
+    caret: caretAt,
+    closes: groupCloses(head, name.length + 1 + mark, context.from),
+    body: context.from + head.length + inner.length,
+  };
+}
+
+function groupCloses(text: string, mark: number, offset: number): number[] {
+  const out: number[] = [];
+  for (let i = mark; i < text.length; i++)
+    if (text[i] === "}" || text[i] === "]") out.push(offset + i);
+  return out;
 }

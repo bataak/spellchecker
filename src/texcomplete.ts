@@ -1,5 +1,5 @@
 import "./texcomplete.css";
-import { replaceRange } from "./editortext.ts";
+import { onSwap, replaceRange } from "./editortext.ts";
 import {
   completionContext,
   completions,
@@ -7,6 +7,8 @@ import {
   unchanged,
 } from "./texcompletion.ts";
 import type { Completion, CompletionContext } from "./texcompletion.ts";
+import { caretPatch, shiftStops, snippetStops, tabStop } from "./texstops.ts";
+import type { TabStops } from "./texstops.ts";
 
 export interface TexCompleteDeps {
   readonly editor: HTMLTextAreaElement;
@@ -34,6 +36,8 @@ export function initTexComplete(deps: TexCompleteDeps): void {
   let index = 0;
   let dismissedAt = -1;
   let applying = false;
+  let stops: TabStops[] = [];
+  let seen = editor.value;
 
   editor.setAttribute("aria-autocomplete", "list");
 
@@ -160,6 +164,14 @@ export function initTexComplete(deps: TexCompleteDeps): void {
       applying = false;
     }
     editor.setSelectionRange(edit.caret, edit.caret);
+    stops = shiftStops(stops, {
+      from: edit.from,
+      to: edit.to,
+      insert: edit.text,
+    });
+    const added = snippetStops(edit);
+    if (added) stops = [...stops, added];
+    seen = editor.value;
     if (!native) editor.dispatchEvent(new Event("input", { bubbles: true }));
     if (image) {
       deps.onImage?.();
@@ -168,12 +180,54 @@ export function initTexComplete(deps: TexCompleteDeps): void {
     update();
   }
 
+  function track(): void {
+    if (applying) return;
+    const text = editor.value;
+    if (stops.length) {
+      const patch = caretPatch(seen, text, editor.selectionEnd);
+      if (patch) stops = shiftStops(stops, patch);
+    }
+    seen = text;
+  }
+
+  function jump(e: KeyboardEvent): void {
+    if (!stops.length) return;
+    if (e.key === "Escape") {
+      stops = [];
+      return;
+    }
+    if (e.key !== "Tab" || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey)
+      return;
+    if (
+      !deps.active() ||
+      editor.value !== seen ||
+      editor.selectionStart !== editor.selectionEnd
+    ) {
+      stops = [];
+      return;
+    }
+    const next = tabStop(stops, editor.value, editor.selectionStart);
+    stops = next.stack;
+    if (next.caret === null) return;
+    e.preventDefault();
+    e.stopPropagation();
+    editor.setSelectionRange(next.caret, next.caret);
+  }
+
+  onSwap(() => {
+    stops = [];
+  });
+  editor.addEventListener("input", track);
   editor.addEventListener("input", update);
 
   editor.addEventListener(
     "keydown",
     (e) => {
-      if (list.hidden || e.isComposing) return;
+      if (e.isComposing) return;
+      if (list.hidden) {
+        jump(e);
+        return;
+      }
       if (e.altKey || e.ctrlKey || e.metaKey) {
         close();
         return;
