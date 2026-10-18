@@ -276,7 +276,7 @@ function isLetter(code: number): boolean {
   return (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
 }
 
-function inComment(text: string, caret: number): boolean {
+export function inComment(text: string, caret: number): boolean {
   const lineStart = text.lastIndexOf("\n", caret - 1) + 1;
   for (let i = lineStart; i < caret; i++) {
     const code = text.charCodeAt(i);

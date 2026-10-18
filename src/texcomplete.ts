@@ -7,8 +7,15 @@ import {
   unchanged,
 } from "./texcompletion.ts";
 import type { Completion, CompletionContext } from "./texcompletion.ts";
-import { caretPatch, shiftStops, snippetStops, tabStop } from "./texstops.ts";
-import type { TabStops } from "./texstops.ts";
+import {
+  caretPatch,
+  deleteDollar,
+  shiftStops,
+  snippetStops,
+  tabStop,
+  typeDollar,
+} from "./texstops.ts";
+import type { DollarEdit, TabStops } from "./texstops.ts";
 
 export interface TexCompleteDeps {
   readonly editor: HTMLTextAreaElement;
@@ -214,6 +221,42 @@ export function initTexComplete(deps: TexCompleteDeps): void {
     editor.setSelectionRange(next.caret, next.caret);
   }
 
+  function dollar(e: InputEvent): void {
+    if (!deps.active() || e.isComposing) return;
+    if (editor.value !== seen) stops = [];
+    const text = editor.value;
+    const from = editor.selectionStart;
+    const plan: DollarEdit | null =
+      e.inputType === "insertText" && e.data === "$"
+        ? typeDollar(stops, text, from, editor.selectionEnd)
+        : e.inputType === "deleteContentBackward" &&
+            from === editor.selectionEnd
+          ? deleteDollar(stops, text, from)
+          : null;
+    if (!plan) return;
+    e.preventDefault();
+    close();
+    let native = true;
+    if (plan.patch) {
+      applying = true;
+      try {
+        native = replaceRange(
+          editor,
+          plan.patch.from,
+          plan.patch.to,
+          plan.patch.insert,
+        );
+      } finally {
+        applying = false;
+      }
+    }
+    stops = plan.stack;
+    editor.setSelectionRange(plan.caret, plan.caret);
+    seen = editor.value;
+    if (!native) editor.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  editor.addEventListener("beforeinput", dollar);
   onSwap(() => {
     stops = [];
   });
