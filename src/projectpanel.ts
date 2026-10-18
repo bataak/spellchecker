@@ -11,6 +11,7 @@ import {
   pickFolder,
   refreshProject,
   project,
+  projectHas,
   projectText,
   removePath,
   renamePath,
@@ -623,6 +624,20 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     });
   };
 
+  const replaceOk = (path: string): boolean => {
+    const view = project();
+    const unsaved = view?.dirty.has(path)
+      ? " Хадгалаагүй өөрчлөлт нь алга болно."
+      : "";
+    const question =
+      view?.kind === "dir"
+        ? " Дискэн дээрх файлыг шинэ файлаар солих уу?"
+        : " Шинэ файлаар солих уу?";
+    return window.confirm(
+      "«" + baseName(path) + "» файл төсөлд байна." + unsaved + question,
+    );
+  };
+
   const remove = (path: string): void => {
     const view = project();
     if (!view) return;
@@ -844,11 +859,11 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     const path = row?.dataset.path ?? "";
     const dir = row ? (isDir(path) ? path : dirName(path)) : "";
     void run(async () => {
-      for (const file of files)
-        await addFile(
-          joinPath(dir, file.name),
-          new Uint8Array(await file.arrayBuffer()),
-        );
+      for (const file of files) {
+        const target = joinPath(dir, file.name);
+        if (projectHas(target) && !replaceOk(target)) continue;
+        await addFile(target, new Uint8Array(await file.arrayBuffer()));
+      }
     });
   });
 
