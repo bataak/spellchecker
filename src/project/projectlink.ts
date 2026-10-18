@@ -1,6 +1,14 @@
 import { initProjectPanel, type ProjectPanel } from "./projectpanel.ts";
 import {
-  ProjectError,
+  confirmReplace,
+  failureMessage,
+  FILES_SAVED_NOTICE,
+  findSameFile,
+  isTexName,
+  locateFile,
+  saveMessage,
+} from "./linkfiles.ts";
+import {
   hasProject,
   onProjectChange,
   openDirHandle,
@@ -212,7 +220,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     const fromText = editor.value;
     const target =
       prefer !== undefined && deps.fileName() === prefer
-        ? locate(view.files, prefer, fromText)
+        ? locateFile(view.files, prefer, fromText, projectText)
         : null;
     if (target !== null) {
       setProjectText(target, fromText);
@@ -227,32 +235,18 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     absorb();
   };
 
-  const locate = (
-    files: readonly string[],
-    name: string,
-    text: string,
-  ): string | null => {
-    const matches = files.filter(
-      (path) => path === name || baseName(path) === name,
-    );
-    return (
-      matches.find((path) => projectText(path) === text) ??
-      matches.sort((a, b) => a.split("/").length - b.split("/").length)[0] ??
-      null
-    );
-  };
-
   const absorb = (): void => {
     const view = project();
     if (!view || view.pending) return;
     for (const slot of deps.fileSlots()) {
       if (slot.text === null || slot.id === deps.slot()) continue;
-      const same = view.files.some(
-        (path) =>
-          (path === slot.name || baseName(path) === slot.name) &&
-          projectText(path) === slot.text,
+      const text = slot.text;
+      const same = findSameFile(
+        view.files,
+        slot.name,
+        (path) => projectText(path) === text,
       );
-      if (same) deps.closeFileSlot(slot.id);
+      if (same !== undefined) deps.closeFileSlot(slot.id);
     }
   };
 
@@ -302,19 +296,11 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
       viewing = true;
       return true;
     },
-    beforeOpen: () => {
-      const view = project();
-      return (
-        !view?.unsaved ||
-        window.confirm(
-          "Нээлттэй төсөлд хадгалагдаагүй файл байна. Шинэ төсөл нээх үү?",
-        )
-      );
-    },
+    beforeOpen: () => confirmReplace(project()?.unsaved),
     onOpened: opened,
     openedFile: () => {
       const name = deps.fileName();
-      return name && !bound && /\.(tex|ltx)$/i.test(name)
+      return isTexName(name) && !bound
         ? { name, handle: deps.fileHandle(), master: texMaster(editor.value) }
         : null;
     },
@@ -391,11 +377,8 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
   document.addEventListener("visibilitychange", refresh);
 
   const fail = (error: unknown): void => {
-    if (error instanceof ProjectError) deps.notify(error.message);
-    else if (!(error instanceof DOMException && error.name === "AbortError")) {
-      console.error("project:", error);
-      deps.notify("Төслийг нээж чадсангүй");
-    }
+    const message = failureMessage(error);
+    if (message !== null) deps.notify(message);
   };
 
   return {
@@ -413,17 +396,8 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
       if (diskOnly && project()?.kind !== "dir") return null;
       pushText();
       const result = await saveProject();
-      if (result === "files")
-        deps.notify(
-          "Засварласан файлуудыг «Татаж авсан файлууд» хавтас руу татлаа — анхны файлыг тэдгээрээр солино уу",
-        );
-      return result === "downloaded"
-        ? "Архивлалаа"
-        : result === "files"
-          ? "Засварласан файлуудыг татлаа"
-          : result === "saved"
-            ? "Хадгаллаа"
-            : "Өөрчлөлт алга";
+      if (result === "files") deps.notify(FILES_SAVED_NOTICE);
+      return saveMessage(result);
     },
     zip() {
       pushText();
@@ -435,28 +409,13 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
       zipSnap = null;
     },
     async openZip(file) {
-      const view = project();
-      if (
-        view?.unsaved &&
-        !window.confirm(
-          "Нээлттэй төсөлд хадгалагдаагүй файл байна. Шинэ төсөл нээх үү?",
-        )
-      )
-        return;
+      if (!confirmReplace(project()?.unsaved)) return;
       await panel.openZipFile(file);
     },
     async openDir(handle) {
-      const view = project();
-      if (
-        view?.unsaved &&
-        !window.confirm(
-          "Нээлттэй төсөлд хадгалагдаагүй файл байна. Шинэ төсөл нээх үү?",
-        )
-      )
-        return;
+      if (!confirmReplace(project()?.unsaved)) return;
       const name = deps.fileName();
-      const prefer =
-        name && !bound && /\.(tex|ltx)$/i.test(name) ? name : undefined;
+      const prefer = isTexName(name) && !bound ? name : undefined;
       try {
         await openDirHandle(handle);
         panel.show(true);
@@ -490,10 +449,10 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     openExisting(name, text) {
       const view = project();
       if (!view || view.pending) return false;
-      const path = view.files.find(
-        (path) =>
-          (path === name || baseName(path) === name) &&
-          (projectText(path) === text || projectSavedText(path) === text),
+      const path = findSameFile(
+        view.files,
+        name,
+        (path) => projectText(path) === text || projectSavedText(path) === text,
       );
       if (path === undefined) return false;
       openFile(path);
