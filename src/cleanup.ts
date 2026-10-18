@@ -224,6 +224,8 @@ const LATIN_TO_MN: Record<string, string> = {
   C: "\u0421",
   e: "\u0435",
   E: "\u0415",
+  H: "\u041D",
+  M: "\u041C",
   o: "\u043E",
   O: "\u041E",
   p: "\u0440",
@@ -232,9 +234,9 @@ const LATIN_TO_MN: Record<string, string> = {
   x: "\u0445",
   X: "\u0425",
 };
-const MAPPED_LATIN_RE = /[vVaABcCeEoOpPTxX]/;
-const MAPPED_LATIN_GLOBAL_RE = /[vVaABcCeEoOpPTxX]/g;
-const OTHER_LATIN_RE = /[DF-NQ-SUWYZbdf-nq-uwyz]/;
+const MAPPED_LATIN_RE = /[vVaABcCeEHMoOpPTxX]/;
+const MAPPED_LATIN_GLOBAL_RE = /[vVaABcCeEHMoOpPTxX]/g;
+const OTHER_LATIN_RE = /[DFGIJKLNQ-SUWYZbdf-nq-uwyz]/;
 
 function fixLatinLetters(word: string): string {
   if (!MAPPED_LATIN_RE.test(word)) return word;

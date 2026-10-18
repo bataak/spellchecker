@@ -57,6 +57,20 @@ test("Кирилл үгийн доторх латин a, o, p, c, x, T, B-г к�
   );
 });
 
+test("Кирилл үгийн доторх латин H-г Н болгоно", () => {
+  assert.equal(fixMisletters("Hэр HИЙТ Hөхөр"), "Нэр НИЙТ Нөхөр");
+  assert.equal(hasMisletters("Hийслэл"), true);
+  assert.equal(hasMisletters("HTML Hello H"), false);
+  assert.equal(fixMisletters("Hello-гийн"), "Hello-гийн");
+});
+
+test("Кирилл үгийн доторх латин M-г М болгоно", () => {
+  assert.equal(fixMisletters("Mонгол MЭДЭЭ Mөнх"), "Монгол МЭДЭЭ Мөнх");
+  assert.equal(hasMisletters("Mаргааш"), true);
+  assert.equal(hasMisletters("MHz Mike M"), false);
+  assert.equal(fixMisletters("Microsoft-ийн"), "Microsoft-ийн");
+});
+
 test("Латин үг, холимог нэрийн e-д хүрэхгүй", () => {
   assert.equal(
     fixMisletters("hello Excel-ийн iPhoneийн"),
