@@ -2406,6 +2406,13 @@ html.booting .empty-state {
     outline: 2px solid var(--accent);
     outline-offset: 1px;
   }
+  :root[data-pane="preview"] .editor-wrap {
+    display: none;
+  }
+  :root[data-pane="preview"] .preview-panel {
+    display: flex;
+    flex: 0 1 var(--editor-width);
+  }
 }
 
 .link-disabled {
