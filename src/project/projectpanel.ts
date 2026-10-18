@@ -16,21 +16,31 @@ import {
   removePath,
   renamePath,
   setMain,
-  type ProjectView,
 } from "./projectstore.ts";
 import {
   baseName,
-  buildTree,
   dirName,
   isEditablePath,
   isLatexDocument,
   isTexSource,
   joinPath,
-  validName,
-  viewableType,
-  type TreeNode,
 } from "../tex/texproject.ts";
 import { KEYS, read, remove, write } from "../store.ts";
+import { editName } from "./nameeditor.ts";
+import { GLYPH, ICON, headButton, icon, textButton } from "./panelicons.ts";
+import {
+  emptyMessage,
+  exportTitle,
+  folderLabel,
+  projectTitle,
+  removeQuestion,
+  replaceQuestion,
+  treeStamp,
+  type OpenedFile,
+} from "./panelview.ts";
+import { createProjectMenu, type MenuItem } from "./projectmenu.ts";
+import { initTreeDrag, movedPath } from "./treedrag.ts";
+import { rowOf, rowSelector, treeRows } from "./treerows.ts";
 
 const PEEK_MS = 5000;
 
@@ -43,11 +53,7 @@ export interface ProjectPanelDeps {
   readonly view: (path: string | null) => boolean;
   readonly beforeOpen: () => boolean;
   readonly onOpened: (fresh: boolean, prefer?: string) => void;
-  readonly openedFile: () => {
-    readonly name: string;
-    readonly handle: FileSystemFileHandle | null;
-    readonly master: string | null;
-  } | null;
+  readonly openedFile: () => OpenedFile | null;
   readonly onClosed: () => void;
   readonly onLayout: () => void;
   readonly notify: (message: string) => void;
@@ -60,51 +66,6 @@ export interface ProjectPanel {
   readonly reveal: () => void;
 }
 
-const ICON = {
-  folder:
-    '<path d="M1.5 4.2c0-.8.6-1.4 1.4-1.4h3.3l1.5 1.7h5.4c.8 0 1.4.6 1.4 1.4v6.6c0 .8-.6 1.4-1.4 1.4H2.9c-.8 0-1.4-.6-1.4-1.4z"/>',
-  file: '<path d="M3.5 1.5h6l3 3v10h-9z"/><path d="M9.5 1.5v3h3"/>',
-  newFile:
-    '<path d="M3.5 1.5h6l3 3v10h-9z"/><path d="M9.5 1.5v3h3M8 7.5v4.5M5.75 9.75h4.5"/>',
-  newFolder:
-    '<path d="M1.5 4.2c0-.8.6-1.4 1.4-1.4h3.3l1.5 1.7h5.4c.8 0 1.4.6 1.4 1.4v6.6c0 .8-.6 1.4-1.4 1.4H2.9c-.8 0-1.4-.6-1.4-1.4z"/><path d="M8 7v4.5M5.75 9.25h4.5"/>',
-  close: '<path d="M4 4l8 8M12 4l-8 8"/>',
-  more: '<circle cx="3.5" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="12.5" cy="8" r="1.1" fill="currentColor" stroke="none"/>',
-  refresh:
-    '<path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M12.2 1.8v2.6H9.6"/>',
-} as const;
-
-const GLYPH =
-  '<svg viewBox="0 0 18 14" class="project-glyph" aria-hidden="true">' +
-  '<rect x="1" y="1" width="16" height="12" rx="2.25" class="project-glyph-frame"/>' +
-  '<rect x="3.5" y="3.4" width="5.5" height="1.7" rx=".6" class="project-glyph-slot"/>' +
-  '<rect x="6" y="6.15" width="7.5" height="1.7" rx=".6" class="project-glyph-slot"/>' +
-  '<rect x="6" y="8.9" width="7.5" height="1.7" rx=".6" class="project-glyph-slot"/>' +
-  "</svg>";
-
-function icon(body: string, size = 16): string {
-  return (
-    '<svg viewBox="0 0 16 16" width="' +
-    size +
-    '" height="' +
-    size +
-    '" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">' +
-    body +
-    "</svg>"
-  );
-}
-
-function headButton(label: string, body: string): HTMLButtonElement {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "project-act";
-  button.title = label;
-  button.setAttribute("aria-label", label);
-  button.innerHTML = icon(body);
-  button.addEventListener("mousedown", (event) => event.preventDefault());
-  return button;
-}
-
 function loadOpen(): boolean {
   return read(KEYS.projectPanel) === "on";
 }
@@ -112,12 +73,6 @@ function loadOpen(): boolean {
 function saveOpen(on: boolean): void {
   if (on) write(KEYS.projectPanel, "on");
   else remove(KEYS.projectPanel);
-}
-
-interface MenuItem {
-  readonly label: string;
-  readonly run: () => void;
-  readonly danger?: boolean;
 }
 
 export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
@@ -138,17 +93,10 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   hideBtn.innerHTML = GLYPH;
   head.append(headIcon, title, hideBtn);
 
-  const textButton = (label: string): HTMLButtonElement => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "project-foot-btn";
-    button.textContent = label;
-    button.addEventListener("mousedown", (event) => event.preventDefault());
-    return button;
-  };
   const newFileBtn = headButton("Шинэ файл үүсгэх", ICON.newFile);
   const newDirBtn = headButton("Шинэ хавтас үүсгэх", ICON.newFolder);
-  const exportBtn = textButton("Архивлах");
+  const exportBtn = textButton("project-foot-btn", "Архивлах");
+  exportBtn.addEventListener("mousedown", (event) => event.preventDefault());
   const closeBtn = headButton("Төслийг хаах", ICON.close);
   const refreshBtn = headButton("Дискнээс дахин унших", ICON.refresh);
 
@@ -160,22 +108,10 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   const empty = document.createElement("div");
   empty.className = "project-empty";
   const emptyText = document.createElement("p");
-  const folderBtn = document.createElement("button");
-  folderBtn.type = "button";
-  folderBtn.className = "project-open";
-  folderBtn.textContent = "Хавтас нээх";
-  const zipBtn = document.createElement("button");
-  zipBtn.type = "button";
-  zipBtn.className = "project-open";
-  zipBtn.textContent = "Zip нээх";
-  const grantBtn = document.createElement("button");
-  grantBtn.type = "button";
-  grantBtn.className = "project-open";
-  grantBtn.textContent = "Хандах зөвшөөрөл өгөх";
-  const forgetBtn = document.createElement("button");
-  forgetBtn.type = "button";
-  forgetBtn.className = "project-open project-quiet";
-  forgetBtn.textContent = "Мартах";
+  const folderBtn = textButton("project-open", "Хавтас нээх");
+  const zipBtn = textButton("project-open", "Zip нээх");
+  const grantBtn = textButton("project-open", "Хандах зөвшөөрөл өгөх");
+  const forgetBtn = textButton("project-open project-quiet", "Мартах");
   empty.append(emptyText, folderBtn, zipBtn, grantBtn, forgetBtn);
 
   const zipInput = document.createElement("input");
@@ -197,11 +133,10 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   panel.append(head, tree, empty, foot, zipInput);
   deps.workspace.prepend(panel);
 
-  const menu = document.createElement("div");
-  menu.className = "project-menu";
-  menu.setAttribute("role", "menu");
-  menu.hidden = true;
-  document.body.append(menu);
+  const menu = createProjectMenu(() =>
+    tree.querySelector<HTMLElement>(".project-row[tabindex='0']")?.focus(),
+  );
+  const closeMenu = menu.close;
 
   const toggle = document.createElement("button");
   toggle.type = "button";
@@ -329,80 +264,8 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     if (!wide.matches) show(false);
   };
 
-  const icons = (node: TreeNode): string =>
-    icon(node.dir ? ICON.folder : ICON.file, 15);
-
-  const ago = (time: number): string => {
-    const minutes = Math.floor((Date.now() - time) / 60000);
-    if (minutes < 1) return "дөнгөж сая";
-    if (minutes < 60) return minutes + " минутын өмнө";
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return hours + " цагийн өмнө";
-    return Math.floor(hours / 24) + " өдрийн өмнө";
-  };
-
-  const syncFoot = (view: ProjectView): void => {
-    exportBtn.title =
-      "Төслийг бүхэлд нь zip архив болгож татах" +
-      (view.exportedAt === null
-        ? ""
-        : " · сүүлд татсан: " + ago(view.exportedAt));
-  };
-
-  const rowFor = (
-    node: TreeNode,
-    depth: number,
-    view: ProjectView,
-  ): HTMLElement => {
-    const row = document.createElement("div");
-    row.className = "project-row";
-    row.dataset.path = node.path;
-    row.setAttribute("role", "treeitem");
-    row.setAttribute("aria-level", String(depth + 1));
-    row.tabIndex = -1;
-    row.draggable = true;
-    row.style.setProperty("--depth", String(depth));
-    if (node.dir) {
-      row.classList.add("is-dir");
-      row.setAttribute("aria-expanded", String(!collapsed.has(node.path)));
-    } else if (!isEditablePath(node.path) && viewableType(node.path) === null)
-      row.classList.add("is-binary");
-    if (node.path === view.active) {
-      row.classList.add("is-active");
-      row.setAttribute("aria-current", "true");
-    }
-    if (node.path === selected) row.classList.add("is-selected");
-    const caret = document.createElement("span");
-    caret.className = "project-caret";
-    const glyph = document.createElement("span");
-    glyph.className = "project-icon";
-    glyph.innerHTML = icons(node);
-    const name = document.createElement("span");
-    name.className = "project-name";
-    name.textContent = node.name;
-    row.append(caret, glyph, name);
-    row.title = node.path;
-    if (node.path === view.main) {
-      const badge = document.createElement("span");
-      badge.className = "project-main";
-      badge.textContent = "үндсэн";
-      badge.title = "Хөрвүүлэх үндсэн файл";
-      row.append(badge);
-    }
-    if (view.dirty.has(node.path)) {
-      const dot = document.createElement("span");
-      dot.className = "project-dot";
-      dot.title = "Хадгалагдаагүй";
-      row.append(dot);
-    }
-    const more = document.createElement("button");
-    more.type = "button";
-    more.className = "project-more";
-    more.tabIndex = -1;
-    more.setAttribute("aria-label", "Үйлдлүүд");
-    more.innerHTML = icon(ICON.more, 14);
-    row.append(more);
-    return row;
+  const syncFoot = (exportedAt: number | null): void => {
+    exportBtn.title = exportTitle(exportedAt, Date.now());
   };
 
   const render = (): void => {
@@ -412,11 +275,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     const pending = view?.pending ?? false;
     const ready = view !== null && !pending;
     title.textContent = view ? view.label : "LaTeX төсөл";
-    title.title = view
-      ? view.kind === "dir"
-        ? view.label + " — дискэн дээрх хавтас"
-        : view.label + " — энэ хөтөч дотор хадгалагдана"
-      : "";
+    title.title = projectTitle(view);
     headIcon.hidden = view === null;
     closeBtn.hidden = !ready;
     refreshBtn.hidden = !ready || view.kind !== "dir";
@@ -426,50 +285,24 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
       ready && view.kind === "memory" && view.unsaved,
     );
     foot.hidden = !ready;
-    if (ready) syncFoot(view);
+    if (ready) syncFoot(view.exportedAt);
     empty.hidden = ready;
     tree.hidden = !ready;
     const file = deps.openedFile();
-    folderBtn.textContent = file?.master
-      ? "Төслийн хавтсыг нээх"
-      : file?.handle && window.showDirectoryPicker
-        ? "«" + file.name + "»-ийн хавтсыг нээх"
-        : "Хавтас нээх";
+    folderBtn.textContent = folderLabel(file, !!window.showDirectoryPicker);
     folderBtn.hidden = pending;
     zipBtn.hidden = pending;
     grantBtn.hidden = !pending;
     forgetBtn.hidden = !pending;
-    emptyText.textContent = pending
-      ? "«" +
-        view!.label +
-        "» хавтсыг дахин нээхийн тулд хандах зөвшөөрөл өгнө үү."
-      : file?.master
-        ? "«" +
-          file.name +
-          "» нь «" +
-          file.master +
-          "» үндсэн файлын хэсэг. " +
-          (file.master.startsWith("../")
-            ? "Үндсэн файл байгаа дээд хавтсыг сонгоно уу."
-            : "Тэр файл байгаа хавтсыг сонгоно уу.")
-        : "LaTeX төслийг хавтас эсвэл zip файлаар нээх боломжтой.";
+    emptyText.textContent = emptyMessage(pending ? view!.label : null, file);
+
     if (!ready) {
       tree.replaceChildren();
       shownVersion = "";
       return;
     }
-    const stamp =
-      view.version +
-      ":" +
-      view.active +
-      ":" +
-      view.main +
-      ":" +
-      [...view.dirty].join("|") +
-      ":" +
-      [...collapsed].join("|") +
-      ":" +
-      selected;
+
+    const stamp = treeStamp(view, collapsed, selected);
     if (editing || stamp === shownVersion) return;
     shownVersion = stamp;
     const focusPath =
@@ -478,15 +311,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
         ? document.activeElement.closest<HTMLElement>(".project-row")?.dataset
             .path
         : undefined;
-    const rows: HTMLElement[] = [];
-    const walk = (nodes: readonly TreeNode[], depth: number): void => {
-      for (const node of nodes) {
-        rows.push(rowFor(node, depth, view));
-        if (node.dir && !collapsed.has(node.path))
-          walk(node.children, depth + 1);
-      }
-    };
-    walk(buildTree(view.files, view.dirs), 0);
+    const rows = treeRows(view, collapsed, selected);
     tree.replaceChildren(...rows);
     const first =
       rows.find((row) => row.dataset.path === focusPath) ??
@@ -495,11 +320,6 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     if (first) first.tabIndex = 0;
     if (focusPath !== undefined && first) first.focus({ preventScroll: true });
   };
-
-  const rowOf = (target: EventTarget | null): HTMLElement | null =>
-    target instanceof Element
-      ? target.closest<HTMLElement>(".project-row")
-      : null;
 
   const isDir = (path: string): boolean =>
     project()?.dirs.includes(path) ?? false;
@@ -537,61 +357,21 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     render();
   };
 
-  const editName = (
-    row: HTMLElement | null,
-    initial: string,
-    commit: (name: string) => Promise<void>,
-  ): void => {
-    const input = document.createElement("input");
-    input.type = "text";
-    input.className = "project-input";
-    input.value = initial;
-    input.spellcheck = false;
-    input.setAttribute("aria-label", "Нэр");
-    let done = false;
-    const end = async (save: boolean): Promise<void> => {
-      if (done) return;
-      done = true;
-      const name = input.value.trim();
-      if (save && name && name !== initial) {
-        if (!validName(name)) {
-          deps.notify('Нэрэнд / \\ : * ? " < > | тэмдэгт орж болохгүй');
-        } else await run(() => commit(name));
-      }
-      finishEdit();
-    };
-    input.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        void end(true);
-      } else if (event.key === "Escape") {
-        event.preventDefault();
-        void end(false);
-      }
-      event.stopPropagation();
-    });
-    input.addEventListener("blur", () => void end(true));
+  const nameEditor = { run, notify: deps.notify, done: finishEdit };
+
+  const insertRow = (input: HTMLInputElement): void => {
     editing = input;
-    if (row) {
-      row.querySelector(".project-name")?.replaceWith(input);
-    } else {
-      const holder = document.createElement("div");
-      holder.className = "project-row is-new";
-      const dir = targetDir();
-      const depth = dir ? dir.split("/").length : 0;
-      holder.style.setProperty("--depth", String(depth));
-      holder.append(input);
-      const anchor = dir
-        ? tree.querySelector<HTMLElement>(
-            '.project-row[data-path="' + CSS.escape(dir) + '"]',
-          )
-        : null;
-      if (anchor) anchor.after(holder);
-      else tree.prepend(holder);
-    }
-    input.focus();
-    const dot = initial.lastIndexOf(".");
-    input.setSelectionRange(0, dot > 0 ? dot : initial.length);
+    const holder = document.createElement("div");
+    holder.className = "project-row is-new";
+    const dir = targetDir();
+    const depth = dir ? dir.split("/").length : 0;
+    holder.style.setProperty("--depth", String(depth));
+    holder.append(input);
+    const anchor = dir
+      ? tree.querySelector<HTMLElement>(rowSelector(dir))
+      : null;
+    if (anchor) anchor.after(holder);
+    else tree.prepend(holder);
   };
 
   const startCreate = (dir: boolean): void => {
@@ -599,7 +379,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     if (parent) collapsed.delete(parent);
     shownVersion = "";
     render();
-    editName(null, dir ? "" : "*.tex", async (name) => {
+    editName(nameEditor, insertRow, dir ? "" : "*.tex", async (name) => {
       const path = joinPath(parent, name);
       if (dir) {
         await createDir(path);
@@ -613,11 +393,13 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   };
 
   const startRename = (path: string): void => {
-    const row = tree.querySelector<HTMLElement>(
-      '.project-row[data-path="' + CSS.escape(path) + '"]',
-    );
+    const row = tree.querySelector<HTMLElement>(rowSelector(path));
     if (!row) return;
-    editName(row, baseName(path), async (name) => {
+    const inRow = (input: HTMLInputElement): void => {
+      editing = input;
+      row.querySelector(".project-name")?.replaceWith(input);
+    };
+    editName(nameEditor, inRow, baseName(path), async (name) => {
       const next = joinPath(dirName(path), name);
       await renamePath(path, next);
       selected = next;
@@ -626,41 +408,28 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
 
   const replaceOk = (path: string): boolean => {
     const view = project();
-    const unsaved = view?.dirty.has(path)
-      ? " Хадгалаагүй өөрчлөлт нь алга болно."
-      : "";
-    const question =
-      view?.kind === "dir"
-        ? " Дискэн дээрх файлыг шинэ файлаар солих уу?"
-        : " Шинэ файлаар солих уу?";
     return window.confirm(
-      "«" + baseName(path) + "» файл төсөлд байна." + unsaved + question,
+      replaceQuestion(
+        baseName(path),
+        view?.dirty.has(path) ?? false,
+        view?.kind === "dir",
+      ),
     );
   };
 
-  const remove = (path: string): void => {
+  const confirmRemove = (path: string): void => {
     const view = project();
     if (!view) return;
-    const dir = isDir(path);
-    const where = view.kind === "dir" ? " дискнээс" : "";
-    const question =
-      "«" +
-      baseName(path) +
-      "» " +
-      (dir ? "хавтсыг доторх бүх файлтай нь" : "файлыг") +
-      where +
-      " устгах уу?";
+    const question = removeQuestion(
+      baseName(path),
+      isDir(path),
+      view.kind === "dir",
+    );
     if (!window.confirm(question)) return;
     void run(async () => {
       await removePath(path);
       if (selected === path) selected = null;
     });
-  };
-
-  const closeMenu = (): void => {
-    if (menu.hidden) return;
-    menu.hidden = true;
-    menu.replaceChildren();
   };
 
   const openMenu = (path: string, x: number, y: number): void => {
@@ -682,30 +451,12 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
       items.push({ label: "Шинэ хавтас үүсгэх", run: () => startCreate(true) });
     }
     items.push({ label: "Нэр солих", run: () => startRename(path) });
-    items.push({ label: "Устгах", run: () => remove(path), danger: true });
-    menu.replaceChildren(
-      ...items.map((item) => {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "project-menu-item";
-        button.setAttribute("role", "menuitem");
-        button.textContent = item.label;
-        if (item.danger) button.classList.add("is-danger");
-        button.addEventListener("click", () => {
-          closeMenu();
-          item.run();
-        });
-        return button;
-      }),
-    );
-    menu.hidden = false;
-    const width = menu.offsetWidth;
-    const height = menu.offsetHeight;
-    const right = document.documentElement.clientWidth;
-    const bottom = window.innerHeight;
-    menu.style.left = Math.max(8, Math.min(x, right - width - 8)) + "px";
-    menu.style.top = Math.max(8, Math.min(y, bottom - height - 8)) + "px";
-    menu.querySelector<HTMLButtonElement>("button")?.focus();
+    items.push({
+      label: "Устгах",
+      run: () => confirmRemove(path),
+      danger: true,
+    });
+    menu.open(items, x, y);
   };
 
   tree.addEventListener("click", (event) => {
@@ -753,7 +504,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
       selected = path;
       activate(path);
     } else if (event.key === "F2") startRename(path);
-    else if (event.key === "Delete") remove(path);
+    else if (event.key === "Delete") confirmRemove(path);
     else if (
       event.key === "ContextMenu" ||
       (event.shiftKey && event.key === "F10")
@@ -764,133 +515,42 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     event.preventDefault();
   });
 
-  let dragging: string | null = null;
-  let dropRow: HTMLElement | null = null;
-
-  const dropDir = (target: EventTarget | null): string => {
-    const row = rowOf(target);
-    const path = row?.dataset.path ?? "";
-    return row ? (isDir(path) ? path : dirName(path)) : "";
-  };
-
-  const markDrop = (dir: string | null): void => {
-    const next =
-      dir === null || dir === ""
-        ? null
-        : tree.querySelector<HTMLElement>(
-            '.project-row[data-path="' + CSS.escape(dir) + '"]',
-          );
-    if (next === dropRow) return;
-    dropRow?.classList.remove("is-drop-target");
-    dropRow = next;
-    dropRow?.classList.add("is-drop-target");
-  };
-
-  const endDrag = (): void => {
-    dragging = null;
-    markDrop(null);
-    tree.classList.remove("is-drop");
-  };
-
-  tree.addEventListener("dragstart", (event) => {
-    const row = rowOf(event.target);
-    if (!row || editing || !event.dataTransfer) return;
-    dragging = row.dataset.path ?? null;
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", dragging ?? "");
-    closeMenu();
-  });
-  tree.addEventListener("dragend", endDrag);
-
-  tree.addEventListener("dragover", (event) => {
-    if (!project() || !event.dataTransfer) return;
-    if (dragging !== null) {
-      event.preventDefault();
-      event.stopPropagation();
-      const dir = dropDir(event.target);
-      const allowed =
-        dir !== dirName(dragging) &&
-        dir !== dragging &&
-        !dir.startsWith(dragging + "/");
-      event.dataTransfer.dropEffect = allowed ? "move" : "none";
-      markDrop(allowed ? dir : null);
-      tree.classList.toggle("is-drop", allowed && dir === "");
-      return;
-    }
-    if (!event.dataTransfer.types.includes("Files")) return;
-    event.preventDefault();
-    event.stopPropagation();
-    event.dataTransfer.dropEffect = "copy";
-    markDrop(dropDir(event.target) || null);
-    tree.classList.add("is-drop");
-  });
-  tree.addEventListener("dragleave", (event) => {
-    if (
-      event.relatedTarget instanceof Node &&
-      tree.contains(event.relatedTarget)
-    )
-      return;
-    markDrop(null);
-    tree.classList.remove("is-drop");
-  });
-  tree.addEventListener("drop", (event) => {
-    if (dragging !== null) {
-      event.preventDefault();
-      event.stopPropagation();
-      const from = dragging;
-      const dir = dropDir(event.target);
-      endDrag();
-      if (dir === dirName(from)) return;
-      const to = joinPath(dir, baseName(from));
+  initTreeDrag({
+    tree,
+    active: () => project() !== null,
+    editing: () => editing !== null,
+    isDir,
+    closeMenu,
+    move: (from, dir) => {
+      const to = movedPath(from, dir);
       void run(async () => {
         await renamePath(from, to);
         if (dir) collapsed.delete(dir);
         selected = to;
       });
-      return;
-    }
-    markDrop(null);
-    tree.classList.remove("is-drop");
-    const files = [...(event.dataTransfer?.files ?? [])];
-    if (!project() || !files.length) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const row = rowOf(event.target);
-    const path = row?.dataset.path ?? "";
-    const dir = row ? (isDir(path) ? path : dirName(path)) : "";
-    void run(async () => {
-      for (const file of files) {
-        const target = joinPath(dir, file.name);
-        if (projectHas(target) && !replaceOk(target)) continue;
-        await addFile(target, new Uint8Array(await file.arrayBuffer()));
-      }
-    });
+    },
+    add: (dir, files) => {
+      void run(async () => {
+        for (const file of files) {
+          const target = joinPath(dir, file.name);
+          if (projectHas(target) && !replaceOk(target)) continue;
+          await addFile(target, new Uint8Array(await file.arrayBuffer()));
+        }
+      });
+    },
   });
 
   document.addEventListener("pointerdown", (event) => {
     const target = event.target as Node;
-    if (!menu.hidden && !menu.contains(target)) closeMenu();
+    if (!menu.el.hidden && !menu.el.contains(target)) closeMenu();
     if (
       floating() &&
       !panel.hidden &&
       !panel.contains(target) &&
       !toggle.contains(target) &&
-      !menu.contains(target)
+      !menu.el.contains(target)
     )
       show(false);
-  });
-  menu.addEventListener("keydown", (event) => {
-    const items = [...menu.querySelectorAll<HTMLButtonElement>("button")];
-    const at = items.indexOf(document.activeElement as HTMLButtonElement);
-    if (event.key === "Escape") {
-      closeMenu();
-      tree.querySelector<HTMLElement>(".project-row[tabindex='0']")?.focus();
-    } else if (event.key === "ArrowDown")
-      items[(at + 1) % items.length]?.focus();
-    else if (event.key === "ArrowUp")
-      items[(at - 1 + items.length) % items.length]?.focus();
-    else return;
-    event.preventDefault();
   });
 
   const opened = (prefer?: string): void => {
@@ -958,7 +618,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   exportBtn.addEventListener("click", runExport);
   window.setInterval(() => {
     const view = project();
-    if (view && !view.pending && !panel.hidden) syncFoot(view);
+    if (view && !view.pending && !panel.hidden) syncFoot(view.exportedAt);
   }, 60000);
 
   closeBtn.addEventListener("click", () => {
