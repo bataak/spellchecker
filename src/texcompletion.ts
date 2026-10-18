@@ -348,7 +348,7 @@ export function unchanged(
   );
 }
 
-function lineIndent(text: string, at: number): string {
+export function lineIndent(text: string, at: number): string {
   const lineStart = text.lastIndexOf("\n", at - 1) + 1;
   const match = /^[ \t]*/.exec(text.slice(lineStart, at));
   return match ? match[0] : "";
