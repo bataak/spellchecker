@@ -2112,7 +2112,7 @@ async function runOfflineReadyIndicator() {
 
 async function boot() {
   requestDurableStorage();
-  if (!import.meta.env.DEV) void appUpdate.recoverStale();
+  if (!import.meta.env.DEV) void appUpdate.recoverStale(true);
   checker.onFatal = async (reason) => {
     if (await appUpdate.recoverStale()) return;
     setStatus(
