@@ -273,3 +273,33 @@ test("swapText: hook өмнө нь дуудагдаж, эх үүсвэр event-�
     (globalThis as { InputEvent?: unknown }).InputEvent = saved;
   }
 });
+
+test("кирилл үгэн дэх ижил дүрстэй ё, ө, ү үсгийг зай авахад сольно", () => {
+  const { editor, handled } = typeAtEnd("\u00EBс ", "insertText", " ");
+  assert.equal(handled, true);
+  assert.equal(editor.value, "ёс ");
+  assert.equal(typeAtEnd("\u0473р ", "insertText", " ").editor.value, "өр ");
+  assert.equal(typeAtEnd("\u019Fвс ", "insertText", " ").editor.value, "Өвс ");
+  assert.equal(typeAtEnd("\u028Fс ", "insertText", " ").editor.value, "үс ");
+  assert.equal(typeAtEnd("Yнэн ", "insertText", " ").editor.value, "Үнэн ");
+});
+
+test("буулгасан бичвэрийн ижил дүрстэй үсгийг сольно", () => {
+  const editor = Object.assign(fakeEditor(""), { readOnly: false });
+  const event = pasteEvent("\u0472\u028Fр hope");
+  let handled = false;
+  withExecCommand(nativeEdit(editor), () => {
+    handled = pasteComposed(asArea(editor), asPaste(event));
+  });
+  assert.equal(handled, true);
+  assert.equal(editor.value, "Өүр hope");
+});
+
+test("бусад үсэг, латин үг, холимог нэрийг хөндөхгүй", () => {
+  assert.equal(typeAtEnd("үeэр ", "insertText", " ").handled, false);
+  assert.equal(typeAtEnd("\u04B1с ", "insertText", " ").handled, false);
+  assert.equal(typeAtEnd("ünэн ", "insertText", " ").handled, false);
+  assert.equal(typeAtEnd("Yes ", "insertText", " ").handled, false);
+  assert.equal(typeAtEnd("YouTube-ийн ", "insertText", " ").handled, false);
+  assert.equal(typeAtEnd("\u0275 ", "insertText", " ").handled, false);
+});

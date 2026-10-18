@@ -28,6 +28,7 @@ import {
   type Analysis,
 } from "./verbform.ts";
 import { dashNormalized, isLexicalHyphen } from "./textcheck.ts";
+import { standardLetters } from "./letters.ts";
 
 export interface SpellerInstance {
   spell: (word: string) => boolean;
@@ -825,7 +826,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
     const out: Record<string, boolean> = {};
     for (const word of msg.words) {
       try {
-        out[word] = isCorrect(word.normalize("NFC"));
+        out[word] = isCorrect(standardLetters(word));
       } catch (_) {
         out[word] = true;
       }
@@ -839,7 +840,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
       if (!dicts.length) return null;
       const out: Record<string, string> = {};
       for (const raw of msg.words) {
-        const word = raw.normalize("NFC");
+        const word = standardLetters(raw);
         const mode = lookupModeOf(word);
         for (const dict of dicts) {
           const headword = await inDict(
@@ -861,7 +862,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   }
 
   if (msg.type === "define") {
-    const word = msg.word.normalize("NFC");
+    const word = standardLetters(msg.word);
     const mode = lookupModeOf(word);
     const entries = await withDicts(async (dicts, broken) => {
       const out: DictEntry[] = [];
@@ -890,7 +891,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   if (msg.type === "suggest") {
     let suggestions: string[] = [];
     try {
-      suggestions = suggest(msg.word.normalize("NFC")) || [];
+      suggestions = suggest(standardLetters(msg.word)) || [];
     } catch (_) {
       suggestions = [];
     }

@@ -17,6 +17,7 @@ export interface DecodeDeps {
 export interface DecodeControl {
   readonly sync: () => void;
   readonly afterInput: (event: Event) => void;
+  readonly announce: (message: string) => void;
 }
 
 interface FixButtonSpec {
@@ -186,5 +187,5 @@ function initFixButton(deps: DecodeDeps, spec: FixButtonSpec): DecodeControl {
     });
   }
 
-  return { sync, afterInput };
+  return { sync, afterInput, announce: showDecodeMessage };
 }
