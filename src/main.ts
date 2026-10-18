@@ -1239,14 +1239,20 @@ const fixButtonDeps = {
   },
   saveText: () => saveText(),
 };
-els.editor.addEventListener("paste", (event) =>
-  pasteComposed(els.editor, event),
-);
+const decode = initDecode(fixButtonDeps);
+const STANDARD_LETTERS_MESSAGE = "Зарим үсгийн кодыг стандарт болгов";
+els.editor.addEventListener("paste", (event) => {
+  if (pasteComposed(els.editor, event))
+    decode.announce(STANDARD_LETTERS_MESSAGE);
+});
 els.editor.addEventListener("input", (event) => {
   if (!(event instanceof InputEvent)) return;
-  if (!composeDropped(els.editor, event)) composeTypedWord(els.editor, event);
+  if (
+    composeDropped(els.editor, event) ||
+    composeTypedWord(els.editor, event)
+  )
+    decode.announce(STANDARD_LETTERS_MESSAGE);
 });
-const decode = initDecode(fixButtonDeps);
 const clean = initClean({
   ...fixButtonDeps,
   skip: () => !checkTemplate || isTexFile(),
@@ -2234,6 +2240,7 @@ initToolbar({
   buildErrorList,
   getBadTokens: () => badTokens,
   copyText,
+  lettersFixed: () => decode.announce(STANDARD_LETTERS_MESSAGE),
 });
 initKeyboardToolbar(els.editor, els.backdrop);
 

@@ -1,6 +1,7 @@
 import type { Token, ErrorEntry } from "./textcheck.ts";
 import { initWipeButton } from "./wipe.ts";
 import { KEYS, read, write } from "./store.ts";
+import { standardLetters } from "./letters.ts";
 
 export interface ToolbarDeps {
   els: { editor: HTMLTextAreaElement; status: HTMLElement };
@@ -8,6 +9,7 @@ export interface ToolbarDeps {
   closeDocx: () => void;
   forgetFile: () => void;
   afterClear: (cleared: boolean) => void;
+  lettersFixed: () => void;
   hasOpenFile: () => boolean;
   flash: (sel: string, msg: string) => void;
   setStatus: (html: string, animate?: boolean) => void;
@@ -194,6 +196,7 @@ function initButtons({
   getBadTokens,
   copyText,
   afterClear,
+  lettersFixed,
 }: ToolbarDeps): void {
   const clearBtn = document.querySelector<HTMLElement>("#clearBtn")!;
   initWipeButton(clearBtn);
@@ -233,8 +236,13 @@ function initButtons({
     try {
       if (navigator.clipboard && navigator.clipboard.readText) {
         const text = await navigator.clipboard.readText();
-        if (text) insertAtCaret(text.normalize("NFC"));
-        else els.editor.focus();
+        if (!text) {
+          els.editor.focus();
+          return;
+        }
+        const fixed = standardLetters(text);
+        insertAtCaret(fixed);
+        if (fixed !== text) lettersFixed();
         return;
       }
       throw new Error("no-api");

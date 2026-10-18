@@ -1,4 +1,5 @@
 import { isSeparatorInput } from "./input.ts";
+import { standardLetters } from "./letters.ts";
 import type { TextEdit } from "./tokenshift.ts";
 
 export interface EditorTextDeps {
@@ -87,7 +88,7 @@ export function pasteComposed(
   if (editor.readOnly || event.defaultPrevented) return false;
   if (!data || data.files.length) return false;
   const text = data.getData("text");
-  const composed = text.normalize("NFC");
+  const composed = standardLetters(text);
   if (composed === text) return false;
   event.preventDefault();
   if (
@@ -105,7 +106,6 @@ export function pasteComposed(
 
 const TRAILING_WORD = /[\p{L}\p{M}]+$/u;
 const WORD_REACH = 256;
-const MARK = /\p{M}/u;
 
 export function composeTypedWord(
   editor: HTMLTextAreaElement,
@@ -123,8 +123,8 @@ export function composeTypedWord(
   const word = TRAILING_WORD.exec(
     editor.value.slice(Math.max(0, end - WORD_REACH), end),
   )?.[0];
-  if (!word || !MARK.test(word)) return false;
-  const composed = word.normalize("NFC");
+  if (!word) return false;
+  const composed = standardLetters(word);
   if (composed === word) return false;
   replaceRange(editor, end - word.length, end, composed);
   const next = caret - word.length + composed.length;
@@ -140,7 +140,7 @@ export function composeDropped(
   const start = editor.selectionStart;
   const end = editor.selectionEnd;
   const dropped = editor.value.slice(start, end);
-  const composed = dropped.normalize("NFC");
+  const composed = standardLetters(dropped);
   if (start === end || composed === dropped) return false;
   replaceRange(editor, start, end, composed);
   editor.setSelectionRange(start, start + composed.length);
