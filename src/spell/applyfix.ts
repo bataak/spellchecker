@@ -2,7 +2,7 @@ import { casePattern, type CasePattern } from "./caseform.ts";
 import { inRanges, mergeRanges, type SkipRange } from "./codeskip.ts";
 import { dashNormalizeApply, isDashSuffix, type Token } from "./textcheck.ts";
 import {
-  periodSplitDot,
+  periodSplitDots,
   replaceAllWord,
   splitEveryOccurrence,
   wordAtCaret,
@@ -32,12 +32,12 @@ export function planSuggestion(
   const dashFix = dashNormalizeApply(text, token, replacement, skip);
   if (dashFix) return dashFix;
 
-  const dot = periodSplitDot(token.word, replacement);
-  if (dot >= 0) {
+  const dots = periodSplitDots(token.word, replacement);
+  if (dots.length > 0) {
     const split = splitEveryOccurrence(
       text,
       token.word,
-      dot,
+      dots,
       token.start,
       skip,
     );
