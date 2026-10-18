@@ -11,6 +11,8 @@ concurrency:
   group: pages
   cancel-in-progress: true
 jobs:
+  e2e:
+    uses: ./.github/workflows/e2e.yml
   build:
     runs-on: ubuntu-latest
     steps:
@@ -40,7 +42,7 @@ jobs:
         with:
           path: dist
   deploy:
-    needs: build
+    needs: [e2e, build]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
