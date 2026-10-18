@@ -7,6 +7,13 @@ import "./deftip.css";
 import "./project/project.css";
 import { MultiSpellChecker } from "./spell/spellchecker.ts";
 import { createSpellSession, tokenizeAll } from "./spell/spellsession.ts";
+import {
+  nextFixStep,
+  pendingFixFor,
+  planSuggestion,
+  propagateFix,
+  type PendingFix,
+} from "./spell/applyfix.ts";
 import type { SpellChecker } from "./spell/spellchecker.ts";
 import { initFileIO } from "./fileio.ts";
 import { initImageStore } from "./imagestore.ts";
@@ -21,18 +28,15 @@ import { initAppearance } from "./appearance.ts";
 import { mountMeasureControl, type MeasureControl } from "./measure.ts";
 import { initPreview, type Preview } from "./preview/preview.ts";
 import { initPaneToggle, type PaneToggle } from "./panetoggle.ts";
+import { createPreviewMode } from "./previewmode.ts";
 import { initProjectLink, type ProjectLink } from "./project/projectlink.ts";
 import { FILE_LIMIT, PROJECT_SLOT, isFileSlot } from "./fileslots.ts";
 import { onProjectChange, project } from "./project/projectstore.ts";
 import { KEYS, read, write } from "./store.ts";
 
 import { escapeHtml } from "./htmlutil.ts";
-import { inRanges, looksLatex, mergeRanges } from "./spell/codeskip.ts";
-import {
-  isDashSuffix,
-  buildErrorList,
-  dashNormalizeApply,
-} from "./spell/textcheck.ts";
+import { looksLatex, mergeRanges } from "./spell/codeskip.ts";
+import { isDashSuffix, buildErrorList } from "./spell/textcheck.ts";
 import { saveDraftFile, loadDraftFile } from "./storage.ts";
 import { initMdToolbar, sharedSlot } from "./mdtoolbar.ts";
 import { initSlotSwitch } from "./slotswitch.ts";
@@ -80,8 +84,6 @@ import {
   activeIds,
   visibleIds,
 } from "./dict/dictmenu.ts";
-import { casePattern } from "./spell/caseform.ts";
-import type { CasePattern } from "./spell/caseform.ts";
 import { createOfficeSession } from "./office/session.ts";
 import {
   caretLine,
@@ -94,12 +96,6 @@ import {
 import { initStatus, reveal } from "./status.ts";
 import { isBulkDelete, isSeparatorInput, isTouch } from "./input.ts";
 import { copyText, flash } from "./clipboard.ts";
-import {
-  periodSplitDot,
-  replaceAllWord,
-  splitEveryOccurrence,
-  wordAtCaret,
-} from "./spell/wordfix.ts";
 import {
   composeDropped,
   composeTypedWord,
@@ -175,12 +171,6 @@ const spell = createSpellSession({
     await nextFrame();
   },
 });
-interface PendingFix {
-  original: string;
-  originalPattern: CasePattern;
-  dashSuffix: boolean;
-  start: number;
-}
 
 let ready = false;
 let badTokens: Token[] = [];
@@ -322,27 +312,19 @@ function mdActive(): boolean {
   return openFileName() ? isMdFileOpen() : !isPlain(mdBar.template());
 }
 
-let previewWanted = false;
-let clearedEmpty = false;
-
-function syncPreviewClass(): void {
-  document.body.classList.toggle(
-    "preview-mode",
-    previewWanted && !clearedEmpty,
-  );
-}
-
-function syncPane(): void {
-  paneCtl?.setAvailable(previewWanted && els.editor.value.length > 0);
-}
+const previewMode = createPreviewMode({
+  hasText: () => els.editor.value.length > 0,
+  setPaneAvailable: (on) => paneCtl?.setAvailable(on),
+  setBodyMode: (on) => document.body.classList.toggle("preview-mode", on),
+  setLayout: (blocked, wanted, tex) => {
+    measureCtl?.setPreviewBlocked(blocked);
+    measureCtl?.setPreviewMode(wanted, tex);
+  },
+});
 
 function syncEmptyState(text: string): void {
   const empty = text.length === 0;
-  syncPane();
-  if (!empty && clearedEmpty) {
-    clearedEmpty = false;
-    syncPreviewClass();
-  }
+  previewMode.textChanged();
   if (empty) defTip.clear();
   if (!els.emptyState) return;
   els.emptyState.classList.toggle("is-hidden", !empty);
@@ -575,45 +557,29 @@ const suggestPopover = initSuggestPopover({
 const showPopoverFor = suggestPopover.showFor;
 
 async function maybePropagateManual() {
-  if (!pendingFix) return;
-  if (pendingFix.dashSuffix) {
-    pendingFix = null;
-    return;
-  }
+  const fix = pendingFix;
+  if (!fix) return;
   const text = els.editor.value;
   const pos = els.editor.selectionStart;
-  let manualFixToken = null;
-  if (pos > 0 && /[\s\p{P}\p{S}]/u.test(text.charAt(pos - 1))) {
-    const prev = wordAtCaret(text, pos - 1);
-    if (prev && prev.end === pos - 1) manualFixToken = prev;
-  }
-  if (!manualFixToken) manualFixToken = wordAtCaret(text, pos);
-  if (!manualFixToken) return;
-  if (manualFixToken.start !== pendingFix.start) {
-    pendingFix = null;
-    return;
-  }
-  const fix = pendingFix;
-  const lower = manualFixToken.word.toLowerCase();
-  if (lower === fix.original) return;
-  if (fix.original.length - manualFixToken.word.length > 2) return;
-  if (!(await spell.correctNow(manualFixToken.word))) return;
+  const step = nextFixStep(fix, text, pos);
+  if (step.kind === "drop") pendingFix = null;
+  if (step.kind !== "check") return;
+  if (!(await spell.correctNow(step.word))) return;
   if (pendingFix !== fix || els.editor.value !== text) return;
-  const original = fix.original;
-  const primaryPattern = fix.originalPattern || "lower";
   pendingFix = null;
-  const { text: nt, caret } = replaceAllWord(
+  const next = propagateFix(
     text,
-    original,
-    manualFixToken.word,
     pos,
-    primaryPattern,
-    null,
-    mergeRanges([...spell.skipFor(text), ...spell.plainFences(text, original)]),
+    fix,
+    step.word,
+    mergeRanges([
+      ...spell.skipFor(text),
+      ...spell.plainFences(text, fix.original),
+    ]),
   );
-  if (nt === text) return;
+  if (!next) return;
   const top = els.editor.scrollTop;
-  setEditorText(nt, caret);
+  setEditorText(next.text, next.caret);
   els.editor.scrollTop = top;
   render();
 }
@@ -646,48 +612,19 @@ async function applySuggestion(
   replacement: string,
 ): Promise<void> {
   pendingFix = null;
-  const editorText = els.editor.value;
-  const fences = spell.plainFences(editorText, token.word);
-  const skip = mergeRanges([...spell.skipFor(editorText), ...fences]);
-
-  const dashFix = dashNormalizeApply(editorText, token, replacement, skip);
-  if (dashFix) {
-    await commitReplacement(dashFix.text, dashFix.caret);
-    return;
-  }
-
-  const dot = periodSplitDot(token.word, replacement);
-  if (dot >= 0) {
-    const split = splitEveryOccurrence(
-      editorText,
-      token.word,
-      dot,
-      token.start,
-      skip,
-    );
-    if (split) {
-      await commitReplacement(split.text, split.caret);
-      return;
-    }
-  }
-
-  const inFence = inRanges(fences, token.start);
-  const onlyAt =
-    inFence || isDashSuffix(editorText, token) ? token.start : null;
-  const { text: nt, caret } = replaceAllWord(
-    editorText,
-    token.word.toLowerCase(),
+  const text = els.editor.value;
+  const next = planSuggestion(
+    text,
+    token,
     replacement,
-    token.end,
-    casePattern(token.word),
-    onlyAt,
-    inFence ? spell.skipFor(editorText) : skip,
+    spell.skipFor(text),
+    spell.plainFences(text, token.word),
   );
-  if (nt === editorText) {
+  if (!next) {
     hidePopover();
     return;
   }
-  await commitReplacement(nt, caret);
+  await commitReplacement(next.text, next.caret);
 }
 
 const deferredCheck = debounce(() => recheck(), 1500);
@@ -710,14 +647,7 @@ els.editor.addEventListener("beforeinput", () => {
   hadSelection = els.editor.selectionStart !== els.editor.selectionEnd;
   if (editorText.programmatic()) return;
   const caretToken = tokenAtCaret();
-  pendingFix = caretToken
-    ? {
-        original: caretToken.word.toLowerCase(),
-        originalPattern: casePattern(caretToken.word),
-        dashSuffix: isDashSuffix(els.editor.value, caretToken),
-        start: caretToken.start,
-      }
-    : null;
+  pendingFix = caretToken ? pendingFixFor(els.editor.value, caretToken) : null;
 });
 
 const editorText = initEditorText({
@@ -1075,7 +1005,7 @@ const mdBar = initMdToolbar({
   fileName: openFileName,
   onLeave: (from) => slots.leave(from),
   onTemplate: (id, from) => {
-    clearedEmpty = false;
+    previewMode.templateChanged();
     texTemplate = id === TEX_TEMPLATE;
     inProject = id === PROJECT_SLOT;
     checkTemplate = CHECK_TEMPLATES.has(id);
@@ -1202,11 +1132,7 @@ function enterMdMode(on: boolean): void {
     markupSkips = markup;
     void render();
   }
-  measureCtl?.setPreviewBlocked(!on && !isTexFile());
-  measureCtl?.setPreviewMode(on || isTexFile(), isTexFile());
-  previewWanted = on || isTexFile();
-  syncPane();
-  syncPreviewClass();
+  previewMode.enter(on, isTexFile());
   previewCtl?.setMarkdownMode(on);
   exportCtl?.syncPrint();
   nudgeHints();
@@ -1495,10 +1421,9 @@ initToolbar({
   isDocxActive: () => office.active() !== null,
   closeDocx: office.close,
   forgetFile: () => {
-    clearedEmpty = true;
+    previewMode.cleared();
     projectLink?.cleared();
     fileIO.forgetFile();
-    syncPreviewClass();
   },
   afterClear: (cleared) => {
     mdBar.reset(cleared);
