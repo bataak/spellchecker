@@ -7,7 +7,7 @@ import {
   memoryBytes,
   openDictBytes,
   rangeBytes,
-} from "../src/dictbytes.ts";
+} from "../src/dict/dictbytes.ts";
 
 const CHUNK = 32;
 

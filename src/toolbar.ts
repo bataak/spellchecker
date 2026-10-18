@@ -1,7 +1,7 @@
-import type { Token, ErrorEntry } from "./textcheck.ts";
+import type { Token, ErrorEntry } from "./spell/textcheck.ts";
 import { initWipeButton } from "./wipe.ts";
 import { KEYS, read, write } from "./store.ts";
-import { standardLetters } from "./letters.ts";
+import { standardLetters } from "./spell/letters.ts";
 
 export interface ToolbarDeps {
   els: { editor: HTMLTextAreaElement; status: HTMLElement };

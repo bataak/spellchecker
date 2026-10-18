@@ -2,7 +2,7 @@ import {
   detectVariant,
   hasMojibake,
   repairCyrillicDetailed,
-} from "./cp1251.ts";
+} from "./archive/cp1251.ts";
 import { cleanText, needsCleanup } from "./cleanup.ts";
 import { editKind, isSeparatorInput } from "./input.ts";
 

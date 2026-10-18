@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { dictPartOf, groupDictFiles } from "../src/userdicts.ts";
+import { dictPartOf, groupDictFiles } from "../src/dict/userdicts.ts";
 
 test("StarDict файлын төрлийг өргөтгөлөөр таньна", () => {
   assert.deepEqual(dictPartOf("Toli.ifo"), { base: "Toli", part: "ifo" });
@@ -28,7 +28,7 @@ test("файлуудыг нэрээр нь бүлэглэнэ", () => {
 });
 
 test("толиудыг хадгалсан эрэмбээр байрлуулна", async () => {
-  const { sortByOrder } = await import("../src/userdicts.ts");
+  const { sortByOrder } = await import("../src/dict/userdicts.ts");
   const items = [{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }];
   assert.deepEqual(
     sortByOrder(items, ["c", "a"]).map((item) => item.id),
@@ -45,7 +45,7 @@ test("толиудыг хадгалсан эрэмбээр байрлуулна"
 });
 
 test("толийг дээш доош зөөнө", async () => {
-  const { moveItem } = await import("../src/userdicts.ts");
+  const { moveItem } = await import("../src/dict/userdicts.ts");
   assert.deepEqual(moveItem(["a", "b", "c"], 2, -1), ["a", "c", "b"]);
   assert.deepEqual(moveItem(["a", "b", "c"], 0, 1), ["b", "a", "c"]);
   assert.deepEqual(moveItem(["a", "b", "c"], 0, -1), ["a", "b", "c"]);
@@ -53,13 +53,13 @@ test("толийг дээш доош зөөнө", async () => {
 });
 
 test("хэрэглэгчийн толины түлхүүрийг id-гаас гаргана", async () => {
-  const { userKeyOf } = await import("../src/userdicts.ts");
+  const { userKeyOf } = await import("../src/dict/userdicts.ts");
   assert.equal(userKeyOf("user:Их тайлбар толь"), "Их тайлбар толь");
   assert.equal(userKeyOf("bundled:Товч тайлбар толь"), null);
 });
 
 test("idx-ийн SHA-256-г тооцно", async () => {
-  const { idxDigest } = await import("../src/userdicts.ts");
+  const { idxDigest } = await import("../src/dict/userdicts.ts");
   assert.equal(
     await idxDigest(new TextEncoder().encode("abc")),
     "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
@@ -67,7 +67,7 @@ test("idx-ийн SHA-256-г тооцно", async () => {
 });
 
 test("давхардсан толийг idx-ийн hash-ээр таньна", async () => {
-  const { classifyImport } = await import("../src/userdicts.ts");
+  const { classifyImport } = await import("../src/dict/userdicts.ts");
   const incoming = { name: "Товч тайлбар толь", digest: "aaa" };
   const bundled = { name: "Товч тайлбар толь", digest: "aaa", user: false };
   const user = { name: "Өөр нэр", digest: "aaa", user: true };
@@ -88,7 +88,7 @@ test("давхардсан толийг idx-ийн hash-ээр таньна", as
 });
 
 test("дутуу файлуудыг тодорхойлно", async () => {
-  const { missingParts, PART_LABELS } = await import("../src/userdicts.ts");
+  const { missingParts, PART_LABELS } = await import("../src/dict/userdicts.ts");
   assert.deepEqual(missingParts({ ifo: 1 }), ["idx", "dict"]);
   assert.deepEqual(missingParts({ ifo: 1, idx: 1, dict: 1 }), []);
   assert.deepEqual(missingParts({ syn: 1 }), ["ifo", "idx", "dict"]);

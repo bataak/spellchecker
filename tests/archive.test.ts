@@ -1,14 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { bunzip2, isBzip2 } from "../src/bzip2.ts";
-import { untar } from "../src/tar.ts";
+import { bunzip2, isBzip2 } from "../src/archive/bzip2.ts";
+import { untar } from "../src/archive/tar.ts";
 import {
   baseName,
   extractArchive,
   isArchiveName,
   isJunkEntry,
-} from "../src/archive.ts";
-import { expandArchive } from "../src/userdicts.ts";
+} from "../src/archive/archive.ts";
+import { expandArchive } from "../src/dict/userdicts.ts";
 
 const decode = (text: string): Uint8Array<ArrayBuffer> =>
   Uint8Array.from(atob(text), (char) => char.charCodeAt(0));
@@ -121,7 +121,7 @@ test("tar.bz2 архиваас толины файлуудыг гаргана", 
 
 test("unpackedSize: zip-ийг задлахгүйгээр зарласан нийт хэмжээг уншина", async () => {
   const { zipSync, strToU8 } = await import("fflate");
-  const { unpackedSize } = await import("../src/archive.ts");
+  const { unpackedSize } = await import("../src/archive/archive.ts");
   const zip = zipSync({
     "a.xml": strToU8("x".repeat(5000)),
     "b.bin": [new Uint8Array(3000), { level: 0 }],

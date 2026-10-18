@@ -14,7 +14,7 @@ import {
   renamePath,
   saveProject,
   setProjectText,
-} from "../src/projectstore.ts";
+} from "../src/project/projectstore.ts";
 
 (globalThis as { window?: unknown }).window ??= globalThis;
 

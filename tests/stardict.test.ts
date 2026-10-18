@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { memoryBytes } from "../src/dictbytes.ts";
+import { memoryBytes } from "../src/dict/dictbytes.ts";
 import {
   defineWord,
   findHeadword,
@@ -14,7 +14,7 @@ import {
   parseIfo,
   stardictCompare,
   stripMarkup,
-} from "../src/stardict.ts";
+} from "../src/dict/stardict.ts";
 
 const encoder = new TextEncoder();
 

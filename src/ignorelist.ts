@@ -1,22 +1,14 @@
+import { escapeAttr } from "./htmlutil.ts";
 import {
   getIgnored,
   addIgnored,
   removeIgnored,
   clearIgnored,
   ignoreStem,
-} from "./ignore.ts";
+} from "./spell/ignore.ts";
 
 let overlay: HTMLDivElement | null = null;
 let onChange: (() => void) | null = null;
-
-function escapeChip(text: string): string {
-  return text.replace(/[&<>"]/g, (char) => {
-    if (char === "&") return "&amp;";
-    if (char === "<") return "&lt;";
-    if (char === ">") return "&gt;";
-    return "&quot;";
-  });
-}
 
 function renderList(): void {
   const box = overlay!.querySelector(".ignore-chips")!;
@@ -39,9 +31,9 @@ function renderList(): void {
     .map(
       (word) =>
         '<span class="suggest-chip">' +
-        escapeChip(word) +
+        escapeAttr(word) +
         '<button type="button" class="suggest-chip-x" data-w="' +
-        escapeChip(word) +
+        escapeAttr(word) +
         '" aria-label="Хасах">&times;</button></span>',
     )
     .join("");

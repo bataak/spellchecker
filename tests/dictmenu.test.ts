@@ -5,7 +5,7 @@ import {
   serializeEnabled,
   activeIds,
   visibleIds,
-} from "../src/dictmenu.ts";
+} from "../src/dict/dictmenu.ts";
 
 const sorted = (set: Set<string>): string[] => [...set].sort();
 

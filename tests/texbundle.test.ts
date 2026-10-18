@@ -2,8 +2,8 @@ import { strict as assert } from "node:assert";
 import { existsSync } from "node:fs";
 import { test } from "node:test";
 
-import { FORMATS } from "../src/export.ts";
-import { TEX_BUNDLE, TEX_ENGINE } from "../src/texbundle.ts";
+import { FORMATS } from "../src/exportformats.ts";
+import { TEX_BUNDLE, TEX_ENGINE } from "../src/tex/texbundle.ts";
 
 test("PDF экспортын хөдөлгүүр ба TeX багц public/-д байна", () => {
   assert.ok(existsSync("public/" + TEX_ENGINE));
@@ -19,7 +19,7 @@ test("PDF формат баримт, слайдад санал болгогдо�
 });
 
 test("PDF алдааны мессеж шалтгаан ба байршлыг Монгол үсгээр харуулна", async () => {
-  const { PdfError } = await import("../src/texpdf.ts");
+  const { PdfError } = await import("../src/tex/texpdf.ts");
   const log = [
     "! LaTeX Error: Bad math environment delimiter.",
     "",
@@ -50,7 +50,7 @@ test("PDF алдааны мессеж шалтгаан ба байршлыг М�
 });
 
 test("гарчгийн жагсаалт зөвхөн бүлэгтэй баримтад", async () => {
-  const { hasSections } = await import("../src/export.ts");
+  const { hasSections } = await import("../src/exportformats.ts");
   const { readFileSync } = await import("node:fs");
   const ex = (name: string): string =>
     readFileSync("src/examples/" + name + ".md", "utf8");
@@ -62,7 +62,7 @@ test("гарчгийн жагсаалт зөвхөн бүлэгтэй барим
 });
 
 test("ODT гарчгийн жагсаалт сонголтоор", async () => {
-  const { FORMATS } = await import("../src/export.ts");
+  const { FORMATS } = await import("../src/exportformats.ts");
   const { unzipSync, strFromU8 } = await import("fflate");
   const odt = FORMATS.find((format) => format.id === "odt")!;
   const md = "# Нэр\n\n## Нэг\n\nДогол.\n\n### Хоёр\n\nДогол.\n";
@@ -84,7 +84,7 @@ test("ODT гарчгийн жагсаалт сонголтоор", async () => {
 });
 
 test("алдааг алгассан engine-ийн PDF-ийг зөвхөн терминалд алдаа гараагүй үед авна", async () => {
-  const { replyPdf } = await import("../src/texpdf.ts");
+  const { replyPdf } = await import("../src/tex/texpdf.ts");
   const pdf = new ArrayBuffer(4);
   assert.equal(replyPdf({ result: "ok", status: 0, log: "", pdf }), pdf);
   assert.equal(

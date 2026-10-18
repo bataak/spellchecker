@@ -5,8 +5,8 @@ import {
   cleanManualFix,
   countWords,
   filterManualFix,
-} from "../src/manualfix.ts";
-import { replaceAllWord } from "../src/wordfix.ts";
+} from "../src/spell/manualfix.ts";
+import { replaceAllWord } from "../src/spell/wordfix.ts";
 
 test("гараар засварыг тайрч, хоосон ба өөрчлөлтгүйг хүлээж авахгүй", () => {
   assert.equal(cleanManualFix("  Улаанбаатар ", "Улаанбаатр"), "Улаанбаатар");

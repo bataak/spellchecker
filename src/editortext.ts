@@ -1,5 +1,5 @@
 import { isSeparatorInput } from "./input.ts";
-import { standardLetters } from "./letters.ts";
+import { standardLetters } from "./spell/letters.ts";
 import type { TextEdit } from "./tokenshift.ts";
 
 export interface EditorTextDeps {

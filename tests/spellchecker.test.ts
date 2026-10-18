@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { checkWordsBatched, tokenize } from "../src/spellchecker.ts";
+import { checkWordsBatched, tokenize } from "../src/spell/spellchecker.ts";
 
 function fakeChecker(dict: Record<string, boolean>) {
   const batches: string[][] = [];

@@ -1,7 +1,8 @@
-import { sameRoot } from "./morphology.ts";
+import { escapeAttr } from "./htmlutil.ts";
+import { sameRoot } from "./spell/morphology.ts";
 import { getSubmitted, addSubmitted } from "./submitted.ts";
-import { startsLowerAfterDash } from "./textcheck.ts";
-import type { Token, ErrorEntry } from "./textcheck.ts";
+import { startsLowerAfterDash } from "./spell/textcheck.ts";
+import type { Token, ErrorEntry } from "./spell/textcheck.ts";
 
 interface Turnstile {
   render(
@@ -60,7 +61,7 @@ function renderSubmittedList(): void {
     ? list
         .map(
           (word) =>
-            '<span class="suggest-chip">' + escapeChip(word) + "</span>",
+            '<span class="suggest-chip">' + escapeAttr(word) + "</span>",
         )
         .join("")
     : '<span class="suggest-hint">Одоогоор мэдэгдсэн үг алга</span>';
@@ -110,15 +111,6 @@ function note(msg: string, kind?: string): void {
   el.dataset.kind = kind || "";
 }
 
-function escapeChip(text: string): string {
-  return text.replace(/[&<>"]/g, (char) => {
-    if (char === "&") return "&amp;";
-    if (char === "<") return "&lt;";
-    if (char === ">") return "&gt;";
-    return "&quot;";
-  });
-}
-
 function renderChips(): void {
   const box = overlay!.querySelector(".suggest-chips")!;
   const clr = overlay!.querySelector<HTMLElement>(".suggest-clear-all");
@@ -132,7 +124,7 @@ function renderChips(): void {
     .map(
       (word, index) =>
         '<span class="suggest-chip">' +
-        escapeChip(word) +
+        escapeAttr(word) +
         '<button type="button" class="suggest-chip-x" data-i="' +
         index +
         '" aria-label="Устгах">&times;</button></span>',

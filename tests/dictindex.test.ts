@@ -9,7 +9,7 @@ import {
   encodeBase,
   parseDictList,
   safeBase,
-} from "../src/dictindex.ts";
+} from "../src/dict/dictindex.ts";
 
 const ifo = (name: string): string =>
   "StarDict's dict ifo file\nversion=3.0.0\nbookname=" + name + "\n";
