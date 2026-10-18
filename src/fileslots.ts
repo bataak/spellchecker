@@ -47,17 +47,8 @@ export function bytesSum(bytes: Uint8Array): string {
   return fnvOut(hash, bytes.length);
 }
 
-const SAMPLE = 256 * 1024;
-
 export async function fileSum(file: Blob): Promise<string> {
-  const part = async (blob: Blob): Promise<Uint8Array> =>
-    new Uint8Array(await blob.arrayBuffer());
-  if (file.size <= 2 * SAMPLE) return bytesSum(await part(file));
-  const [head, tail] = await Promise.all([
-    part(file.slice(0, SAMPLE)),
-    part(file.slice(file.size - SAMPLE)),
-  ]);
-  return bytesSum(head) + "." + bytesSum(tail) + "." + file.size.toString(36);
+  return bytesSum(new Uint8Array(await file.arrayBuffer()));
 }
 
 export function sameFile(
