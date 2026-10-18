@@ -3,43 +3,34 @@ import {
   baseName,
   cleanPath,
   commonRoot,
-  compilePasses,
   dirName,
-  expandMacros,
   findMain,
-  graphicRefs,
-  graphicsPaths,
   isEditablePath,
   isLatexDocument,
-  isPdfGraphic,
-  isSvgGraphic,
   isTexSource,
   joinPath,
-  mapGraphics,
   movedPath,
   parentDirs,
-  pathMacros,
-  relativePath,
-  resolveGraphic,
   rootedPath,
   sameOnDisk,
   skippedPath,
   within,
 } from "../tex/texproject.ts";
 import { unpackedSize } from "../archive/archive.ts";
+import { buildProject, type ProjectBuild } from "./projectbuild.ts";
+import { dbGet, dbPut } from "./projectdb.ts";
 import {
-  resolveSvg,
-  rewriteSvg,
-  svgPaths,
-  svgRefs,
-  svgToPdf,
-  usesSvgPackage,
-} from "../tex/texsvg.ts";
+  MAX_BYTES,
+  budget,
+  copyDir,
+  dirHandleFor,
+  readDir,
+  readEntry,
+  removeEntry,
+  writeEntry,
+} from "./projectdisk.ts";
+import { ProjectError } from "./projecterror.ts";
 
-const MAX_FILES = 3000;
-const MAX_BYTES = 200 * 1024 * 1024;
-const DB_NAME = "bichig-project";
-const DB_STORE = "kv";
 const META_KEY = "meta";
 const FILES_KEY = "files";
 const EDITS_KEY = "edits";
@@ -76,17 +67,8 @@ export interface ProjectView {
   readonly uid: string;
 }
 
-export interface ProjectBuild {
-  readonly workdir: string;
-  readonly main: string;
-  readonly mainText: string;
-  readonly files: Record<string, Uint8Array | string>;
-  readonly dirs: readonly string[];
-  readonly passes: number;
-  readonly missing: readonly string[];
-}
-
-export class ProjectError extends Error {}
+export { ProjectError } from "./projecterror.ts";
+export type { ProjectBuild } from "./projectbuild.ts";
 
 interface State {
   id: number;
@@ -223,44 +205,6 @@ export async function projectDigest(): Promise<string | null> {
   } catch {
     return null;
   }
-}
-
-function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
-    request.onupgradeneeded = () => request.result.createObjectStore(DB_STORE);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
-async function dbGet<T>(key: string): Promise<T | null> {
-  try {
-    const db = await openDb();
-    return await new Promise((resolve) => {
-      const request = db.transaction(DB_STORE).objectStore(DB_STORE).get(key);
-      request.onsuccess = () => resolve((request.result as T) ?? null);
-      request.onerror = () => resolve(null);
-    });
-  } catch {
-    return null;
-  }
-}
-
-async function dbPut(entries: Record<string, unknown>): Promise<void> {
-  try {
-    const db = await openDb();
-    await new Promise<void>((resolve) => {
-      const tx = db.transaction(DB_STORE, "readwrite");
-      const store = tx.objectStore(DB_STORE);
-      for (const [key, value] of Object.entries(entries))
-        if (value === undefined) store.delete(key);
-        else store.put(value, key);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => resolve();
-      tx.onabort = () => resolve();
-    });
-  } catch {}
 }
 
 function metaOf(s: State): Meta {
@@ -426,67 +370,6 @@ function fromEntries(
     uid: newUid(),
     persisted: {},
   };
-}
-
-function budget(): { take: (size: number) => void } {
-  let files = 0;
-  let bytes = 0;
-  return {
-    take(size) {
-      files += 1;
-      bytes += size;
-      if (files > MAX_FILES)
-        throw new ProjectError(
-          "Төсөлд хэт олон файл байна (" + MAX_FILES + "-аас ихгүй)",
-        );
-      if (bytes > MAX_BYTES)
-        throw new ProjectError("Төсөл хэт том байна (200 MB-аас ихгүй)");
-    },
-  };
-}
-
-interface DirScan {
-  readonly files: [string, Uint8Array][];
-  readonly same: string[];
-  readonly dirs: string[];
-  readonly stamps: Map<string, string>;
-}
-
-async function readDir(
-  dir: FileSystemDirectoryHandle,
-  known: ReadonlyMap<string, string> = new Map(),
-): Promise<DirScan> {
-  const files: [string, Uint8Array][] = [];
-  const same: string[] = [];
-  const dirs: string[] = [];
-  const stamps = new Map<string, string>();
-  const limit = budget();
-  const walk = async (
-    handle: FileSystemDirectoryHandle,
-    prefix: string,
-  ): Promise<void> => {
-    for await (const entry of (
-      handle as FileSystemDirectoryHandle & {
-        values(): AsyncIterable<FileSystemHandle>;
-      }
-    ).values()) {
-      const path = joinPath(prefix, entry.name);
-      if (skippedPath(path)) continue;
-      if (entry.kind === "directory") {
-        dirs.push(path);
-        await walk(entry as FileSystemDirectoryHandle, path);
-        continue;
-      }
-      const file = await (entry as FileSystemFileHandle).getFile();
-      limit.take(file.size);
-      const stamp = file.size + ":" + file.lastModified;
-      stamps.set(path, stamp);
-      if (known.get(path) === stamp) same.push(path);
-      else files.push([path, new Uint8Array(await file.arrayBuffer())]);
-    }
-  };
-  await walk(dir, "");
-  return { files, same, dirs, stamps };
 }
 
 function withStamps(next: State, stamps: Map<string, string>): State {
@@ -827,56 +710,27 @@ export function setMain(path: string): void {
   changed(true);
 }
 
-async function dirHandleFor(
-  root: FileSystemDirectoryHandle,
-  dir: string,
-  create: boolean,
-): Promise<FileSystemDirectoryHandle> {
-  let current = root;
-  for (const part of dir ? dir.split("/") : [])
-    current = await current.getDirectoryHandle(part, { create });
-  return current;
+function diskRoot(): FileSystemDirectoryHandle | null {
+  const s = state;
+  return s?.handle && s.kind === "dir" ? s.handle : null;
 }
 
 async function writeDisk(
   path: string,
   data: Uint8Array | string,
 ): Promise<void> {
-  const s = state;
-  if (!s?.handle || s.kind !== "dir") return;
-  const dir = await dirHandleFor(s.handle, dirName(path), true);
-  const file = await dir.getFileHandle(baseName(path), { create: true });
-  const stream = await file.createWritable();
-  await stream.write(
-    typeof data === "string"
-      ? data
-      : new Blob([data as Uint8Array<ArrayBuffer>]),
-  );
-  await stream.close();
+  const root = diskRoot();
+  if (root) await writeEntry(root, path, data);
 }
 
-async function readDisk(path: string): Promise<Uint8Array | null> {
-  const s = state;
-  if (!s?.handle || s.kind !== "dir") return null;
-  try {
-    const dir = await dirHandleFor(s.handle, dirName(path), false);
-    const file = await (await dir.getFileHandle(baseName(path))).getFile();
-    return new Uint8Array(await file.arrayBuffer());
-  } catch {
-    return null;
-  }
+function readDisk(path: string): Promise<Uint8Array | null> {
+  const root = diskRoot();
+  return root ? readEntry(root, path) : Promise.resolve(null);
 }
 
 async function removeDisk(path: string): Promise<void> {
-  const s = state;
-  if (!s?.handle || s.kind !== "dir") return;
-  try {
-    const dir = await dirHandleFor(s.handle, dirName(path), false);
-    await dir.removeEntry(baseName(path), { recursive: true });
-  } catch (error) {
-    if (!(error instanceof DOMException && error.name === "NotFoundError"))
-      throw error;
-  }
+  const root = diskRoot();
+  if (root) await removeEntry(root, path);
 }
 
 function exists(s: State, path: string, moving?: string): boolean {
@@ -963,30 +817,6 @@ function movedKeys<T>(map: Map<string, T>, from: string, to: string): void {
   }
 }
 
-async function copyDiskDir(
-  source: FileSystemDirectoryHandle,
-  target: FileSystemDirectoryHandle,
-): Promise<void> {
-  for await (const entry of (
-    source as FileSystemDirectoryHandle & {
-      values(): AsyncIterable<FileSystemHandle>;
-    }
-  ).values()) {
-    if (entry.kind === "directory") {
-      await copyDiskDir(
-        entry as FileSystemDirectoryHandle,
-        await target.getDirectoryHandle(entry.name, { create: true }),
-      );
-      continue;
-    }
-    const file = await (entry as FileSystemFileHandle).getFile();
-    const out = await target.getFileHandle(entry.name, { create: true });
-    const stream = await out.createWritable();
-    await stream.write(file);
-    await stream.close();
-  }
-}
-
 async function moveDisk(
   s: State,
   from: string,
@@ -1002,7 +832,7 @@ async function moveDisk(
         return;
       throw error;
     }
-    await copyDiskDir(dir, await dirHandleFor(s.handle, target, true));
+    await copyDir(dir, await dirHandleFor(s.handle, target, true));
     await removeDisk(source);
     return;
   }
@@ -1217,118 +1047,6 @@ function download(blob: Blob, name: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-async function toPng(bytes: Uint8Array): Promise<Uint8Array | null> {
-  try {
-    const bitmap = await createImageBitmap(
-      new Blob([bytes as Uint8Array<ArrayBuffer>]),
-    );
-    const canvas = document.createElement("canvas");
-    canvas.width = bitmap.width;
-    canvas.height = bitmap.height;
-    canvas.getContext("2d")?.drawImage(bitmap, 0, 0);
-    bitmap.close();
-    const png = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, "image/png"),
-    );
-    return png ? new Uint8Array(await png.arrayBuffer()) : null;
-  } catch {
-    return null;
-  }
-}
-
-export async function projectBuild(): Promise<ProjectBuild> {
-  const s = requireState();
-  const main = s.main;
-  if (!main)
-    throw new ProjectError("Төслийн үндсэн .tex файл тодорхойгүй байна");
-  const root = dirName(main);
-  const has = (path: string): boolean =>
-    s.binaries.has(path) || s.texts.has(path);
-  const search = [...s.texts.values()].flatMap(graphicsPaths);
-  const macros = pathMacros(s.texts.values());
-  const missing: string[] = [];
-  const converted = new Map<string, string>();
-  const files: Record<string, Uint8Array | string> = {};
-  const dirs = new Set<string>();
-  for (const dir of parentDirs(main)) dirs.add(dir);
-  const put = (path: string, data: Uint8Array | string): void => {
-    files[path] = data;
-    for (const dir of parentDirs(path)) dirs.add(dir);
-  };
-  const resolved = new Map<string, string | null>();
-  for (const text of s.texts.values())
-    for (const raw of graphicRefs(text)) {
-      if (resolved.has(raw)) continue;
-      const wanted = expandMacros(raw, macros);
-      const path = resolveGraphic(wanted, root, search, has);
-      resolved.set(raw, path);
-      if (path === null) {
-        missing.push(wanted.trim());
-        continue;
-      }
-      if (isPdfGraphic(path) || converted.has(path)) continue;
-      const bytes = s.binaries.get(path) ?? new Uint8Array(0);
-      const svg = isSvgGraphic(path);
-      const data = svg ? await svgToPdf(bytes) : await toPng(bytes);
-      if (!data) {
-        resolved.set(raw, null);
-        missing.push(wanted.trim());
-        continue;
-      }
-      const name =
-        path.replace(/\.[^./]*$/, "") +
-        (svg ? ".converted.pdf" : ".converted.png");
-      converted.set(path, name);
-      put(name, data);
-    }
-  const graphic = (raw: string): string | null => {
-    const path = resolved.get(raw) ?? null;
-    if (path === null) return null;
-    const name = converted.get(path);
-    return name ? relativePath(name, root) : raw;
-  };
-  const svg = usesSvgPackage(s.texts.values());
-  const svgs = new Map<string, string | null>();
-  if (svg) {
-    const svgSearch = [...s.texts.values()].flatMap(svgPaths);
-    const pdfs = new Map<string, string | null>();
-    for (const text of s.texts.values())
-      for (const raw of svgRefs(text)) {
-        if (svgs.has(raw)) continue;
-        const wanted = expandMacros(raw, macros);
-        const path = resolveSvg(wanted, root, [...svgSearch, ...search], has);
-        if (path !== null && !pdfs.has(path)) {
-          const pdf = await svgToPdf(s.binaries.get(path) ?? new Uint8Array(0));
-          const name = pdf
-            ? path.replace(/\.[^./]*$/, "") + ".converted.pdf"
-            : null;
-          if (pdf && name) put(name, pdf);
-          pdfs.set(path, name);
-        }
-        const name = path === null ? null : (pdfs.get(path) ?? null);
-        if (name === null) missing.push(wanted.trim());
-        svgs.set(raw, name === null ? null : relativePath(name, root));
-      }
-  }
-  const label = (raw: string): string => expandMacros(raw, macros).trim();
-  let mainText = "";
-  for (const [path, text] of s.texts) {
-    const mapped = isTexSource(path) ? mapGraphics(text, graphic, label) : text;
-    const body =
-      svg && isTexSource(path)
-        ? rewriteSvg(mapped, (raw) => svgs.get(raw) ?? null, label)
-        : mapped;
-    if (path === main) mainText = body;
-    else put(path, body);
-  }
-  for (const [path, bytes] of s.binaries) put(path, bytes);
-  return {
-    workdir: root,
-    main: rootedPath(main, root),
-    mainText,
-    files,
-    dirs: [...dirs].sort((a, b) => a.split("/").length - b.split("/").length),
-    passes: compilePasses(s.texts.values()),
-    missing,
-  };
+export function projectBuild(): Promise<ProjectBuild> {
+  return buildProject(requireState());
 }

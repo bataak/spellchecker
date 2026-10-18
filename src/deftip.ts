@@ -1,10 +1,18 @@
+import { placeTip, placeTipAtPointer } from "./defmarks.ts";
 import {
-  clipText,
-  displayHeadword,
-  placeTip,
-  placeTipAtPointer,
-} from "./defmarks.ts";
-import type { DictEntry } from "./dict/stardict.ts";
+  createDefinitionCache,
+  fillDefinition,
+  type Definition,
+} from "./definitions.ts";
+import {
+  CLOSE_ICON,
+  PAUSE_ICON,
+  PAUSE_LABEL,
+  PIN_ICON,
+  PLAY_ICON,
+  RESUME_LABEL,
+  iconButton,
+} from "./deficons.ts";
 import { rangeRectAt } from "./backdrop.ts";
 import { KEYBOARD_LAYOUT_EVENT } from "./kbtoolbar.ts";
 import { escapeHtml } from "./htmlutil.ts";
@@ -15,11 +23,7 @@ import { KEYS, read, remove, write } from "./store.ts";
 
 const LATIN = /\p{Script=Latin}/u;
 
-export type Definition = {
-  dicts: number;
-  source: string;
-  entries: DictEntry[];
-};
+export type { Definition } from "./definitions.ts";
 
 export interface DefTipDeps {
   readonly editor: HTMLTextAreaElement;
@@ -51,30 +55,7 @@ export interface DefTip {
   readonly clear: () => void;
 }
 
-const DEF_TEXT_LIMIT = 3000;
 const DEF_TIP_GRACE_MS = 250;
-const PIN_ICON =
-  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" ' +
-  'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
-  'stroke-linejoin="round" aria-hidden="true">' +
-  '<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>';
-const PAUSE_ICON =
-  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" ' +
-  'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
-  'stroke-linejoin="round" aria-hidden="true">' +
-  '<path d="M9 5v14"/><path d="M15 5v14"/></svg>';
-const PLAY_ICON =
-  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" ' +
-  'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
-  'stroke-linejoin="round" aria-hidden="true">' +
-  '<path d="M7 5v14l11-7z"/></svg>';
-const PAUSE_LABEL = "Түр зогсоох (эсвэл Shift дарж барих)";
-const RESUME_LABEL = "Заагчийг чагнах (эсвэл Ctrl дарж үг шалгах)";
-const CLOSE_ICON =
-  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" ' +
-  'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
-  'stroke-linejoin="round" aria-hidden="true">' +
-  '<path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
 
 export function initDefTip(deps: DefTipDeps): DefTip {
   const { editor, popover } = deps;
@@ -86,7 +67,6 @@ export function initDefTip(deps: DefTipDeps): DefTip {
   let dockedWord = "";
   let defTipAnchor: HTMLElement | null = null;
   let defTipHideTimer: ReturnType<typeof setTimeout> | null = null;
-  let defCache = new Map<string, Promise<Definition>>();
   let wordAnchor: HTMLElement | null = null;
   let wordTipSpan: WordSpan | null = null;
   let wordTicket = 0;
@@ -174,20 +154,6 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     const maxTop = window.innerHeight - defTip.offsetHeight;
     defTip.style.left = Math.max(0, Math.min(left, maxLeft)) + "px";
     defTip.style.top = Math.max(0, Math.min(top, maxTop)) + "px";
-  }
-
-  function iconButton(
-    className: string,
-    icon: string,
-    label: string,
-  ): HTMLButtonElement {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = className;
-    button.title = label;
-    button.setAttribute("aria-label", label);
-    button.innerHTML = icon;
-    return button;
   }
 
   function buildTip(): HTMLDivElement {
@@ -310,66 +276,8 @@ export function initDefTip(deps: DefTipDeps): DefTip {
       moveTip(defTip.offsetLeft, defTip.offsetTop);
   });
 
-  function definitionFor(word: string): Promise<Definition> {
-    let pending = defCache.get(word);
-    if (!pending) {
-      pending = deps.define
-        ? deps.define(word)
-        : Promise.resolve({ source: "", entries: [], dicts: -1 });
-      const cache = defCache;
-      const request = pending;
-      cache.set(word, request);
-      void request.then((def) => {
-        if (!def.entries.length && cache.get(word) === request)
-          cache.delete(word);
-      });
-    }
-    return pending;
-  }
-
-  function fill(tip: HTMLElement, word: string, def: Definition): void {
-    tip.replaceChildren();
-    const labels = def.entries.map((entry) =>
-      displayHeadword(entry.headword, word),
-    );
-    const seen = new Map<string, number>();
-    def.entries.forEach((entry, position) => {
-      const label = labels[position]!;
-      const repeats = labels.filter((item) => item === label).length;
-      const nth = (seen.get(label) ?? 0) + 1;
-      seen.set(label, nth);
-      const block = document.createElement("div");
-      block.className = "def-tip-entry";
-      const head = document.createElement("div");
-      head.className = "def-tip-hw";
-      head.textContent = label;
-      if (repeats > 1) {
-        const num = document.createElement("span");
-        num.className = "def-tip-num";
-        num.textContent = " " + String(nth);
-        head.appendChild(num);
-      }
-      block.appendChild(head);
-      const text = document.createElement("div");
-      text.className = "def-tip-text";
-      text.textContent = clipText(entry.text, DEF_TEXT_LIMIT);
-      block.appendChild(text);
-      tip.appendChild(block);
-      const next = def.entries[position + 1];
-      if (entry.source && (!next || next.source !== entry.source)) {
-        const from = document.createElement("div");
-        from.className = "def-tip-source";
-        from.textContent = entry.source;
-        tip.appendChild(from);
-      }
-    });
-    if (def.source && !def.entries.some((entry) => entry.source)) {
-      const credit = document.createElement("div");
-      credit.className = "def-tip-source";
-      credit.textContent = def.source;
-      tip.appendChild(credit);
-    }
-  }
+  const definitions = createDefinitionCache(deps.define);
+  const definitionFor = definitions.get;
 
   function reveal(body: HTMLElement): void {
     body.classList.remove("is-swapping");
@@ -446,7 +354,7 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     }
     const docked = deps.dock.body();
     if (docked) {
-      fill(docked, word, def);
+      fillDefinition(docked, word, def);
       docked.scrollTop = 0;
       if (dockedWord !== word) reveal(docked);
       dockedWord = word;
@@ -454,7 +362,7 @@ export function initDefTip(deps: DefTipDeps): DefTip {
       return;
     }
     if (!defTip) defTip = buildTip();
-    fill(defTipBody!, word, def);
+    fillDefinition(defTipBody!, word, def);
     if (!defTip.hidden && shownWord !== word) reveal(defTipBody!);
     shownWord = word;
     defTip.hidden = false;
@@ -589,10 +497,8 @@ export function initDefTip(deps: DefTipDeps): DefTip {
 
   return {
     definitionFor,
-    resetDefinitions: () => {
-      defCache = new Map();
-    },
-    fill,
+    resetDefinitions: definitions.reset,
+    fill: fillDefinition,
     hide,
     position,
     bindDot,
