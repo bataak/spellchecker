@@ -3,12 +3,12 @@ import { readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { unxz } from "../../src/xz.ts";
+import { unxz } from "../../src/archive/xz.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "../..");
 const OUT = join(ROOT, "public/tex");
-const MODULE = join(ROOT, "src/texpackages.ts");
+const MODULE = join(ROOT, "src/tex/texpackages.ts");
 const TLPDB =
   process.env["TLPDB_URL"] ??
   "https://mirrors.ctan.org/systems/texlive/tlnet/tlpkg/texlive.tlpdb.xz";

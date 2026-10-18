@@ -6,7 +6,7 @@ import {
   casePattern,
   irregularCase,
   rankToPattern,
-} from "../src/caseform.ts";
+} from "../src/spell/caseform.ts";
 
 test("casePattern: жижиг үсгийн үг", () => {
   assert.equal(casePattern("монгол"), "lower");

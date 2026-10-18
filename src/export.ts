@@ -1,248 +1,14 @@
-import { imageFiles, prepareImages } from "./images.ts";
-import { blockImages, parse } from "./markdown.ts";
-import { docImages, imageKey } from "./office/docir.ts";
-import { findTemplate, type Frame } from "./templates.ts";
-
-export interface ExportFormat {
-  readonly id: string;
-  readonly frames: readonly Frame[];
-  readonly preferred?: boolean;
-  readonly name: string;
-  readonly ext: string;
-  readonly mime: string;
-  readonly slow?: boolean;
-  readonly delivered?: () => void;
-  readonly save?: (name: string) => Promise<void>;
-  readonly build: (
-    text: string,
-    templateId: string,
-    options: BuildOptions,
-  ) => BlobPart | Promise<BlobPart>;
-}
-
-export interface BuildOptions {
-  readonly toc: boolean;
-  readonly name?: string;
-}
-
-const TOC_FRAMES: ReadonlySet<Frame> = new Set(["letter", "structured"]);
-
-const PRINT_FRAMES: ReadonlySet<Frame> = new Set([
-  "letter",
-  "structured",
-  "slides",
-]);
-
-const TOC_FORMATS: ReadonlySet<string> = new Set([
-  "odt",
-  "docx",
-  "tex",
-  "pdf",
-]);
-
-export function hasSections(text: string, templateId: string): boolean {
-  const frame = findTemplate(templateId)?.frame;
-  if (frame === undefined || !TOC_FRAMES.has(frame)) return false;
-  const headings = parse(text).filter((block) => block.type === "heading");
-  return headings.length > 1;
-}
-
-function tocFor(
-  options: BuildOptions,
-  templateId: string,
-  text: string,
-): boolean {
-  return options.toc && hasSections(text, templateId);
-}
-
-async function latexFor(
-  text: string,
-  templateId: string,
-  options: BuildOptions,
-): Promise<string> {
-  const [{ toBeamer, toLatex }, { dropControls }] = await Promise.all([
-    import("./latex.ts"),
-    import("./office/sanitize.ts"),
-  ]);
-  const frame = findTemplate(templateId)?.frame;
-  const blocks = parse(dropControls(text));
-  return frame === "slides"
-    ? toBeamer(blocks)
-    : toLatex(blocks, undefined, {
-        toc: tocFor(options, templateId, text),
-        pageNumbers: frame !== "letter" || hasSections(text, templateId),
-        letter: frame === "letter",
-      });
-}
-
-async function pdfImages(
-  text: string,
-  source: string,
-  texImagePath: (src: string) => string,
-): Promise<{ tex: string; files: Record<string, Uint8Array> }> {
-  const sources = [...new Set(blockImages(parse(text)).map((n) => n.src))];
-  const ready = await imageFiles(sources.map((src) => ({ src })));
-  const names = new Map<string, string>();
-  const files: Record<string, Uint8Array> = {};
-  for (const src of sources) {
-    const file = ready.get(imageKey({ src }));
-    if (!file) continue;
-    const name =
-      "image" +
-      String(names.size + 1) +
-      (file.ext === "jpeg" ? ".jpg" : ".png");
-    names.set(texImagePath(src), name);
-    files[name] = file.bytes;
-  }
-  const tex = source.replace(
-    /\\includegraphics\[([^\]]*)\]\{([^}]*)\}/g,
-    (_, opts: string, path: string) => {
-      const name = names.get(path);
-      return name ? "\\includegraphics[" + opts + "]{" + name + "}" : "";
-    },
-  );
-  return { tex, files };
-}
-
-export const FORMATS: readonly ExportFormat[] = [
-  {
-    id: "odt",
-    frames: ["letter", "structured"],
-    name: "OpenDocument",
-    ext: "odt",
-    mime: "application/vnd.oasis.opendocument.text",
-    build: async (text, templateId, options) => {
-      const [{ parse }, { applyTemplate }, { buildOdt }] = await Promise.all([
-        import("./markdown.ts"),
-        import("./office/apply.ts"),
-        import("./office/odt/create.ts"),
-      ]);
-      const template = findTemplate(templateId) ?? findTemplate("plain")!;
-      const doc = applyTemplate(parse(text), template);
-      return buildOdt(doc, {
-        toc: tocFor(options, templateId, text),
-        images: await imageFiles(docImages(doc)),
-      });
-    },
-  },
-  {
-    id: "docx",
-    frames: ["letter", "structured"],
-    preferred: true,
-    name: "Word",
-    ext: "docx",
-    mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    build: async (text, templateId, options) => {
-      const [{ parse }, { applyTemplate }, { buildDocx }] = await Promise.all(
-        [
-          import("./markdown.ts"),
-          import("./office/apply.ts"),
-          import("./office/docx/create.ts"),
-        ],
-      );
-      const template = findTemplate(templateId) ?? findTemplate("plain")!;
-      const doc = applyTemplate(parse(text), template);
-      return buildDocx(doc, {
-        toc: tocFor(options, templateId, text),
-        images: await imageFiles(docImages(doc)),
-      });
-    },
-  },
-  {
-    id: "pdf",
-    frames: ["letter", "structured", "slides"],
-    name: "PDF",
-    ext: "pdf",
-    mime: "application/pdf",
-    slow: true,
-    build: async (text, templateId, options) => {
-      const [source, { compilePdf }, { texImagePath }] = await Promise.all([
-        latexFor(text, templateId, options),
-        import("./texpdf.ts"),
-        import("./latex.ts"),
-      ]);
-      const { tex, files } = await pdfImages(text, source, texImagePath);
-      return compilePdf(tex, tocFor(options, templateId, text) ? 2 : 1, files);
-    },
-  },
-  {
-    id: "odp",
-    frames: ["slides"],
-    name: "OpenDocument",
-    ext: "odp",
-    mime: "application/vnd.oasis.opendocument.presentation",
-    build: async (text) => {
-      const [
-        { parse },
-        { splitSlides },
-        { deckDoc, deckImages },
-        { buildOdp },
-      ] = await Promise.all([
-        import("./markdown.ts"),
-        import("./slides.ts"),
-        import("./office/deck.ts"),
-        import("./office/odp/create.ts"),
-      ]);
-      const deck = deckDoc(splitSlides(parse(text)));
-      return buildOdp(deck, { images: await imageFiles(deckImages(deck)) });
-    },
-  },
-  {
-    id: "pptx",
-    frames: ["slides"],
-    preferred: true,
-    name: "PowerPoint",
-    ext: "pptx",
-    mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    build: async (text) => {
-      const [
-        { parse },
-        { splitSlides },
-        { deckDoc, deckImages },
-        { buildPptx },
-      ] = await Promise.all([
-        import("./markdown.ts"),
-        import("./slides.ts"),
-        import("./office/deck.ts"),
-        import("./office/pptx/create.ts"),
-      ]);
-      const deck = deckDoc(splitSlides(parse(text)));
-      return buildPptx(deck, { images: await imageFiles(deckImages(deck)) });
-    },
-  },
-  {
-    id: "tex",
-    frames: ["letter", "structured", "slides"],
-    name: "LaTeX",
-    ext: "tex",
-    mime: "application/x-tex;charset=utf-8",
-    build: latexFor,
-  },
-  {
-    id: "md",
-    frames: ["letter", "structured", "slides"],
-    name: "Markdown",
-    ext: "md",
-    mime: "text/markdown;charset=utf-8",
-    build: (text) => text,
-  },
-  {
-    id: "md-plain",
-    frames: ["letter", "structured", "slides"],
-    name: "Markdown (цэвэр)",
-    ext: "md",
-    mime: "text/markdown;charset=utf-8",
-    build: async (text) => (await import("./markdown.ts")).withoutDivs(text),
-  },
-  {
-    id: "txt",
-    frames: ["plain"],
-    name: "Энгийн бичвэр",
-    ext: "txt",
-    mime: "text/plain;charset=utf-8",
-    build: (text) => text,
-  },
-];
+import { createPrinter } from "./exportprint.ts";
+import {
+  FORMATS,
+  stripExt,
+  TOC_FORMATS,
+  withExt,
+  hasSections,
+  type ExportFormat,
+} from "./exportformats.ts";
+import { escapeAttr } from "./htmlutil.ts";
+import { findTemplate } from "./templates.ts";
 
 export interface ExportOptions {
   readonly editor: HTMLTextAreaElement;
@@ -269,36 +35,6 @@ export interface ExportControl {
 }
 
 const LONG_PRESS_MS = 550;
-const KNOWN_EXT = new RegExp(
-  "\\.(?:" +
-    [
-      ...new Set([
-        ...FORMATS.map((format) => format.ext),
-        "txt",
-        "text",
-        "md",
-        "markdown",
-        "tex",
-        "ltx",
-        "docx",
-        "pptx",
-        "odt",
-        "odp",
-        "pdf",
-        "zip",
-      ]),
-    ].join("|") +
-    ")$",
-  "i",
-);
-
-export function stripExt(name: string): string {
-  return name.replace(KNOWN_EXT, "");
-}
-
-export function withExt(name: string, ext: string): string {
-  return KNOWN_EXT.test(name) ? name : name + "." + ext;
-}
 
 function stamp(): string {
   const now = new Date();
@@ -313,14 +49,6 @@ function stamp(): string {
     pad(now.getHours()) +
     pad(now.getMinutes())
   );
-}
-
-function escapeAttr(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }
 
 export async function deliverFile(
@@ -408,18 +136,20 @@ export function initExport(options: ExportOptions): ExportControl {
     'autocapitalize="off" spellcheck="false" />' +
     "</label>" +
     '<div class="export-formats">' +
-    formats.map(
-      (format, index) =>
-        '<button type="button" class="tbtn export-format' +
-        (index === 0 ? " is-on" : "") +
-        '" data-format="' +
-        escapeAttr(format.id) +
-        '">' +
-        escapeAttr(format.name) +
-        ' <span class="export-ext">.' +
-        escapeAttr(format.ext) +
-        "</span></button>",
-    ).join("") +
+    formats
+      .map(
+        (format, index) =>
+          '<button type="button" class="tbtn export-format' +
+          (index === 0 ? " is-on" : "") +
+          '" data-format="' +
+          escapeAttr(format.id) +
+          '">' +
+          escapeAttr(format.name) +
+          ' <span class="export-ext">.' +
+          escapeAttr(format.ext) +
+          "</span></button>",
+      )
+      .join("") +
     "</div>" +
     '<label class="export-toc" hidden>' +
     '<input class="export-toc-input" type="checkbox" /> Гарчгийн жагсаалт үүсгэх' +
@@ -584,64 +314,16 @@ export function initExport(options: ExportOptions): ExportControl {
     }
   };
 
-  async function printTex(): Promise<void> {
-    options.onBusy?.(true);
-    try {
-      const [{ compileTex }, { printPdf }] = await Promise.all([
-        import("./texpdf.ts"),
-        import("./office/print.ts"),
-      ]);
-      await printPdf(await compileTex(editor.value));
-    } finally {
-      options.onBusy?.(false);
-    }
-  }
-
-  async function print(): Promise<void> {
-    if (options.isTex?.()) return printTex();
-    const template = findTemplate(options.template())!;
-    if (template.frame === "slides") {
-      const [{ splitSlides }, { deckDoc, deckImages }, { printDeck }] =
-        await Promise.all([
-          import("./slides.ts"),
-          import("./office/deck.ts"),
-          import("./office/deckprint.ts"),
-        ]);
-      const deck = deckDoc(splitSlides(parse(editor.value)));
-      await printDeck(deck, await prepareImages(deckImages(deck)));
-      return;
-    }
-    const [{ applyTemplate }, { printDoc }] = await Promise.all([
-      import("./office/apply.ts"),
-      import("./office/print.ts"),
-    ]);
-    const doc = applyTemplate(parse(editor.value), template);
-    await printDoc(doc, await prepareImages(docImages(doc)));
-  }
-
-  function printable(): boolean {
-    if (options.blocked?.()) return false;
-    if (options.isTex?.()) return true;
-    const frame = findTemplate(options.template())?.frame;
-    return frame !== undefined && PRINT_FRAMES.has(frame);
-  }
-
-  function startPrint(): void {
-    print().catch((error: unknown) => {
-      console.error("print:", error);
-      if (options.onPrintError) options.onPrintError(error);
-      else options.onBlocked?.();
-    });
-  }
+  const printer = createPrinter(options);
 
   const printButton = options.printButton;
 
   function syncPrint(): void {
-    if (printButton) printButton.hidden = !printable();
+    if (printButton) printButton.hidden = !printer.printable();
   }
 
   const onPrintClick = (): void => {
-    if (printable()) startPrint();
+    if (printer.printable()) printer.start();
   };
 
   const onKeyDown = (event: KeyboardEvent): void => {
@@ -650,10 +332,10 @@ export function initExport(options: ExportOptions): ExportControl {
       !event.altKey &&
       !event.shiftKey &&
       (event.code === "KeyP" || event.key.toLowerCase() === "p") &&
-      printable()
+      printer.printable()
     ) {
       event.preventDefault();
-      startPrint();
+      printer.start();
       return;
     }
     if (!event.altKey || !(event.ctrlKey || event.metaKey)) return;

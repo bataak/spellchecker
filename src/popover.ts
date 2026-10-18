@@ -1,7 +1,7 @@
 import { rangeRectAt } from "./backdrop.ts";
 import type { DefTip } from "./deftip.ts";
 import { isTouch } from "./input.ts";
-import type { WordSpan } from "./lookup.ts";
+import type { WordSpan } from "./spell/lookup.ts";
 
 export interface PopoverDeps {
   readonly editor: HTMLTextAreaElement;

@@ -1,4 +1,4 @@
-import { fixSlotsInWords } from "./cp1251.ts";
+import { fixSlotsInWords } from "./archive/cp1251.ts";
 
 const TAG_RE = /<\/?[a-zA-Z][a-zA-Z0-9-]*(?:\s[^<>]*)?\/?>/g;
 const MIN_TAGS = 2;

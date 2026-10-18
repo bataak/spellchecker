@@ -8,7 +8,7 @@ import {
   normalizeKey,
   wordAt,
   type WordSpan,
-} from "../src/lookup.ts";
+} from "../src/spell/lookup.ts";
 
 const at = (text: string, offset: number): string | null =>
   wordAt(text, offset)?.word ?? null;

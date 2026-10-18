@@ -10,7 +10,7 @@ import {
   svgRefs,
   svgSize,
   usesSvgPackage,
-} from "../src/texsvg.ts";
+} from "../src/tex/texsvg.ts";
 
 test("svg багцыг жагсаалт дотор ч таньж, тайлбарт байвал үл тооно", () => {
   assert.equal(usesSvgPackage([String.raw`\usepackage{graphicx, svg}`]), true);

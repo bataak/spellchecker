@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { isXz, unxz } from "../src/xz.ts";
+import { isXz, unxz } from "../src/archive/xz.ts";
 
 const xz = (input: Uint8Array, args: string[]): Uint8Array =>
   new Uint8Array(

@@ -9,7 +9,7 @@ import {
   toBeamer,
   toLatex,
   toLatexBody,
-} from "../src/latex.ts";
+} from "../src/tex/latex.ts";
 
 const body = (md: string): string => toLatexBody(parse(md));
 

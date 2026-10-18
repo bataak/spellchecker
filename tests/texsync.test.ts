@@ -6,7 +6,7 @@ import {
   pdfWordAt,
   pdfWords,
   sourceWords,
-} from "../src/texsync.ts";
+} from "../src/tex/texsync.ts";
 
 const TEX = [
   "\\documentclass{article}",

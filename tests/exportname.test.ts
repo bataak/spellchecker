@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { stripExt, withExt } from "../src/export.ts";
+import { stripExt, withExt } from "../src/exportformats.ts";
 
 test("цэгтэй нэрт өргөтгөл нэмнэ", () => {
   assert.equal(withExt("тайлан 12.10", "txt"), "тайлан 12.10.txt");

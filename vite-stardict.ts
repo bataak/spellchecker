@@ -6,7 +6,7 @@ import {
   collectDicts,
   parseOrder,
   type DictListEntry,
-} from "./src/dictindex.ts";
+} from "./src/dict/dictindex.ts";
 
 const DIR = "public/dict/stardict";
 const VIRTUAL_ID = "virtual:stardict-index";
