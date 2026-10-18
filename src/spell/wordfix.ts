@@ -79,10 +79,23 @@ function looksLikeInitial(left: string, right: string): boolean {
   return INITIAL_RE.test(left) && AFTER_INITIAL_RE.test(right);
 }
 
+function initialChain(word: string): string | null {
+  const pieces = word.split(".");
+  if (pieces.length < 3) return null;
+  const last = pieces[pieces.length - 1]!;
+  if (last.length < 2 || !AFTER_INITIAL_RE.test(last)) return null;
+  if (!pieces.slice(0, -1).every((piece) => INITIAL_RE.test(piece)))
+    return null;
+  return pieces.join(". ");
+}
+
 export async function periodSplits(
   word: string,
   checkWords: CheckWords,
 ): Promise<string[]> {
+  const chain = initialChain(word);
+  if (chain !== null) return [chain];
+
   const parts: Array<{ left: string; right: string }> = [];
 
   for (let index = 1; index < word.length - 1; index++) {
@@ -148,16 +161,23 @@ export function scopeToSuffix(token: Token, offered: string[]): string[] {
     .map((item) => item.slice(head.length));
 }
 
-export function periodSplitDot(word: string, replacement: string): number {
-  if (!replacement.includes(". ")) return -1;
-  if (replacement.split(". ").join(".") !== word) return -1;
-  return replacement.indexOf(". ");
+export function periodSplitDots(word: string, replacement: string): number[] {
+  if (!replacement.includes(". ")) return [];
+  const pieces = replacement.split(". ");
+  if (pieces.join(".") !== word) return [];
+  const dots: number[] = [];
+  let at = -1;
+  for (const piece of pieces.slice(0, -1)) {
+    at += piece.length + 1;
+    dots.push(at);
+  }
+  return dots;
 }
 
 export function splitEveryOccurrence(
   text: string,
   word: string,
-  dot: number,
+  dots: number[],
   tokenStart: number,
   skip: SkipRange[] = [],
 ): { text: string; caret: number } | null {
@@ -174,11 +194,13 @@ export function splitEveryOccurrence(
 
   let next = text;
   for (let index = hits.length - 1; index >= 0; index--) {
-    const at = hits[index]! + dot + 1;
-    next = next.slice(0, at) + " " + next.slice(at);
+    for (let dot = dots.length - 1; dot >= 0; dot--) {
+      const at = hits[index]! + dots[dot]! + 1;
+      next = next.slice(0, at) + " " + next.slice(at);
+    }
   }
 
   const before = hits.filter((start) => start < tokenStart).length;
-  const caret = tokenStart + before + word.length + 1;
+  const caret = tokenStart + (before + 1) * dots.length + word.length;
   return { text: next, caret };
 }
