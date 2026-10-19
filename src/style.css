@@ -2102,9 +2102,9 @@ html.booting .empty-state {
   width: 26px;
   height: 64px;
   padding: 0;
-  border: 0;
-  border-radius: 8px;
-  background: none;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--editor-bg) 45%, transparent);
   color: var(--accent);
   cursor: pointer;
   transform: translateY(-50%);
