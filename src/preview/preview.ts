@@ -9,9 +9,11 @@ import { createPdfPane } from "./pdfpane.ts";
 import { buildPreviewHead, HEAD_TEXT } from "./previewhead.ts";
 import { createTexPreview } from "./texpreview.ts";
 import type { TexProject } from "../project/projectbuild.ts";
+import { tidyCaret, tidyTex } from "../tex/textidy.ts";
 
 const TIDY_LIMIT = 400_000;
 const TIDY_IDLE_MS = 5000;
+const MD_TIDY_TITLE = "Markdown бичвэрийг жигдрүүлэх";
 const MD_NAME = /\.(md|markdown|mdown|mkd)$/i;
 
 function isSameDocument(next: string, ref: string): boolean {
@@ -29,7 +31,7 @@ export type PreviewSource =
 export interface PreviewDeps {
   readonly wrap: HTMLElement;
   readonly area: HTMLTextAreaElement;
-  readonly onFormat: (next: string) => void;
+  readonly onFormat: (next: string, caret?: number) => void;
   readonly isLatex: (text: string) => boolean;
   readonly projectKey: () => string | null;
   readonly inProject: () => boolean;
@@ -108,7 +110,7 @@ export function initPreview(deps: PreviewDeps): Preview {
   tidy.type = "button";
   tidy.className = "tidy-btn";
   tidy.textContent = "Хэлбэржүүлэх";
-  tidy.title = "Markdown бичвэрийг жигдрүүлэх";
+  tidy.title = MD_TIDY_TITLE;
   tidy.hidden = true;
 
   const tools = wrap.querySelector<HTMLElement>(".editor-tools");
@@ -120,8 +122,7 @@ export function initPreview(deps: PreviewDeps): Preview {
   let tidied: string | null = null;
   let typingTimer = 0;
   const showTidy = (): void => {
-    tidy.hidden =
-      tidied === null || typingTimer !== 0 || !!source || tex.active();
+    tidy.hidden = tidied === null || typingTimer !== 0 || !!source;
   };
   const onTyping = (event: Event): void => {
     if (!event.isTrusted) return;
@@ -173,6 +174,7 @@ export function initPreview(deps: PreviewDeps): Preview {
     body.classList.toggle("is-empty", !blocks.length);
 
     tidied = null;
+    tidy.title = MD_TIDY_TITLE;
     const looksMd = isMdFile || markdownMode;
     if (looksMd && text.length <= TIDY_LIMIT && !isLatex(text)) {
       const next = format(text, blocks);
@@ -331,6 +333,14 @@ export function initPreview(deps: PreviewDeps): Preview {
     tidy.hidden = true;
   };
 
+  const tidyLatex = (): void => {
+    const text = area.value;
+    const next = text.length <= TIDY_LIMIT ? tidyTex(text) : text;
+    tidied = next === text ? null : next;
+    tidy.title = "LaTeX бичвэрийн догол мөр, хоосон мөрийг жигдрүүлэх";
+    showTidy();
+  };
+
   const update = (): void => {
     if (source) {
       if (!isSameDocument(area.value, sourceText)) setSource(null);
@@ -339,6 +349,7 @@ export function initPreview(deps: PreviewDeps): Preview {
     setTexMode(isLatex(area.value));
     if (tex.active()) {
       tex.schedule();
+      tidyLatex();
       return;
     }
     if (raf) return;
@@ -411,7 +422,10 @@ export function initPreview(deps: PreviewDeps): Preview {
 
   tidy.addEventListener("mousedown", (event) => event.preventDefault());
   tidy.addEventListener("click", () => {
-    if (tidied !== null) onFormat(tidied);
+    if (tidied === null) return;
+    if (tex.active())
+      onFormat(tidied, tidyCaret(area.value, tidied, area.selectionStart));
+    else onFormat(tidied);
   });
 
   body.addEventListener("click", (event) =>
