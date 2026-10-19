@@ -2094,7 +2094,7 @@ html.booting .empty-state {
 .pane-toggle {
   position: absolute;
   top: 50%;
-  right: 0;
+  right: -12px;
   z-index: 6;
   display: flex;
   align-items: center;
@@ -2103,8 +2103,7 @@ html.booting .empty-state {
   height: 64px;
   padding: 0;
   border: 1px solid var(--line);
-  border-right: 0;
-  border-radius: 12px 0 0 12px;
+  border-radius: 12px;
   background: color-mix(in srgb, var(--editor-bg) 82%, transparent);
   color: var(--accent);
   cursor: pointer;
@@ -2130,10 +2129,7 @@ html.booting .empty-state {
 
 :root[data-pane="preview"] .pane-toggle {
   right: auto;
-  left: 0;
-  border-right: 1px solid var(--line);
-  border-left: 0;
-  border-radius: 0 12px 12px 0;
+  left: -12px;
 }
 
 :root[data-pane="preview"] .pane-toggle-glyph {
