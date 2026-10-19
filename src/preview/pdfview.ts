@@ -423,7 +423,27 @@ export async function renderPdfInto(
       const y =
         origin.y - frame.top - host.clientTop + host.scrollTop - list.offsetTop;
       list.style.transformOrigin = `${x}px ${y}px`;
-      list.style.transform = `translate(${shift.x}px, ${shift.y}px) scale(${scale})`;
+      const place = (dx: number): void => {
+        list.style.transform = `translate(${dx}px, ${shift.y}px) scale(${scale})`;
+      };
+      const left = frame.left + host.clientLeft;
+      const right = left + host.clientWidth;
+      const fix = (box: DOMRect): number => {
+        if (box.width <= host.clientWidth)
+          return (left + right - box.width) / 2 - box.left;
+        if (box.left > left) return left - box.left;
+        if (box.right < right) return right - box.right;
+        return 0;
+      };
+      let dx = shift.x;
+      place(dx);
+      for (let pass = 0; pass < 8; pass++) {
+        const box = slots[0]?.el.getBoundingClientRect();
+        const step = box ? fix(box) : 0;
+        if (Math.abs(step) < 0.5) return;
+        dx += step;
+        place(dx);
+      }
     },
     destroy() {
       signal?.removeEventListener("abort", onAbort);
