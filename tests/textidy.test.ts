@@ -112,6 +112,7 @@ test("tidyCaret: зай биш тэмдэгтүүдээр каретын бай�
   const caret = before.indexOf("д");
   assert.equal(after[tidyCaret(before, after, caret)], "д");
   assert.equal(tidyCaret(before, after, 0), 0);
+  assert.equal(tidyCaret(before, after, before.length), after.length);
   const word = "\\begin{quote}\n   гд\n\\end{quote}\n";
   const tidyWord = tidyTex(word);
   const at = tidyCaret(word, tidyWord, word.indexOf("г"));

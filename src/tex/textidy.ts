@@ -227,6 +227,7 @@ export function tidyCaret(
   after: string,
   caret: number,
 ): number {
+  if (caret >= before.length) return after.length;
   let solid = 0;
   for (let i = 0; i < caret && i < before.length; i++)
     if (!SPACE.test(before[i]!)) solid++;
