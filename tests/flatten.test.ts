@@ -104,3 +104,15 @@ test("-- богино, --- урт зураас болно", () => {
 test("код доторх зураасыг хөндөхгүй", () => {
   assert.deepEqual(runs("`a--b`"), [{ text: "a--b", mono: true }]);
 });
+
+test("flatten: аюултай холбоосын хаягийг хасаж текстийг үлдээнэ", () => {
+  const runs = flatten(
+    parseInline("[дар](javascript:alert(1)) ба [сайт](https://a.mn)"),
+  );
+  assert.deepEqual(
+    runs.map((run) => run.href ?? null),
+    [null, "https://a.mn"],
+  );
+  assert.equal(runs[0]!.text, "дар ба ");
+  assert.equal(runs[1]!.text, "сайт");
+});

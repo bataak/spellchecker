@@ -1,3 +1,4 @@
+import { escapeHtml } from "../core/htmlutil.ts";
 import type { ProjectStore } from "./projectstore.ts";
 import {
   baseName,
@@ -72,7 +73,7 @@ export function initTreeControl(deps: TreeControlDeps): TreeControl {
         deps.closeDrawer();
         return;
       }
-      deps.notify(baseName(path) + " — нээх боломжгүй файл");
+      deps.notify(escapeHtml(baseName(path)) + " — нээх боломжгүй файл");
       return;
     }
     deps.view(null);

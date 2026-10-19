@@ -5,6 +5,7 @@ import {
   isTexName,
   locateFile,
   saveMessage,
+  conflictNotice,
 } from "../src/project/linkfiles.ts";
 import { failureMessage, ProjectError } from "../src/project/projecterror.ts";
 
@@ -63,4 +64,10 @@ test("failureMessage цуцлалтыг чимээгүй өнгөрөөнө", ()
   } finally {
     console.error = error;
   }
+});
+
+test("conflictNotice: файлын нэрийг HTML болгохгүй", () => {
+  const html = conflictNotice(["ch/<img src=x>.tex"]);
+  assert.match(html, /«&lt;img src=x&gt;\.tex»/);
+  assert.doesNotMatch(html, /<img/);
 });

@@ -3,6 +3,7 @@ import {
   blankUnderscores,
   dashes,
   mathSource,
+  safeHref,
   withLogos,
   type Inline,
 } from "../markdown.ts";
@@ -108,7 +109,11 @@ function walk(nodes: readonly Inline[], marks: Marks, out: IrRun[]): void {
         walk(node.children, { ...marks, strike: true }, out);
         break;
       case "link":
-        walk(node.children, { ...marks, href: node.url }, out);
+        walk(
+          node.children,
+          safeHref(node.url) ? { ...marks, href: node.url } : marks,
+          out,
+        );
         break;
     }
   }
