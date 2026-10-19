@@ -51,6 +51,7 @@ export function createEditorPort(deps: EditorPortDeps): EditorPort {
       save();
       await render();
       restoreView();
+      requestAnimationFrame(() => requestAnimationFrame(restoreView));
     },
   };
 }
