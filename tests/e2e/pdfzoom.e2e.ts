@@ -1,7 +1,14 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import type { BrowserContext, Page } from "playwright";
-import { chooseSlot, ready, startApp, until, type App } from "./harness.ts";
+import {
+  CDP_ONLY,
+  chooseSlot,
+  ready,
+  startApp,
+  until,
+  type App,
+} from "./harness.ts";
 
 let app: App;
 before(async () => {
@@ -80,51 +87,62 @@ const zoomLevel = (page: Page) =>
     () => document.querySelector(".pdf-zoom-level")?.textContent ?? "",
   );
 
-test("гар утсан дээр PDF харагдацыг хоёр хуруугаар томруулна", async () => {
-  const { context, page } = await openPhone();
+test(
+  "гар утсан дээр PDF харагдацыг хоёр хуруугаар томруулна",
+  { skip: CDP_ONLY },
+  async () => {
+    const { context, page } = await openPhone();
 
-  await pinchAt(context, page, 40, 80);
+    await pinchAt(context, page, 40, 80);
 
-  const zoom = await until(
-    () => zoomLevel(page),
-    (value) => value === "200%",
-  );
-  assert.equal(zoom, "200%");
-  assert.equal(await page.evaluate(() => visualViewport?.scale ?? 1), 1);
-  await context.close();
-});
+    const zoom = await until(
+      () => zoomLevel(page),
+      (value) => value === "200%",
+    );
+    assert.equal(zoom, "200%");
+    assert.equal(await page.evaluate(() => visualViewport?.scale ?? 1), 1);
+    await context.close();
+  },
+);
 
-test("дараалсан pinch-ийн дараа хуудас сунахгүй, томруулсан хэсэг тод зурагдана", async () => {
-  const { context, page } = await openPhone(2);
-  await pinchAt(context, page, 30, 90);
-  await pinchAt(context, page, 30, 90);
-  await until(
-    () => zoomLevel(page),
-    (value) => value === "600%",
-  );
-  assert.equal(
-    await page.evaluate(
-      () => document.querySelector<HTMLElement>(".pdf-pages")!.style.transform,
-    ),
-    "",
-  );
-  const detail = await until(
-    () => page.evaluate(() => document.querySelectorAll(".pdf-detail").length),
-    (count) => count > 0,
-  );
-  assert.ok(detail > 0);
-  await pinchAt(context, page, 90, 30);
-  await until(
-    () => zoomLevel(page),
-    (value) => value === "200%",
-  );
-  const left = await until(
-    () => page.evaluate(() => document.querySelectorAll(".pdf-detail").length),
-    (count) => count === 0,
-  );
-  assert.equal(left, 0);
-  await context.close();
-});
+test(
+  "дараалсан pinch-ийн дараа хуудас сунахгүй, томруулсан хэсэг тод зурагдана",
+  { skip: CDP_ONLY },
+  async () => {
+    const { context, page } = await openPhone(2);
+    await pinchAt(context, page, 30, 90);
+    await pinchAt(context, page, 30, 90);
+    await until(
+      () => zoomLevel(page),
+      (value) => value === "600%",
+    );
+    assert.equal(
+      await page.evaluate(
+        () =>
+          document.querySelector<HTMLElement>(".pdf-pages")!.style.transform,
+      ),
+      "",
+    );
+    const detail = await until(
+      () =>
+        page.evaluate(() => document.querySelectorAll(".pdf-detail").length),
+      (count) => count > 0,
+    );
+    assert.ok(detail > 0);
+    await pinchAt(context, page, 90, 30);
+    await until(
+      () => zoomLevel(page),
+      (value) => value === "200%",
+    );
+    const left = await until(
+      () =>
+        page.evaluate(() => document.querySelectorAll(".pdf-detail").length),
+      (count) => count === 0,
+    );
+    assert.equal(left, 0);
+    await context.close();
+  },
+);
 
 test("томруулсан PDF-ийн хэвтээ байрлалыг refresh болон дахин хөрвүүлэлтийн дараа хадгална", async () => {
   const context = await app.browser.newContext({

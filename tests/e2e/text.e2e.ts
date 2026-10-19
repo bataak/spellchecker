@@ -1,6 +1,7 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  FIREFOX,
   editor,
   errors,
   openPage,
@@ -27,23 +28,32 @@ test("задарсан й, ё-г шивэх, буулгах, чирэх бүх �
   const page = await openPage(app, await app.context({ clipboard: true }));
   await page.click("#editor");
   for (const ch of "Сайн байна".normalize("NFD"))
-    await page.keyboard.insertText(ch);
+    if (ch === " ") await page.keyboard.type(ch);
+    else await page.keyboard.insertText(ch);
   await page.keyboard.type(" ");
   assert.ok(composed(await editor(page)), await editor(page));
 
-  await page.evaluate((text) => {
-    const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
-    area.setSelectionRange(area.value.length, area.value.length);
-    const data = new DataTransfer();
-    data.setData("text/plain", text);
-    area.dispatchEvent(
-      new ClipboardEvent("paste", {
-        clipboardData: data,
-        bubbles: true,
-        cancelable: true,
-      }),
+  if (FIREFOX) {
+    await page.evaluate(
+      (text) => navigator.clipboard.writeText(text),
+      "Ёс ".normalize("NFD"),
     );
-  }, "Ёс ".normalize("NFD"));
+    await page.keyboard.press("Control+End");
+    await page.keyboard.press("Control+V");
+  } else
+    await page.evaluate((text) => {
+      const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
+      area.setSelectionRange(area.value.length, area.value.length);
+      const data = new DataTransfer();
+      data.setData("text/plain", text);
+      area.dispatchEvent(
+        new ClipboardEvent("paste", {
+          clipboardData: data,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    }, "Ёс ".normalize("NFD"));
   await page.evaluate(
     (text) => navigator.clipboard.writeText(text),
     "Ёслол ".normalize("NFD"),
