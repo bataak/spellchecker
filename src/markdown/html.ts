@@ -84,73 +84,93 @@ function listHtml(tree: ListTree, at = ""): string {
   );
 }
 
-export function toHtml(blocks: readonly Block[]): string {
-  let out = "";
-  for (const b of blocks) {
-    const at = ` data-line="${b.line}"`;
-    if (b.type === "heading")
-      out += `<h${b.depth}${at}>${inlineHtml(b.children)}</h${b.depth}>`;
-    else if (b.type === "paragraph")
-      out += `<p${isFigure(b.children) ? ' class="md-figure"' : ""}${at}>${inlineHtml(b.children)}</p>`;
-    else if (b.type === "rule") out += `<hr${at}>`;
-    else if (b.type === "pagebreak") out += `<hr class="page-break"${at}>`;
-    else if (b.type === "codeblock")
-      out += `<pre${at}><code>${esc(b.value)}</code></pre>`;
-    else if (b.type === "math")
-      out += `<div class="math math-display"${at}>${esc(b.value)}</div>`;
-    else if (b.type === "latex")
-      out += `<pre class="latex"${at}><code>${esc(b.value)}</code></pre>`;
-    else if (b.type === "meta")
-      out +=
-        `<div class="md-meta"${at}>` +
-        b.fields
-          .map(
-            (field) =>
-              `<p class="md-meta-${esc(field.key)}">${esc(field.value)}</p>`,
-          )
+type BlockOf<T extends Block["type"]> = Extract<Block, { type: T }>;
+
+function metaHtml(b: BlockOf<"meta">, at: string): string {
+  return (
+    `<div class="md-meta"${at}>` +
+    b.fields
+      .map(
+        (field) =>
+          `<p class="md-meta-${esc(field.key)}">${esc(field.value)}</p>`,
+      )
+      .join("") +
+    `</div>`
+  );
+}
+
+function divKind(classes: readonly string[]): string {
+  if (classes.includes("notes")) return "md-notes";
+  if (classes.includes("columns")) return "md-columns";
+  if (classes.includes("column")) return "md-column";
+  return "md-div";
+}
+
+function divHtml(b: BlockOf<"div">, at: string): string {
+  const width = /^\d+(?:\.\d+)?%$/.test(b.keys["width"] ?? "")
+    ? ` data-style="flex-basis:${b.keys["width"]}"`
+    : "";
+  const align = ["right", "center", "left", "signature"]
+    .filter((name) => b.classes.includes(name))
+    .map((name) => " md-" + name)
+    .join("");
+  return `<div class="${divKind(b.classes)}${align}"${width}${at}>${toHtml(b.children)}</div>`;
+}
+
+function tableHtml(b: BlockOf<"table">, at: string): string {
+  const [header, ...body] = b.rows;
+  const style = (i: number): string =>
+    b.align[i] ? ` data-style="text-align:${b.align[i]}"` : "";
+  return (
+    `<table${at}>` +
+    (isBlankRow(header)
+      ? ""
+      : `<thead><tr>` +
+        (header ?? [])
+          .map((c, i) => `<th${style(i)}>${inlineHtml(c)}</th>`)
           .join("") +
-        `</div>`;
-    else if (b.type === "div") {
-      const width = /^\d+(?:\.\d+)?%$/.test(b.keys["width"] ?? "")
-        ? ` data-style="flex-basis:${b.keys["width"]}"`
-        : "";
-      const kind = b.classes.includes("notes")
-        ? "md-notes"
-        : b.classes.includes("columns")
-          ? "md-columns"
-          : b.classes.includes("column")
-            ? "md-column"
-            : "md-div";
-      const align = ["right", "center", "left", "signature"]
-        .filter((name) => b.classes.includes(name))
-        .map((name) => " md-" + name)
-        .join("");
-      out += `<div class="${kind}${align}"${width}${at}>${toHtml(b.children)}</div>`;
-    } else if (b.type === "quote")
-      out += `<blockquote${at}>${toHtml(b.children)}</blockquote>`;
-    else if (b.type === "list") out += listHtml(listTree(b), at);
-    else {
-      const [header, ...body] = b.rows;
-      const style = (i: number): string =>
-        b.align[i] ? ` data-style="text-align:${b.align[i]}"` : "";
-      out +=
-        `<table${at}>` +
-        (isBlankRow(header)
-          ? ""
-          : `<thead><tr>` +
-            (header ?? [])
-              .map((c, i) => `<th${style(i)}>${inlineHtml(c)}</th>`)
-              .join("") +
-            `</tr></thead>`) +
-        `<tbody>` +
-        body
-          .map(
-            (r) =>
-              `<tr>${r.map((c, i) => `<td${style(i)}>${inlineHtml(c)}</td>`).join("")}</tr>`,
-          )
-          .join("") +
-        `</tbody></table>`;
-    }
+        `</tr></thead>`) +
+    `<tbody>` +
+    body
+      .map(
+        (r) =>
+          `<tr>${r.map((c, i) => `<td${style(i)}>${inlineHtml(c)}</td>`).join("")}</tr>`,
+      )
+      .join("") +
+    `</tbody></table>`
+  );
+}
+
+function blockHtml(b: Block): string {
+  const at = ` data-line="${b.line}"`;
+  switch (b.type) {
+    case "heading":
+      return `<h${b.depth}${at}>${inlineHtml(b.children)}</h${b.depth}>`;
+    case "paragraph":
+      return `<p${isFigure(b.children) ? ' class="md-figure"' : ""}${at}>${inlineHtml(b.children)}</p>`;
+    case "rule":
+      return `<hr${at}>`;
+    case "pagebreak":
+      return `<hr class="page-break"${at}>`;
+    case "codeblock":
+      return `<pre${at}><code>${esc(b.value)}</code></pre>`;
+    case "math":
+      return `<div class="math math-display"${at}>${esc(b.value)}</div>`;
+    case "latex":
+      return `<pre class="latex"${at}><code>${esc(b.value)}</code></pre>`;
+    case "meta":
+      return metaHtml(b, at);
+    case "div":
+      return divHtml(b, at);
+    case "quote":
+      return `<blockquote${at}>${toHtml(b.children)}</blockquote>`;
+    case "list":
+      return listHtml(listTree(b), at);
+    default:
+      return tableHtml(b, at);
   }
-  return out;
+}
+
+export function toHtml(blocks: readonly Block[]): string {
+  return blocks.map(blockHtml).join("");
 }

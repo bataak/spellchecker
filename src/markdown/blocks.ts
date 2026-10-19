@@ -194,8 +194,7 @@ function divEnd(lines: readonly string[], start: number): number {
   return -1;
 }
 
-export function withoutDivs(src: string): string {
-  const lines = src.split("\n");
+function divLines(lines: readonly string[]): Set<number> {
   const drop = new Set<number>();
   let fence = "";
   for (let i = 0; i < lines.length; i += 1) {
@@ -208,10 +207,9 @@ export function withoutDivs(src: string): string {
     }
     if (fence || drop.has(i)) continue;
     const open = DIV_OPEN.exec(line);
-    if (!open) continue;
-    const end = divEnd(lines, i);
+    const end = open ? divEnd(lines, i) : -1;
     if (end < 0) continue;
-    if (parseAttrs(open[2]!).classes.includes("notes")) {
+    if (parseAttrs(open![2]!).classes.includes("notes")) {
       for (let j = i; j <= end; j += 1) drop.add(j);
       i = end;
     } else {
@@ -219,21 +217,32 @@ export function withoutDivs(src: string): string {
       drop.add(end);
     }
   }
+  return drop;
+}
+
+const blankLine = (line: string | undefined): boolean => !line?.trim();
+
+function keptLines(lines: readonly string[], drop: Set<number>): string[] {
   const out: string[] = [];
   let gap = false;
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i]!;
+  lines.forEach((line, i) => {
     if (drop.has(i)) {
       gap = true;
-      continue;
+      return;
     }
     const blank = !line.trim();
-    if (gap && !blank && out.length > 0 && out.at(-1)!.trim()) out.push("");
-    if (!(gap && blank && (out.length === 0 || !out.at(-1)!.trim())))
-      out.push(line);
+    const lastBlank = blankLine(out.at(-1));
+    if (gap && !blank && !lastBlank) out.push("");
+    if (!(gap && blank && lastBlank)) out.push(line);
     gap = false;
-  }
-  while (out.length > 0 && !out.at(-1)!.trim() && lines.at(-1)!.trim())
+  });
+  return out;
+}
+
+export function withoutDivs(src: string): string {
+  const lines = src.split("\n");
+  const out = keptLines(lines, divLines(lines));
+  while (out.length > 0 && blankLine(out.at(-1)) && !blankLine(lines.at(-1)))
     out.pop();
   return out.join("\n");
 }
