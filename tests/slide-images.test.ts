@@ -101,3 +101,49 @@ test("deckPrintHtml: бэлтгэсэн зургийг байрлалтай нь
   );
   assert.equal(html.match(/<img class="img" alt="" src="blob:a"/g)?.length, 2);
 });
+
+test("deckDoc: тексттэй холилдсон зургийг текстийн доор тусад нь гаргана", () => {
+  const deck = deckDoc(
+    splitSlides(
+      parse("# Т\n\n## Нэг\n\n![a](a.png) Текст ![b](b.png) дараа\n"),
+    ),
+  );
+  const parts = deck.slides[0]!.parts;
+  assert.deepEqual(
+    parts.map((part) => part.kind),
+    ["text", "image"],
+  );
+  assert.equal(
+    parts[0]!.kind === "text" &&
+      parts[0]!.lines[0]!.runs.map((run) => run.text).join(""),
+    "Текст дараа",
+  );
+  assert.deepEqual(
+    parts[1]!.kind === "image" && parts[1]!.images.map((image) => image.src),
+    ["a.png", "b.png"],
+  );
+  assert.deepEqual(
+    deckImages(deck).map((image) => image.src),
+    ["a.png", "b.png"],
+  );
+});
+
+test("buildPptx ба buildOdp: холимог догол дахь зургийг оруулна", () => {
+  const deck = deckDoc(
+    splitSlides(parse("# Т\n\n## Нэг\n\nТекст ![a](a.png)\n")),
+  );
+  const file: EmbeddedImage = {
+    bytes: PNG,
+    ext: "png",
+    widthPx: 400,
+    heightPx: 300,
+  };
+  const images = new Map(
+    deckImages(deck).map((image) => [imageKey(image), file]),
+  );
+  const pptx = unzipSync(buildPptx(deck, { images }));
+  assert.ok(Object.keys(pptx).some((name) => name.startsWith("ppt/media/")));
+  assert.match(strFromU8(pptx["ppt/slides/slide2.xml"]!), /<p:pic>/);
+  const odp = unzipSync(buildOdp(deck, { images }));
+  assert.match(strFromU8(odp["content.xml"]!), /<draw:image /);
+});
