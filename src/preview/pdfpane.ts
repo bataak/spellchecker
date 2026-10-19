@@ -37,7 +37,7 @@ export function createPdfPane(
   let shown: Uint8Array<ArrayBuffer> | null = null;
   let zoom = loadZoom();
   let scrollX = loadScrollX();
-  let restoring = false;
+  let rendering = 0;
   let saveTimer: number | undefined;
 
   const flushScrollX = (): void => {
@@ -49,7 +49,7 @@ export function createPdfPane(
   body.addEventListener(
     "scroll",
     () => {
-      if (!view || restoring) return;
+      if (!view || rendering > 0) return;
       const ratio = scrollRatio(
         body.scrollLeft,
         body.scrollWidth - body.clientWidth,
@@ -103,7 +103,7 @@ export function createPdfPane(
   ): Promise<PdfView | null> => {
     const mod = await import("./pdfview.ts");
     if (controller.signal.aborted) return null;
-    restoring = true;
+    rendering += 1;
     try {
       const next = await mod.renderPdfInto(
         body,
@@ -120,7 +120,7 @@ export function createPdfPane(
       restoreScrollX();
       return next;
     } finally {
-      restoring = false;
+      rendering -= 1;
     }
   };
 
