@@ -652,3 +652,13 @@ test("parse: ишлэлийн мөр U+2028-аар төгсвөл гацахгү
     assert.equal(blocks.at(-1)?.type, "quote", JSON.stringify(text));
   }
 });
+
+test("parse: олон хаагаагүй томьёо нээгч шугаман хугацаанд задлагдана", () => {
+  for (const unit of ["$$x\n", "\\[x\n"]) {
+    const text = unit.repeat(6000);
+    const started = performance.now();
+    const blocks = parse(text);
+    assert.ok(performance.now() - started < 2000, unit);
+    assert.ok(blocks.length > 0);
+  }
+});
