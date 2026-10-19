@@ -53,6 +53,7 @@ export interface FileIODeps {
   ) => "new" | "open" | "reload" | false;
   readonly onLoaded: () => void;
   readonly onSaved: (written: boolean) => void;
+  readonly deliverText?: (text: string, fileName: string) => Promise<boolean>;
 }
 
 export interface OpenFile {
@@ -81,6 +82,7 @@ export function initFileIO({
   prepareOpen,
   onLoaded,
   onSaved,
+  deliverText: deliverFile = deliverText,
 }: FileIODeps): FileIOControl {
   const setStatus = status.set;
   const hasFSSave = "showSaveFilePicker" in window;
@@ -96,7 +98,7 @@ export function initFileIO({
     );
 
   const deliver = (text: string, name: string): Promise<boolean> =>
-    deliverText(text, textName(name, defaultExt(), stamp));
+    deliverFile(text, textName(name, defaultExt(), stamp));
 
   async function openOne(
     file: File,
@@ -160,101 +162,118 @@ export function initFileIO({
     }
   }
 
-  async function save(source?: {
-    readonly name: string;
-    readonly inProject: boolean;
-  }): Promise<void> {
-    if (docs.active()) {
-      try {
-        flash("#saveBtn", (await docs.save()) ? "Хадгаллаа" : "Цуцаллаа");
-      } catch {
-        flash("#saveBtn", "Боломжгүй");
-      }
-      return;
+  type SaveSource = { readonly name: string; readonly inProject: boolean };
+
+  async function saveOffice(): Promise<boolean> {
+    if (!docs.active()) return false;
+    try {
+      flash("#saveBtn", (await docs.save()) ? "Хадгаллаа" : "Цуцаллаа");
+    } catch {
+      flash("#saveBtn", "Боломжгүй");
     }
+    return true;
+  }
 
-    if (!source && pdf.applies()) {
-      await pdf.save();
-      return;
+  async function savePdf(source?: SaveSource): Promise<boolean> {
+    if (source || !pdf.applies()) return false;
+    await pdf.save();
+    return true;
+  }
+
+  async function saveProject(source?: SaveSource): Promise<boolean> {
+    if (source) return false;
+    try {
+      const label = await project.save();
+      if (label === null) return false;
+      flash("#saveBtn", label);
+    } catch {
+      flash("#saveBtn", "Боломжгүй");
     }
+    return true;
+  }
 
-    if (!source) {
-      try {
-        const label = await project.save();
-        if (label !== null) {
-          flash("#saveBtn", label);
-          return;
-        }
-      } catch {
-        flash("#saveBtn", "Боломжгүй");
-        return;
-      }
-    }
+  async function writeTo(
+    handle: FileSystemFileHandle,
+    text: string,
+  ): Promise<void> {
+    const writableStream = await handle.createWritable();
+    await writableStream.write(text);
+    await writableStream.close();
+  }
 
-    const text = editor.el.value || "";
-    const saved = (written: boolean): void => {
-      if (!source?.inProject) onSaved(written);
-    };
+  async function writeOpenFile(
+    text: string,
+    source?: SaveSource,
+  ): Promise<boolean> {
+    const handle = currentFileHandle;
+    if (!handle) return false;
+    if (source && (source.inProject || source.name !== currentFileName))
+      return false;
+    const written = await attemptAsync(async () => {
+      await writeTo(handle, text);
+      return true;
+    }, false);
+    if (!written) return false;
+    flash("#saveBtn", "Хадгаллаа");
+    if (!source?.inProject) onSaved(true);
+    return true;
+  }
 
-    if (
-      currentFileHandle &&
-      (!source || (!source.inProject && source.name === currentFileName))
-    ) {
-      const handle = currentFileHandle;
-      const written = await attemptAsync(async () => {
-        const writableStream = await handle.createWritable();
-        await writableStream.write(text);
-        await writableStream.close();
-        return true;
-      }, false);
-      if (written) {
-        flash("#saveBtn", "Хадгаллаа");
-        saved(true);
-        return;
-      }
-    }
-
+  async function deliverNamed(
+    text: string,
+    source?: SaveSource,
+  ): Promise<boolean> {
     const fileName = source?.name ?? currentFileName;
-    if (!text.trim() && !fileName) {
+    if (!fileName) {
+      if (text.trim()) return false;
       flash("#saveBtn", "Хоосон байна");
-      return;
+      return true;
     }
-
-    if (fileName) {
-      try {
-        const done = await deliver(text, fileName);
-        flash("#saveBtn", done ? "Хадгалав" : "Цуцаллаа");
-        if (done) saved(false);
-      } catch {
-        flash("#saveBtn", "Боломжгүй");
-      }
-      return;
+    try {
+      const done = await deliver(text, fileName);
+      flash("#saveBtn", done ? "Хадгалав" : "Цуцаллаа");
+      if (done && !source?.inProject) onSaved(false);
+    } catch {
+      flash("#saveBtn", "Боломжгүй");
     }
+    return true;
+  }
 
-    if (isDesktopApp() && hasFSSave) {
-      try {
-        const handle = await window.showSaveFilePicker!({
-          suggestedName: stamp(),
-          types: saveTypes(defaultExt()),
-        });
-        const writableStream = await handle.createWritable();
-        await writableStream.write(text);
-        await writableStream.close();
-        currentFileHandle = handle;
-        flash("#saveBtn", "Хадгаллаа");
-        onSaved(true);
-        return;
-      } catch (e) {
-        if (e instanceof DOMException && e.name === "AbortError") return;
-      }
+  async function pickAndWrite(text: string): Promise<boolean> {
+    if (!isDesktopApp() || !hasFSSave) return false;
+    try {
+      const handle = await window.showSaveFilePicker!({
+        suggestedName: stamp(),
+        types: saveTypes(defaultExt()),
+      });
+      await writeTo(handle, text);
+      currentFileHandle = handle;
+      flash("#saveBtn", "Хадгаллаа");
+      onSaved(true);
+      return true;
+    } catch (e) {
+      return e instanceof DOMException && e.name === "AbortError";
     }
+  }
 
+  async function deliverStamped(text: string): Promise<void> {
     try {
       const done = await deliver(text, stamp());
       flash("#saveBtn", done ? "Хадгаллаа" : "Цуцаллаа");
     } catch {
       flash("#saveBtn", "Боломжгүй");
     }
+  }
+
+  async function save(source?: SaveSource): Promise<void> {
+    if (await saveOffice()) return;
+    if (await savePdf(source)) return;
+    if (await saveProject(source)) return;
+    const text = editor.el.value || "";
+    if (await writeOpenFile(text, source)) return;
+    if (await deliverNamed(text, source)) return;
+    if (await pickAndWrite(text)) return;
+    await deliverStamped(text);
   }
 
   document
