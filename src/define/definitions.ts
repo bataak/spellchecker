@@ -1,5 +1,5 @@
 import { clipText, displayHeadword } from "./defmarks.ts";
-import type { DictEntry } from "./dict/stardict.ts";
+import type { DictEntry } from "../dict/stardict.ts";
 
 const DEF_TEXT_LIMIT = 3000;
 

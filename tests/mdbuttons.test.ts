@@ -4,9 +4,9 @@ import {
   BUTTONS,
   buildButtons,
   formatEdit,
-} from "../src/mdbuttons.ts";
+} from "../src/mdbar/mdbuttons.ts";
 import { escapeAttr } from "../src/htmlutil.ts";
-import { pickerOptions } from "../src/slotmenu.ts";
+import { pickerOptions } from "../src/slots/slotmenu.ts";
 
 const NOW = new Date(2026, 9, 18);
 

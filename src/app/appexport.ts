@@ -1,6 +1,6 @@
 import { flash } from "../clipboard.ts";
 import { initExport, type ExportControl } from "../export.ts";
-import { isFileSlot } from "../fileslots.ts";
+import { isFileSlot } from "../slots/fileslots.ts";
 import { escapeHtml } from "../htmlutil.ts";
 import type { CompiledPdf } from "../preview/pdfcache.ts";
 import type { ProjectLink } from "../project/projectlink.ts";

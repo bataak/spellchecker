@@ -1,4 +1,4 @@
-import { PROJECT_SLOT } from "./fileslots.ts";
+import { PROJECT_SLOT } from "./slots/fileslots.ts";
 import { looksLatex } from "./spell/codeskip.ts";
 import { PLAIN } from "./templates.ts";
 

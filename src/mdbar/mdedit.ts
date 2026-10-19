@@ -1,7 +1,7 @@
-import { codeRanges, fencedCode, inRanges } from "./spell/codeskip.ts";
-import { replaceRange } from "./editortext.ts";
-import { imageAttrs, parseImageAttrs } from "./markdown.ts";
-import type { ImageSize } from "./markdown.ts";
+import { codeRanges, fencedCode, inRanges } from "../spell/codeskip.ts";
+import { replaceRange } from "../editortext.ts";
+import { imageAttrs, parseImageAttrs } from "../markdown.ts";
+import type { ImageSize } from "../markdown.ts";
 
 export interface Edit {
   readonly text: string;

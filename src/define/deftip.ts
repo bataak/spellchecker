@@ -5,11 +5,11 @@ import {
   type Definition,
 } from "./definitions.ts";
 import { createPauseToggle, createTipWindow } from "./tipwindow.ts";
-import type { Backdrop } from "./backdrop.ts";
-import { KEYBOARD_LAYOUT_EVENT } from "./kbtoolbar.ts";
-import { escapeHtml } from "./htmlutil.ts";
-import { isTouch } from "./input.ts";
-import type { WordSpan } from "./spell/lookup.ts";
+import type { Backdrop } from "../backdrop.ts";
+import { KEYBOARD_LAYOUT_EVENT } from "../kbtoolbar.ts";
+import { escapeHtml } from "../htmlutil.ts";
+import { isTouch } from "../input.ts";
+import type { WordSpan } from "../spell/lookup.ts";
 import { emptyNote, type DefDock } from "./defdock.ts";
 
 const LATIN = /\p{Script=Latin}/u;

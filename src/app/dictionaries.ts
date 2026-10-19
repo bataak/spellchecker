@@ -3,7 +3,7 @@ import { initIgnoreList } from "../ignorelist.ts";
 import { onIgnoredChange } from "../spell/ignore.ts";
 import { isDashSuffix } from "../spell/textcheck.ts";
 import type { Token } from "../spell/textcheck.ts";
-import { initSuggest } from "../suggest.ts";
+import { initSuggest } from "../feedback/suggest.ts";
 import {
   createDictLife,
   type DictLife,

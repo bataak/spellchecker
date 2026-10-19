@@ -1,4 +1,4 @@
-import { PROJECT_SLOT } from "./fileslots.ts";
+import { PROJECT_SLOT } from "./slots/fileslots.ts";
 
 export interface TabGuardDeps {
   readonly slot: () => string;

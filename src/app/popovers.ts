@@ -1,7 +1,7 @@
 import type { Backdrop } from "../backdrop.ts";
-import { initDefDock, type DefDock } from "../defdock.ts";
-import { initDefineControls } from "../definecontrols.ts";
-import { initDefTip, type DefTip } from "../deftip.ts";
+import { initDefDock, type DefDock } from "../define/defdock.ts";
+import { initDefineControls } from "../define/definecontrols.ts";
+import { initDefTip, type DefTip } from "../define/deftip.ts";
 import { initErrorPanel, type ErrorPanel } from "../errorpanel.ts";
 import { initPopover, type Popover } from "../popover.ts";
 import type { SpellChecker } from "../spell/spellchecker.ts";

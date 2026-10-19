@@ -1,7 +1,7 @@
 import { applyEdit, enterInsert, insertImage } from "./mdedit.ts";
-import { replaceRange, swapText } from "./editortext.ts";
-import { splitName } from "./office/filename.ts";
-import { freeImagePath, pickImage, putImage } from "./images.ts";
+import { replaceRange, swapText } from "../editortext.ts";
+import { splitName } from "../office/filename.ts";
+import { freeImagePath, pickImage, putImage } from "../images.ts";
 import {
   FILE_LIMIT,
   PROJECT_SLOT,
@@ -9,12 +9,12 @@ import {
   nextFileId,
   sameFile,
   textSum,
-} from "./fileslots.ts";
-import { PLAIN, findTemplate, isPlain } from "./templates.ts";
-import { KEYS } from "./store.ts";
+} from "../slots/fileslots.ts";
+import { PLAIN, findTemplate, isPlain } from "../templates.ts";
+import { KEYS } from "../store.ts";
 import { buildButtons, formatEdit, type Role } from "./mdbuttons.ts";
-import { createSlotDropdown } from "./slotdropdown.ts";
-import { buildPicker, pickerOptions } from "./slotmenu.ts";
+import { createSlotDropdown } from "../slots/slotdropdown.ts";
+import { buildPicker, pickerOptions } from "../slots/slotmenu.ts";
 import {
   LARGE_DRAFT,
   chosenExample,
@@ -35,12 +35,12 @@ import {
   saveTemplateId,
   smallDraft,
   type Caret,
-} from "./slotstore.ts";
-import { createSlotList } from "./slotlist.ts";
-import { initTopbarFit } from "./topbarfit.ts";
+} from "../slots/slotstore.ts";
+import { createSlotList } from "../slots/slotlist.ts";
+import { initTopbarFit } from "../topbarfit.ts";
 import { createButtonState } from "./mdbuttonstate.ts";
 
-export { sharedSlot, type Caret } from "./slotstore.ts";
+export { sharedSlot, type Caret } from "../slots/slotstore.ts";
 
 export interface MdToolbarOptions {
   readonly editor: HTMLTextAreaElement;
@@ -395,7 +395,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   }
 
   async function loadDefault(key: string, example: string): Promise<void> {
-    const { exampleText } = await import("./examples.ts");
+    const { exampleText } = await import("../examples.ts");
     const text = exampleText(example);
     if (
       text === undefined ||

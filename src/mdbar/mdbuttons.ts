@@ -1,4 +1,4 @@
-import { escapeAttr } from "./htmlutil.ts";
+import { escapeAttr } from "../htmlutil.ts";
 import {
   cycleCase,
   insertPageBreak,

@@ -1,7 +1,7 @@
 import { resetStorage, rawGet, rawSet } from "./helpers/mock-storage.ts";
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { getSubmitted, addSubmitted } from "../src/submitted.ts";
+import { getSubmitted, addSubmitted } from "../src/feedback/submitted.ts";
 
 const KEY = "mn-spell:submitted";
 

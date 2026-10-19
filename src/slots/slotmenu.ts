@@ -1,6 +1,6 @@
 import { PROJECT_SLOT, type FileSlot } from "./fileslots.ts";
-import { escapeAttr } from "./htmlutil.ts";
-import { TEMPLATE_GROUPS, TEMPLATES, findTemplate } from "./templates.ts";
+import { escapeAttr } from "../htmlutil.ts";
+import { TEMPLATE_GROUPS, TEMPLATES, findTemplate } from "../templates.ts";
 
 export function pickerOptions(
   files: readonly FileSlot[],
