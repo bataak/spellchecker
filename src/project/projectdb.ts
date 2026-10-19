@@ -1,15 +1,11 @@
+import { openDatabase } from "../core/idb.ts";
 import { noteError } from "../core/errorlog.ts";
 
 const DB_NAME = "bichig-project";
 const DB_STORE = "kv";
 
 function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
-    request.onupgradeneeded = () => request.result.createObjectStore(DB_STORE);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
+  return openDatabase(DB_NAME, (db) => db.createObjectStore(DB_STORE));
 }
 
 export async function dbGet<T>(key: string): Promise<T | null> {
