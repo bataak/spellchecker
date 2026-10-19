@@ -3,10 +3,9 @@ import assert from "node:assert/strict";
 import { createDocMode } from "../src/docmode.ts";
 
 const setup = () => {
-  const state = { office: false, bound: false, name: null as string | null };
+  const state = { office: false, name: null as string | null };
   const mode = createDocMode({
     officeActive: () => state.office,
-    projectBound: () => state.bound,
     fileName: () => state.name,
   });
   return { state, mode };
@@ -42,7 +41,7 @@ test("docmode төсөл LaTeX, Word файл LaTeX биш", () => {
   state.name = "notes.md";
   assert.equal(mode.isLatex(""), true);
   mode.setTemplate("plain");
-  state.bound = true;
+  mode.setProjectBound(true);
   assert.equal(mode.isLatex(""), true);
   state.office = true;
   assert.equal(mode.isLatex(TEX), false);

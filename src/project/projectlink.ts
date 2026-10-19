@@ -52,6 +52,7 @@ export interface ProjectLinkDeps {
   readonly slots: SlotPort;
   readonly file: OpenFilePort;
   readonly texActive: () => boolean;
+  readonly onBound: (bound: boolean) => void;
   readonly afterSwitch: () => void;
   readonly onChange: () => void;
   readonly onProject: (name: string | null) => void;
@@ -140,8 +141,13 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     });
   };
 
+  const setBound = (on: boolean): void => {
+    bound = on;
+    deps.onBound(on);
+  };
+
   const bind = (path: string): void => {
-    bound = true;
+    setBound(true);
     boundPath = path;
     boundId = project()?.id ?? 0;
     detached = false;
@@ -150,7 +156,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
 
   const unbind = (forget: boolean): void => {
     remember();
-    bound = false;
+    setBound(false);
     boundPath = null;
     if (forget) storeSlot(null);
   };
@@ -178,7 +184,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     }
     pushText();
     remember();
-    bound = false;
+    setBound(false);
     setActive(path);
     bind(path);
     deps.file.bind(baseName(path));

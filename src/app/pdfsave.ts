@@ -6,7 +6,7 @@ import { createPdfSaver } from "../savepdf.ts";
 const NOTIFY_MS = 8000;
 
 export interface PdfSaveDeps {
-  readonly preview: () => Preview | null;
+  readonly preview: Preview;
   readonly mainFile: () => string | null;
   readonly baseName: () => string | null;
   readonly mobileTex: () => boolean;
@@ -30,10 +30,7 @@ export function createPdfSave(deps: PdfSaveDeps): PdfSaveControl {
   });
   return {
     name,
-    applies: () => deps.mobileTex() && deps.preview() !== null,
-    async save() {
-      const preview = deps.preview();
-      if (preview) await saveFile(() => preview.pdf());
-    },
+    applies: deps.mobileTex,
+    save: () => saveFile(() => deps.preview.pdf()),
   };
 }
