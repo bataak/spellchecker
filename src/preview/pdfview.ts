@@ -5,6 +5,7 @@ import {
   DESKTOP_CANVAS_PIXELS,
   TOUCH_CANVAS_PIXELS,
 } from "./viewprefs.ts";
+import { covers, detailRect, type Box, type DetailRect } from "./pdfdetail.ts";
 
 let pdfjsPromise: Promise<typeof import("pdfjs-dist")> | null = null;
 
@@ -42,6 +43,14 @@ function dropWorker(): void {
 const ROOT_MARGIN = "900px 0px";
 
 const MAX_DPR = 2;
+const DETAIL_MARGIN = 0.25;
+const DETAIL_DELAY_MS = 200;
+
+interface Detail {
+  readonly canvas: HTMLCanvasElement;
+  readonly rect: DetailRect;
+  readonly width: number;
+}
 
 interface PageSlot {
   el: HTMLElement;
@@ -50,6 +59,10 @@ interface PageSlot {
   task: { cancel: () => void } | null;
   rendering: boolean;
   gen: number;
+  density: number;
+  detail: Detail | null;
+  detailTask: { cancel: () => void } | null;
+  detailGen: number;
 }
 
 export interface PdfView {
@@ -123,6 +136,10 @@ export async function renderPdfInto(
       task: null,
       rendering: false,
       gen: 0,
+      density: dpr,
+      detail: null,
+      detailTask: null,
+      detailGen: 0,
     });
   }
 
@@ -133,7 +150,9 @@ export async function renderPdfInto(
     const y = (box.top + slot.el.clientTop) * dpr;
     const dx = (Math.round(x) - x) / dpr;
     const dy = (Math.round(y) - y) / dpr;
-    slot.canvas.style.transform = dx || dy ? `translate(${dx}px, ${dy}px)` : "";
+    const shift = dx || dy ? `translate(${dx}px, ${dy}px)` : "";
+    slot.canvas.style.transform = shift;
+    if (slot.detail) slot.detail.canvas.style.transform = shift;
   };
 
   const inset = (): number => options.inset?.() ?? 0;
@@ -166,10 +185,27 @@ export async function renderPdfInto(
       for (const slot of slots) snap(slot);
       reportPage();
     });
+    scheduleDetail();
   };
   host.addEventListener("scroll", onScroll, { passive: true });
 
+  const freeCanvas = (canvas: HTMLCanvasElement): void => {
+    canvas.width = 0;
+    canvas.height = 0;
+  };
+
+  const dropDetail = (slot: PageSlot): void => {
+    slot.detailGen++;
+    slot.detailTask?.cancel();
+    slot.detailTask = null;
+    if (!slot.detail) return;
+    slot.detail.canvas.remove();
+    freeCanvas(slot.detail.canvas);
+    slot.detail = null;
+  };
+
   const release = (slot: PageSlot): void => {
+    dropDetail(slot);
     slot.gen++;
     slot.task?.cancel();
     slot.task = null;
@@ -214,15 +250,109 @@ export async function renderPdfInto(
       if (gen !== slot.gen) return;
       slot.task = null;
       if (!slot.rendering) return;
+      slot.density = density;
+      if (density >= dpr) dropDetail(slot);
       slot.el.replaceChildren(canvas);
+      if (slot.detail) slot.el.append(slot.detail.canvas);
       slot.canvas = canvas;
       snap(slot);
       page.cleanup();
+      scheduleDetail();
     } catch {
     } finally {
       if (gen === slot.gen) slot.rendering = false;
     }
   };
+
+  const pageBox = (slot: PageSlot): Box => {
+    const box = slot.el.getBoundingClientRect();
+    return {
+      left: box.left + slot.el.clientLeft,
+      top: box.top + slot.el.clientTop,
+      width: slot.el.clientWidth,
+      height: slot.el.clientHeight,
+    };
+  };
+
+  const viewBox = (): Box => {
+    const frame = host.getBoundingClientRect();
+    return {
+      left: frame.left + host.clientLeft,
+      top: frame.top + host.clientTop,
+      width: host.clientWidth,
+      height: host.clientHeight,
+    };
+  };
+
+  const percent = (part: number, whole: number): string =>
+    (part / whole) * 100 + "%";
+
+  const drawDetail = async (slot: PageSlot): Promise<void> => {
+    if (!slot.canvas || slot.rendering || slot.density >= dpr) return;
+    const page = pageBox(slot);
+    const view = viewBox();
+    const need = detailRect(page, view, 0, dpr);
+    if (!need) return;
+    const held = slot.detail;
+    if (held && held.width === page.width && covers(held.rect, need)) return;
+    const margin = Math.max(view.width, view.height) * DETAIL_MARGIN;
+    const rect = detailRect(page, view, margin, dpr) ?? need;
+    slot.detailTask?.cancel();
+    slot.detailTask = null;
+    const gen = ++slot.detailGen;
+    const canvas = document.createElement("canvas");
+    try {
+      const pdfPage = await doc.getPage(slot.index);
+      if (gen !== slot.detailGen) return;
+      const viewport = pdfPage.getViewport({
+        scale: (page.width * dpr) / base.width,
+        offsetX: -rect.x * dpr,
+        offsetY: -rect.y * dpr,
+      });
+      canvas.className = "pdf-detail";
+      canvas.width = Math.round(rect.w * dpr);
+      canvas.height = Math.round(rect.h * dpr);
+      canvas.style.left = percent(rect.x, page.width);
+      canvas.style.top = percent(rect.y, page.height);
+      canvas.style.width = percent(rect.w, page.width);
+      canvas.style.height = percent(rect.h, page.height);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      const render = pdfPage.render({ canvas, canvasContext: ctx, viewport });
+      slot.detailTask = render;
+      await render.promise;
+      if (gen !== slot.detailGen || !slot.canvas) return;
+      slot.detailTask = null;
+      const old = slot.detail;
+      slot.el.append(canvas);
+      slot.detail = { canvas, rect, width: page.width };
+      if (old) {
+        old.canvas.remove();
+        freeCanvas(old.canvas);
+      }
+      snap(slot);
+    } catch {
+    } finally {
+      if (slot.detail?.canvas !== canvas) freeCanvas(canvas);
+    }
+  };
+
+  let detailTimer = 0;
+  let detailRun = 0;
+  function scheduleDetail(): void {
+    clearTimeout(detailTimer);
+    const run = ++detailRun;
+    detailTimer = window.setTimeout(async () => {
+      if (zooming) return;
+      const order = [...visible]
+        .filter((slot) => offscreen(slot) === 0)
+        .sort((a, b) => a.index - b.index);
+      for (const slot of order) {
+        if (run !== detailRun || zooming) return;
+        await drawDetail(slot);
+      }
+    }, DETAIL_DELAY_MS);
+  }
 
   let found: Promise<readonly PdfWord[]> | null = null;
   const readWords = async (): Promise<readonly PdfWord[]> => {
@@ -270,25 +400,33 @@ export async function renderPdfInto(
 
   let resizeTimer = 0;
   const stretch = (): void => {
-    for (const canvas of list.querySelectorAll("canvas")) {
+    for (const canvas of list.querySelectorAll<HTMLCanvasElement>(
+      "canvas:not(.pdf-detail)",
+    )) {
       canvas.style.width = "100%";
       canvas.style.height = "auto";
       canvas.style.transform = "";
     }
   };
-  const offscreen = (slot: PageSlot): number => {
+  function offscreen(slot: PageSlot): number {
     const frame = host.getBoundingClientRect();
     const box = slot.el.getBoundingClientRect();
     if (box.bottom < frame.top) return frame.top - box.bottom;
     if (box.top > frame.bottom) return box.top - frame.bottom;
     return 0;
-  };
+  }
 
   let redrawGen = 0;
   const redraw = (delay: number): void => {
     stretch();
     zooming = true;
     clearTimeout(resizeTimer);
+    clearTimeout(detailTimer);
+    for (const slot of slots) {
+      slot.detailGen++;
+      slot.detailTask?.cancel();
+      slot.detailTask = null;
+    }
     const gen = ++redrawGen;
     resizeTimer = window.setTimeout(async () => {
       zooming = false;
@@ -451,6 +589,7 @@ export async function renderPdfInto(
       if (snapFrame) cancelAnimationFrame(snapFrame);
       clearTimeout(resizeTimer);
       clearTimeout(markTimer);
+      clearTimeout(detailTimer);
       ro.disconnect();
       io.disconnect();
       for (const slot of slots) release(slot);
