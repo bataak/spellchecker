@@ -1,4 +1,4 @@
-import type { OpenFile } from "./fileio.ts";
+import type { OpenFile } from "../fileio.ts";
 import { PROJECT_SLOT } from "./fileslots.ts";
 import {
   dropOfficeFile,
@@ -7,7 +7,7 @@ import {
   saveDraftFile,
   saveOfficeFile,
   type DraftFile,
-} from "./storage.ts";
+} from "../storage.ts";
 
 export interface SlotSwitchDeps {
   readonly editor: HTMLTextAreaElement;

@@ -1,6 +1,6 @@
 import type { Backdrop } from "./backdrop.ts";
-import { pickDefinitionMarks } from "./defmarks.ts";
-import type { DefTip } from "./deftip.ts";
+import { pickDefinitionMarks } from "./define/defmarks.ts";
+import type { DefTip } from "./define/deftip.ts";
 import { escapeHtml } from "./htmlutil.ts";
 import { syncIgnoreVisibility } from "./ignorelist.ts";
 import type { Popover } from "./popover.ts";

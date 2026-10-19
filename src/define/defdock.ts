@@ -1,5 +1,5 @@
-import { parseDock, resolveDock, type DockPlace } from "./layout.ts";
-import { KEYS, read, remove, write } from "./store.ts";
+import { parseDock, resolveDock, type DockPlace } from "../layout.ts";
+import { KEYS, read, remove, write } from "../store.ts";
 
 const EMPTY_TEXT = "Тайлбар харах үгэн дээр заагчаа аваачна уу";
 const DRAG_THRESHOLD = 5;

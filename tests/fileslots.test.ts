@@ -10,7 +10,7 @@ import {
   parseSlots,
   sameFile,
   textSum,
-} from "../src/fileslots.ts";
+} from "../src/slots/fileslots.ts";
 
 test("nextFileId: хаагдсан файлын дугаарыг дахин өгөхгүй", () => {
   const slots = [{ id: "file-1", name: "a.txt", sum: null }];

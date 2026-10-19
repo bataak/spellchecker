@@ -1,4 +1,4 @@
-import { KEYS, readJson, writeJson } from "./store.ts";
+import { KEYS, readJson, writeJson } from "../store.ts";
 export function getSubmitted(): Set<string> {
   const arr = readJson(KEYS.submitted);
   return new Set(

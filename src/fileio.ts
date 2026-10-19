@@ -1,5 +1,5 @@
 import { decodeFileBytes } from "./archive/cp1251.ts";
-import { bytesSum, fileSum } from "./fileslots.ts";
+import { bytesSum, fileSum } from "./slots/fileslots.ts";
 import { initFileDrop } from "./filedrop.ts";
 import {
   OPEN_TYPES,

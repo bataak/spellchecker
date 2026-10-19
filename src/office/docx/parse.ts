@@ -209,129 +209,128 @@ export function parsePart(
     buffer += char;
   };
 
-  const onTag = (tag: TagInfo): void => {
-    const { name: tagName, kind } = tag;
+  const trackField = (tag: TagInfo): void => {
+    const type = readAttr(xml, tag, "w:fldCharType");
+    if (type === "begin") instrDepth += 1;
+    else if (instrDepth > 0 && (type === "separate" || type === "end")) {
+      instrDepth -= 1;
+    }
+  };
 
-    if (kind === "self") {
-      if (tagName === vocab.fieldChar) {
-        const type = readAttr(xml, tag, "w:fldCharType");
-        if (type === "begin") instrDepth += 1;
-        else if (instrDepth > 0 && (type === "separate" || type === "end")) {
-          instrDepth -= 1;
-        }
-        return;
-      }
+  const isStyle = (tagName: string): boolean =>
+    vocab.style !== null && tagName === vocab.style && paragraphDepth >= 0;
 
-      if (
-        vocab.style !== null &&
-        tagName === vocab.style &&
-        paragraphDepth >= 0 &&
-        !skipping()
-      ) {
-        styleId = readAttr(xml, tag, "w:val");
-        return;
-      }
+  const onSelf = (tag: TagInfo): void => {
+    const tagName = tag.name;
 
-      if (tagName === vocab.runProps && stack[stack.length - 1] === vocab.run) {
-        runProps = xml.slice(tag.start, tag.end);
-        return;
-      }
-
-      if (vocab.stale.has(tagName) && paragraphDepth >= 0 && !skipping()) {
-        stale.push({ start: tag.start, end: tag.end });
-        return;
-      }
-
-      if (tagName === vocab.text && collecting()) {
-        openTextNode(tag);
-        return;
-      }
-
-      const glyph = vocab.glyphs[tagName];
-      if (glyph !== undefined && collecting()) {
-        pushGlyph(tag, glyph);
-        return;
-      }
-
-      const separator = vocab.separators[tagName];
-      if (separator !== undefined && collecting()) buffer += separator;
+    if (tagName === vocab.fieldChar) {
+      trackField(tag);
       return;
     }
 
-    if (kind === "open") {
-      stack.push(tagName);
-
-      if (vocab.skipped.has(tagName)) {
-        skipMarks.push(stack.length);
-        return;
-      }
-
-      if (skipping()) return;
-
-      if (tagName === vocab.paragraph && paragraphDepth < 0) {
-        openParagraph(tag);
-        return;
-      }
-
-      if (tagName === vocab.fieldChar) {
-        const type = readAttr(xml, tag, "w:fldCharType");
-        if (type === "begin") instrDepth += 1;
-        else if (instrDepth > 0 && (type === "separate" || type === "end")) {
-          instrDepth -= 1;
-        }
-        return;
-      }
-
-      if (
-        vocab.style !== null &&
-        tagName === vocab.style &&
-        paragraphDepth >= 0
-      ) {
-        styleId = readAttr(xml, tag, "w:val");
-        return;
-      }
-
-      if (tagName === vocab.run) {
-        runProps = "";
-        return;
-      }
-
-      const separator = vocab.separators[tagName];
-      if (separator !== undefined && collecting()) {
-        buffer += separator;
-        return;
-      }
-
-      if (tagName === vocab.runProps && stack[stack.length - 2] === vocab.run) {
-        runPropsStart = tag.start;
-        runPropsDepth = stack.length;
-        return;
-      }
-
-      if (tagName === vocab.text && collecting()) openTextNode(tag);
+    if (isStyle(tagName) && !skipping()) {
+      styleId = readAttr(xml, tag, "w:val");
       return;
     }
 
-    if (
-      skipMarks.length > 0 &&
-      skipMarks[skipMarks.length - 1] === stack.length
-    ) {
+    if (tagName === vocab.runProps && stack[stack.length - 1] === vocab.run) {
+      runProps = xml.slice(tag.start, tag.end);
+      return;
+    }
+
+    if (vocab.stale.has(tagName) && paragraphDepth >= 0 && !skipping()) {
+      stale.push({ start: tag.start, end: tag.end });
+      return;
+    }
+
+    if (!collecting()) return;
+
+    if (tagName === vocab.text) {
+      openTextNode(tag);
+      return;
+    }
+
+    const glyph = vocab.glyphs[tagName];
+    if (glyph !== undefined) {
+      pushGlyph(tag, glyph);
+      return;
+    }
+
+    const separator = vocab.separators[tagName];
+    if (separator !== undefined) buffer += separator;
+  };
+
+  const onOpen = (tag: TagInfo): void => {
+    const tagName = tag.name;
+    stack.push(tagName);
+
+    if (vocab.skipped.has(tagName)) {
+      skipMarks.push(stack.length);
+      return;
+    }
+
+    if (skipping()) return;
+
+    if (tagName === vocab.paragraph && paragraphDepth < 0) {
+      openParagraph(tag);
+      return;
+    }
+
+    if (tagName === vocab.fieldChar) {
+      trackField(tag);
+      return;
+    }
+
+    if (isStyle(tagName)) {
+      styleId = readAttr(xml, tag, "w:val");
+      return;
+    }
+
+    if (tagName === vocab.run) {
+      runProps = "";
+      return;
+    }
+
+    const separator = vocab.separators[tagName];
+    if (separator !== undefined && collecting()) {
+      buffer += separator;
+      return;
+    }
+
+    if (tagName === vocab.runProps && stack[stack.length - 2] === vocab.run) {
+      runPropsStart = tag.start;
+      runPropsDepth = stack.length;
+      return;
+    }
+
+    if (tagName === vocab.text && collecting()) openTextNode(tag);
+  };
+
+  const closeTag = (tag: TagInfo): void => {
+    const tagName = tag.name;
+    if (tagName === vocab.text) closeTextNode(tag);
+    else if (tagName === vocab.runProps && runPropsDepth === stack.length) {
+      runProps = xml.slice(runPropsStart, tag.end);
+      runPropsDepth = -1;
+    } else if (tagName === vocab.run) runProps = "";
+    else if (tagName === vocab.paragraph && paragraphDepth === stack.length)
+      closeParagraph(tag);
+  };
+
+  const onClose = (tag: TagInfo): void => {
+    if (skipMarks[skipMarks.length - 1] === stack.length) {
       skipMarks.pop();
       stack.pop();
       return;
     }
-
-    if (!skipping()) {
-      if (tagName === vocab.text) closeTextNode(tag);
-      else if (tagName === vocab.runProps && runPropsDepth === stack.length) {
-        runProps = xml.slice(runPropsStart, tag.end);
-        runPropsDepth = -1;
-      } else if (tagName === vocab.run) runProps = "";
-      else if (tagName === vocab.paragraph && paragraphDepth === stack.length)
-        closeParagraph(tag);
-    }
-
+    if (!skipping()) closeTag(tag);
     stack.pop();
+  };
+
+  const onTag = (tag: TagInfo): void => {
+    if (tag.kind === "self") onSelf(tag);
+    else if (tag.kind === "open") onOpen(tag);
+    else onClose(tag);
   };
 
   const onText = (start: number, end: number): void => {

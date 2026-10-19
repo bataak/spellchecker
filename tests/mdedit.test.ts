@@ -19,8 +19,8 @@ import {
   minimalDiff,
   toggleQuote,
   wrapLink,
-} from "../src/mdedit.ts";
-import type { AlignKind } from "../src/mdedit.ts";
+} from "../src/mdbar/mdedit.ts";
+import type { AlignKind } from "../src/mdbar/mdedit.ts";
 
 function at(marked: string): { text: string; start: number; end: number } {
   const start = marked.indexOf("|");

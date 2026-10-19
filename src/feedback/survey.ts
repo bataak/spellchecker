@@ -1,4 +1,4 @@
-import { escapeHtml } from "./htmlutil.ts";
+import { escapeHtml } from "../htmlutil.ts";
 import {
   SURVEY_ID,
   SURVEY_TITLE,
@@ -6,7 +6,7 @@ import {
   NOTES_TITLE,
   SURVEY_QUESTIONS,
 } from "./survey-def.ts";
-import { KEYS, at, read, readJson, write, writeJson } from "./store.ts";
+import { KEYS, at, read, readJson, write, writeJson } from "../store.ts";
 
 const ENDPOINT = "https://api.bichig.dev/survey";
 const DONE_KEY = at(KEYS.surveyDone, SURVEY_ID);

@@ -1,0 +1,235 @@
+import { resetStorage } from "./helpers/mock-storage.ts";
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import { restoreDraftFile } from "../src/app/draftfile.ts";
+import { createOpenPolicy, type OpenSlots } from "../src/app/openpolicy.ts";
+import { createSignal } from "../src/app/signal.ts";
+import { watchTabs } from "../src/app/tabwatch.ts";
+import { createTexMode } from "../src/app/texmode.ts";
+import { createEditorPort } from "../src/ports.ts";
+import { initStatus } from "../src/status.ts";
+import { saveDraftFile } from "../src/storage.ts";
+
+const globals = globalThis as unknown as Record<string, unknown>;
+
+test("signal: бүртгэсэн дарааллаар бүх сонсогчид хүрнэ", () => {
+  const signal = createSignal<number>();
+  const seen: string[] = [];
+  signal.on((v) => seen.push("a" + v));
+  signal.on((v) => seen.push("b" + v));
+  signal.emit(1);
+  signal.emit(2);
+  assert.deepEqual(seen, ["a1", "b1", "a2", "b2"]);
+});
+
+test("texMode: start хүртэл sync юу ч хийхгүй, зөвхөн өөрчлөлтөд хариулна", () => {
+  let tex = false;
+  const calls: string[] = [];
+  const mode = createTexMode({
+    isTex: () => tex,
+    paint: (on) => calls.push("paint:" + on),
+    changed: () => calls.push("changed"),
+  });
+  tex = true;
+  mode.sync();
+  assert.deepEqual(calls, []);
+  mode.start();
+  mode.sync();
+  tex = false;
+  mode.sync();
+  mode.sync();
+  assert.deepEqual(calls, ["paint:true", "paint:false", "changed"]);
+});
+
+test("restoreDraftFile: office файлыг сэргээж, бүтэлгүйтвэл текст болгоно", async () => {
+  resetStorage();
+  const calls: string[] = [];
+  const deps = (officeOk: boolean) => ({
+    slot: () => "s1",
+    restoreOffice: async (name: string) => {
+      calls.push("office:" + name);
+      return officeOk;
+    },
+    restoreText: (ref: { name: string }) => calls.push("text:" + ref.name),
+    targetName: () => "target.txt",
+    opened: (name: string | null) => calls.push("opened:" + name),
+  });
+
+  await restoreDraftFile(deps(true));
+  assert.deepEqual(calls, []);
+
+  saveDraftFile({ name: "a.docx", kind: "office" }, "s1");
+  await restoreDraftFile(deps(true));
+  assert.deepEqual(calls.splice(0), ["office:a.docx", "opened:a.docx"]);
+
+  await restoreDraftFile(deps(false));
+  assert.deepEqual(calls.splice(0), [
+    "office:a.docx",
+    "text:a.docx",
+    "opened:target.txt",
+  ]);
+
+  saveDraftFile({ name: "b.md", kind: "text" }, "s1");
+  await restoreDraftFile(deps(true));
+  assert.deepEqual(calls, ["text:b.md", "opened:target.txt"]);
+});
+
+test("editorPort: settle нь popover хааж, хадгалж, дараа нь render хийнэ", async () => {
+  const calls: string[] = [];
+  const el = { scrollTop: 40, scrollLeft: 7 } as HTMLTextAreaElement;
+  const port = createEditorPort({
+    el,
+    set: (text, caret) => {
+      calls.push(`set:${text}:${caret}`);
+      el.scrollTop = 0;
+      el.scrollLeft = 0;
+    },
+    insert: () => calls.push("insert"),
+    render: async () => {
+      calls.push("render");
+      el.scrollTop = 99;
+    },
+    save: () => calls.push("save"),
+    hidePopover: () => calls.push("hide"),
+  });
+  await port.replace("x", 1);
+  assert.deepEqual(calls.splice(0), ["set:x:1", "hide", "save", "render"]);
+
+  el.scrollTop = 40;
+  el.scrollLeft = 7;
+  await port.reformat("y", 0);
+  assert.deepEqual(calls, ["set:y:0", "save", "render"]);
+  assert.equal(el.scrollTop, 40);
+  assert.equal(el.scrollLeft, 7);
+});
+
+function slots(state: {
+  found: string | null;
+  dirty?: boolean;
+  room?: boolean;
+}): OpenSlots & { shown: string[] } {
+  const shown: string[] = [];
+  return {
+    shown,
+    findFile: () => state.found,
+    showFile: (id: string) => void shown.push(id),
+    fileDirty: () => state.dirty ?? false,
+    openFile: () => state.room ?? true,
+  } as unknown as OpenSlots & { shown: string[] };
+}
+
+test("openPolicy: нээлттэй файлыг харуулж, бохир бол асууна", () => {
+  const asked: string[] = [];
+  globals.window = {
+    confirm: (message: string) => {
+      asked.push(message);
+      return true;
+    },
+  };
+  globals.document = { querySelector: () => null };
+  const hold = (): void => assert.fail("hold");
+
+  const clean = slots({ found: "file-1" });
+  assert.equal(createOpenPolicy(() => clean, hold)("a.md", "h", "t"), "open");
+  assert.deepEqual(clean.shown, ["file-1"]);
+  assert.equal(asked.length, 0);
+
+  const dirty = slots({ found: "file-2", dirty: true });
+  assert.equal(createOpenPolicy(() => dirty, hold)("a.md", "h", "t"), "reload");
+  assert.equal(asked.length, 1);
+
+  const noText = slots({ found: "file-2", dirty: true });
+  assert.equal(createOpenPolicy(() => noText, hold)("a.md", "h", null), "open");
+  assert.equal(asked.length, 1);
+
+  assert.equal(
+    createOpenPolicy(() => slots({ found: null }), hold)("b.md", "h", "t"),
+    "new",
+  );
+});
+
+test("openPolicy: хязгаарт хүрвэл мэдэгдэж false буцаана", () => {
+  globals.document = { querySelector: () => null };
+  const held: string[] = [];
+  const policy = createOpenPolicy(
+    () => slots({ found: null, room: false }),
+    (html) => void held.push(html),
+  );
+  assert.equal(policy("c.md", "h", "t"), false);
+  assert.equal(held.length, 1);
+  assert.match(held[0]!, /хүртэл файл нээнэ/);
+});
+
+function statusEl() {
+  return {
+    innerHTML: "",
+    offsetWidth: 0,
+    classList: { add() {}, remove() {} },
+  } as unknown as HTMLElement;
+}
+
+test("status: hold хугацаанд set-ийг хааж, дуусахад release дуудна", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  globals.window = globalThis;
+  const el = statusEl();
+  let released = 0;
+  const status = initStatus(el, () => {
+    released += 1;
+  });
+  status.set("a", false);
+  status.hold("b", 1000, false);
+  status.set("c", false);
+  assert.equal(el.innerHTML, "b");
+  t.mock.timers.tick(1000);
+  assert.equal(released, 1);
+  status.set("d", false);
+  assert.equal(el.innerHTML, "d");
+});
+
+test("status: release нь hold-ыг цуцалж onRelease дуудахгүй", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  globals.window = globalThis;
+  const el = statusEl();
+  let released = 0;
+  const status = initStatus(el, () => {
+    released += 1;
+  });
+  status.hold("b", 1000, false);
+  status.release();
+  status.set("c", false);
+  assert.equal(el.innerHTML, "c");
+  t.mock.timers.tick(2000);
+  assert.equal(released, 0);
+});
+
+test("watchTabs: ижил төсөл дахин мэдэгдэхэд sync илгээхгүй", async () => {
+  delete globals.document;
+  delete globals.window;
+  const listeners: (() => void)[] = [];
+  let uid: string | null = null;
+  const peer = new BroadcastChannel("mn-spell:tabs");
+  const updates: (string | null)[] = [];
+  peer.onmessage = (event: MessageEvent<{ type: string; project: string }>) => {
+    if (event.data.type === "update") updates.push(event.data.project);
+  };
+  const guard = watchTabs({
+    slot: () => "project",
+    project: () => uid,
+    onProjectChange: (listener) => listeners.push(listener),
+    warn: () => {},
+  });
+  const fire = (): void => listeners.forEach((listener) => listener());
+  uid = "p1";
+  fire();
+  fire();
+  uid = "p2";
+  fire();
+  uid = null;
+  fire();
+  fire();
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  guard.close();
+  peer.close();
+  assert.deepEqual(updates, ["p1", "p2", null]);
+});

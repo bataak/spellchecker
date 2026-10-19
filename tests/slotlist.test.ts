@@ -1,9 +1,9 @@
 import { resetStorage } from "./helpers/mock-storage.ts";
 import { beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
-import { loadSlots, saveSlots, textSum } from "../src/fileslots.ts";
-import { createSlotList } from "../src/slotlist.ts";
-import { saveDraft } from "../src/slotstore.ts";
+import { loadSlots, saveSlots, textSum } from "../src/slots/fileslots.ts";
+import { createSlotList } from "../src/slots/slotlist.ts";
+import { saveDraft } from "../src/slots/slotstore.ts";
 
 beforeEach(resetStorage);
 

@@ -1,5 +1,5 @@
 import { swapOrigin } from "./editortext.ts";
-import { minimalDiff } from "./mdedit.ts";
+import { minimalDiff } from "./mdbar/mdedit.ts";
 import { noteError } from "./errorlog.ts";
 
 export interface Step {

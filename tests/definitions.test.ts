@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createDefinitionCache } from "../src/definitions.ts";
+import { createDefinitionCache } from "../src/define/definitions.ts";
 
 const entry = { headword: "үг", text: "тайлбар", source: "толь" };
 

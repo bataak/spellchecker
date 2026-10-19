@@ -1,11 +1,11 @@
-import { isMeasure, type Measure } from "./layout.ts";
+import { isMeasure, type Measure } from "../layout.ts";
 import {
   CODE_RE,
   FRAME_RE,
   MAX_FRAMES,
   NAME_RE,
   type SafeError,
-} from "./safeerror.ts";
+} from "../safeerror.ts";
 
 export const DICT_IDS = ["mn_MN", "en_GB", "en_US"] as const;
 export type DictId = (typeof DICT_IDS)[number];

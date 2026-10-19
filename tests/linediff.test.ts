@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { lineDiff } from "../src/office/linediff.ts";
-import { mapToSource, mergeEdit, renderFlat } from "../src/office/mode.ts";
+import { mapToSource, mergeEdit } from "../src/office/mode.ts";
+import { renderFlat } from "../src/office/textdoc.ts";
 import type { OfficeEdit } from "../src/office/mode.ts";
 
 function sync(source: string, edits: OfficeEdit[], next: string): OfficeEdit[] {
