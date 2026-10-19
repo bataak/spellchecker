@@ -16,7 +16,7 @@ export const RULE_RE = /^\s*([-*_])(\s*\1){2,}\s*$/;
 const PAGEBREAK_RE = /^\s*\\newpage\s*$/;
 const BULLET_RE = /^(\s*)([-*+])\s+(.*)$/;
 const ORDERED_RE = /^(\s*)(\d+)[.)]\s+(.*)$/;
-const QUOTE_RE = /^\s*>\s?(.*)$/;
+const QUOTE_RE = /^\s*>\s?(.*)$/s;
 const FENCE_RE = /^\s*(`{3,}|~{3,})\s*(\S*)\s*$/;
 const MATH_RE = /^\s*(?:\$\$|\\\[|\\begin\{[A-Za-z]+\*?\})/;
 
@@ -541,7 +541,7 @@ function parseBlocks(src: string, top: boolean): Block[] {
     const read = readBlock(lines, i);
     if (read) {
       out.push(read.block);
-      i = read.next;
+      i = Math.max(read.next, i + 1);
     } else i += 1;
   }
 
