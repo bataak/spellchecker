@@ -126,7 +126,7 @@ test("ижил цонх эсвэл өөр төсөл нээлттэй бол а�
   const context = await app.context();
   const a = await openPage(app, context);
   const b = await openPage(app, context);
-  const warned = (text: string) => /өөр табад/.test(text);
+  const warned = (text: string) => /өөр талбарт мөн нээлттэй/.test(text);
   assert.ok(warned(await until(() => status(a), warned)));
   await chooseSlot(b, "Бичвэр 2");
   await a.waitForTimeout(9000);
