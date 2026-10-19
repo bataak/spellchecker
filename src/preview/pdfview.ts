@@ -55,6 +55,11 @@ interface PageSlot {
 export interface PdfView {
   readonly pages: number;
   setZoom(zoom: number, origin?: { x: number; y: number }): void;
+  pinch(
+    scale: number,
+    origin: { x: number; y: number },
+    shift: { x: number; y: number },
+  ): void;
   goTo(page: number): void;
   words(): Promise<readonly PdfWord[]>;
   reveal(page: number, y: number): void;
@@ -271,19 +276,33 @@ export async function renderPdfInto(
       canvas.style.transform = "";
     }
   };
+  const offscreen = (slot: PageSlot): number => {
+    const frame = host.getBoundingClientRect();
+    const box = slot.el.getBoundingClientRect();
+    if (box.bottom < frame.top) return frame.top - box.bottom;
+    if (box.top > frame.bottom) return box.top - frame.bottom;
+    return 0;
+  };
+
+  let redrawGen = 0;
   const redraw = (delay: number): void => {
     stretch();
     zooming = true;
     clearTimeout(resizeTimer);
-    resizeTimer = window.setTimeout(() => {
+    const gen = ++redrawGen;
+    resizeTimer = window.setTimeout(async () => {
       zooming = false;
-      for (const slot of visible) {
+      const order = [...visible].sort((a, b) => offscreen(a) - offscreen(b));
+      for (const slot of order) {
         slot.gen++;
         slot.task?.cancel();
         slot.task = null;
         slot.rendering = false;
         slot.canvas = null;
-        void draw(slot);
+      }
+      for (const slot of order) {
+        if (gen !== redrawGen) return;
+        if (visible.has(slot)) await draw(slot);
       }
     }, delay);
   };
@@ -387,6 +406,44 @@ export async function renderPdfInto(
         host.scrollTop += after.top + fy * after.height - y;
       }
       redraw(150);
+    },
+    pinch(scale, origin, shift) {
+      if (scale === 1 && !shift.x && !shift.y) {
+        list.style.transform = "";
+        list.style.transformOrigin = "";
+        return;
+      }
+      const frame = host.getBoundingClientRect();
+      const x =
+        origin.x -
+        frame.left -
+        host.clientLeft +
+        host.scrollLeft -
+        list.offsetLeft;
+      const y =
+        origin.y - frame.top - host.clientTop + host.scrollTop - list.offsetTop;
+      list.style.transformOrigin = `${x}px ${y}px`;
+      const place = (dx: number): void => {
+        list.style.transform = `translate(${dx}px, ${shift.y}px) scale(${scale})`;
+      };
+      const left = frame.left + host.clientLeft;
+      const right = left + host.clientWidth;
+      const fix = (box: DOMRect): number => {
+        if (box.width <= host.clientWidth)
+          return (left + right - box.width) / 2 - box.left;
+        if (box.left > left) return left - box.left;
+        if (box.right < right) return right - box.right;
+        return 0;
+      };
+      let dx = shift.x;
+      place(dx);
+      for (let pass = 0; pass < 8; pass++) {
+        const box = slots[0]?.el.getBoundingClientRect();
+        const step = box ? fix(box) : 0;
+        if (Math.abs(step) < 0.5) return;
+        dx += step;
+        place(dx);
+      }
     },
     destroy() {
       signal?.removeEventListener("abort", onAbort);
