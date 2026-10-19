@@ -42,6 +42,7 @@ export interface Preview {
   setFileName(name: string | null): void;
   setMarkdownMode(on: boolean): void;
   setSource(src: PreviewSource | null): void;
+  revealAt(offset: number): void;
   pdf(): Promise<CompiledPdf>;
   destroy(): void;
 }
@@ -139,6 +140,7 @@ export function initPreview(deps: PreviewDeps): Preview {
   let mathView: typeof import("./mathview.ts") | null = null;
   let syncTimer = 0;
   let syncedAt = -1;
+  let pendingReveal: number | null = null;
   let sourceCache: {
     readonly text: string;
     readonly words: readonly import("../tex/texsync.ts").SourceWord[];
@@ -205,27 +207,38 @@ export function initPreview(deps: PreviewDeps): Preview {
     return sourceCache.words;
   };
 
-  const syncToCaret = async (): Promise<void> => {
-    if (!previewShown() || document.activeElement !== area) return;
-    const caret = area.selectionStart;
-    if (caret === syncedAt) return;
+  const revealOffset = async (offset: number): Promise<boolean> => {
     if (area.dataset.layout) body.dataset.layout = area.dataset.layout;
     else delete body.dataset.layout;
     const view = pane.view();
     if (!tex.active()) {
-      if (view || source || !shownHtml) return;
-      syncedAt = caret;
-      htmlSync.revealLine(area.value.slice(0, caret).split("\n").length - 1);
-      return;
+      if (view || source || !shownHtml) return false;
+      htmlSync.revealLine(area.value.slice(0, offset).split("\n").length - 1);
+      return true;
     }
-    if (!view) return;
-    syncedAt = caret;
+    if (!view) return false;
     const { locate, sourceWords } = await import("../tex/texsync.ts");
     const words = sourceWordsOf(area.value, sourceWords);
     const pdf = await view.words();
-    if (view !== pane.view()) return;
-    const hit = locate(words, caret, pdf);
+    if (view !== pane.view()) return false;
+    const hit = locate(words, offset, pdf);
     if (hit) view.reveal(hit.page, hit.y);
+    return true;
+  };
+
+  const syncToCaret = async (): Promise<void> => {
+    if (!previewShown() || document.activeElement !== area) return;
+    const caret = area.selectionStart;
+    if (caret === syncedAt) return;
+    syncedAt = caret;
+    if (!(await revealOffset(caret))) syncedAt = -1;
+  };
+
+  const flushReveal = async (): Promise<void> => {
+    const offset = pendingReveal;
+    if (offset === null || !previewShown()) return;
+    if ((await revealOffset(offset)) && pendingReveal === offset)
+      pendingReveal = null;
   };
 
   function scheduleSync(): void {
@@ -268,6 +281,7 @@ export function initPreview(deps: PreviewDeps): Preview {
 
   const onEdit = (): void => {
     syncedAt = -1;
+    pendingReveal = null;
   };
 
   const onSelection = (): void => {
@@ -291,6 +305,7 @@ export function initPreview(deps: PreviewDeps): Preview {
     onShown: () => {
       syncedAt = -1;
       scheduleSync();
+      void flushReveal();
     },
     onImagesChanged: () => update(),
   });
@@ -328,6 +343,7 @@ export function initPreview(deps: PreviewDeps): Preview {
     raf = requestAnimationFrame(() => {
       raf = 0;
       renderMarkdown();
+      void flushReveal();
     });
   };
 
@@ -427,6 +443,11 @@ export function initPreview(deps: PreviewDeps): Preview {
     setFileName,
     setMarkdownMode,
     setSource,
+    revealAt(offset) {
+      pendingReveal = offset;
+      update();
+      void flushReveal();
+    },
     pdf: () => tex.pdf(),
     destroy() {
       if (imageUrl) URL.revokeObjectURL(imageUrl);
