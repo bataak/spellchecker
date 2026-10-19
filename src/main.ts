@@ -13,77 +13,56 @@ import { initFileIO } from "./fileio.ts";
 import { initImageStore } from "./imagestore.ts";
 import { initToolbar } from "./toolbar.ts";
 import { initKeyboardToolbar } from "./kbtoolbar.ts";
-import { initSuggest } from "./suggest.ts";
 import { initSurvey } from "./survey.ts";
-import { getIgnored, onIgnoredChange } from "./spell/ignore.ts";
-import { initIgnoreList } from "./ignorelist.ts";
 import { initAppearance } from "./appearance.ts";
 import { initMeasureControl } from "./measure.ts";
 import type { Layout } from "./layout.ts";
-import { initPreview } from "./preview/preview.ts";
-import { initPaneToggle } from "./panetoggle.ts";
 import { initSaveHints } from "./savehints.ts";
-import { missingNote, setSaveBusy } from "./savepdf.ts";
-import { zipTexText } from "./tex/texzip.ts";
 import { createPreviewMode } from "./previewmode.ts";
 import { createDocMode } from "./docmode.ts";
 import { createDocumentSession } from "./docsession.ts";
 import { initProjectLink } from "./project/projectlink.ts";
-import { PROJECT_SLOT, isFileSlot } from "./fileslots.ts";
+import { PROJECT_SLOT } from "./fileslots.ts";
 import { createProjectStore } from "./project/projectstore.ts";
-import { KEYS, write } from "./store.ts";
-import { escapeHtml } from "./htmlutil.ts";
-import { isDashSuffix } from "./spell/textcheck.ts";
-import { saveDraftFile, loadDraftFile } from "./storage.ts";
+import { saveDraftFile } from "./storage.ts";
 import { initMdToolbar, sharedSlot } from "./mdtoolbar.ts";
 import { initSlotSwitch } from "./slotswitch.ts";
-import { initTabGuard } from "./tabguard.ts";
-import { PLAIN } from "./templates.ts";
-import { initExport } from "./export.ts";
 import { createBackdrop } from "./backdrop.ts";
 import { createMarkLayer } from "./marklayer.ts";
 import { initMarkTap } from "./marktap.ts";
-import { initTexComplete } from "./tex/texcomplete.ts";
 import { initKeyboardLayout } from "./kblayout.ts";
 import { initUndoHistory } from "./undohistory.ts";
-import { initTexImageInput, insertPickedImage } from "./tex/teximages.ts";
-import { initDefineControls } from "./definecontrols.ts";
-import { initSuggestPopover } from "./suggestpopover.ts";
-import { rotateEmptyTips, syncEmptyTips } from "./emptytips.ts";
-import { initDictMenu } from "./dict/dictmenu.ts";
+import { rotateEmptyTips } from "./emptytips.ts";
 import { createOfficeSession } from "./office/session.ts";
 import { createDictStatus } from "./dict/dictstatus.ts";
 import { initStatus, reveal } from "./status.ts";
-import { flash } from "./clipboard.ts";
 import { initEditorText } from "./editortext.ts";
 import { initDraftText } from "./drafttext.ts";
-import { initClean, initDecode } from "./decode.ts";
 import { initAppUpdate } from "./appupdate.ts";
-import { requestDurableStorage } from "./offline.ts";
 import { initShortcuts } from "./shortcuts.ts";
-import { initDefTip } from "./deftip.ts";
-import { initDefDock } from "./defdock.ts";
-import { initPopover } from "./popover.ts";
-import { initErrorPanel } from "./errorpanel.ts";
 import { installErrorLog } from "./errorlog.ts";
-import { initReportButton } from "./reportbtn.ts";
 import { createEditorPort } from "./ports.ts";
 import { createDocStatus } from "./app/docstatus.ts";
-import { createDictLife } from "./app/dictlife.ts";
 import { createCheckLoop } from "./app/checkloop.ts";
 import { createEditorView } from "./app/editorview.ts";
 import { initAppHints } from "./app/apphints.ts";
 import { warmTex } from "./app/texwarm.ts";
 import { createOpenPolicy } from "./app/openpolicy.ts";
-import { createPdfSave } from "./app/pdfsave.ts";
 import { createSignal } from "./app/signal.ts";
-import { requireEl } from "./app/dom.ts";
-import {
-  bindArming,
-  bindComposition,
-  bindEditorInput,
-  type Caret,
-} from "./app/editorinput.ts";
+import { createEmptyState } from "./app/emptystate.ts";
+import { createTexMode } from "./app/texmode.ts";
+import { initAppExport } from "./app/appexport.ts";
+import { boot } from "./app/boot.ts";
+import { restoreDraftFile } from "./app/draftfile.ts";
+import { createPopovers } from "./app/popovers.ts";
+import { createFixers } from "./app/fixers.ts";
+import { createPreviewPane } from "./app/previewpane.ts";
+import { watchTabs } from "./app/tabwatch.ts";
+import { initTexInput } from "./app/texinput.ts";
+import { initAppReport } from "./app/appreport.ts";
+import { initDictionaries } from "./app/dictionaries.ts";
+import { nextFrame, queryShell } from "./app/dom.ts";
+import { bindArming, bindEditorInput, type Caret } from "./app/editorinput.ts";
 
 installErrorLog();
 
@@ -92,21 +71,11 @@ const { onProjectChange, project } = projectStore;
 
 document.body.classList.add("ready");
 
-const els = {
-  status: requireEl("#statusText"),
-  editor: requireEl<HTMLTextAreaElement>("#editor"),
-  backdrop: requireEl("#backdrop"),
-  popover: requireEl("#popover"),
-  emptyState: document.querySelector<HTMLElement>("#emptyState"),
-};
-const editorEl = els.editor;
-const workspace = requireEl(".workspace");
-const editorWrap = requireEl(".editor-wrap", workspace);
+const els = queryShell();
+const { editor: editorEl, workspace, editorWrap } = els;
+const { desktopMQ, narrowMQ, touchMQ } = els;
 const layoutChanged = createSignal<Layout>();
 
-const desktopMQ = window.matchMedia("(min-width: 1024px)");
-const narrowMQ = window.matchMedia("(max-width: 700px)");
-const touchMQ = window.matchMedia("(pointer: coarse)");
 const backdrop = createBackdrop(els.backdrop);
 backdrop.setLineBlocks(!narrowMQ.matches);
 narrowMQ.addEventListener("change", () => {
@@ -130,9 +99,7 @@ const spell = createSpellSession({
   isLatex: isLatexText,
   progress: async (message, animate) => {
     status.set(message, animate);
-    await new Promise<void>((resolve) =>
-      requestAnimationFrame(() => resolve()),
-    );
+    await nextFrame();
   },
 });
 
@@ -156,7 +123,7 @@ const office = createOfficeSession({
   status,
   showSource: (source) => previewCtl.setSource(source),
   baseline: () => undoCtl.baseline(),
-  syncFixButtons: () => syncFixButtons(),
+  syncFixButtons: () => fixers.sync(),
   onModeChange: () => {
     doc.syncSaveHint();
     exportCtl.syncPrint();
@@ -198,19 +165,17 @@ function isTexFile(): boolean {
   return isLatexText(editorEl.value);
 }
 
-let lastTex: boolean | null = null;
-function syncTexMode(): void {
-  if (lastTex === null) return;
-  const tex = isTexFile();
-  if (tex === lastTex) return;
-  lastTex = tex;
-  applyTexPaint(tex);
-  mdBar.refresh();
-  enterMdMode(doc.markdownActive());
-  previewCtl.update();
-  projectLink.sync();
-  clean.sync();
-}
+const texMode = createTexMode({
+  isTex: isTexFile,
+  paint: (on) => applyTexPaint(on),
+  changed: () => {
+    mdBar.refresh();
+    enterMdMode(doc.markdownActive());
+    previewCtl.update();
+    projectLink.sync();
+    clean.sync();
+  },
+});
 
 const marks = createMarkLayer({
   editor: editorEl,
@@ -233,20 +198,11 @@ const previewMode = createPreviewMode({
   },
 });
 
-function syncEmptyState(text: string): void {
-  const empty = text.length === 0;
-  previewMode.textChanged();
-  if (empty) defTip.clear();
-  if (!els.emptyState) return;
-  els.emptyState.classList.toggle("is-hidden", !empty);
-  els.emptyState.setAttribute("aria-hidden", empty ? "false" : "true");
-  const root = document.documentElement;
-  if (root.classList.contains("has-text") === empty) {
-    root.classList.toggle("has-text", !empty);
-    write(KEYS.hasText, empty ? "0" : "1");
-  }
-  syncEmptyTips(empty);
-}
+const syncEmptyState = createEmptyState({
+  el: els.emptyState,
+  textChanged: () => previewMode.textChanged(),
+  cleared: () => defTip.clear(),
+});
 
 const survey = initSurvey();
 
@@ -257,7 +213,7 @@ const loop = createCheckLoop({
   docStatus,
   prepare: (text) => {
     syncEmptyState(text);
-    syncTexMode();
+    texMode.sync();
     marks.follow();
     previewCtl.update();
   },
@@ -281,72 +237,28 @@ const render = loop.render;
 
 const syncSaveTitles = initSaveHints();
 
-const defDock = initDefDock({
+const { defDock, defTip, pop, errorPanel, suggestPopover } = createPopovers({
+  editor: editorEl,
+  backdrop,
+  popover: els.popover,
   workspace,
   editorWrap,
-  errorPanel: requireEl("#errorPanel"),
   desktopMQ,
-  room: (side, active) => measureCtl.dockRoom(side, active),
-});
-
-const defTip = initDefTip({
-  editor: editorEl,
-  popover: els.popover,
-  define: checker.define ? (word) => checker.define!(word) : undefined,
-  showPanel: (word) => void pop.showDefPanel(word),
-  hidePopover: () => pop.hide(),
-  holdStatus: status.hold,
-  dock: defDock,
-  backdrop,
-});
-
-const pop = initPopover({
-  editor: editorEl,
-  backdrop,
-  popover: els.popover,
-  defTip,
+  checker,
+  hold: status.hold,
+  englishEnabled: dicts.english,
+  tokenAtCaret: view.tokenAtCaret,
   syncScroll: view.syncScroll,
-});
-
-const errorPanel = initErrorPanel({
-  editor: editorEl,
-  backdrop,
-  desktopMQ,
   badTokens: () => marks.tokens(),
   lastCaret: () => lastCaret,
   setLastCaret: (caret) => {
     lastCaret = caret;
   },
-  onPick: () => fixFlow.drop(),
-  syncScroll: view.syncScroll,
-  showPopoverFor: (token) => void suggestPopover.showFor(token),
-});
-
-initDefineControls({
-  editor: editorEl,
-  backdrop,
-  checker,
-  defTip,
-  defDock,
-  pop,
-  holdStatus: status.hold,
-  englishEnabled: dicts.english,
-  errorAtCaret: view.tokenAtCaret,
-  showErrorPopover: (token) => void suggestPopover.showFor(token),
-});
-
-const suggestPopover = initSuggestPopover({
-  editor: editorEl,
-  backdrop,
-  popover: els.popover,
-  pop,
-  defTip,
-  checker,
-  desktopMQ,
+  dockRoom: (side, active) => measureCtl.dockRoom(side, active),
   render,
   apply: (token, replacement) => fixFlow.apply(token, replacement),
+  dropFix: () => fixFlow.drop(),
   attachKeyboard: (input) => kbLayout.attach(input),
-  errorAtCaret: view.tokenAtCaret,
 });
 
 const fixFlow = createFixFlow({
@@ -377,27 +289,20 @@ const editorText = initEditorText({
     }
     return true;
   },
-  onReplaced: () => syncFixButtons(),
+  onReplaced: () => fixers.sync(),
 });
 
-const fixButtonDeps = { editor, invalidate: () => spell.clear() };
-const decode = initDecode(fixButtonDeps);
-const STANDARD_LETTERS_MESSAGE = "Зарим үсгийн кодыг стандарт болгов";
-const announceLetters = (): void => decode.announce(STANDARD_LETTERS_MESSAGE);
-bindComposition(editorEl, announceLetters);
-const clean = initClean({
-  ...fixButtonDeps,
-  skip: () => !docMode.checksLetters() || isTexFile(),
+const fixers = createFixers({
+  editor,
+  invalidate: () => spell.clear(),
+  skipClean: () => !docMode.checksLetters() || isTexFile(),
 });
-function syncFixButtons(): void {
-  decode.sync();
-  clean.sync();
-}
+const { decode, clean, announceLetters } = fixers;
 
 const draft = initDraftText({
   editor: editorEl,
   onLoaded: () => {
-    syncFixButtons();
+    fixers.sync();
     if (editorEl.value) reveal(editorEl, "glyph-reveal");
   },
   onCaret: (caret) => {
@@ -444,35 +349,25 @@ initAppearance();
 const measureCtl = initMeasureControl(editorWrap, editorEl, layoutChanged.emit);
 defDock.sync(measureCtl.layout().panel);
 layoutChanged.on((l) => defDock.sync(l.panel));
-const previewCtl = initPreview({
+const {
+  preview: previewCtl,
+  pane: paneCtl,
+  pdfSave,
+} = createPreviewPane({
   wrap: editorWrap,
   area: editorEl,
+  workspace,
+  measure: measureCtl,
+  layoutChanged,
+  sideBySide: () => desktopMQ.matches,
+  visibleOffset: view.visibleOffset,
   onFormat: (next) =>
     void editor.reformat(next, Math.min(editorEl.selectionStart, next.length)),
   isLatex: isLatexText,
   projectKey: () => projectLink.key(),
   inProject: () => projectLink.bound(),
   texProject: () => projectLink.texProject(),
-  pdfName: () => pdfSave.name(),
   jump: view.revealRange,
-});
-const paneCtl = initPaneToggle(
-  workspace,
-  editorEl,
-  () => desktopMQ.matches && measureCtl.layout().preview,
-  (on) => {
-    if (!on) return;
-    previewCtl.update();
-    previewCtl.revealAt(view.visibleOffset());
-  },
-);
-layoutChanged.on(() => paneCtl.sync());
-layoutChanged.on((l) => {
-  if (l.preview) previewCtl.update();
-});
-
-const pdfSave = createPdfSave({
-  preview: previewCtl,
   mainFile: () => (projectLink.bound() ? (project()?.main ?? null) : null),
   baseName: doc.baseName,
   mobileTex: () =>
@@ -558,7 +453,7 @@ const mdBar = initMdToolbar({
     docMode.setTemplate(id);
     clean.sync();
     if (from !== mdBar.slot()) slots.enter(mdBar.slot());
-    syncTexMode();
+    texMode.sync();
     projectLink.sync();
     enterMdMode(doc.markdownActive());
     tabGuard.sync();
@@ -575,15 +470,12 @@ const nudgeHints = initAppHints({
 
 docMode.setTemplate(mdBar.template());
 clean.sync();
-lastTex = isTexFile();
-applyTexPaint(lastTex);
-initTexComplete({
+texMode.start();
+initTexInput({
   editor: editorEl,
   active: () => marks.tex(),
   rectAt: backdrop.rangeRectAt,
-  onImage: () => void insertPickedImage(editorEl),
 });
-initTexImageInput({ editor: editorEl, active: () => marks.tex() });
 const projectLink = initProjectLink({
   store: projectStore,
   editor: editorEl,
@@ -610,7 +502,7 @@ const projectLink = initProjectLink({
   onBound: docMode.setProjectBound,
   afterSwitch: () => {
     undoCtl.baseline();
-    syncTexMode();
+    texMode.sync();
     enterMdMode(doc.markdownActive());
     void render();
     draft.save();
@@ -620,7 +512,7 @@ const projectLink = initProjectLink({
     if (name === null) mdBar.leaveProject();
   },
   onChange: () => {
-    syncTexMode();
+    texMode.sync();
     previewCtl.update();
   },
   layout: () => measureCtl.refresh(),
@@ -650,104 +542,26 @@ function enterMdMode(on: boolean): void {
   nudgeHints();
 }
 
-const exportCtl = initExport({
+const exportCtl = initAppExport({
   editor: editorEl,
-  saveButton: document.querySelector<HTMLElement>("#saveBtn"),
-  printButton: document.querySelector<HTMLElement>("#printBtn"),
-  template: () => {
-    if (isTexFile()) return PLAIN;
-    const id = mdBar.template();
-    if (!isFileSlot(id)) return id;
-    return doc.isMarkdownFile() ? "report" : PLAIN;
-  },
+  templateId: () => mdBar.template(),
+  isMarkdownFile: doc.isMarkdownFile,
+  isTex: isTexFile,
   baseName: doc.baseName,
   blocked: officeActive,
-  isTex: isTexFile,
-  texProject: () => projectLink.texProject(),
-  texZip: async (text, name) => {
-    if (projectLink.bound()) return projectLink.zip();
-    const { blob, missing } = await zipTexText(text, name);
-    if (missing.length)
-      status.hold(missingNote("Архивт ороогүй зураг: ", missing), 8000, false);
-    return blob;
-  },
-  texZipped: () => projectLink.zipped(),
-  texPdf: async () => {
-    const { pdf, missing } = await previewCtl.pdf();
-    if (missing.length)
-      status.hold(missingNote("PDF-д ороогүй зураг: ", missing), 8000, false);
-    return pdf;
-  },
-  texSource: (name) => fileIO.saveSource(name, projectLink.bound()),
-  onDone: () => flash("#saveBtn", "Хадгаллаа"),
-  onBlocked: () => flash("#saveBtn", "Экспорт хийх боломжгүй"),
-  onPrintError: (error) => {
-    flash("#printBtn", "Хэвлэж чадсангүй");
-    if (error instanceof Error && error.name === "PdfError")
-      status.hold(escapeHtml(error.message), 8000, false);
-  },
-  onBusy: (busy, ext) =>
-    setSaveBusy(busy, ext === "zip" ? "Архивлаж байна…" : undefined),
+  project: () => projectLink,
+  pdf: () => previewCtl.pdf(),
+  saveSource: fileIO.saveSource,
+  hold: status.hold,
 });
 enterMdMode(doc.markdownActive());
 editorEl.addEventListener("input", nudgeHints);
 
-async function restoreDraftFile(): Promise<void> {
-  const ref = loadDraftFile(mdBar.slot());
-  if (!ref) return;
-  if (ref.kind === "office" && (await office.restore(ref.name))) {
-    doc.open(ref.name);
-    return;
-  }
-  fileIO.restoreFile(ref);
-  doc.open(fileIO.targetName());
-}
-
 initShortcuts({
   editor: editorEl,
-  openDictMenu: () => openDictMenu(),
+  openDictMenu: () => dictionaries.openMenu(),
   lastCaret: () => lastCaret,
 });
-
-const dictLife = createDictLife({
-  checker,
-  dicts,
-  docStatus,
-  status,
-  appUpdate,
-  blank: () => editorEl.value.trim() === "",
-  recheckAll: loop.recheckAll,
-});
-
-async function restoreView(): Promise<void> {
-  await draft.load();
-  undoCtl.baseline();
-  await restoreDraftFile();
-  await projectLink.restore();
-  void render();
-  document.documentElement.classList.remove("booting");
-  editorEl.focus({ preventScroll: true });
-  nudgeHints();
-  draft.restoreBootScroll();
-  void Promise.resolve(document.fonts?.ready).then(() => {
-    draft.restoreBootScroll();
-    requestAnimationFrame(() => {
-      draft.restoreBootScroll();
-      draft.dropBootScroll();
-    });
-  });
-  for (const type of ["pointerdown", "wheel", "keydown", "touchstart"])
-    editorEl.addEventListener(type, draft.dropBootScroll, { once: true });
-}
-
-async function boot(): Promise<void> {
-  void requestDurableStorage();
-  if (!import.meta.env.DEV) void appUpdate.recoverStale(true);
-  dictLife.watchFatal();
-  status.set("Hunspell ачаалж байна…");
-  await restoreView();
-  await dictLife.start();
-}
 
 desktopMQ.addEventListener("change", () => {
   paneCtl.sync();
@@ -775,72 +589,59 @@ initToolbar({
 });
 initKeyboardToolbar(editorEl, els.backdrop);
 
-initSuggest({
-  getBadTokens: () => marks.tokens(),
-  isDashSuffix: (token) => isDashSuffix(editorEl.value, token),
-  checkKnown: (list) =>
-    checker.ready && !checker.dead && checker.loadedIds.includes("mn_MN")
-      ? checker.checkWords(list)
-      : Promise.resolve(null),
-});
-
-initIgnoreList(() => void render());
-onIgnoredChange(() => void render());
-
-let guardedProject: string | null = null;
-const tabGuard = initTabGuard({
+const tabGuard = watchTabs({
   slot: () => mdBar.slot(),
   project: () => project()?.uid ?? null,
+  onProjectChange,
   warn: (message) => status.hold(message, 8000, false),
 });
-onProjectChange(() => {
-  const uid = project()?.uid ?? null;
-  if (uid === guardedProject) return;
-  guardedProject = uid;
-  tabGuard.sync();
+
+initAppReport({
+  entryUrl: import.meta.url,
+  editor: editorEl,
+  checker,
+  dicts,
+  officeActive,
+  markdownActive: doc.markdownActive,
+  fileName: doc.fileName,
+  layout: () => measureCtl.layout(),
+  errorWords: () => marks.tokens().map((token) => token.word),
 });
 
-initReportButton(() => {
-  const active = dicts.active();
-  return {
-    entryUrl: import.meta.url,
-    activeDicts: checker.loadedIds.filter((id) => active.includes(id)),
-    officeActive: officeActive(),
-    markdownActive: doc.markdownActive(),
-    fileName: doc.fileName(),
-    layout: measureCtl.layout(),
-    text: editorEl.value,
-    errorWords: marks.tokens().map((token) => token.word),
-    personalDict: getIgnored(),
-    listDicts: () => checker.listDicts?.({ peek: true }) ?? Promise.resolve([]),
-  };
-});
-
-const openDictMenu = initDictMenu({
+const dictionaries = initDictionaries({
+  checker,
+  dicts,
+  docStatus,
+  status,
+  appUpdate,
+  recheckAll: loop.recheckAll,
+  editor: editorEl,
   statusEl: els.status,
-  getEnabled: dicts.english,
-  onApply: dictLife.setEnglish,
-  onClose: () => editorEl.focus(),
+  badTokens: () => marks.tokens(),
+  render,
 });
 
-void document.fonts.ready.then(() => {
-  backdrop.reset();
-  void render();
+void boot({
+  editor: editorEl,
+  backdrop: els.backdrop,
+  draft,
+  baseline: () => undoCtl.baseline(),
+  restoreFile: () =>
+    restoreDraftFile({
+      slot: () => mdBar.slot(),
+      restoreOffice: office.restore,
+      restoreText: fileIO.restoreFile,
+      targetName: fileIO.targetName,
+      opened: doc.open,
+    }),
+  restoreProject: () => projectLink.restore(),
+  fontsLoaded: () => {
+    backdrop.reset();
+    void render();
+  },
+  render,
+  nudge: nudgeHints,
+  appUpdate,
+  dictLife: dictionaries.life,
+  status: (message) => status.set(message),
 });
-
-if (import.meta.env.DEV) {
-  const assertMetrics = () => {
-    const delta = els.backdrop.scrollHeight - editorEl.scrollHeight;
-    if (delta !== 0) {
-      console.warn("backdrop/editor өндрийн зөрүү:", delta, "px");
-    }
-  };
-  editorEl.addEventListener("input", assertMetrics);
-  void document.fonts.ready.then(assertMetrics);
-}
-
-void boot();
-
-setTimeout(() => {
-  document.documentElement.classList.remove("booting");
-}, 2000);

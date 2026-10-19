@@ -8,6 +8,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (name: string): string =>
   readFileSync(join(ROOT, "src", name), "utf8");
 const MAIN = read("main.ts");
+const FIXERS = read("app/fixers.ts");
 const LOOKAHEAD = 40;
 
 const ENTRYPOINTS: readonly [string, RegExp, string][] = [
@@ -50,9 +51,9 @@ test("засварлагчид текст оруулах зам бүр товч�
     [],
     "дараах мөрийн ойролцоо товч шинэчлэгдээгүй байна:\n" + missing.join("\n"),
   );
-  assert.match(MAIN, /onLoaded: \(\) => \{?\s*syncFixButtons\(\)/);
-  assert.match(MAIN, /onReplaced: \(\) => syncFixButtons\(\)/);
-  assert.match(MAIN, /decode\.sync\(\);\s*clean\.sync\(\);/);
+  assert.match(MAIN, /onLoaded: \(\) => \{?\s*fixers\.sync\(\)/);
+  assert.match(MAIN, /onReplaced: \(\) => fixers\.sync\(\)/);
+  assert.match(FIXERS, /decode\.sync\(\);\s*clean\.sync\(\);/);
 });
 
 test("товчийн илрүүлэгч main.ts-д холбогдсон байна", () => {
@@ -62,5 +63,6 @@ test("товчийн илрүүлэгч main.ts-д холбогдсон байн
   assert.match(decode, /#decodeBtn/);
   assert.match(decode, /#cleanBtn/);
   assert.match(decode, /needsCleanup/);
-  assert.match(MAIN, /from "\.\/decode\.ts"/);
+  assert.match(MAIN, /from "\.\/app\/fixers\.ts"/);
+  assert.match(FIXERS, /from "\.\.\/decode\.ts"/);
 });
