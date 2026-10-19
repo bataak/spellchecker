@@ -4,8 +4,8 @@ import {
   type SpellBackend,
   type SpellerInstance,
 } from "./backend.ts";
-import { attempt } from "../attempt.ts";
-import { noteError } from "../errorlog.ts";
+import { attempt } from "../core/attempt.ts";
+import { noteError } from "../core/errorlog.ts";
 
 export const DICTIONARIES = [
   { id: "mn_MN", label: "Монгол" },

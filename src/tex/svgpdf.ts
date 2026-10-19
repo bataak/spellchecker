@@ -53,12 +53,7 @@ async function addUnicodeFonts(pdf: jsPDF, source: string): Promise<void> {
       STYLES.filter((style) => style.used.test(source)).map((style) => ({
         id: family.id,
         style: style.style,
-        name:
-          "bichig-print-" +
-          family.file +
-          "-mn-" +
-          style.weight +
-          "-v1.ttf",
+        name: "bichig-print-" + family.file + "-mn-" + style.weight + "-v1.ttf",
       })),
   );
   const loaded = await Promise.all(wanted.map((font) => fontData(font.name)));
@@ -87,7 +82,10 @@ export async function renderSvg(bytes: Uint8Array): Promise<Uint8Array | null> {
     const source = new TextDecoder().decode(bytes);
     const doc = new DOMParser().parseFromString(source, "image/svg+xml");
     const svg = doc.documentElement;
-    if (svg.localName !== "svg" || doc.getElementsByTagName("parsererror").length)
+    if (
+      svg.localName !== "svg" ||
+      doc.getElementsByTagName("parsererror").length
+    )
       return null;
     const { width, height } = svgSize(
       svg.getAttribute("width"),

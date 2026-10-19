@@ -639,7 +639,8 @@ function trimMap(
 }
 
 async function main(): Promise<void> {
-  if (!existsSync(join(ROOT, "src/tex/latex.ts"))) throw new Error("wrong root");
+  if (!existsSync(join(ROOT, "src/tex/latex.ts")))
+    throw new Error("wrong root");
   execFileSync("kpsewhich", ["--version"]);
   await fetchEngine();
 

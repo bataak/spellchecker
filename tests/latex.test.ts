@@ -357,7 +357,10 @@ test("toLatexBody: [ -ээр эхэлсэн жагсаалтын мөр \\item-�
 
 test("escapeTex: ₮, грек, математик тэмдэгтийг командоор, zero-width-ийг хасна", () => {
   assert.equal(escapeTex("1500₮"), "1500\\texttugrik{}");
-  assert.equal(escapeTex("αΩΑο"), "\\ensuremath{\\alpha}\\ensuremath{\\Omega}Ao");
+  assert.equal(
+    escapeTex("αΩΑο"),
+    "\\ensuremath{\\alpha}\\ensuremath{\\Omega}Ao",
+  );
   assert.equal(escapeTex("∑ℝ"), "\\ensuremath{\\sum}\\ensuremath{\\mathbb{R}}");
   assert.equal(escapeTex("a​b️"), "ab");
 });

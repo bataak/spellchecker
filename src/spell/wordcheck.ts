@@ -10,7 +10,7 @@ import {
   parseAnalyses,
   type Analysis,
 } from "./verbform.ts";
-import { attempt } from "../attempt.ts";
+import { attempt } from "../core/attempt.ts";
 
 export interface WordCheckDeps {
   readonly primary: () => SpellerInstance | undefined;

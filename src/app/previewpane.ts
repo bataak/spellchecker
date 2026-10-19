@@ -1,6 +1,6 @@
-import type { Layout } from "../layout.ts";
-import type { MeasureControl } from "../measure.ts";
-import { initPaneToggle, type PaneToggle } from "../panetoggle.ts";
+import type { Layout } from "../ui/layout.ts";
+import type { MeasureControl } from "../ui/measure.ts";
+import { initPaneToggle, type PaneToggle } from "../ui/panetoggle.ts";
 import { initPreview, type Preview } from "../preview/preview.ts";
 import type { PreviewDeps } from "../preview/preview.ts";
 import { createPdfSave, type PdfSaveControl } from "./pdfsave.ts";

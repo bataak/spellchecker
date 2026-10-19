@@ -1,8 +1,12 @@
 import { readFailureMessage } from "./fileerror.ts";
 import type { PreviewSource } from "../preview/preview.ts";
-import { swapText } from "../editortext.ts";
-import type { EditorPort, StatusPort } from "../ports.ts";
-import { dropOfficeFile, loadOfficeFile, saveOfficeFile } from "../storage.ts";
+import { swapText } from "../editor/editortext.ts";
+import type { EditorPort, StatusPort } from "../app/ports.ts";
+import {
+  dropOfficeFile,
+  loadOfficeFile,
+  saveOfficeFile,
+} from "../core/storage.ts";
 import type { OfficeMode } from "./mode.ts";
 
 const PREPARE_HOLD_MS = 3000;

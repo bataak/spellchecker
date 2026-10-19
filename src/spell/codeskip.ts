@@ -303,11 +303,7 @@ export function looksLatex(text: string): boolean {
 }
 
 export function latexRanges(text: string): SkipRange[] {
-  if (
-    text.indexOf("\\") < 0 &&
-    text.indexOf("%") < 0 &&
-    text.indexOf("$") < 0
-  )
+  if (text.indexOf("\\") < 0 && text.indexOf("%") < 0 && text.indexOf("$") < 0)
     return [];
 
   const ranges: SkipRange[] = [];

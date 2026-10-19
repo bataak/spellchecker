@@ -1,6 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isKeyboardOpen, nextBaseline, revealDelta } from "../src/kbtoolbar.ts";
+import {
+  isKeyboardOpen,
+  nextBaseline,
+  revealDelta,
+} from "../src/editor/kbtoolbar.ts";
 
 test("хаягийн мөрийн өөрчлөлтийг гар гэж андуурахгүй", () => {
   const baseline = { width: 390, height: 844 };

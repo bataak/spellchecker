@@ -1,8 +1,8 @@
-import type { AppUpdate } from "../appupdate.ts";
+import type { AppUpdate } from "../core/appupdate.ts";
 import { createRefreshGate, type DictStatus } from "../dict/dictstatus.ts";
-import { escapeHtml } from "../htmlutil.ts";
-import { runOfflineIndicator } from "../offline.ts";
-import type { StatusPort } from "../ports.ts";
+import { escapeHtml } from "../core/htmlutil.ts";
+import { runOfflineIndicator } from "../core/offline.ts";
+import type { StatusPort } from "./ports.ts";
 import type { SpellChecker } from "../spell/spellchecker.ts";
 import type { DocStatus } from "./docstatus.ts";
 

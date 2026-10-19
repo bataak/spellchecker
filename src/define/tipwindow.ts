@@ -8,7 +8,7 @@ import {
   iconButton,
 } from "./deficons.ts";
 import { emptyNote, type DefDock } from "./defdock.ts";
-import { KEYS, read, remove, write } from "../store.ts";
+import { KEYS, read, remove, write } from "../core/store.ts";
 
 export interface PauseToggle {
   button(className: string): HTMLButtonElement;

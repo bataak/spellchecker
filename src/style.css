@@ -23,7 +23,11 @@ html {
   --layout-accent-en: #0066b3;
   --layout-mark-mn: #b4541a;
   --layout-select-mn: var(--proof-soft);
-  --layout-select-en: color-mix(in srgb, var(--layout-accent-en) 15%, var(--editor-bg));
+  --layout-select-en: color-mix(
+    in srgb,
+    var(--layout-accent-en) 15%,
+    var(--editor-bg)
+  );
   --layout-select: var(--layout-select-mn);
   --layout-on: #ffffff;
   --tex-bg: #fbf1c7;
@@ -72,19 +76,14 @@ html {
   );
   --gutter-pull: min(
     var(--gutter-w),
-    max(
-      var(--page-pad),
-      calc((100vw - var(--page-base)) / 2 + var(--page-pad))
-    )
+    max(var(--page-pad), calc((100vw - var(--page-base)) / 2 + var(--page-pad)))
   );
   --page-max: calc(var(--page-base) - var(--gutter-pull));
 
   --sans:
-    ui-sans-serif, system-ui, "Segoe UI", "Noto Sans", Roboto, Arial,
-    sans-serif;
+    ui-sans-serif, system-ui, "Segoe UI", "Noto Sans", Roboto, Arial, sans-serif;
   --serif:
-    "Bichig Serif", "PT Serif", "Noto Serif", "Liberation Serif", Georgia,
-    serif;
+    "Bichig Serif", "PT Serif", "Noto Serif", "Liberation Serif", Georgia, serif;
   --mono:
     "Bichig Mono", ui-monospace, "DejaVu Sans Mono", "Liberation Mono",
     Consolas, monospace;
@@ -144,7 +143,11 @@ html {
   --layout-accent-en: #5aa9e6;
   --layout-mark-mn: #e8a06a;
   --layout-select-mn: var(--proof-soft);
-  --layout-select-en: color-mix(in srgb, var(--layout-accent-en) 15%, var(--editor-bg));
+  --layout-select-en: color-mix(
+    in srgb,
+    var(--layout-accent-en) 15%,
+    var(--editor-bg)
+  );
   --layout-select: var(--layout-select-mn);
   --layout-on: #17150f;
   --tex-bg: #282828;
@@ -1760,11 +1763,7 @@ a.tbtn {
 .pop-more {
   bottom: 0;
   align-items: flex-end;
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0) 0%,
-    var(--panel) 45%
-  );
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, var(--panel) 45%);
 }
 .pop-less {
   top: 0;

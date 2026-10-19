@@ -1,5 +1,5 @@
 import type { TexProject } from "../project/projectbuild.ts";
-import { noteError } from "../errorlog.ts";
+import { noteError } from "../core/errorlog.ts";
 
 const PDF_CACHE = "tex-preview";
 const PDF_TEXT_KEY = "tex-preview/last.tex";

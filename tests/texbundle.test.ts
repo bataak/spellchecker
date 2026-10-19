@@ -2,7 +2,7 @@ import { strict as assert } from "node:assert";
 import { existsSync } from "node:fs";
 import { test } from "node:test";
 
-import { FORMATS } from "../src/exportformats.ts";
+import { FORMATS } from "../src/export/exportformats.ts";
 import { TEX_BUNDLE, TEX_ENGINE } from "../src/tex/texbundle.ts";
 
 test("PDF экспортын хөдөлгүүр ба TeX багц public/-д байна", () => {
@@ -50,7 +50,7 @@ test("PDF алдааны мессеж шалтгаан ба байршлыг М�
 });
 
 test("гарчгийн жагсаалт зөвхөн бүлэгтэй баримтад", async () => {
-  const { hasSections } = await import("../src/exportformats.ts");
+  const { hasSections } = await import("../src/export/exportformats.ts");
   const { readFileSync } = await import("node:fs");
   const ex = (name: string): string =>
     readFileSync("src/examples/" + name + ".md", "utf8");
@@ -62,7 +62,7 @@ test("гарчгийн жагсаалт зөвхөн бүлэгтэй барим
 });
 
 test("ODT гарчгийн жагсаалт сонголтоор", async () => {
-  const { FORMATS } = await import("../src/exportformats.ts");
+  const { FORMATS } = await import("../src/export/exportformats.ts");
   const { unzipSync, strFromU8 } = await import("fflate");
   const odt = FORMATS.find((format) => format.id === "odt")!;
   const md = "# Нэр\n\n## Нэг\n\nДогол.\n\n### Хоёр\n\nДогол.\n";
@@ -92,7 +92,12 @@ test("алдааг алгассан engine-ийн PDF-ийг зөвхөн тер
     pdf,
   );
   assert.equal(
-    replyPdf({ result: "failed", status: 1, log: "! Undefined control sequence.", pdf }),
+    replyPdf({
+      result: "failed",
+      status: 1,
+      log: "! Undefined control sequence.",
+      pdf,
+    }),
     null,
   );
   assert.equal(replyPdf({ result: "failed", status: 3, log: "", pdf }), null);

@@ -1,5 +1,4 @@
-import { escapeAttr } from "../htmlutil.ts";
-import { sameRoot } from "../spell/morphology.ts";
+import { escapeAttr } from "../core/htmlutil.ts";
 import { getSubmitted, addSubmitted } from "./submitted.ts";
 import {
   MAX_WORDS,
@@ -10,11 +9,18 @@ import {
 import {
   buildErrorList,
   startsLowerAfterDash,
-  type ErrorEntry,
   type Token,
 } from "../spell/textcheck.ts";
-import { copyText } from "../clipboard.ts";
-import { attempt } from "../attempt.ts";
+import { copyText } from "../ui/clipboard.ts";
+import {
+  copyList,
+  mergeWords,
+  prefillWords,
+  screenWords,
+  splitParts,
+  type WordNote,
+} from "./suggestwords.ts";
+import { attempt } from "../core/attempt.ts";
 
 interface Turnstile {
   render(
@@ -40,7 +46,6 @@ export interface SuggestDeps {
 }
 
 const SITEKEY = "0x4AAAAAADvk6t3Gsh_j1vH7";
-const WORD_RE = /^[\u0400-\u04FF][\u0400-\u04FF-]{1,49}$/u;
 const LONG_PRESS_MS = 550;
 const ISSUES_URL =
   "https://github.com/bataak/dict-mn/issues?q=is%3Aissue%20label%3Auser-submitted";
@@ -155,26 +160,16 @@ export function initSuggest(deps: SuggestDeps): void {
   }
 
   function prefillFromErrors(): void {
-    words = [];
-    const list = buildErrorList(
-      deps.getBadTokens().filter((token) => !isLowerDashSuffix(token)),
-    )
-      .filter((token) => WORD_RE.test(token.word))
-      .sort((a, b) => a.word.length - b.word.length);
-    const submitted = getSubmitted();
-    const kept: { key: string; token: ErrorEntry }[] = [];
-    for (const token of list) {
-      const key = token.word.toLowerCase();
-      if (submitted.has(key)) continue;
-      if (kept.some((keptEntry) => sameRoot(keptEntry.key, key))) continue;
-      kept.push({ key, token });
-    }
-    kept.sort((a, b) => a.token.word.localeCompare(b.token.word, "mn"));
-    for (const keptEntry of kept) words.push(keptEntry.token.word);
+    words = prefillWords(
+      buildErrorList(
+        deps.getBadTokens().filter((token) => !isLowerDashSuffix(token)),
+      ),
+      getSubmitted(),
+    );
   }
 
-  function wordNote(word: string, text: string): void {
-    note("«" + word + "» — " + text, "err");
+  function showNote({ word, text }: WordNote): void {
+    note(word === null ? text : "«" + word + "» — " + text, "err");
   }
 
   async function lookupKnown(
@@ -192,40 +187,14 @@ export function initSuggest(deps: SuggestDeps): void {
     candidates: string[],
     current: number,
   ): Promise<void> {
-    const submitted = getSubmitted();
-    const valid: string[] = [];
-    for (const word of candidates) {
-      if (!WORD_RE.test(word)) {
-        wordNote(word, "кирилл үсгээр, 2–50 тэмдэгт байх ёстой");
-        continue;
-      }
-      if (submitted.has(word.toLowerCase())) {
-        wordNote(word, "энэ үгийг аль хэдийн мэдэгдсэн байна");
-        continue;
-      }
-      if (!valid.some((item) => item.toLowerCase() === word.toLowerCase()))
-        valid.push(word);
-    }
-    const known = await lookupKnown(valid);
+    const screened = screenWords(candidates, getSubmitted());
+    screened.notes.forEach(showNote);
+    const known = await lookupKnown(screened.valid);
     if (current !== session) return;
-    let added = false;
-    for (const word of valid) {
-      if (known && known[word]) {
-        wordNote(word, "энэ үг толь бичигт байна");
-        continue;
-      }
-      if (words.length >= MAX_WORDS) {
-        note("Хамгийн ихдээ " + MAX_WORDS + " үг", "err");
-        break;
-      }
-      if (
-        !words.some((existing) => existing.toLowerCase() === word.toLowerCase())
-      ) {
-        words.push(word);
-        added = true;
-      }
-    }
-    if (added) {
+    const merged = mergeWords(words, screened.valid, known, MAX_WORDS);
+    merged.notes.forEach(showNote);
+    words = merged.words;
+    if (merged.added) {
       renderChips();
       if (
         overlay!.querySelector<HTMLElement>(".suggest-note")!.dataset.kind !==
@@ -237,7 +206,7 @@ export function initSuggest(deps: SuggestDeps): void {
 
   function addFromInput(commit: boolean): Promise<void> {
     const wordEl = overlay!.querySelector<HTMLInputElement>("#suggestWord")!;
-    const parts = wordEl.value.split(/[\s,、，]+/);
+    const parts = splitParts(wordEl.value);
     const tail = commit ? "" : (parts.pop() ?? "");
     wordEl.value = tail;
     const candidates = parts
@@ -253,18 +222,7 @@ export function initSuggest(deps: SuggestDeps): void {
 
   function collectCopyWords(): string[] {
     const wordEl = overlay!.querySelector<HTMLInputElement>("#suggestWord")!;
-    const pending = wordEl.value
-      .split(/[\s,、，]+/)
-      .map((part) => part.trim())
-      .filter(Boolean);
-    const all = [...words];
-    for (const word of pending) {
-      if (
-        !all.some((existing) => existing.toLowerCase() === word.toLowerCase())
-      )
-        all.push(word);
-    }
-    return all;
+    return copyList(words, wordEl.value);
   }
 
   async function copyWordsToClipboard(): Promise<void> {

@@ -9,7 +9,7 @@ import {
   stampName,
   textMime,
   textName,
-} from "../src/filetypes.ts";
+} from "../src/files/filetypes.ts";
 
 const file = (name: string, type = "") => ({ name, type });
 

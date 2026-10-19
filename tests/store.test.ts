@@ -15,7 +15,7 @@ import {
   remove,
   write,
   writeJson,
-} from "../src/store.ts";
+} from "../src/core/store.ts";
 
 beforeEach(() => {
   resetStorage();

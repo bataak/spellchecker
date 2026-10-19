@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import { unzipSync } from "fflate";
 
 import { parse } from "../src/markdown.ts";
-import { findTemplate } from "../src/templates.ts";
+import { findTemplate } from "../src/doc/templates.ts";
 import { applyTemplate } from "../src/office/apply.ts";
-import { splitSlides } from "../src/slides.ts";
+import { splitSlides } from "../src/doc/slides.ts";
 import { deckDoc } from "../src/office/deck.ts";
 import { buildDocx } from "../src/office/docx/create.ts";
 import { buildOdt } from "../src/office/odt/create.ts";

@@ -1,7 +1,7 @@
 import { initImageEdit } from "./imageedit.ts";
-import { onImagesChange } from "../images.ts";
+import { onImagesChange } from "../files/images.ts";
 import { fitBlanks, format, parse, toHtml } from "../markdown.ts";
-import { applyDataStyles } from "../htmlutil.ts";
+import { applyDataStyles } from "../core/htmlutil.ts";
 import { createHtmlSync } from "./htmlsync.ts";
 import { handleImageClick, resolveImages } from "./mdimages.ts";
 import type { CompiledPdf } from "./pdfcache.ts";
@@ -316,7 +316,7 @@ export function initPreview(deps: PreviewDeps): Preview {
   downloadBtn.addEventListener("click", () => {
     const bytes = pane.shown();
     if (!bytes) return;
-    void import("../export.ts").then(({ deliverFile }) =>
+    void import("../export/export.ts").then(({ deliverFile }) =>
       deliverFile(bytes, pdfName(), "application/pdf"),
     );
   });

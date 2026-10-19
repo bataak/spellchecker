@@ -1,7 +1,7 @@
-import type { MarkLayer } from "../marklayer.ts";
+import type { MarkLayer } from "../editor/marklayer.ts";
 import { tokenizeAll, type SpellSession } from "../spell/spellsession.ts";
 import type { Token } from "../spell/textcheck.ts";
-import type { TextEdit } from "../tokenshift.ts";
+import type { TextEdit } from "../editor/tokenshift.ts";
 import type { DocStatus } from "./docstatus.ts";
 
 const DEFERRED_CHECK_MS = 1500;

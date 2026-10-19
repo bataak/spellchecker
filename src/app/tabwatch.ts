@@ -1,4 +1,4 @@
-import { initTabGuard, type TabGuard } from "../tabguard.ts";
+import { initTabGuard, type TabGuard } from "../core/tabguard.ts";
 
 export interface TabWatchDeps {
   readonly slot: () => string;

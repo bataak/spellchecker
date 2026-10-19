@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isEditOf } from "../src/samedoc.ts";
+import { isEditOf } from "../src/editor/samedoc.ts";
 
 const THESIS =
   "\\documentclass{article}\n\\usepackage[T2A]{fontenc}\n\\title{Хиймэл оюуны зохиомж}\n" +

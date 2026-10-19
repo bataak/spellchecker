@@ -1,4 +1,4 @@
-import { noteError } from "../errorlog.ts";
+import { noteError } from "../core/errorlog.ts";
 
 const DB_NAME = "bichig-project";
 const DB_STORE = "kv";

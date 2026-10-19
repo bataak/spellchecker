@@ -1,4 +1,4 @@
-import { escapeAttr } from "../htmlutil.ts";
+import { escapeAttr } from "../core/htmlutil.ts";
 import { insertSignature, toggleAlign, type AlignKind } from "./mdalign.ts";
 import {
   cycleCase,

@@ -9,7 +9,7 @@ import { docImages, imageKey, imageSizeCm } from "../src/office/docir.ts";
 import type { EmbeddedImage } from "../src/office/docir.ts";
 import { buildDocx } from "../src/office/docx/create.ts";
 import { buildOdt } from "../src/office/odt/create.ts";
-import { findTemplate } from "../src/templates.ts";
+import { findTemplate } from "../src/doc/templates.ts";
 
 const MD = "Хавсралт:\n\n![](id.jpg){width=50%}\n\n![](lost.png)";
 const PNG = new Uint8Array([137, 80, 78, 71]);

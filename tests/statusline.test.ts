@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { caretLine, statsBody, statsMessage } from "../src/statusline.ts";
+import { caretLine, statsBody, statsMessage } from "../src/ui/statusline.ts";
 
 const STATS = { words: 1200, bad: 3, chars: 8000 };
 

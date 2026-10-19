@@ -43,3 +43,43 @@ export function covers(have: DetailRect, need: DetailRect): boolean {
     have.y + have.h >= need.y + need.h
   );
 }
+
+export function snapShift(x: number, y: number, dpr: number): string {
+  const px = x * dpr;
+  const py = y * dpr;
+  const dx = (Math.round(px) - px) / dpr;
+  const dy = (Math.round(py) - py) / dpr;
+  return dx || dy ? `translate(${dx}px, ${dy}px)` : "";
+}
+
+export function pageIndexAt(
+  count: number,
+  bottomOf: (index: number) => number,
+  line: number,
+): number {
+  let low = 0;
+  let high = count - 1;
+  while (low < high) {
+    const mid = (low + high) >> 1;
+    if (bottomOf(mid) < line) low = mid + 1;
+    else high = mid;
+  }
+  return low + 1;
+}
+
+export function rangeGap(
+  top: number,
+  bottom: number,
+  from: number,
+  to: number,
+): number {
+  if (bottom < from) return from - bottom;
+  if (top > to) return top - to;
+  return 0;
+}
+
+export function revealShift(at: number, top: number, bottom: number): number {
+  const room = bottom - top;
+  if (at >= top + room * 0.15 && at <= top + room * 0.85) return 0;
+  return at - (top + room * 0.35);
+}

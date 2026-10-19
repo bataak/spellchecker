@@ -25,8 +25,8 @@ import {
 } from "../tex/texproject.ts";
 import type { PreviewSource } from "../preview/preview.ts";
 import type { TexProject } from "./projectbuild.ts";
-import { onSwap, swapOrigin, swapText } from "../editortext.ts";
-import { KEYS, read, remove, write } from "../store.ts";
+import { onSwap, swapOrigin, swapText } from "../editor/editortext.ts";
+import { KEYS, read, remove, write } from "../core/store.ts";
 
 export interface SlotFile {
   readonly id: string;

@@ -1,12 +1,12 @@
-import { dropSlotText, loadSlotText, saveSlotText } from "../storage.ts";
+import { dropSlotText, loadSlotText, saveSlotText } from "../core/storage.ts";
 import { PROJECT_SLOT, loadSlots } from "./fileslots.ts";
 import {
   LEGACY_TEMPLATES,
   PLAIN,
   TEMPLATES,
   findTemplate,
-} from "../templates.ts";
-import { KEYS, at, read, readShared, remove, write } from "../store.ts";
+} from "../doc/templates.ts";
+import { KEYS, at, read, readShared, remove, write } from "../core/store.ts";
 
 export function sharedSlot(): string {
   return pickerValue(validTemplateId(readShared(KEYS.template)));

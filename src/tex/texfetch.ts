@@ -1,7 +1,7 @@
 import { TEX_LIVE_YEAR, TEX_PACKAGE_INDEX } from "./texpackages.ts";
 import { isXz } from "../archive/xz.ts";
-import { KEYS, readJson, writeJson } from "../store.ts";
-import { noteError } from "../errorlog.ts";
+import { KEYS, readJson, writeJson } from "../core/store.ts";
+import { noteError } from "../core/errorlog.ts";
 
 export { wantedFiles } from "./texmissing.ts";
 

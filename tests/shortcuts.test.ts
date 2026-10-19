@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import type { CommandId, Commands } from "../src/commands.ts";
-import { initShortcuts } from "../src/shortcuts.ts";
+import type { CommandId, Commands } from "../src/ui/commands.ts";
+import { initShortcuts } from "../src/ui/shortcuts.ts";
 
 interface Press {
   readonly key: string;

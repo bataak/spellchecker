@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { parse } from "../src/markdown.ts";
 import { deckDoc } from "../src/office/deck.ts";
 import { deckPrintHtml } from "../src/office/deckprint.ts";
-import { splitSlides } from "../src/slides.ts";
+import { splitSlides } from "../src/doc/slides.ts";
 
 function deck(md: string): string {
   return deckPrintHtml(deckDoc(splitSlides(parse(md))));

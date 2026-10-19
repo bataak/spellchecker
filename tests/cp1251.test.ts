@@ -254,7 +254,10 @@ test("CP1251 файлыг монгол үсэгтэй нь тайлна", () => 
     238, 237, 227, 238, 235, 32, 245, 253, 235, 46,
   ]);
   assert.equal(decodeFileBytes(bytes), "Сайн байна уу. Монгол хэл.");
-  assert.equal(decodeFileBytes(new Uint8Array([0xaa, 0xba, 0xaf, 0xbf])), "ӨөҮү");
+  assert.equal(
+    decodeFileBytes(new Uint8Array([0xaa, 0xba, 0xaf, 0xbf])),
+    "ӨөҮү",
+  );
 });
 
 test("UTF-8 болон BOM-той файл өөрчлөгдөхгүй", () => {

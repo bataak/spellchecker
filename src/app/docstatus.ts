@@ -1,5 +1,5 @@
 import type { DictStatus } from "../dict/dictstatus.ts";
-import type { StatusPort } from "../ports.ts";
+import type { StatusPort } from "./ports.ts";
 import {
   caretLine,
   NO_STATS,
@@ -7,7 +7,7 @@ import {
   statsMessage,
   type DocStats,
   type LinePosition,
-} from "../statusline.ts";
+} from "../ui/statusline.ts";
 
 export interface DocStatusDeps {
   readonly status: StatusPort;

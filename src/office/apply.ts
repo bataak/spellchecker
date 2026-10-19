@@ -5,7 +5,7 @@ import {
   type Block,
   type Inline,
 } from "../markdown.ts";
-import type { Frame, Template } from "../templates.ts";
+import type { Frame, Template } from "../doc/templates.ts";
 import { A4, STYLE, headingStyle } from "./docir.ts";
 import type { Align, DocIr, IrBlock, IrRun, ParaStyle } from "./docir.ts";
 import { flatten, isBlank, onlyImages } from "./flatten.ts";

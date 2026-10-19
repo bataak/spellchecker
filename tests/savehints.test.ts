@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { clearTitle, saveTitle } from "../src/savehints.ts";
+import { clearTitle, saveTitle } from "../src/export/savehints.ts";
 
 test("saveTitle нээлттэй файлын нэрийг товчлолтой нь харуулна", () => {
   const base = "Бичвэрийг файл болгож хадгалах · Ctrl+S";
