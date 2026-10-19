@@ -68,9 +68,12 @@ test("ODT гарчгийн жагсаалт сонголтоор", async () => {
   const md = "# Нэр\n\n## Нэг\n\nДогол.\n\n### Хоёр\n\nДогол.\n";
   const content = async (toc: boolean): Promise<string> =>
     strFromU8(
-      unzipSync((await odt.build(md, "report", { toc })) as Uint8Array)[
-        "content.xml"
-      ]!,
+      unzipSync(
+        (await odt.build(md, "report", {
+          toc,
+          notesScreen: false,
+        })) as Uint8Array,
+      )["content.xml"]!,
     );
   assert.ok(!(await content(false)).includes("text:table-of-content"));
   const withToc = await content(true);
@@ -102,4 +105,26 @@ test("алдааг алгассан engine-ийн PDF-ийг зөвхөн тер
   );
   assert.equal(replyPdf({ result: "failed", status: 3, log: "", pdf }), null);
   assert.equal(replyPdf({ result: "failed", status: 1, log: "" }), null);
+});
+
+test("hasNotes: зөвхөн илтгэгчийн тэмдэглэлтэй слайдад үнэн", async () => {
+  const { hasNotes } = await import("../src/export/exportformats.ts");
+  const deck = "# Илтгэл\n\n## Нэг\n\nАгуулга\n\n::: notes\nХэлэх үг\n:::\n";
+  assert.equal(hasNotes(deck, "slides"), true);
+  assert.equal(hasNotes("# Илтгэл\n\n## Нэг\n\nАгуулга\n", "slides"), false);
+  assert.equal(hasNotes(deck, "report"), false);
+});
+
+test("LaTeX экспорт: сонговол тэмдэглэлийг хоёр дахь дэлгэцэнд гаргана", async () => {
+  const { FORMATS } = await import("../src/export/exportformats.ts");
+  const tex = FORMATS.find((format) => format.id === "tex")!;
+  const deck = "# Илтгэл\n\n## Нэг\n\nАгуулга\n\n::: notes\nХэлэх үг\n:::\n";
+  const build = async (notesScreen: boolean, text = deck): Promise<string> =>
+    String(await tex.build(text, "slides", { toc: false, notesScreen }));
+  assert.match(await build(true), /show notes on second screen/);
+  assert.doesNotMatch(await build(false), /show notes on second screen/);
+  assert.doesNotMatch(
+    await build(true, "# Илтгэл\n\n## Нэг\n\nАгуулга\n"),
+    /show notes on second screen/,
+  );
 });
