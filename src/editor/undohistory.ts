@@ -1,3 +1,4 @@
+import { PROJECT_SLOT, isFileSlot } from "../slots/fileslots.ts";
 import { openDatabase } from "../core/idb.ts";
 import { swapOrigin } from "./editortext.ts";
 import { minimalDiff } from "../mdbar/mdedit.ts";
@@ -179,6 +180,60 @@ export async function storedHistoryTexts(): Promise<string[]> {
     return out;
   } catch {
     return [];
+  }
+}
+
+export const HISTORY_MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000;
+
+export interface HistoryScope {
+  readonly files: ReadonlySet<string>;
+  readonly project: {
+    readonly pending: boolean;
+    readonly files: readonly string[];
+  } | null;
+  readonly now: number;
+}
+
+export function keepHistory(
+  slot: string,
+  savedAt: number,
+  scope: HistoryScope,
+): boolean {
+  if (scope.now - savedAt > HISTORY_MAX_AGE_MS) return false;
+  const [base = "", path] = slot.split("\u0000");
+  if (isFileSlot(base)) return scope.files.has(base);
+  if (base !== PROJECT_SLOT || path === undefined) return true;
+  if (!scope.project) return false;
+  return scope.project.pending || scope.project.files.includes(path);
+}
+
+export function pruneUndo(
+  slots: readonly { readonly id: string }[],
+  project: HistoryScope["project"],
+): Promise<number> {
+  return pruneHistories({
+    files: new Set(slots.map((slot) => slot.id)),
+    project,
+    now: Date.now(),
+  });
+}
+
+export async function pruneHistories(scope: HistoryScope): Promise<number> {
+  try {
+    const db = await openDb();
+    const store = db.transaction(STORE, "readwrite").objectStore(STORE);
+    const request = store.getAll();
+    await done(request);
+    let dropped = 0;
+    for (const entry of (request.result as Stored[] | undefined) ?? []) {
+      if (keepHistory(entry.slot, entry.savedAt, scope)) continue;
+      store.delete(entry.slot);
+      dropped += 1;
+    }
+    return dropped;
+  } catch (error) {
+    noteError(error);
+    return 0;
   }
 }
 

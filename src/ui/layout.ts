@@ -9,6 +9,7 @@ export const MEASURES: Readonly<Record<Measure, number>> = {
 export const MEASURE_ORDER: readonly Measure[] = ["a", "b", "c"];
 
 export const PREVIEW_MEASURE = 80;
+export const PREVIEW_MIN_MEASURE = 60;
 
 export interface Layout {
   measure: Measure;
@@ -76,20 +77,43 @@ export function editorWidth(m: Measure, x: Metrics): number {
   return MEASURES[m] * x.per + 2 * x.padX + x.gutterW;
 }
 
-export function previewWidth(l: Layout, x: Metrics): number {
+export function previewWidth(
+  l: Layout,
+  x: Metrics,
+  measure = PREVIEW_MEASURE,
+): number {
   if (!l.preview) return 0;
-  return PREVIEW_MEASURE * x.per + 2 * x.previewPad;
+  return measure * x.per + 2 * x.previewPad;
 }
 
-export function contentWidth(l: Layout, x: Metrics): number {
+export function contentWidth(
+  l: Layout,
+  x: Metrics,
+  measure = PREVIEW_MEASURE,
+): number {
   let w = editorWidth(l.measure, x);
-  if (l.preview) w += previewWidth(l, x) + x.panelGap;
+  if (l.preview) w += previewWidth(l, x, measure) + x.panelGap;
   if (l.panel) w += x.panelW + x.panelGap;
   return w;
 }
 
-export function pageWidth(l: Layout, x: Metrics): number {
-  return contentWidth(l, x) + 2 * x.pagePad - x.gutterW;
+export function pageWidth(
+  l: Layout,
+  x: Metrics,
+  measure = PREVIEW_MEASURE,
+): number {
+  return contentWidth(l, x, measure) + 2 * x.pagePad - x.gutterW;
+}
+
+export function previewMeasure(
+  l: Layout,
+  x: Metrics,
+  viewport: number,
+): number {
+  if (!l.preview) return PREVIEW_MEASURE;
+  const spare = viewport - pageWidth(l, x, PREVIEW_MIN_MEASURE);
+  const extra = Math.max(0, Math.floor(spare / x.per));
+  return Math.min(PREVIEW_MEASURE, PREVIEW_MIN_MEASURE + extra);
 }
 
 export function rowKey(l: Layout): string {
@@ -101,9 +125,10 @@ export function fits(
   x: Metrics,
   viewport: number,
   active = false,
+  measure = PREVIEW_MEASURE,
 ): boolean {
   if (same(l, DEFAULT_LAYOUT)) return true;
-  return viewport >= pageWidth(l, x) + (active ? 0 : HYSTERESIS);
+  return viewport >= pageWidth(l, x, measure) + (active ? 0 : HYSTERESIS);
 }
 
 export function available(
@@ -111,7 +136,10 @@ export function available(
   viewport: number,
   prev: readonly Layout[] = [],
 ): Layout[] {
-  return ALL_LAYOUTS.filter((l) => fits(l, x, viewport, has(prev, l)));
+  const at = (measure: number): Layout[] =>
+    ALL_LAYOUTS.filter((l) => fits(l, x, viewport, has(prev, l), measure));
+  const full = at(PREVIEW_MEASURE);
+  return full.some((l) => l.preview) ? full : at(PREVIEW_MIN_MEASURE);
 }
 
 export function clamp(desired: Layout, avail: readonly Layout[]): Layout {

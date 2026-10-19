@@ -1,3 +1,4 @@
+import { downloadBlob } from "./download.ts";
 import { textMime } from "./filetypes.ts";
 
 export function isDesktopApp(): boolean {
@@ -10,15 +11,7 @@ export function isDesktopApp(): boolean {
 }
 
 export function downloadText(text: string, fileName: string): void {
-  const blob = new Blob([text], { type: textMime(fileName) });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  downloadBlob(new Blob([text], { type: textMime(fileName) }), fileName);
 }
 
 export async function deliverText(

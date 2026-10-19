@@ -332,6 +332,12 @@ function inTable(
   );
 }
 
+export function caretInTable(text: string, caret: number): boolean {
+  const from = lineStartAt(text, caret);
+  const to = lineEndAt(text, caret);
+  return inTable(text, from, to, text.slice(from, to));
+}
+
 function inFence(text: string, caret: number): boolean {
   if (!text.includes("```") && !text.includes("~~~")) return false;
   return inRanges(codeRanges(text), caret);

@@ -1,12 +1,16 @@
+import { onImagesChange, pickImage, putImage } from "../files/images.ts";
+import { downloadBlob } from "../files/download.ts";
 import type { SaveChain, SaveTrigger } from "../ui/savechain.ts";
 import { createPrinter } from "./exportprint.ts";
 import {
   FORMATS,
   stripExt,
+  EMBED_FORMATS,
   NOTES_FORMATS,
   TOC_FORMATS,
   withExt,
   hasNotes,
+  missingImages,
   hasSections,
   type ExportFormat,
 } from "./exportformats.ts";
@@ -77,16 +81,7 @@ export async function deliverFile(
     }
   }
 
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = name;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  setTimeout(() => {
-    URL.revokeObjectURL(url);
-  }, 1000);
+  downloadBlob(blob, name);
   return true;
 }
 
@@ -160,6 +155,10 @@ export function initExport(options: ExportOptions): ExportControl {
     '<label class="export-toc" hidden>' +
     '<input class="export-toc-input" type="checkbox" /> Гарчгийн жагсаалт үүсгэх' +
     "</label>" +
+    '<div class="export-missing" hidden>' +
+    '<p class="export-missing-title">Олдоогүй зураг — файлд орохгүй:</p>' +
+    '<ul class="export-missing-list"></ul>' +
+    "</div>" +
     '<label class="export-toc export-notes" hidden>' +
     '<input class="export-notes-input" type="checkbox" /> Илтгэгчийн тэмдэглэлийг хоёр дахь дэлгэцэнд гаргах' +
     "</label>" +
@@ -177,6 +176,10 @@ export function initExport(options: ExportOptions): ExportControl {
   const tocInput =
     overlay.querySelector<HTMLInputElement>(".export-toc-input")!;
   const notesField = overlay.querySelector<HTMLElement>(".export-notes")!;
+  const missingField = overlay.querySelector<HTMLElement>(".export-missing")!;
+  const missingList = overlay.querySelector<HTMLElement>(
+    ".export-missing-list",
+  )!;
   const notesInput = overlay.querySelector<HTMLInputElement>(
     ".export-notes-input",
   )!;
@@ -210,9 +213,42 @@ export function initExport(options: ExportOptions): ExportControl {
     notesField.hidden =
       !NOTES_FORMATS.has(chosen.id) ||
       !hasNotes(editor.value, options.template());
+    syncMissing();
 
     nameInput.value = stripExt(nameInput.value) + "." + chosen.ext;
   }
+
+  function syncMissing(): void {
+    const missing =
+      options.isTex?.() || !EMBED_FORMATS.has(chosen.id)
+        ? []
+        : missingImages(editor.value);
+    missingField.hidden = missing.length === 0;
+    missingList.innerHTML = missing
+      .map(
+        (src) =>
+          '<li><span class="export-missing-name">' +
+          escapeAttr(src) +
+          '</span><button type="button" class="tbtn export-pick" data-src="' +
+          escapeAttr(src) +
+          '">Сонгох</button></li>',
+      )
+      .join("");
+  }
+
+  missingList.addEventListener("click", (event) => {
+    const button = (event.target as Element).closest<HTMLElement>(
+      ".export-pick",
+    );
+    const src = button?.dataset.src;
+    if (!src) return;
+    void pickImage().then((file) => {
+      if (file) putImage(src, file);
+    });
+  });
+  onImagesChange(() => {
+    if (!overlay.hidden) syncMissing();
+  });
 
   function open(): void {
     if (options.blocked?.()) {
