@@ -7,6 +7,7 @@ import type { CompiledPdf } from "./pdfcache.ts";
 import { createPdfPane } from "./pdfpane.ts";
 import { buildPreviewHead, HEAD_TEXT } from "./previewhead.ts";
 import { createTexPreview } from "./texpreview.ts";
+import type { TexProject } from "../project/projectbuild.ts";
 
 const TIDY_LIMIT = 400_000;
 const TIDY_IDLE_MS = 5000;
@@ -31,6 +32,7 @@ export interface PreviewDeps {
   readonly isLatex: (text: string) => boolean;
   readonly projectKey: () => string | null;
   readonly inProject: () => boolean;
+  readonly texProject: () => TexProject | null;
   readonly pdfName: () => string;
   readonly jump: (start: number, end: number) => void;
 }
@@ -281,6 +283,7 @@ export function initPreview(deps: PreviewDeps): Preview {
     downloadBtn,
     projectKey,
     inProject,
+    texProject: deps.texProject,
     visible: previewShown,
     showNotice: (text) => showNotice(text),
     setError: setTexError,

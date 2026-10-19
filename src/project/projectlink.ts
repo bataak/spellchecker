@@ -9,28 +9,7 @@ import {
   locateFile,
   saveMessage,
 } from "./linkfiles.ts";
-import {
-  hasProject,
-  onProjectChange,
-  openDirHandle,
-  project,
-  projectKey,
-  projectBinary,
-  projectSavedText,
-  projectText,
-  projectZip,
-  projectSnapshot,
-  markExported,
-  type ProjectSnapshot,
-  refreshProject,
-  restoreProject,
-  saveProject,
-  setActive,
-  setLinked,
-  closeProject,
-  setMain,
-  setProjectText,
-} from "./projectstore.ts";
+import type { ProjectStore, ProjectSnapshot } from "./projectstore.ts";
 import {
   baseName,
   isLatexDocument,
@@ -41,6 +20,7 @@ import {
   viewableType,
 } from "../tex/texproject.ts";
 import type { PreviewSource } from "../preview/preview.ts";
+import type { TexProject } from "./projectbuild.ts";
 import { onSwap, swapOrigin, swapText } from "../editortext.ts";
 import { KEYS, read, remove, write } from "../store.ts";
 
@@ -65,6 +45,7 @@ export interface OpenFilePort {
 }
 
 export interface ProjectLinkDeps {
+  readonly store: ProjectStore;
   readonly editor: HTMLTextAreaElement;
   readonly workspace: HTMLElement;
   readonly tools: () => HTMLElement | null;
@@ -83,6 +64,7 @@ export interface ProjectLink {
   readonly bound: () => boolean;
   readonly path: () => string | null;
   readonly key: () => string | null;
+  readonly texProject: () => TexProject | null;
   readonly unbind: (forget: boolean) => void;
   readonly adopt: (strict: boolean) => void;
   readonly enter: () => void;
@@ -115,6 +97,26 @@ function storeSlot(slot: string | null): void {
 }
 
 export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
+  const {
+    hasProject,
+    onProjectChange,
+    openDirHandle,
+    project,
+    projectKey,
+    projectBinary,
+    projectSavedText,
+    projectText,
+    projectZip,
+    projectSnapshot,
+    markExported,
+    refreshProject,
+    restoreProject,
+    saveProject,
+    setActive,
+    closeProject,
+    setMain,
+    setProjectText,
+  } = deps.store;
   const { editor } = deps;
   let bound = false;
   let boundPath: string | null = null;
@@ -143,7 +145,6 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     boundPath = path;
     boundId = project()?.id ?? 0;
     detached = false;
-    setLinked(true);
     storeSlot(deps.slots.current());
   };
 
@@ -151,7 +152,6 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     remember();
     bound = false;
     boundPath = null;
-    setLinked(false);
     if (forget) storeSlot(null);
   };
 
@@ -277,6 +277,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
   };
 
   const panel: ProjectPanel = initProjectPanel({
+    store: deps.store,
     workspace: deps.workspace,
     tools: deps.tools,
     texActive: () => bound || deps.texActive(),
@@ -397,6 +398,10 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
       pushText();
       return projectKey();
     },
+    texProject: () =>
+      bound && hasProject()
+        ? { build: deps.store.projectBuild, digest: deps.store.projectDigest }
+        : null,
     unbind,
     adopt,
     async save(diskOnly = false) {

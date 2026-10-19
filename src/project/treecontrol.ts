@@ -1,14 +1,4 @@
-import {
-  addFile,
-  createDir,
-  createFile,
-  project,
-  projectHas,
-  projectText,
-  removePath,
-  renamePath,
-  setMain,
-} from "./projectstore.ts";
+import type { ProjectStore } from "./projectstore.ts";
 import {
   baseName,
   dirName,
@@ -35,6 +25,7 @@ export function createTreeState(): TreeState {
 }
 
 export interface TreeControlDeps {
+  readonly store: ProjectStore;
   readonly tree: HTMLElement;
   readonly state: TreeState;
   readonly menu: ProjectMenu;
@@ -51,6 +42,17 @@ export interface TreeControl {
 }
 
 export function initTreeControl(deps: TreeControlDeps): TreeControl {
+  const {
+    addFile,
+    createDir,
+    createFile,
+    project,
+    projectHas,
+    projectText,
+    removePath,
+    renamePath,
+    setMain,
+  } = deps.store;
   const { state } = deps;
 
   const isDir = (path: string): boolean =>

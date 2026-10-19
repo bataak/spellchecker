@@ -1,5 +1,6 @@
 import { unzipSync } from "fflate";
 import { unwrapLog } from "./texmissing.ts";
+import type { TexProject } from "../project/projectbuild.ts";
 import {
   TEX_BUNDLE,
   TEX_ENGINE,
@@ -357,14 +358,14 @@ export interface TexDocument {
   readonly missing: readonly string[];
 }
 
-async function compileProjectDocument(): Promise<TexDocument> {
-  const [{ projectBuild }, { withParatype }, { toPdfLatex }] =
-    await Promise.all([
-      import("../project/projectstore.ts"),
-      import("./latex.ts"),
-      import("./texcompat.ts"),
-    ]);
-  const build = await projectBuild();
+async function compileProjectDocument(
+  project: TexProject,
+): Promise<TexDocument> {
+  const [{ withParatype }, { toPdfLatex }] = await Promise.all([
+    import("./latex.ts"),
+    import("./texcompat.ts"),
+  ]);
+  const build = await project.build();
   const tex = toPdfLatex(build.mainText);
   const layout = {
     workdir: build.workdir,
@@ -386,9 +387,11 @@ async function compileProjectDocument(): Promise<TexDocument> {
   }
 }
 
-export async function compileTexDocument(text: string): Promise<TexDocument> {
-  const { projectLinked } = await import("../project/projectstore.ts");
-  if (projectLinked()) return compileProjectDocument();
+export async function compileTexDocument(
+  text: string,
+  project: TexProject | null = null,
+): Promise<TexDocument> {
+  if (project) return compileProjectDocument(project);
   const [{ previewTex, withParatype }, { texImageFiles }, { toPdfLatex }] =
     await Promise.all([
       import("./latex.ts"),
@@ -413,8 +416,11 @@ export async function compileTexDocument(text: string): Promise<TexDocument> {
   }
 }
 
-export async function compileTex(text: string): Promise<Uint8Array<ArrayBuffer>> {
-  return (await compileTexDocument(text)).pdf;
+export async function compileTex(
+  text: string,
+  project: TexProject | null = null,
+): Promise<Uint8Array<ArrayBuffer>> {
+  return (await compileTexDocument(text, project)).pdf;
 }
 
 function askMisses(worker: Worker): Promise<string[]> {
