@@ -16,7 +16,6 @@ import { initKeyboardToolbar } from "./kbtoolbar.ts";
 import { initSuggest } from "./suggest.ts";
 import { initSurvey, surveyOnErrorCount } from "./survey.ts";
 import { getIgnored, onIgnoredChange } from "./spell/ignore.ts";
-import type { Token } from "./spell/textcheck.ts";
 import { initIgnoreList } from "./ignorelist.ts";
 import { initAppearance } from "./appearance.ts";
 import { initMeasureControl, type MeasureControl } from "./measure.ts";
@@ -54,9 +53,6 @@ import { initExport, type ExportControl } from "./export.ts";
 import { stripExt } from "./exportformats.ts";
 import {
   initBackdrop,
-  renderBackdrop,
-  backdropText,
-  setHighlighter,
   refreshBackdropMarks,
   captureTopAnchor,
   anchoredScrollTop,
@@ -65,14 +61,12 @@ import {
   backdropLineCount,
   rangeRectAt,
 } from "./backdrop.ts";
-import { shiftTokens } from "./tokenshift.ts";
+import { createMarkLayer } from "./marklayer.ts";
 import { initMarkTap } from "./marktap.ts";
-import { texSpans } from "./tex/texhighlight.ts";
 import { initTexComplete } from "./tex/texcomplete.ts";
 import { caretPoint, initKeyboardLayout } from "./kblayout.ts";
 import { initUndoHistory, type UndoControl } from "./undohistory.ts";
 import { initTexImageInput, insertPickedImage } from "./tex/teximages.ts";
-import { minimalDiff } from "./mdedit.ts";
 import { initDefineControls } from "./definecontrols.ts";
 import { initSuggestPopover } from "./suggestpopover.ts";
 import { rotateEmptyTips, syncEmptyTips } from "./emptytips.ts";
@@ -165,7 +159,6 @@ const spell = createSpellSession({
 });
 
 let ready = false;
-let badTokens: Token[] = [];
 const DICT_REFRESH_GAP_MS = 24 * 60 * 60 * 1000;
 const dicts = createDictStatus();
 const refreshDue = createRefreshGate(DICT_REFRESH_GAP_MS);
@@ -262,11 +255,10 @@ function syncTexMode(): void {
   clean.sync();
 }
 
-let texPaint = false;
+const marks = createMarkLayer({ editor: els.editor, syncScroll });
+
 function applyTexPaint(on: boolean): void {
-  if (on === texPaint) return;
-  texPaint = on;
-  setHighlighter(on ? texSpans : null);
+  if (!marks.setTex(on)) return;
   if (on) {
     void import("./tex/texpdf.ts").then(async (mod) => {
       const ready = await mod.prefetchFonts();
@@ -278,25 +270,6 @@ function applyTexPaint(on: boolean): void {
     void import("./tex/teximages.ts");
     void import("./tex/latex.ts");
   }
-  els.editor.parentElement?.classList.toggle("is-tex", on);
-  const text = els.editor.value;
-  if (text !== backdropText()) badTokens = [];
-  renderBackdrop(text, badTokens);
-  syncScroll();
-}
-
-function syncBackdrop(): void {
-  if (!texPaint) return;
-  const text = els.editor.value;
-  const patch = minimalDiff(backdropText(), text);
-  if (!patch) return;
-  badTokens = shiftTokens(badTokens, {
-    start: patch.from,
-    oldEnd: patch.to,
-    newEnd: patch.from + patch.insert.length,
-  });
-  renderBackdrop(text, badTokens);
-  syncScroll();
 }
 
 const previewMode = createPreviewMode({
@@ -331,12 +304,11 @@ async function render() {
 
   syncEmptyState(text);
   syncTexMode();
-  syncBackdrop();
+  marks.follow();
   previewCtl?.update();
 
   if (!ready) {
-    badTokens = [];
-    renderBackdrop(text, []);
+    marks.show(text, []);
     syncScroll();
     errorPanel.clear(text.trim() !== "");
     return;
@@ -346,10 +318,8 @@ async function render() {
   await spell.ensureChecked(text, tokens);
   if (seq !== renderSeq) return;
   const { bad, total } = spell.computeBad(text, tokens);
-  badTokens = bad;
-
-  renderBackdrop(text, bad);
-  syncBackdrop();
+  marks.show(text, bad);
+  marks.follow();
   syncScroll();
   captureTopAnchor();
   errorPanel.render();
@@ -428,7 +398,7 @@ function syncActiveLine() {
 
 function tokenAtCaret() {
   const pos = els.editor.selectionStart;
-  for (const token of badTokens) {
+  for (const token of marks.tokens()) {
     if (pos >= token.start && pos <= token.end) return token;
   }
   return null;
@@ -465,7 +435,7 @@ const errorPanel = initErrorPanel({
   editor: els.editor,
   backdrop: els.backdrop,
   desktopMQ,
-  badTokens: () => badTokens,
+  badTokens: () => marks.tokens(),
   lastCaret: () => lastCaret,
   setLastCaret: (caret) => {
     lastCaret = caret;
@@ -524,10 +494,7 @@ async function commitReplacement(text: string, caret: number): Promise<void> {
   const edit = setEditorText(text, caret);
   els.editor.scrollTop = top;
   if (edit) {
-    if (!texPaint) {
-      badTokens = shiftTokens(badTokens, edit);
-      renderBackdrop(text, badTokens);
-    }
+    marks.shift(text, edit);
     syncScroll();
     await afterPaint();
   }
@@ -625,11 +592,8 @@ const saveText = draft.save;
 
 els.editor.addEventListener("input", (e) => {
   const swapped = swapOrigin(e) !== null;
-  if (swapped) {
-    badTokens = [];
-    renderBackdrop(els.editor.value, []);
-  }
-  syncBackdrop();
+  if (swapped) marks.show(els.editor.value, []);
+  marks.follow();
   if (editorText.programmatic()) return;
   if (!(e instanceof InputEvent)) return;
   hidePopover();
@@ -696,7 +660,7 @@ els.editor.addEventListener("keyup", (e) => {
 
 const markTap = initMarkTap({
   editor: els.editor,
-  tokens: () => badTokens,
+  tokens: () => marks.tokens(),
   show: (token) => showPopoverFor(token),
 });
 
@@ -917,11 +881,11 @@ lastTex = isTexFile();
 applyTexPaint(lastTex);
 initTexComplete({
   editor: els.editor,
-  active: () => texPaint,
+  active: () => marks.tex(),
   rectAt: rangeRectAt,
   onImage: () => void insertPickedImage(els.editor),
 });
-initTexImageInput({ editor: els.editor, active: () => texPaint });
+initTexImageInput({ editor: els.editor, active: () => marks.tex() });
 const workspaceEl = document.querySelector<HTMLElement>(".workspace");
 if (workspaceEl)
   projectLink = initProjectLink({
@@ -1204,7 +1168,7 @@ initToolbar({
   saveText,
   isTouch,
   buildErrorList,
-  getBadTokens: () => badTokens,
+  getBadTokens: () => marks.tokens(),
   copyText,
   lettersFixed: () => decode.announce(STANDARD_LETTERS_MESSAGE),
 });
@@ -1212,7 +1176,7 @@ initKeyboardToolbar(els.editor, els.backdrop);
 
 initSuggest({
   buildErrorList,
-  getBadTokens: () => badTokens,
+  getBadTokens: () => marks.tokens(),
   isDashSuffix: (token) => isDashSuffix(els.editor.value, token),
   copyText,
   checkKnown: (list) =>
@@ -1251,7 +1215,7 @@ initReportButton(() => {
     fileName: doc.fileName(),
     layout: measureCtl?.layout() ?? null,
     text: els.editor.value,
-    errorWords: badTokens.map((token) => token.word),
+    errorWords: marks.tokens().map((token) => token.word),
     personalDict: getIgnored(),
     listDicts: () => checker.listDicts?.({ peek: true }) ?? Promise.resolve([]),
   };
