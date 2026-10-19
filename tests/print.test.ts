@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { parse } from "../src/markdown.ts";
 import { applyTemplate } from "../src/office/apply.ts";
 import { docImages, imageKey } from "../src/office/docir.ts";
-import { printHtml } from "../src/office/print.ts";
+import { printHtml, splitStyles } from "../src/office/print.ts";
 import { findTemplate } from "../src/templates.ts";
 
 function letter(md: string): string {
@@ -39,7 +39,7 @@ test("printHtml: хүснэгт, жагсаалт, тэмдэгт", () => {
   assert.match(html, /<td class="c-head">/);
   assert.match(
     html,
-    /<td class="c-last"><p class="s-TableCell" style="text-align:right">2<\/p><\/td>/,
+    /<td class="c-last"><p class="s-TableCell" data-style="text-align:right">2<\/p><\/td>/,
   );
 });
 
@@ -74,7 +74,7 @@ test("printHtml: бэлтгэсэн зургийг голлуулсан дого
   const html = printHtml(doc, "fonts/", images);
   assert.match(
     html,
-    /<p class="s-Figure"><img class="image" src="blob:id" alt="" style="width:60%"><\/p>/,
+    /<p class="s-Figure"><img class="image" src="blob:id" alt="" data-style="width:60%"><\/p>/,
   );
   assert.equal(missing?.src, "x.png");
   assert.match(html, /<p class="s-Figure"><br><\/p>/);
@@ -95,4 +95,12 @@ test("printHtml: хэвлэлт апптай хамт ирсэн Times-тэй и
     "bichig-print-mono-mn-700i-v1",
   ])
     assert.ok(html.includes('url("fonts/' + file + '.woff2")'), file);
+});
+
+test("splitStyles: CSS-ийг баримтаас салгаж, style блокгүй markup буцаана", () => {
+  const { markup, css } = splitStyles(letter("# Гарчиг\n\nБие."));
+  assert.doesNotMatch(markup, /<style>|<\/style>/);
+  assert.match(markup, /<title>Гарчиг<\/title><\/head><body>/);
+  assert.match(css, /@page\{/);
+  assert.deepEqual(splitStyles("<p>a</p>"), { markup: "<p>a</p>", css: "" });
 });

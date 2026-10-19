@@ -3,9 +3,9 @@ import "katex/dist/katex.min.css";
 
 const CACHE_LIMIT = 500;
 
-const cache = new Map<string, string>();
+const cache = new Map<string, HTMLElement>();
 
-function rendered(tex: string, display: boolean): string {
+function rendered(tex: string, display: boolean): HTMLElement {
   const key = (display ? "D" : "I") + tex;
   const hit = cache.get(key);
   if (hit !== undefined) {
@@ -13,15 +13,17 @@ function rendered(tex: string, display: boolean): string {
     cache.set(key, hit);
     return hit;
   }
-  const html = katex.renderToString(
+  const holder = document.createElement("span");
+  katex.render(
     tex
       .replace(/\\(begin|end)\{multline(\*?)\}/g, "\\$1{gather$2}")
       .replace(/\\(?:begin|end)\{displaymath\}/g, ""),
+    holder,
     { displayMode: display, throwOnError: false },
   );
-  cache.set(key, html);
+  cache.set(key, holder);
   if (cache.size > CACHE_LIMIT) cache.delete(cache.keys().next().value!);
-  return html;
+  return holder;
 }
 
 export function renderMath(root: HTMLElement): void {
@@ -30,6 +32,9 @@ export function renderMath(root: HTMLElement): void {
   )) {
     const tex = el.textContent ?? "";
     el.dataset.tex = tex;
-    el.innerHTML = rendered(tex, el.classList.contains("math-display"));
+    const holder = rendered(tex, el.classList.contains("math-display"));
+    el.replaceChildren(
+      ...[...holder.childNodes].map((node) => node.cloneNode(true)),
+    );
   }
 }

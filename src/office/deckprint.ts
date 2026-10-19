@@ -79,7 +79,7 @@ function box(
   return (
     '<div class="box' +
     (middle ? " mid" : "") +
-    '" style="left:' +
+    '" data-style="left:' +
     cm(x) +
     ";top:" +
     cm(y) +
@@ -99,7 +99,7 @@ function para(
   options: { center?: boolean; bold?: boolean } = {},
 ): string {
   return (
-    '<p style="font-size:' +
+    '<p data-style="font-size:' +
     pt(size) +
     (options.center ? ";text-align:center" : "") +
     '">' +
@@ -122,7 +122,7 @@ function linesHtml(lines: readonly DeckLine[], size: number): string {
         marker = String(number) + ".";
       } else number = 0;
       return (
-        '<p class="li" style="font-size:' +
+        '<p class="li" data-style="font-size:' +
         pt(size) +
         '"><span class="mk">' +
         marker +
@@ -155,7 +155,7 @@ function tableHtml(
         .map((width, c) => {
           const align = table.align[c];
           return (
-            '<td style="width:' +
+            '<td data-style="width:' +
             cm(width) +
             (align ? ";text-align:" + TEXT_ALIGN[align] : "") +
             '"' +
@@ -169,7 +169,7 @@ function tableHtml(
       return (
         "<tr" +
         (classes ? ' class="' + classes + '"' : "") +
-        ' style="height:' +
+        ' data-style="height:' +
         cm(layout.heights[r] ?? 0) +
         '">' +
         cells +
@@ -178,7 +178,7 @@ function tableHtml(
     })
     .join("");
   return (
-    '<table style="left:' +
+    '<table data-style="left:' +
     cm(x) +
     ";top:" +
     cm(y) +
@@ -230,7 +230,7 @@ function imageHtml(images: ImageSet, placed: PlacedImage): string {
   return (
     '<img class="img" alt="" src="' +
     esc(ready.url) +
-    '" style="left:' +
+    '" data-style="left:' +
     cm(placed.x) +
     ";top:" +
     cm(placed.y) +

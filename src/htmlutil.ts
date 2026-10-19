@@ -11,3 +11,10 @@ export function escapeAttr(value: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 }
+
+export function applyDataStyles(root: ParentNode): void {
+  for (const el of root.querySelectorAll<HTMLElement>("[data-style]")) {
+    el.style.cssText = el.dataset.style ?? "";
+    el.removeAttribute("data-style");
+  }
+}

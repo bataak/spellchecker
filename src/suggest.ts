@@ -402,7 +402,7 @@ export function initSuggest(deps: SuggestDeps): void {
       '<a class="tbtn suggest-issues" href="' +
       ISSUES_URL +
       '" target="_blank" rel="noopener noreferrer" title="Нийт хэрэглэгчдийн мэдэгдсэн үгс">GitHub</a>' +
-      '<button type="button" class="tbtn suggest-view-submitted" title="Миний мэдэгдсэн үгс" style="margin-right:auto">Мэдэгдсэн үгс</button>' +
+      '<button type="button" class="tbtn suggest-view-submitted" title="Миний мэдэгдсэн үгс">Мэдэгдсэн үгс</button>' +
       '<button type="button" class="tbtn suggest-cancel">Цуцлах</button>' +
       '<button type="button" class="tbtn suggest-send">Илгээх</button>' +
       "</div>" +
