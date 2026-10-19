@@ -209,24 +209,40 @@ export async function renderPdfInto(
     slot.rendering = false;
   };
 
+  const fit = (slot: PageSlot): { density: number; pixels: number } => {
+    const border = slot.el.clientLeft;
+    const width = Math.max(
+      slot.el.getBoundingClientRect().width - border * 2,
+      120,
+    );
+    const density = canvasDensity(
+      width,
+      base.height / base.width,
+      dpr,
+      maxPixels,
+    );
+    return { density, pixels: Math.round(width * density) };
+  };
+
+  const restretch = (slot: PageSlot): boolean => {
+    const canvas = slot.canvas;
+    if (!canvas || slot.rendering) return false;
+    const { density, pixels } = fit(slot);
+    if (Math.abs(canvas.width - pixels) > 1) return false;
+    slot.density = density;
+    canvas.style.width = canvas.width / density + "px";
+    canvas.style.height = canvas.height / density + "px";
+    snap(slot);
+    return true;
+  };
+
   const draw = async (slot: PageSlot): Promise<void> => {
     if (slot.canvas || slot.rendering) return;
     slot.rendering = true;
     const gen = ++slot.gen;
     try {
       const page = await doc.getPage(slot.index);
-      const border = slot.el.clientLeft;
-      const width = Math.max(
-        slot.el.getBoundingClientRect().width - border * 2,
-        120,
-      );
-      const density = canvasDensity(
-        width,
-        base.height / base.width,
-        dpr,
-        maxPixels,
-      );
-      const pixels = Math.round(width * density);
+      const { density, pixels } = fit(slot);
       const viewport = page.getViewport({ scale: pixels / base.width });
       const canvas = document.createElement("canvas");
       canvas.width = pixels;
@@ -403,6 +419,7 @@ export async function renderPdfInto(
     resizeTimer = window.setTimeout(() => {
       zooming = false;
       for (const slot of visible) {
+        if (restretch(slot)) continue;
         slot.gen++;
         slot.task?.cancel();
         slot.task = null;
@@ -410,6 +427,7 @@ export async function renderPdfInto(
         slot.canvas = null;
         void draw(slot);
       }
+      scheduleDetail();
     }, delay);
   };
   let hostWidth = host.clientWidth;
