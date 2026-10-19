@@ -1,7 +1,7 @@
 import { KEYS, read, remove, write } from "../store.ts";
 
 const ZOOM_STEPS = [
-  0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 5, 6, 7, 8, 9,
+  0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 5, 6,
 ];
 
 export const ZOOM_MIN = ZOOM_STEPS[0]!;
