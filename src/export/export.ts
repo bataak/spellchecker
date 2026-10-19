@@ -1,3 +1,4 @@
+import type { SaveChain, SaveTrigger } from "../ui/savechain.ts";
 import { createPrinter } from "./exportprint.ts";
 import {
   FORMATS,
@@ -22,6 +23,7 @@ export interface ExportOptions {
   readonly texPdf?: () => Promise<Uint8Array<ArrayBuffer>>;
   readonly texSource?: (name: string) => Promise<void>;
   readonly saveButton?: HTMLElement | null;
+  readonly saveChain?: SaveChain;
   readonly printButton?: HTMLElement | null;
   readonly template: () => string;
   readonly onDone?: (name: string) => void;
@@ -369,12 +371,11 @@ export function initExport(options: ExportOptions): ExportControl {
     }, LONG_PRESS_MS);
   };
 
-  const onSaveClick = (event: MouseEvent): void => {
-    if (!held && !event.shiftKey) return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
+  const interceptSave = ({ shift }: SaveTrigger): boolean => {
+    if (!held && !shift) return false;
     if (!held) open();
     held = false;
+    return true;
   };
 
   const onContextMenu = (event: Event): void => {
@@ -395,8 +396,8 @@ export function initExport(options: ExportOptions): ExportControl {
     saveButton.addEventListener("pointerleave", dropPress);
     saveButton.addEventListener("pointercancel", dropPress);
     saveButton.addEventListener("contextmenu", onContextMenu);
-    saveButton.addEventListener("click", onSaveClick, true);
   }
+  const releaseSave = options.saveChain?.intercept(interceptSave);
 
   return {
     open,
@@ -411,8 +412,8 @@ export function initExport(options: ExportOptions): ExportControl {
         saveButton.removeEventListener("pointerleave", dropPress);
         saveButton.removeEventListener("pointercancel", dropPress);
         saveButton.removeEventListener("contextmenu", onContextMenu);
-        saveButton.removeEventListener("click", onSaveClick, true);
       }
+      releaseSave?.();
       overlay.remove();
     },
   };
