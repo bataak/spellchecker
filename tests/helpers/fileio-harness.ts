@@ -1,4 +1,5 @@
 import { initFileIO, type FileIOControl } from "../../src/files/fileio.ts";
+import { createSaveChain } from "../../src/ui/savechain.ts";
 import type { EditorPort, StatusPort } from "../../src/app/ports.ts";
 
 export interface SaveScenario {
@@ -77,6 +78,7 @@ export async function runSave(scenario: SaveScenario): Promise<SaveOutcome> {
   const editorEl = new FakeEl() as unknown as HTMLTextAreaElement;
   (editorEl as unknown as { value: string }).value = scenario.text ?? "бичвэр";
   const io: FileIOControl = initFileIO({
+    saveChain: createSaveChain(el("#saveBtn") as unknown as HTMLElement),
     editor: { el: editorEl } as unknown as EditorPort,
     status: { set: () => {}, hold: () => {} } as unknown as StatusPort,
     office: {
@@ -128,7 +130,9 @@ export async function runSave(scenario: SaveScenario): Promise<SaveOutcome> {
   );
   if (scenario.source)
     await io.saveSource(scenario.source.name, scenario.source.inProject);
-  else for (const fn of el("#saveBtn").listeners.get("click") ?? []) await fn();
+  else
+    for (const fn of el("#saveBtn").listeners.get("click") ?? [])
+      await fn({ shiftKey: false });
   await new Promise((resolve) => setImmediate(resolve));
   const label = el("#saveBtn").textContent || null;
   return { log, label, handle: io.targetHandle()?.name ?? null };

@@ -90,6 +90,7 @@ export function createProjectStore() {
   let state: State | null = null;
   let nextId = 1;
   const listeners = new Set<() => void>();
+  const conflictListeners = new Set<(paths: string[]) => void>();
   const persist = createPersist(() => state);
 
   function notify(): void {
@@ -99,6 +100,11 @@ export function createProjectStore() {
   function onProjectChange(listener: () => void): () => void {
     listeners.add(listener);
     return () => listeners.delete(listener);
+  }
+
+  function onDiskConflict(listener: (paths: string[]) => void): () => void {
+    conflictListeners.add(listener);
+    return () => conflictListeners.delete(listener);
   }
 
   function project(): ProjectView | null {
@@ -203,8 +209,11 @@ export function createProjectStore() {
     }
     const scan = await readDir(s.handle, s.stamps);
     if (state !== s) return false;
-    if (!applyScan(s, scan)) return false;
+    const conflicts: string[] = [];
+    if (!applyScan(s, scan, (path) => conflicts.push(path))) return false;
     changed(true);
+    if (conflicts.length)
+      for (const listener of conflictListeners) listener(conflicts);
     return true;
   }
 
@@ -550,6 +559,7 @@ export function createProjectStore() {
 
   return {
     onProjectChange,
+    onDiskConflict,
     project,
     hasProject,
     projectBinary,
