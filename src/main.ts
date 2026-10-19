@@ -60,6 +60,7 @@ import {
   setLineBlocks,
   backdropLineCount,
   rangeRectAt,
+  offsetAtY,
 } from "./backdrop.ts";
 import { createMarkLayer } from "./marklayer.ts";
 import { initMarkTap } from "./marktap.ts";
@@ -714,9 +715,25 @@ if (editorWrap) {
       els.editor,
       () => desktopMQ.matches && (measureCtl?.layout().preview ?? false),
       (on) => {
-        if (on) previewCtl?.update();
+        if (!on) return;
+        previewCtl?.update();
+        previewCtl?.revealAt(visibleOffset());
       },
     );
+}
+
+function visibleOffset(): number {
+  const box = els.editor.getBoundingClientRect();
+  const view = window.visualViewport;
+  const bottom = Math.min(
+    box.bottom,
+    view ? view.offsetTop + view.height : window.innerHeight,
+  );
+  const caret = els.editor.selectionStart;
+  const rect =
+    rangeRectAt(caret, caret + 1) ?? rangeRectAt(Math.max(0, caret - 1), caret);
+  if (rect && rect.top >= box.top && rect.bottom <= bottom) return caret;
+  return offsetAtY(box.top + (bottom - box.top) * 0.35) ?? caret;
 }
 
 function pdfName(): string {
