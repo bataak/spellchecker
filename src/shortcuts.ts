@@ -1,5 +1,25 @@
 import { confirmWipe } from "./wipe.ts";
 
+type Action = (e: KeyboardEvent) => void;
+
+interface Binding {
+  readonly alt?: boolean;
+  readonly shift: boolean;
+  readonly anywhere?: boolean;
+  readonly match: (e: KeyboardEvent) => boolean;
+  readonly run: Action;
+}
+
+const letter =
+  (l: string) =>
+  (e: KeyboardEvent): boolean =>
+    e.key.toLowerCase() === l || e.code === "Key" + l.toUpperCase();
+
+const anyOf =
+  (keys: readonly string[], code?: string) =>
+  (e: KeyboardEvent): boolean =>
+    keys.includes(e.key) || (code !== undefined && e.code === code);
+
 export interface ShortcutDeps {
   readonly editor: HTMLTextAreaElement;
   readonly openDictMenu: () => void;
@@ -72,130 +92,135 @@ export function initShortcuts(deps: ShortcutDeps): void {
     btn.setAttribute("title", base ? base + " · " + combo : combo);
   });
 
+  const timers = new WeakMap<Element, ReturnType<typeof setTimeout>>();
   function trigger(sel: string, doClick = true): void {
     const btn = document.querySelector<HTMLButtonElement>(sel);
     if (!btn || btn.disabled) return;
     if (doClick) btn.click();
     btn.classList.add("kbd-active");
-    const kbdBtn = btn as HTMLButtonElement & {
-      _kbdTimer?: ReturnType<typeof setTimeout>;
-    };
-    if (kbdBtn._kbdTimer) clearTimeout(kbdBtn._kbdTimer);
-    kbdBtn._kbdTimer = setTimeout(
-      () => btn.classList.remove("kbd-active"),
-      260,
+    clearTimeout(timers.get(btn));
+    timers.set(
+      btn,
+      setTimeout(() => btn.classList.remove("kbd-active"), 260),
     );
   }
 
-  window.addEventListener("keydown", (e) => {
-    const hasPrimaryModifier = isMac
-      ? e.metaKey && !e.ctrlKey
-      : e.ctrlKey && !e.metaKey;
-    if (!hasPrimaryModifier) return;
-    if (e.altKey) {
-      if (e.shiftKey && e.key === "Backspace") {
+  const press =
+    (sel: string): Action =>
+    (e) => {
+      e.preventDefault();
+      trigger(sel);
+    };
+
+  const inOtherField = (): boolean => {
+    const ae = document.activeElement;
+    return (
+      !!ae &&
+      ae !== editor &&
+      (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")
+    );
+  };
+
+  const openFile: Action = (e) => {
+    e.preventDefault();
+    if (window.showOpenFilePicker) {
+      trigger("#openBtn");
+      return;
+    }
+    document.querySelector<HTMLInputElement>("#openFile")?.click();
+    trigger("#openBtn", false);
+  };
+
+  const paste: Action = () => {
+    if (document.activeElement !== editor) {
+      editor.focus({ preventScroll: true });
+      const lastCaret = deps.lastCaret();
+      if (lastCaret) {
+        editor.setSelectionRange(lastCaret.start, lastCaret.end, "forward");
+      }
+    }
+    trigger("#pasteBtn", false);
+  };
+
+  const copy: Action = (e) => {
+    const pageSel = window.getSelection?.()?.toString() ?? "";
+    const editorHasSelection =
+      document.activeElement === editor &&
+      editor.selectionStart !== editor.selectionEnd;
+    if (pageSel || editorHasSelection) {
+      trigger("#copyBtn", false);
+      return;
+    }
+    e.preventDefault();
+    trigger("#copyBtn");
+  };
+
+  const bindings: readonly Binding[] = [
+    {
+      alt: true,
+      shift: true,
+      anywhere: true,
+      match: anyOf(["Backspace"]),
+      run: (e) => {
         e.preventDefault();
         trigger("#clearBtn", false);
         confirmWipe();
-      }
-      return;
-    }
-
-    const key = e.key;
-    const lowerKey = key.toLowerCase();
-    const isLetter = (letter: string): boolean =>
-      lowerKey === letter || e.code === "Key" + letter.toUpperCase();
-
-    const ae = document.activeElement;
-    const inOtherField =
-      !!ae &&
-      ae !== editor &&
-      (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA");
-
-    if (isLetter("s") && !e.shiftKey) {
-      e.preventDefault();
-      if (!inOtherField) trigger("#saveBtn");
-      return;
-    }
-
-    if (inOtherField) return;
-
-    if (e.shiftKey) {
-      if (isLetter("l")) {
+      },
+    },
+    {
+      shift: false,
+      anywhere: true,
+      match: letter("s"),
+      run: (e) => {
+        e.preventDefault();
+        if (!inOtherField()) trigger("#saveBtn");
+      },
+    },
+    {
+      shift: true,
+      match: letter("l"),
+      run: (e) => {
         e.preventDefault();
         deps.openDictMenu();
-        return;
-      }
-      if (isLetter("d")) {
-        e.preventDefault();
-        trigger("#themeBtn");
-        return;
-      }
-      if (key === "Backspace") {
-        e.preventDefault();
-        trigger("#clearBtn");
-        return;
-      }
-      if (key === "+" || e.code === "Equal") {
-        e.preventDefault();
-        trigger("#fontIncBtn");
-        return;
-      }
-      return;
-    }
+      },
+    },
+    { shift: true, match: letter("d"), run: press("#themeBtn") },
+    { shift: true, match: anyOf(["Backspace"]), run: press("#clearBtn") },
+    { shift: true, match: anyOf(["+"], "Equal"), run: press("#fontIncBtn") },
+    {
+      shift: false,
+      match: anyOf(["-", "Subtract"], "Minus"),
+      run: press("#fontDecBtn"),
+    },
+    {
+      shift: false,
+      match: anyOf(["+", "=", "Add"], "Equal"),
+      run: press("#fontIncBtn"),
+    },
+    {
+      shift: false,
+      match: anyOf(["0", "Numpad0"], "Digit0"),
+      run: press("#fontResetBtn"),
+    },
+    { shift: false, match: letter("o"), run: openFile },
+    { shift: false, match: letter("e"), run: press("#copyErrorsBtn") },
+    { shift: false, match: letter("v"), run: paste },
+    {
+      shift: false,
+      match: (e) => letter("c")(e) || e.key.toLowerCase() === "ё",
+      run: copy,
+    },
+  ];
 
-    if (key === "-" || key === "Subtract" || e.code === "Minus") {
-      e.preventDefault();
-      trigger("#fontDecBtn");
-      return;
-    }
-    if (key === "+" || key === "=" || key === "Add" || e.code === "Equal") {
-      e.preventDefault();
-      trigger("#fontIncBtn");
-      return;
-    }
-    if (key === "0" || key === "Numpad0" || e.code === "Digit0") {
-      e.preventDefault();
-      trigger("#fontResetBtn");
-      return;
-    }
-
-    if (isLetter("o")) {
-      if (!window.showOpenFilePicker) {
-        const openFileEl =
-          document.querySelector<HTMLInputElement>("#openFile");
-        if (openFileEl) openFileEl.click();
-        e.preventDefault();
-        trigger("#openBtn", false);
-      } else {
-        e.preventDefault();
-        trigger("#openBtn");
-      }
-    } else if (isLetter("e")) {
-      e.preventDefault();
-      trigger("#copyErrorsBtn");
-    } else if (isLetter("v")) {
-      if (document.activeElement !== editor) {
-        editor.focus({ preventScroll: true });
-        const lastCaret = deps.lastCaret();
-        if (lastCaret) {
-          editor.setSelectionRange(lastCaret.start, lastCaret.end, "forward");
-        }
-      }
-      trigger("#pasteBtn", false);
-    } else if (isLetter("c") || lowerKey === "ё") {
-      const pageSel = window.getSelection
-        ? (window.getSelection()?.toString() ?? "")
-        : "";
-      const editorFocused = document.activeElement === editor;
-      const editorHasSelection =
-        editorFocused && editor.selectionStart !== editor.selectionEnd;
-      if (!pageSel && !editorHasSelection) {
-        e.preventDefault();
-        trigger("#copyBtn");
-      } else {
-        trigger("#copyBtn", false);
-      }
-    }
+  window.addEventListener("keydown", (e) => {
+    const primary = isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
+    if (!primary) return;
+    const binding = bindings.find(
+      (b) =>
+        (b.alt ?? false) === e.altKey && b.shift === e.shiftKey && b.match(e),
+    );
+    if (!binding) return;
+    if (!binding.anywhere && inOtherField()) return;
+    binding.run(e);
   });
 }
