@@ -58,13 +58,23 @@ async function toPng(bytes: Uint8Array): Promise<Uint8Array | null> {
   }
 }
 
+export interface Converters {
+  readonly raster: (bytes: Uint8Array) => Promise<Uint8Array | null>;
+  readonly svg: (bytes: Uint8Array) => Promise<Uint8Array | null>;
+}
+
+const CONVERTERS: Converters = { raster: toPng, svg: svgToPdf };
+
 export interface BuildSource {
   readonly main: string | null;
   readonly texts: ReadonlyMap<string, string>;
   readonly binaries: ReadonlyMap<string, Uint8Array>;
 }
 
-export async function buildProject(s: BuildSource): Promise<ProjectBuild> {
+export async function buildProject(
+  s: BuildSource,
+  convert: Converters = CONVERTERS,
+): Promise<ProjectBuild> {
   const main = s.main;
   if (!main)
     throw new ProjectError("Төслийн үндсэн .tex файл тодорхойгүй байна");
@@ -96,7 +106,7 @@ export async function buildProject(s: BuildSource): Promise<ProjectBuild> {
       if (isPdfGraphic(path) || converted.has(path)) continue;
       const bytes = s.binaries.get(path) ?? new Uint8Array(0);
       const svg = isSvgGraphic(path);
-      const data = svg ? await svgToPdf(bytes) : await toPng(bytes);
+      const data = svg ? await convert.svg(bytes) : await convert.raster(bytes);
       if (!data) {
         resolved.set(raw, null);
         missing.push(wanted.trim());
@@ -125,7 +135,9 @@ export async function buildProject(s: BuildSource): Promise<ProjectBuild> {
         const wanted = expandMacros(raw, macros);
         const path = resolveSvg(wanted, root, [...svgSearch, ...search], has);
         if (path !== null && !pdfs.has(path)) {
-          const pdf = await svgToPdf(s.binaries.get(path) ?? new Uint8Array(0));
+          const pdf = await convert.svg(
+            s.binaries.get(path) ?? new Uint8Array(0),
+          );
           const name = pdf
             ? path.replace(/\.[^./]*$/, "") + ".converted.pdf"
             : null;
