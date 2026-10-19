@@ -1,5 +1,5 @@
 import { odfFont } from "../fonts.ts";
-import { ODF_PRESENTATION, writeOdf } from "../odf/index.ts";
+import { ODF_PRESENTATION, manifestXml, writeOdf } from "../odf/index.ts";
 import type { DeckDoc, DeckLine, DeckTable } from "../deck.ts";
 import {
   TABLE_PT,
@@ -10,7 +10,7 @@ import {
 } from "../decklayout.ts";
 import { imageKey } from "../docir.ts";
 import type { Align, ImageFiles, IrRun } from "../docir.ts";
-import { dropControls } from "../sanitize.ts";
+import { xmlAttr, xmlText } from "../sanitize.ts";
 
 export interface OdpOptions {
   readonly images?: ImageFiles;
@@ -65,17 +65,6 @@ const NS =
   ' xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"' +
   ' xmlns:xlink="http://www.w3.org/1999/xlink"';
 
-function esc(value: string): string {
-  return dropControls(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
-
-function escAttr(value: string): string {
-  return esc(value).replace(/"/g, "&quot;");
-}
-
 function cm(value: number): string {
   return value.toFixed(2) + "cm";
 }
@@ -93,7 +82,7 @@ function spacedLine(text: string): string {
         return part.length === 1
           ? "<text:s/>"
           : '<text:s text:c="' + String(part.length) + '"/>';
-      return esc(part);
+      return xmlText(part);
     })
     .join("");
 }
@@ -137,7 +126,7 @@ function runsXml(runs: readonly IrRun[], keys: Set<string>): string {
       : spaced(run.text);
     out += run.href
       ? '<text:a xlink:type="simple" xlink:href="' +
-        escAttr(run.href) +
+        xmlAttr(run.href) +
         '">' +
         body +
         "</text:a>"
@@ -603,29 +592,6 @@ function stylesXml(): string {
   );
 }
 
-function manifestXml(pictures: readonly string[]): string {
-  const entry = (path: string, type: string): string =>
-    '<manifest:file-entry manifest:full-path="' +
-    path +
-    '" manifest:media-type="' +
-    type +
-    '"/>';
-  return (
-    '<?xml version="1.0" encoding="UTF-8"?>' +
-    '<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0"' +
-    ' manifest:version="1.3">' +
-    entry("/", ODF_PRESENTATION) +
-    entry("content.xml", "text/xml") +
-    entry("styles.xml", "text/xml") +
-    pictures
-      .map((path) =>
-        entry(path, "image/" + path.slice(path.lastIndexOf(".") + 1)),
-      )
-      .join("") +
-    "</manifest:manifest>"
-  );
-}
-
 export function buildOdp(
   doc: DeckDoc,
   options: OdpOptions = {},
@@ -638,7 +604,9 @@ export function buildOdp(
   const pictures = [...media.paths.values()];
   const entries: Record<string, Uint8Array> = {
     mimetype: encoder.encode(ODF_PRESENTATION),
-    "META-INF/manifest.xml": encoder.encode(manifestXml(pictures)),
+    "META-INF/manifest.xml": encoder.encode(
+      manifestXml(ODF_PRESENTATION, ["content.xml", "styles.xml"], pictures),
+    ),
     "content.xml": encoder.encode(content),
     "styles.xml": encoder.encode(stylesXml()),
   };

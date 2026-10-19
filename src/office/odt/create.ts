@@ -1,5 +1,5 @@
 import { odfFont } from "../fonts.ts";
-import { ODF_TEXT, writeOdf } from "../odf/index.ts";
+import { ODF_TEXT, manifestXml, writeOdf } from "../odf/index.ts";
 import type { OdfPackage } from "../odf/index.ts";
 import { STYLE, imageKey, imageSizeCm } from "../docir.ts";
 import type {
@@ -14,7 +14,7 @@ import type {
 import { listTree, type ListTree } from "../../markdown.ts";
 import { tabFills } from "../flatten.ts";
 import { columnWidths, officeMetrics } from "../table.ts";
-import { dropControls } from "../sanitize.ts";
+import { xmlAttr, xmlText } from "../sanitize.ts";
 
 const encoder = new TextEncoder();
 
@@ -63,17 +63,6 @@ function frameXml(image: IrImage): string {
 }
 
 const MONO = odfFont("Courier New");
-
-function esc(value: string): string {
-  return dropControls(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
-
-function escAttr(value: string): string {
-  return esc(value).replace(/"/g, "&quot;");
-}
 
 function cm(value: number): string {
   return value.toFixed(3) + "cm";
@@ -124,7 +113,7 @@ function textProps(style: ParaStyle, base: string): string {
   if (style.bold) parts.push('fo:font-weight="bold"');
   if (style.italic) parts.push('fo:font-style="italic"');
   if (style.mono) parts.push('fo:font-family="&apos;' + MONO + '&apos;"');
-  else parts.push('fo:font-family="' + escAttr(base) + '"');
+  else parts.push('fo:font-family="' + xmlAttr(base) + '"');
   if (style.noHyphenation) parts.push('fo:hyphenate="false"');
   if (parts.length === 0) return "";
   return "<style:text-properties " + parts.join(" ") + "/>";
@@ -147,7 +136,7 @@ function runStyle(key: string, base: string): string {
   if (key.includes("s")) parts.push('style:text-line-through-style="solid"');
   if (key.includes("m"))
     parts.push('fo:font-family="&apos;' + MONO + '&apos;"');
-  else parts.push('fo:font-family="' + escAttr(base) + '"');
+  else parts.push('fo:font-family="' + xmlAttr(base) + '"');
   return (
     '<style:style style:name="T_' +
     (key || "plain") +
@@ -170,14 +159,14 @@ function runsXml(runs: readonly IrRun[]): string {
     }
     if (!run.text) continue;
     const key = runKey(run);
-    const text = esc(run.text).replace(/\n/g, "<text:line-break/>");
+    const text = xmlText(run.text).replace(/\n/g, "<text:line-break/>");
     const body =
       key === ""
         ? text
         : '<text:span text:style-name="T_' + key + '">' + text + "</text:span>";
     out += run.href
       ? '<text:a xlink:type="simple" xlink:href="' +
-        escAttr(run.href) +
+        xmlAttr(run.href) +
         '">' +
         body +
         "</text:a>"
@@ -448,7 +437,7 @@ function tocXml(doc: DocIr): string {
         '<text:p text:style-name="TOC_' +
         String(level) +
         '">' +
-        esc(
+        xmlText(
           block.runs
             .map((run) => run.text)
             .join("")
@@ -576,7 +565,7 @@ function stylesXml(doc: DocIr): string {
     '<style:text-properties fo:font-size="' +
     pt(doc.font.sizePt) +
     '" fo:font-family="' +
-    escAttr(base) +
+    xmlAttr(base) +
     '"/></style:style>';
 
   const lists =
@@ -650,7 +639,7 @@ function stylesXml(doc: DocIr): string {
     '<style:text-properties fo:font-size="' +
     pt(doc.font.sizePt) +
     '" fo:font-family="' +
-    escAttr(base) +
+    xmlAttr(base) +
     '" fo:language="mn" fo:country="MN" fo:hyphenate="true" ' +
     'fo:hyphenation-remain-char-count="3" ' +
     'fo:hyphenation-push-char-count="3"/></style:style>' +
@@ -677,37 +666,13 @@ function metaXml(doc: DocIr): string {
     ' xmlns:dc="http://purl.org/dc/elements/1.1/"' +
     ' xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0"' +
     ' office:version="1.3"><office:meta>' +
-    (doc.title ? "<dc:title>" + esc(doc.title) + "</dc:title>" : "") +
+    (doc.title ? "<dc:title>" + xmlText(doc.title) + "</dc:title>" : "") +
     "<dc:language>mn-MN</dc:language>" +
     "<meta:generator>bichig.dev</meta:generator>" +
     "<meta:creation-date>" +
     new Date().toISOString().slice(0, 19) +
     "</meta:creation-date>" +
     "</office:meta></office:document-meta>"
-  );
-}
-
-function manifestXml(pictures: readonly string[] = []): string {
-  const entry = (path: string, type: string): string =>
-    '<manifest:file-entry manifest:full-path="' +
-    path +
-    '" manifest:media-type="' +
-    type +
-    '"/>';
-  return (
-    '<?xml version="1.0" encoding="UTF-8"?>' +
-    '<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0"' +
-    ' manifest:version="1.3">' +
-    entry("/", ODF_TEXT) +
-    entry("content.xml", "text/xml") +
-    entry("styles.xml", "text/xml") +
-    entry("meta.xml", "text/xml") +
-    pictures
-      .map((path) =>
-        entry(path, "image/" + path.slice(path.lastIndexOf(".") + 1)),
-      )
-      .join("") +
-    "</manifest:manifest>"
   );
 }
 
@@ -732,7 +697,13 @@ export function buildOdt(
   const pictures = [...used.values()];
   const entries: Record<string, Uint8Array> = {
     mimetype: encoder.encode(ODF_TEXT),
-    "META-INF/manifest.xml": encoder.encode(manifestXml(pictures)),
+    "META-INF/manifest.xml": encoder.encode(
+      manifestXml(
+        ODF_TEXT,
+        ["content.xml", "styles.xml", "meta.xml"],
+        pictures,
+      ),
+    ),
     "content.xml": encoder.encode(content),
     "styles.xml": encoder.encode(stylesXml(doc)),
     "meta.xml": encoder.encode(metaXml(doc)),

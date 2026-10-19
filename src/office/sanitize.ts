@@ -11,3 +11,14 @@ export function dropControls(text: string): string {
 export function stripInvisible(text: string): string {
   return text.replace(INVISIBLE, "");
 }
+
+export function xmlText(value: string): string {
+  return dropControls(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+export function xmlAttr(value: string): string {
+  return xmlText(value).replace(/"/g, "&quot;");
+}

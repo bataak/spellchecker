@@ -35,6 +35,32 @@ export const ODF_TEXT = "application/vnd.oasis.opendocument.text";
 export const ODF_PRESENTATION =
   "application/vnd.oasis.opendocument.presentation";
 
+export function manifestXml(
+  mimetype: string,
+  parts: readonly string[],
+  pictures: readonly string[],
+): string {
+  const entry = (path: string, type: string): string =>
+    '<manifest:file-entry manifest:full-path="' +
+    path +
+    '" manifest:media-type="' +
+    type +
+    '"/>';
+  return (
+    '<?xml version="1.0" encoding="UTF-8"?>' +
+    '<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0"' +
+    ' manifest:version="1.3">' +
+    entry("/", mimetype) +
+    parts.map((path) => entry(path, "text/xml")).join("") +
+    pictures
+      .map((path) =>
+        entry(path, "image/" + path.slice(path.lastIndexOf(".") + 1)),
+      )
+      .join("") +
+    "</manifest:manifest>"
+  );
+}
+
 const STORED_ENTRY =
   /\.(png|jpe?g|gif|bmp|tiff?|ico|emf|wmf|svgz|mp3|mp4|m4a|wav|avi|mov|zip|bin)$/i;
 
