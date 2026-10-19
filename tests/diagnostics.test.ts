@@ -9,7 +9,7 @@ import {
   collectDiagnostics,
   entryHash,
   type DiagnosticsState,
-} from "../src/diagnostics.ts";
+} from "../src/feedback/diagnostics.ts";
 import { toSafeError, type SafeError } from "../src/safeerror.ts";
 
 const CYR = "НУУЦмаркер";

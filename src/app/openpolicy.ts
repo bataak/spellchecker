@@ -1,7 +1,7 @@
 import { flash } from "../clipboard.ts";
 import type { FileIODeps } from "../fileio.ts";
-import { FILE_LIMIT } from "../fileslots.ts";
-import type { MdToolbar } from "../mdtoolbar.ts";
+import { FILE_LIMIT } from "../slots/fileslots.ts";
+import type { MdToolbar } from "../mdbar/mdtoolbar.ts";
 
 const LIMIT_HOLD_MS = 8000;
 

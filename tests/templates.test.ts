@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { rawGet, rawSet, resetStorage } from "./helpers/mock-storage.ts";
-import { migrateLegacyDrafts } from "../src/slotstore.ts";
+import { migrateLegacyDrafts } from "../src/slots/slotstore.ts";
 import {
   LEGACY_TEMPLATES,
   TEMPLATE_GROUPS,

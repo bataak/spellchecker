@@ -1,5 +1,5 @@
 import type { Backdrop } from "./backdrop.ts";
-import { minimalDiff } from "./mdedit.ts";
+import { minimalDiff } from "./mdbar/mdedit.ts";
 import type { Token } from "./spell/textcheck.ts";
 import { texSpans } from "./tex/texhighlight.ts";
 import { shiftTokens, type TextEdit } from "./tokenshift.ts";

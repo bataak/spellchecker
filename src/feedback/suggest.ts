@@ -1,5 +1,5 @@
-import { escapeAttr } from "./htmlutil.ts";
-import { sameRoot } from "./spell/morphology.ts";
+import { escapeAttr } from "../htmlutil.ts";
+import { sameRoot } from "../spell/morphology.ts";
 import { getSubmitted, addSubmitted } from "./submitted.ts";
 import {
   MAX_WORDS,
@@ -12,9 +12,9 @@ import {
   startsLowerAfterDash,
   type ErrorEntry,
   type Token,
-} from "./spell/textcheck.ts";
-import { copyText } from "./clipboard.ts";
-import { attempt } from "./attempt.ts";
+} from "../spell/textcheck.ts";
+import { copyText } from "../clipboard.ts";
+import { attempt } from "../attempt.ts";
 
 interface Turnstile {
   render(

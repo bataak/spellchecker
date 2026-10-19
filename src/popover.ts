@@ -1,5 +1,5 @@
 import type { Backdrop } from "./backdrop.ts";
-import type { DefTip } from "./deftip.ts";
+import type { DefTip } from "./define/deftip.ts";
 import { isTouch } from "./input.ts";
 import type { WordSpan } from "./spell/lookup.ts";
 
