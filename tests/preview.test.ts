@@ -8,10 +8,13 @@ import {
   canvasDensity,
   clampZoom,
   loadInvert,
+  loadScrollX,
   loadZoom,
   pinchZoom,
   saveInvert,
+  saveScrollX,
   saveZoom,
+  scrollRatio,
   stepZoom,
   touchMid,
   touchSpan,
@@ -87,6 +90,19 @@ test("zoom ба invert тохиргоог хадгалж уншина", () => {
   assert.equal(loadInvert(), true);
   saveInvert(false);
   assert.equal(loadInvert(), false);
+});
+
+test("хэвтээ scroll-ийг мужийн харьцаагаар хадгалж уншина", () => {
+  assert.equal(loadScrollX(), null);
+  saveScrollX(0.4321);
+  assert.equal(loadScrollX(), 0.4321);
+  localStorage.setItem("pdfScrollX", "7");
+  assert.equal(loadScrollX(), 1);
+  localStorage.setItem("pdfScrollX", "abc");
+  assert.equal(loadScrollX(), null);
+  assert.equal(scrollRatio(150, 300), 0.5);
+  assert.equal(scrollRatio(50, 0), null);
+  assert.equal(scrollRatio(400, 300), 1);
 });
 
 test("lineOffset: мөрийн эхлэлийн байрлал", () => {

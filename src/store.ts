@@ -39,6 +39,7 @@ export const KEYS = {
   mdPreviewTex: shared("md-preview-tex"),
   pdfInvert: shared("pdfInvert"),
   pdfZoom: shared("pdfZoom"),
+  pdfScrollX: shared("pdfScrollX"),
   defPin: shared("def-pin"),
   defDock: shared("def-dock"),
   hintSeen: shared("hintSeen:"),

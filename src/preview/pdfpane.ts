@@ -1,9 +1,12 @@
 import type { PdfView } from "./pdfview.ts";
 import type { PreviewHead, ZoomAction } from "./previewhead.ts";
 import {
+  loadScrollX,
   loadZoom,
   pinchZoom,
+  saveScrollX,
   saveZoom,
+  scrollRatio,
   stepZoom,
   touchMid,
   touchSpan,
@@ -33,6 +36,40 @@ export function createPdfPane(
   let abort: AbortController | null = null;
   let shown: Uint8Array<ArrayBuffer> | null = null;
   let zoom = loadZoom();
+  let scrollX = loadScrollX();
+  let restoring = false;
+  let saveTimer: number | undefined;
+
+  const flushScrollX = (): void => {
+    clearTimeout(saveTimer);
+    saveTimer = undefined;
+    if (scrollX !== null) saveScrollX(scrollX);
+  };
+
+  body.addEventListener(
+    "scroll",
+    () => {
+      if (!view || restoring) return;
+      const ratio = scrollRatio(
+        body.scrollLeft,
+        body.scrollWidth - body.clientWidth,
+      );
+      if (ratio === null || ratio === scrollX) return;
+      scrollX = ratio;
+      clearTimeout(saveTimer);
+      saveTimer = window.setTimeout(flushScrollX, 300);
+    },
+    { passive: true },
+  );
+  window.addEventListener("pagehide", () => {
+    if (saveTimer !== undefined) flushScrollX();
+  });
+
+  const restoreScrollX = (): void => {
+    const range = body.scrollWidth - body.clientWidth;
+    if (scrollX !== null && range > 0)
+      body.scrollLeft = Math.round(scrollX * range);
+  };
 
   const setZoom = (next: number, origin?: { x: number; y: number }): void => {
     zoom = next;
@@ -66,19 +103,25 @@ export function createPdfPane(
   ): Promise<PdfView | null> => {
     const mod = await import("./pdfview.ts");
     if (controller.signal.aborted) return null;
-    const next = await mod.renderPdfInto(
-      body,
-      file,
-      controller.signal,
-      zoom,
-      options,
-    );
-    if (controller.signal.aborted) {
-      next.destroy();
-      return null;
+    restoring = true;
+    try {
+      const next = await mod.renderPdfInto(
+        body,
+        file,
+        controller.signal,
+        zoom,
+        options,
+      );
+      if (controller.signal.aborted) {
+        next.destroy();
+        return null;
+      }
+      setView(next);
+      restoreScrollX();
+      return next;
+    } finally {
+      restoring = false;
     }
-    setView(next);
-    return next;
   };
 
   body.addEventListener(
