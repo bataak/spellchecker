@@ -1,6 +1,8 @@
 import { KEYS, read, remove, write } from "../store.ts";
 
-const ZOOM_STEPS = [0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+const ZOOM_STEPS = [
+  0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 5, 6,
+];
 
 export const ZOOM_MIN = ZOOM_STEPS[0]!;
 export const ZOOM_MAX = ZOOM_STEPS[ZOOM_STEPS.length - 1]!;
@@ -47,6 +49,19 @@ export function touchMid(
 
 export function pinchZoom(zoom: number, from: number, to: number): number {
   return from > 0 ? clampZoom((zoom * to) / from) : zoom;
+}
+
+export const TOUCH_CANVAS_PIXELS = 12_000_000;
+export const DESKTOP_CANVAS_PIXELS = 32_000_000;
+
+export function canvasDensity(
+  width: number,
+  aspect: number,
+  dpr: number,
+  maxPixels: number,
+): number {
+  const area = width * width * aspect;
+  return area > 0 ? Math.min(dpr, Math.sqrt(maxPixels / area)) : dpr;
 }
 
 export function loadZoom(): number {

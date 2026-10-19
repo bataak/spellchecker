@@ -5,6 +5,7 @@ import { lineOffset, nthWordHit } from "../src/preview/htmlsync.ts";
 import { createPdfPool, type KeptPdf } from "../src/preview/pdfcache.ts";
 import { explainTexError } from "../src/preview/texpreview.ts";
 import {
+  canvasDensity,
   clampZoom,
   loadInvert,
   loadZoom,
@@ -47,6 +48,22 @@ test("wheelZoom: хулганы дугуй шатаар, touchpad жигд то�
   assert.equal(wheelZoom(1, { deltaY: 3, deltaMode: 1 }), 0.9);
   const smooth = wheelZoom(1, { deltaY: -10.5, deltaMode: 0 });
   assert.ok(smooth > 1 && smooth < 1.2);
+});
+
+test("ZOOM_MAX 600% хүртэл томруулна", () => {
+  assert.equal(ZOOM_MAX, 6);
+  assert.equal(stepZoom(3, 1), 4);
+  assert.equal(stepZoom(6, -1), 5);
+});
+
+test("canvasDensity: canvas-ийн пикселийг хязгаарт багтаана", () => {
+  const a4 = Math.SQRT2;
+  assert.equal(canvasDensity(350, a4, 2, 12_000_000), 2);
+  const big = canvasDensity(2100, a4, 2, 12_000_000);
+  assert.ok(big < 2);
+  const pixels = 2100 * big;
+  assert.ok(Math.abs(pixels * pixels * a4 - 12_000_000) < 1);
+  assert.equal(canvasDensity(0, a4, 2, 12_000_000), 2);
 });
 
 test("pinchZoom: хоёр хурууны зайн харьцаагаар томруулна", () => {

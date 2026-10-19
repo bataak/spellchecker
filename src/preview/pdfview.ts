@@ -1,5 +1,10 @@
 import type { Line, TextItem } from "./pdftext.ts";
 import type { PdfWord } from "../tex/texsync.ts";
+import {
+  canvasDensity,
+  DESKTOP_CANVAS_PIXELS,
+  TOUCH_CANVAS_PIXELS,
+} from "./viewprefs.ts";
 
 let pdfjsPromise: Promise<typeof import("pdfjs-dist")> | null = null;
 
@@ -92,7 +97,9 @@ export async function renderPdfInto(
 
   const slots: PageSlot[] = [];
   const dpr = Math.min(globalThis.devicePixelRatio || 1, MAX_DPR);
-
+  const maxPixels = globalThis.matchMedia?.("(pointer: coarse)").matches
+    ? TOUCH_CANVAS_PIXELS
+    : DESKTOP_CANVAS_PIXELS;
 
   const first = await doc.getPage(1);
   const base = first.getViewport({ scale: 1 });
@@ -121,8 +128,7 @@ export async function renderPdfInto(
     const y = (box.top + slot.el.clientTop) * dpr;
     const dx = (Math.round(x) - x) / dpr;
     const dy = (Math.round(y) - y) / dpr;
-    slot.canvas.style.transform =
-      dx || dy ? `translate(${dx}px, ${dy}px)` : "";
+    slot.canvas.style.transform = dx || dy ? `translate(${dx}px, ${dy}px)` : "";
   };
 
   const inset = (): number => options.inset?.() ?? 0;
@@ -182,13 +188,19 @@ export async function renderPdfInto(
         slot.el.getBoundingClientRect().width - border * 2,
         120,
       );
-      const pixels = Math.round(width * dpr);
+      const density = canvasDensity(
+        width,
+        base.height / base.width,
+        dpr,
+        maxPixels,
+      );
+      const pixels = Math.round(width * density);
       const viewport = page.getViewport({ scale: pixels / base.width });
       const canvas = document.createElement("canvas");
       canvas.width = pixels;
       canvas.height = Math.round(viewport.height);
-      canvas.style.width = canvas.width / dpr + "px";
-      canvas.style.height = canvas.height / dpr + "px";
+      canvas.style.width = canvas.width / density + "px";
+      canvas.style.height = canvas.height / density + "px";
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       const render = page.render({ canvas, canvasContext: ctx, viewport });
@@ -349,7 +361,8 @@ export async function renderPdfInto(
     setZoom(next, origin) {
       if (next === zoom) return;
       const frame = host.getBoundingClientRect();
-      const x = origin?.x ?? frame.left + host.clientLeft + host.clientWidth / 2;
+      const x =
+        origin?.x ?? frame.left + host.clientLeft + host.clientWidth / 2;
       const y = origin?.y ?? frame.top + host.clientTop + host.clientHeight / 2;
       let anchor = slots[0];
       let gap = Infinity;
