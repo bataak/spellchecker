@@ -571,7 +571,7 @@ test("мөр доторх 3+ доогуур зураас бөглөх зураа
   assert.equal(format("Огноо:______\n"), "Огноо:______\n");
   assert.match(
     toHtml(parse("Нэр ______")),
-    /<span class="blank" style="--blank:6"><\/span>/,
+    /<span class="blank" data-style="--blank:6"><\/span>/,
   );
   assert.equal(isMarkdown(parse("Нэр ______")), false);
 });
@@ -752,7 +752,7 @@ test("зураг: зам, өргөн, эргэлтийг задлаад буца
   assert.equal(
     toHtml(blocks),
     '<p class="md-figure" data-line="0"><img class="md-image" data-src="images/logo%20mn.png" ' +
-      'alt="Лого" style="width:40%" data-rotate="90"></p>',
+      'alt="Лого" data-style="width:40%" data-rotate="90"></p>',
   );
   assert.equal(
     print(blocks),
