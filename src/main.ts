@@ -31,7 +31,7 @@ import { createBackdrop } from "./editor/backdrop.ts";
 import { createMarkLayer } from "./editor/marklayer.ts";
 import { initMarkTap } from "./editor/marktap.ts";
 import { initKeyboardLayout } from "./editor/kblayout.ts";
-import { initUndoHistory } from "./editor/undohistory.ts";
+import { initUndoHistory, pruneUndo } from "./editor/undohistory.ts";
 import { rotateEmptyTips } from "./ui/emptytips.ts";
 import { createOfficeSession } from "./office/session.ts";
 import { createDictStatus } from "./dict/dictstatus.ts";
@@ -133,7 +133,7 @@ const doc = createDocumentSession({
   targetName: () => fileIO.targetName(),
   template: () => mdBar.template(),
   isTex: isTexFile,
-  setSaveTitles: (output, open) => syncSaveTitles(output, open),
+  setSaveTitles: initSaveHints(),
   refreshBar: () => mdBar.refresh(),
   enterMode: enterMdMode,
 });
@@ -231,8 +231,6 @@ const loop = createCheckLoop({
   syncScroll: view.syncScroll,
 });
 const render = loop.render;
-
-const syncSaveTitles = initSaveHints();
 
 const { defDock, defTip, pop, errorPanel, suggestPopover } = createPopovers({
   editor: editorEl,
@@ -636,6 +634,7 @@ void boot({
       opened: doc.open,
     }),
   restoreProject: () => projectLink.restore(),
+  pruneUndo: () => void pruneUndo(mdBar.fileSlots(), project()),
   fontsLoaded: () => {
     backdrop.reset();
     void render();
