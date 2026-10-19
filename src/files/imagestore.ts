@@ -1,3 +1,4 @@
+import { openDatabase } from "../core/idb.ts";
 import { persistImages, restoreImages } from "./images.ts";
 import { storedTexts } from "../core/storage.ts";
 import { storedHistoryTexts } from "../editor/undohistory.ts";
@@ -12,13 +13,9 @@ const DB_NAME = "bichig-images";
 const STORE = "images";
 
 function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
-    request.onupgradeneeded = () =>
-      request.result.createObjectStore(STORE, { keyPath: "src" });
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
+  return openDatabase(DB_NAME, (db) =>
+    db.createObjectStore(STORE, { keyPath: "src" }),
+  );
 }
 
 function settled(request: IDBRequest): Promise<void> {

@@ -1,3 +1,4 @@
+import { openDatabase } from "../core/idb.ts";
 import { swapOrigin } from "./editortext.ts";
 import { minimalDiff } from "../mdbar/mdedit.ts";
 import { noteError } from "../core/errorlog.ts";
@@ -143,13 +144,9 @@ const DB_NAME = "bichig-undo";
 const STORE = "history";
 
 function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
-    request.onupgradeneeded = () =>
-      request.result.createObjectStore(STORE, { keyPath: "slot" });
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
+  return openDatabase(DB_NAME, (db) =>
+    db.createObjectStore(STORE, { keyPath: "slot" }),
+  );
 }
 
 function done(request: IDBRequest): Promise<void> {
