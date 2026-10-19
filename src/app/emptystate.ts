@@ -1,5 +1,5 @@
-import { syncEmptyTips } from "../emptytips.ts";
-import { KEYS, write } from "../store.ts";
+import { syncEmptyTips } from "../ui/emptytips.ts";
+import { KEYS, write } from "../core/store.ts";
 
 export interface EmptyStateDeps {
   readonly el: HTMLElement | null;

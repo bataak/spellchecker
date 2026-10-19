@@ -1,11 +1,11 @@
-import { flash } from "../clipboard.ts";
-import { initExport, type ExportControl } from "../export.ts";
+import { flash } from "../ui/clipboard.ts";
+import { initExport, type ExportControl } from "../export/export.ts";
 import { isFileSlot } from "../slots/fileslots.ts";
-import { escapeHtml } from "../htmlutil.ts";
+import { escapeHtml } from "../core/htmlutil.ts";
 import type { CompiledPdf } from "../preview/pdfcache.ts";
 import type { ProjectLink } from "../project/projectlink.ts";
-import { missingNote, setSaveBusy } from "../savepdf.ts";
-import { PLAIN } from "../templates.ts";
+import { missingNote, setSaveBusy } from "../export/savepdf.ts";
+import { PLAIN } from "../doc/templates.ts";
 import { zipTexText } from "../tex/texzip.ts";
 
 const NOTE_MS = 8000;

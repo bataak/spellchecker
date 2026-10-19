@@ -14,8 +14,8 @@ import {
   type Inline,
   type ListTree,
 } from "../markdown.ts";
-import { splitSlides, type Slide } from "../slides.ts";
-import { attempt } from "../attempt.ts";
+import { splitSlides, type Slide } from "../doc/slides.ts";
+import { attempt } from "../core/attempt.ts";
 import { tableLatex } from "./latextable.ts";
 
 const BASE_PREAMBLE = `\\documentclass[12pt,a4paper]{article}

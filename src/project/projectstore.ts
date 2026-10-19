@@ -60,7 +60,7 @@ import {
   type ProjectKind,
   type State,
 } from "./projectstate.ts";
-import { attemptAsync } from "../attempt.ts";
+import { attemptAsync } from "../core/attempt.ts";
 
 export interface ProjectView {
   readonly id: number;

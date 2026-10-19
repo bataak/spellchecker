@@ -1,4 +1,4 @@
-import { escapeAttr } from "../htmlutil.ts";
+import { escapeAttr } from "../core/htmlutil.ts";
 import { sameRoot } from "../spell/morphology.ts";
 import { getSubmitted, addSubmitted } from "./submitted.ts";
 import {
@@ -13,8 +13,8 @@ import {
   type ErrorEntry,
   type Token,
 } from "../spell/textcheck.ts";
-import { copyText } from "../clipboard.ts";
-import { attempt } from "../attempt.ts";
+import { copyText } from "../ui/clipboard.ts";
+import { attempt } from "../core/attempt.ts";
 
 interface Turnstile {
   render(

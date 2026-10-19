@@ -1,5 +1,5 @@
-import { flash } from "../clipboard.ts";
-import type { FileIODeps } from "../fileio.ts";
+import { flash } from "../ui/clipboard.ts";
+import type { FileIODeps } from "../files/fileio.ts";
 import { FILE_LIMIT } from "../slots/fileslots.ts";
 import type { MdToolbar } from "../mdbar/mdtoolbar.ts";
 

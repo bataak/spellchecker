@@ -1,4 +1,4 @@
-import { read, write } from "../store.ts";
+import { read, write } from "../core/store.ts";
 
 const OFFLINE_READY_MS = 6000;
 

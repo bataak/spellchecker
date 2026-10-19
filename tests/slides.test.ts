@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { strFromU8, unzipSync } from "fflate";
 
 import { parse } from "../src/markdown.ts";
-import { splitSlides } from "../src/slides.ts";
+import { splitSlides } from "../src/doc/slides.ts";
 import { deckDoc } from "../src/office/deck.ts";
 import { buildOdp } from "../src/office/odp/create.ts";
 import { buildPptx } from "../src/office/pptx/create.ts";

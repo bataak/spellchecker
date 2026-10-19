@@ -10,7 +10,7 @@ import { imageKey } from "../src/office/docir.ts";
 import type { EmbeddedImage } from "../src/office/docir.ts";
 import { buildOdp } from "../src/office/odp/create.ts";
 import { buildPptx } from "../src/office/pptx/create.ts";
-import { splitSlides } from "../src/slides.ts";
+import { splitSlides } from "../src/doc/slides.ts";
 
 const MD =
   "## Зураг\n\nТайлбар.\n\n![](a.png) ![](b.png){width=20%}\n\n## Дараах\n\n![](a.png)\n\n![](lost.png)";

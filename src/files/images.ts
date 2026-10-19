@@ -1,0 +1,266 @@
+import { imageKey } from "../office/docir.ts";
+import type {
+  EmbeddedImage,
+  ImageFiles,
+  ImageSet,
+  IrImage,
+  PreparedImage,
+} from "../office/docir.ts";
+
+interface Stored {
+  readonly blob: Blob;
+  readonly url: string;
+}
+
+const REMOTE = /^(?:https?:|data:|blob:)/i;
+const NETWORK = /^https?:/i;
+
+const store = new Map<string, Stored>();
+const listeners = new Set<() => void>();
+const prepared = new Map<string, Promise<PreparedImage | null>>();
+let owned: string[] = [];
+const allowedRemote = new Set<string>();
+
+function dropPrepared(): void {
+  for (const url of owned) URL.revokeObjectURL(url);
+  owned = [];
+  prepared.clear();
+}
+
+function notify(): void {
+  for (const listener of listeners) listener();
+}
+
+export function isRemoteImage(src: string): boolean {
+  return REMOTE.test(src);
+}
+
+export function isBlockedRemote(src: string): boolean {
+  return NETWORK.test(src) && !allowedRemote.has(src);
+}
+
+export function allowRemoteImages(srcs: Iterable<string>): void {
+  for (const src of srcs) allowedRemote.add(src);
+  notify();
+}
+
+export function imageUrl(src: string): string | null {
+  if (isBlockedRemote(src)) return null;
+  if (isRemoteImage(src)) return src;
+  return store.get(src)?.url ?? null;
+}
+
+export function imageBlob(src: string): Blob | null {
+  return store.get(src)?.blob ?? null;
+}
+
+let persist: ((src: string, blob: Blob) => void) | null = null;
+
+export function persistImages(save: (src: string, blob: Blob) => void): void {
+  persist = save;
+}
+
+function keep(src: string, blob: Blob): void {
+  const old = store.get(src);
+  if (old) URL.revokeObjectURL(old.url);
+  store.set(src, { blob, url: URL.createObjectURL(blob) });
+}
+
+export function putImage(src: string, blob: Blob): void {
+  dropPrepared();
+  keep(src, blob);
+  persist?.(src, blob);
+  notify();
+}
+
+export function restoreImages(images: Iterable<[string, Blob]>): void {
+  let any = false;
+  for (const [src, blob] of images) {
+    if (store.has(src)) continue;
+    keep(src, blob);
+    any = true;
+  }
+  if (!any) return;
+  dropPrepared();
+  notify();
+}
+
+export function clearImages(): void {
+  if (!store.size && !prepared.size) return;
+  for (const { url } of store.values()) URL.revokeObjectURL(url);
+  store.clear();
+  dropPrepared();
+  notify();
+}
+
+export function onImagesChange(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+function own(blob: Blob): string {
+  const url = URL.createObjectURL(blob);
+  owned.push(url);
+  return url;
+}
+
+async function sourceBlob(src: string): Promise<Blob | null> {
+  const stored = imageBlob(src);
+  if (stored) return stored;
+  if (!isRemoteImage(src)) return null;
+  try {
+    const response = await fetch(src);
+    return response.ok ? await response.blob() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function prepareOne(image: IrImage): Promise<PreparedImage | null> {
+  const blob = await sourceBlob(image.src);
+  if (!blob)
+    return isRemoteImage(image.src)
+      ? { url: image.src, blob: null, widthPx: 0, heightPx: 0 }
+      : null;
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(blob);
+  } catch {
+    return null;
+  }
+  const rotate = image.rotate ?? 0;
+  const turned = rotate === 90 || rotate === 270;
+  const widthPx = turned ? bitmap.height : bitmap.width;
+  const heightPx = turned ? bitmap.width : bitmap.height;
+  if (!rotate) {
+    bitmap.close();
+    return {
+      url: imageUrl(image.src) ?? own(blob),
+      blob,
+      widthPx,
+      heightPx,
+    };
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = widthPx;
+  canvas.height = heightPx;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    bitmap.close();
+    return null;
+  }
+  context.translate(widthPx / 2, heightPx / 2);
+  context.rotate((rotate * Math.PI) / 180);
+  context.drawImage(bitmap, -bitmap.width / 2, -bitmap.height / 2);
+  bitmap.close();
+  const type = blob.type === "image/jpeg" ? "image/jpeg" : "image/png";
+  const turnedBlob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, type, 0.92),
+  );
+  if (!turnedBlob) return null;
+  return { url: own(turnedBlob), blob: turnedBlob, widthPx, heightPx };
+}
+
+export function prepareImage(image: IrImage): Promise<PreparedImage | null> {
+  const key = imageKey(image);
+  let ready = prepared.get(key);
+  if (!ready) {
+    ready = prepareOne(image);
+    prepared.set(key, ready);
+  }
+  return ready;
+}
+
+export async function prepareImages(
+  images: readonly IrImage[],
+): Promise<ImageSet> {
+  const out = new Map<string, PreparedImage>();
+  await Promise.all(
+    images.map(async (image) => {
+      const ready = await prepareImage(image);
+      if (ready) out.set(imageKey(image), ready);
+    }),
+  );
+  return out;
+}
+
+async function encodable(
+  blob: Blob,
+  drawn: boolean,
+): Promise<{ blob: Blob; ext: "png" | "jpeg" } | null> {
+  const jpeg = blob.type === "image/jpeg";
+  if (blob.type === "image/png") return { blob, ext: "png" };
+  if (jpeg && drawn) return { blob, ext: "jpeg" };
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(blob);
+  } catch {
+    return null;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  canvas.getContext("2d")?.drawImage(bitmap, 0, 0);
+  bitmap.close();
+  const ext = jpeg ? "jpeg" : "png";
+  const out = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, "image/" + ext, 0.92),
+  );
+  return out ? { blob: out, ext } : null;
+}
+
+export async function imageFiles(
+  images: readonly IrImage[],
+): Promise<ImageFiles> {
+  const out = new Map<string, EmbeddedImage>();
+  await Promise.all(
+    images.map(async (image) => {
+      const ready = await prepareImage(image);
+      if (!ready?.blob) return;
+      const file = await encodable(ready.blob, !!image.rotate);
+      if (!file) return;
+      out.set(imageKey(image), {
+        bytes: new Uint8Array(await file.blob.arrayBuffer()),
+        ext: file.ext,
+        widthPx: ready.widthPx,
+        heightPx: ready.heightPx,
+      });
+    }),
+  );
+  return out;
+}
+
+export function imagePath(name: string): string {
+  return name.replace(/[\s()<>%]/g, (ch) =>
+    ch === "(" ? "%28" : ch === ")" ? "%29" : encodeURIComponent(ch),
+  );
+}
+
+function sameImage(a: Blob, b: Blob): boolean {
+  if (a === b) return true;
+  if (a.size !== b.size || a.type !== b.type) return false;
+  if (!(a instanceof File && b instanceof File)) return true;
+  return a.lastModified === b.lastModified;
+}
+
+export function freeImagePath(name: string, blob: Blob): string {
+  const dot = name.lastIndexOf(".");
+  const stem = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : "";
+  for (let n = 1; ; n++) {
+    const src = imagePath(n === 1 ? name : stem + "-" + n + ext);
+    const taken = store.get(src);
+    if (!taken || sameImage(taken.blob, blob)) return src;
+  }
+}
+
+export function pickImage(): Promise<File | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.addEventListener("change", () => resolve(input.files?.[0] ?? null));
+    input.addEventListener("cancel", () => resolve(null));
+    input.click();
+  });
+}

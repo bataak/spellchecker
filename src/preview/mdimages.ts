@@ -5,7 +5,7 @@ import {
   pickImage,
   prepareImage,
   putImage,
-} from "../images.ts";
+} from "../files/images.ts";
 
 function displayPath(src: string): string {
   try {

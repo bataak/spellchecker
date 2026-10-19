@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createDocumentSession } from "../src/docsession.ts";
+import { createDocumentSession } from "../src/doc/docsession.ts";
 
 const setup = () => {
   const state = {

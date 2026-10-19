@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { escapeHtml } from "../src/htmlutil.ts";
+import { escapeHtml } from "../src/core/htmlutil.ts";
 
 test("escapeHtml тусгай тэмдэгтүүдийг хувиргана", () => {
   assert.equal(

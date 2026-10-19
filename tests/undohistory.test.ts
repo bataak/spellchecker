@@ -8,7 +8,7 @@ import {
   record,
   redo,
   undo,
-} from "../src/undohistory.ts";
+} from "../src/editor/undohistory.ts";
 
 function type(
   text: string,

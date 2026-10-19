@@ -1,5 +1,5 @@
 import type { ProjectStore, ProjectView } from "./projectstore.ts";
-import { KEYS, read, remove, write } from "../store.ts";
+import { KEYS, read, remove, write } from "../core/store.ts";
 import { confirmClose } from "./linkfiles.ts";
 import { failureMessage } from "./projecterror.ts";
 import { buildPanel } from "./panelmarkup.ts";

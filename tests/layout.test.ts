@@ -27,7 +27,7 @@ import {
   resolveDock,
   type Layout,
   type Metrics,
-} from "../src/layout.ts";
+} from "../src/ui/layout.ts";
 
 const x: Metrics = { ...DEFAULT_METRICS };
 

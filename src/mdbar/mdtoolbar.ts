@@ -1,7 +1,7 @@
 import { applyEdit, enterInsert, insertImage } from "./mdedit.ts";
-import { replaceRange, swapText } from "../editortext.ts";
+import { replaceRange, swapText } from "../editor/editortext.ts";
 import { splitName } from "../office/filename.ts";
-import { freeImagePath, pickImage, putImage } from "../images.ts";
+import { freeImagePath, pickImage, putImage } from "../files/images.ts";
 import {
   FILE_LIMIT,
   PROJECT_SLOT,
@@ -10,8 +10,8 @@ import {
   sameFile,
   textSum,
 } from "../slots/fileslots.ts";
-import { PLAIN, findTemplate, isPlain } from "../templates.ts";
-import { KEYS } from "../store.ts";
+import { PLAIN, findTemplate, isPlain } from "../doc/templates.ts";
+import { KEYS } from "../core/store.ts";
 import { buildButtons, formatEdit, type Role } from "./mdbuttons.ts";
 import { createSlotDropdown } from "../slots/slotdropdown.ts";
 import { buildPicker, pickerOptions } from "../slots/slotmenu.ts";
@@ -37,7 +37,7 @@ import {
   type Caret,
 } from "../slots/slotstore.ts";
 import { createSlotList } from "../slots/slotlist.ts";
-import { initTopbarFit } from "../topbarfit.ts";
+import { initTopbarFit } from "../ui/topbarfit.ts";
 import { createButtonState } from "./mdbuttonstate.ts";
 
 export { sharedSlot, type Caret } from "../slots/slotstore.ts";
@@ -395,7 +395,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   }
 
   async function loadDefault(key: string, example: string): Promise<void> {
-    const { exampleText } = await import("../examples.ts");
+    const { exampleText } = await import("../doc/examples.ts");
     const text = exampleText(example);
     if (
       text === undefined ||

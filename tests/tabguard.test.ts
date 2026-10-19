@@ -5,7 +5,7 @@ import {
   SAME_SLOT,
   conflictOf,
   initTabGuard,
-} from "../src/tabguard.ts";
+} from "../src/core/tabguard.ts";
 
 test("ижил цонх өөр табад нээлттэй бол анхааруулна", () => {
   const others = [{ id: "b", slot: "plain", project: null }];

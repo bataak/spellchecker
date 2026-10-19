@@ -7,9 +7,9 @@ import { createOpenPolicy, type OpenSlots } from "../src/app/openpolicy.ts";
 import { createSignal } from "../src/app/signal.ts";
 import { watchTabs } from "../src/app/tabwatch.ts";
 import { createTexMode } from "../src/app/texmode.ts";
-import { createEditorPort } from "../src/ports.ts";
-import { initStatus } from "../src/status.ts";
-import { saveDraftFile } from "../src/storage.ts";
+import { createEditorPort } from "../src/app/ports.ts";
+import { initStatus } from "../src/ui/status.ts";
+import { saveDraftFile } from "../src/core/storage.ts";
 
 const globals = globalThis as unknown as Record<string, unknown>;
 
