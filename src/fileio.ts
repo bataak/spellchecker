@@ -53,6 +53,7 @@ export interface FileIODeps {
   ) => "new" | "open" | "reload" | false;
   readonly onLoaded: () => void;
   readonly onSaved: (written: boolean) => void;
+  readonly deliverText?: (text: string, fileName: string) => Promise<boolean>;
 }
 
 export interface OpenFile {
@@ -81,6 +82,7 @@ export function initFileIO({
   prepareOpen,
   onLoaded,
   onSaved,
+  deliverText: deliverFile = deliverText,
 }: FileIODeps): FileIOControl {
   const setStatus = status.set;
   const hasFSSave = "showSaveFilePicker" in window;
@@ -96,7 +98,7 @@ export function initFileIO({
     );
 
   const deliver = (text: string, name: string): Promise<boolean> =>
-    deliverText(text, textName(name, defaultExt(), stamp));
+    deliverFile(text, textName(name, defaultExt(), stamp));
 
   async function openOne(
     file: File,
