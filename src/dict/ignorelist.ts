@@ -1,3 +1,4 @@
+import { downloadBlob } from "../files/download.ts";
 import { escapeAttr } from "../core/htmlutil.ts";
 import {
   getIgnored,
@@ -13,14 +14,7 @@ function doExport(): void {
   const blob = new Blob([words.join("\n") + "\n"], {
     type: "text/plain;charset=utf-8",
   });
-  const url = URL.createObjectURL(blob);
-  const downloadLink = document.createElement("a");
-  downloadLink.href = url;
-  downloadLink.download = "algasah-ugs.txt";
-  document.body.appendChild(downloadLink);
-  downloadLink.click();
-  downloadLink.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  downloadBlob(blob, "algasah-ugs.txt");
 }
 
 const APOS = /['\u2019]/g;
