@@ -3,6 +3,7 @@ import { initProjectPanel, type ProjectPanel } from "./projectpanel.ts";
 import {
   confirmClose,
   confirmReplace,
+  conflictNotice,
   FILES_SAVED_NOTICE,
   findSameFile,
   isTexName,
@@ -104,6 +105,7 @@ function storeSlot(slot: string | null): void {
 export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
   const {
     hasProject,
+    onDiskConflict,
     onProjectChange,
     openDirHandle,
     project,
@@ -397,6 +399,8 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     announce(view);
     if (followBound(view)) deps.onChange();
   });
+
+  onDiskConflict((paths) => deps.notify(conflictNotice(paths)));
 
   let lastRefresh = 0;
   const refresh = (): void => {

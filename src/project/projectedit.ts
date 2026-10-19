@@ -97,7 +97,12 @@ function pruneMissing(s: State, present: ReadonlySet<string>): boolean {
   return touched;
 }
 
-function mergeFile(s: State, path: string, bytes: Uint8Array): boolean {
+function mergeFile(
+  s: State,
+  path: string,
+  bytes: Uint8Array,
+  onConflict?: (path: string) => void,
+): boolean {
   if (!isEditablePath(path)) {
     s.binaries.set(path, bytes);
     return true;
@@ -105,6 +110,8 @@ function mergeFile(s: State, path: string, bytes: Uint8Array): boolean {
   const { text, crlf } = readText(bytes);
   noteEol(s, path, crlf);
   if (s.saved.get(path) === text && s.texts.has(path)) return false;
+  if (s.dirty.has(path) && s.texts.has(path) && s.texts.get(path) !== text)
+    onConflict?.(path);
   s.saved.set(path, text);
   s.added.delete(path);
   if (!s.dirty.has(path) || !s.texts.has(path)) s.texts.set(path, text);
@@ -118,11 +125,15 @@ function scannedDirs(s: State, scan: DirScan): Set<string> {
   return dirs;
 }
 
-export function applyScan(s: State, scan: DirScan): boolean {
+export function applyScan(
+  s: State,
+  scan: DirScan,
+  onConflict?: (path: string) => void,
+): boolean {
   const present = new Set([...scan.same, ...scan.files.map(([path]) => path)]);
   let touched = pruneMissing(s, present);
   for (const [path, bytes] of scan.files)
-    if (mergeFile(s, path, bytes)) touched = true;
+    if (mergeFile(s, path, bytes, onConflict)) touched = true;
   const dirs = scannedDirs(s, scan);
   if (dirs.size !== s.dirs.size || [...dirs].some((dir) => !s.dirs.has(dir)))
     touched = true;

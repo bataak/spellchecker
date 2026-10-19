@@ -11,6 +11,14 @@ const SAVE_MESSAGES: Record<SaveResult, string> = {
   clean: "Өөрчлөлт алга",
 };
 
+export function conflictNotice(paths: readonly string[]): string {
+  const names = paths.map((path) => "«" + baseName(path) + "»").join(", ");
+  return (
+    names +
+    " дискэн дээр өөрчлөгдсөн байна. Таны хадгалаагүй засвар хэвээр үлдсэн бөгөөд хадгалбал дискэн дээрх хувилбарыг дарна"
+  );
+}
+
 export function saveMessage(result: SaveResult): string {
   return SAVE_MESSAGES[result];
 }

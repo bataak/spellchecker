@@ -155,3 +155,49 @@ test("хоёр store төлөв болон сонсогчоо хуваалцах
   assert.equal(second.hasProject(), false);
   assert.equal(heard, 0);
 });
+
+test("хадгалаагүй файл дискэн дээр өөрчлөгдвөл мэдэгдэж, засварыг хадгална", async () => {
+  const {
+    onDiskConflict,
+    openDirHandle,
+    project,
+    projectText,
+    refreshProject,
+    setProjectText,
+  } = createProjectStore();
+  const root = new FakeDir("төсөл");
+  root.put("main.tex", MAIN);
+  root.put("a.tex", "хуучин");
+  root.put("b.tex", "б");
+  await openDirHandle(root.asHandle());
+  const seen: string[][] = [];
+  onDiskConflict((paths) => seen.push(paths));
+
+  setProjectText("a.tex", "миний засвар");
+  root.put("a.tex", "гаднаас өөрчилсөн текст");
+  root.put("b.tex", "өөр б файл");
+  assert.equal(await refreshProject(), true);
+
+  assert.deepEqual(seen, [["a.tex"]]);
+  assert.equal(projectText("a.tex"), "миний засвар");
+  assert.equal(projectText("b.tex"), "өөр б файл");
+  assert.ok(project()?.dirty.has("a.tex"));
+
+  assert.equal(await refreshProject(), false);
+  assert.deepEqual(seen, [["a.tex"]]);
+});
+
+test("засвар дискэн дээрхтэй ижил болсон бол зөрчил гэж үзэхгүй", async () => {
+  const { onDiskConflict, openDirHandle, refreshProject, setProjectText } =
+    createProjectStore();
+  const root = new FakeDir("төсөл");
+  root.put("main.tex", MAIN);
+  root.put("a.tex", "хуучин");
+  await openDirHandle(root.asHandle());
+  const seen: string[][] = [];
+  onDiskConflict((paths) => seen.push(paths));
+  setProjectText("a.tex", "ижилхэн шинэ");
+  root.put("a.tex", "ижилхэн шинэ");
+  await refreshProject();
+  assert.deepEqual(seen, []);
+});
