@@ -331,6 +331,70 @@ function placePiece(
   return null;
 }
 
+function placeEdit(
+  paragraph: Paragraph,
+  edit: ParagraphEdit,
+  current: string,
+  narrowed: ParagraphEdit,
+): ParagraphEdit[] | SkipReason {
+  const failure = placePiece(paragraph, narrowed);
+  if (failure === null) return [narrowed];
+  if (failure !== "mixed-format") return failure;
+  const pieces = splitEdit(current, edit.text, edit.start);
+  for (const piece of pieces) {
+    const reason = placePiece(paragraph, piece);
+    if (reason !== null) return reason;
+  }
+  return pieces;
+}
+
+function queuePiece(
+  paragraph: Paragraph,
+  piece: ParagraphEdit,
+  pending: Map<TextNode, ParagraphEdit[]>,
+): void {
+  const nodes = coveredNodes(paragraph, piece.start, piece.end);
+  nodes.forEach((node, index) => {
+    const nodeEnd = node.textStart + node.text.length;
+    const operation = {
+      start: Math.max(piece.start, node.textStart) - node.textStart,
+      end: Math.min(piece.end, nodeEnd) - node.textStart,
+      text: index === 0 ? piece.text : "",
+    };
+    const existing = pending.get(node);
+    if (existing === undefined) pending.set(node, [operation]);
+    else existing.push(operation);
+  });
+}
+
+function rewriteNode(node: TextNode, operations: ParagraphEdit[]): RawEdit[] {
+  const sequence = [...operations].sort(
+    (left, right) => right.start - left.start || right.end - left.end,
+  );
+  let next = node.text;
+  for (const operation of sequence)
+    next =
+      next.slice(0, operation.start) +
+      operation.text +
+      next.slice(operation.end);
+  return nodeEdits(node, next);
+}
+
+function rejectReason(
+  paragraph: Paragraph,
+  edit: ParagraphEdit,
+  guard: number,
+): SkipReason | null {
+  if (edit.start < guard && edit.start !== edit.end) return "overlap";
+  if (
+    edit.start < 0 ||
+    edit.end > paragraph.text.length ||
+    edit.start > edit.end
+  )
+    return "not-found";
+  return null;
+}
+
 export function planParagraph(
   paragraph: Paragraph,
   edits: ParagraphEdit[],
@@ -338,97 +402,37 @@ export function planParagraph(
   const ordered = [...edits].sort(
     (left, right) => left.start - right.start || right.end - left.end,
   );
-  const raw: RawEdit[] = [];
   const applied: ParagraphEdit[] = [];
   const skipped: SkippedEdit[] = [];
   const pending = new Map<TextNode, ParagraphEdit[]>();
-
   let guard = -1;
 
   for (const edit of ordered) {
-    const insertion = edit.start === edit.end;
-    if (edit.start < guard && !insertion) {
-      skipped.push({ edit, reason: "overlap" });
+    const rejected = rejectReason(paragraph, edit, guard);
+    if (rejected !== null) {
+      skipped.push({ edit, reason: rejected });
       continue;
     }
-
-    if (
-      edit.start < 0 ||
-      edit.end > paragraph.text.length ||
-      edit.start > edit.end
-    ) {
-      skipped.push({ edit, reason: "not-found" });
-      continue;
-    }
-
     const current = paragraph.text.slice(edit.start, edit.end);
     const narrowed = narrowEdit(current, edit.text, edit.start);
-
-    if (narrowed.start === narrowed.end && narrowed.text.length === 0) {
-      guard = Math.max(guard, edit.end);
-      applied.push(edit);
-      continue;
-    }
-
-    let pieces = [narrowed];
-    let failure = placePiece(paragraph, narrowed);
-
-    if (failure === "mixed-format") {
-      pieces = splitEdit(current, edit.text, edit.start);
-      failure = null;
-      for (const piece of pieces) {
-        failure = placePiece(paragraph, piece);
-        if (failure !== null) break;
+    if (narrowed.start !== narrowed.end || narrowed.text.length !== 0) {
+      const placed = placeEdit(paragraph, edit, current, narrowed);
+      if (typeof placed === "string") {
+        skipped.push({ edit, reason: placed });
+        continue;
       }
+      for (const piece of placed) queuePiece(paragraph, piece, pending);
     }
-
-    if (failure !== null) {
-      skipped.push({ edit, reason: failure });
-      continue;
-    }
-
-    for (const piece of pieces) {
-      const nodes = coveredNodes(paragraph, piece.start, piece.end);
-      for (let index = 0; index < nodes.length; index += 1) {
-        const node = nodes[index];
-        const nodeEnd = node.textStart + node.text.length;
-        const operation = {
-          start: Math.max(piece.start, node.textStart) - node.textStart,
-          end: Math.min(piece.end, nodeEnd) - node.textStart,
-          text: index === 0 ? piece.text : "",
-        };
-
-        const existing = pending.get(node);
-        if (existing === undefined) pending.set(node, [operation]);
-        else existing.push(operation);
-      }
-    }
-
     guard = Math.max(guard, edit.end);
     applied.push(edit);
   }
 
-  for (const [node, operations] of pending) {
-    const sequence = [...operations].sort(
-      (left, right) => right.start - left.start || right.end - left.end,
-    );
-    let next = node.text;
-
-    for (const operation of sequence) {
-      next =
-        next.slice(0, operation.start) +
-        operation.text +
-        next.slice(operation.end);
-    }
-
-    raw.push(...nodeEdits(node, next));
-  }
-
-  if (raw.length > 0) {
-    for (const range of paragraph.stale) {
+  const raw: RawEdit[] = [];
+  for (const [node, operations] of pending)
+    raw.push(...rewriteNode(node, operations));
+  if (raw.length > 0)
+    for (const range of paragraph.stale)
       raw.push({ start: range.start, end: range.end, text: "" });
-    }
-  }
 
   return { raw, applied, skipped };
 }
