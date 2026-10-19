@@ -51,20 +51,40 @@ function frameXml(image: IrImage, media: Media): string {
   );
 }
 
-function runsXml(runs: readonly IrRun[], media: Media): string {
+export function verbatimText(text: string): string {
+  return xmlText(text)
+    .replace(/\t/g, "<text:tab/>")
+    .replace(/^ +| {2,}/g, (spaces, at: number) => {
+      const lead = at === 0 ? 0 : 1;
+      const count = spaces.length - lead;
+      return (
+        " ".repeat(lead) +
+        (count === 1 ? "<text:s/>" : '<text:s text:c="' + count + '"/>')
+      );
+    });
+}
+
+function runsXml(
+  runs: readonly IrRun[],
+  media: Media,
+  verbatim = false,
+): string {
   let out = "";
-  for (const run of runs) {
+  runs.forEach((run, index) => {
+    if (verbatim && index > 0) out += "<text:line-break/>";
     if (run.tab) {
       out += "<text:tab/>";
-      continue;
+      return;
     }
     if (run.image) {
       out += frameXml(run.image, media);
-      continue;
+      return;
     }
-    if (!run.text) continue;
+    if (!run.text) return;
     const key = runKey(run);
-    const text = xmlText(run.text).replace(/\n/g, "<text:line-break/>");
+    const text = (
+      verbatim ? verbatimText(run.text) : xmlText(run.text)
+    ).replace(/\n/g, "<text:line-break/>");
     const body =
       key === ""
         ? text
@@ -76,7 +96,7 @@ function runsXml(runs: readonly IrRun[], media: Media): string {
         body +
         "</text:a>"
       : body;
-  }
+  });
   return out;
 }
 
@@ -86,7 +106,7 @@ function paraXml(
   level: number,
   media: Media,
 ): string {
-  const inner = runsXml(runs, media);
+  const inner = runsXml(runs, media, style === STYLE.code);
   if (level > 0)
     return (
       '<text:h text:style-name="' +
