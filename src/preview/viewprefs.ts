@@ -51,8 +51,8 @@ export function pinchZoom(zoom: number, from: number, to: number): number {
   return from > 0 ? clampZoom((zoom * to) / from) : zoom;
 }
 
-export const TOUCH_CANVAS_PIXELS = 4_000_000;
-export const DESKTOP_CANVAS_PIXELS = 8_000_000;
+export const TOUCH_CANVAS_PIXELS = 12_000_000;
+export const DESKTOP_CANVAS_PIXELS = 32_000_000;
 
 export function canvasDensity(
   width: number,

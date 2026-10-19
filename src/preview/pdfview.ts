@@ -5,7 +5,6 @@ import {
   DESKTOP_CANVAS_PIXELS,
   TOUCH_CANVAS_PIXELS,
 } from "./viewprefs.ts";
-import { covers, detailRect, type Box, type DetailRect } from "./pdfdetail.ts";
 
 let pdfjsPromise: Promise<typeof import("pdfjs-dist")> | null = null;
 
@@ -43,14 +42,6 @@ function dropWorker(): void {
 const ROOT_MARGIN = "900px 0px";
 
 const MAX_DPR = 2;
-const DETAIL_MARGIN = 0.25;
-const DETAIL_DELAY_MS = 120;
-
-interface Detail {
-  canvas: HTMLCanvasElement;
-  rect: DetailRect;
-  width: number;
-}
 
 interface PageSlot {
   el: HTMLElement;
@@ -59,10 +50,6 @@ interface PageSlot {
   task: { cancel: () => void } | null;
   rendering: boolean;
   gen: number;
-  density: number;
-  detail: Detail | null;
-  detailTask: { cancel: () => void } | null;
-  detailGen: number;
 }
 
 export interface PdfView {
@@ -131,10 +118,6 @@ export async function renderPdfInto(
       task: null,
       rendering: false,
       gen: 0,
-      density: dpr,
-      detail: null,
-      detailTask: null,
-      detailGen: 0,
     });
   }
 
@@ -145,9 +128,7 @@ export async function renderPdfInto(
     const y = (box.top + slot.el.clientTop) * dpr;
     const dx = (Math.round(x) - x) / dpr;
     const dy = (Math.round(y) - y) / dpr;
-    const shift = dx || dy ? `translate(${dx}px, ${dy}px)` : "";
-    slot.canvas.style.transform = shift;
-    if (slot.detail) slot.detail.canvas.style.transform = shift;
+    slot.canvas.style.transform = dx || dy ? `translate(${dx}px, ${dy}px)` : "";
   };
 
   const inset = (): number => options.inset?.() ?? 0;
@@ -179,24 +160,11 @@ export async function renderPdfInto(
       snapFrame = 0;
       for (const slot of slots) snap(slot);
       reportPage();
-      scheduleDetail();
     });
   };
   host.addEventListener("scroll", onScroll, { passive: true });
 
-  const dropDetail = (slot: PageSlot): void => {
-    slot.detailGen++;
-    slot.detailTask?.cancel();
-    slot.detailTask = null;
-    if (!slot.detail) return;
-    slot.detail.canvas.remove();
-    slot.detail.canvas.width = 0;
-    slot.detail.canvas.height = 0;
-    slot.detail = null;
-  };
-
   const release = (slot: PageSlot): void => {
-    dropDetail(slot);
     slot.gen++;
     slot.task?.cancel();
     slot.task = null;
@@ -241,105 +209,14 @@ export async function renderPdfInto(
       if (gen !== slot.gen) return;
       slot.task = null;
       if (!slot.rendering) return;
-      dropDetail(slot);
       slot.el.replaceChildren(canvas);
       slot.canvas = canvas;
-      slot.density = density;
       snap(slot);
       page.cleanup();
-      scheduleDetail();
     } catch {
     } finally {
       if (gen === slot.gen) slot.rendering = false;
     }
-  };
-
-  const pageBox = (slot: PageSlot): Box => {
-    const box = slot.el.getBoundingClientRect();
-    return {
-      left: box.left + slot.el.clientLeft,
-      top: box.top + slot.el.clientTop,
-      width: box.width - slot.el.clientLeft * 2,
-      height: box.height - slot.el.clientTop * 2,
-    };
-  };
-
-  const viewBox = (): Box => {
-    const frame = host.getBoundingClientRect();
-    return {
-      left: frame.left + host.clientLeft,
-      top: frame.top + host.clientTop,
-      width: host.clientWidth,
-      height: host.clientHeight,
-    };
-  };
-
-  const drawDetail = async (slot: PageSlot): Promise<void> => {
-    if (zooming || !slot.canvas || slot.density >= dpr) {
-      dropDetail(slot);
-      return;
-    }
-    const page = pageBox(slot);
-    const view = viewBox();
-    const need = detailRect(page, view, 0, dpr);
-    if (!need) {
-      dropDetail(slot);
-      return;
-    }
-    const held = slot.detail;
-    if (held && held.width === page.width && covers(held.rect, need)) return;
-    const margin = Math.max(view.width, view.height) * DETAIL_MARGIN;
-    const rect = detailRect(page, view, margin, dpr) ?? need;
-    slot.detailTask?.cancel();
-    slot.detailTask = null;
-    const gen = ++slot.detailGen;
-    const canvas = document.createElement("canvas");
-    try {
-      const pdfPage = await doc.getPage(slot.index);
-      if (gen !== slot.detailGen) return;
-      const viewport = pdfPage.getViewport({
-        scale: (page.width * dpr) / base.width,
-        offsetX: -rect.x * dpr,
-        offsetY: -rect.y * dpr,
-      });
-      canvas.className = "pdf-detail";
-      canvas.width = Math.round(rect.w * dpr);
-      canvas.height = Math.round(rect.h * dpr);
-      canvas.style.left = rect.x + "px";
-      canvas.style.top = rect.y + "px";
-      canvas.style.width = rect.w + "px";
-      canvas.style.height = rect.h + "px";
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      const render = pdfPage.render({ canvas, canvasContext: ctx, viewport });
-      slot.detailTask = render;
-      await render.promise;
-      if (gen !== slot.detailGen || !slot.canvas) return;
-      slot.detailTask = null;
-      const old = slot.detail;
-      slot.el.append(canvas);
-      slot.detail = { canvas, rect, width: page.width };
-      if (old) {
-        old.canvas.remove();
-        old.canvas.width = 0;
-        old.canvas.height = 0;
-      }
-      snap(slot);
-    } catch {
-    } finally {
-      if (slot.detail?.canvas !== canvas) {
-        canvas.width = 0;
-        canvas.height = 0;
-      }
-    }
-  };
-
-  let detailTimer = 0;
-  const scheduleDetail = (): void => {
-    clearTimeout(detailTimer);
-    detailTimer = window.setTimeout(() => {
-      for (const slot of visible) void drawDetail(slot);
-    }, DETAIL_DELAY_MS);
   };
 
   let found: Promise<readonly PdfWord[]> | null = null;
@@ -395,8 +272,6 @@ export async function renderPdfInto(
     }
   };
   const redraw = (delay: number): void => {
-    clearTimeout(detailTimer);
-    for (const slot of slots) dropDetail(slot);
     stretch();
     zooming = true;
     clearTimeout(resizeTimer);
@@ -519,7 +394,6 @@ export async function renderPdfInto(
       if (snapFrame) cancelAnimationFrame(snapFrame);
       clearTimeout(resizeTimer);
       clearTimeout(markTimer);
-      clearTimeout(detailTimer);
       ro.disconnect();
       io.disconnect();
       for (const slot of slots) release(slot);
