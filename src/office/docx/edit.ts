@@ -14,10 +14,7 @@ export interface RawEdit {
 }
 
 export type SkipReason =
-  | "not-found"
-  | "crosses-boundary"
-  | "mixed-format"
-  | "overlap";
+  "not-found" | "crosses-boundary" | "mixed-format" | "overlap";
 
 export interface SkippedEdit {
   edit: ParagraphEdit;
@@ -240,11 +237,7 @@ function coveredNodes(
   });
 }
 
-function isContiguous(
-  nodes: TextNode[],
-  start: number,
-  end: number,
-): boolean {
+function isContiguous(nodes: TextNode[], start: number, end: number): boolean {
   let cursor = start;
 
   for (const node of nodes) {

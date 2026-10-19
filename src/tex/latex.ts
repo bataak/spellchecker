@@ -34,8 +34,7 @@ export function preambleFor(tex: string): string {
   const definition = tex.includes("\\begin{definition}");
   const lines = [
     math && "\\usepackage{amsmath}",
-    (math || /\\(?:checkmark|mathbb)\b/.test(tex)) &&
-      "\\usepackage{amssymb}",
+    (math || /\\(?:checkmark|mathbb)\b/.test(tex)) && "\\usepackage{amssymb}",
     tex.includes("\\arraybackslash") && "\\usepackage{array}",
     tex.includes("\\toprule") && "\\usepackage{booktabs}",
     tex.includes("\\includegraphics") && "\\usepackage{graphicx}",
@@ -125,11 +124,11 @@ const SYMBOL: Readonly<Record<string, string>> = {
   "″": "\\ensuremath{{}^{\\prime\\prime}}",
   "★": "\\ensuremath{\\star}",
   "♥": "\\ensuremath{\\heartsuit}",
-  "ℝ": "\\ensuremath{\\mathbb{R}}",
-  "ℕ": "\\ensuremath{\\mathbb{N}}",
-  "ℤ": "\\ensuremath{\\mathbb{Z}}",
-  "ℚ": "\\ensuremath{\\mathbb{Q}}",
-  "ℂ": "\\ensuremath{\\mathbb{C}}",
+  ℝ: "\\ensuremath{\\mathbb{R}}",
+  ℕ: "\\ensuremath{\\mathbb{N}}",
+  ℤ: "\\ensuremath{\\mathbb{Z}}",
+  ℚ: "\\ensuremath{\\mathbb{Q}}",
+  ℂ: "\\ensuremath{\\mathbb{C}}",
   "✔": "\\ensuremath{\\checkmark}",
   "✅": "\\ensuremath{\\checkmark}",
 };
@@ -253,8 +252,6 @@ const SECTION = [
 
 const DISPLAY_ENV =
   /^\\begin\{(?:equation|align|gather|multline|flalign|alignat|displaymath)\*?\}/;
-
-
 
 function oneLine(nodes: readonly Inline[]): string {
   return inline(

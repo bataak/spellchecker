@@ -48,8 +48,14 @@ test("хадгалсан зургийг цэвэрлэхэд мэдэгдэнэ"
 
 test("ижил нэртэй өөр зураг өмнөхийг дарахгүй, шинэ нэр авна", () => {
   clearImages();
-  const first = new File(["IMAGE A"], "photo.png", { type: "image/png", lastModified: 1 });
-  const second = new File(["IMAGE BB"], "photo.png", { type: "image/png", lastModified: 2 });
+  const first = new File(["IMAGE A"], "photo.png", {
+    type: "image/png",
+    lastModified: 1,
+  });
+  const second = new File(["IMAGE BB"], "photo.png", {
+    type: "image/png",
+    lastModified: 2,
+  });
   const a = freeImagePath(first.name, first);
   putImage(a, first);
   const b = freeImagePath(second.name, second);

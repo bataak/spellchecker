@@ -1,10 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-  BUTTONS,
-  buildButtons,
-  formatEdit,
-} from "../src/mdbar/mdbuttons.ts";
+import { BUTTONS, buildButtons, formatEdit } from "../src/mdbar/mdbuttons.ts";
 import { escapeAttr } from "../src/htmlutil.ts";
 import { pickerOptions } from "../src/slots/slotmenu.ts";
 
