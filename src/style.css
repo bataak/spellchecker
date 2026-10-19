@@ -1473,6 +1473,13 @@ a.tbtn {
   font-family: var(--mono);
   font-size: calc(1.14rem * var(--editor-scale, 1) * var(--mono-fit, 0.85));
 }
+
+.is-table-line > .backdrop,
+.is-table-line > .editor {
+  white-space: pre;
+  overflow-wrap: normal;
+  text-wrap: nowrap;
+}
 .backdrop mark {
   color: transparent;
   background: var(--squiggle-wave) left bottom / 8px 4px repeat-x;
