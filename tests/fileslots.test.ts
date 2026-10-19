@@ -10,6 +10,10 @@ import {
   parseSlots,
   sameFile,
   textSum,
+  addSlot,
+  fallbackSlot,
+  markSlotSaved,
+  renameSlot,
 } from "../src/slots/fileslots.ts";
 
 test("nextFileId: хаагдсан файлын дугаарыг дахин өгөхгүй", () => {
@@ -97,4 +101,40 @@ test("fileSum: том файлын дунд хэсгийн өөрчлөлтий�
     await fileSum(new Blob([second])),
   );
   assert.equal(await fileSum(new Blob([first])), bytesSum(first));
+});
+
+test("addSlot ба renameSlot: шинэ файлыг нэмж, нэрийг нь солино", () => {
+  const list = addSlot([], "file-1", "а.md", "h1");
+  assert.deepEqual(list, [
+    { id: "file-1", name: "а.md", sum: null, hash: "h1" },
+  ]);
+  assert.deepEqual(addSlot(list, "file-2", "б.md")[1], {
+    id: "file-2",
+    name: "б.md",
+    sum: null,
+  });
+  assert.equal(renameSlot(list, "file-1", "в.md")[0]!.name, "в.md");
+  assert.equal(renameSlot(list, "file-9", "в.md")[0]!.name, "а.md");
+});
+
+test("markSlotSaved: дискэнд бичсэн бол нээсэн hash-ийг арилгана", () => {
+  const list = addSlot([], "file-1", "а.md", "h1");
+  assert.deepEqual(markSlotSaved(list, "file-1", "s", false)[0], {
+    id: "file-1",
+    name: "а.md",
+    sum: "s",
+    hash: "h1",
+  });
+  assert.deepEqual(markSlotSaved(list, "file-1", "s", true)[0], {
+    id: "file-1",
+    name: "а.md",
+    sum: "s",
+  });
+});
+
+test("fallbackSlot: хаагдаж буйгаас бусад сүүлийн файл, эс бөгөөс загвар", () => {
+  const list = addSlot(addSlot([], "file-1", "а"), "file-2", "б");
+  assert.equal(fallbackSlot(list, "file-2", "plain"), "file-1");
+  assert.equal(fallbackSlot(list, "file-1", "plain"), "file-2");
+  assert.equal(fallbackSlot([], "file-1", "plain"), "plain");
 });
