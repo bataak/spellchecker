@@ -2,6 +2,7 @@ import { imageFiles } from "../files/images.ts";
 import { blockImages, parse } from "../markdown.ts";
 import { docImages, imageKey } from "../office/docir.ts";
 import { findTemplate, type Frame } from "../doc/templates.ts";
+import { splitSlides } from "../doc/slides.ts";
 
 export interface ExportFormat {
   readonly id: string;
@@ -22,6 +23,7 @@ export interface ExportFormat {
 
 export interface BuildOptions {
   readonly toc: boolean;
+  readonly notesScreen: boolean;
   readonly name?: string;
 }
 
@@ -33,6 +35,13 @@ export const TOC_FORMATS: ReadonlySet<string> = new Set([
   "tex",
   "pdf",
 ]);
+
+export const NOTES_FORMATS: ReadonlySet<string> = new Set(["tex", "pdf"]);
+
+export function hasNotes(text: string, templateId: string): boolean {
+  if (findTemplate(templateId)?.frame !== "slides") return false;
+  return splitSlides(parse(text)).slides.some((slide) => slide.notes.length);
+}
 
 export function hasSections(text: string, templateId: string): boolean {
   const frame = findTemplate(templateId)?.frame;
@@ -61,7 +70,9 @@ async function latexFor(
   const frame = findTemplate(templateId)?.frame;
   const blocks = parse(dropControls(text));
   return frame === "slides"
-    ? toBeamer(blocks)
+    ? toBeamer(blocks, undefined, {
+        notesScreen: options.notesScreen && hasNotes(text, templateId),
+      })
     : toLatex(blocks, undefined, {
         toc: tocFor(options, templateId, text),
         pageNumbers: frame !== "letter" || hasSections(text, templateId),

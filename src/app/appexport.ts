@@ -1,3 +1,4 @@
+import type { SaveChain } from "../ui/savechain.ts";
 import { flash } from "../ui/clipboard.ts";
 import { initExport, type ExportControl } from "../export/export.ts";
 import { isFileSlot } from "../slots/fileslots.ts";
@@ -21,6 +22,7 @@ export interface AppExportDeps {
   readonly pdf: () => Promise<CompiledPdf>;
   readonly saveSource: (name: string, inProject: boolean) => Promise<void>;
   readonly hold: (html: string, ms?: number, animate?: boolean) => void;
+  readonly saveChain: SaveChain;
 }
 
 export function initAppExport(deps: AppExportDeps): ExportControl {
@@ -36,6 +38,7 @@ export function initAppExport(deps: AppExportDeps): ExportControl {
   return initExport({
     editor: deps.editor,
     saveButton: document.querySelector<HTMLElement>("#saveBtn"),
+    saveChain: deps.saveChain,
     printButton: document.querySelector<HTMLElement>("#printBtn"),
     template,
     baseName: deps.baseName,

@@ -86,7 +86,7 @@ export const LAYOUT =
   TREE_HEAD +
   "</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>";
 
-export function presentationXml(count: number): string {
+export function presentationXml(count: number, notes = false): string {
   let ids = "";
   for (let i = 0; i < count; i++)
     ids +=
@@ -97,6 +97,9 @@ export function presentationXml(count: number): string {
     NS_ALL +
     ' saveSubsetFonts="1">' +
     '<p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst>' +
+    (notes
+      ? '<p:notesMasterIdLst><p:notesMasterId r:id="rIdNotes"/></p:notesMasterIdLst>'
+      : "") +
     (count ? "<p:sldIdLst>" + ids + "</p:sldIdLst>" : "") +
     '<p:sldSz cx="' +
     String(WIDTH) +
@@ -110,6 +113,7 @@ export function presentationXml(count: number): string {
 export function contentTypesXml(
   count: number,
   exts: readonly string[],
+  notes: readonly number[] = [],
 ): string {
   let slides = "";
   for (let i = 1; i <= count; i++)
@@ -141,6 +145,22 @@ export function contentTypesXml(
     'slideLayout+xml"/>' +
     '<Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>' +
     slides +
+    (notes.length
+      ? '<Override PartName="/ppt/notesMasters/notesMaster1.xml" ContentType="' +
+        CT +
+        'notesMaster+xml"/>' +
+        '<Override PartName="/ppt/theme/theme2.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>' +
+        notes
+          .map(
+            (n) =>
+              '<Override PartName="/ppt/notesSlides/notesSlide' +
+              String(n) +
+              '.xml" ContentType="' +
+              CT +
+              'notesSlide+xml"/>',
+          )
+          .join("")
+      : "") +
     "</Types>"
   );
 }

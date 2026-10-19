@@ -24,6 +24,7 @@ import {
   contentTypesXml,
   presentationXml,
 } from "./parts.ts";
+import { NOTES_MASTER, notesSlideXml } from "./notes.ts";
 
 export interface PptxOptions {
   readonly images?: ImageFiles;
@@ -257,7 +258,10 @@ function slideXml(shapes: string): string {
 interface BuiltSlide {
   readonly xml: string;
   readonly links: readonly Rel[];
+  readonly notes?: readonly DeckLine[];
 }
+
+const NOTES_PT = 12;
 
 const BOX_WIDTH = WIDTH - 2 * MARGIN;
 const CENTER = '<a:pPr algn="ctr"/>';
@@ -449,13 +453,25 @@ export function buildPptx(
     built.push(
       slide.section
         ? sectionSlide(slide.title ?? [])
-        : contentSlide(slide.title, slide.parts, media),
+        : {
+            ...contentSlide(slide.title, slide.parts, media),
+            notes: slide.notes,
+          },
     );
+  const noted = built.flatMap((slide, i) =>
+    slide.notes?.length ? [i + 1] : [],
+  );
 
   const files: Record<string, string> = {
-    "[Content_Types].xml": contentTypesXml(built.length, [
-      ...new Set([...media.names.values()].map((name) => name.split(".")[1]!)),
-    ]),
+    "[Content_Types].xml": contentTypesXml(
+      built.length,
+      [
+        ...new Set(
+          [...media.names.values()].map((name) => name.split(".")[1]!),
+        ),
+      ],
+      noted,
+    ),
     "_rels/.rels": relsXml([
       {
         id: "rId1",
@@ -463,7 +479,7 @@ export function buildPptx(
         target: "ppt/presentation.xml",
       },
     ]),
-    "ppt/presentation.xml": presentationXml(built.length),
+    "ppt/presentation.xml": presentationXml(built.length, noted.length > 0),
     "ppt/_rels/presentation.xml.rels": relsXml([
       {
         id: "rId1",
@@ -476,6 +492,15 @@ export function buildPptx(
         type: REL + "/slide",
         target: "slides/slide" + String(i + 1) + ".xml",
       })),
+      ...(noted.length
+        ? [
+            {
+              id: "rIdNotes",
+              type: REL + "/notesMaster",
+              target: "notesMasters/notesMaster1.xml",
+            },
+          ]
+        : []),
     ]),
     "ppt/slideMasters/slideMaster1.xml": MASTER,
     "ppt/slideMasters/_rels/slideMaster1.xml.rels": relsXml([
@@ -497,8 +522,18 @@ export function buildPptx(
     "ppt/theme/theme1.xml": THEME,
   };
 
+  if (noted.length) {
+    files["ppt/notesMasters/notesMaster1.xml"] = NOTES_MASTER;
+    files["ppt/notesMasters/_rels/notesMaster1.xml.rels"] = relsXml([
+      { id: "rId1", type: REL + "/theme", target: "../theme/theme2.xml" },
+    ]);
+    files["ppt/theme/theme2.xml"] = THEME;
+  }
+
   built.forEach((slide, i) => {
     const name = "slide" + String(i + 1) + ".xml";
+    const notesName = "notesSlide" + String(i + 1) + ".xml";
+    const hasNotes = Boolean(slide.notes?.length);
     files["ppt/slides/" + name] = slide.xml;
     files["ppt/slides/_rels/" + name + ".rels"] = relsXml([
       {
@@ -507,6 +542,29 @@ export function buildPptx(
         target: "../slideLayouts/slideLayout1.xml",
       },
       ...slide.links,
+      ...(hasNotes
+        ? [
+            {
+              id: "rIdNotes",
+              type: REL + "/notesSlide",
+              target: "../notesSlides/" + notesName,
+            },
+          ]
+        : []),
+    ]);
+    if (!hasNotes) return;
+    const state: SlideState = { links: [], shapeId: 4 };
+    files["ppt/notesSlides/" + notesName] = notesSlideXml(
+      linesXml(slide.notes!, state, NOTES_PT * 100),
+    );
+    files["ppt/notesSlides/_rels/" + notesName + ".rels"] = relsXml([
+      {
+        id: "rId1",
+        type: REL + "/notesMaster",
+        target: "../notesMasters/notesMaster1.xml",
+      },
+      { id: "rIdSlide", type: REL + "/slide", target: "../slides/" + name },
+      ...state.links,
     ]);
   });
 

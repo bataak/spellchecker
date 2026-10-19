@@ -41,6 +41,7 @@ import { initDraftText } from "./editor/drafttext.ts";
 import { initAppUpdate } from "./core/appupdate.ts";
 import { initShortcuts } from "./ui/shortcuts.ts";
 import { createButtonCommands } from "./ui/commands.ts";
+import { createSaveChain } from "./ui/savechain.ts";
 import { installErrorLog } from "./core/errorlog.ts";
 import { createEditorPort } from "./app/ports.ts";
 import { createDocStatus } from "./app/docstatus.ts";
@@ -169,7 +170,7 @@ const texMode = createTexMode({
     enterMdMode(doc.markdownActive());
     previewCtl.update();
     projectLink.sync();
-    clean.sync();
+    fixers.clean.sync();
   },
 });
 
@@ -293,7 +294,6 @@ const fixers = createFixers({
   invalidate: () => spell.clear(),
   skipClean: () => !docMode.checksLetters() || isTexFile(),
 });
-const { decode, clean, announceLetters } = fixers;
 
 const draft = initDraftText({
   editor: editorEl,
@@ -331,7 +331,7 @@ bindEditorInput({
   hidePopover: () => pop.hide(),
   textChanged: syncEmptyState,
   saveSoon: draft.saveSoon,
-  fixers: [decode, clean],
+  fixers: [fixers.decode, fixers.clean],
   setLastCaret: (caret) => {
     lastCaret = caret;
   },
@@ -374,7 +374,9 @@ const {
 
 const appUpdate = initAppUpdate((html) => status.hold(html), import.meta.url);
 
+const saveChain = createSaveChain(document.querySelector("#saveBtn"));
 const fileIO = initFileIO({
+  saveChain,
   editor,
   status,
   office: {
@@ -447,7 +449,7 @@ const mdBar = initMdToolbar({
   onTemplate: (id, from) => {
     previewMode.templateChanged();
     docMode.setTemplate(id);
-    clean.sync();
+    fixers.clean.sync();
     if (from !== mdBar.slot()) slots.enter(mdBar.slot());
     texMode.sync();
     projectLink.sync();
@@ -465,7 +467,7 @@ const nudgeHints = initAppHints({
 });
 
 docMode.setTemplate(mdBar.template());
-clean.sync();
+fixers.clean.sync();
 texMode.start();
 initTexInput({
   editor: editorEl,
@@ -539,6 +541,7 @@ function enterMdMode(on: boolean): void {
 }
 
 const exportCtl = initAppExport({
+  saveChain,
   editor: editorEl,
   templateId: () => mdBar.template(),
   isMarkdownFile: doc.isMarkdownFile,
@@ -583,7 +586,7 @@ initToolbar({
   },
   hasOpenFile: () => doc.fileName() !== null,
   badTokens: () => marks.tokens(),
-  lettersFixed: announceLetters,
+  lettersFixed: fixers.announceLetters,
 });
 initKeyboardToolbar(editorEl, els.backdrop);
 

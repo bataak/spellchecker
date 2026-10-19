@@ -1,3 +1,4 @@
+import type { SaveChain } from "../ui/savechain.ts";
 import { decodeFileBytes } from "../archive/cp1251.ts";
 import { bytesSum, fileSum } from "../slots/fileslots.ts";
 import { initFileDrop } from "./filedrop.ts";
@@ -53,6 +54,7 @@ export interface FileIODeps {
   ) => "new" | "open" | "reload" | false;
   readonly onLoaded: () => void;
   readonly onSaved: (written: boolean) => void;
+  readonly saveChain: SaveChain;
   readonly deliverText?: (text: string, fileName: string) => Promise<boolean>;
 }
 
@@ -82,6 +84,7 @@ export function initFileIO({
   prepareOpen,
   onLoaded,
   onSaved,
+  saveChain,
   deliverText: deliverFile = deliverText,
 }: FileIODeps): FileIOControl {
   const setStatus = status.set;
@@ -276,9 +279,10 @@ export function initFileIO({
     await deliverStamped(text);
   }
 
-  document
-    .querySelector("#saveBtn")!
-    .addEventListener("click", () => void save());
+  saveChain.handle(() => {
+    void save();
+    return true;
+  });
 
   async function loadFileContent(
     content: string,

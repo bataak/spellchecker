@@ -1,9 +1,12 @@
+import type { SaveChain, SaveTrigger } from "../ui/savechain.ts";
 import { createPrinter } from "./exportprint.ts";
 import {
   FORMATS,
   stripExt,
+  NOTES_FORMATS,
   TOC_FORMATS,
   withExt,
+  hasNotes,
   hasSections,
   type ExportFormat,
 } from "./exportformats.ts";
@@ -22,6 +25,7 @@ export interface ExportOptions {
   readonly texPdf?: () => Promise<Uint8Array<ArrayBuffer>>;
   readonly texSource?: (name: string) => Promise<void>;
   readonly saveButton?: HTMLElement | null;
+  readonly saveChain?: SaveChain;
   readonly printButton?: HTMLElement | null;
   readonly template: () => string;
   readonly onDone?: (name: string) => void;
@@ -156,6 +160,9 @@ export function initExport(options: ExportOptions): ExportControl {
     '<label class="export-toc" hidden>' +
     '<input class="export-toc-input" type="checkbox" /> Гарчгийн жагсаалт үүсгэх' +
     "</label>" +
+    '<label class="export-toc export-notes" hidden>' +
+    '<input class="export-notes-input" type="checkbox" /> Илтгэгчийн тэмдэглэлийг хоёр дахь дэлгэцэнд гаргах' +
+    "</label>" +
     '<p class="export-error" role="alert" hidden></p>' +
     '<div class="export-actions">' +
     '<button type="button" class="tbtn export-cancel">Болих</button>' +
@@ -169,6 +176,10 @@ export function initExport(options: ExportOptions): ExportControl {
   const tocField = overlay.querySelector<HTMLElement>(".export-toc")!;
   const tocInput =
     overlay.querySelector<HTMLInputElement>(".export-toc-input")!;
+  const notesField = overlay.querySelector<HTMLElement>(".export-notes")!;
+  const notesInput = overlay.querySelector<HTMLInputElement>(
+    ".export-notes-input",
+  )!;
   const errorNote = overlay.querySelector<HTMLElement>(".export-error")!;
 
   let chosen = FORMATS[0]!;
@@ -196,6 +207,9 @@ export function initExport(options: ExportOptions): ExportControl {
     tocField.hidden =
       !TOC_FORMATS.has(chosen.id) ||
       !hasSections(editor.value, options.template());
+    notesField.hidden =
+      !NOTES_FORMATS.has(chosen.id) ||
+      !hasNotes(editor.value, options.template());
 
     nameInput.value = stripExt(nameInput.value) + "." + chosen.ext;
   }
@@ -208,6 +222,7 @@ export function initExport(options: ExportOptions): ExportControl {
     restoreFocus = document.activeElement as HTMLElement | null;
     errorNote.hidden = true;
     tocInput.checked = false;
+    notesInput.checked = false;
     const offered = available();
     if (!userPicked || !offered.includes(chosen))
       chosen =
@@ -250,6 +265,7 @@ export function initExport(options: ExportOptions): ExportControl {
     try {
       const data = await format.build(text, options.template(), {
         toc: tocInput.checked,
+        notesScreen: notesInput.checked,
         name: stripExt(name),
       });
       if (format.slow) options.onBusy?.(false);
@@ -369,12 +385,11 @@ export function initExport(options: ExportOptions): ExportControl {
     }, LONG_PRESS_MS);
   };
 
-  const onSaveClick = (event: MouseEvent): void => {
-    if (!held && !event.shiftKey) return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
+  const interceptSave = ({ shift }: SaveTrigger): boolean => {
+    if (!held && !shift) return false;
     if (!held) open();
     held = false;
+    return true;
   };
 
   const onContextMenu = (event: Event): void => {
@@ -395,8 +410,8 @@ export function initExport(options: ExportOptions): ExportControl {
     saveButton.addEventListener("pointerleave", dropPress);
     saveButton.addEventListener("pointercancel", dropPress);
     saveButton.addEventListener("contextmenu", onContextMenu);
-    saveButton.addEventListener("click", onSaveClick, true);
   }
+  const releaseSave = options.saveChain?.intercept(interceptSave);
 
   return {
     open,
@@ -411,8 +426,8 @@ export function initExport(options: ExportOptions): ExportControl {
         saveButton.removeEventListener("pointerleave", dropPress);
         saveButton.removeEventListener("pointercancel", dropPress);
         saveButton.removeEventListener("contextmenu", onContextMenu);
-        saveButton.removeEventListener("click", onSaveClick, true);
       }
+      releaseSave?.();
       overlay.remove();
     },
   };
