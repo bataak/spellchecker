@@ -1,6 +1,12 @@
 import { escapeAttr } from "./htmlutil.ts";
 import { sameRoot } from "./spell/morphology.ts";
 import { getSubmitted, addSubmitted } from "./submitted.ts";
+import {
+  MAX_WORDS,
+  postSuggestion,
+  sendBlock,
+  sendFailure,
+} from "./suggestsend.ts";
 import { startsLowerAfterDash } from "./spell/textcheck.ts";
 import type { Token, ErrorEntry } from "./spell/textcheck.ts";
 
@@ -27,10 +33,8 @@ export interface SuggestDeps {
   checkKnown?: (words: string[]) => Promise<Record<string, boolean> | null>;
 }
 
-const ENDPOINT = "https://api.bichig.dev/suggest";
 const SITEKEY = "0x4AAAAAADvk6t3Gsh_j1vH7";
 const WORD_RE = /^[\u0400-\u04FF][\u0400-\u04FF-]{1,49}$/u;
-const MAX_WORDS = 50;
 const LONG_PRESS_MS = 550;
 const ISSUES_URL =
   "https://github.com/bataak/dict-mn/issues?q=is%3Aissue%20label%3Auser-submitted";
@@ -165,7 +169,7 @@ function prefillFromErrors(): void {
 }
 
 function wordNote(word: string, text: string): void {
-  note("\u00AB" + word + "\u00BB \u2014 " + text, "err");
+  note("«" + word + "» — " + text, "err");
 }
 
 async function lookupKnown(
@@ -228,7 +232,7 @@ async function acceptWords(
 
 function addFromInput(commit: boolean): Promise<void> {
   const wordEl = overlay!.querySelector<HTMLInputElement>("#suggestWord")!;
-  const parts = wordEl.value.split(/[\s,\u3001\uFF0C]+/);
+  const parts = wordEl.value.split(/[\s,、，]+/);
   const tail = commit ? "" : (parts.pop() ?? "");
   wordEl.value = tail;
   const candidates = parts
@@ -245,7 +249,7 @@ function addFromInput(commit: boolean): Promise<void> {
 function collectCopyWords(): string[] {
   const wordEl = overlay!.querySelector<HTMLInputElement>("#suggestWord")!;
   const pending = wordEl.value
-    .split(/[\s,\u3001\uFF0C]+/)
+    .split(/[\s,、，]+/)
     .map((part) => part.trim())
     .filter(Boolean);
   const all = [...words];
@@ -385,11 +389,14 @@ function closeForm(): void {
   busy = false;
   const sendBtn = overlay.querySelector<HTMLButtonElement>(".suggest-send");
   if (sendBtn) sendBtn.disabled = false;
-  if (window.turnstile && widgetId != null) {
-    try {
-      window.turnstile.reset(widgetId);
-    } catch (_) {}
-  }
+  resetTurnstile();
+}
+
+function resetTurnstile(): void {
+  if (!window.turnstile || widgetId == null) return;
+  try {
+    window.turnstile.reset(widgetId);
+  } catch (_) {}
 }
 
 function build(): void {
@@ -398,15 +405,15 @@ function build(): void {
   overlay.hidden = true;
   overlay.innerHTML =
     '<div class="suggest-card" role="dialog" aria-modal="true" aria-labelledby="suggestTitle">' +
-    '<h2 id="suggestTitle" class="suggest-title">\u0428\u0438\u043D\u044D \u0431\u0443\u044E\u0443 \u0430\u043B\u0434\u0430\u0430\u0442\u0430\u0439 \u04AF\u0433 \u043C\u044D\u0434\u044D\u0433\u0434\u044D\u0445</h2>' +
-    '<p class="suggest-hint">\u0428\u0438\u043D\u044D \u04AF\u0433\u0438\u0439\u0433 \u04AF\u0433\u0438\u0439\u043D \u0441\u0430\u043D\u0434 \u0445\u0443\u0432\u0438\u043B\u043B\u044B\u043D \u0445\u0430\u043C\u0442 \u043D\u044D\u043C\u04AF\u04AF\u043B\u044D\u0445 \u0431\u0443\u044E\u0443 \u0430\u043B\u0434\u0430\u0430 \u043C\u044D\u0434\u044D\u044D\u043B\u044D\u0445</p>' +
-    '<label class="suggest-label" for="suggestWord">\u041C\u044D\u0434\u044D\u0433\u0434\u044D\u0445 \u04AF\u0433 <span class="suggest-count" aria-hidden="true"></span></label>' +
+    '<h2 id="suggestTitle" class="suggest-title">Шинэ буюу алдаатай үг мэдэгдэх</h2>' +
+    '<p class="suggest-hint">Шинэ үгийг үгийн санд хувиллын хамт нэмүүлэх буюу алдаа мэдээлэх</p>' +
+    '<label class="suggest-label" for="suggestWord">Мэдэгдэх үг <span class="suggest-count" aria-hidden="true"></span></label>' +
     '<div class="suggest-chips"></div>' +
     '<div class="suggest-input-row">' +
     '<input id="suggestWord" class="suggest-input" type="text" maxlength="50" autocomplete="off" autocapitalize="off" spellcheck="false" />' +
-    '<button type="button" class="suggest-clear-all" hidden title="\u0411\u04AF\u0433\u0434\u0438\u0439\u0433 \u0443\u0441\u0442\u0433\u0430\u0445" aria-label="\u0411\u04AF\u0433\u0434\u0438\u0439\u0433 \u0443\u0441\u0442\u0433\u0430\u0445">&times;</button>' +
+    '<button type="button" class="suggest-clear-all" hidden title="Бүгдийг устгах" aria-label="Бүгдийг устгах">&times;</button>' +
     "</div>" +
-    '<label class="suggest-label" for="suggestNote">\u0422\u0430\u0439\u043B\u0431\u0430\u0440 (\u0437\u0430\u0430\u0432\u0430\u043B \u0431\u0438\u0448)</label>' +
+    '<label class="suggest-label" for="suggestNote">Тайлбар (заавал биш)</label>' +
     '<textarea id="suggestNote" class="suggest-input suggest-textarea" maxlength="500" rows="3"></textarea>' +
     '<div class="suggest-turnstile"></div>' +
     '<div class="suggest-submitted">' +
@@ -418,8 +425,8 @@ function build(): void {
     ISSUES_URL +
     '" target="_blank" rel="noopener noreferrer" title="Нийт хэрэглэгчдийн мэдэгдсэн үгс">GitHub</a>' +
     '<button type="button" class="tbtn suggest-view-submitted" title="Миний мэдэгдсэн үгс" style="margin-right:auto">Мэдэгдсэн үгс</button>' +
-    '<button type="button" class="tbtn suggest-cancel">\u0426\u0443\u0446\u043B\u0430\u0445</button>' +
-    '<button type="button" class="tbtn suggest-send">\u0418\u043B\u0433\u044D\u044D\u0445</button>' +
+    '<button type="button" class="tbtn suggest-cancel">Цуцлах</button>' +
+    '<button type="button" class="tbtn suggest-send">Илгээх</button>' +
     "</div>" +
     "</div>";
   document.body.appendChild(overlay);
@@ -550,10 +557,7 @@ async function openForm(): Promise<void> {
   try {
     await loadTurnstile();
   } catch (_) {
-    note(
-      "\u0411\u0430\u0442\u0430\u043B\u0433\u0430\u0430\u0436\u0443\u0443\u043B\u0430\u043B\u0442 \u0430\u0447\u0430\u0430\u043B\u0430\u0433\u0434\u0441\u0430\u043D\u0433\u04AF\u0439 \u2014 \u0438\u043D\u0442\u0435\u0440\u043D\u0435\u0442\u044D\u044D \u0448\u0430\u043B\u0433\u0430\u043D\u0430 \u0443\u0443",
-      "err",
-    );
+    note("Баталгаажуулалт ачаалагдсангүй — интернетээ шалгана уу", "err");
     return;
   }
   if (widgetId == null) {
@@ -564,9 +568,7 @@ async function openForm(): Promise<void> {
       { sitekey: SITEKEY, theme },
     );
   } else {
-    try {
-      window.turnstile!.reset(widgetId);
-    } catch (_) {}
+    resetTurnstile();
   }
 }
 
@@ -579,100 +581,39 @@ async function submit(): Promise<void> {
   busy = false;
   const noteEl = overlay!.querySelector<HTMLTextAreaElement>("#suggestNote")!;
   const sendBtn = overlay!.querySelector<HTMLButtonElement>(".suggest-send")!;
-
-  if (!words.length) {
-    note(
-      "\u0414\u043E\u0440 \u0445\u0430\u044F\u0436 \u043D\u044D\u0433 \u04AF\u0433 \u043E\u0440\u0443\u0443\u043B\u043D\u0430 \u0443\u0443",
-      "err",
-    );
-    overlay!.querySelector<HTMLInputElement>("#suggestWord")!.focus();
-    return;
-  }
-  if (words.length > MAX_WORDS) {
-    note(
-      "\u0418\u043B\u0433\u044D\u044D\u0445 \u04AF\u0433\u0438\u0439\u043D \u0442\u043E\u043E \u0445\u0430\u043C\u0433\u0438\u0439\u043D \u0438\u0445\u0434\u044D\u044D " +
-        MAX_WORDS +
-        " \u0431\u0430\u0439\u0445 \u0451\u0441\u0442\u043E\u0439.",
-      "err",
-    );
-    return;
-  }
-  if (!navigator.onLine) {
-    note(
-      "\u0421\u04AF\u043B\u0436\u044D\u044D\u0433\u04AF\u0439 \u0431\u0430\u0439\u043D\u0430 \u2014 \u0445\u043E\u043B\u0431\u043E\u0433\u0434\u0441\u043E\u043D\u044B \u0434\u0430\u0440\u0430\u0430 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443",
-      "err",
-    );
-    return;
-  }
   const token =
     window.turnstile && widgetId != null
       ? window.turnstile.getResponse(widgetId)
       : "";
-  if (!token) {
-    note(
-      "\u0411\u0430\u0442\u0430\u043B\u0433\u0430\u0430\u0436\u0443\u0443\u043B\u0430\u043B\u0442 \u0434\u0443\u0443\u0441\u0430\u0430\u0433\u04AF\u0439 \u2014 \u0445\u044D\u0441\u044D\u0433 \u0445\u04AF\u043B\u044D\u044D\u0433\u044D\u044D\u0434 \u0434\u0430\u0445\u0438\u043D \u0434\u0430\u0440\u043D\u0430 \u0443\u0443",
-      "err",
-    );
+
+  const blocked = sendBlock(words.length, navigator.onLine, token);
+  if (blocked) {
+    note(blocked, "err");
+    if (!words.length)
+      overlay!.querySelector<HTMLInputElement>("#suggestWord")!.focus();
     return;
   }
   busy = true;
   sendBtn.disabled = true;
-  let succeeded = false;
-  note(
-    "\u0418\u043B\u0433\u044D\u044D\u0436 \u0431\u0430\u0439\u043D\u0430\u2026",
-  );
-  try {
-    const response = await fetch(ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        words,
-        note: noteEl.value.trim(),
-        turnstileToken: token,
-      }),
-    });
-    if (response.status === 201) {
-      succeeded = true;
-      addSubmitted(words);
-      note(
-        "\u0418\u043B\u0433\u044D\u044D\u0433\u0434\u043B\u044D\u044D, \u0431\u0430\u044F\u0440\u043B\u0430\u043B\u0430\u0430!",
-        "ok",
-      );
-      words = [];
-      renderChips();
-      noteEl.value = "";
-      setTimeout(closeForm, 1400);
-    } else if (response.status === 429) {
-      note(
-        "\u0426\u0430\u0433\u0438\u0439\u043D \u0445\u044F\u0437\u0433\u0430\u0430\u0440\u0442 \u0445\u04AF\u0440\u043B\u044D\u044D \u2014 \u0434\u0430\u0440\u0430\u0430 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443",
-        "err",
-      );
-      try {
-        window.turnstile!.reset(widgetId);
-      } catch (_) {}
-    } else {
-      note(
-        "\u0418\u043B\u0433\u044D\u044D\u0445\u044D\u0434 \u0430\u043B\u0434\u0430\u0430 \u0433\u0430\u0440\u043B\u0430\u0430 \u2014 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443",
-        "err",
-      );
-      try {
-        window.turnstile!.reset(widgetId);
-      } catch (_) {}
-    }
-  } catch (_) {
-    note(
-      "\u0421\u04AF\u043B\u0436\u044D\u044D\u043D\u0438\u0439 \u0430\u043B\u0434\u0430\u0430 \u2014 \u0434\u0430\u0445\u0438\u043D \u043E\u0440\u043E\u043B\u0434\u043E\u043D\u043E \u0443\u0443",
-      "err",
-    );
-    try {
-      window.turnstile!.reset(widgetId);
-    } catch (_) {}
-  } finally {
-    if (!succeeded) {
-      busy = false;
-      sendBtn.disabled = false;
-    }
+  note("Илгээж байна…");
+  const status = await postSuggestion({
+    words,
+    note: noteEl.value.trim(),
+    turnstileToken: token,
+  });
+  if (status === 201) {
+    addSubmitted(words);
+    note("Илгээгдлээ, баярлалаа!", "ok");
+    words = [];
+    renderChips();
+    noteEl.value = "";
+    setTimeout(closeForm, 1400);
+    return;
   }
+  note(sendFailure(status), "err");
+  resetTurnstile();
+  busy = false;
+  sendBtn.disabled = false;
 }
 
 export function initSuggest(options?: SuggestDeps): void {

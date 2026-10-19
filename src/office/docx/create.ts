@@ -14,7 +14,8 @@ import type {
 import { listTree, type ListTree } from "../../markdown.ts";
 import { tabFills } from "../flatten.ts";
 import { columnWidths, officeMetrics } from "../table.ts";
-import { dropControls } from "../sanitize.ts";
+import { xmlAttr } from "../sanitize.ts";
+import { REL, XML_HEAD, relsXml, type Rel } from "../ooxml.ts";
 
 export interface DocxOptions {
   readonly toc?: boolean;
@@ -36,54 +37,10 @@ const NS_WP =
 const DRAWING = "http://schemas.openxmlformats.org/drawingml/2006/main";
 const PICTURE = "http://schemas.openxmlformats.org/drawingml/2006/picture";
 
-const REL =
-  "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
-const REL_PKG = "http://schemas.openxmlformats.org/package/2006/relationships";
 const CT = "application/vnd.openxmlformats-officedocument.wordprocessingml.";
-
-const XML_HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
-
-function esc(value: string): string {
-  return dropControls(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
 
 function twips(cm: number): number {
   return Math.round(cm * TWIP_CM);
-}
-
-interface Rel {
-  readonly id: string;
-  readonly type: string;
-  readonly target: string;
-  readonly external?: boolean;
-}
-
-function relsXml(rels: readonly Rel[]): string {
-  return (
-    XML_HEAD +
-    '<Relationships xmlns="' +
-    REL_PKG +
-    '">' +
-    rels
-      .map(
-        (rel) =>
-          '<Relationship Id="' +
-          rel.id +
-          '" Type="' +
-          rel.type +
-          '" Target="' +
-          esc(rel.target) +
-          '"' +
-          (rel.external ? ' TargetMode="External"' : "") +
-          "/>",
-      )
-      .join("") +
-    "</Relationships>"
-  );
 }
 
 const JC: Record<Align, string> = {
@@ -164,7 +121,7 @@ function styleXml(name: string, style: ParaStyle): string {
     '" w:styleId="' +
     styleId(name) +
     '"><w:name w:val="' +
-    (heading ? "heading " + heading[1] : esc(name)) +
+    (heading ? "heading " + heading[1] : xmlAttr(name)) +
     '"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/>' +
     (heading ? '<w:uiPriority w:val="9"/>' : "") +
     "<w:qFormat/>" +
@@ -175,7 +132,7 @@ function styleXml(name: string, style: ParaStyle): string {
 }
 
 function stylesXml(doc: DocIr): string {
-  const font = esc(doc.font.family);
+  const font = xmlAttr(doc.font.family);
   const half = String(Math.round(doc.font.sizePt * 2));
   return (
     XML_HEAD +
@@ -366,7 +323,7 @@ function textRun(text: string, rPr: string): string {
     "<w:r>" +
     (rPr ? "<w:rPr>" + rPr + "</w:rPr>" : "") +
     '<w:t xml:space="preserve">' +
-    esc(text) +
+    xmlAttr(text) +
     "</w:t></w:r>"
   );
 }
@@ -704,7 +661,7 @@ function coreXml(doc: DocIr): string {
     '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" ' +
     'xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" ' +
     'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">' +
-    (doc.title ? "<dc:title>" + esc(doc.title) + "</dc:title>" : "") +
+    (doc.title ? "<dc:title>" + xmlAttr(doc.title) + "</dc:title>" : "") +
     "<dc:language>mn-MN</dc:language>" +
     '<dcterms:created xsi:type="dcterms:W3CDTF">' +
     now +
