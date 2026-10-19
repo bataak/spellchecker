@@ -1301,6 +1301,10 @@ a.tbtn {
   justify-content: center;
 }
 
+.preview-panel.has-pages .preview-body {
+  touch-action: pan-x pan-y;
+}
+
 .pdf-pages {
   display: flex;
   flex-direction: column;
