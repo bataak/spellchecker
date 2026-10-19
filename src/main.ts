@@ -6,7 +6,7 @@ import "./export.css";
 import "./deftip.css";
 import "./project/project.css";
 import { MultiSpellChecker } from "./spell/spellchecker.ts";
-import { createSpellSession, tokenizeAll } from "./spell/spellsession.ts";
+import { createSpellSession } from "./spell/spellsession.ts";
 import { createFixFlow } from "./spell/fixflow.ts";
 import type { SpellChecker } from "./spell/spellchecker.ts";
 import { initFileIO } from "./fileio.ts";
@@ -22,50 +22,33 @@ import { initMeasureControl, type MeasureControl } from "./measure.ts";
 import { initPreview, type Preview } from "./preview/preview.ts";
 import { initPaneToggle, type PaneToggle } from "./panetoggle.ts";
 import { initSaveHints } from "./savehints.ts";
-import { createPdfSaver, missingNote, setSaveBusy } from "./savepdf.ts";
+import { missingNote, setSaveBusy } from "./savepdf.ts";
 import { zipTexText } from "./tex/texzip.ts";
 import { createPreviewMode } from "./previewmode.ts";
 import { createDocMode } from "./docmode.ts";
 import { createDocumentSession } from "./docsession.ts";
 import { initProjectLink, type ProjectLink } from "./project/projectlink.ts";
-import { FILE_LIMIT, PROJECT_SLOT, isFileSlot } from "./fileslots.ts";
+import { PROJECT_SLOT, isFileSlot } from "./fileslots.ts";
 import { createProjectStore } from "./project/projectstore.ts";
-import { KEYS, read, write } from "./store.ts";
-
+import { KEYS, write } from "./store.ts";
 import { escapeHtml } from "./htmlutil.ts";
-import { isDashSuffix, buildErrorList } from "./spell/textcheck.ts";
+import { buildErrorList, isDashSuffix } from "./spell/textcheck.ts";
 import { saveDraftFile, loadDraftFile } from "./storage.ts";
 import { initMdToolbar, sharedSlot } from "./mdtoolbar.ts";
 import { initSlotSwitch } from "./slotswitch.ts";
 import { initTabGuard, type TabGuard } from "./tabguard.ts";
-import {
-  defineHint,
-  exportHint,
-  initHints,
-  keyboardHint,
-  layoutHint,
-  modeHint,
-  openHint,
-  spellDictHint,
-} from "./hint.ts";
 import { PLAIN } from "./templates.ts";
 import { initExport, type ExportControl } from "./export.ts";
-import { stripExt } from "./exportformats.ts";
 import {
   initBackdrop,
-  refreshBackdropMarks,
-  captureTopAnchor,
-  anchoredScrollTop,
-  setActiveLine,
   setLineBlocks,
   backdropLineCount,
   rangeRectAt,
-  offsetAtY,
 } from "./backdrop.ts";
 import { createMarkLayer } from "./marklayer.ts";
 import { initMarkTap } from "./marktap.ts";
 import { initTexComplete } from "./tex/texcomplete.ts";
-import { caretPoint, initKeyboardLayout } from "./kblayout.ts";
+import { initKeyboardLayout } from "./kblayout.ts";
 import { initUndoHistory, type UndoControl } from "./undohistory.ts";
 import { initTexImageInput, insertPickedImage } from "./tex/teximages.ts";
 import { initDefineControls } from "./definecontrols.ts";
@@ -73,29 +56,14 @@ import { initSuggestPopover } from "./suggestpopover.ts";
 import { rotateEmptyTips, syncEmptyTips } from "./emptytips.ts";
 import { initDictMenu } from "./dict/dictmenu.ts";
 import { createOfficeSession } from "./office/session.ts";
-import { createDictStatus, createRefreshGate } from "./dict/dictstatus.ts";
-import {
-  caretLine,
-  NO_STATS,
-  statsBody,
-  statsMessage,
-  type DocStats,
-  type LinePosition,
-} from "./statusline.ts";
+import { createDictStatus } from "./dict/dictstatus.ts";
 import { initStatus, reveal } from "./status.ts";
-import { isBulkDelete, isSeparatorInput, isTouch } from "./input.ts";
 import { copyText, flash } from "./clipboard.ts";
-import {
-  composeDropped,
-  composeTypedWord,
-  initEditorText,
-  pasteComposed,
-  swapOrigin,
-} from "./editortext.ts";
+import { initEditorText } from "./editortext.ts";
 import { initDraftText } from "./drafttext.ts";
 import { initClean, initDecode } from "./decode.ts";
 import { initAppUpdate } from "./appupdate.ts";
-import { requestDurableStorage, runOfflineIndicator } from "./offline.ts";
+import { requestDurableStorage } from "./offline.ts";
 import { initShortcuts } from "./shortcuts.ts";
 import { initDefTip } from "./deftip.ts";
 import { initDefDock } from "./defdock.ts";
@@ -103,6 +71,21 @@ import { initPopover } from "./popover.ts";
 import { initErrorPanel } from "./errorpanel.ts";
 import { installErrorLog } from "./errorlog.ts";
 import { initReportButton } from "./reportbtn.ts";
+import { createEditorPort } from "./ports.ts";
+import { createDocStatus } from "./app/docstatus.ts";
+import { createDictLife } from "./app/dictlife.ts";
+import { createCheckLoop } from "./app/checkloop.ts";
+import { createEditorView } from "./app/editorview.ts";
+import { initAppHints } from "./app/apphints.ts";
+import { warmTex } from "./app/texwarm.ts";
+import { createOpenPolicy } from "./app/openpolicy.ts";
+import { createPdfSave } from "./app/pdfsave.ts";
+import {
+  bindArming,
+  bindComposition,
+  bindEditorInput,
+  type Caret,
+} from "./app/editorinput.ts";
 
 installErrorLog();
 
@@ -112,6 +95,10 @@ const { onProjectChange, project } = projectStore;
 let previewCtl: Preview | null = null;
 let paneCtl: PaneToggle | null = null;
 let projectLink: ProjectLink | null = null;
+let measureCtl: MeasureControl | null = null;
+let exportCtl: ExportControl | null = null;
+let undoCtl: UndoControl | null = null;
+let tabGuard: TabGuard | null = null;
 
 document.body.classList.add("ready");
 
@@ -122,6 +109,7 @@ const els = {
   popover: document.querySelector("#popover") as HTMLElement,
   emptyState: document.querySelector<HTMLElement>("#emptyState"),
 };
+const editorEl = els.editor;
 
 const desktopMQ = window.matchMedia("(min-width: 1024px)");
 const narrowMQ = window.matchMedia("(max-width: 700px)");
@@ -131,21 +119,15 @@ initBackdrop(els.backdrop);
 narrowMQ.addEventListener("change", () => {
   setLineBlocks(!narrowMQ.matches);
   initBackdrop(els.backdrop);
-  render();
+  void loop.render();
 });
-let activeLineQueued = false;
-function syncActiveLineSoon(): void {
-  if (activeLineQueued) return;
-  activeLineQueued = true;
-  requestAnimationFrame(() => {
-    activeLineQueued = false;
-    syncActiveLine();
-  });
-}
-els.editor.addEventListener("click", syncActiveLineSoon);
-els.editor.addEventListener("keyup", syncActiveLineSoon);
-document.addEventListener("selectionchange", () => {
-  if (document.activeElement === els.editor) syncActiveLineSoon();
+
+const view = createEditorView({
+  editor: editorEl,
+  backdrop: els.backdrop,
+  marks: () => marks,
+  onLine: (line) => docStatus.refreshLine(line),
+  onScroll: () => pop.followScroll(),
 });
 
 const checker: SpellChecker = new MultiSpellChecker();
@@ -154,34 +136,29 @@ const spell = createSpellSession({
   markup: () => markupSkips,
   isLatex: isLatexText,
   progress: async (message, animate) => {
-    setStatus(message, animate);
-    await nextFrame();
+    status.set(message, animate);
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   },
 });
 
-let ready = false;
-const DICT_REFRESH_GAP_MS = 24 * 60 * 60 * 1000;
 const dicts = createDictStatus();
-const refreshDue = createRefreshGate(DICT_REFRESH_GAP_MS);
-let undoCtl: UndoControl | null = null;
-let tabGuard: TabGuard | null = null;
 let markupSkips = false;
-let lastCaret: { start: number; end: number } | null = null;
+let lastCaret: Caret | null = null;
 
-const status = initStatus(els.status, () => restoreStatus());
-const setStatus = status.set;
-const holdStatus = status.hold;
-const releaseStatusHold = status.release;
+const status = initStatus(els.status, () => docStatus.restore());
+
+const editor = createEditorPort({
+  el: editorEl,
+  set: (text, caret) => void editorText.set(text, caret),
+  insert: (text, start, end) => editorText.insert(text, start, end),
+  render: () => loop.render(),
+  save: () => draft.save(),
+  hidePopover: () => pop.hide(),
+});
 
 const office = createOfficeSession({
-  editor: els.editor,
-  setStatus,
-  holdStatus,
-  releaseStatusHold,
-  setEditorText: (text, caret) => setEditorText(text, caret),
-  hidePopover: () => hidePopover(),
-  render: () => render(),
-  saveText: () => saveText(),
+  editor,
+  status,
   showSource: (source) => previewCtl?.setSource(source),
   baseline: () => undoCtl?.baseline(),
   syncFixButtons: () => syncFixButtons(),
@@ -190,6 +167,7 @@ const office = createOfficeSession({
     exportCtl?.syncPrint();
   },
 });
+const officeActive = (): boolean => office.active() !== null;
 
 const doc = createDocumentSession({
   office: office.active,
@@ -201,35 +179,19 @@ const doc = createDocumentSession({
   enterMode: enterMdMode,
 });
 
-function restoreStatus(): void {
-  if (!ready) return;
-  if (els.editor.value.trim() === "" && !doc.fileName()) {
-    if (dicts.base() && !dicts.indicating()) setStatus(dicts.base());
-    return;
-  }
-  setStatus(currentStatus(), false);
-}
-function afterPaint(): Promise<void> {
-  return new Promise<void>((resolve) =>
-    requestAnimationFrame(() => setTimeout(resolve, 0)),
-  );
-}
-function nextFrame(): Promise<void> {
-  return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-}
-function debounce<A extends unknown[]>(
-  fn: (...args: A) => void,
-  ms: number,
-): (...args: A) => void {
-  let timerId: ReturnType<typeof setTimeout> | undefined;
-  return (...args: A) => {
-    clearTimeout(timerId);
-    timerId = setTimeout(() => fn(...args), ms);
-  };
-}
+const docStatus = createDocStatus({
+  status,
+  statusEl: els.status,
+  editor: editorEl,
+  dicts,
+  fileName: doc.fileName,
+  lineCount: backdropLineCount,
+  desktop: desktopMQ,
+  narrow: narrowMQ,
+});
 
 const docMode = createDocMode({
-  officeActive: () => office.active() !== null,
+  officeActive,
   projectBound: () => projectLink?.bound() ?? false,
   fileName: doc.name,
 });
@@ -239,7 +201,7 @@ function isLatexText(text: string): boolean {
 }
 
 function isTexFile(): boolean {
-  return isLatexText(els.editor.value);
+  return isLatexText(editorEl.value);
 }
 
 let lastTex: boolean | null = null;
@@ -256,25 +218,18 @@ function syncTexMode(): void {
   clean.sync();
 }
 
-const marks = createMarkLayer({ editor: els.editor, syncScroll });
+const marks = createMarkLayer({
+  editor: editorEl,
+  syncScroll: view.syncScroll,
+});
 
 function applyTexPaint(on: boolean): void {
-  if (!marks.setTex(on)) return;
-  if (on) {
-    void import("./tex/texpdf.ts").then(async (mod) => {
-      const ready = await mod.prefetchFonts();
-      if (!ready || !navigator.serviceWorker?.controller) return;
-      if (read(mod.OFFLINE_KEY) || !write(mod.OFFLINE_KEY, "1")) return;
-      holdStatus("LaTeX файлтай офлайн ажиллахад бэлэн боллоо", 6000, false);
-    });
-    void import("./preview/pdfview.ts").then((mod) => mod.warmPdf());
-    void import("./tex/teximages.ts");
-    void import("./tex/latex.ts");
-  }
+  if (marks.setTex(on) && on)
+    warmTex((html, ms) => status.hold(html, ms, false));
 }
 
 const previewMode = createPreviewMode({
-  hasText: () => els.editor.value.length > 0,
+  hasText: () => editorEl.value.length > 0,
   setPaneAvailable: (on) => paneCtl?.setAvailable(on),
   setBodyMode: (on) => document.body.classList.toggle("preview-mode", on),
   setLayout: (blocked, wanted, tex) => {
@@ -298,142 +253,65 @@ function syncEmptyState(text: string): void {
   syncEmptyTips(empty);
 }
 
-let renderSeq = 0;
-async function render() {
-  const text = els.editor.value;
-  const seq = ++renderSeq;
-
-  syncEmptyState(text);
-  syncTexMode();
-  marks.follow();
-  previewCtl?.update();
-
-  if (!ready) {
-    marks.show(text, []);
-    syncScroll();
+const loop = createCheckLoop({
+  editor: editorEl,
+  spell,
+  marks,
+  docStatus,
+  prepare: (text) => {
+    syncEmptyState(text);
+    syncTexMode();
+    marks.follow();
+    previewCtl?.update();
+  },
+  unready: (text) => {
+    view.syncScroll();
     errorPanel.clear(text.trim() !== "");
-    return;
-  }
-
-  const tokens = tokenizeAll(text);
-  await spell.ensureChecked(text, tokens);
-  if (seq !== renderSeq) return;
-  const { bad, total } = spell.computeBad(text, tokens);
-  marks.show(text, bad);
-  marks.follow();
-  syncScroll();
-  captureTopAnchor();
-  errorPanel.render();
-  surveyOnErrorCount(bad.length, text.trim() !== "");
-
-  if (ready) {
-    if (text.trim() === "" && !doc.fileName()) {
-      if (dicts.base() && !dicts.indicating()) setStatus(dicts.base());
-    } else {
-      stats = { words: total, bad: bad.length, chars: text.length };
-      setStatus(currentStatus(), false);
-    }
-  }
-}
-
-let stats: DocStats = NO_STATS;
-
-function linePosition(knownLine?: number): LinePosition | null {
-  const value = els.editor.value;
-  if (!narrowMQ.matches || value === "") return null;
-  const line =
-    (knownLine ?? caretLine(value, els.editor.selectionStart ?? 0)) + 1;
-  return { line, total: backdropLineCount() + (value.endsWith("\n") ? 1 : 0) };
-}
-
-function currentStatus(knownLine?: number): string {
-  return statsMessage(
-    doc.fileName(),
-    statsBody(stats, desktopMQ.matches, linePosition(knownLine)),
-  );
-}
+  },
+  painted: (text, bad) => {
+    view.syncScroll();
+    view.captureTop();
+    errorPanel.render();
+    surveyOnErrorCount(bad.length, text.trim() !== "");
+  },
+  setText: (text, caret) => editorText.set(text, caret),
+  hidePopover: () => pop.hide(),
+  save: () => draft.save(),
+  propagate: () => fixFlow.propagate(),
+  syncScroll: view.syncScroll,
+});
+const render = loop.render;
 
 const syncSaveTitles = initSaveHints();
 
-function refreshLineInfo(knownLine?: number): void {
-  if (!ready || !narrowMQ.matches) return;
-  if (!els.status.innerHTML.includes("Үгийн тоо:")) return;
-  setStatus(currentStatus(knownLine), false);
-}
-
-function revealRange(start: number, end: number): void {
-  const editor = els.editor;
-  editor.focus({ preventScroll: true });
-  try {
-    editor.setSelectionRange(start, end, "forward");
-  } catch (_) {}
-  const box = editor.getBoundingClientRect();
-  const rect = rangeRectAt(start, Math.max(end, start + 1));
-  const pad = 24;
-  const lines = (text: string): number => text.split("\n").length;
-  const top = rect
-    ? rect.top - box.top + editor.scrollTop
-    : ((lines(editor.value.slice(0, start)) - 1) / lines(editor.value)) *
-      editor.scrollHeight;
-  const view = editor.scrollTop;
-  if (top < view + pad || top > view + editor.clientHeight - pad) {
-    const max = editor.scrollHeight - editor.clientHeight;
-    editor.scrollTop = Math.max(
-      0,
-      Math.min(top - Math.min(editor.clientHeight * 0.3, 160), max),
-    );
-  }
-  syncScroll();
-}
-
-function syncScroll() {
-  els.backdrop.scrollTop = els.editor.scrollTop;
-  els.backdrop.scrollLeft = els.editor.scrollLeft;
-}
-
-function syncActiveLine() {
-  const line = caretLine(els.editor.value, els.editor.selectionStart ?? 0);
-  setActiveLine(line);
-  refreshLineInfo(line);
-}
-
-function tokenAtCaret() {
-  const pos = els.editor.selectionStart;
-  for (const token of marks.tokens()) {
-    if (pos >= token.start && pos <= token.end) return token;
-  }
-  return null;
-}
-
 const defDock = initDefDock({
   workspace: document.querySelector(".workspace") as HTMLElement,
-  editorWrap: els.editor.closest(".editor-wrap") as HTMLElement,
+  editorWrap: editorEl.closest(".editor-wrap") as HTMLElement,
   errorPanel: document.querySelector("#errorPanel") as HTMLElement,
   desktopMQ,
   room: (side, active) => measureCtl?.dockRoom(side, active) ?? false,
 });
 
 const defTip = initDefTip({
-  editor: els.editor,
+  editor: editorEl,
   popover: els.popover,
   define: checker.define ? (word) => checker.define!(word) : undefined,
   showPanel: (word) => void pop.showDefPanel(word),
   hidePopover: () => pop.hide(),
-  holdStatus,
+  holdStatus: status.hold,
   dock: defDock,
 });
 
 const pop = initPopover({
-  editor: els.editor,
+  editor: editorEl,
   backdrop: els.backdrop,
   popover: els.popover,
   defTip,
-  syncScroll,
+  syncScroll: view.syncScroll,
 });
-const hidePopover = pop.hide;
 
 const errorPanel = initErrorPanel({
-  editor: els.editor,
+  editor: editorEl,
   backdrop: els.backdrop,
   desktopMQ,
   badTokens: () => marks.tokens(),
@@ -442,126 +320,73 @@ const errorPanel = initErrorPanel({
     lastCaret = caret;
   },
   onPick: () => fixFlow.drop(),
-  syncScroll,
-  showPopoverFor: (token) => void showPopoverFor(token),
+  syncScroll: view.syncScroll,
+  showPopoverFor: (token) => void suggestPopover.showFor(token),
 });
 
 initDefineControls({
-  editor: els.editor,
+  editor: editorEl,
   backdrop: els.backdrop,
   checker,
   defTip,
   defDock,
   pop,
-  holdStatus,
+  holdStatus: status.hold,
   englishEnabled: dicts.english,
-  errorAtCaret: tokenAtCaret,
+  errorAtCaret: view.tokenAtCaret,
   showErrorPopover: (token) => void suggestPopover.showFor(token),
 });
 
 const suggestPopover = initSuggestPopover({
-  editor: els.editor,
+  editor: editorEl,
   backdrop: els.backdrop,
   popover: els.popover,
   pop,
   defTip,
   checker,
   desktopMQ,
-  render: () => render(),
+  render,
   apply: (token, replacement) => fixFlow.apply(token, replacement),
   attachKeyboard: (input) => kbLayout.attach(input),
-  errorAtCaret: tokenAtCaret,
+  errorAtCaret: view.tokenAtCaret,
 });
-const showPopoverFor = suggestPopover.showFor;
 
 const fixFlow = createFixFlow({
-  editor: els.editor,
+  editor: editorEl,
   spell,
-  setText: (text, caret) => setEditorText(text, caret),
+  setText: (text, caret) => editor.set(text, caret),
   render: () => void render(),
-  commit: commitReplacement,
-  cancel: () => hidePopover(),
+  commit: loop.commit,
+  cancel: () => pop.hide(),
 });
 
-async function recheck() {
-  await render();
-  await fixFlow.propagate();
-  saveText();
-}
-
-async function commitReplacement(text: string, caret: number): Promise<void> {
-  hidePopover();
-  const top = els.editor.scrollTop;
-  const edit = setEditorText(text, caret);
-  els.editor.scrollTop = top;
-  if (edit) {
-    marks.shift(text, edit);
-    syncScroll();
-    await afterPaint();
-  }
-  await render();
-  saveText();
-}
-
-const deferredCheck = debounce(() => recheck(), 1500);
-
-const LARGE_TEXT = 50_000;
-const LARGE_SETTLE_MS = 250;
-const settleLarge = debounce(() => {
-  void render();
-  saveText();
-}, LARGE_SETTLE_MS);
-
-async function recheckAfterSeparator(): Promise<void> {
-  if (els.editor.value.length <= LARGE_TEXT) return recheck();
-  await fixFlow.propagate();
-  settleLarge();
-}
-
-let hadSelection = false;
-els.editor.addEventListener("beforeinput", () => {
-  hadSelection = els.editor.selectionStart !== els.editor.selectionEnd;
-  if (editorText.programmatic()) return;
-  fixFlow.arm(tokenAtCaret());
-});
+const hadSelection = bindArming(
+  editorEl,
+  () => editorText,
+  () => fixFlow,
+  view.tokenAtCaret,
+);
 
 const editorText = initEditorText({
-  editor: els.editor,
+  editor: editorEl,
   onEdit: () => fixFlow.drop(),
   onReplace: () => previewCtl?.setSource(null),
   accept: (old, next) => {
     const docx = office.active();
     if (docx && !docx.sync(old, next)) {
-      holdStatus("Энэ өөрчлөлтийг docx файлд буулгах боломжгүй");
+      status.hold("Энэ өөрчлөлтийг docx файлд буулгах боломжгүй");
       return false;
     }
     return true;
   },
   onReplaced: () => syncFixButtons(),
 });
-const setEditorText = editorText.set;
-const insertEditorText = editorText.insert;
 
-const fixButtonDeps = {
-  editor: els.editor,
-  setEditorText,
-  refresh: () => {
-    spell.clear();
-    return render();
-  },
-  saveText: () => saveText(),
-};
+const fixButtonDeps = { editor, invalidate: () => spell.clear() };
 const decode = initDecode(fixButtonDeps);
 const STANDARD_LETTERS_MESSAGE = "Зарим үсгийн кодыг стандарт болгов";
-els.editor.addEventListener("paste", (event) => {
-  if (pasteComposed(els.editor, event))
-    decode.announce(STANDARD_LETTERS_MESSAGE);
-});
-els.editor.addEventListener("input", (event) => {
-  if (!(event instanceof InputEvent)) return;
-  if (composeDropped(els.editor, event) || composeTypedWord(els.editor, event))
-    decode.announce(STANDARD_LETTERS_MESSAGE);
-});
+const announceLetters = (): void => decode.announce(STANDARD_LETTERS_MESSAGE);
+bindComposition(editorEl, announceLetters);
 const clean = initClean({
   ...fixButtonDeps,
   skip: () => !docMode.checksLetters() || isTexFile(),
@@ -572,10 +397,10 @@ function syncFixButtons(): void {
 }
 
 const draft = initDraftText({
-  editor: els.editor,
+  editor: editorEl,
   onLoaded: () => {
     syncFixButtons();
-    if (els.editor.value) reveal(els.editor, "glyph-reveal");
+    if (editorEl.value) reveal(editorEl, "glyph-reveal");
   },
   onCaret: (caret) => {
     lastCaret = caret;
@@ -589,96 +414,37 @@ const draft = initDraftText({
     writeCaret: mdBar.writeCaret,
   }),
 });
-const saveText = draft.save;
-
-els.editor.addEventListener("input", (e) => {
-  const swapped = swapOrigin(e) !== null;
-  if (swapped) marks.show(els.editor.value, []);
-  marks.follow();
-  if (editorText.programmatic()) return;
-  if (!(e instanceof InputEvent)) return;
-  hidePopover();
-  syncEmptyState(els.editor.value);
-  draft.saveSoon();
-  if (isSeparatorInput(e)) void recheckAfterSeparator();
-  else {
-    if (
-      swapped ||
-      hadSelection ||
-      els.editor.value.length === 0 ||
-      isBulkDelete(e)
-    )
-      render();
-    deferredCheck();
-  }
-  decode.afterInput(e);
-  clean.afterInput(e);
-});
-
-els.editor.addEventListener("blur", () => {
-  fixFlow.drop();
-  lastCaret = {
-    start: els.editor.selectionStart,
-    end: els.editor.selectionEnd,
-  };
-});
-const MARKS_SETTLE_MS = 100;
-const refreshMarksSoon = debounce(
-  () => refreshBackdropMarks(),
-  MARKS_SETTLE_MS,
-);
-els.editor.addEventListener("scroll", () => {
-  syncScroll();
-  captureTopAnchor();
-  pop.followScroll();
-  refreshMarksSoon();
-});
-new ResizeObserver(() => {
-  syncScroll();
-  const top = anchoredScrollTop();
-  if (top !== null && Math.abs(top - els.editor.scrollTop) >= 1) {
-    els.editor.scrollTop = top;
-    syncScroll();
-  }
-  refreshMarksSoon();
-}).observe(els.editor);
-els.editor.addEventListener("click", () => {
-  fixFlow.drop();
-  if (markTap.consumeClick()) return;
-  suggestPopover.atCaret();
-});
-els.editor.addEventListener("keyup", (e) => {
-  const nav = [
-    "ArrowLeft",
-    "ArrowRight",
-    "ArrowUp",
-    "ArrowDown",
-    "Home",
-    "End",
-  ];
-  if (nav.indexOf(e.key) !== -1) fixFlow.drop();
-});
 
 const markTap = initMarkTap({
-  editor: els.editor,
+  editor: editorEl,
   tokens: () => marks.tokens(),
-  show: (token) => showPopoverFor(token),
+  show: (token) => suggestPopover.showFor(token),
 });
 
-els.editor.addEventListener("contextmenu", (e) => {
-  const caretToken = tokenAtCaret();
-  if (caretToken) {
-    e.preventDefault();
-    showPopoverFor(caretToken);
-  }
+bindEditorInput({
+  editor: editorEl,
+  editorText,
+  marks,
+  fixFlow,
+  loop,
+  hadSelection,
+  hidePopover: () => pop.hide(),
+  textChanged: syncEmptyState,
+  saveSoon: draft.saveSoon,
+  fixers: [decode, clean],
+  setLastCaret: (caret) => {
+    lastCaret = caret;
+  },
+  markTap,
+  suggest: suggestPopover,
+  tokenAtCaret: view.tokenAtCaret,
 });
 
 initAppearance();
 
-const editorWrap = els.editor.closest<HTMLElement>(".editor-wrap");
-let measureCtl: MeasureControl | null = null;
+const editorWrap = editorEl.closest<HTMLElement>(".editor-wrap");
 if (editorWrap) {
-  measureCtl = initMeasureControl(editorWrap, els.editor, (l) => {
+  measureCtl = initMeasureControl(editorWrap, editorEl, (l) => {
     defDock.sync(l.panel);
     paneCtl?.sync();
     if (l.preview) previewCtl?.update();
@@ -687,75 +453,66 @@ if (editorWrap) {
   defDock.sync();
   previewCtl = initPreview({
     wrap: editorWrap,
-    area: els.editor,
-    onFormat: (next) => {
-      const caret = Math.min(els.editor.selectionStart, next.length);
-      const scrollTop = els.editor.scrollTop;
-      const scrollLeft = els.editor.scrollLeft;
-      const restoreView = (): void => {
-        els.editor.scrollTop = scrollTop;
-        els.editor.scrollLeft = scrollLeft;
-      };
-      setEditorText(next, caret);
-      restoreView();
-      void Promise.resolve(render()).then(restoreView);
-      saveText();
-    },
+    area: editorEl,
+    onFormat: (next) =>
+      void editor.reformat(
+        next,
+        Math.min(editorEl.selectionStart, next.length),
+      ),
     isLatex: isLatexText,
     projectKey: () => projectLink?.key() ?? null,
     inProject: () => projectLink?.bound() ?? false,
     texProject: () => projectLink?.texProject() ?? null,
-    pdfName,
-    jump: revealRange,
+    pdfName: () => pdfSave.name(),
+    jump: view.revealRange,
   });
   const workspace = editorWrap.closest<HTMLElement>(".workspace");
   if (workspace)
     paneCtl = initPaneToggle(
       workspace,
-      els.editor,
+      editorEl,
       () => desktopMQ.matches && (measureCtl?.layout().preview ?? false),
       (on) => {
         if (!on) return;
         previewCtl?.update();
-        previewCtl?.revealAt(visibleOffset());
+        previewCtl?.revealAt(view.visibleOffset());
       },
     );
 }
 
-function visibleOffset(): number {
-  const box = els.editor.getBoundingClientRect();
-  const view = window.visualViewport;
-  const bottom = Math.min(
-    box.bottom,
-    view ? view.offsetTop + view.height : window.innerHeight,
-  );
-  const caret = els.editor.selectionStart;
-  const rect =
-    rangeRectAt(caret, caret + 1) ?? rangeRectAt(Math.max(0, caret - 1), caret);
-  if (rect && rect.top >= box.top && rect.bottom <= bottom) return caret;
-  return offsetAtY(box.top + (bottom - box.top) * 0.35) ?? caret;
-}
+const pdfSave = createPdfSave({
+  preview: () => previewCtl,
+  mainFile: () => (projectLink?.bound() ? (project()?.main ?? null) : null),
+  baseName: doc.baseName,
+  mobileTex: () =>
+    touchMQ.matches && !desktopMQ.matches && !officeActive() && isTexFile(),
+  saveProject: () => projectLink?.save(true),
+  notify: status.hold,
+});
 
-function pdfName(): string {
-  const main = projectLink?.bound() ? project()?.main : null;
-  const name = main?.split("/").pop() ?? doc.baseName();
-  return stripExt(name || "бичвэр") + ".pdf";
-}
-
-const appUpdate = initAppUpdate((html) => holdStatus(html), import.meta.url);
+const appUpdate = initAppUpdate((html) => status.hold(html), import.meta.url);
 
 const fileIO = initFileIO({
-  els,
-  openDocxFile: office.open,
-  closeDocx: office.close,
-  isDocxActive: () => office.active() !== null,
-  docxSave: office.save,
-  flash,
-  setStatus,
-  setEditorText,
-  hidePopover,
-  render,
-  saveText,
+  editor,
+  status,
+  office: {
+    active: officeActive,
+    open: office.open,
+    close: office.close,
+    save: office.save,
+  },
+  project: {
+    save: () => projectLink?.save() ?? Promise.resolve(null),
+    openZip: async (file) => {
+      if (projectLink) await projectLink.openZip(file);
+    },
+    openDir: async (handle) => {
+      if (projectLink) await projectLink.openDir(handle);
+    },
+    openExisting: (name, text) =>
+      projectLink?.openExisting(name, text) ?? false,
+  },
+  pdf: pdfSave,
   defaultExt: () => (isTexFile() ? "tex" : doc.markdownActive() ? "md" : "txt"),
   onFileOpened: (ref) => {
     projectLink?.unbind(true);
@@ -764,41 +521,7 @@ const fileIO = initFileIO({
     if (ref?.kind === "text")
       queueMicrotask(() => projectLink?.fileOpened(ref.name));
   },
-  saveProject: () => projectLink?.save() ?? Promise.resolve(null),
-  savesPdf,
-  savePdf,
-  openProjectZip: async (file) => {
-    if (projectLink) await projectLink.openZip(file);
-  },
-  openProjectDir: async (handle) => {
-    if (projectLink) await projectLink.openDir(handle);
-  },
-  openInProject: (name, text) => projectLink?.openExisting(name, text) ?? false,
-  prepareOpen: (name, hash, text) => {
-    const open = mdBar.findFile(name, hash, text);
-    if (open !== null) {
-      mdBar.showFile(open);
-      const reload =
-        text !== null &&
-        mdBar.fileDirty(open) &&
-        window.confirm(
-          "«" +
-            name +
-            "» нээлттэй бөгөөд хадгалаагүй өөрчлөлттэй. Файлаас дахин нээх үү?",
-        );
-      return reload ? "reload" : "open";
-    }
-    if (mdBar.openFile(name, hash)) return "new";
-    holdStatus(
-      "Нэг дор " +
-        FILE_LIMIT +
-        " хүртэл файл нээнэ — шинэ файл нээхийн тулд ядаж нэг хуучин файлыг хаана уу",
-      8000,
-      false,
-    );
-    flash("#openBtn", "Хязгаар");
-    return false;
-  },
+  prepareOpen: createOpenPolicy(() => mdBar, status.hold),
   onLoaded: () => {
     undoCtl?.reset();
     mdBar.markSaved();
@@ -807,7 +530,7 @@ const fileIO = initFileIO({
 });
 
 const slots = initSlotSwitch({
-  editor: els.editor,
+  editor: editorEl,
   files: {
     take: () => fileIO.takeFile(),
     put: (file) => fileIO.putFile(file),
@@ -819,7 +542,7 @@ const slots = initSlotSwitch({
     park: office.park,
     open: async (file, text, cancelled) => {
       await office.open(file, text, cancelled);
-      return office.active() !== null;
+      return officeActive();
     },
     queue: office.queue,
     settled: office.settled,
@@ -832,11 +555,11 @@ const slots = initSlotSwitch({
 });
 
 const mdBar = initMdToolbar({
-  editor: els.editor,
+  editor: editorEl,
   mount: document.querySelector<HTMLElement>("header.topbar") ?? undefined,
   isMdFile: doc.isMarkdownFile,
   onDraftError: () =>
-    holdStatus(
+    status.hold(
       "Энэ загварын бичвэрийг хадгалж чадсангүй. Файлаар хадгална уу.",
       8000,
       false,
@@ -859,55 +582,27 @@ const mdBar = initMdToolbar({
   onCloseProject: () => projectLink?.close(),
   onCloseFile: (slot) => slots.forget(slot),
 });
-const find = (sel: string) => (): HTMLElement | null =>
-  document.querySelector<HTMLElement>(sel);
-const nudgeHints = initHints(() => {
-  if (document.documentElement.classList.contains("booting")) return [];
-  const layout = layoutHint(find(".measure-btn.is-shown"));
-  const keyboard = keyboardHint(
-    () =>
-      document.activeElement !== els.editor ||
-      document.querySelector(".layout-chip:not([hidden])")
-        ? null
-        : els.editor,
-    () => {
-      const caret = caretPoint(els.editor);
-      const box = els.editor.getBoundingClientRect();
-      if (caret.y < box.top || caret.y + caret.height > box.bottom) return null;
-      return new DOMRect(caret.x, caret.y, 0, caret.height);
-    },
-  );
-  const mode = modeHint(find(".md-select"));
-  if (doc.markdownActive())
-    return [keyboard, mode, layout, exportHint(find("#saveBtn"))];
-  if (els.editor.value.trim())
-    return [keyboard, mode, layout, defineHint(find("#defineBtn"))];
-  return [
-    keyboard,
-    mode,
-    layout,
-    openHint(find("#openBtn")),
-    spellDictHint(find(".dict-toggle")),
-  ];
+const nudgeHints = initAppHints({
+  editor: editorEl,
+  markdownActive: doc.markdownActive,
 });
-let exportCtl: ExportControl | null = null;
 
 docMode.setTemplate(mdBar.template());
 clean.sync();
 lastTex = isTexFile();
 applyTexPaint(lastTex);
 initTexComplete({
-  editor: els.editor,
+  editor: editorEl,
   active: () => marks.tex(),
   rectAt: rangeRectAt,
-  onImage: () => void insertPickedImage(els.editor),
+  onImage: () => void insertPickedImage(editorEl),
 });
-initTexImageInput({ editor: els.editor, active: () => marks.tex() });
+initTexImageInput({ editor: editorEl, active: () => marks.tex() });
 const workspaceEl = document.querySelector<HTMLElement>(".workspace");
 if (workspaceEl)
   projectLink = initProjectLink({
     store: projectStore,
-    editor: els.editor,
+    editor: editorEl,
     workspace: workspaceEl,
     tools: () =>
       editorWrap?.querySelector<HTMLElement>(".editor-tools") ?? null,
@@ -925,7 +620,7 @@ if (workspaceEl)
         fileIO.putFile(name ? { handle: null, name } : null);
         saveDraftFile(name ? { name, kind: "text" } : null, mdBar.slot());
         doc.setName(name);
-        restoreStatus();
+        docStatus.restore();
       },
     },
     texActive: isTexFile,
@@ -934,7 +629,7 @@ if (workspaceEl)
       syncTexMode();
       enterMdMode(doc.markdownActive());
       void render();
-      saveText();
+      draft.save();
     },
     onProject: (name) => {
       mdBar.setProject(name);
@@ -945,20 +640,20 @@ if (workspaceEl)
       previewCtl?.update();
     },
     layout: () => measureCtl?.refresh(),
-    notify: (message) => holdStatus(message, 6000, false),
+    notify: (message) => status.hold(message, 6000, false),
     show: (source) => previewCtl?.setSource(source),
   });
-const kbLayout = initKeyboardLayout({ editor: els.editor, status: els.status });
-void initImageStore(() => els.editor.value);
+const kbLayout = initKeyboardLayout({ editor: editorEl, status: els.status });
+void initImageStore(() => editorEl.value);
 undoCtl = initUndoHistory({
-  editor: els.editor,
+  editor: editorEl,
   slot: () => {
     const path = projectLink?.path();
     return path ? mdBar.slot() + "\u0000" + path : mdBar.slot();
   },
 });
 enterMdMode(doc.markdownActive());
-els.editor.addEventListener("input", nudgeHints);
+editorEl.addEventListener("input", nudgeHints);
 
 function enterMdMode(on: boolean): void {
   const markup = on || doc.isMarkdownFile();
@@ -973,7 +668,7 @@ function enterMdMode(on: boolean): void {
 }
 
 exportCtl = initExport({
-  editor: els.editor,
+  editor: editorEl,
   saveButton: document.querySelector<HTMLElement>("#saveBtn"),
   printButton: document.querySelector<HTMLElement>("#printBtn"),
   template: () => {
@@ -983,14 +678,14 @@ exportCtl = initExport({
     return doc.isMarkdownFile() ? "report" : PLAIN;
   },
   baseName: doc.baseName,
-  blocked: () => office.active() !== null,
+  blocked: officeActive,
   isTex: isTexFile,
   texProject: () => projectLink?.texProject() ?? null,
   texZip: async (text, name) => {
     if (projectLink?.bound()) return projectLink.zip();
     const { blob, missing } = await zipTexText(text, name);
     if (missing.length)
-      holdStatus(missingNote("Архивт ороогүй зураг: ", missing), 8000, false);
+      status.hold(missingNote("Архивт ороогүй зураг: ", missing), 8000, false);
     return blob;
   },
   texZipped: () => projectLink?.zipped(),
@@ -998,7 +693,7 @@ exportCtl = initExport({
     if (!previewCtl) throw new Error("no preview");
     const { pdf, missing } = await previewCtl.pdf();
     if (missing.length)
-      holdStatus(missingNote("PDF-д ороогүй зураг: ", missing), 8000, false);
+      status.hold(missingNote("PDF-д ороогүй зураг: ", missing), 8000, false);
     return pdf;
   },
   texSource: (name) => fileIO.saveSource(name, !!projectLink?.bound()),
@@ -1007,32 +702,11 @@ exportCtl = initExport({
   onPrintError: (error) => {
     flash("#printBtn", "Хэвлэж чадсангүй");
     if (error instanceof Error && error.name === "PdfError")
-      holdStatus(escapeHtml(error.message), 8000, false);
+      status.hold(escapeHtml(error.message), 8000, false);
   },
   onBusy: (busy, ext) =>
     setSaveBusy(busy, ext === "zip" ? "Архивлаж байна…" : undefined),
 });
-
-function savesPdf(): boolean {
-  return (
-    touchMQ.matches &&
-    !desktopMQ.matches &&
-    office.active() === null &&
-    isTexFile() &&
-    !!previewCtl
-  );
-}
-
-const savePdfFile = createPdfSaver({
-  name: pdfName,
-  saveProject: () => projectLink?.save(true),
-  notify: (html) => holdStatus(html, 8000, false),
-});
-
-async function savePdf(): Promise<void> {
-  const preview = previewCtl;
-  if (preview) await savePdfFile(() => preview.pdf());
-}
 
 async function restoreDraftFile(): Promise<void> {
   const ref = loadDraftFile(mdBar.slot());
@@ -1046,49 +720,29 @@ async function restoreDraftFile(): Promise<void> {
 }
 
 initShortcuts({
-  editor: els.editor,
+  editor: editorEl,
   openDictMenu: () => openDictMenu(),
   lastCaret: () => lastCaret,
 });
 
-const DICT_REFRESH_POLL_MS = 3 * 60 * 60 * 1000;
+const dictLife = createDictLife({
+  checker,
+  dicts,
+  docStatus,
+  status,
+  appUpdate,
+  blank: () => editorEl.value.trim() === "",
+  recheckAll: loop.recheckAll,
+});
 
-function maybeRefreshDict(): void {
-  if (import.meta.env.DEV) return;
-  if (!ready || !navigator.onLine) return;
-  if (!refreshDue(Date.now())) return;
-  checker.refresh();
-  void appUpdate.checkFreshness();
-}
-
-function runOfflineReadyIndicator(): void {
-  void runOfflineIndicator({
-    idle: () => els.editor.value.trim() === "",
-    setStatus,
-    base: dicts.base,
-    setActive: dicts.setIndicating,
-  });
-}
-
-async function boot() {
-  requestDurableStorage();
-  if (!import.meta.env.DEV) void appUpdate.recoverStale(true);
-  checker.onFatal = async (reason) => {
-    if (await appUpdate.recoverStale()) return;
-    setStatus(
-      "Алдаа шалгагч зогслоо: " +
-        escapeHtml(String(reason)) +
-        " — хуудсыг дахин ачаална уу",
-    );
-  };
-  setStatus("Hunspell ачаалж байна…");
+async function restoreView(): Promise<void> {
   await draft.load();
   undoCtl?.baseline();
   await restoreDraftFile();
   await projectLink?.restore();
-  render();
+  void render();
   document.documentElement.classList.remove("booting");
-  els.editor.focus({ preventScroll: true });
+  editorEl.focus({ preventScroll: true });
   nudgeHints();
   draft.restoreBootScroll();
   void Promise.resolve(document.fonts?.ready).then(() => {
@@ -1099,73 +753,35 @@ async function boot() {
     });
   });
   for (const type of ["pointerdown", "wheel", "keydown", "touchstart"])
-    els.editor.addEventListener(type, draft.dropBootScroll, { once: true });
-  try {
-    const { loaded, failed, fallbackReason, mnVersion } = await checker.init(
-      import.meta.env.BASE_URL,
-    );
-    ready = true;
-    checker.setActive(dicts.active());
-    appUpdate.setDictVersion(mnVersion);
-    spell.clear();
-    await render();
-    if (loaded.length) {
-      dicts.loaded(loaded, failed, fallbackReason);
-      runOfflineReadyIndicator();
-    } else {
-      setStatus(
-        "Нэг ч толь алга — <code>public/dict/</code> дотор .aff/.dic хийнэ үү.",
-      );
-    }
+    editorEl.addEventListener(type, draft.dropBootScroll, { once: true });
+}
 
-    checker.onDictUpdated = (id) => {
-      if (id !== "mn_MN") return;
-      appUpdate.setDictVersion(checker.mnVersion);
-      spell.clear();
-      void render();
-    };
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") maybeRefreshDict();
-    });
-    window.addEventListener("online", () => maybeRefreshDict());
-    setInterval(maybeRefreshDict, DICT_REFRESH_POLL_MS);
-    checker.whenComplete().then((done) => {
-      spell.clear();
-      dicts.completed(
-        checker.loadedIds,
-        [...(failed || []), ...done.failed],
-        fallbackReason,
-      );
-      if (els.editor.value.trim() === "" && !dicts.indicating())
-        setStatus(dicts.base(), false);
-      render();
-      maybeRefreshDict();
-    });
-  } catch (e) {
-    if (await appUpdate.recoverStale()) return;
-    setStatus(
-      "Ачаалахад алдаа гарлаа: " +
-        escapeHtml(e instanceof Error ? e.message : String(e)),
-    );
-  }
+async function boot(): Promise<void> {
+  void requestDurableStorage();
+  if (!import.meta.env.DEV) void appUpdate.recoverStale(true);
+  dictLife.watchFatal();
+  status.set("Hunspell ачаалж байна…");
+  await restoreView();
+  await dictLife.start();
 }
 
 desktopMQ.addEventListener("change", () => {
   paneCtl?.sync();
-  hidePopover();
+  pop.hide();
   errorPanel.render();
 });
 
-boot();
+void boot();
 
 setTimeout(() => {
   document.documentElement.classList.remove("booting");
 }, 2000);
 
 initToolbar({
-  els,
-  isDocxActive: () => office.active() !== null,
-  closeDocx: office.close,
+  editor,
+  status,
+  statusEl: els.status,
+  office: { active: officeActive, close: office.close },
   forgetFile: () => {
     previewMode.cleared();
     projectLink?.cleared();
@@ -1176,25 +792,15 @@ initToolbar({
     rotateEmptyTips();
   },
   hasOpenFile: () => doc.fileName() !== null,
-  flash,
-  setStatus,
-  setEditorText,
-  insertEditorText,
-  hidePopover,
-  render,
-  saveText,
-  isTouch,
-  buildErrorList,
-  getBadTokens: () => marks.tokens(),
-  copyText,
-  lettersFixed: () => decode.announce(STANDARD_LETTERS_MESSAGE),
+  badTokens: () => marks.tokens(),
+  lettersFixed: announceLetters,
 });
-initKeyboardToolbar(els.editor, els.backdrop);
+initKeyboardToolbar(editorEl, els.backdrop);
 
 initSuggest({
   buildErrorList,
   getBadTokens: () => marks.tokens(),
-  isDashSuffix: (token) => isDashSuffix(els.editor.value, token),
+  isDashSuffix: (token) => isDashSuffix(editorEl.value, token),
   copyText,
   checkKnown: (list) =>
     checker.ready && !checker.dead && checker.loadedIds.includes("mn_MN")
@@ -1203,15 +809,15 @@ initSuggest({
 });
 
 initIgnoreList({
-  onChange: () => render(),
+  onChange: () => void render(),
 });
-onIgnoredChange(() => render());
+onIgnoredChange(() => void render());
 
 let guardedProject: string | null = null;
 tabGuard = initTabGuard({
   slot: () => mdBar.slot(),
   project: () => project()?.uid ?? null,
-  warn: (message) => holdStatus(message, 8000, false),
+  warn: (message) => status.hold(message, 8000, false),
 });
 onProjectChange(() => {
   const uid = project()?.uid ?? null;
@@ -1227,11 +833,11 @@ initReportButton(() => {
   return {
     entryUrl: import.meta.url,
     activeDicts: checker.loadedIds.filter((id) => active.includes(id)),
-    officeActive: office.active() !== null,
+    officeActive: officeActive(),
     markdownActive: doc.markdownActive(),
     fileName: doc.fileName(),
     layout: measureCtl?.layout() ?? null,
-    text: els.editor.value,
+    text: editorEl.value,
     errorWords: marks.tokens().map((token) => token.word),
     personalDict: getIgnored(),
     listDicts: () => checker.listDicts?.({ peek: true }) ?? Promise.resolve([]),
@@ -1241,30 +847,22 @@ initReportButton(() => {
 const openDictMenu = initDictMenu({
   statusEl: els.status,
   getEnabled: dicts.english,
-  onApply: (next) => {
-    dicts.setEnglish(next, checker.loadedIds);
-    checker.setActive(dicts.active());
-    spell.clear();
-    render();
-    if (els.editor.value.trim() === "" && !dicts.indicating()) {
-      setStatus(dicts.base(), false);
-    }
-  },
-  onClose: () => els.editor.focus(),
+  onApply: dictLife.setEnglish,
+  onClose: () => editorEl.focus(),
 });
 
-document.fonts.ready.then(() => {
+void document.fonts.ready.then(() => {
   initBackdrop(els.backdrop);
-  render();
+  void render();
 });
 
 if (import.meta.env.DEV) {
   const assertMetrics = () => {
-    const delta = els.backdrop.scrollHeight - els.editor.scrollHeight;
+    const delta = els.backdrop.scrollHeight - editorEl.scrollHeight;
     if (delta !== 0) {
       console.warn("backdrop/editor өндрийн зөрүү:", delta, "px");
     }
   };
-  els.editor.addEventListener("input", assertMetrics);
-  document.fonts.ready.then(assertMetrics);
+  editorEl.addEventListener("input", assertMetrics);
+  void document.fonts.ready.then(assertMetrics);
 }
