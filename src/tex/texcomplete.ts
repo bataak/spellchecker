@@ -284,62 +284,62 @@ export function initTexComplete(deps: TexCompleteDeps): void {
   editor.addEventListener("input", track);
   editor.addEventListener("input", update);
 
+  const keepTyped = (): boolean => {
+    if (!context || !items[index] || !unchanged(context, items[index]))
+      return false;
+    dismissedAt = context.from;
+    close();
+    return true;
+  };
+
+  const choose = (e: KeyboardEvent): void => {
+    if (e.shiftKey) {
+      close();
+      return;
+    }
+    if (e.key === "Enter" && keepTyped()) return;
+    e.preventDefault();
+    e.stopPropagation();
+    accept();
+  };
+
+  const dismiss = (e: KeyboardEvent): void => {
+    e.preventDefault();
+    e.stopPropagation();
+    dismissedAt = context ? context.from : -1;
+    close();
+  };
+
+  const move = (e: KeyboardEvent, step: number): void => {
+    e.preventDefault();
+    select(index + step);
+  };
+
+  const KEYS = new Map<string, (e: KeyboardEvent) => void>([
+    ["ArrowDown", (e) => move(e, 1)],
+    ["ArrowUp", (e) => move(e, -1)],
+    ["Enter", choose],
+    ["Tab", choose],
+    ["Escape", dismiss],
+  ]);
+
+  const CLOSING = new Set([
+    "ArrowLeft",
+    "ArrowRight",
+    "Home",
+    "End",
+    "PageUp",
+    "PageDown",
+  ]);
+
   editor.addEventListener(
     "keydown",
     (e) => {
       if (e.isComposing) return;
-      if (list.hidden) {
-        jump(e);
-        return;
-      }
-      if (e.altKey || e.ctrlKey || e.metaKey) {
+      if (list.hidden) jump(e);
+      else if (e.altKey || e.ctrlKey || e.metaKey || CLOSING.has(e.key))
         close();
-        return;
-      }
-      switch (e.key) {
-        case "ArrowDown":
-          e.preventDefault();
-          select(index + 1);
-          return;
-        case "ArrowUp":
-          e.preventDefault();
-          select(index - 1);
-          return;
-        case "Enter":
-        case "Tab":
-          if (e.shiftKey) {
-            close();
-            return;
-          }
-          if (
-            e.key === "Enter" &&
-            context &&
-            items[index] &&
-            unchanged(context, items[index])
-          ) {
-            dismissedAt = context.from;
-            close();
-            return;
-          }
-          e.preventDefault();
-          e.stopPropagation();
-          accept();
-          return;
-        case "Escape":
-          e.preventDefault();
-          e.stopPropagation();
-          dismissedAt = context ? context.from : -1;
-          close();
-          return;
-        case "ArrowLeft":
-        case "ArrowRight":
-        case "Home":
-        case "End":
-        case "PageUp":
-        case "PageDown":
-          close();
-          return;
-      }
+      else KEYS.get(e.key)?.(e);
     },
     true,
   );
@@ -348,11 +348,7 @@ export function initTexComplete(deps: TexCompleteDeps): void {
     if (list.hidden) return;
     if (e.inputType !== "insertLineBreak" && e.inputType !== "insertParagraph")
       return;
-    if (context && items[index] && unchanged(context, items[index])) {
-      dismissedAt = context.from;
-      close();
-      return;
-    }
+    if (keepTyped()) return;
     e.preventDefault();
     accept();
   });
