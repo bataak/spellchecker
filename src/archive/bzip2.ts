@@ -118,15 +118,7 @@ function decodeSymbol(reader: BitReader, table: HuffmanTable): number {
   return table.perm[code - table.base[len]!]!;
 }
 
-function decodeBlock(
-  reader: BitReader,
-  blockSize: number,
-  out: ByteSink,
-): void {
-  const expectedCrc = reader.read(32);
-  if (reader.read(1)) throw new Error("bzip2: randomised блок дэмжигдэхгүй");
-  const origPtr = reader.read(24);
-
+function readSymbolMap(reader: BitReader): number[] {
   const used = reader.read(16);
   const seqToUnseq: number[] = [];
   for (let i = 0; i < 16; i++) {
@@ -136,11 +128,10 @@ function decodeBlock(
       if (bits & (0x8000 >> j)) seqToUnseq.push(i * 16 + j);
   }
   if (!seqToUnseq.length) throw new Error("bzip2: тэмдэгтийн жагсаалт хоосон");
-  const alphaSize = seqToUnseq.length + 2;
+  return seqToUnseq;
+}
 
-  const groupCount = reader.read(3);
-  if (groupCount < 2 || groupCount > MAX_GROUPS)
-    throw new Error("bzip2: бүлгийн тоо буруу");
+function readSelectors(reader: BitReader, groupCount: number): Uint8Array {
   const selectorCount = reader.read(15);
   if (!selectorCount) throw new Error("bzip2: selector алга");
   const groupOrder = Array.from({ length: groupCount }, (_, i) => i);
@@ -155,7 +146,14 @@ function decodeBlock(
     groupOrder.unshift(group);
     selectors[i] = group;
   }
+  return selectors;
+}
 
+function readTables(
+  reader: BitReader,
+  groupCount: number,
+  alphaSize: number,
+): HuffmanTable[] {
   const tables: HuffmanTable[] = [];
   for (let g = 0; g < groupCount; g++) {
     const lengths = new Uint8Array(alphaSize);
@@ -168,8 +166,23 @@ function decodeBlock(
     }
     tables.push(buildTable(lengths, alphaSize));
   }
+  return tables;
+}
 
-  const endOfBlock = alphaSize - 1;
+interface BlockSymbols {
+  readonly tt: Uint32Array;
+  readonly counts: Int32Array;
+  readonly length: number;
+}
+
+function decodeSymbols(
+  reader: BitReader,
+  blockSize: number,
+  seqToUnseq: readonly number[],
+  selectors: Uint8Array,
+  tables: readonly HuffmanTable[],
+): BlockSymbols {
+  const endOfBlock = seqToUnseq.length + 1;
   const counts = new Int32Array(256);
   const tt = new Uint32Array(blockSize);
   const mtf = seqToUnseq.map((_, i) => i);
@@ -193,7 +206,7 @@ function decodeBlock(
 
   for (;;) {
     if (!groupLeft) {
-      if (selectorIndex >= selectorCount)
+      if (selectorIndex >= selectors.length)
         throw new Error("bzip2: selector дууссан");
       table = tables[selectors[selectorIndex++]!]!;
       groupLeft = GROUP_SIZE;
@@ -217,8 +230,14 @@ function decodeBlock(
     counts[byte]!++;
     tt[length++] = byte;
   }
-  if (origPtr >= length) throw new Error("bzip2: origPtr буруу");
+  return { tt, counts, length };
+}
 
+function inverseBwt(
+  { tt, counts, length }: BlockSymbols,
+  origPtr: number,
+  out: ByteSink,
+): number {
   const cumulative = new Int32Array(256);
   for (let i = 1; i < 256; i++)
     cumulative[i] = cumulative[i - 1]! + counts[i - 1]!;
@@ -250,7 +269,33 @@ function decodeBlock(
     out.push(byte);
     crc = (crc << 8) ^ CRC_TABLE[((crc >>> 24) ^ byte) & 0xff]!;
   }
-  if (~crc >>> 0 !== expectedCrc) throw new Error("bzip2: CRC таарахгүй");
+  return ~crc >>> 0;
+}
+
+function decodeBlock(
+  reader: BitReader,
+  blockSize: number,
+  out: ByteSink,
+): void {
+  const expectedCrc = reader.read(32);
+  if (reader.read(1)) throw new Error("bzip2: randomised блок дэмжигдэхгүй");
+  const origPtr = reader.read(24);
+  const seqToUnseq = readSymbolMap(reader);
+  const groupCount = reader.read(3);
+  if (groupCount < 2 || groupCount > MAX_GROUPS)
+    throw new Error("bzip2: бүлгийн тоо буруу");
+  const selectors = readSelectors(reader, groupCount);
+  const tables = readTables(reader, groupCount, seqToUnseq.length + 2);
+  const symbols = decodeSymbols(
+    reader,
+    blockSize,
+    seqToUnseq,
+    selectors,
+    tables,
+  );
+  if (origPtr >= symbols.length) throw new Error("bzip2: origPtr буруу");
+  if (inverseBwt(symbols, origPtr, out) !== expectedCrc)
+    throw new Error("bzip2: CRC таарахгүй");
 }
 
 function isStreamHeader(bytes: Uint8Array, at: number): boolean {
