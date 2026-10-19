@@ -1,3 +1,4 @@
+import { downloadBlob } from "../files/download.ts";
 import { lineDiff } from "./linediff.ts";
 import { openDocx, saveDocx } from "./docx/index.ts";
 import { openOdf, saveOdf } from "./odf/index.ts";
@@ -151,17 +152,7 @@ export async function deliver(
     }
   }
 
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = name;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  setTimeout(() => {
-    URL.revokeObjectURL(url);
-  }, 1000);
-
+  downloadBlob(blob, name);
   return "download";
 }
 

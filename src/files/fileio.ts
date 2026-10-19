@@ -1,3 +1,4 @@
+import { initDownloadHint } from "./download.ts";
 import type { SaveChain } from "../ui/savechain.ts";
 import { decodeFileBytes } from "../archive/cp1251.ts";
 import { bytesSum, fileSum } from "../slots/fileslots.ts";
@@ -88,6 +89,7 @@ export function initFileIO({
   deliverText: deliverFile = deliverText,
 }: FileIODeps): FileIOControl {
   const setStatus = status.set;
+  initDownloadHint(status.hold);
   const hasFSSave = "showSaveFilePicker" in window;
   const hasFSOpen = "showOpenFilePicker" in window;
   let currentFileHandle: FileSystemFileHandle | null = null;
