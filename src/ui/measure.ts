@@ -413,7 +413,15 @@ export function initMeasureControl(
     if (room > 0) {
       const wide = choose(available(metrics, full, prev));
       offered = wide.avail;
-      const plan = projectViewport(full, room, pageWidth(wide.active, metrics));
+      const plan = projectViewport(
+        full,
+        room,
+        pageWidth(
+          wide.active,
+          metrics,
+          previewMeasure(wide.active, metrics, full),
+        ),
+      );
       viewport = plan.viewport;
       if (plan.float) root.dataset.projectFloat = "";
       else delete root.dataset.projectFloat;
