@@ -79,6 +79,45 @@
   display: none;
 }
 
+.export-missing {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+
+.export-missing[hidden] {
+  display: none;
+}
+
+.export-missing-title {
+  margin: 0;
+  color: var(--proof);
+}
+
+.export-missing-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 9rem;
+  overflow-y: auto;
+}
+
+.export-missing-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.export-missing-name {
+  overflow-wrap: anywhere;
+}
+
 .export-ext {
   opacity: 0.6;
 }

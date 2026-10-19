@@ -1,4 +1,4 @@
-import { imageFiles } from "../files/images.ts";
+import { imageBlob, imageFiles, isRemoteImage } from "../files/images.ts";
 import { blockImages, parse } from "../markdown.ts";
 import { docImages, imageKey } from "../office/docir.ts";
 import { findTemplate, type Frame } from "../doc/templates.ts";
@@ -37,6 +37,19 @@ export const TOC_FORMATS: ReadonlySet<string> = new Set([
 ]);
 
 export const NOTES_FORMATS: ReadonlySet<string> = new Set(["tex", "pdf"]);
+
+export const EMBED_FORMATS: ReadonlySet<string> = new Set([
+  "odt",
+  "docx",
+  "pdf",
+  "odp",
+  "pptx",
+]);
+
+export function missingImages(text: string): string[] {
+  const sources = new Set(blockImages(parse(text)).map((node) => node.src));
+  return [...sources].filter((src) => !isRemoteImage(src) && !imageBlob(src));
+}
 
 export function hasNotes(text: string, templateId: string): boolean {
   if (findTemplate(templateId)?.frame !== "slides") return false;
