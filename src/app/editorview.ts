@@ -132,3 +132,16 @@ export function createEditorView(deps: EditorViewDeps): EditorView {
     },
   };
 }
+
+export function bindLineBlocks(
+  backdrop: Backdrop,
+  narrow: MediaQueryList,
+  render: () => void,
+): void {
+  backdrop.setLineBlocks(!narrow.matches);
+  narrow.addEventListener("change", () => {
+    backdrop.setLineBlocks(!narrow.matches);
+    backdrop.reset();
+    render();
+  });
+}
