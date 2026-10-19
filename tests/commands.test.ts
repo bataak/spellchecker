@@ -91,3 +91,16 @@ test("commands: hint одоогийн title-д нэмнэ", () => {
   assert.equal(open.getAttribute("title"), "Файл нээх · Ctrl+O");
   assert.equal(paste.getAttribute("title"), "Ctrl+V");
 });
+
+test("commands: дарснаар идэвхгүй болсон товчийг ч тодруулна", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const clear = new FakeButton();
+  clear.click = function (): void {
+    this.clicks += 1;
+    this.disabled = true;
+  };
+  const commands = createButtonCommands(root({ "#clearBtn": clear }));
+  commands.run("clear");
+  assert.equal(clear.clicks, 1);
+  assert.ok(clear.classes.has("kbd-active"));
+});
