@@ -2607,6 +2607,9 @@ html.booting .empty-state {
   outline-offset: 2px;
   font-weight: 700;
 }
+.suggest-actions .suggest-view-submitted {
+  margin-right: auto;
+}
 .suggest-view-submitted.active {
   color: var(--accent);
   border-color: var(--accent);

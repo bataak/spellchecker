@@ -10,6 +10,7 @@ import type {
 } from "./docir.ts";
 import { listTree, type ListTree } from "../markdown.ts";
 import { odfFont } from "./fonts.ts";
+import { applyDataStyles } from "../htmlutil.ts";
 import { columnWidths, officeMetrics } from "./table.ts";
 
 const LINE_RATIO = 1.15;
@@ -114,7 +115,7 @@ function imageHtml(image: IrImage, prepared: PreparedImage): string {
     '<img class="image" src="' +
     esc(prepared.url) +
     '" alt=""' +
-    (width ? ' style="' + width + '"' : "") +
+    (width ? ' data-style="' + width + '"' : "") +
     ">"
   );
 }
@@ -219,7 +220,7 @@ function blockHtml(block: IrBlock, doc: DocIr, images: ImageSet): string {
             .map((_, i) => {
               const align = block.align[i];
               const style = align
-                ? ' style="text-align:' + TEXT_ALIGN[align] + '"'
+                ? ' data-style="text-align:' + TEXT_ALIGN[align] + '"'
                 : "";
               return (
                 '<td class="' +
@@ -238,13 +239,13 @@ function blockHtml(block: IrBlock, doc: DocIr, images: ImageSet): string {
         })
         .join("");
       return (
-        '<table style="width:' +
+        '<table data-style="width:' +
         cm(widths.reduce((sum, width) => sum + width, 0)) +
         ";margin:" +
         TABLE_MARGIN[block.placement ?? "center"] +
         '"><colgroup>' +
         widths
-          .map((width) => '<col style="width:' + cm(width) + '">')
+          .map((width) => '<col data-style="width:' + cm(width) + '">')
           .join("") +
         "</colgroup>" +
         rows +
@@ -417,6 +418,16 @@ export function printPdf(bytes: Uint8Array<ArrayBuffer>): Promise<void> {
   });
 }
 
+export function splitStyles(html: string): { markup: string; css: string } {
+  const open = html.indexOf("<style>");
+  const close = open < 0 ? -1 : html.indexOf("</style>", open);
+  if (close < 0) return { markup: html, css: "" };
+  return {
+    markup: html.slice(0, open) + html.slice(close + "</style>".length),
+    css: html.slice(open + "<style>".length, close),
+  };
+}
+
 export function printPage(html: string): Promise<void> {
   current?.remove();
   const frame = document.createElement("iframe");
@@ -425,18 +436,23 @@ export function printPage(html: string): Promise<void> {
   frame.tabIndex = -1;
   frame.style.cssText =
     "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
-  frame.srcdoc = html;
+  const { markup, css } = splitStyles(html);
+  frame.srcdoc = markup;
   return new Promise((resolve, reject) => {
     frame.addEventListener(
       "load",
       () => {
-        const win = frame.contentWindow;
+        const win = frame.contentWindow as (Window & typeof globalThis) | null;
         const inner = frame.contentDocument;
         if (!win || !inner) {
           frame.remove();
           reject(new Error("print frame unavailable"));
           return;
         }
+        const sheet = new win.CSSStyleSheet();
+        sheet.replaceSync(css);
+        inner.adoptedStyleSheets = [sheet];
+        applyDataStyles(inner);
         win.addEventListener(
           "afterprint",
           () => {

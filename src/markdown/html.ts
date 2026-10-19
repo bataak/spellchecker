@@ -46,7 +46,7 @@ function inlineHtml(nodes: readonly Inline[]): string {
     else if (n.type === "blank")
       out += n.fill
         ? `<span class="blank fill"></span>`
-        : `<span class="blank" style="--blank:${blankEm(n) * 2}"></span>`;
+        : `<span class="blank" data-style="--blank:${blankEm(n) * 2}"></span>`;
     else if (n.type === "softbreak") out += "\n";
     else if (n.type === "break") out += "<br>";
     else if (n.type === "strong")
@@ -56,7 +56,7 @@ function inlineHtml(nodes: readonly Inline[]): string {
     else if (n.type === "image")
       out +=
         `<img class="md-image" data-src="${esc(n.src)}" alt="${esc(n.alt)}"` +
-        (n.width === undefined ? "" : ` style="width:${n.width}%"`) +
+        (n.width === undefined ? "" : ` data-style="width:${n.width}%"`) +
         (n.rotate === undefined ? "" : ` data-rotate="${n.rotate}"`) +
         `>`;
     else if (!safeHref(n.url)) out += inlineHtml(n.children);
@@ -112,7 +112,7 @@ export function toHtml(blocks: readonly Block[]): string {
         `</div>`;
     else if (b.type === "div") {
       const width = /^\d+(?:\.\d+)?%$/.test(b.keys["width"] ?? "")
-        ? ` style="flex-basis:${b.keys["width"]}"`
+        ? ` data-style="flex-basis:${b.keys["width"]}"`
         : "";
       const kind = b.classes.includes("notes")
         ? "md-notes"
@@ -132,7 +132,7 @@ export function toHtml(blocks: readonly Block[]): string {
     else {
       const [header, ...body] = b.rows;
       const style = (i: number): string =>
-        b.align[i] ? ` style="text-align:${b.align[i]}"` : "";
+        b.align[i] ? ` data-style="text-align:${b.align[i]}"` : "";
       out +=
         `<table${at}>` +
         (isBlankRow(header)

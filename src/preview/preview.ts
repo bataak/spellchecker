@@ -1,6 +1,7 @@
 import { initImageEdit } from "./imageedit.ts";
 import { onImagesChange } from "../images.ts";
 import { fitBlanks, format, parse, toHtml } from "../markdown.ts";
+import { applyDataStyles } from "../htmlutil.ts";
 import { createHtmlSync } from "./htmlsync.ts";
 import { handleImageClick, resolveImages } from "./mdimages.ts";
 import type { CompiledPdf } from "./pdfcache.ts";
@@ -154,6 +155,7 @@ export function initPreview(deps: PreviewDeps): Preview {
       shownHtml = html;
       const next = document.createElement("div");
       next.innerHTML = html;
+      applyDataStyles(next);
       resolveImages(next);
       if (next.querySelector(".math")) {
         if (mathView) mathView.renderMath(next);
