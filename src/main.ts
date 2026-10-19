@@ -33,6 +33,7 @@ import { createPdfSaver, missingNote, setSaveBusy } from "./savepdf.ts";
 import { zipTexText } from "./tex/texzip.ts";
 import { createPreviewMode } from "./previewmode.ts";
 import { createDocMode } from "./docmode.ts";
+import { createDocumentSession } from "./docsession.ts";
 import { initProjectLink, type ProjectLink } from "./project/projectlink.ts";
 import { FILE_LIMIT, PROJECT_SLOT, isFileSlot } from "./fileslots.ts";
 import { createProjectStore } from "./project/projectstore.ts";
@@ -55,7 +56,7 @@ import {
   openHint,
   spellDictHint,
 } from "./hint.ts";
-import { isPlain, PLAIN } from "./templates.ts";
+import { PLAIN } from "./templates.ts";
 import { initExport, type ExportControl } from "./export.ts";
 import { stripExt } from "./exportformats.ts";
 import {
@@ -178,7 +179,6 @@ const refreshDue = createRefreshGate(DICT_REFRESH_GAP_MS);
 let pendingFix: PendingFix | null = null;
 let undoCtl: UndoControl | null = null;
 let tabGuard: TabGuard | null = null;
-let plainName: string | null = null;
 let markupSkips = false;
 let lastCaret: { start: number; end: number } | null = null;
 
@@ -200,14 +200,24 @@ const office = createOfficeSession({
   baseline: () => undoCtl?.baseline(),
   syncFixButtons: () => syncFixButtons(),
   onModeChange: () => {
-    syncSaveHint();
+    doc.syncSaveHint();
     exportCtl?.syncPrint();
   },
 });
 
+const doc = createDocumentSession({
+  office: office.active,
+  targetName: () => fileIO.targetName(),
+  template: () => mdBar.template(),
+  isTex: isTexFile,
+  setSaveTitles: (output, open) => syncSaveTitles(output, open),
+  refreshBar: () => mdBar.refresh(),
+  enterMode: enterMdMode,
+});
+
 function restoreStatus(): void {
   if (!ready) return;
-  if (els.editor.value.trim() === "" && !openFileName()) {
+  if (els.editor.value.trim() === "" && !doc.fileName()) {
     if (dicts.base() && !dicts.indicating()) setStatus(dicts.base());
     return;
   }
@@ -235,7 +245,7 @@ function debounce<A extends unknown[]>(
 const docMode = createDocMode({
   officeActive: () => office.active() !== null,
   projectBound: () => projectLink?.bound() ?? false,
-  fileName: () => plainName,
+  fileName: doc.name,
 });
 
 function isLatexText(text: string): boolean {
@@ -254,7 +264,7 @@ function syncTexMode(): void {
   lastTex = tex;
   applyTexPaint(tex);
   mdBar.refresh();
-  enterMdMode(mdActive());
+  enterMdMode(doc.markdownActive());
   previewCtl?.update();
   projectLink?.sync();
   clean.sync();
@@ -295,11 +305,6 @@ function syncBackdrop(): void {
   });
   renderBackdrop(text, badTokens);
   syncScroll();
-}
-
-function mdActive(): boolean {
-  if (isTexFile()) return false;
-  return openFileName() ? isMdFileOpen() : !isPlain(mdBar.template());
 }
 
 const previewMode = createPreviewMode({
@@ -359,7 +364,7 @@ async function render() {
   surveyOnErrorCount(bad.length, text.trim() !== "");
 
   if (ready) {
-    if (text.trim() === "" && !openFileName()) {
+    if (text.trim() === "" && !doc.fileName()) {
       if (dicts.base() && !dicts.indicating()) setStatus(dicts.base());
     } else {
       stats = { words: total, bad: bad.length, chars: text.length };
@@ -380,25 +385,12 @@ function linePosition(knownLine?: number): LinePosition | null {
 
 function currentStatus(knownLine?: number): string {
   return statsMessage(
-    openFileName(),
+    doc.fileName(),
     statsBody(stats, desktopMQ.matches, linePosition(knownLine)),
   );
 }
 
 const syncSaveTitles = initSaveHints();
-
-function syncSaveHint(): void {
-  const target = fileIO.targetName();
-  const docx = office.active();
-  syncSaveTitles(
-    docx ? docx.outputName() : target || null,
-    !!(docx || target || plainName),
-  );
-}
-
-function openFileName(): string | null {
-  return office.active()?.fileName() ?? plainName;
-}
 
 function refreshLineInfo(knownLine?: number): void {
   if (!ready || !narrowMQ.matches) return;
@@ -850,7 +842,7 @@ if (editorWrap) {
 
 function pdfName(): string {
   const main = projectLink?.bound() ? project()?.main : null;
-  const name = main?.split("/").pop() ?? fileIO.targetName() ?? plainName;
+  const name = main?.split("/").pop() ?? doc.baseName();
   return stripExt(name || "бичвэр") + ".pdf";
 }
 
@@ -868,14 +860,11 @@ const fileIO = initFileIO({
   hidePopover,
   render,
   saveText,
-  defaultExt: () => (isTexFile() ? "tex" : mdActive() ? "md" : "txt"),
+  defaultExt: () => (isTexFile() ? "tex" : doc.markdownActive() ? "md" : "txt"),
   onFileOpened: (ref) => {
     projectLink?.unbind(true);
-    plainName = ref ? ref.name : null;
     saveDraftFile(ref, mdBar.slot());
-    syncSaveHint();
-    mdBar.refresh();
-    enterMdMode(mdActive());
+    doc.open(ref ? ref.name : null);
     if (ref?.kind === "text")
       queueMicrotask(() => projectLink?.fileOpened(ref.name));
   },
@@ -922,8 +911,6 @@ const fileIO = initFileIO({
   onSaved: (written) => mdBar.markSaved(written),
 });
 
-const MD_NAME_RE = /\.(md|markdown|mdown)$/i;
-
 const slots = initSlotSwitch({
   editor: els.editor,
   files: {
@@ -944,23 +931,15 @@ const slots = initSlotSwitch({
   },
   project: () => projectLink,
   draft: (slot) => mdBar.draft(slot),
-  setName: (name) => {
-    plainName = name;
-    syncSaveHint();
-    mdBar.refresh();
-  },
+  setName: doc.setName,
   refreshPreview: () => previewCtl?.update(),
-  entered: () => {
-    syncSaveHint();
-    mdBar.refresh();
-    enterMdMode(mdActive());
-  },
+  entered: doc.entered,
 });
 
 const mdBar = initMdToolbar({
   editor: els.editor,
   mount: document.querySelector<HTMLElement>("header.topbar") ?? undefined,
-  isMdFile: isMdFileOpen,
+  isMdFile: doc.isMarkdownFile,
   onDraftError: () =>
     holdStatus(
       "Энэ загварын бичвэрийг хадгалж чадсангүй. Файлаар хадгална уу.",
@@ -968,7 +947,7 @@ const mdBar = initMdToolbar({
       false,
     ),
   isTexFile,
-  fileName: openFileName,
+  fileName: doc.fileName,
   onLeave: (from) => slots.leave(from),
   onTemplate: (id, from) => {
     previewMode.templateChanged();
@@ -977,7 +956,7 @@ const mdBar = initMdToolbar({
     if (from !== mdBar.slot()) slots.enter(mdBar.slot());
     syncTexMode();
     projectLink?.sync();
-    enterMdMode(mdActive());
+    enterMdMode(doc.markdownActive());
     tabGuard?.sync();
   },
   onExample: () => enterMdMode(!isTexFile()),
@@ -1004,7 +983,7 @@ const nudgeHints = initHints(() => {
     },
   );
   const mode = modeHint(find(".md-select"));
-  if (mdActive()) return [keyboard, mode, layout, exportHint(find("#saveBtn"))];
+  if (doc.markdownActive()) return [keyboard, mode, layout, exportHint(find("#saveBtn"))];
   if (els.editor.value.trim())
     return [keyboard, mode, layout, defineHint(find("#defineBtn"))];
   return [
@@ -1044,14 +1023,12 @@ if (workspaceEl)
       files: () => mdBar.fileSlots(),
     },
     file: {
-      name: () => plainName,
+      name: doc.name,
       handle: () => fileIO.targetHandle(),
       bind: (name) => {
         fileIO.putFile(name ? { handle: null, name } : null);
-        plainName = name;
         saveDraftFile(name ? { name, kind: "text" } : null, mdBar.slot());
-        syncSaveHint();
-        mdBar.refresh();
+        doc.setName(name);
         restoreStatus();
       },
     },
@@ -1059,7 +1036,7 @@ if (workspaceEl)
     afterSwitch: () => {
       undoCtl?.baseline();
       syncTexMode();
-      enterMdMode(mdActive());
+      enterMdMode(doc.markdownActive());
       void render();
       saveText();
     },
@@ -1084,17 +1061,11 @@ undoCtl = initUndoHistory({
     return path ? mdBar.slot() + "\u0000" + path : mdBar.slot();
   },
 });
-enterMdMode(mdActive());
+enterMdMode(doc.markdownActive());
 els.editor.addEventListener("input", nudgeHints);
 
-function isMdFileOpen(): boolean {
-  if (office.active()) return false;
-  const name = fileIO.targetName() ?? plainName;
-  return !!name && MD_NAME_RE.test(name);
-}
-
 function enterMdMode(on: boolean): void {
-  const markup = on || isMdFileOpen();
+  const markup = on || doc.isMarkdownFile();
   if (markup !== markupSkips) {
     markupSkips = markup;
     void render();
@@ -1113,9 +1084,9 @@ exportCtl = initExport({
     if (isTexFile()) return PLAIN;
     const id = mdBar.template();
     if (!isFileSlot(id)) return id;
-    return isMdFileOpen() ? "report" : PLAIN;
+    return doc.isMarkdownFile() ? "report" : PLAIN;
   },
-  baseName: () => fileIO.targetName() ?? plainName,
+  baseName: doc.baseName,
   blocked: () => office.active() !== null,
   isTex: isTexFile,
   texProject: () => projectLink?.texProject() ?? null,
@@ -1172,17 +1143,11 @@ async function restoreDraftFile(): Promise<void> {
   const ref = loadDraftFile(mdBar.slot());
   if (!ref) return;
   if (ref.kind === "office" && (await office.restore(ref.name))) {
-    plainName = ref.name;
-    syncSaveHint();
-    mdBar.refresh();
-    enterMdMode(mdActive());
+    doc.open(ref.name);
     return;
   }
   fileIO.restoreFile(ref);
-  plainName = fileIO.targetName();
-  syncSaveHint();
-  mdBar.refresh();
-  enterMdMode(mdActive());
+  doc.open(fileIO.targetName());
 }
 
 initShortcuts({
@@ -1315,7 +1280,7 @@ initToolbar({
     mdBar.reset(cleared);
     rotateEmptyTips();
   },
-  hasOpenFile: () => openFileName() !== null,
+  hasOpenFile: () => doc.fileName() !== null,
   flash,
   setStatus,
   setEditorText,
@@ -1368,8 +1333,8 @@ initReportButton(() => {
     entryUrl: import.meta.url,
     activeDicts: checker.loadedIds.filter((id) => active.includes(id)),
     officeActive: office.active() !== null,
-    markdownActive: mdActive(),
-    fileName: openFileName(),
+    markdownActive: doc.markdownActive(),
+    fileName: doc.fileName(),
     layout: measureCtl?.layout() ?? null,
     text: els.editor.value,
     errorWords: badTokens.map((token) => token.word),
