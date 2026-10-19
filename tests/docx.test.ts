@@ -11,9 +11,9 @@ import {
   buildIndex,
   locate,
   planDocument,
-  renderText,
+  renderFlat,
   rewriteParts,
-} from "../src/office/docx/index.ts";
+} from "../src/office/textdoc.ts";
 import { parsePart } from "../src/office/docx/parse.ts";
 import { decodeXmlText, encodeXmlText } from "../src/office/docx/xml.ts";
 import type { ParagraphEdit } from "../src/office/docx/edit.ts";
@@ -298,7 +298,7 @@ test("renders pending edits onto the flat text", () => {
   const index = buildIndex([body]);
 
   assert.equal(
-    renderText(index, [{ start: 0, end: 6, text: "Монгол" }]),
+    renderFlat(index.text, [{ start: 0, end: 6, text: "Монгол" }]),
     "Монгол улс",
   );
 });

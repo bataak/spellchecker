@@ -2,16 +2,14 @@ import { lineDiff } from "./linediff.ts";
 import { openDocx, saveDocx } from "./docx/index.ts";
 import { openOdf, saveOdf } from "./odf/index.ts";
 import { openPptx, savePptx } from "./pptx/index.ts";
+import { renderFlat } from "./textdoc.ts";
+import type { SaveResult, TextEdit, TextIndex } from "./textdoc.ts";
 import type { SkipReason } from "./docx/edit.ts";
 import { unpackedSize } from "../archive/archive.ts";
 
 export type OfficeFormat = "docx" | "pptx" | "odt" | "odp";
 
-export interface OfficeEdit {
-  start: number;
-  end: number;
-  text: string;
-}
+export type OfficeEdit = TextEdit;
 
 export interface SkippedWord {
   word: string;
@@ -38,13 +36,7 @@ export interface OfficeMode {
 
 interface Engine {
   text: string;
-  edits: OfficeEdit[];
-  render: (edits: OfficeEdit[]) => string;
-  save: (edits: OfficeEdit[]) => {
-    bytes: Uint8Array<ArrayBuffer>;
-    applied: OfficeEdit[];
-    skipped: Array<{ edit: OfficeEdit; reason: SkipReason }>;
-  };
+  save: (edits: OfficeEdit[]) => SaveResult;
 }
 
 export const SIZE_LIMIT = 30 * 1024 * 1024;
@@ -106,48 +98,19 @@ async function readBytes(file: File): Promise<Uint8Array<ArrayBuffer>> {
   return new Uint8Array(await file.arrayBuffer());
 }
 
-function makeEngine(format: OfficeFormat, bytes: Uint8Array): Engine {
-  if (format === "pptx") {
-    const doc = openPptx(bytes);
-    return {
-      text: doc.text,
-      edits: [],
-      render: (edits) => renderFlat(doc.text, edits),
-      save: (edits) => savePptx(doc, edits),
-    };
-  }
-
-  if (format === "odt" || format === "odp") {
-    const doc = openOdf(bytes);
-    return {
-      text: doc.text,
-      edits: [],
-      render: (edits) => renderFlat(doc.text, edits),
-      save: (edits) => saveOdf(doc, edits),
-    };
-  }
-
-  const doc = openDocx(bytes);
-  return {
-    text: doc.text,
-    edits: [],
-    render: (edits) => renderFlat(doc.text, edits),
-    save: (edits) => saveDocx(doc, edits),
-  };
+function engineOf<D extends TextIndex>(
+  doc: D,
+  save: (doc: D, edits: OfficeEdit[]) => SaveResult,
+): Engine {
+  return { text: doc.text, save: (edits) => save(doc, edits) };
 }
 
-export function renderFlat(source: string, edits: OfficeEdit[]): string {
-  const ordered = [...edits].sort((left, right) => right.start - left.start);
-  let result = source;
-
-  for (const edit of ordered) {
-    if (edit.start < 0 || edit.end > result.length || edit.start > edit.end)
-      continue;
-    result = result.slice(0, edit.start) + edit.text + result.slice(edit.end);
-  }
-
-  return result;
-}
+const ENGINES: Record<OfficeFormat, (bytes: Uint8Array) => Engine> = {
+  docx: (bytes) => engineOf(openDocx(bytes), saveDocx),
+  pptx: (bytes) => engineOf(openPptx(bytes), savePptx),
+  odt: (bytes) => engineOf(openOdf(bytes), saveOdf),
+  odp: (bytes) => engineOf(openOdf(bytes), saveOdf),
+};
 
 export function mergeEdit(
   source: string,
@@ -208,7 +171,7 @@ export async function openOfficeMode(file: File): Promise<OfficeMode> {
   const bytes = await readBytes(file);
   if (unpackedSize(bytes) > UNPACKED_LIMIT)
     throw new Error("unpacked-too-large");
-  const engine = makeEngine(format, bytes);
+  const engine = ENGINES[format](bytes);
   const source = engine.text;
   const fileName = file.name;
   let edits: OfficeEdit[] = [];
