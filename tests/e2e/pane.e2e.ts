@@ -5,6 +5,7 @@ import {
   chooseSlot,
   errors,
   openPage,
+  reload,
   startApp,
   typeAtEnd,
   until,
@@ -131,4 +132,17 @@ test("гар утсан дээр харагдацад шилжихэд бичв�
     `харагдацын мөр ${marked}, бичвэрт ${visible}`,
   );
   assert.deepEqual(errors(page), []);
+});
+
+test("хадгалсан тайлбарын самбарын байрлалтай ачаалахад унахгүй", async () => {
+  for (const place of ["left", "right", "panel", "panel-top"]) {
+    const page = await openPage(app, await app.context());
+    await page.evaluate(
+      (value) => localStorage.setItem("def-dock", value),
+      place,
+    );
+    await reload(page);
+    assert.deepEqual(errors(page), [], place);
+    await page.close();
+  }
 });
