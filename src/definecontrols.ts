@@ -1,7 +1,7 @@
-import { offsetAtPoint, rangeRectAt } from "./backdrop.ts";
+import type { Backdrop } from "./backdrop.ts";
 import type { DefDock } from "./defdock.ts";
 import type { DefTip } from "./deftip.ts";
-import { openDictManager } from "./dict/dictmanager.ts";
+import { createDictManager } from "./dict/dictmanager.ts";
 import { isTouch } from "./input.ts";
 import type { Popover } from "./popover.ts";
 import { isLookupKey, wordAt, type WordSpan } from "./spell/lookup.ts";
@@ -49,7 +49,7 @@ export function selectedWord(
 
 export interface DefineControlsDeps {
   readonly editor: HTMLTextAreaElement;
-  readonly backdrop: HTMLElement;
+  readonly backdrop: Backdrop;
   readonly checker: SpellChecker;
   readonly defTip: DefTip;
   readonly defDock: DefDock;
@@ -103,14 +103,14 @@ export function initDefineControls(deps: DefineControlsDeps): void {
       latinLookup(),
     );
 
-  const manageDicts = (): Promise<void> =>
-    openDictManager({
-      list: () => checker.listDicts?.() ?? Promise.resolve([]),
-      reload: () => checker.reloadDicts?.(),
-      reorder: () => checker.reorderDicts?.(),
-      changed: () => defTip.resetDefinitions(),
-      status: (message) => holdStatus(message, 5000, false),
-    });
+  const dictManager = createDictManager({
+    list: () => checker.listDicts?.() ?? Promise.resolve([]),
+    reload: () => checker.reloadDicts?.(),
+    reorder: () => checker.reorderDicts?.(),
+    changed: () => defTip.resetDefinitions(),
+    status: (message) => holdStatus(message, 5000, false),
+  });
+  const manageDicts = (): Promise<void> => dictManager.open();
 
   const defineBtn = document.querySelector<HTMLButtonElement>("#defineBtn");
   let pressTimer: ReturnType<typeof setTimeout> | undefined;
@@ -187,15 +187,15 @@ export function initDefineControls(deps: DefineControlsDeps): void {
 
   const wordAtPoint = (x: number, y: number): WordSpan | null => {
     editor.style.pointerEvents = "none";
-    backdrop.style.pointerEvents = "auto";
-    backdrop.style.userSelect = "text";
-    const offset = offsetAtPoint(x, y);
+    backdrop.el.style.pointerEvents = "auto";
+    backdrop.el.style.userSelect = "text";
+    const offset = backdrop.offsetAtPoint(x, y);
     editor.style.pointerEvents = "";
-    backdrop.style.pointerEvents = "";
-    backdrop.style.userSelect = "";
+    backdrop.el.style.pointerEvents = "";
+    backdrop.el.style.userSelect = "";
     if (offset === null) return null;
     const span = wordAt(editor.value, offset, latinLookup());
-    const rect = span && rangeRectAt(span.start, span.end);
+    const rect = span && backdrop.rangeRectAt(span.start, span.end);
     if (!rect) return null;
     if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom)
       return null;

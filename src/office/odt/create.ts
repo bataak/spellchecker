@@ -35,12 +35,10 @@ interface Media {
   frames: number;
 }
 
-let media: Media | null = null;
-
-function frameXml(image: IrImage): string {
+function frameXml(image: IrImage, media: Media): string {
   const key = imageKey(image);
-  const file = media?.images.get(key);
-  if (!media || !file) return "";
+  const file = media.images.get(key);
+  if (!file) return "";
   let path = media.used.get(key);
   if (path === undefined) {
     path = "Pictures/image" + String(media.used.size + 1) + "." + file.ext;
@@ -146,7 +144,7 @@ function runStyle(key: string, base: string): string {
   );
 }
 
-function runsXml(runs: readonly IrRun[]): string {
+function runsXml(runs: readonly IrRun[], media: Media): string {
   let out = "";
   for (const run of runs) {
     if (run.tab) {
@@ -154,7 +152,7 @@ function runsXml(runs: readonly IrRun[]): string {
       continue;
     }
     if (run.image) {
-      out += frameXml(run.image);
+      out += frameXml(run.image, media);
       continue;
     }
     if (!run.text) continue;
@@ -179,8 +177,13 @@ function styleName(name: string): string {
   return name.replace(/[^A-Za-z0-9_]/g, "_");
 }
 
-function paraXml(style: string, runs: readonly IrRun[], level: number): string {
-  const inner = runsXml(runs);
+function paraXml(
+  style: string,
+  runs: readonly IrRun[],
+  level: number,
+  media: Media,
+): string {
+  const inner = runsXml(runs, media);
   if (level > 0)
     return (
       '<text:h text:style-name="' +
@@ -241,6 +244,7 @@ function blockXml(
   index: number,
   doc: DocIr,
   auto: Set<string>,
+  media: Media,
 ): string {
   switch (block.kind) {
     case "para":
@@ -248,6 +252,7 @@ function blockXml(
         block.style,
         block.runs,
         doc.styles[block.style]?.outlineLevel ?? 0,
+        media,
       );
 
     case "list": {
@@ -265,7 +270,7 @@ function blockXml(
               '><text:p text:style-name="' +
               styleName(block.style) +
               '">' +
-              runsXml(item) +
+              runsXml(item, media) +
               "</text:p>" +
               (sub ? render(sub) : "") +
               "</text:list-item>",
@@ -351,7 +356,7 @@ function blockXml(
                   '" office:value-type="string"><text:p text:style-name="' +
                   para +
                   '">' +
-                  runsXml(tabFills(row[i] ?? [])) +
+                  runsXml(tabFills(row[i] ?? []), media) +
                   "</text:p></table:table-cell>"
                 );
               }
@@ -372,7 +377,7 @@ function blockXml(
                 '" office:value-type="string"><text:p text:style-name="' +
                 para +
                 '">' +
-                runsXml(row[i] ?? []) +
+                runsXml(row[i] ?? [], media) +
                 "</text:p></table:table-cell>"
               );
             })
@@ -466,7 +471,7 @@ function tocXml(doc: DocIr): string {
 const LIST_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const BULLETS = ["\u2022", "\u25E6", "\u25AA"];
 
-function contentXml(doc: DocIr, options: OdtOptions): string {
+function contentXml(doc: DocIr, options: OdtOptions, media: Media): string {
   const keys = new Set<string>();
   for (const block of doc.blocks) {
     if (block.kind === "para")
@@ -484,7 +489,7 @@ function contentXml(doc: DocIr, options: OdtOptions): string {
 
   const auto = new Set<string>();
   const parts = doc.blocks.map((block, index) =>
-    blockXml(block, index, doc, auto),
+    blockXml(block, index, doc, auto, media),
   );
   if (options.toc) {
     const first = doc.blocks[0];
@@ -503,7 +508,7 @@ function contentXml(doc: DocIr, options: OdtOptions): string {
     NS +
     ' office:version="1.3">' +
     "<office:automatic-styles>" +
-    (media?.frames
+    (media.frames
       ? '<style:style style:name="Fimage" style:family="graphic">' +
         '<style:graphic-properties style:vertical-pos="top" ' +
         'style:vertical-rel="baseline" fo:border="none" fo:padding="0cm"/>' +
@@ -682,18 +687,12 @@ export function buildOdt(
 ): Uint8Array<ArrayBuffer> {
   doc = { ...doc, font: { ...doc.font, family: odfFont(doc.font.family) } };
   const used = new Map<string, string>();
-  media = {
+  const content = contentXml(doc, options, {
     images: options.images ?? new Map(),
     page: doc.page,
     used,
     frames: 0,
-  };
-  let content: string;
-  try {
-    content = contentXml(doc, options);
-  } finally {
-    media = null;
-  }
+  });
   const pictures = [...used.values()];
   const entries: Record<string, Uint8Array> = {
     mimetype: encoder.encode(ODF_TEXT),

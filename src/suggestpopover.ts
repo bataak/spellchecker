@@ -1,4 +1,4 @@
-import { materializeMark } from "./backdrop.ts";
+import type { Backdrop } from "./backdrop.ts";
 import { pickDefinitionMarks } from "./defmarks.ts";
 import type { DefTip } from "./deftip.ts";
 import { escapeHtml } from "./htmlutil.ts";
@@ -23,7 +23,7 @@ import {
 
 export interface SuggestPopoverDeps {
   readonly editor: HTMLTextAreaElement;
-  readonly backdrop: HTMLElement;
+  readonly backdrop: Backdrop;
   readonly popover: HTMLElement;
   readonly pop: Popover;
   readonly defTip: DefTip;
@@ -47,12 +47,10 @@ export function initSuggestPopover(deps: SuggestPopoverDeps): SuggestPopover {
   const reducedMotionMQ = window.matchMedia("(prefers-reduced-motion: reduce)");
 
   async function showPopoverFor(token: Token): Promise<void> {
-    materializeMark(token.start);
-    let mark = backdrop.querySelector('mark[data-start="' + token.start + '"]');
+    let mark = backdrop.markAt(token.start);
     if (!mark) {
       await deps.render();
-      materializeMark(token.start);
-      mark = backdrop.querySelector('mark[data-start="' + token.start + '"]');
+      mark = backdrop.markAt(token.start);
     }
     if (!mark) {
       pop.hide();
