@@ -8,6 +8,8 @@ import {
   record,
   redo,
   undo,
+  HISTORY_MAX_AGE_MS,
+  keepHistory,
 } from "../src/editor/undohistory.ts";
 
 function type(
@@ -90,4 +92,31 @@ test("хэмжээ хэтэрвэл хамгийн хуучныг хасна", (
 test("checksum текстээс хамаарна", () => {
   assert.equal(checksum("абв"), checksum("абв"));
   assert.notEqual(checksum("абв"), checksum("абг"));
+});
+
+test("keepHistory: хаагдсан файл, төсөлд байхгүй файл, хуучин түүхийг хасна", () => {
+  const now = 1_000_000_000_000;
+  const scope = {
+    files: new Set(["file-1"]),
+    project: { pending: false, files: ["main.tex", "ch/a.tex"] },
+    now,
+  };
+  const keep = (slot: string, age = 0) => keepHistory(slot, now - age, scope);
+  assert.equal(keep("file-1"), true);
+  assert.equal(keep("file-2"), false);
+  assert.equal(keep("report"), true);
+  assert.equal(keep("project\u0000main.tex"), true);
+  assert.equal(keep("project\u0000gone.tex"), false);
+  assert.equal(keep("report", HISTORY_MAX_AGE_MS + 1), false);
+  assert.equal(
+    keepHistory("project\u0000gone.tex", now, { ...scope, project: null }),
+    false,
+  );
+  assert.equal(
+    keepHistory("project\u0000gone.tex", now, {
+      ...scope,
+      project: { pending: true, files: [] },
+    }),
+    true,
+  );
 });

@@ -14,6 +14,7 @@ export interface BootDeps {
   readonly baseline: () => void;
   readonly restoreFile: () => Promise<void>;
   readonly restoreProject: () => Promise<void>;
+  readonly pruneUndo: () => void;
   readonly fontsLoaded: () => void;
   readonly render: () => Promise<void>;
   readonly nudge: () => void;
@@ -28,6 +29,7 @@ async function restoreView(deps: BootDeps): Promise<void> {
   deps.baseline();
   await deps.restoreFile();
   await deps.restoreProject();
+  deps.pruneUndo();
   void deps.render();
   document.documentElement.classList.remove("booting");
   editor.focus({ preventScroll: true });
