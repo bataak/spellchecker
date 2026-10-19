@@ -51,6 +51,16 @@ export function recentErrors(): SafeError[] {
   return globalRing.list();
 }
 
+const sameError = (a: SafeError, b: SafeError): boolean =>
+  a.name === b.name &&
+  a.code === b.code &&
+  a.frames.join("\n") === b.frames.join("\n");
+
+export function recordOnce(ring: ErrorRing, error: SafeError): void {
+  if (ring.list().some((seen) => sameError(seen, error))) return;
+  ring.record(error);
+}
+
 export function noteError(error: unknown): void {
-  globalRing.record(toSafeError(error));
+  recordOnce(globalRing, toSafeError(error));
 }
