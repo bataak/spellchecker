@@ -5,7 +5,16 @@ import {
   DESKTOP_CANVAS_PIXELS,
   TOUCH_CANVAS_PIXELS,
 } from "./viewprefs.ts";
-import { covers, detailRect, type Box, type DetailRect } from "./pdfdetail.ts";
+import {
+  covers,
+  detailRect,
+  pageIndexAt,
+  rangeGap,
+  revealShift,
+  snapShift,
+  type Box,
+  type DetailRect,
+} from "./pdfdetail.ts";
 import { noteError } from "../core/errorlog.ts";
 
 function noteUnlessCancelled(error: unknown): void {
@@ -153,11 +162,11 @@ export async function renderPdfInto(
   const snap = (slot: PageSlot): void => {
     if (!slot.canvas) return;
     const box = slot.el.getBoundingClientRect();
-    const x = (box.left + slot.el.clientLeft) * dpr;
-    const y = (box.top + slot.el.clientTop) * dpr;
-    const dx = (Math.round(x) - x) / dpr;
-    const dy = (Math.round(y) - y) / dpr;
-    const shift = dx || dy ? `translate(${dx}px, ${dy}px)` : "";
+    const shift = snapShift(
+      box.left + slot.el.clientLeft,
+      box.top + slot.el.clientTop,
+      dpr,
+    );
     slot.canvas.style.transform = shift;
     if (slot.detail) slot.detail.canvas.style.transform = shift;
   };
@@ -167,14 +176,11 @@ export async function renderPdfInto(
     const frame = host.getBoundingClientRect();
     const top = frame.top + host.clientTop + inset();
     const line = top + (frame.bottom - top) * 0.4;
-    let low = 0;
-    let high = slots.length - 1;
-    while (low < high) {
-      const mid = (low + high) >> 1;
-      if (slots[mid]!.el.getBoundingClientRect().bottom < line) low = mid + 1;
-      else high = mid;
-    }
-    return low + 1;
+    return pageIndexAt(
+      slots.length,
+      (index) => slots[index]!.el.getBoundingClientRect().bottom,
+      line,
+    );
   };
   let shownPage = 0;
   const reportPage = (): void => {
@@ -420,9 +426,7 @@ export async function renderPdfInto(
   function offscreen(slot: PageSlot): number {
     const frame = host.getBoundingClientRect();
     const box = slot.el.getBoundingClientRect();
-    if (box.bottom < frame.top) return frame.top - box.bottom;
-    if (box.top > frame.bottom) return box.top - frame.bottom;
-    return 0;
+    return rangeGap(box.top, box.bottom, frame.top, frame.bottom);
   }
 
   let redrawGen = 0;
@@ -501,9 +505,8 @@ export async function renderPdfInto(
       const top = frame.top + host.clientTop + inset();
       const box = slot.el.getBoundingClientRect();
       const at = box.top + slot.el.clientTop + y * slot.el.clientHeight;
-      const room = frame.bottom - top;
-      if (at < top + room * 0.15 || at > top + room * 0.85)
-        host.scrollTop += at - (top + room * 0.35);
+      const delta = revealShift(at, top, frame.bottom);
+      if (delta) host.scrollTop += delta;
       mark ??= document.createElement("div");
       mark.className = "sync-mark";
       const band = slot.el.clientHeight * 0.022;
@@ -534,8 +537,7 @@ export async function renderPdfInto(
       let gap = Infinity;
       for (const slot of slots) {
         const box = slot.el.getBoundingClientRect();
-        const distance =
-          y < box.top ? box.top - y : y > box.bottom ? y - box.bottom : 0;
+        const distance = rangeGap(box.top, box.bottom, y, y);
         if (distance < gap) {
           gap = distance;
           anchor = slot;
