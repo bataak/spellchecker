@@ -645,3 +645,20 @@ test("жагсаалт — дэд жагсаалтын догол хэлбэрж
     '<ul data-line="0"><li>Хоол<ul><li>Цуйван</li><li>Бууз</li></ul></li><li>Ундаа<ul><li>Цай</li></ul></li></ul>',
   );
 });
+
+test("parse: ишлэлийн мөр U+2028-аар төгсвөл гацахгүй", () => {
+  for (const text of [">  ", "> а ", "> а \n> б", "# г\n\n> "]) {
+    const blocks = parse(text);
+    assert.equal(blocks.at(-1)?.type, "quote", JSON.stringify(text));
+  }
+});
+
+test("parse: олон хаагаагүй томьёо нээгч шугаман хугацаанд задлагдана", () => {
+  for (const unit of ["$$x\n", "\\[x\n"]) {
+    const text = unit.repeat(6000);
+    const started = performance.now();
+    const blocks = parse(text);
+    assert.ok(performance.now() - started < 2000, unit);
+    assert.ok(blocks.length > 0);
+  }
+});

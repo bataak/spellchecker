@@ -16,7 +16,7 @@ export const RULE_RE = /^\s*([-*_])(\s*\1){2,}\s*$/;
 const PAGEBREAK_RE = /^\s*\\newpage\s*$/;
 const BULLET_RE = /^(\s*)([-*+])\s+(.*)$/;
 const ORDERED_RE = /^(\s*)(\d+)[.)]\s+(.*)$/;
-const QUOTE_RE = /^\s*>\s?(.*)$/;
+const QUOTE_RE = /^\s*>\s?(.*)$/s;
 const FENCE_RE = /^\s*(`{3,}|~{3,})\s*(\S*)\s*$/;
 const MATH_RE = /^\s*(?:\$\$|\\\[|\\begin\{[A-Za-z]+\*?\})/;
 
@@ -87,6 +87,28 @@ function envEnd(
   return -1;
 }
 
+const mathStops = new WeakMap<readonly string[], Map<string, Int32Array>>();
+
+function mathStop(
+  lines: readonly string[],
+  close: string,
+  from: number,
+): number {
+  let byClose = mathStops.get(lines);
+  if (!byClose) mathStops.set(lines, (byClose = new Map()));
+  let stops = byClose.get(close);
+  if (!stops) {
+    stops = new Int32Array(lines.length + 1);
+    stops[lines.length] = lines.length;
+    for (let j = lines.length - 1; j >= 0; j -= 1) {
+      const line = lines[j]!.trimEnd();
+      stops[j] = !line.trim() || line.endsWith(close) ? j : stops[j + 1]!;
+    }
+    byClose.set(close, stops);
+  }
+  return stops[Math.min(from, lines.length)]!;
+}
+
 function displayMath(
   lines: readonly string[],
   start: number,
@@ -117,11 +139,17 @@ function displayMath(
   if (inner >= 0 && inner + close.length < body.length) return null;
 
   let i = start + 1;
-  while (!body.endsWith(close)) {
-    const line = lines[i]?.trimEnd();
-    if (line === undefined || !line.trim()) return null;
-    body += "\n" + line;
-    i += 1;
+  if (!body.endsWith(close)) {
+    const end = mathStop(lines, close, i);
+    const last = lines[end]?.trimEnd();
+    if (last === undefined || !last.trim()) return null;
+    body +=
+      "\n" +
+      lines
+        .slice(i, end + 1)
+        .map((line) => line.trimEnd())
+        .join("\n");
+    i = end + 1;
   }
   return {
     block: {
@@ -541,7 +569,7 @@ function parseBlocks(src: string, top: boolean): Block[] {
     const read = readBlock(lines, i);
     if (read) {
       out.push(read.block);
-      i = read.next;
+      i = Math.max(read.next, i + 1);
     } else i += 1;
   }
 
