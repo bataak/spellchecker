@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import type { Plugin, ViteDevServer } from "vite";
-import { attempt } from "./src/attempt.ts";
+import { attempt } from "./src/core/attempt.ts";
 import {
   applyOrder,
   collectDicts,

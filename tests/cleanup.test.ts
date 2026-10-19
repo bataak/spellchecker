@@ -7,7 +7,7 @@ import {
   hasMisletters,
   needsCleanup,
   stripMarkup,
-} from "../src/cleanup.ts";
+} from "../src/editor/cleanup.ts";
 
 test("Нэг шошго эсвэл харьцуулалтын тэмдгийг HTML гэж үзэхгүй", () => {
   assert.equal(hasMarkup("a < b ба c > d"), false);

@@ -1,5 +1,5 @@
 import { codeRanges, fencedCode, inRanges } from "../spell/codeskip.ts";
-import { replaceRange } from "../editortext.ts";
+import { replaceRange } from "../editor/editortext.ts";
 import { imageAttrs, parseImageAttrs } from "../markdown.ts";
 import type { ImageSize } from "../markdown.ts";
 

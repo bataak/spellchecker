@@ -5,7 +5,7 @@ import { parse } from "../src/markdown.ts";
 import { applyTemplate } from "../src/office/apply.ts";
 import { docImages, imageKey } from "../src/office/docir.ts";
 import { printHtml, splitStyles } from "../src/office/print.ts";
-import { findTemplate } from "../src/templates.ts";
+import { findTemplate } from "../src/doc/templates.ts";
 
 function letter(md: string): string {
   const template = findTemplate("letter")!;
@@ -16,10 +16,7 @@ test("printHtml: өргөдлийн гарчиг мөр таслалттайга
   const html = letter("# Тэнхимд\\\nӨргөдөл гаргах нь:\n\nБие.");
   assert.match(html, /<p class="s-Title">Тэнхимд<br>Өргөдөл гаргах нь:<\/p>/);
   assert.match(html, /<title>Тэнхимд Өргөдөл гаргах нь:<\/title>/);
-  assert.match(
-    html,
-    /@page\{size:21\.000cm 29\.700cm;margin:0\}/,
-  );
+  assert.match(html, /@page\{size:21\.000cm 29\.700cm;margin:0\}/);
   assert.match(html, /body\{padding:0 1\.500cm 0 3\.000cm;/);
   assert.match(html, /\.sheet>thead>tr>td\{height:2\.000cm\}/);
   assert.match(html, /\.sheet>tfoot>tr>td\{height:2\.000cm\}/);
@@ -82,7 +79,10 @@ test("printHtml: бэлтгэсэн зургийг голлуулсан дого
 
 test("printHtml: хэвлэлт апптай хамт ирсэн Times-тэй ижил өргөнтэй фонтыг эхэлж ашиглана", () => {
   const html = letter("Бие.");
-  assert.match(html, /body\{[^}]*font-family:"Bichig Print Serif", "Times New Roman"/);
+  assert.match(
+    html,
+    /body\{[^}]*font-family:"Bichig Print Serif", "Times New Roman"/,
+  );
   assert.match(html, /\.mono\{font-family:"Bichig Print Mono"/);
   for (const file of [
     "bichig-print-serif-mn-400-v1",

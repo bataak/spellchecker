@@ -1,7 +1,7 @@
-import { stripExt } from "../exportformats.ts";
-import type { PdfSave } from "../fileio.ts";
+import { stripExt } from "../export/exportformats.ts";
+import type { PdfSave } from "../files/fileio.ts";
 import type { Preview } from "../preview/preview.ts";
-import { createPdfSaver } from "../savepdf.ts";
+import { createPdfSaver } from "../export/savepdf.ts";
 
 const NOTIFY_MS = 8000;
 

@@ -1,4 +1,4 @@
-import { KEYS, readJson, writeJson } from "../store.ts";
+import { KEYS, readJson, writeJson } from "../core/store.ts";
 type CasePattern = "lower" | "capital" | "upper";
 const REACH: Record<CasePattern, number> = { upper: 0, capital: 1, lower: 2 };
 

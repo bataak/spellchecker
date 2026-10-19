@@ -64,7 +64,10 @@ async function withFetch<T>(
 }
 
 const ok = (body: BodyInit): Response =>
-  new Response(body, { status: 200, headers: { "content-type": "text/plain" } });
+  new Response(body, {
+    status: 200,
+    headers: { "content-type": "text/plain" },
+  });
 
 const missing = (): Response => new Response("", { status: 404 });
 

@@ -1,5 +1,5 @@
 import "./texcomplete.css";
-import { onSwap, replaceRange } from "../editortext.ts";
+import { onSwap, replaceRange } from "../editor/editortext.ts";
 import {
   completionContext,
   completions,

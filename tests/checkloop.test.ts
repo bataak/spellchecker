@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import { createCheckLoop, type CheckLoopDeps } from "../src/app/checkloop.ts";
 import type { DocStatus } from "../src/app/docstatus.ts";
-import type { MarkLayer } from "../src/marklayer.ts";
+import type { MarkLayer } from "../src/editor/marklayer.ts";
 import type { SpellSession } from "../src/spell/spellsession.ts";
 import type { Token } from "../src/spell/textcheck.ts";
 

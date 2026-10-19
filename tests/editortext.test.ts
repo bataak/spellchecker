@@ -8,7 +8,7 @@ import {
   swapText,
   pasteComposed,
   replaceRange,
-} from "../src/editortext.ts";
+} from "../src/editor/editortext.ts";
 
 interface FakeEditor {
   value: string;

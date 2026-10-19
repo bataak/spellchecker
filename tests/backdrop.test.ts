@@ -1,6 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { countLines, markedHtml, plainHtml } from "../src/backdrophtml.ts";
+import {
+  countLines,
+  markedHtml,
+  plainHtml,
+} from "../src/editor/backdrophtml.ts";
 import { texSpans } from "../src/tex/texhighlight.ts";
 import type { Token } from "../src/spell/textcheck.ts";
 
@@ -206,7 +210,9 @@ test("синтакс span тэмдэглэгээний дотор хуваагд
   const marks: Token[] = [{ word: "bf{аа", start: 5, end: 10 }];
   const html = markedHtml(raw, 0, marks, texSpans(raw));
   assert.ok(html.includes('<span class="tx-cmd">\\text</span><mark'));
-  assert.ok(html.includes('<mark data-start="5"><span class="tx-cmd">bf</span>'));
+  assert.ok(
+    html.includes('<mark data-start="5"><span class="tx-cmd">bf</span>'),
+  );
   assert.equal(unwrap(html), raw);
 });
 

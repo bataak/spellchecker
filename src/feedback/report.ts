@@ -4,8 +4,8 @@ import {
   type DiagnosticsState,
   type StardictState,
 } from "./diagnostics.ts";
-import { recentErrors } from "../errorlog.ts";
-import { isTouch } from "../input.ts";
+import { recentErrors } from "../core/errorlog.ts";
+import { isTouch } from "../editor/input.ts";
 
 export type ReportInput = Pick<
   DiagnosticsState,

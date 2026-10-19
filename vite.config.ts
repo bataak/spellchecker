@@ -4,7 +4,7 @@ import { readFileSync, readdirSync, rmSync } from "node:fs";
 import { execSync } from "node:child_process";
 import type { Plugin, ResolvedConfig } from "vite";
 import { stardictIndex } from "./vite-stardict.ts";
-import { attempt } from "./src/attempt.ts";
+import { attempt } from "./src/core/attempt.ts";
 
 const pkg = JSON.parse(readFileSync("./package.json", "utf-8")) as {
   version: string;

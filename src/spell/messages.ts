@@ -133,9 +133,7 @@ export type WorkerResponse =
   | RpcResponse;
 
 export type InitProgressMessage =
-  | ReadyResponse
-  | CompleteResponse
-  | ErrorResponse;
+  ReadyResponse | CompleteResponse | ErrorResponse;
 
 export interface DictInfo {
   id: string;

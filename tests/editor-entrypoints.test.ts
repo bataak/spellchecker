@@ -13,8 +13,8 @@ const LOOKAHEAD = 40;
 
 const ENTRYPOINTS: readonly [string, RegExp, string][] = [
   ["office/session.ts", /swapText\(editor\b/, "deps.syncFixButtons("],
-  ["drafttext.ts", /swapText\(editor, draftText\b/, "deps.onLoaded("],
-  ["editortext.ts", /editor\.value\s*=\s*newText/, "deps.onReplaced("],
+  ["editor/drafttext.ts", /swapText\(editor, draftText\b/, "deps.onLoaded("],
+  ["editor/editortext.ts", /editor\.value\s*=\s*newText/, "deps.onReplaced("],
 ];
 
 function missingRefresh(
@@ -57,12 +57,12 @@ test("засварлагчид текст оруулах зам бүр товч�
 });
 
 test("товчийн илрүүлэгч main.ts-д холбогдсон байна", () => {
-  const decode = read("decode.ts");
-  assert.match(decode, /from "\.\/archive\/cp1251\.ts"/);
+  const decode = read("editor/decode.ts");
+  assert.match(decode, /from "\.\.\/archive\/cp1251\.ts"/);
   assert.match(decode, /hasMojibake/);
   assert.match(decode, /#decodeBtn/);
   assert.match(decode, /#cleanBtn/);
   assert.match(decode, /needsCleanup/);
   assert.match(MAIN, /from "\.\/app\/fixers\.ts"/);
-  assert.match(FIXERS, /from "\.\.\/decode\.ts"/);
+  assert.match(FIXERS, /from "\.\.\/editor\/decode\.ts"/);
 });

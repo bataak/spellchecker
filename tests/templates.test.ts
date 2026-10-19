@@ -9,7 +9,7 @@ import {
   TEMPLATES,
   findTemplate,
   isPlain,
-} from "../src/templates.ts";
+} from "../src/doc/templates.ts";
 
 test("зургаан талбар, гурван бүлэг", () => {
   assert.deepEqual(

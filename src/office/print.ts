@@ -10,7 +10,7 @@ import type {
 } from "./docir.ts";
 import { listTree, type ListTree } from "../markdown.ts";
 import { odfFont } from "./fonts.ts";
-import { applyDataStyles } from "../htmlutil.ts";
+import { applyDataStyles } from "../core/htmlutil.ts";
 import { columnWidths, officeMetrics } from "./table.ts";
 
 const LINE_RATIO = 1.15;
@@ -278,18 +278,78 @@ export function fontFaces(fontBase: string): string {
     face("Bichig Serif", "pt-serif-mn-700-v1.woff2", 700, "normal") +
     face("Bichig Serif", "pt-serif-mn-italic-v2.woff2", 400, "italic") +
     face("Bichig Mono", "dejavu-mono-mn-400-v1.woff2", 400, "normal") +
-    face("Bichig Print Serif", "bichig-print-serif-mn-400-v1.woff2", 400, "normal") +
-    face("Bichig Print Serif", "bichig-print-serif-mn-700-v1.woff2", 700, "normal") +
-    face("Bichig Print Serif", "bichig-print-serif-mn-400i-v1.woff2", 400, "italic") +
-    face("Bichig Print Serif", "bichig-print-serif-mn-700i-v1.woff2", 700, "italic") +
-    face("Bichig Print Sans", "bichig-print-sans-mn-400-v1.woff2", 400, "normal") +
-    face("Bichig Print Sans", "bichig-print-sans-mn-700-v1.woff2", 700, "normal") +
-    face("Bichig Print Sans", "bichig-print-sans-mn-400i-v1.woff2", 400, "italic") +
-    face("Bichig Print Sans", "bichig-print-sans-mn-700i-v1.woff2", 700, "italic") +
-    face("Bichig Print Mono", "bichig-print-mono-mn-400-v1.woff2", 400, "normal") +
-    face("Bichig Print Mono", "bichig-print-mono-mn-700-v1.woff2", 700, "normal") +
-    face("Bichig Print Mono", "bichig-print-mono-mn-400i-v1.woff2", 400, "italic") +
-    face("Bichig Print Mono", "bichig-print-mono-mn-700i-v1.woff2", 700, "italic")
+    face(
+      "Bichig Print Serif",
+      "bichig-print-serif-mn-400-v1.woff2",
+      400,
+      "normal",
+    ) +
+    face(
+      "Bichig Print Serif",
+      "bichig-print-serif-mn-700-v1.woff2",
+      700,
+      "normal",
+    ) +
+    face(
+      "Bichig Print Serif",
+      "bichig-print-serif-mn-400i-v1.woff2",
+      400,
+      "italic",
+    ) +
+    face(
+      "Bichig Print Serif",
+      "bichig-print-serif-mn-700i-v1.woff2",
+      700,
+      "italic",
+    ) +
+    face(
+      "Bichig Print Sans",
+      "bichig-print-sans-mn-400-v1.woff2",
+      400,
+      "normal",
+    ) +
+    face(
+      "Bichig Print Sans",
+      "bichig-print-sans-mn-700-v1.woff2",
+      700,
+      "normal",
+    ) +
+    face(
+      "Bichig Print Sans",
+      "bichig-print-sans-mn-400i-v1.woff2",
+      400,
+      "italic",
+    ) +
+    face(
+      "Bichig Print Sans",
+      "bichig-print-sans-mn-700i-v1.woff2",
+      700,
+      "italic",
+    ) +
+    face(
+      "Bichig Print Mono",
+      "bichig-print-mono-mn-400-v1.woff2",
+      400,
+      "normal",
+    ) +
+    face(
+      "Bichig Print Mono",
+      "bichig-print-mono-mn-700-v1.woff2",
+      700,
+      "normal",
+    ) +
+    face(
+      "Bichig Print Mono",
+      "bichig-print-mono-mn-400i-v1.woff2",
+      400,
+      "italic",
+    ) +
+    face(
+      "Bichig Print Mono",
+      "bichig-print-mono-mn-700i-v1.woff2",
+      700,
+      "italic",
+    )
   );
 }
 
@@ -373,14 +433,14 @@ export function printHtml(
 let current: HTMLIFrameElement | null = null;
 
 export function printDoc(doc: DocIr, images?: ImageSet): Promise<void> {
-  return printPage(
-    printHtml(doc, printFontBase(), images),
-  );
+  return printPage(printHtml(doc, printFontBase(), images));
 }
 
 export function printPdf(bytes: Uint8Array<ArrayBuffer>): Promise<void> {
   current?.remove();
-  const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+  const url = URL.createObjectURL(
+    new Blob([bytes], { type: "application/pdf" }),
+  );
   const frame = document.createElement("iframe");
   current = frame;
   frame.setAttribute("aria-hidden", "true");

@@ -29,7 +29,7 @@ const HELP = `Хэрэглээ:
   - x-pos-tags=1 байвал үйл үгийн -х хэлбэрийг таахгүй, tag болон .syn-ийг
     ашиглана. Байхгүй бол таах аргаар ажиллана.
   - Оруулга XDXF. Үйл үгийг <gr>үйл</gr> гэж тэмдэглэнэ
-    (src/stardict.ts-ийн VERB_POS).
+    (src/dict/stardict.ts-ийн VERB_POS).
   - .syn нь mn_MN.dic-ийн язгуур бүрийг (ор, тэгшил) толгой үгтэй
     (ОРОХ, ТЭГШЛЭХ) холбоно. Build үед .dic-ээс үүсгэнэ. Нэр, үйл үг ижил
     язгууртай бол хоёуланг нь холбож, <gr>-ээр ялгана.
@@ -65,7 +65,8 @@ if (!info) {
   console.error("ifo файл StarDict биш эсвэл wordcount буруу");
   process.exit(1);
 }
-if (!info.bookname) warnings.push("bookname хоосон (tooltip-д эх сурвалж гарахгүй)");
+if (!info.bookname)
+  warnings.push("bookname хоосон (tooltip-д эх сурвалж гарахгүй)");
 
 const idx = readFirst([base + ".idx", base + ".idx.gz"]);
 const dictBytes = readFirst([base + ".dict.dz", base + ".dict"]);
@@ -74,7 +75,8 @@ const syn = info.synwordcount
   : null;
 if (!idx) errors.push("idx файл алга");
 if (!dictBytes) errors.push("dict файл алга");
-if (info.synwordcount && !syn) errors.push("synwordcount байгаа ч syn файл алга");
+if (info.synwordcount && !syn)
+  errors.push("synwordcount байгаа ч syn файл алга");
 if (!info.synwordcount && existsSync(base + ".syn"))
   warnings.push("syn файл байгаа ч ifo-д synwordcount алга (уншигдахгүй)");
 
@@ -111,7 +113,9 @@ if (idx && dictBytes && !errors.length) {
       if (!info.sametypesequence.includes("x"))
         errors.push("x-pos-tags=1 боловч sametypesequence-д x алга");
       if (!info.synwordcount)
-        warnings.push("x-pos-tags=1 боловч syn алга (язгуураар хайлт ажиллахгүй)");
+        warnings.push(
+          "x-pos-tags=1 боловч syn алга (язгуураар хайлт ажиллахгүй)",
+        );
       if (!tagged) errors.push("x-pos-tags=1 боловч <gr> tag нэг ч алга");
       if (untaggedInfinitives.length)
         warnings.push(
@@ -124,7 +128,11 @@ if (idx && dictBytes && !errors.length) {
     console.log(
       "Горим:",
       info.posTagged
-        ? "tag-тай (tag-тай оруулга " + String(tagged) + ", үйл " + String(verbs) + ")"
+        ? "tag-тай (tag-тай оруулга " +
+            String(tagged) +
+            ", үйл " +
+            String(verbs) +
+            ")"
         : "tag-гүй (нэр үйлийг таах арга)",
     );
     for (const word of samples) {
@@ -132,7 +140,9 @@ if (idx && dictBytes && !errors.length) {
       console.log(
         "  " + word + " →",
         entries.length
-          ? entries.map((item) => item.headword + " [" + item.pos.join(",") + "]").join("; ")
+          ? entries
+              .map((item) => item.headword + " [" + item.pos.join(",") + "]")
+              .join("; ")
           : "олдсонгүй",
       );
     }

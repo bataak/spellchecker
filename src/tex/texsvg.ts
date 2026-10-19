@@ -112,16 +112,21 @@ export function rewriteSvg(
       const target = map(raw);
       if (target !== null)
         return (
-          "\\includegraphics" + graphicOptions(options ?? "") + "{" + target + "}"
+          "\\includegraphics" +
+          graphicOptions(options ?? "") +
+          "{" +
+          target +
+          "}"
         );
       return "\\fbox{\\ttfamily\\detokenize{" + label(raw) + "}}";
     });
 }
 
 function points(value: string | null): number | null {
-  const match = /^\s*(\d*\.?\d+(?:e[+-]?\d+)?)\s*(px|pt|pc|mm|cm|in)?\s*$/i.exec(
-    value ?? "",
-  );
+  const match =
+    /^\s*(\d*\.?\d+(?:e[+-]?\d+)?)\s*(px|pt|pc|mm|cm|in)?\s*$/i.exec(
+      value ?? "",
+    );
   if (!match) return null;
   const size = Number(match[1]) * PT_PER[(match[2] ?? "").toLowerCase()]!;
   return size > 0 ? size : null;

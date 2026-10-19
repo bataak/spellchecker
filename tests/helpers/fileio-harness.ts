@@ -1,5 +1,5 @@
-import { initFileIO, type FileIOControl } from "../../src/fileio.ts";
-import type { EditorPort, StatusPort } from "../../src/ports.ts";
+import { initFileIO, type FileIOControl } from "../../src/files/fileio.ts";
+import type { EditorPort, StatusPort } from "../../src/app/ports.ts";
 
 export interface SaveScenario {
   readonly text?: string;

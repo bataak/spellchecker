@@ -7,8 +7,8 @@ import {
   TEX_FONT_FILES,
   TEX_FONTS,
 } from "./texbundle.ts";
-import { KEYS, at } from "../store.ts";
-import { noteError } from "../errorlog.ts";
+import { KEYS, at } from "../core/store.ts";
+import { noteError } from "../core/errorlog.ts";
 
 export interface EngineReply {
   readonly result?: string;
@@ -281,8 +281,7 @@ function dropEngine(worker: Worker): void {
   if (live === worker) live = null;
 }
 
-let running: { stop: (reason: string) => void; since: number } | null =
-  null;
+let running: { stop: (reason: string) => void; since: number } | null = null;
 
 export function cancelCompile(): void {
   running?.stop("TeX хөрвүүлэлтийг зогсоолоо");

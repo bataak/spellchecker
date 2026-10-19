@@ -1,11 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-  BUTTONS,
-  buildButtons,
-  formatEdit,
-} from "../src/mdbar/mdbuttons.ts";
-import { escapeAttr } from "../src/htmlutil.ts";
+import { BUTTONS, buildButtons, formatEdit } from "../src/mdbar/mdbuttons.ts";
+import { escapeAttr } from "../src/core/htmlutil.ts";
 import { pickerOptions } from "../src/slots/slotmenu.ts";
 
 const NOW = new Date(2026, 9, 18);

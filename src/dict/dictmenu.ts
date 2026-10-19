@@ -1,4 +1,4 @@
-import { KEYS, read, write } from "../store.ts";
+import { KEYS, read, write } from "../core/store.ts";
 export const EN_IDS = ["en_GB", "en_US"] as const;
 
 const EN_SET = new Set<string>(EN_IDS);

@@ -1,4 +1,4 @@
-import { dictStatusMessage } from "../offline.ts";
+import { dictStatusMessage } from "../core/offline.ts";
 import { activeIds, loadEnabledEnglish, visibleIds } from "./dictmenu.ts";
 
 type Failed = { id: string; error: string }[] | null;

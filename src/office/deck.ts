@@ -5,7 +5,7 @@ import {
   type Block,
   type Inline,
 } from "../markdown.ts";
-import type { Deck } from "../slides.ts";
+import type { Deck } from "../doc/slides.ts";
 import { guillemets } from "./apply.ts";
 import type { Align, IrImage, IrRun } from "./docir.ts";
 import { flatten } from "./flatten.ts";

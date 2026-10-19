@@ -1,4 +1,4 @@
-import { caretSpotAt } from "../backdrop.ts";
+import { caretSpotAt } from "../editor/backdrop.ts";
 
 const WORD_CHAR = /[\p{L}\p{N}]/u;
 const WORDS = /[\p{L}\p{N}]+/gu;

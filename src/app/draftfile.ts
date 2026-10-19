@@ -1,4 +1,4 @@
-import { loadDraftFile, type DraftFile } from "../storage.ts";
+import { loadDraftFile, type DraftFile } from "../core/storage.ts";
 
 export interface DraftFileDeps {
   readonly slot: () => string;

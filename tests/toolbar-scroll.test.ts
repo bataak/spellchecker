@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseSavedScroll } from "../src/toolbar.ts";
+import { parseSavedScroll } from "../src/ui/toolbar.ts";
 
 test("хадгалсан цэсийн байрлалыг уншина", () => {
   assert.equal(parseSavedScroll("240"), 240);
