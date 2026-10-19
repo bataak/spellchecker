@@ -1331,6 +1331,7 @@ a.tbtn {
 }
 
 .pdf-page {
+  position: relative;
   flex: 0 0 auto;
   width: calc(100% * var(--pdf-zoom, 1));
   margin-inline: auto;
@@ -1342,6 +1343,10 @@ a.tbtn {
 
 .pdf-page canvas {
   display: block;
+}
+
+.pdf-detail {
+  position: absolute;
 }
 
 :root[data-theme="dark"] .pdf-page {
