@@ -1,13 +1,4 @@
-import {
-  closeProject,
-  grantProject,
-  onProjectChange,
-  openZip,
-  exportZip,
-  pickFolder,
-  refreshProject,
-  project,
-} from "./projectstore.ts";
+import type { ProjectStore } from "./projectstore.ts";
 import { KEYS, read, remove, write } from "../store.ts";
 import { confirmClose } from "./linkfiles.ts";
 import { failureMessage } from "./projecterror.ts";
@@ -27,6 +18,7 @@ import { treeRows } from "./treerows.ts";
 const PEEK_MS = 5000;
 
 export interface ProjectPanelDeps {
+  readonly store: ProjectStore;
   readonly workspace: HTMLElement;
   readonly tools: () => HTMLElement | null;
   readonly texActive: () => boolean;
@@ -58,6 +50,16 @@ function saveOpen(on: boolean): void {
 }
 
 export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
+  const {
+    closeProject,
+    grantProject,
+    onProjectChange,
+    openZip,
+    exportZip,
+    pickFolder,
+    refreshProject,
+    project,
+  } = deps.store;
   const wide = window.matchMedia("(min-width: 1024px)");
   const {
     panel,
@@ -256,6 +258,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   };
 
   const treeControl = initTreeControl({
+    store: deps.store,
     tree,
     state,
     menu,

@@ -7,6 +7,7 @@ import {
   type CompiledPdf,
 } from "./pdfcache.ts";
 import type { PdfPane } from "./pdfpane.ts";
+import type { TexProject } from "../project/projectbuild.ts";
 
 const TEX_DELAY_MS = 700;
 const RETRY_MS = [2000, 5000, 15000];
@@ -31,6 +32,7 @@ export interface TexPreviewDeps {
   readonly downloadBtn: HTMLButtonElement;
   readonly projectKey: () => string | null;
   readonly inProject: () => boolean;
+  readonly texProject: () => TexProject | null;
   readonly visible: () => boolean;
   readonly showNotice: (text: string) => void;
   readonly setError: (message: string | null) => void;
@@ -167,7 +169,10 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
         return;
       }
     }
-    const digest = await digestOf(text, project);
+    const digest = await digestOf(
+      text,
+      project === null ? null : deps.texProject(),
+    );
     if (!current(seq)) return;
     const cached = digest === null || force ? null : await cachedPdf(digest);
     if (cached && (await showBytes(cached, seq).catch(() => false))) {
@@ -203,7 +208,7 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
         if (current(seq) && !pane.view()) deps.showNotice(message ?? PREPARING);
       });
       const { pdf, missing } = await pool.compile(key, () =>
-        compileTexDocument(text),
+        compileTexDocument(text, deps.texProject()),
       );
       pool.keep(key, { text, pdf, missing }, digest, project);
       if (!(await showBytes(pdf, seq))) return;
@@ -293,12 +298,15 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
           const result = await running.catch(() => null);
           if (result) return result;
         }
-        const digest = await digestOf(text, project);
+        const digest = await digestOf(
+          text,
+          project === null ? null : deps.texProject(),
+        );
         const cached = digest === null ? null : await cachedPdf(digest);
         if (cached) return { pdf: cached, missing: [] };
         const { compileTexDocument } = await import("../tex/texpdf.ts");
         const { pdf, missing } = await pool.compile(key, () =>
-          compileTexDocument(text),
+          compileTexDocument(text, deps.texProject()),
         );
         pool.keep(key, { text, pdf, missing }, digest, project);
         return { pdf, missing };
