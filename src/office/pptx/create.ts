@@ -10,7 +10,8 @@ import {
 } from "../decklayout.ts";
 import { imageKey } from "../docir.ts";
 import type { Align, ImageFiles, IrRun } from "../docir.ts";
-import { dropControls } from "../sanitize.ts";
+import { xmlAttr } from "../sanitize.ts";
+import { REL, XML_HEAD, relsXml, type Rel } from "../ooxml.ts";
 
 export interface PptxOptions {
   readonly images?: ImageFiles;
@@ -33,51 +34,7 @@ const NS_P =
   'xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"';
 const NS_ALL = NS_A + " " + NS_R + " " + NS_P;
 
-const REL =
-  "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
-const REL_PKG = "http://schemas.openxmlformats.org/package/2006/relationships";
 const CT = "application/vnd.openxmlformats-officedocument.presentationml.";
-
-const XML_HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
-
-function esc(value: string): string {
-  return dropControls(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-interface Rel {
-  readonly id: string;
-  readonly type: string;
-  readonly target: string;
-  readonly external?: boolean;
-}
-
-function relsXml(rels: readonly Rel[]): string {
-  return (
-    XML_HEAD +
-    '<Relationships xmlns="' +
-    REL_PKG +
-    '">' +
-    rels
-      .map(
-        (rel) =>
-          '<Relationship Id="' +
-          rel.id +
-          '" Type="' +
-          rel.type +
-          '" Target="' +
-          esc(rel.target) +
-          '"' +
-          (rel.external ? ' TargetMode="External"' : "") +
-          "/>",
-      )
-      .join("") +
-    "</Relationships>"
-  );
-}
 
 interface SlideState {
   readonly links: Rel[];
@@ -104,7 +61,7 @@ function runXml(run: IrRun, size: number, state: SlideState): string {
   const rPr = "<a:rPr" + attrs + ">" + inner + "</a:rPr>";
   return run.text
     .split("\n")
-    .map((part) => "<a:r>" + rPr + "<a:t>" + esc(part) + "</a:t></a:r>")
+    .map((part) => "<a:r>" + rPr + "<a:t>" + xmlAttr(part) + "</a:t></a:r>")
     .join("<a:br>" + rPr + "</a:br>");
 }
 
