@@ -22,6 +22,61 @@ function isNameEnd(code: number): boolean {
   );
 }
 
+const SKIPPED: readonly [string, string][] = [
+  ["<!--", "-->"],
+  ["<?", "?>"],
+  ["<!", ">"],
+];
+
+function skipSpecial(xml: string, lt: number, onText: TextHandler): number {
+  if (xml.startsWith("<![CDATA[", lt)) {
+    const close = xml.indexOf("]]>", lt + 9);
+    if (close < 0) return xml.length;
+    onText(lt + 9, close);
+    return close + 3;
+  }
+  for (const [open, closing] of SKIPPED) {
+    if (!xml.startsWith(open, lt)) continue;
+    const close = xml.indexOf(closing, lt + open.length);
+    return close < 0 ? xml.length : close + closing.length;
+  }
+  return -1;
+}
+
+function tagEnd(xml: string, from: number): number {
+  let quote = 0;
+  for (let scan = from; scan < xml.length; scan += 1) {
+    const code = xml.charCodeAt(scan);
+    if (quote !== 0) {
+      if (code === quote) quote = 0;
+    } else if (code === 34 || code === 39) quote = code;
+    else if (code === 62) return scan + 1;
+  }
+  return xml.length;
+}
+
+function readTag(xml: string, lt: number): TagInfo {
+  let pointer = lt + 1;
+  const closing = xml.charCodeAt(pointer) === 47;
+  if (closing) pointer += 1;
+  const nameStart = pointer;
+  while (pointer < xml.length && !isNameEnd(xml.charCodeAt(pointer)))
+    pointer += 1;
+  const end = tagEnd(xml, pointer);
+  const kind = closing
+    ? "close"
+    : xml.charCodeAt(end - 2) === 47
+      ? "self"
+      : "open";
+  return {
+    name: xml.slice(nameStart, pointer),
+    kind,
+    start: lt,
+    end,
+    attrStart: pointer,
+  };
+}
+
 export function scanXml(
   xml: string,
   onTag: TagHandler,
@@ -29,80 +84,21 @@ export function scanXml(
 ): void {
   const length = xml.length;
   let cursor = 0;
-
   while (cursor < length) {
     const lt = xml.indexOf("<", cursor);
-
     if (lt < 0) {
       onText(cursor, length);
       return;
     }
-
     if (lt > cursor) onText(cursor, lt);
-
-    if (xml.startsWith("<!--", lt)) {
-      const close = xml.indexOf("-->", lt + 4);
-      cursor = close < 0 ? length : close + 3;
+    const skipped = skipSpecial(xml, lt, onText);
+    if (skipped >= 0) {
+      cursor = skipped;
       continue;
     }
-
-    if (xml.startsWith("<![CDATA[", lt)) {
-      const close = xml.indexOf("]]>", lt + 9);
-      if (close < 0) {
-        cursor = length;
-      } else {
-        onText(lt + 9, close);
-        cursor = close + 3;
-      }
-      continue;
-    }
-
-    if (xml.startsWith("<?", lt)) {
-      const close = xml.indexOf("?>", lt + 2);
-      cursor = close < 0 ? length : close + 2;
-      continue;
-    }
-
-    if (xml.startsWith("<!", lt)) {
-      const close = xml.indexOf(">", lt + 2);
-      cursor = close < 0 ? length : close + 1;
-      continue;
-    }
-
-    let pointer = lt + 1;
-    let kind: "open" | "close" | "self" = "open";
-
-    if (xml.charCodeAt(pointer) === 47) {
-      kind = "close";
-      pointer += 1;
-    }
-
-    const nameStart = pointer;
-    while (pointer < length && !isNameEnd(xml.charCodeAt(pointer)))
-      pointer += 1;
-    const name = xml.slice(nameStart, pointer);
-    const attrStart = pointer;
-
-    let quote = 0;
-    let scan = pointer;
-    for (; scan < length; scan += 1) {
-      const code = xml.charCodeAt(scan);
-      if (quote !== 0) {
-        if (code === quote) quote = 0;
-        continue;
-      }
-      if (code === 34 || code === 39) {
-        quote = code;
-        continue;
-      }
-      if (code === 62) break;
-    }
-
-    const end = scan < length ? scan + 1 : length;
-    if (kind === "open" && xml.charCodeAt(end - 2) === 47) kind = "self";
-
-    onTag({ name, kind, start: lt, end, attrStart });
-    cursor = end;
+    const tag = readTag(xml, lt);
+    onTag(tag);
+    cursor = tag.end;
   }
 }
 

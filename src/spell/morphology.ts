@@ -266,57 +266,53 @@ export const unionChain = mkChain([...NOUN_MS, ...VERB_MS]);
 
 const VOWELS = "аэиоуөүы";
 
-export function sameRoot(a: string, b: string): boolean {
-  let commonPrefixLen = 0;
-  while (
-    commonPrefixLen < a.length &&
-    commonPrefixLen < b.length &&
-    a[commonPrefixLen] === b[commonPrefixLen]
-  )
-    commonPrefixLen++;
-  if (commonPrefixLen < 3) return false;
-  const prevChar = a[commonPrefixLen - 1];
-  for (let skipCountA = 0; skipCountA <= 1; skipCountA++) {
-    for (let skipCountB = 0; skipCountB <= 1; skipCountB++) {
-      const skippedCharsA = a.slice(
-        commonPrefixLen,
-        commonPrefixLen + skipCountA,
-      );
-      const skippedCharsB = b.slice(
-        commonPrefixLen,
-        commonPrefixLen + skipCountB,
-      );
-      if (skippedCharsA.split("").some((char) => char === prevChar)) continue;
-      if (skippedCharsB.split("").some((char) => char === prevChar)) continue;
-      let tailA = a.slice(commonPrefixLen + skipCountA);
-      let tailB = b.slice(commonPrefixLen + skipCountB);
-      let reanchoredPrevChar = prevChar;
-      if (
-        skipCountA + skipCountB === 1 &&
-        VOWELS.includes(skipCountA === 1 ? skippedCharsA : skippedCharsB)
-      ) {
-        let realignLen = 0;
-        while (
-          realignLen < tailA.length &&
-          realignLen < tailB.length &&
-          tailA[realignLen] === tailB[realignLen]
-        )
-          realignLen++;
-        if (realignLen > 0) {
-          reanchoredPrevChar = tailA[realignLen - 1];
-          tailA = tailA.slice(realignLen);
-          tailB = tailB.slice(realignLen);
-        }
-      }
-      if (tailA === "" && tailB === "") return true;
-      if (
-        nounChain(tailA, reanchoredPrevChar) &&
-        nounChain(tailB, reanchoredPrevChar)
-      )
-        return true;
-      if (tailA === "" && unionChain(tailB, reanchoredPrevChar)) return true;
-      if (tailB === "" && unionChain(tailA, reanchoredPrevChar)) return true;
+function commonPrefix(a: string, b: string): number {
+  let length = 0;
+  while (length < a.length && length < b.length && a[length] === b[length])
+    length++;
+  return length;
+}
+
+function tailsMatch(tailA: string, tailB: string, prevChar: string): boolean {
+  if (tailA === "" && tailB === "") return true;
+  if (nounChain(tailA, prevChar) && nounChain(tailB, prevChar)) return true;
+  if (tailA === "" && unionChain(tailB, prevChar)) return true;
+  return tailB === "" && unionChain(tailA, prevChar);
+}
+
+function skipMatches(
+  a: string,
+  b: string,
+  at: number,
+  skipA: number,
+  skipB: number,
+): boolean {
+  const prevChar = a[at - 1]!;
+  const skippedA = a.slice(at, at + skipA);
+  const skippedB = b.slice(at, at + skipB);
+  if (skippedA.includes(prevChar) || skippedB.includes(prevChar)) return false;
+  let tailA = a.slice(at + skipA);
+  let tailB = b.slice(at + skipB);
+  let anchor = prevChar;
+  if (
+    skipA + skipB === 1 &&
+    VOWELS.includes(skipA === 1 ? skippedA : skippedB)
+  ) {
+    const realign = commonPrefix(tailA, tailB);
+    if (realign > 0) {
+      anchor = tailA[realign - 1]!;
+      tailA = tailA.slice(realign);
+      tailB = tailB.slice(realign);
     }
   }
+  return tailsMatch(tailA, tailB, anchor);
+}
+
+export function sameRoot(a: string, b: string): boolean {
+  const at = commonPrefix(a, b);
+  if (at < 3) return false;
+  for (let skipA = 0; skipA <= 1; skipA++)
+    for (let skipB = 0; skipB <= 1; skipB++)
+      if (skipMatches(a, b, at, skipA, skipB)) return true;
   return false;
 }
