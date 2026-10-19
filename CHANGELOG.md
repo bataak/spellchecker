@@ -1,5 +1,37 @@
 # Changelog
 
+## [1.113.0](https://github.com/bataak/spellchecker/compare/v1.112.0...v1.113.0) (2026-10-19)
+
+
+### Features
+
+* **preview:** draw the on-screen part of a capped PDF page sharply ([6ba8dfd](https://github.com/bataak/spellchecker/commit/6ba8dfd2900d953bb013f37942a17ef2ff1fd2e6))
+* **preview:** draw the visible part of a zoomed PDF page at full sharpness ([ffe0312](https://github.com/bataak/spellchecker/commit/ffe0312ec82e05eff8243445e9875390af22f0b1))
+* **preview:** open the mobile preview at the text that was on screen ([d47dd90](https://github.com/bataak/spellchecker/commit/d47dd90bc73a0b8053f9d319d65deb1ec7f4e58a))
+* **preview:** zoom the PDF preview up to 600% ([b259bdd](https://github.com/bataak/spellchecker/commit/b259bdd55a286845e8200b5509bc55e5041481fb))
+* **preview:** zoom the PDF preview up to 900% ([10e2d5d](https://github.com/bataak/spellchecker/commit/10e2d5d1939adcf2ba4599a370232bb6063ca4bf))
+
+
+### Bug Fixes
+
+* **app:** subscribe dock to layout after measure exists ([fbbabaa](https://github.com/bataak/spellchecker/commit/fbbabaa379320fa9171648d9c2ee65103ffbce49))
+* **csp:** render without inline styles ([53e8e30](https://github.com/bataak/spellchecker/commit/53e8e306fb77abb9923fe7de653ab625a3f8d4e4))
+* **errorlog:** record each noted error once ([e031445](https://github.com/bataak/spellchecker/commit/e031445c9b303396fa035b93f4602ca8e0736870))
+* **pane:** keep the preview toggle on the editor's edge beside the error panel ([0e8ca4d](https://github.com/bataak/spellchecker/commit/0e8ca4d33d155fdcbacec1a98f34979c13b1ba09))
+* **preview:** count overlapping PDF renders before saving scroll ([0d7fa14](https://github.com/bataak/spellchecker/commit/0d7fa14faa18e9a45ec6b0c858268ae30713d351))
+* **preview:** keep the horizontal PDF scroll across reloads ([3fdeec2](https://github.com/bataak/spellchecker/commit/3fdeec272ad6a1346d9ba7d5016bb3004aa09cbc))
+* **preview:** keep the pinch preview centered like the final zoom ([83eb9e4](https://github.com/bataak/spellchecker/commit/83eb9e40f79545832e713fcedd69053b77f9ec48))
+* **preview:** offer the pane toggle whenever the preview does not fit ([9cbba07](https://github.com/bataak/spellchecker/commit/9cbba07374a3e8c7fcfda0e98d9a74d503d964ec))
+* **preview:** pinch to zoom the PDF preview on touch screens ([a8dd290](https://github.com/bataak/spellchecker/commit/a8dd290cda1f1f03602a7b15304a84c4bb436689))
+* **preview:** preview pinch with a transform and redraw on-screen pages first ([d08e571](https://github.com/bataak/spellchecker/commit/d08e571012930f79fc8a81c4444591841496f5b6))
+* **spell:** space every dot when splitting a chain of initials ([01927cd](https://github.com/bataak/spellchecker/commit/01927cd11fe2f2d5297adde69b7e14fd39b0fbad))
+* **tabs:** reword the same-document warning ([d096246](https://github.com/bataak/spellchecker/commit/d0962463b1e9f90c5c70d012dfa77cad1009a41c))
+
+
+### Performance Improvements
+
+* **preview:** stop redrawing capped PDF pages on every zoom step ([65d44b7](https://github.com/bataak/spellchecker/commit/65d44b716621e493902abc82de3a3d5438ded4af))
+
 ## [1.112.0](https://github.com/bataak/spellchecker/compare/v1.111.0...v1.112.0) (2026-10-18)
 
 
