@@ -1,27 +1,26 @@
-import type { Token, ErrorEntry } from "./spell/textcheck.ts";
+import { buildErrorList, type Token } from "./spell/textcheck.ts";
 import { initWipeButton } from "./wipe.ts";
+import { copyText, flash } from "./clipboard.ts";
+import { isTouch } from "./input.ts";
+import type { EditorPort, StatusPort } from "./ports.ts";
 import { KEYS, read, write } from "./store.ts";
 import { standardLetters } from "./spell/letters.ts";
 
+export interface OfficeSwitch {
+  readonly active: () => boolean;
+  readonly close: () => void;
+}
+
 export interface ToolbarDeps {
-  els: { editor: HTMLTextAreaElement; status: HTMLElement };
-  isDocxActive: () => boolean;
-  closeDocx: () => void;
-  forgetFile: () => void;
-  afterClear: (cleared: boolean) => void;
-  lettersFixed: () => void;
-  hasOpenFile: () => boolean;
-  flash: (sel: string, msg: string) => void;
-  setStatus: (html: string, animate?: boolean) => void;
-  setEditorText: (text: string, caret: number | null) => void;
-  insertEditorText: (text: string, start: number, end: number) => void;
-  hidePopover: () => void;
-  render: () => Promise<void> | void;
-  saveText: () => void;
-  isTouch: () => boolean;
-  buildErrorList: (tokens: Token[]) => ErrorEntry[];
-  getBadTokens: () => Token[];
-  copyText: (str: string) => Promise<void>;
+  readonly editor: EditorPort;
+  readonly status: StatusPort;
+  readonly statusEl: HTMLElement;
+  readonly office: OfficeSwitch;
+  readonly forgetFile: () => void;
+  readonly afterClear: (cleared: boolean) => void;
+  readonly lettersFixed: () => void;
+  readonly hasOpenFile: () => boolean;
+  readonly badTokens: () => Token[];
 }
 
 const SCROLL_SAVE_MS = 250;
@@ -179,57 +178,47 @@ function initClippedReveal(): void {
 }
 
 function initButtons({
-  els,
-  isDocxActive,
-  closeDocx,
+  editor: port,
+  status,
+  statusEl,
+  office,
   forgetFile,
   hasOpenFile,
-  flash,
-  setStatus,
-  setEditorText,
-  insertEditorText,
-  hidePopover,
-  render,
-  saveText,
-  isTouch,
-  buildErrorList,
-  getBadTokens,
-  copyText,
+  badTokens,
   afterClear,
   lettersFixed,
 }: ToolbarDeps): void {
+  const editor = port.el;
+  const setStatus = status.set;
   const clearBtn = document.querySelector<HTMLElement>("#clearBtn")!;
   initWipeButton(clearBtn);
   clearBtn.addEventListener("click", () => {
-    if (!els.editor.value && !hasOpenFile()) {
+    if (!editor.value && !hasOpenFile()) {
       afterClear(false);
-      els.editor.focus();
+      editor.focus();
       return;
     }
-    if (els.editor.value) write(KEYS.lastCleared, els.editor.value);
-    closeDocx();
+    if (editor.value) write(KEYS.lastCleared, editor.value);
+    office.close();
     forgetFile();
-    setEditorText("", 0);
-    hidePopover();
-    render();
-    saveText();
+    void port.replace("", 0);
     afterClear(true);
   });
 
   function insertAtCaret(text: string): void {
-    let start = els.editor.selectionStart;
-    let end = els.editor.selectionEnd;
+    let start = editor.selectionStart;
+    let end = editor.selectionEnd;
     if (start == null) {
-      start = els.editor.value.length;
+      start = editor.value.length;
       end = start;
     }
-    insertEditorText(text, start, end);
-    render();
-    saveText();
+    port.insert(text, start, end);
+    void port.render();
+    port.save();
   }
 
   document.querySelector("#pasteBtn")!.addEventListener("click", async () => {
-    if (isDocxActive()) {
+    if (office.active()) {
       flash("#pasteBtn", "Боломжгүй");
       return;
     }
@@ -237,7 +226,7 @@ function initButtons({
       if (navigator.clipboard && navigator.clipboard.readText) {
         const text = await navigator.clipboard.readText();
         if (!text) {
-          els.editor.focus();
+          editor.focus();
           return;
         }
         const fixed = standardLetters(text);
@@ -246,8 +235,8 @@ function initButtons({
         return;
       }
       throw new Error("no-api");
-    } catch (_) {
-      els.editor.focus();
+    } catch {
+      editor.focus();
       if (isTouch())
         setStatus(
           "Талбар дотор удаан дарахад гарах <b>Paste</b> цэсийг ашиглан буулгана уу",
@@ -270,11 +259,11 @@ function initButtons({
     let armed = false;
     let revertTimer: ReturnType<typeof setTimeout> | null = null;
     const showStatus = (msg: string): void => {
-      const prevStatus = els.status.innerHTML;
+      const prevStatus = statusEl.innerHTML;
       setStatus(msg, false);
       if (revertTimer) clearTimeout(revertTimer);
       revertTimer = setTimeout(() => {
-        if (els.status.innerHTML === msg) setStatus(prevStatus, false);
+        if (statusEl.innerHTML === msg) setStatus(prevStatus, false);
       }, 1600);
     };
     btn.addEventListener("pointerdown", () => {
@@ -298,7 +287,7 @@ function initButtons({
     btn.addEventListener("click", async () => {
       if (armed) {
         armed = false;
-        const words = buildErrorList(getBadTokens()).map((token) => token.word);
+        const words = buildErrorList(badTokens()).map((token) => token.word);
         if (!words.length) {
           showStatus("Алдаатай үг алга");
           return;
@@ -306,16 +295,16 @@ function initButtons({
         try {
           await copyText(words.join("\n"));
           showStatus("Алдаатай үгс хуулагдлаа");
-        } catch (_) {
+        } catch {
           showStatus("Хуулах боломжгүй");
         }
         return;
       }
-      if (!els.editor.value) return;
+      if (!editor.value) return;
       try {
-        await copyText(els.editor.value);
+        await copyText(editor.value);
         flash("#copyBtn", "Хуулагдав");
-      } catch (_) {
+      } catch {
         flash("#copyBtn", "Боломжгүй");
       }
     });

@@ -8,12 +8,12 @@ const CHECK_TEMPLATES: ReadonlySet<string> = new Set([PLAIN, "plain2"]);
 
 export interface DocModeDeps {
   readonly officeActive: () => boolean;
-  readonly projectBound: () => boolean;
   readonly fileName: () => string | null;
 }
 
 export interface DocMode {
   setTemplate(id: string): void;
+  setProjectBound(on: boolean): void;
   isLatex(text: string): boolean;
   checksLetters(): boolean;
 }
@@ -22,6 +22,7 @@ export function createDocMode(deps: DocModeDeps): DocMode {
   let texTemplate = false;
   let inProject = false;
   let checkTemplate = false;
+  let projectBound = false;
 
   return {
     setTemplate(id) {
@@ -29,9 +30,12 @@ export function createDocMode(deps: DocModeDeps): DocMode {
       inProject = id === PROJECT_SLOT;
       checkTemplate = CHECK_TEMPLATES.has(id);
     },
+    setProjectBound(on) {
+      projectBound = on;
+    },
     isLatex(text) {
       if (deps.officeActive()) return false;
-      if (inProject || deps.projectBound()) return true;
+      if (inProject || projectBound) return true;
       const name = deps.fileName();
       if (name) return TEX_NAME.test(name);
       return texTemplate || looksLatex(text);

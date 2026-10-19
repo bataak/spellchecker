@@ -1,7 +1,11 @@
-import { escapeHtml } from "./htmlutil.ts";
+import {
+  countLines,
+  markedHtml,
+  plainHtml,
+  stripChunkNewline,
+} from "./backdrophtml.ts";
 import type { Token } from "./spell/textcheck.ts";
-import { spansInRange } from "./tex/texhighlight.ts";
-import type { TexSpan } from "./tex/texhighlight.ts";
+import { spansInRange, type TexSpan } from "./tex/texhighlight.ts";
 
 interface ChunkNode extends HTMLDivElement {
   _start: number;
@@ -18,116 +22,53 @@ interface ChunkBound {
   end: number;
 }
 
+interface TextSpot {
+  node: Text;
+  offset: number;
+}
+
+interface TopAnchor {
+  offset: number;
+  delta: number;
+}
+
 const CHUNK_TARGET = 4096;
 const VIEW_BUFFER_PX = 800;
 
-let root: HTMLElement | null = null;
-let trailer: HTMLDivElement | null = null;
-let nodes: ChunkNode[] = [];
-let lastMarks: Token[] = [];
-let activeLine = -1;
-let activeEl: HTMLElement | null = null;
-let useBlocks = true;
-let lineTotal = 1;
-let highlighter: ((text: string) => TexSpan[]) | null = null;
-let syntax: TexSpan[] = [];
-let lastText = "";
-
-export function initBackdrop(el: HTMLElement): void {
-  root = el;
-  root.textContent = "";
-  nodes = [];
-  activeLine = -1;
-  activeEl = null;
-  trailer = document.createElement("div");
-  trailer.textContent = "\u200b";
-  root.appendChild(trailer);
+export interface Backdrop {
+  readonly el: HTMLElement;
+  reset(): void;
+  setLineBlocks(on: boolean): void;
+  setHighlighter(fn: ((text: string) => TexSpan[]) | null): void;
+  text(): string;
+  render(text: string, marks: Token[]): void;
+  lineCount(): number;
+  marksAtY(y: number): HTMLElement[];
+  markAt(start: number): HTMLElement | null;
+  setActiveLine(index: number): void;
+  refreshMarks(): void;
+  rangeRectAt(start: number, end: number): DOMRect | null;
+  offsetAtPoint(x: number, y: number): number | null;
+  offsetAtY(y: number): number | null;
+  captureTopAnchor(): void;
+  anchoredScrollTop(): number | null;
 }
 
-export function setHighlighter(
-  fn: ((text: string) => TexSpan[]) | null,
-): void {
-  if (fn === highlighter) return;
-  highlighter = fn;
-  for (const node of nodes) node._src = "";
-}
-
-export function backdropText(): string {
-  return lastText;
-}
-
-export function renderBackdrop(text: string, marks: Token[]): void {
-  lastMarks = marks;
-  lastText = text;
-  syntax = highlighter ? highlighter(text) : [];
-  const bounds = splitChunks(text);
-  syncChunkCount(bounds.length);
-  let line = 0;
-  for (let i = 0; i < bounds.length; i++) {
-    const node = nodes[i]!;
-    node._line = line;
-    updateChunkText(node, text, bounds[i]!);
-    line += node._lines;
+export function caretSpotAt(
+  x: number,
+  y: number,
+): { node: Node; offset: number } | null {
+  if (typeof document.caretPositionFromPoint === "function") {
+    const pos = document.caretPositionFromPoint(x, y);
+    return pos ? { node: pos.offsetNode, offset: pos.offset } : null;
   }
-  lineTotal = Math.max(line, 1);
-  syncTrailer(text);
-  activeEl = null;
-  applyVisibleMarks();
-  applyGutterWidth(line);
-  if (activeLine >= 0) setActiveLine(activeLine);
-}
-
-export function backdropLineCount(): number {
-  return lineTotal;
-}
-
-export function marksAtY(y: number): HTMLElement[] {
-  const found: HTMLElement[] = [];
-  for (const node of nodes) {
-    const box = node.getBoundingClientRect();
-    if (box.bottom < y) continue;
-    if (box.top > y) break;
-    applyChunkMarks(node);
-    found.push(...node.querySelectorAll<HTMLElement>("mark[data-start]"));
+  if (typeof document.caretRangeFromPoint === "function") {
+    const range = document.caretRangeFromPoint(x, y);
+    return range
+      ? { node: range.startContainer, offset: range.startOffset }
+      : null;
   }
-  return found;
-}
-
-export function setLineBlocks(on: boolean): void {
-  useBlocks = on;
-}
-
-export function setActiveLine(index: number): void {
-  activeLine = index;
-  if (!useBlocks) return;
-  if (activeEl) {
-    activeEl.removeAttribute("data-active");
-    activeEl = null;
-  }
-  for (const node of nodes) {
-    if (index < node._line || index >= node._line + node._lines) continue;
-    const el = node.children[index - node._line] as HTMLElement | undefined;
-    if (el && el.classList.contains("bl")) {
-      el.setAttribute("data-active", "true");
-      activeEl = el;
-    }
-    return;
-  }
-}
-
-function applyGutterWidth(lines: number): void {
-  if (!root) return;
-  const digits = Math.max(2, String(Math.max(lines, 1)).length);
-  document.documentElement.style.setProperty("--gutter-digits", String(digits));
-}
-
-export function refreshBackdropMarks(): void {
-  applyVisibleMarks();
-}
-
-export function materializeMark(start: number): void {
-  const node = nodeAtOffset(start);
-  if (node) applyChunkMarks(node);
+  return null;
 }
 
 function splitChunks(text: string): ChunkBound[] {
@@ -143,68 +84,6 @@ function splitChunks(text: string): ChunkBound[] {
     }
   }
   return bounds;
-}
-
-function syncTrailer(text: string): void {
-  if (!trailer) return;
-  const need = text === "" || text.endsWith("\n");
-  trailer.style.display = need ? "" : "none";
-}
-
-function syncChunkCount(count: number): void {
-  while (nodes.length > count) nodes.pop()!.remove();
-  while (nodes.length < count) {
-    const div = document.createElement("div") as ChunkNode;
-    div._spans = [];
-    div._synKey = "";
-    root!.insertBefore(div, trailer);
-    nodes.push(div);
-  }
-}
-
-function updateChunkText(
-  node: ChunkNode,
-  text: string,
-  bound: ChunkBound,
-): void {
-  const raw = text.slice(bound.start, bound.end);
-  node._start = bound.start;
-  node._lines = countLines(raw);
-  const spans = syntax.length
-    ? spansInRange(syntax, bound.start, bound.end)
-    : [];
-  const synKey = spanKey(spans, bound.start, bound.end);
-  if (node._src === raw && node._synKey === synKey) {
-    node._spans = spans;
-    return;
-  }
-  node._src = raw;
-  node._spans = spans;
-  node._synKey = synKey;
-  node._markKey = "";
-  node.innerHTML = plainHtml(raw, bound.start, spans);
-}
-
-function applyVisibleMarks(): void {
-  if (!root) return;
-  const top = root.scrollTop - VIEW_BUFFER_PX;
-  const bottom = root.scrollTop + root.clientHeight + VIEW_BUFFER_PX;
-  for (const node of nodes) {
-    if (node.offsetTop + node.offsetHeight < top) continue;
-    if (node.offsetTop > bottom) break;
-    applyChunkMarks(node);
-  }
-}
-
-function applyChunkMarks(node: ChunkNode): void {
-  const start = node._start;
-  const slice = marksInRange(lastMarks, start, start + node._src.length);
-  const key = markKey(slice);
-  if (node._markKey === key) return;
-  node._markKey = key;
-  node.innerHTML = slice.length
-    ? markedHtml(node._src, start, slice, node._spans)
-    : plainHtml(node._src, start, node._spans);
 }
 
 function marksInRange(marks: Token[], start: number, end: number): Token[] {
@@ -235,177 +114,10 @@ function spanKey(spans: TexSpan[], start: number, end: number): string {
   return key;
 }
 
-function paint(
-  body: string,
-  from: number,
-  to: number,
-  base: number,
-  spans: readonly TexSpan[],
-): string {
-  if (!spans.length) return escapeHtml(body.slice(from, to));
-  let html = "";
-  let cursor = from;
-  for (const span of spansInRange(spans, base + from, base + to)) {
-    const a = Math.max(span.start - base, from);
-    const b = Math.min(span.end - base, to);
-    if (b <= a) continue;
-    html += escapeHtml(body.slice(cursor, a));
-    html +=
-      '<span class="tx-' +
-      span.kind +
-      '">' +
-      escapeHtml(body.slice(a, b)) +
-      "</span>";
-    cursor = b;
-  }
-  return html + escapeHtml(body.slice(cursor, to));
-}
-
 function markKey(slice: Token[]): string {
   let key = "";
   for (const mark of slice) key += mark.start + ":" + mark.end + ",";
   return key;
-}
-
-export function countLines(raw: string): number {
-  const body = stripChunkNewline(raw);
-  let count = 1;
-  for (let i = 0; i < body.length; i++) {
-    if (body.charCodeAt(i) === 10) count++;
-  }
-  return count;
-}
-
-function hangingGuard(body: string): string {
-  return body.endsWith("\n") ? "\u200b" : "";
-}
-
-export function plainHtml(
-  raw: string,
-  chunkStart = 0,
-  spans: readonly TexSpan[] = [],
-): string {
-  const body = stripChunkNewline(raw);
-
-  if (!useBlocks) {
-    const flat =
-      paint(body, 0, body.length, chunkStart, spans) + hangingGuard(body);
-    return flat === "" ? "\u200b" : flat;
-  }
-
-  let html = "";
-  let cursor = 0;
-  for (;;) {
-    const nl = body.indexOf("\n", cursor);
-    const end = nl === -1 ? body.length : nl;
-    html +=
-      '<div class="bl">' + paint(body, cursor, end, chunkStart, spans) + "</div>";
-    if (nl === -1) break;
-    cursor = nl + 1;
-  }
-  return html;
-}
-
-export function markedHtml(
-  raw: string,
-  chunkStart: number,
-  slice: Token[],
-  spans: readonly TexSpan[] = [],
-): string {
-  const body = stripChunkNewline(raw);
-
-  if (!useBlocks) return flatMarkedHtml(body, chunkStart, slice, spans);
-
-  let html = "";
-  let lineStart = 0;
-  let index = 0;
-
-  for (;;) {
-    const nl = body.indexOf("\n", lineStart);
-    const lineEnd = nl === -1 ? body.length : nl;
-    let cursor = lineStart;
-    html += '<div class="bl">';
-
-    while (index < slice.length) {
-      const mark = slice[index]!;
-      const from = mark.start - chunkStart;
-      const to = mark.end - chunkStart;
-      if (from >= lineEnd) break;
-      const clampedFrom = Math.max(from, cursor);
-      const clampedTo = Math.min(to, lineEnd);
-      if (clampedTo > clampedFrom) {
-        html += paint(body, cursor, clampedFrom, chunkStart, spans);
-        html +=
-          '<mark data-start="' +
-          mark.start +
-          '">' +
-          paint(body, clampedFrom, clampedTo, chunkStart, spans) +
-          "</mark>";
-        cursor = clampedTo;
-      }
-      if (to > lineEnd) break;
-      index++;
-    }
-
-    html += paint(body, cursor, lineEnd, chunkStart, spans) + "</div>";
-    if (nl === -1) break;
-    lineStart = nl + 1;
-  }
-
-  return html;
-}
-
-function stripChunkNewline(raw: string): string {
-  return raw.endsWith("\n") ? raw.slice(0, -1) : raw;
-}
-
-export function rangeRectAt(start: number, end: number): DOMRect | null {
-  if (end <= start) return null;
-  const node = nodeAtOffset(start);
-  if (!node) return null;
-  applyChunkMarks(node);
-  const body = stripChunkNewline(node._src);
-  const from = start - node._start;
-  const to = Math.min(end - node._start, body.length);
-  if (from < 0 || to <= from) return null;
-  const head = locateInNode(node, body, from);
-  const tail = locateInNode(node, body, to);
-  if (!head || !tail) return null;
-  const range = document.createRange();
-  range.setStart(head.node, head.offset);
-  range.setEnd(tail.node, tail.offset);
-  for (const rect of range.getClientRects()) {
-    if (rect.width > 0.5) return rect;
-  }
-  const box = range.getBoundingClientRect();
-  return box.width > 0 ? box : null;
-}
-
-interface TextSpot {
-  node: Text;
-  offset: number;
-}
-
-function locateInNode(
-  node: ChunkNode,
-  body: string,
-  offset: number,
-): TextSpot | null {
-  if (!useBlocks) return spotIn(node, offset);
-  let lineStart = 0;
-  let index = 0;
-  for (;;) {
-    const nl = body.indexOf("\n", lineStart);
-    const lineEnd = nl === -1 ? body.length : nl;
-    if (offset <= lineEnd) {
-      const line = node.children[index] as HTMLElement | undefined;
-      if (!line) return null;
-      return spotIn(line, offset - lineStart);
-    }
-    if (nl === -1) return null;
-    lineStart = nl + 1;
-    index++;
-  }
 }
 
 function spotIn(host: Element, offset: number): TextSpot | null {
@@ -424,69 +136,6 @@ function spotIn(host: Element, offset: number): TextSpot | null {
   return null;
 }
 
-export function caretSpotAt(
-  x: number,
-  y: number,
-): { node: Node; offset: number } | null {
-  if (typeof document.caretPositionFromPoint === "function") {
-    const pos = document.caretPositionFromPoint(x, y);
-    return pos ? { node: pos.offsetNode, offset: pos.offset } : null;
-  }
-  if (typeof document.caretRangeFromPoint === "function") {
-    const range = document.caretRangeFromPoint(x, y);
-    return range
-      ? { node: range.startContainer, offset: range.startOffset }
-      : null;
-  }
-  return null;
-}
-
-export function offsetAtPoint(x: number, y: number): number | null {
-  if (!root) return null;
-  const spot = caretSpotAt(x, y);
-  if (!spot) return null;
-  const node = nodes.find((n) => n !== spot.node && n.contains(spot.node));
-  if (!node) return null;
-  let host: Node = node;
-  let lineStart = 0;
-  if (useBlocks) {
-    host = spot.node;
-    while (host.parentNode && host.parentNode !== node) host = host.parentNode;
-    const index = Array.prototype.indexOf.call(node.children, host);
-    if (index < 0) return null;
-    const body = stripChunkNewline(node._src);
-    for (let i = 0; i < index; i++)
-      lineStart = body.indexOf("\n", lineStart) + 1;
-  }
-  const range = document.createRange();
-  range.setStart(host, 0);
-  range.setEnd(spot.node, spot.offset);
-  const local = Math.min(
-    lineStart + range.toString().length,
-    stripChunkNewline(node._src).length,
-  );
-  return node._start + local;
-}
-
-interface TopAnchor {
-  offset: number;
-  delta: number;
-}
-
-let topAnchor: TopAnchor | null = null;
-
-function caretRectAt(node: ChunkNode, body: string, offset: number): DOMRect {
-  const spot = locateInNode(node, body, offset);
-  if (!spot) {
-    const line = useBlocks ? lineElementAt(node, body, offset) : null;
-    return (line ?? node).getBoundingClientRect();
-  }
-  const range = document.createRange();
-  range.setStart(spot.node, spot.offset);
-  range.collapse(true);
-  return range.getBoundingClientRect();
-}
-
 function lineElementAt(
   node: ChunkNode,
   body: string,
@@ -501,92 +150,308 @@ function lineElementAt(
   return (node.children[index] as HTMLElement | undefined) ?? null;
 }
 
-function localOffsetAtY(node: ChunkNode, body: string, y: number): number {
-  let lo = 0;
-  let hi = body.length;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (caretRectAt(node, body, mid).bottom > y) hi = mid;
-    else lo = mid + 1;
+export function createBackdrop(root: HTMLElement): Backdrop {
+  let trailer: HTMLDivElement = document.createElement("div");
+  let nodes: ChunkNode[] = [];
+  let lastMarks: Token[] = [];
+  let activeLine = -1;
+  let activeEl: HTMLElement | null = null;
+  let useBlocks = true;
+  let lineTotal = 1;
+  let highlighter: ((text: string) => TexSpan[]) | null = null;
+  let syntax: TexSpan[] = [];
+  let lastText = "";
+  let topAnchor: TopAnchor | null = null;
+
+  function reset(): void {
+    root.textContent = "";
+    nodes = [];
+    activeLine = -1;
+    activeEl = null;
+    trailer = document.createElement("div");
+    trailer.textContent = "​";
+    root.appendChild(trailer);
   }
-  return lo;
-}
 
-export function offsetAtY(y: number): number | null {
-  if (!root) return null;
-  const node = nodes.find((n) => n.getBoundingClientRect().bottom > y);
-  if (!node) return null;
-  const body = stripChunkNewline(node._src);
-  return node._start + Math.min(localOffsetAtY(node, body, y), body.length);
-}
-
-function viewTop(): number {
-  return root!.getBoundingClientRect().top + root!.clientTop;
-}
-
-export function captureTopAnchor(): void {
-  if (!root) return;
-  if (root.scrollTop <= 0) {
-    topAnchor = null;
-    return;
-  }
-  const node = nodes.find(
-    (n) => n.offsetTop + n.offsetHeight > root!.scrollTop,
-  );
-  if (!node) {
-    topAnchor = null;
-    return;
-  }
-  const body = stripChunkNewline(node._src);
-  const y0 = viewTop();
-  const lo = localOffsetAtY(node, body, y0);
-  topAnchor = {
-    offset: node._start + lo,
-    delta: caretRectAt(node, body, lo).top - y0,
-  };
-}
-
-export function anchoredScrollTop(): number | null {
-  if (!root || !topAnchor) return null;
-  const node = nodeAtOffset(topAnchor.offset);
-  if (!node) return null;
-  const body = stripChunkNewline(node._src);
-  const local = Math.min(topAnchor.offset - node._start, body.length);
-  const top = caretRectAt(node, body, local).top - viewTop();
-  return Math.max(0, root.scrollTop + top - topAnchor.delta);
-}
-
-function nodeAtOffset(pos: number): ChunkNode | null {
-  for (const node of nodes) {
-    if (pos >= node._start && pos < node._start + node._src.length) {
-      return node;
+  function setActiveLine(index: number): void {
+    activeLine = index;
+    if (!useBlocks) return;
+    if (activeEl) {
+      activeEl.removeAttribute("data-active");
+      activeEl = null;
+    }
+    for (const node of nodes) {
+      if (index < node._line || index >= node._line + node._lines) continue;
+      const el = node.children[index - node._line] as HTMLElement | undefined;
+      if (el && el.classList.contains("bl")) {
+        el.setAttribute("data-active", "true");
+        activeEl = el;
+      }
+      return;
     }
   }
-  return null;
-}
 
-function flatMarkedHtml(
-  body: string,
-  chunkStart: number,
-  slice: Token[],
-  spans: readonly TexSpan[],
-): string {
-  let html = "";
-  let cursor = 0;
-
-  for (const mark of slice) {
-    const from = mark.start - chunkStart;
-    const to = mark.end - chunkStart;
-    html += paint(body, cursor, from, chunkStart, spans);
-    html +=
-      '<mark data-start="' +
-      mark.start +
-      '">' +
-      paint(body, from, to, chunkStart, spans) +
-      "</mark>";
-    cursor = to;
+  function applyGutterWidth(lines: number): void {
+    const digits = Math.max(2, String(Math.max(lines, 1)).length);
+    document.documentElement.style.setProperty(
+      "--gutter-digits",
+      String(digits),
+    );
   }
 
-  html += paint(body, cursor, body.length, chunkStart, spans) + hangingGuard(body);
-  return html === "" ? "\u200b" : html;
+  function syncTrailer(text: string): void {
+    const need = text === "" || text.endsWith("\n");
+    trailer.style.display = need ? "" : "none";
+  }
+
+  function syncChunkCount(count: number): void {
+    while (nodes.length > count) nodes.pop()!.remove();
+    while (nodes.length < count) {
+      const div = document.createElement("div") as ChunkNode;
+      div._spans = [];
+      div._synKey = "";
+      root.insertBefore(div, trailer);
+      nodes.push(div);
+    }
+  }
+
+  function updateChunkText(
+    node: ChunkNode,
+    text: string,
+    bound: ChunkBound,
+  ): void {
+    const raw = text.slice(bound.start, bound.end);
+    node._start = bound.start;
+    node._lines = countLines(raw);
+    const spans = syntax.length
+      ? spansInRange(syntax, bound.start, bound.end)
+      : [];
+    const synKey = spanKey(spans, bound.start, bound.end);
+    if (node._src === raw && node._synKey === synKey) {
+      node._spans = spans;
+      return;
+    }
+    node._src = raw;
+    node._spans = spans;
+    node._synKey = synKey;
+    node._markKey = "";
+    node.innerHTML = plainHtml(raw, bound.start, spans, useBlocks);
+  }
+
+  function applyChunkMarks(node: ChunkNode): void {
+    const start = node._start;
+    const slice = marksInRange(lastMarks, start, start + node._src.length);
+    const key = markKey(slice);
+    if (node._markKey === key) return;
+    node._markKey = key;
+    node.innerHTML = slice.length
+      ? markedHtml(node._src, start, slice, node._spans, useBlocks)
+      : plainHtml(node._src, start, node._spans, useBlocks);
+  }
+
+  function applyVisibleMarks(): void {
+    const top = root.scrollTop - VIEW_BUFFER_PX;
+    const bottom = root.scrollTop + root.clientHeight + VIEW_BUFFER_PX;
+    for (const node of nodes) {
+      if (node.offsetTop + node.offsetHeight < top) continue;
+      if (node.offsetTop > bottom) break;
+      applyChunkMarks(node);
+    }
+  }
+
+  function nodeAtOffset(pos: number): ChunkNode | null {
+    for (const node of nodes) {
+      if (pos >= node._start && pos < node._start + node._src.length) {
+        return node;
+      }
+    }
+    return null;
+  }
+
+  function locateInNode(
+    node: ChunkNode,
+    body: string,
+    offset: number,
+  ): TextSpot | null {
+    if (!useBlocks) return spotIn(node, offset);
+    let lineStart = 0;
+    let index = 0;
+    for (;;) {
+      const nl = body.indexOf("\n", lineStart);
+      const lineEnd = nl === -1 ? body.length : nl;
+      if (offset <= lineEnd) {
+        const line = node.children[index] as HTMLElement | undefined;
+        if (!line) return null;
+        return spotIn(line, offset - lineStart);
+      }
+      if (nl === -1) return null;
+      lineStart = nl + 1;
+      index++;
+    }
+  }
+
+  function caretRectAt(node: ChunkNode, body: string, offset: number): DOMRect {
+    const spot = locateInNode(node, body, offset);
+    if (!spot) {
+      const line = useBlocks ? lineElementAt(node, body, offset) : null;
+      return (line ?? node).getBoundingClientRect();
+    }
+    const range = document.createRange();
+    range.setStart(spot.node, spot.offset);
+    range.collapse(true);
+    return range.getBoundingClientRect();
+  }
+
+  function localOffsetAtY(node: ChunkNode, body: string, y: number): number {
+    let lo = 0;
+    let hi = body.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (caretRectAt(node, body, mid).bottom > y) hi = mid;
+      else lo = mid + 1;
+    }
+    return lo;
+  }
+
+  const viewTop = (): number =>
+    root.getBoundingClientRect().top + root.clientTop;
+
+  reset();
+
+  return {
+    el: root,
+    reset,
+    setLineBlocks(on) {
+      useBlocks = on;
+    },
+    setHighlighter(fn) {
+      if (fn === highlighter) return;
+      highlighter = fn;
+      for (const node of nodes) node._src = "";
+    },
+    text: () => lastText,
+    render(text, marks) {
+      lastMarks = marks;
+      lastText = text;
+      syntax = highlighter ? highlighter(text) : [];
+      const bounds = splitChunks(text);
+      syncChunkCount(bounds.length);
+      let line = 0;
+      for (let i = 0; i < bounds.length; i++) {
+        const node = nodes[i]!;
+        node._line = line;
+        updateChunkText(node, text, bounds[i]!);
+        line += node._lines;
+      }
+      lineTotal = Math.max(line, 1);
+      syncTrailer(text);
+      activeEl = null;
+      applyVisibleMarks();
+      applyGutterWidth(line);
+      if (activeLine >= 0) setActiveLine(activeLine);
+    },
+    lineCount: () => lineTotal,
+    marksAtY(y) {
+      const found: HTMLElement[] = [];
+      for (const node of nodes) {
+        const box = node.getBoundingClientRect();
+        if (box.bottom < y) continue;
+        if (box.top > y) break;
+        applyChunkMarks(node);
+        found.push(...node.querySelectorAll<HTMLElement>("mark[data-start]"));
+      }
+      return found;
+    },
+    markAt(start) {
+      const node = nodeAtOffset(start);
+      if (node) applyChunkMarks(node);
+      return root.querySelector<HTMLElement>(
+        'mark[data-start="' + start + '"]',
+      );
+    },
+    setActiveLine,
+    refreshMarks: applyVisibleMarks,
+    rangeRectAt(start, end) {
+      if (end <= start) return null;
+      const node = nodeAtOffset(start);
+      if (!node) return null;
+      applyChunkMarks(node);
+      const body = stripChunkNewline(node._src);
+      const from = start - node._start;
+      const to = Math.min(end - node._start, body.length);
+      if (from < 0 || to <= from) return null;
+      const head = locateInNode(node, body, from);
+      const tail = locateInNode(node, body, to);
+      if (!head || !tail) return null;
+      const range = document.createRange();
+      range.setStart(head.node, head.offset);
+      range.setEnd(tail.node, tail.offset);
+      for (const rect of range.getClientRects()) {
+        if (rect.width > 0.5) return rect;
+      }
+      const box = range.getBoundingClientRect();
+      return box.width > 0 ? box : null;
+    },
+    offsetAtPoint(x, y) {
+      const spot = caretSpotAt(x, y);
+      if (!spot) return null;
+      const node = nodes.find((n) => n !== spot.node && n.contains(spot.node));
+      if (!node) return null;
+      let host: Node = node;
+      let lineStart = 0;
+      if (useBlocks) {
+        host = spot.node;
+        while (host.parentNode && host.parentNode !== node)
+          host = host.parentNode;
+        const index = Array.prototype.indexOf.call(node.children, host);
+        if (index < 0) return null;
+        const body = stripChunkNewline(node._src);
+        for (let i = 0; i < index; i++)
+          lineStart = body.indexOf("\n", lineStart) + 1;
+      }
+      const range = document.createRange();
+      range.setStart(host, 0);
+      range.setEnd(spot.node, spot.offset);
+      const local = Math.min(
+        lineStart + range.toString().length,
+        stripChunkNewline(node._src).length,
+      );
+      return node._start + local;
+    },
+    offsetAtY(y) {
+      const node = nodes.find((n) => n.getBoundingClientRect().bottom > y);
+      if (!node) return null;
+      const body = stripChunkNewline(node._src);
+      return node._start + Math.min(localOffsetAtY(node, body, y), body.length);
+    },
+    captureTopAnchor() {
+      if (root.scrollTop <= 0) {
+        topAnchor = null;
+        return;
+      }
+      const node = nodes.find(
+        (n) => n.offsetTop + n.offsetHeight > root.scrollTop,
+      );
+      if (!node) {
+        topAnchor = null;
+        return;
+      }
+      const body = stripChunkNewline(node._src);
+      const y0 = viewTop();
+      const lo = localOffsetAtY(node, body, y0);
+      topAnchor = {
+        offset: node._start + lo,
+        delta: caretRectAt(node, body, lo).top - y0,
+      };
+    },
+    anchoredScrollTop() {
+      if (!topAnchor) return null;
+      const node = nodeAtOffset(topAnchor.offset);
+      if (!node) return null;
+      const body = stripChunkNewline(node._src);
+      const local = Math.min(topAnchor.offset - node._start, body.length);
+      const top = caretRectAt(node, body, local).top - viewTop();
+      return Math.max(0, root.scrollTop + top - topAnchor.delta);
+    },
+  };
 }

@@ -1,3 +1,4 @@
+import { attempt } from "./attempt.ts";
 export type Scope = "shared" | "tab" | "session";
 
 export interface StoreKey {
@@ -59,7 +60,7 @@ export function at(key: StoreKey, suffix: string): StoreKey {
 function local(): Storage | null {
   try {
     return localStorage;
-  } catch (_) {
+  } catch {
     return null;
   }
 }
@@ -67,17 +68,13 @@ function local(): Storage | null {
 function tabStore(): Storage | null {
   try {
     return sessionStorage;
-  } catch (_) {
+  } catch {
     return null;
   }
 }
 
 function get(storage: Storage | null, name: string): string | null {
-  try {
-    return storage?.getItem(name) ?? null;
-  } catch (_) {
-    return null;
-  }
+  return attempt(() => storage?.getItem(name) ?? null, null);
 }
 
 function set(storage: Storage | null, name: string, value: string): boolean {
@@ -85,15 +82,13 @@ function set(storage: Storage | null, name: string, value: string): boolean {
     if (!storage) return false;
     storage.setItem(name, value);
     return true;
-  } catch (_) {
+  } catch {
     return false;
   }
 }
 
 function drop(storage: Storage | null, name: string): void {
-  try {
-    storage?.removeItem(name);
-  } catch (_) {}
+  attempt(() => storage?.removeItem(name), undefined);
 }
 
 export function read(key: StoreKey): string | null {
@@ -123,7 +118,7 @@ export function readJson(key: StoreKey): unknown {
   if (raw === null) return null;
   try {
     return JSON.parse(raw) as unknown;
-  } catch (_) {
+  } catch {
     return null;
   }
 }

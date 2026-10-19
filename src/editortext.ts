@@ -1,3 +1,4 @@
+import { attempt } from "./attempt.ts";
 import { isSeparatorInput } from "./input.ts";
 import { standardLetters } from "./spell/letters.ts";
 import type { TextEdit } from "./tokenshift.ts";
@@ -63,18 +64,14 @@ export function replaceRange(
   text: string,
 ): boolean {
   if (from === to && text === "") return true;
-  try {
-    editor.setSelectionRange(from, to);
-  } catch (_) {}
-  let ok = false;
-  try {
-    ok =
+  editor.setSelectionRange(from, to);
+  const ok = attempt(
+    () =>
       text === ""
         ? document.execCommand("delete", false)
-        : document.execCommand("insertText", false, text);
-  } catch (_) {
-    ok = false;
-  }
+        : document.execCommand("insertText", false, text),
+    false,
+  );
   if (ok) return true;
   editor.setRangeText(text, from, to, "end");
   return false;
@@ -159,9 +156,7 @@ export function initEditorText(deps: EditorTextDeps): EditorText {
     editor.focus({ preventScroll: true });
     if (old === newText) {
       if (caret != null) {
-        try {
-          editor.setSelectionRange(caret, caret);
-        } catch (_) {}
+        editor.setSelectionRange(caret, caret);
       }
       return null;
     }
@@ -192,9 +187,7 @@ export function initEditorText(deps: EditorTextDeps): EditorText {
     }
     if (editor.value !== newText) editor.value = newText;
     if (caret != null) {
-      try {
-        editor.setSelectionRange(caret, caret);
-      } catch (_) {}
+      editor.setSelectionRange(caret, caret);
     }
     deps.onReplaced();
     return {

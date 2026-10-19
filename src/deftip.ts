@@ -5,7 +5,7 @@ import {
   type Definition,
 } from "./definitions.ts";
 import { createPauseToggle, createTipWindow } from "./tipwindow.ts";
-import { rangeRectAt } from "./backdrop.ts";
+import type { Backdrop } from "./backdrop.ts";
 import { KEYBOARD_LAYOUT_EVENT } from "./kbtoolbar.ts";
 import { escapeHtml } from "./htmlutil.ts";
 import { isTouch } from "./input.ts";
@@ -24,6 +24,7 @@ export interface DefTipDeps {
   readonly hidePopover: () => void;
   readonly holdStatus: (html: string, ms?: number, animate?: boolean) => void;
   readonly dock: DefDock;
+  readonly backdrop: Backdrop;
 }
 
 export interface DefTip {
@@ -312,7 +313,7 @@ export function initDefTip(deps: DefTipDeps): DefTip {
 
   function followWordTip(): void {
     const rect = wordTipSpan
-      ? rangeRectAt(wordTipSpan.start, wordTipSpan.end)
+      ? deps.backdrop.rangeRectAt(wordTipSpan.start, wordTipSpan.end)
       : null;
     if (!rect || !visibleInEditor(rect)) {
       hideWordTip();
@@ -327,7 +328,7 @@ export function initDefTip(deps: DefTipDeps): DefTip {
     pointerX?: number,
   ): Promise<void> {
     const quiet = pointerX !== undefined;
-    const rect = rangeRectAt(span.start, span.end);
+    const rect = deps.backdrop.rangeRectAt(span.start, span.end);
     if (!rect || !visibleInEditor(rect)) return;
     const ticket = ++wordTicket;
     const def = await definitionFor(span.word);

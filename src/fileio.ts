@@ -15,34 +15,44 @@ import {
 } from "./filetypes.ts";
 import type { DraftFile } from "./storage.ts";
 import { deliverText, isDesktopApp } from "./textfile.ts";
+import { flash } from "./clipboard.ts";
+import type { EditorPort, StatusPort } from "./ports.ts";
+import { attemptAsync } from "./attempt.ts";
+
+export interface OfficeFiles {
+  readonly active: () => boolean;
+  readonly open: (file: File) => Promise<boolean>;
+  readonly close: () => void;
+  readonly save: () => Promise<boolean>;
+}
+
+export interface ProjectFiles {
+  readonly save: () => Promise<string | null>;
+  readonly openZip: (file: File) => Promise<void>;
+  readonly openDir: (handle: FileSystemDirectoryHandle) => Promise<void>;
+  readonly openExisting: (name: string, text: string) => boolean;
+}
+
+export interface PdfSave {
+  readonly applies: () => boolean;
+  readonly save: () => Promise<void>;
+}
 
 export interface FileIODeps {
-  els: { editor: HTMLTextAreaElement };
-  openDocxFile: (file: File) => Promise<boolean>;
-  closeDocx: () => void;
-  isDocxActive: () => boolean;
-  docxSave: () => Promise<boolean>;
-  flash: (sel: string, msg: string) => void;
-  setStatus: (html: string, animate?: boolean) => void;
-  setEditorText: (text: string, caret: number | null) => void;
-  hidePopover: () => void;
-  render: () => Promise<void> | void;
-  saveText: () => void;
-  defaultExt: () => string;
-  onFileOpened: (file: DraftFile | null) => void;
-  saveProject: () => Promise<string | null>;
-  savesPdf: () => boolean;
-  savePdf: () => Promise<void>;
-  openProjectZip: (file: File) => Promise<void>;
-  openProjectDir: (handle: FileSystemDirectoryHandle) => Promise<void>;
-  prepareOpen: (
+  readonly editor: EditorPort;
+  readonly status: StatusPort;
+  readonly office: OfficeFiles;
+  readonly project: ProjectFiles;
+  readonly pdf: PdfSave;
+  readonly defaultExt: () => string;
+  readonly onFileOpened: (file: DraftFile | null) => void;
+  readonly prepareOpen: (
     name: string,
     hash: string,
     text: string | null,
   ) => "new" | "open" | "reload" | false;
-  openInProject: (name: string, text: string) => boolean;
-  onLoaded: () => void;
-  onSaved: (written: boolean) => void;
+  readonly onLoaded: () => void;
+  readonly onSaved: (written: boolean) => void;
 }
 
 export interface OpenFile {
@@ -61,29 +71,18 @@ export interface FileIOControl {
 }
 
 export function initFileIO({
-  els,
-  openDocxFile,
-  closeDocx,
-  isDocxActive,
-  docxSave,
-  flash,
-  setStatus,
-  setEditorText,
-  hidePopover,
-  render,
-  saveText,
+  editor,
+  status,
+  office: docs,
+  project,
+  pdf,
   defaultExt,
   onFileOpened,
-  saveProject,
-  savesPdf,
-  savePdf,
-  openProjectZip,
-  openProjectDir,
   prepareOpen,
-  openInProject,
   onLoaded,
   onSaved,
 }: FileIODeps): FileIOControl {
+  const setStatus = status.set;
   const hasFSSave = "showSaveFilePicker" in window;
   const hasFSOpen = "showOpenFilePicker" in window;
   let currentFileHandle: FileSystemFileHandle | null = null;
@@ -104,7 +103,7 @@ export function initFileIO({
     handle: FileSystemFileHandle | null,
   ): Promise<boolean> {
     if (isZip(file.name)) {
-      await openProjectZip(file);
+      await project.openZip(file);
       return true;
     }
     const office = looksOffice(file);
@@ -115,7 +114,7 @@ export function initFileIO({
     if (!office && !sizeOk(file)) return true;
     const bytes = office ? null : new Uint8Array(await file.arrayBuffer());
     const text = bytes ? decodeFileBytes(bytes) : "";
-    if (!office && openInProject(file.name, text)) {
+    if (!office && project.openExisting(file.name, text)) {
       flash("#openBtn", "Нээлээ");
       return true;
     }
@@ -141,7 +140,7 @@ export function initFileIO({
       currentFileHandle = null;
       currentFileName = null;
       onFileOpened({ name: file.name, kind: "office" });
-      await openDocxFile(file);
+      await docs.open(file);
       flash("#openBtn", "Нээлээ");
       return true;
     }
@@ -155,7 +154,7 @@ export function initFileIO({
     for (const { file, handle } of entries) {
       try {
         if (!(await openOne(file, handle))) return;
-      } catch (_) {
+      } catch {
         flash("#openBtn", "Боломжгүй");
       }
     }
@@ -165,34 +164,34 @@ export function initFileIO({
     readonly name: string;
     readonly inProject: boolean;
   }): Promise<void> {
-    if (isDocxActive()) {
+    if (docs.active()) {
       try {
-        flash("#saveBtn", (await docxSave()) ? "Хадгаллаа" : "Цуцаллаа");
-      } catch (_) {
+        flash("#saveBtn", (await docs.save()) ? "Хадгаллаа" : "Цуцаллаа");
+      } catch {
         flash("#saveBtn", "Боломжгүй");
       }
       return;
     }
 
-    if (!source && savesPdf()) {
-      await savePdf();
+    if (!source && pdf.applies()) {
+      await pdf.save();
       return;
     }
 
     if (!source) {
       try {
-        const label = await saveProject();
+        const label = await project.save();
         if (label !== null) {
           flash("#saveBtn", label);
           return;
         }
-      } catch (_) {
+      } catch {
         flash("#saveBtn", "Боломжгүй");
         return;
       }
     }
 
-    const text = els.editor.value || "";
+    const text = editor.el.value || "";
     const saved = (written: boolean): void => {
       if (!source?.inProject) onSaved(written);
     };
@@ -201,14 +200,18 @@ export function initFileIO({
       currentFileHandle &&
       (!source || (!source.inProject && source.name === currentFileName))
     ) {
-      try {
-        const writableStream = await currentFileHandle.createWritable();
+      const handle = currentFileHandle;
+      const written = await attemptAsync(async () => {
+        const writableStream = await handle.createWritable();
         await writableStream.write(text);
         await writableStream.close();
+        return true;
+      }, false);
+      if (written) {
         flash("#saveBtn", "Хадгаллаа");
         saved(true);
         return;
-      } catch (_) {}
+      }
     }
 
     const fileName = source?.name ?? currentFileName;
@@ -222,7 +225,7 @@ export function initFileIO({
         const done = await deliver(text, fileName);
         flash("#saveBtn", done ? "Хадгалав" : "Цуцаллаа");
         if (done) saved(false);
-      } catch (_) {
+      } catch {
         flash("#saveBtn", "Боломжгүй");
       }
       return;
@@ -249,7 +252,7 @@ export function initFileIO({
     try {
       const done = await deliver(text, stamp());
       flash("#saveBtn", done ? "Хадгаллаа" : "Цуцаллаа");
-    } catch (_) {
+    } catch {
       flash("#saveBtn", "Боломжгүй");
     }
   }
@@ -263,17 +266,15 @@ export function initFileIO({
     name: string | null,
     handle: FileSystemFileHandle | null,
   ): Promise<void> {
-    closeDocx();
+    docs.close();
     currentFileHandle = handle || null;
     currentFileName = name || (handle && handle.name) || null;
     onFileOpened(
       currentFileName ? { name: currentFileName, kind: "text" } : null,
     );
-    setEditorText(content, content.length);
+    editor.set(content, content.length);
     onLoaded();
-    hidePopover();
-    render();
-    saveText();
+    void editor.settle();
     flash("#openBtn", "Нээлээ");
   }
 
@@ -331,9 +332,9 @@ export function initFileIO({
     return true;
   }
 
-  initFileDrop(els.editor, {
+  initFileDrop(editor.el, {
     openFiles: openAll,
-    openDir: openProjectDir,
+    openDir: project.openDir,
   });
 
   return {

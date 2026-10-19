@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import type { Plugin, ViteDevServer } from "vite";
+import { attempt } from "./src/attempt.ts";
 import {
   applyOrder,
   collectDicts,
@@ -34,11 +35,10 @@ function fingerprint(base: string): string {
   const hash = createHash("sha256");
   for (const part of PARTS) {
     const path = DIR + "/" + base + part;
-    try {
-      const stat = statSync(path);
-      hash.update(part + ":" + String(stat.size) + ";");
-      if (part === ".ifo") hash.update(readFileSync(path));
-    } catch {}
+    const stat = attempt(() => statSync(path), null);
+    if (!stat) continue;
+    hash.update(part + ":" + String(stat.size) + ";");
+    if (part === ".ifo") hash.update(readFileSync(path));
   }
   return hash.digest("hex").slice(0, 16);
 }
@@ -46,15 +46,14 @@ function fingerprint(base: string): string {
 const MAX_DEPTH = 3;
 
 function walk(dir: string, prefix = "", depth = 0): string[] {
-  let entries: { name: string; dir: boolean }[] = [];
-  try {
-    entries = readdirSync(dir, { withFileTypes: true }).map((item) => ({
-      name: item.name,
-      dir: item.isDirectory(),
-    }));
-  } catch {
-    return [];
-  }
+  const entries = attempt(
+    () =>
+      readdirSync(dir, { withFileTypes: true }).map((item) => ({
+        name: item.name,
+        dir: item.isDirectory(),
+      })),
+    [],
+  );
   const out: string[] = [];
   for (const entry of entries) {
     if (entry.name.startsWith(".")) continue;

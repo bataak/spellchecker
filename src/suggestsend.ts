@@ -39,7 +39,7 @@ export async function postSuggestion(
       body: JSON.stringify(payload),
     });
     return response.status;
-  } catch (_) {
+  } catch {
     return null;
   }
 }

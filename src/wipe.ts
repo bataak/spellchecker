@@ -1,4 +1,5 @@
 import { KEYS, read, write } from "./store.ts";
+import { attempt } from "./attempt.ts";
 const DATABASES = [
   "mn-spell",
   "mn-spell-user-dicts",
@@ -10,13 +11,9 @@ const DATABASES = [
 const USER_CACHES = ["tex-preview", "tex-packages"];
 
 function wipeNow(): void {
-  try {
-    localStorage.clear();
-  } catch {}
-  try {
-    sessionStorage.clear();
-  } catch {}
-  try {
+  attempt(() => localStorage.clear(), undefined);
+  attempt(() => sessionStorage.clear(), undefined);
+  attempt(() => {
     for (const name of DATABASES) indexedDB.deleteDatabase(name);
     void indexedDB
       .databases?.()
@@ -26,10 +23,10 @@ function wipeNow(): void {
             indexedDB.deleteDatabase(db.name);
       })
       .catch(() => undefined);
-  } catch {}
-  try {
+  }, undefined);
+  attempt(() => {
     for (const name of USER_CACHES) void caches.delete(name);
-  } catch {}
+  }, undefined);
 }
 
 export function confirmWipe(): void {
