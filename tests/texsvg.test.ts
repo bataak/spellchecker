@@ -14,7 +14,10 @@ import {
 
 test("svg багцыг жагсаалт дотор ч таньж, тайлбарт байвал үл тооно", () => {
   assert.equal(usesSvgPackage([String.raw`\usepackage{graphicx, svg}`]), true);
-  assert.equal(usesSvgPackage([String.raw`\usepackage[inkscapelatex=false]{svg}`]), true);
+  assert.equal(
+    usesSvgPackage([String.raw`\usepackage[inkscapelatex=false]{svg}`]),
+    true,
+  );
   assert.equal(usesSvgPackage([String.raw`% \usepackage{svg}`]), false);
   assert.equal(usesSvgPackage([String.raw`\usepackage{svgcolor}`]), false);
 });
@@ -44,7 +47,9 @@ test("svg багцыг graphicx болгож, includesvg-г includegraphics бо
 \includesvg[width=5cm,inkscapelatex=false]{diagram}
 \includesvg{missing}`;
   assert.equal(
-    rewriteSvg(text, (raw) => (raw === "diagram" ? "fig/diagram.converted.pdf" : null)),
+    rewriteSvg(text, (raw) =>
+      raw === "diagram" ? "fig/diagram.converted.pdf" : null,
+    ),
     String.raw`\usepackage{graphicx}
 \usepackage{amsmath,graphicx}
 
@@ -57,15 +62,24 @@ test("svg багцыг graphicx болгож, includesvg-г includegraphics бо
 test("svg-г .svg өргөтгөлөөр болон хайх хавтсаас олно", () => {
   const files = new Set(["doc/fig/diagram.svg", "doc/logo.svg"]);
   const has = (path: string): boolean => files.has(path);
-  assert.equal(resolveSvg("diagram", "doc", ["fig/"], has), "doc/fig/diagram.svg");
+  assert.equal(
+    resolveSvg("diagram", "doc", ["fig/"], has),
+    "doc/fig/diagram.svg",
+  );
   assert.equal(resolveSvg("logo.svg", "doc", [], has), "doc/logo.svg");
   assert.equal(resolveSvg("none", "doc", ["fig/"], has), null);
 });
 
 test("svg-ийн хэмжээг пункт рүү хөрвүүлнэ", () => {
   assert.deepEqual(svgSize("100", "50", null), { width: 75, height: 37.5 });
-  assert.deepEqual(svgSize("2in", null, "0 0 200 100"), { width: 144, height: 72 });
-  assert.deepEqual(svgSize("100%", "100%", "0 0 400 200"), { width: 300, height: 150 });
+  assert.deepEqual(svgSize("2in", null, "0 0 200 100"), {
+    width: 144,
+    height: 72,
+  });
+  assert.deepEqual(svgSize("100%", "100%", "0 0 400 200"), {
+    width: 300,
+    height: 150,
+  });
   assert.deepEqual(svgSize(null, null, null), { width: 225, height: 112.5 });
 });
 
@@ -79,7 +93,9 @@ test("svg-ийн фонтын нэрийг serif, sans-serif, monospace болг
     "font-family:monospace;fill:red",
   );
   assert.equal(
-    genericCss(`.t{font-family: "Times New Roman", serif} .s{font-family:Arial}`),
+    genericCss(
+      `.t{font-family: "Times New Roman", serif} .s{font-family:Arial}`,
+    ),
     ".t{font-family: serif} .s{font-family:sans-serif}",
   );
 });

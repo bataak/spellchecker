@@ -88,7 +88,8 @@ test("давхардсан толийг idx-ийн hash-ээр таньна", as
 });
 
 test("дутуу файлуудыг тодорхойлно", async () => {
-  const { missingParts, PART_LABELS } = await import("../src/dict/userdicts.ts");
+  const { missingParts, PART_LABELS } =
+    await import("../src/dict/userdicts.ts");
   assert.deepEqual(missingParts({ ifo: 1 }), ["idx", "dict"]);
   assert.deepEqual(missingParts({ ifo: 1, idx: 1, dict: 1 }), []);
   assert.deepEqual(missingParts({ syn: 1 }), ["ifo", "idx", "dict"]);

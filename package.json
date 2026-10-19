@@ -6,7 +6,7 @@
   "description": "Монгол үгийн алдаа шалгагч — hunspell-wasm + nspell, GitHub Pages",
   "license": "AGPL-3.0-only",
   "scripts": {
-    "test": "tsc --noEmit && eslint . --quiet && node --test \"tests/*.test.ts\"",
+    "test": "tsc --noEmit && eslint . --quiet && prettier --check \"**/*.{ts,js,mjs,cjs,css,json,yml,yaml}\" --log-level warn && node --test \"tests/*.test.ts\"",
     "test:e2e": "node --test --test-concurrency=1 \"tests/e2e/*.e2e.ts\"",
     "predev": "npm test",
     "dev": "vite",
@@ -15,7 +15,8 @@
     "prepreview": "npm test",
     "preview": "vite build && vite preview",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "format": "prettier --write \"**/*.{ts,js,mjs,cjs,css,json,yml,yaml}\""
   },
   "dependencies": {
     "fflate": "^0.8.3",
@@ -31,6 +32,7 @@
     "@types/node": "^22.10.0",
     "eslint": "^10.13.0",
     "playwright": "^1.64.1",
+    "prettier": "3.9.10",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.71.2",
     "vite": "^8.0.16",

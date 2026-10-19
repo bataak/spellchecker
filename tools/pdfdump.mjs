@@ -17,7 +17,13 @@ const show = (s) =>
   [...s]
     .map((ch) => {
       const cp = ch.codePointAt(0);
-      if (cp >= 0x20 && !(cp >= 0x7f && cp <= 0xa0) && cp !== 0xad && cp !== 0xfffd) return ch;
+      if (
+        cp >= 0x20 &&
+        !(cp >= 0x7f && cp <= 0xa0) &&
+        cp !== 0xad &&
+        cp !== 0xfffd
+      )
+        return ch;
       return "<" + cp.toString(16).toUpperCase().padStart(4, "0") + ">";
     })
     .join("");

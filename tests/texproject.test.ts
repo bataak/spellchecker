@@ -266,7 +266,10 @@ test("pathMacros ба expandMacros: \\def, \\newcommand-оор өгсөн зам
   ]);
   assert.equal(expandMacros(String.raw`\Logo`, macros), "img/logo");
   assert.equal(macros.has("Two"), false);
-  assert.equal(expandMacros(String.raw`\Unknown`, macros), String.raw`\Unknown`);
+  assert.equal(
+    expandMacros(String.raw`\Unknown`, macros),
+    String.raw`\Unknown`,
+  );
 });
 
 test("\\includegraphics доторх {}-тэй макрог задалж, хаалтыг тэнцвэртэй үлдээнэ", () => {
@@ -282,7 +285,11 @@ test("\\includegraphics доторх {}-тэй макрог задалж, хаа
     String.raw`\fbox{\ttfamily\detokenize{\figdir{}/b}}`,
   );
   assert.equal(
-    mapGraphics(text, () => null, (raw) => expandMacros(raw, macros)).split("\n")[1],
+    mapGraphics(
+      text,
+      () => null,
+      (raw) => expandMacros(raw, macros),
+    ).split("\n")[1],
     String.raw`\fbox{\ttfamily\detokenize{figs/b}}`,
   );
   assert.equal(referencesFiles(String.raw`\includegraphics*{a}`), true);
@@ -324,7 +331,10 @@ test("relativePath: ажлын хавтаснаас гадуурх файлд ..
 
 test("resolveGraphic: .JPEG өргөтгөлтэй зургийг олно", () => {
   const files = new Set(["photo.JPEG"]);
-  assert.equal(resolveGraphic("photo", "", [], (p) => files.has(p)), "photo.JPEG");
+  assert.equal(
+    resolveGraphic("photo", "", [], (p) => files.has(p)),
+    "photo.JPEG",
+  );
 });
 
 test("sameOnDisk: том жижиг үсэг, NFC/NFD-ээр ялгаатай нэрийг дискэн дээр нэг гэж үзнэ", () => {

@@ -92,7 +92,12 @@ test("алдааг алгассан engine-ийн PDF-ийг зөвхөн тер
     pdf,
   );
   assert.equal(
-    replyPdf({ result: "failed", status: 1, log: "! Undefined control sequence.", pdf }),
+    replyPdf({
+      result: "failed",
+      status: 1,
+      log: "! Undefined control sequence.",
+      pdf,
+    }),
     null,
   );
   assert.equal(replyPdf({ result: "failed", status: 3, log: "", pdf }), null);

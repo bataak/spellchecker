@@ -281,8 +281,7 @@ function dropEngine(worker: Worker): void {
   if (live === worker) live = null;
 }
 
-let running: { stop: (reason: string) => void; since: number } | null =
-  null;
+let running: { stop: (reason: string) => void; since: number } | null = null;
 
 export function cancelCompile(): void {
   running?.stop("TeX хөрвүүлэлтийг зогсоолоо");

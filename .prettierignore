@@ -1,0 +1,6 @@
+dist/
+dev-dist/
+public/
+vendor/
+package-lock.json
+src/tex/texbundle.ts
