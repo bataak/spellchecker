@@ -1,6 +1,14 @@
 import type { PdfView } from "./pdfview.ts";
 import type { PreviewHead, ZoomAction } from "./previewhead.ts";
-import { loadZoom, saveZoom, stepZoom, wheelZoom } from "./viewprefs.ts";
+import {
+  loadZoom,
+  pinchZoom,
+  saveZoom,
+  stepZoom,
+  touchMid,
+  touchSpan,
+  wheelZoom,
+} from "./viewprefs.ts";
 
 export interface PdfPane {
   view(): PdfView | null;
@@ -83,6 +91,37 @@ export function createPdfPane(
     },
     { passive: false },
   );
+
+  let pinch: { zoom: number; span: number; x: number; y: number } | null = null;
+  body.addEventListener(
+    "touchstart",
+    (event) => {
+      const [a, b] = event.touches;
+      if (!view || event.touches.length !== 2 || !a || !b) return;
+      pinch = { zoom, span: touchSpan(a, b), ...touchMid(a, b) };
+    },
+    { passive: true },
+  );
+  body.addEventListener(
+    "touchmove",
+    (event) => {
+      const [a, b] = event.touches;
+      if (!pinch || event.touches.length !== 2 || !a || !b) return;
+      event.preventDefault();
+      const mid = touchMid(a, b);
+      setZoom(pinchZoom(pinch.zoom, pinch.span, touchSpan(a, b)), mid);
+      body.scrollLeft += pinch.x - mid.x;
+      body.scrollTop += pinch.y - mid.y;
+      pinch.x = mid.x;
+      pinch.y = mid.y;
+    },
+    { passive: false },
+  );
+  const endPinch = (event: TouchEvent): void => {
+    if (event.touches.length < 2) pinch = null;
+  };
+  body.addEventListener("touchend", endPinch);
+  body.addEventListener("touchcancel", endPinch);
 
   return {
     view: () => view,
