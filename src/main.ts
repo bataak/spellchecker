@@ -14,7 +14,7 @@ import { initImageStore } from "./imagestore.ts";
 import { initToolbar } from "./toolbar.ts";
 import { initKeyboardToolbar } from "./kbtoolbar.ts";
 import { initSuggest } from "./suggest.ts";
-import { initSurvey, surveyOnErrorCount } from "./survey.ts";
+import { initSurvey } from "./survey.ts";
 import { getIgnored, onIgnoredChange } from "./spell/ignore.ts";
 import { initIgnoreList } from "./ignorelist.ts";
 import { initAppearance } from "./appearance.ts";
@@ -32,19 +32,14 @@ import { PROJECT_SLOT, isFileSlot } from "./fileslots.ts";
 import { createProjectStore } from "./project/projectstore.ts";
 import { KEYS, write } from "./store.ts";
 import { escapeHtml } from "./htmlutil.ts";
-import { buildErrorList, isDashSuffix } from "./spell/textcheck.ts";
+import { isDashSuffix } from "./spell/textcheck.ts";
 import { saveDraftFile, loadDraftFile } from "./storage.ts";
 import { initMdToolbar, sharedSlot } from "./mdtoolbar.ts";
 import { initSlotSwitch } from "./slotswitch.ts";
 import { initTabGuard, type TabGuard } from "./tabguard.ts";
 import { PLAIN } from "./templates.ts";
 import { initExport, type ExportControl } from "./export.ts";
-import {
-  initBackdrop,
-  setLineBlocks,
-  backdropLineCount,
-  rangeRectAt,
-} from "./backdrop.ts";
+import { createBackdrop } from "./backdrop.ts";
 import { createMarkLayer } from "./marklayer.ts";
 import { initMarkTap } from "./marktap.ts";
 import { initTexComplete } from "./tex/texcomplete.ts";
@@ -58,7 +53,7 @@ import { initDictMenu } from "./dict/dictmenu.ts";
 import { createOfficeSession } from "./office/session.ts";
 import { createDictStatus } from "./dict/dictstatus.ts";
 import { initStatus, reveal } from "./status.ts";
-import { copyText, flash } from "./clipboard.ts";
+import { flash } from "./clipboard.ts";
 import { initEditorText } from "./editortext.ts";
 import { initDraftText } from "./drafttext.ts";
 import { initClean, initDecode } from "./decode.ts";
@@ -114,17 +109,17 @@ const editorEl = els.editor;
 const desktopMQ = window.matchMedia("(min-width: 1024px)");
 const narrowMQ = window.matchMedia("(max-width: 700px)");
 const touchMQ = window.matchMedia("(pointer: coarse)");
-setLineBlocks(!narrowMQ.matches);
-initBackdrop(els.backdrop);
+const backdrop = createBackdrop(els.backdrop);
+backdrop.setLineBlocks(!narrowMQ.matches);
 narrowMQ.addEventListener("change", () => {
-  setLineBlocks(!narrowMQ.matches);
-  initBackdrop(els.backdrop);
+  backdrop.setLineBlocks(!narrowMQ.matches);
+  backdrop.reset();
   void loop.render();
 });
 
 const view = createEditorView({
   editor: editorEl,
-  backdrop: els.backdrop,
+  backdrop,
   marks: () => marks,
   onLine: (line) => docStatus.refreshLine(line),
   onScroll: () => pop.followScroll(),
@@ -137,7 +132,9 @@ const spell = createSpellSession({
   isLatex: isLatexText,
   progress: async (message, animate) => {
     status.set(message, animate);
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => resolve()),
+    );
   },
 });
 
@@ -185,7 +182,7 @@ const docStatus = createDocStatus({
   editor: editorEl,
   dicts,
   fileName: doc.fileName,
-  lineCount: backdropLineCount,
+  lineCount: backdrop.lineCount,
   desktop: desktopMQ,
   narrow: narrowMQ,
 });
@@ -220,6 +217,7 @@ function syncTexMode(): void {
 
 const marks = createMarkLayer({
   editor: editorEl,
+  backdrop,
   syncScroll: view.syncScroll,
 });
 
@@ -253,6 +251,8 @@ function syncEmptyState(text: string): void {
   syncEmptyTips(empty);
 }
 
+const survey = initSurvey();
+
 const loop = createCheckLoop({
   editor: editorEl,
   spell,
@@ -272,7 +272,7 @@ const loop = createCheckLoop({
     view.syncScroll();
     view.captureTop();
     errorPanel.render();
-    surveyOnErrorCount(bad.length, text.trim() !== "");
+    survey.onErrorCount(bad.length, text.trim() !== "");
   },
   setText: (text, caret) => editorText.set(text, caret),
   hidePopover: () => pop.hide(),
@@ -300,11 +300,12 @@ const defTip = initDefTip({
   hidePopover: () => pop.hide(),
   holdStatus: status.hold,
   dock: defDock,
+  backdrop,
 });
 
 const pop = initPopover({
   editor: editorEl,
-  backdrop: els.backdrop,
+  backdrop,
   popover: els.popover,
   defTip,
   syncScroll: view.syncScroll,
@@ -312,7 +313,7 @@ const pop = initPopover({
 
 const errorPanel = initErrorPanel({
   editor: editorEl,
-  backdrop: els.backdrop,
+  backdrop,
   desktopMQ,
   badTokens: () => marks.tokens(),
   lastCaret: () => lastCaret,
@@ -326,7 +327,7 @@ const errorPanel = initErrorPanel({
 
 initDefineControls({
   editor: editorEl,
-  backdrop: els.backdrop,
+  backdrop,
   checker,
   defTip,
   defDock,
@@ -339,7 +340,7 @@ initDefineControls({
 
 const suggestPopover = initSuggestPopover({
   editor: editorEl,
-  backdrop: els.backdrop,
+  backdrop,
   popover: els.popover,
   pop,
   defTip,
@@ -417,6 +418,7 @@ const draft = initDraftText({
 
 const markTap = initMarkTap({
   editor: editorEl,
+  backdrop,
   tokens: () => marks.tokens(),
   show: (token) => suggestPopover.showFor(token),
 });
@@ -594,7 +596,7 @@ applyTexPaint(lastTex);
 initTexComplete({
   editor: editorEl,
   active: () => marks.tex(),
-  rectAt: rangeRectAt,
+  rectAt: backdrop.rangeRectAt,
   onImage: () => void insertPickedImage(editorEl),
 });
 initTexImageInput({ editor: editorEl, active: () => marks.tex() });
@@ -798,19 +800,15 @@ initToolbar({
 initKeyboardToolbar(editorEl, els.backdrop);
 
 initSuggest({
-  buildErrorList,
   getBadTokens: () => marks.tokens(),
   isDashSuffix: (token) => isDashSuffix(editorEl.value, token),
-  copyText,
   checkKnown: (list) =>
     checker.ready && !checker.dead && checker.loadedIds.includes("mn_MN")
       ? checker.checkWords(list)
       : Promise.resolve(null),
 });
 
-initIgnoreList({
-  onChange: () => void render(),
-});
+initIgnoreList(() => void render());
 onIgnoredChange(() => void render());
 
 let guardedProject: string | null = null;
@@ -826,7 +824,6 @@ onProjectChange(() => {
   tabGuard?.sync();
 });
 
-initSurvey();
 
 initReportButton(() => {
   const active = dicts.active();
@@ -852,7 +849,7 @@ const openDictMenu = initDictMenu({
 });
 
 void document.fonts.ready.then(() => {
-  initBackdrop(els.backdrop);
+  backdrop.reset();
   void render();
 });
 

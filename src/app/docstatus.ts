@@ -39,7 +39,8 @@ export function createDocStatus(deps: DocStatusDeps): DocStatus {
   const linePosition = (knownLine?: number): LinePosition | null => {
     const value = editor.value;
     if (!narrow.matches || value === "") return null;
-    const line = (knownLine ?? caretLine(value, editor.selectionStart ?? 0)) + 1;
+    const line =
+      (knownLine ?? caretLine(value, editor.selectionStart ?? 0)) + 1;
     return {
       line,
       total: deps.lineCount() + (value.endsWith("\n") ? 1 : 0),

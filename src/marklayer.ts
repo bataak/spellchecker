@@ -1,4 +1,4 @@
-import { backdropText, renderBackdrop, setHighlighter } from "./backdrop.ts";
+import type { Backdrop } from "./backdrop.ts";
 import { minimalDiff } from "./mdedit.ts";
 import type { Token } from "./spell/textcheck.ts";
 import { texSpans } from "./tex/texhighlight.ts";
@@ -6,6 +6,7 @@ import { shiftTokens, type TextEdit } from "./tokenshift.ts";
 
 export interface MarkLayerDeps {
   readonly editor: HTMLTextAreaElement;
+  readonly backdrop: Backdrop;
   readonly syncScroll: () => void;
 }
 
@@ -19,12 +20,12 @@ export interface MarkLayer {
 }
 
 export function createMarkLayer(deps: MarkLayerDeps): MarkLayer {
-  const { editor } = deps;
+  const { editor, backdrop } = deps;
   let tokens: Token[] = [];
   let tex = false;
 
   const paint = (text: string): void => {
-    renderBackdrop(text, tokens);
+    backdrop.render(text, tokens);
   };
 
   return {
@@ -33,10 +34,10 @@ export function createMarkLayer(deps: MarkLayerDeps): MarkLayer {
     setTex(on) {
       if (on === tex) return false;
       tex = on;
-      setHighlighter(on ? texSpans : null);
+      backdrop.setHighlighter(on ? texSpans : null);
       editor.parentElement?.classList.toggle("is-tex", on);
       const text = editor.value;
-      if (text !== backdropText()) tokens = [];
+      if (text !== backdrop.text()) tokens = [];
       paint(text);
       deps.syncScroll();
       return true;
@@ -48,7 +49,7 @@ export function createMarkLayer(deps: MarkLayerDeps): MarkLayer {
     follow() {
       if (!tex) return;
       const text = editor.value;
-      const patch = minimalDiff(backdropText(), text);
+      const patch = minimalDiff(backdrop.text(), text);
       if (!patch) return;
       tokens = shiftTokens(tokens, {
         start: patch.from,

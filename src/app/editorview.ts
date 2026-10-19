@@ -1,11 +1,4 @@
-import {
-  anchoredScrollTop,
-  captureTopAnchor,
-  offsetAtY,
-  rangeRectAt,
-  refreshBackdropMarks,
-  setActiveLine,
-} from "../backdrop.ts";
+import type { Backdrop } from "../backdrop.ts";
 import type { MarkLayer } from "../marklayer.ts";
 import type { Token } from "../spell/textcheck.ts";
 import { caretLine } from "../statusline.ts";
@@ -19,7 +12,7 @@ const VISIBLE_ANCHOR_SHARE = 0.35;
 
 export interface EditorViewDeps {
   readonly editor: HTMLTextAreaElement;
-  readonly backdrop: HTMLElement;
+  readonly backdrop: Backdrop;
   readonly marks: () => MarkLayer;
   readonly onLine: (line: number) => void;
   readonly onScroll: () => void;
@@ -37,13 +30,13 @@ export function createEditorView(deps: EditorViewDeps): EditorView {
   const { editor, backdrop } = deps;
 
   const syncScroll = (): void => {
-    backdrop.scrollTop = editor.scrollTop;
-    backdrop.scrollLeft = editor.scrollLeft;
+    backdrop.el.scrollTop = editor.scrollTop;
+    backdrop.el.scrollLeft = editor.scrollLeft;
   };
 
   const syncActiveLine = (): void => {
     const line = caretLine(editor.value, editor.selectionStart ?? 0);
-    setActiveLine(line);
+    backdrop.setActiveLine(line);
     deps.onLine(line);
   };
 
@@ -64,18 +57,18 @@ export function createEditorView(deps: EditorViewDeps): EditorView {
   });
 
   const refreshMarksSoon = debounce(
-    () => refreshBackdropMarks(),
+    () => backdrop.refreshMarks(),
     MARKS_SETTLE_MS,
   );
   editor.addEventListener("scroll", () => {
     syncScroll();
-    captureTopAnchor();
+    backdrop.captureTopAnchor();
     deps.onScroll();
     refreshMarksSoon();
   });
   new ResizeObserver(() => {
     syncScroll();
-    const top = anchoredScrollTop();
+    const top = backdrop.anchoredScrollTop();
     if (top !== null && Math.abs(top - editor.scrollTop) >= 1) {
       editor.scrollTop = top;
       syncScroll();
@@ -87,14 +80,14 @@ export function createEditorView(deps: EditorViewDeps): EditorView {
 
   return {
     syncScroll,
-    captureTop: captureTopAnchor,
+    captureTop: backdrop.captureTopAnchor,
     revealRange(start, end) {
       editor.focus({ preventScroll: true });
       try {
         editor.setSelectionRange(start, end, "forward");
       } catch {}
       const box = editor.getBoundingClientRect();
-      const rect = rangeRectAt(start, Math.max(end, start + 1));
+      const rect = backdrop.rangeRectAt(start, Math.max(end, start + 1));
       const top = rect
         ? rect.top - box.top + editor.scrollTop
         : ((lineCount(editor.value.slice(0, start)) - 1) /
@@ -123,11 +116,13 @@ export function createEditorView(deps: EditorViewDeps): EditorView {
       );
       const caret = editor.selectionStart;
       const rect =
-        rangeRectAt(caret, caret + 1) ??
-        rangeRectAt(Math.max(0, caret - 1), caret);
+        backdrop.rangeRectAt(caret, caret + 1) ??
+        backdrop.rangeRectAt(Math.max(0, caret - 1), caret);
       if (rect && rect.top >= box.top && rect.bottom <= bottom) return caret;
       return (
-        offsetAtY(box.top + (bottom - box.top) * VISIBLE_ANCHOR_SHARE) ?? caret
+        backdrop.offsetAtY(
+          box.top + (bottom - box.top) * VISIBLE_ANCHOR_SHARE,
+        ) ?? caret
       );
     },
     tokenAtCaret() {

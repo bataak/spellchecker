@@ -1,4 +1,4 @@
-import { materializeMark } from "./backdrop.ts";
+import type { Backdrop } from "./backdrop.ts";
 import { copyText } from "./clipboard.ts";
 import { escapeHtml } from "./htmlutil.ts";
 import { nf, reveal } from "./status.ts";
@@ -9,7 +9,7 @@ const LATIN = /\p{Script=Latin}/u;
 
 export interface ErrorPanelDeps {
   readonly editor: HTMLTextAreaElement;
-  readonly backdrop: HTMLElement;
+  readonly backdrop: Backdrop;
   readonly desktopMQ: MediaQueryList;
   readonly badTokens: () => Token[];
   readonly lastCaret: () => { start: number; end: number } | null;
@@ -94,8 +94,7 @@ export function initErrorPanel(deps: ErrorPanelDeps): ErrorPanel {
   }
 
   function scrollMarkIntoView(start: number): void {
-    materializeMark(start);
-    const mark = backdrop.querySelector('mark[data-start="' + start + '"]');
+    const mark = backdrop.markAt(start);
     if (!mark) return;
     const editorRect = editor.getBoundingClientRect();
     const markRect = mark.getBoundingClientRect();
