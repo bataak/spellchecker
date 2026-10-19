@@ -1,19 +1,14 @@
 import type { PreviewSource } from "../preview/preview.ts";
 import { swapText } from "../editortext.ts";
+import type { EditorPort, StatusPort } from "../ports.ts";
 import { dropOfficeFile, loadOfficeFile, saveOfficeFile } from "../storage.ts";
 import type { OfficeMode } from "./mode.ts";
 
 const PREPARE_HOLD_MS = 3000;
 
 export interface OfficeSessionDeps {
-  readonly editor: HTMLTextAreaElement;
-  readonly setStatus: (html: string, animate?: boolean) => void;
-  readonly holdStatus: (html: string, ms?: number, animate?: boolean) => void;
-  readonly releaseStatusHold: () => void;
-  readonly setEditorText: (text: string, caret: number) => unknown;
-  readonly hidePopover: () => void;
-  readonly render: () => Promise<void>;
-  readonly saveText: () => void;
+  readonly editor: EditorPort;
+  readonly status: StatusPort;
   readonly showSource: (source: PreviewSource) => void;
   readonly baseline: () => void;
   readonly syncFixButtons: () => void;
@@ -53,7 +48,8 @@ function errorReason(error: unknown): string {
 }
 
 export function createOfficeSession(deps: OfficeSessionDeps): OfficeSession {
-  const { editor, setStatus, holdStatus } = deps;
+  const editor = deps.editor.el;
+  const { set: setStatus, hold: holdStatus } = deps.status;
   let mode: OfficeMode | null = null;
   let modeFile: File | null = null;
   let ops: Promise<void> = Promise.resolve();
@@ -77,7 +73,7 @@ export function createOfficeSession(deps: OfficeSessionDeps): OfficeSession {
   };
 
   const openPdf = async (file: File): Promise<boolean> => {
-    deps.releaseStatusHold();
+    deps.status.release();
     setStatus("PDF файлыг уншиж байна…");
     let text: string;
     let stallTimer: number | null = null;
@@ -114,10 +110,7 @@ export function createOfficeSession(deps: OfficeSessionDeps): OfficeSession {
       requestAnimationFrame(() => requestAnimationFrame(() => resolve(null))),
     );
     close();
-    deps.setEditorText(text, text.length);
-    deps.hidePopover();
-    await deps.render();
-    deps.saveText();
+    await deps.editor.replace(text, text.length);
     deps.showSource({ kind: "pdf", file });
     return true;
   };
@@ -171,10 +164,8 @@ export function createOfficeSession(deps: OfficeSessionDeps): OfficeSession {
     deps.showSource({ kind: "office", name: file.name });
     document.body.classList.add("docx-mode");
     deps.onModeChange();
-    deps.hidePopover();
     deps.syncFixButtons();
-    await deps.render();
-    deps.saveText();
+    await deps.editor.settle();
     return true;
   };
 
