@@ -103,6 +103,76 @@ export function imageAttrs(node: {
   return parts.length ? "{" + parts.join(" ") + "}" : "";
 }
 
+function appendText(out: Inline[], s: string, held: string[]): void {
+  if (!s) return;
+  const parts = unmask(s, held).split("\n");
+  parts.forEach((part, index) => {
+    const hard = index < parts.length - 1 && part.endsWith(HARD);
+    const value = hard ? part.slice(0, -1) : part;
+    if (value) {
+      const last = out.at(-1);
+      if (last?.type === "text") last.value += value;
+      else out.push({ type: "text", value });
+    }
+    if (index < parts.length - 1)
+      out.push({ type: hard ? "break" : "softbreak" });
+  });
+}
+
+function emphasisNode(
+  m: RegExpExecArray,
+  inner: (src: string) => Inline[],
+): Inline | null {
+  if (m[3] !== undefined) return { type: "del", children: inner(m[3]) };
+  const both = m[4] ?? m[5];
+  if (both)
+    return {
+      type: "strong",
+      children: [{ type: "em", children: inner(both) }],
+    };
+  const strong = m[6] ?? m[7];
+  if (strong) return { type: "strong", children: inner(strong) };
+  const em = m[8] ?? m[9];
+  if (em) return { type: "em", children: inner(em) };
+  return null;
+}
+
+function tokenNode(
+  m: RegExpExecArray,
+  held: string[],
+  lifted: readonly Inline[],
+): Inline | null {
+  const inner = (src: string): Inline[] => parseInlineMasked(src, held, lifted);
+  if (m[2] !== undefined)
+    return {
+      type: "code",
+      value: unmask(m[2].replace(/\n/g, " ").trim(), held, true),
+    };
+  const emphasis = emphasisNode(m, inner);
+  if (emphasis) return emphasis;
+  if (m[15] !== undefined)
+    return imageNode(
+      unmask(m[14] ?? "", held),
+      unmask(m[15], held),
+      m[16] === undefined ? "" : unmask(m[16], held),
+    );
+  if (m[13] !== undefined) return lifted[Number(m[13])] ?? null;
+  if (m[12] !== undefined) {
+    const url = unmask(m[12], held);
+    return {
+      type: "link",
+      url,
+      children: [{ type: "text", value: url }],
+      auto: true,
+    };
+  }
+  return {
+    type: "link",
+    url: unmask(m[11] ?? "", held),
+    children: inner(m[10] ?? ""),
+  };
+}
+
 function parseInlineMasked(
   src: string,
   held: string[],
@@ -110,85 +180,15 @@ function parseInlineMasked(
 ): Inline[] {
   const out: Inline[] = [];
   let rest = src;
-  const pushText = (s: string): void => {
-    if (!s) return;
-    const parts = unmask(s, held).split("\n");
-    parts.forEach((part, index) => {
-      const hard = index < parts.length - 1 && part.endsWith(HARD);
-      const value = hard ? part.slice(0, -1) : part;
-      if (value) {
-        const last = out.at(-1);
-        if (last?.type === "text") last.value += value;
-        else out.push({ type: "text", value });
-      }
-      if (index < parts.length - 1)
-        out.push({ type: hard ? "break" : "softbreak" });
-    });
-  };
-
   for (;;) {
     const m = TOKEN.exec(rest);
     if (!m) break;
-    pushText(rest.slice(0, m.index));
-    if (m[2] !== undefined) {
-      out.push({
-        type: "code",
-        value: unmask(m[2].replace(/\n/g, " ").trim(), held, true),
-      });
-    } else if (m[3] !== undefined) {
-      out.push({
-        type: "del",
-        children: parseInlineMasked(m[3], held, lifted),
-      });
-    } else if (m[4] ?? m[5]) {
-      out.push({
-        type: "strong",
-        children: [
-          {
-            type: "em",
-            children: parseInlineMasked((m[4] ?? m[5])!, held, lifted),
-          },
-        ],
-      });
-    } else if (m[6] ?? m[7]) {
-      out.push({
-        type: "strong",
-        children: parseInlineMasked((m[6] ?? m[7])!, held, lifted),
-      });
-    } else if (m[8] ?? m[9]) {
-      out.push({
-        type: "em",
-        children: parseInlineMasked((m[8] ?? m[9])!, held, lifted),
-      });
-    } else if (m[15] !== undefined) {
-      out.push(
-        imageNode(
-          unmask(m[14] ?? "", held),
-          unmask(m[15], held),
-          m[16] === undefined ? "" : unmask(m[16], held),
-        ),
-      );
-    } else if (m[13] !== undefined) {
-      const math = lifted[Number(m[13])];
-      if (math) out.push(math);
-    } else if (m[12] !== undefined) {
-      const url = unmask(m[12], held);
-      out.push({
-        type: "link",
-        url,
-        children: [{ type: "text", value: url }],
-        auto: true,
-      });
-    } else {
-      out.push({
-        type: "link",
-        url: unmask(m[11] ?? "", held),
-        children: parseInlineMasked(m[10] ?? "", held, lifted),
-      });
-    }
+    appendText(out, rest.slice(0, m.index), held);
+    const node = tokenNode(m, held, lifted);
+    if (node) out.push(node);
     rest = rest.slice(m.index + m[0].length);
   }
-  pushText(rest);
+  appendText(out, rest, held);
   return out;
 }
 
