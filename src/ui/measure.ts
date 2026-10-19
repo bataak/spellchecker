@@ -4,21 +4,22 @@ import {
   DEFAULT_METRICS,
   MEASURES,
   available,
-  clamp,
   contentWidth,
   dockColumnFits,
-  editorWidth,
   key,
   pageWidth,
   parseLayout,
-  previewLayout,
-  previewWidth,
   rowKey,
   has,
   same,
   serializeLayout,
   showsControl,
+  chooseLayout,
+  describeLayout,
+  projectViewport,
+  thumbSpans,
   type Layout,
+  type LayoutChoice,
   type Metrics,
 } from "./layout.ts";
 import { KEYS, read, remove, write, writeJson } from "../core/store.ts";
@@ -245,43 +246,18 @@ const THUMB_H = 30;
 const THUMB_W = 96;
 
 function thumb(l: Layout, x: Metrics, widest: number): SVGSVGElement {
-  const scale = THUMB_W / Math.max(widest, 1);
-  const ed = editorWidth(l.measure, x) * scale;
-  const pv = previewWidth(l, x) * scale;
-  const pn = l.panel ? x.panelW * scale : 0;
-
-  const slots = 1 + (l.preview ? 1 : 0) + (l.panel ? 1 : 0);
-  const total = ed + pv + pn + (slots - 1) * THUMB_GAP;
-
-  const boxW = total;
+  const spans = thumbSpans(l, x, THUMB_W / Math.max(widest, 1), THUMB_GAP);
+  const last = spans[spans.length - 1]!;
+  const boxW = last.x + last.w;
   const svg = document.createElementNS(SVG_NS, "svg");
   svg.setAttribute("viewBox", `0 0 ${boxW.toFixed(2)} ${THUMB_H}`);
   svg.setAttribute("width", boxW.toFixed(2));
   svg.setAttribute("height", String(THUMB_H));
   svg.setAttribute("class", "measure-thumb");
   svg.setAttribute("aria-hidden", "true");
-
-  let at = 0;
-  rect(svg, at, ed, "measure-thumb-editor");
-  at += ed;
-  if (l.preview) {
-    at += THUMB_GAP;
-    rect(svg, at, pv, "measure-thumb-preview");
-    at += pv;
-  }
-  if (l.panel) {
-    at += THUMB_GAP;
-    rect(svg, at, pn, "measure-thumb-panel");
-  }
+  for (const span of spans)
+    rect(svg, span.x, span.w, "measure-thumb-" + span.part);
   return svg;
-}
-
-function describe(l: Layout): string {
-  const n = Math.round(MEASURES[l.measure]);
-  const parts = [`бичвэрийн талбар (${n} тэмдэгт)`];
-  if (l.preview) parts.push("харагдац");
-  if (l.panel) parts.push("алдааны талбар");
-  return parts.join(" + ");
 }
 
 export interface MeasureControl {
@@ -385,8 +361,8 @@ export function initMeasureControl(
       1,
     );
 
-    btn.setAttribute("aria-label", `Байрлал: ${describe(active)}`);
-    btn.title = describe(active);
+    btn.setAttribute("aria-label", `Байрлал: ${describeLayout(active)}`);
+    btn.title = describeLayout(active);
 
     menu.replaceChildren();
     for (const row of rows.values()) {
@@ -399,12 +375,12 @@ export function initMeasureControl(
         opt.dataset.layout = key(l);
         opt.setAttribute("role", "menuitemradio");
         opt.setAttribute("aria-checked", String(same(l, active)));
-        opt.setAttribute("aria-label", describe(l));
+        opt.setAttribute("aria-label", describeLayout(l));
         if (same(l, DEFAULT_LAYOUT)) opt.dataset.default = "true";
 
         const ok = has(avail, l);
         opt.disabled = !ok;
-        opt.title = describe(l);
+        opt.title = describeLayout(l);
         opt.append(thumb(l, metrics, widest));
         if (ok) opt.addEventListener("click", () => pick(l));
         line.append(opt);
@@ -425,17 +401,8 @@ export function initMeasureControl(
       `${measureScrollbar()}px`,
     );
 
-    const choose = (fit: Layout[]): { avail: Layout[]; active: Layout } => {
-      const avail = previewBlocked ? fit.filter((l) => !l.preview) : fit;
-      const base = clamp(
-        previewBlocked ? { ...desired, preview: false } : desired,
-        avail,
-      );
-      return {
-        avail,
-        active: (previewMode && previewLayout(base, avail)) || base,
-      };
-    };
+    const choose = (fit: Layout[]): LayoutChoice =>
+      chooseLayout(fit, desired, previewBlocked, previewMode);
 
     const root = document.documentElement;
     const full = root.clientWidth;
@@ -445,11 +412,10 @@ export function initMeasureControl(
     if (room > 0) {
       const wide = choose(available(metrics, full, prev));
       offered = wide.avail;
-      const loose = wide.active;
-      const float = full - room < pageWidth(loose, metrics);
-      if (float) root.dataset.projectFloat = "";
-      else viewport = full - room;
-      if (!float) delete root.dataset.projectFloat;
+      const plan = projectViewport(full, room, pageWidth(wide.active, metrics));
+      viewport = plan.viewport;
+      if (plan.float) root.dataset.projectFloat = "";
+      else delete root.dataset.projectFloat;
     } else delete root.dataset.projectFloat;
     const fit = available(metrics, viewport, prev);
     prev = fit;

@@ -183,3 +183,66 @@ export function resolveDock(
   if (room) return desired;
   return panelShown ? "panel" : null;
 }
+
+export interface LayoutChoice {
+  readonly avail: Layout[];
+  readonly active: Layout;
+}
+
+export function chooseLayout(
+  fit: Layout[],
+  desired: Layout,
+  previewBlocked: boolean,
+  previewMode: boolean,
+): LayoutChoice {
+  const avail = previewBlocked ? fit.filter((l) => !l.preview) : fit;
+  const base = clamp(
+    previewBlocked ? { ...desired, preview: false } : desired,
+    avail,
+  );
+  return {
+    avail,
+    active: (previewMode && previewLayout(base, avail)) || base,
+  };
+}
+
+export function projectViewport(
+  full: number,
+  room: number,
+  loose: number,
+): { viewport: number; float: boolean } {
+  const float = full - room < loose;
+  return { viewport: float ? full : full - room, float };
+}
+
+export interface ThumbSpan {
+  readonly x: number;
+  readonly w: number;
+  readonly part: "editor" | "preview" | "panel";
+}
+
+export function thumbSpans(
+  l: Layout,
+  x: Metrics,
+  scale: number,
+  gap: number,
+): ThumbSpan[] {
+  const spans: ThumbSpan[] = [
+    { x: 0, w: editorWidth(l.measure, x) * scale, part: "editor" },
+  ];
+  const push = (w: number, part: ThumbSpan["part"]): void => {
+    const last = spans[spans.length - 1]!;
+    spans.push({ x: last.x + last.w + gap, w, part });
+  };
+  if (l.preview) push(previewWidth(l, x) * scale, "preview");
+  if (l.panel) push(x.panelW * scale, "panel");
+  return spans;
+}
+
+export function describeLayout(l: Layout): string {
+  const n = Math.round(MEASURES[l.measure]);
+  const parts = [`бичвэрийн талбар (${n} тэмдэгт)`];
+  if (l.preview) parts.push("харагдац");
+  if (l.panel) parts.push("алдааны талбар");
+  return parts.join(" + ");
+}
