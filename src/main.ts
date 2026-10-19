@@ -7,13 +7,7 @@ import "./deftip.css";
 import "./project/project.css";
 import { MultiSpellChecker } from "./spell/spellchecker.ts";
 import { createSpellSession, tokenizeAll } from "./spell/spellsession.ts";
-import {
-  nextFixStep,
-  pendingFixFor,
-  planSuggestion,
-  propagateFix,
-  type PendingFix,
-} from "./spell/applyfix.ts";
+import { createFixFlow } from "./spell/fixflow.ts";
 import type { SpellChecker } from "./spell/spellchecker.ts";
 import { initFileIO } from "./fileio.ts";
 import { initImageStore } from "./imagestore.ts";
@@ -40,7 +34,6 @@ import { createProjectStore } from "./project/projectstore.ts";
 import { KEYS, read, write } from "./store.ts";
 
 import { escapeHtml } from "./htmlutil.ts";
-import { mergeRanges } from "./spell/codeskip.ts";
 import { isDashSuffix, buildErrorList } from "./spell/textcheck.ts";
 import { saveDraftFile, loadDraftFile } from "./storage.ts";
 import { initMdToolbar, sharedSlot } from "./mdtoolbar.ts";
@@ -176,7 +169,6 @@ let badTokens: Token[] = [];
 const DICT_REFRESH_GAP_MS = 24 * 60 * 60 * 1000;
 const dicts = createDictStatus();
 const refreshDue = createRefreshGate(DICT_REFRESH_GAP_MS);
-let pendingFix: PendingFix | null = null;
 let undoCtl: UndoControl | null = null;
 let tabGuard: TabGuard | null = null;
 let markupSkips = false;
@@ -478,9 +470,7 @@ const errorPanel = initErrorPanel({
   setLastCaret: (caret) => {
     lastCaret = caret;
   },
-  onPick: () => {
-    pendingFix = null;
-  },
+  onPick: () => fixFlow.drop(),
   syncScroll,
   showPopoverFor: (token) => void showPopoverFor(token),
 });
@@ -507,43 +497,24 @@ const suggestPopover = initSuggestPopover({
   checker,
   desktopMQ,
   render: () => render(),
-  apply: (token, replacement) => applySuggestion(token, replacement),
+  apply: (token, replacement) => fixFlow.apply(token, replacement),
   attachKeyboard: (input) => kbLayout.attach(input),
   errorAtCaret: tokenAtCaret,
 });
 const showPopoverFor = suggestPopover.showFor;
 
-async function maybePropagateManual() {
-  const fix = pendingFix;
-  if (!fix) return;
-  const text = els.editor.value;
-  const pos = els.editor.selectionStart;
-  const step = nextFixStep(fix, text, pos);
-  if (step.kind === "drop") pendingFix = null;
-  if (step.kind !== "check") return;
-  if (!(await spell.correctNow(step.word))) return;
-  if (pendingFix !== fix || els.editor.value !== text) return;
-  pendingFix = null;
-  const next = propagateFix(
-    text,
-    pos,
-    fix,
-    step.word,
-    mergeRanges([
-      ...spell.skipFor(text),
-      ...spell.plainFences(text, fix.original),
-    ]),
-  );
-  if (!next) return;
-  const top = els.editor.scrollTop;
-  setEditorText(next.text, next.caret);
-  els.editor.scrollTop = top;
-  render();
-}
+const fixFlow = createFixFlow({
+  editor: els.editor,
+  spell,
+  setText: (text, caret) => setEditorText(text, caret),
+  render: () => void render(),
+  commit: commitReplacement,
+  cancel: () => hidePopover(),
+});
 
 async function recheck() {
   await render();
-  await maybePropagateManual();
+  await fixFlow.propagate();
   saveText();
 }
 
@@ -564,26 +535,6 @@ async function commitReplacement(text: string, caret: number): Promise<void> {
   saveText();
 }
 
-async function applySuggestion(
-  token: Token,
-  replacement: string,
-): Promise<void> {
-  pendingFix = null;
-  const text = els.editor.value;
-  const next = planSuggestion(
-    text,
-    token,
-    replacement,
-    spell.skipFor(text),
-    spell.plainFences(text, token.word),
-  );
-  if (!next) {
-    hidePopover();
-    return;
-  }
-  await commitReplacement(next.text, next.caret);
-}
-
 const deferredCheck = debounce(() => recheck(), 1500);
 
 const LARGE_TEXT = 50_000;
@@ -595,7 +546,7 @@ const settleLarge = debounce(() => {
 
 async function recheckAfterSeparator(): Promise<void> {
   if (els.editor.value.length <= LARGE_TEXT) return recheck();
-  await maybePropagateManual();
+  await fixFlow.propagate();
   settleLarge();
 }
 
@@ -603,15 +554,12 @@ let hadSelection = false;
 els.editor.addEventListener("beforeinput", () => {
   hadSelection = els.editor.selectionStart !== els.editor.selectionEnd;
   if (editorText.programmatic()) return;
-  const caretToken = tokenAtCaret();
-  pendingFix = caretToken ? pendingFixFor(els.editor.value, caretToken) : null;
+  fixFlow.arm(tokenAtCaret());
 });
 
 const editorText = initEditorText({
   editor: els.editor,
-  onEdit: () => {
-    pendingFix = null;
-  },
+  onEdit: () => fixFlow.drop(),
   onReplace: () => previewCtl?.setSource(null),
   accept: (old, next) => {
     const docx = office.active();
@@ -703,7 +651,7 @@ els.editor.addEventListener("input", (e) => {
 });
 
 els.editor.addEventListener("blur", () => {
-  pendingFix = null;
+  fixFlow.drop();
   lastCaret = {
     start: els.editor.selectionStart,
     end: els.editor.selectionEnd,
@@ -730,7 +678,7 @@ new ResizeObserver(() => {
   refreshMarksSoon();
 }).observe(els.editor);
 els.editor.addEventListener("click", () => {
-  pendingFix = null;
+  fixFlow.drop();
   if (suppressNextClick) {
     suppressNextClick = false;
     return;
@@ -746,9 +694,7 @@ els.editor.addEventListener("keyup", (e) => {
     "Home",
     "End",
   ];
-  if (nav.indexOf(e.key) !== -1) {
-    pendingFix = null;
-  }
+  if (nav.indexOf(e.key) !== -1) fixFlow.drop();
 });
 
 let suppressNextClick = false;
