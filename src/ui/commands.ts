@@ -43,9 +43,7 @@ export function createButtonCommands(root: ParentNode = document): Commands {
   const button = (id: CommandId): HTMLButtonElement | null =>
     root.querySelector<HTMLButtonElement>(BUTTONS[id]);
 
-  const flash = (id: CommandId): void => {
-    const btn = button(id);
-    if (!btn || btn.disabled) return;
+  const mark = (btn: HTMLButtonElement): void => {
     btn.classList.add("kbd-active");
     clearTimeout(timers.get(btn));
     timers.set(
@@ -59,12 +57,15 @@ export function createButtonCommands(root: ParentNode = document): Commands {
       const btn = button(id);
       if (!btn || btn.disabled) return;
       btn.click();
-      flash(id);
+      mark(btn);
     },
     click(id) {
       button(id)?.click();
     },
-    flash,
+    flash(id) {
+      const btn = button(id);
+      if (btn && !btn.disabled) mark(btn);
+    },
     hint(id, combo) {
       const btn = button(id);
       if (!btn) return;
