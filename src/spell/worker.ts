@@ -1,59 +1,9 @@
 import type { WorkerRequest, WorkerResponse, DictFailure } from "./messages.ts";
-import { fetchGzBytes, loadDictBytes } from "../dict/dictrefresh.ts";
-import {
-  findHeadword,
-  findTaggedHeadword,
-  resolveDefinitions,
-  resolveTagged,
-  type LookupMode,
-  type DictEntry,
-  type StarDict,
-  hasLatinHeadwords,
-} from "../dict/stardict.ts";
-import { DictReadError, loadStarDicts } from "../dict/stardictload.ts";
-import type { DictListEntry } from "../dict/dictindex.ts";
-import {
-  loadDictOrder,
-  loadUserDicts,
-  sortByOrder,
-  idxDigest,
-} from "../dict/userdicts.ts";
-import stardictList from "virtual:stardict-index";
-import { englishStems } from "./lookup.ts";
-import {
-  bareStemInfinitives,
-  collectiveGenitive,
-  lookupCandidates,
-  parseAnalyses,
-  type Analysis,
-} from "./verbform.ts";
-import { dashNormalized, isLexicalHyphen } from "./textcheck.ts";
+import { createDictLookup } from "../dict/dictlookup.ts";
+import { createStarDictStore, isLatinDict } from "../dict/stardictstore.ts";
+import { createSpellers, DICTIONARIES, PRIMARY } from "./spellers.ts";
+import { createWordCheck } from "./wordcheck.ts";
 import { standardLetters } from "./letters.ts";
-
-export interface SpellerInstance {
-  spell: (word: string) => boolean;
-  suggest: (word: string) => string[];
-  stem?: (word: string) => string[];
-  analyze?: (word: string) => string[];
-  dispose?: () => void;
-}
-
-export interface SpellBackend {
-  label: string;
-  fallbackReason?: string;
-  build: (
-    aff: Uint8Array,
-    dic: Uint8Array,
-    id?: string,
-  ) => Promise<SpellerInstance>;
-}
-
-interface ManifestEntry {
-  id: string;
-  version: string | null;
-  aff: string;
-  dic: string;
-}
 
 declare global {
   interface Window {
@@ -62,8 +12,6 @@ declare global {
 }
 
 const post = (msg: WorkerResponse): void => self.postMessage(msg);
-
-const utf8 = new TextDecoder("utf-8");
 
 const netFetch: typeof fetch = self.fetch.bind(self);
 
@@ -87,646 +35,64 @@ if (!self.__cacheFirstFetch) {
   };
 }
 
-const DICTIONARIES = [
-  { id: "mn_MN", label: "Монгол" },
-  { id: "en_GB", label: "English (UK)" },
-  { id: "en_US", label: "English (US)" },
-];
-const PRIMARY = "mn_MN";
-
 let BASE = "/";
 const asset = (path: string): string =>
   (BASE + path).replace(/([^:])\/{2,}/g, "$1/");
 
-async function loadManifest(): Promise<Record<string, ManifestEntry>> {
-  if (import.meta.env.DEV) {
-    const out: Record<string, ManifestEntry> = {};
-    for (const dict of DICTIONARIES) {
-      out[dict.id] = {
-        id: dict.id,
-        version: null,
-        aff: dict.id + ".aff",
-        dic: dict.id + ".dic",
-      };
-    }
-    return out;
-  }
-  const res = await fetch(asset("dict/dict-manifest.json"));
-  if (!res.ok) throw new Error("dict-manifest.json -> " + res.status);
-  const data = (await res.json()) as { dicts?: ManifestEntry[] };
-  const out: Record<string, ManifestEntry> = {};
-  for (const entry of data.dicts || []) out[entry.id] = entry;
-  return out;
-}
-
-async function loadHunspellWasm(): Promise<SpellBackend> {
-  const mod = await import("hunspell-wasm");
-  const create = mod.createHunspellFromStrings;
-  if (typeof create !== "function")
-    throw new Error("createHunspellFromStrings алга");
-  const probe = await create("SET UTF-8\n", "1\nhello\n");
-  if (!probe || typeof probe.testSpelling !== "function")
-    throw new Error("hunspell-wasm буруу");
-  if (probe.dispose) probe.dispose();
-  return {
-    label: "hunspell-wasm",
-    build: async (aff, dic) => {
-      const hunspellInstance = await create(aff, dic);
-      const canStem = typeof hunspellInstance.stemWord === "function";
-      const canAnalyze = typeof hunspellInstance.analyzeWord === "function";
-      return {
-        spell: (word) => hunspellInstance.testSpelling(word),
-        suggest: (word) => hunspellInstance.getSpellingSuggestions(word),
-        ...(canStem
-          ? { stem: (word: string) => hunspellInstance.stemWord(word) }
-          : {}),
-        ...(canAnalyze
-          ? { analyze: (word: string) => hunspellInstance.analyzeWord(word) }
-          : {}),
-        dispose: () => {
-          if (hunspellInstance.dispose) hunspellInstance.dispose();
-        },
-      };
-    },
-  };
-}
-
-async function loadNspell(): Promise<SpellBackend> {
-  const mod = await import("nspell");
-  const nspell = mod.default || mod;
-  const probe = nspell("SET UTF-8\n", "1\nhello\n");
-  if (!probe || typeof probe.correct !== "function")
-    throw new Error("nspell буруу");
-  return {
-    label: "nspell (хялбаршуулсан)",
-    build: async (aff, dic) => {
-      const nspellInstance = nspell(utf8.decode(aff), utf8.decode(dic));
-      return {
-        spell: (word) => nspellInstance.correct(word),
-        suggest: (word) => nspellInstance.suggest(word),
-      };
-    },
-  };
-}
-
-async function resolveBackend(): Promise<SpellBackend> {
-  try {
-    return await loadHunspellWasm();
-  } catch (wasmError) {
-    const reason =
-      wasmError instanceof Error ? wasmError.message : String(wasmError);
-    const fallbackBackend = await loadNspell();
-    fallbackBackend.fallbackReason = reason;
-    return fallbackBackend;
-  }
-}
-
-const instances: { id: string; inst: SpellerInstance }[] = [];
-const active = new Set<string>(DICTIONARIES.map((dict) => dict.id));
-const activeInstances = (): { id: string; inst: SpellerInstance }[] =>
-  instances.filter(({ id }) => active.has(id));
-let backend: SpellBackend | null = null;
-let manifest: Record<string, ManifestEntry> | null = null;
-let mnVersion: string | null = null;
-
-async function loadOne(id: string): Promise<string> {
-  const entry = manifest![id];
-  if (!entry) throw new Error(id + " manifest-д алга");
-  const [aff, dic] = await Promise.all([
-    fetchGzBytes(asset("dict/" + entry.aff)),
-    fetchGzBytes(asset("dict/" + entry.dic)),
-  ]);
-  const inst = await backend!.build(aff, dic, id);
-  if (id === PRIMARY) {
-    mnVersion =
-      entry.version ||
-      utf8
-        .decode(aff)
-        .match(/^#?\s*Version:\s*(.+)$/m)?.[1]!
-        .trim() ||
-      null;
-  }
-  instances.push({ id, inst });
-  const order = (item: { id: string }): number =>
-    DICTIONARIES.findIndex((dict) => dict.id === item.id);
-  instances.sort((a, b) => order(a) - order(b));
-  return id;
-}
-
-let refreshing = false;
-
-const cacheOnlyFetch: typeof fetch = async (input) => {
-  const url =
-    typeof input === "string"
-      ? input
-      : input instanceof URL
-        ? input.href
-        : input.url;
-  const hit = await caches.match(url, { ignoreSearch: true });
-  if (!hit) throw new Error("precache-д алга: " + url);
-  return hit;
-};
-
-async function refreshPrimary(): Promise<void> {
-  if (import.meta.env.DEV) return;
-  if (refreshing || !backend || !manifest) return;
-  refreshing = true;
-  try {
-    const url =
-      asset("dict/dict-manifest.json") + "?fresh=" + String(Date.now());
-    const res = await netFetch(url, { cache: "no-store" });
-    if (!res.ok) return;
-    const data = (await res.json()) as { dicts?: ManifestEntry[] };
-    const entry = (data.dicts || []).find((dict) => dict.id === PRIMARY);
-    if (!entry || !entry.version) return;
-    if (entry.version === mnVersion) return;
-    const files = await loadDictBytes(
-      asset("dict/" + entry.aff),
-      asset("dict/" + entry.dic),
-      [cacheOnlyFetch, netFetch],
-    );
-    if (!files) return;
-    const inst = await backend.build(files[0], files[1], PRIMARY);
-    if (typeof inst.spell !== "function" || typeof inst.suggest !== "function")
-      return;
-    const index = instances.findIndex((item) => item.id === PRIMARY);
-    const previous = index >= 0 ? instances[index]!.inst : null;
-    if (index >= 0) {
-      instances[index] = { id: PRIMARY, inst };
-    } else {
-      instances.push({ id: PRIMARY, inst });
-      const order = (item: { id: string }): number =>
-        DICTIONARIES.findIndex((dict) => dict.id === item.id);
-      instances.sort((a, b) => order(a) - order(b));
-    }
-    manifest[PRIMARY] = entry;
-    mnVersion = entry.version;
-    post({ type: "dictUpdated", id: PRIMARY, version: entry.version });
-    if (previous && previous.dispose) {
-      try {
-        previous.dispose();
-      } catch (_) {}
-    }
-  } catch (_) {
-  } finally {
-    refreshing = false;
-  }
-}
-
-let starDicts: StarDict[] = [];
-
-interface LoadedDict {
-  id: string;
-  user: boolean;
-  digest: string;
-  dict: StarDict;
-}
-
-const STARDICT_DIR = (): string => asset("dict/stardict/");
-const RELOAD_BACKOFF = [2000, 5000, 15000, 60000];
-
-let loadedDicts: LoadedDict[] = [];
-let bundled = new Map<string, LoadedDict>();
-let bundledMissing: DictListEntry[] = [];
-let userDicts: LoadedDict[] = [];
-let userIncomplete = false;
-let dictOrder: string[] = [];
-let generation = 0;
-let starDictLoading: Promise<void> | null = null;
-let repairing: Promise<void> | null = null;
-let repairAt = 0;
-let repairCount = 0;
-
-function composeDicts(): void {
-  const list = [
-    ...stardictList.flatMap((entry) => {
-      const found = bundled.get(entry.base);
-      return found ? [found] : [];
-    }),
-    ...userDicts,
-  ];
-  loadedDicts = sortByOrder(list, dictOrder);
-  starDicts = loadedDicts.map((entry) => entry.dict);
-  post({
-    type: "dictScripts",
-    latin: starDicts.some((dict) => isLatinDict(dict)),
-  });
-}
-
-async function bundledEntry(dict: StarDict): Promise<LoadedDict> {
-  return {
-    id: "bundled:" + dict.info.bookname,
-    user: false,
-    digest: await idxDigest(dict.index.bytes),
-    dict,
-  };
-}
-
-interface BundledResult {
-  loaded: [string, LoadedDict][];
-  failed: DictListEntry[];
-}
-
-async function loadBundled(list: DictListEntry[]): Promise<BundledResult> {
-  try {
-    const { loaded, failed } = await loadStarDicts(STARDICT_DIR(), list);
-    const entries = await Promise.all(
-      loaded.map(
-        async ({ entry, dict }) =>
-          [entry.base, await bundledEntry(dict)] as [string, LoadedDict],
-      ),
-    );
-    return { loaded: entries, failed };
-  } catch (err) {
-    console.warn("StarDict ачаалагдсангүй:", err);
-    return { loaded: [], failed: list.slice() };
-  }
-}
-
-interface UserResult {
-  loaded: LoadedDict[];
-  incomplete: boolean;
-}
-
-async function loadUser(): Promise<UserResult> {
-  try {
-    const { loaded, failed } = await loadUserDicts();
-    return {
-      loaded: loaded.map(({ name, digest, dict }) => ({
-        id: "user:" + name,
-        user: true,
-        digest,
-        dict,
-      })),
-      incomplete: failed.length > 0,
-    };
-  } catch (err) {
-    console.warn("Хэрэглэгчийн толь ачаалагдсангүй:", err);
-    return { loaded: [], incomplete: true };
-  }
-}
-
-function scheduleRepair(): void {
-  if (!bundledMissing.length && !userIncomplete) {
-    repairCount = 0;
-    repairAt = 0;
-    return;
-  }
-  const delay =
-    RELOAD_BACKOFF[Math.min(repairCount, RELOAD_BACKOFF.length - 1)]!;
-  repairCount++;
-  repairAt = Date.now() + delay;
-}
-
-async function loadAllDicts(): Promise<void> {
-  const current = generation;
-  const [found, user, order] = await Promise.all([
-    loadBundled(stardictList),
-    loadUser(),
-    loadDictOrder().catch(() => []),
-  ]);
-  if (current !== generation) return;
-  bundled = new Map(found.loaded);
-  bundledMissing = found.failed;
-  userDicts = user.loaded;
-  userIncomplete = user.incomplete;
-  dictOrder = order;
-  composeDicts();
-  scheduleRepair();
-}
-
-async function repairDicts(): Promise<void> {
-  const current = generation;
-  const missing = bundledMissing.slice();
-  const repairUser = userIncomplete;
-  const found = missing.length
-    ? await loadBundled(missing)
-    : { loaded: [], failed: [] };
-  const user = repairUser ? await loadUser() : null;
-  if (current !== generation) return;
-  for (const [base, entry] of found.loaded) bundled.set(base, entry);
-  bundledMissing = [
-    ...found.failed,
-    ...bundledMissing.filter(
-      (entry) => !missing.includes(entry) && !bundled.has(entry.base),
-    ),
-  ];
-  if (user) {
-    userDicts = user.loaded;
-    userIncomplete = user.incomplete;
-  }
-  composeDicts();
-  scheduleRepair();
-}
-
-async function ensureStarDicts(): Promise<void> {
-  if (!starDictLoading) starDictLoading = loadAllDicts();
-  await starDictLoading;
-  if (!bundledMissing.length && !userIncomplete) return;
-  if (Date.now() < repairAt) return;
-  if (!repairing)
-    repairing = repairDicts().finally(() => {
-      repairing = null;
-    });
-  await repairing;
-}
-
-function resetStarDicts(): void {
-  generation++;
-  starDictLoading = null;
-  repairing = null;
-  repairAt = 0;
-  repairCount = 0;
-  bundled = new Map();
-  bundledMissing = [];
-  userDicts = [];
-  userIncomplete = false;
-  composeDicts();
-}
-
-function markBroken(broken: StarDict[]): void {
-  for (const dict of broken) {
-    for (const [base, entry] of bundled) {
-      if (entry.dict !== dict) continue;
-      bundled.delete(base);
-      const listed = stardictList.find((item) => item.base === base);
-      if (listed && !bundledMissing.includes(listed))
-        bundledMissing.push(listed);
-    }
-    if (userDicts.some((entry) => entry.dict === dict)) {
-      userDicts = userDicts.filter((entry) => entry.dict !== dict);
-      userIncomplete = true;
-    }
-  }
-  composeDicts();
-  repairAt = 0;
-}
-
-async function inDict<T>(
-  dict: StarDict,
-  broken: StarDict[],
-  run: () => Promise<T>,
-  fallback: T,
-): Promise<T> {
-  try {
-    return await run();
-  } catch (err) {
-    if (err instanceof DictReadError) broken.push(dict);
-    else console.warn("StarDict хайлт амжилтгүй:", dict.info.bookname, err);
-    return fallback;
-  }
-}
-
-async function withDicts<T>(
-  run: (dicts: StarDict[], broken: StarDict[]) => Promise<T>,
-): Promise<T> {
-  await ensureStarDicts();
-  const broken: StarDict[] = [];
-  const result = await run(starDicts, broken);
-  if (!broken.length) return result;
-  markBroken(broken);
-  await ensureStarDicts();
-  return run(starDicts, []);
-}
-
-self.addEventListener("online", () => {
-  repairAt = 0;
-  repairCount = 0;
+const spellers = createSpellers({
+  asset,
+  netFetch,
+  onUpdated: (id, version) => post({ type: "dictUpdated", id, version }),
 });
+const words = createWordCheck({
+  primary: spellers.primary,
+  active: spellers.active,
+});
+const store = createStarDictStore({
+  dir: () => asset("dict/stardict/"),
+  onScripts: (latin) => post({ type: "dictScripts", latin }),
+});
+const lookup = createDictLookup({ store, words });
 
-const MAX_DEFINITIONS = 12;
+self.addEventListener("online", () => store.online());
 
-function sourceOf(dict: StarDict): string {
-  return dict.info.bookname;
-}
-
-async function headwordIn(
-  dict: StarDict,
-  word: string,
-  mode: LookupMode,
-): Promise<string | null> {
-  return dict.info.posTagged
-    ? await findTaggedHeadword(dict, word, () => analysesFor(word), mode)
-    : findHeadword(dict, word, () => stemsOf(word), mode);
-}
-
-async function definitionsIn(
-  dict: StarDict,
-  word: string,
-  mode: LookupMode,
-): Promise<DictEntry[]> {
-  const found = dict.info.posTagged
-    ? await resolveTagged(dict, word, () => analysesFor(word), mode)
-    : await resolveDefinitions(
-        dict,
-        word,
-        () => stemsOf(word),
-        mode,
-        () => infinitivesOfStem(word),
-      );
-  const label = sourceOf(dict);
-  return found.map((entry) => ({ ...entry, source: label }));
-}
-
-function stringList(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string")
-    : [];
-}
-
-function analysesOf(inst: SpellerInstance, word: string): Analysis[] {
-  if (inst.analyze) {
-    const parsed = parseAnalyses(stringList(inst.analyze(word)));
-    if (parsed.length) return parsed;
-  }
-  if (!inst.stem) return [];
-  return stringList(inst.stem(word)).map((stem) => ({ stem, verb: null }));
-}
-
-function spells(inst: SpellerInstance, candidate: string): boolean {
+async function init(): Promise<void> {
+  const backend = await spellers.start();
+  const loaded: string[] = [];
+  const failed: DictFailure[] = [];
   try {
-    return inst.spell(candidate);
-  } catch (_) {
-    return false;
+    await spellers.load(PRIMARY);
+    loaded.push(PRIMARY);
+  } catch (err) {
+    failed.push({ id: PRIMARY, error: String(err) });
   }
-}
-
-function collectiveBase(inst: SpellerInstance, word: string): string | null {
-  const genitive = collectiveGenitive(word);
-  return genitive && spells(inst, genitive) ? genitive : null;
-}
-
-const LATIN_WORD = /\p{Script=Latin}/u;
-const latinDicts = new WeakMap<StarDict, boolean>();
-
-function isLatinDict(dict: StarDict): boolean {
-  let latin = latinDicts.get(dict);
-  if (latin === undefined) {
-    latin = hasLatinHeadwords(dict.index);
-    latinDicts.set(dict, latin);
-  }
-  return latin;
-}
-
-function analysesFor(word: string): Analysis[] {
-  if (LATIN_WORD.test(word)) return [];
-  const primary = instances.find((item) => item.id === PRIMARY)?.inst;
-  if (!primary) return [];
-  try {
-    const analyses = analysesOf(primary, word);
-    const genitive = collectiveBase(primary, word);
-    return genitive
-      ? [...analyses, ...analysesOf(primary, genitive)]
-      : analyses;
-  } catch (_) {
-    return [];
-  }
-}
-
-const ENGLISH_IDS: ReadonlySet<string> = new Set(["en_US", "en_GB"]);
-
-function englishStemsOf(word: string): string[] {
-  const english = activeInstances().filter(({ id }) => ENGLISH_IDS.has(id));
-  const lower = word.toLowerCase();
-  const out: string[] = [];
-  const add = (stem: string): void => {
-    if (stem && stem !== word && stem !== lower && !out.includes(stem))
-      out.push(stem);
-  };
-  for (const { inst } of english) {
-    if (!inst.stem) continue;
-    try {
-      for (const form of [word, lower])
-        stringList(inst.stem(form)).forEach(add);
-    } catch (_) {}
-  }
-  if (out.length) return out;
-  const rules = englishStems(word);
-  if (!english.length) return rules;
-  return rules.filter((stem) =>
-    english.some(({ inst }) => {
-      try {
-        return inst.spell(stem);
-      } catch (_) {
-        return false;
-      }
-    }),
+  const rest = DICTIONARIES.filter((dict) => dict.id !== PRIMARY);
+  post({
+    type: "ready",
+    loaded,
+    failed,
+    pending: rest.map((dict) => dict.id),
+    source: backend.label,
+    fallbackReason: backend.fallbackReason || null,
+    mnVersion: spellers.version(),
+  });
+  const results = await Promise.all(
+    rest.map((dict) =>
+      spellers.load(dict.id).then(
+        (id) => ({ id, error: null as string | null }),
+        (err) => ({ id: dict.id, error: String(err) }),
+      ),
+    ),
   );
-}
-
-function stemsOf(word: string): string[] {
-  if (LATIN_WORD.test(word)) return englishStemsOf(word);
-  const primary = instances.find((item) => item.id === PRIMARY)?.inst;
-  if (!primary) return [];
-  try {
-    const isWord = (candidate: string) => spells(primary, candidate);
-    const candidates = lookupCandidates(
-      word,
-      analysesOf(primary, word),
-      isWord,
-    );
-    const genitive = collectiveBase(primary, word);
-    if (!genitive) return candidates;
-    const all = [
-      ...candidates,
-      ...lookupCandidates(genitive, analysesOf(primary, genitive), isWord),
-    ];
-    return all.filter((item, position) => all.indexOf(item) === position);
-  } catch (_) {
-    return [];
-  }
-}
-
-function infinitivesOfStem(word: string): string[] {
-  if (LATIN_WORD.test(word)) return [];
-  const primary = instances.find((item) => item.id === PRIMARY)?.inst;
-  if (!primary) return [];
-  try {
-    return bareStemInfinitives(word, analysesOf(primary, word), (candidate) =>
-      spells(primary, candidate),
-    );
-  } catch (_) {
-    return [];
-  }
-}
-
-const STARTS_UPPER = /^\p{Lu}/u;
-
-function lookupModeOf(word: string): LookupMode {
-  if (!STARTS_UPPER.test(word) || LATIN_WORD.test(word)) return "any";
-  const primary = instances.find((item) => item.id === PRIMARY)?.inst;
-  if (!primary) return "any";
-  try {
-    return primary.spell(word.toLowerCase()) ? "any" : "proper";
-  } catch (_) {
-    return "any";
-  }
-}
-
-function isLexicalCompound(word: string): boolean {
-  const primary = instances.find((item) => item.id === PRIMARY)?.inst;
-  if (!primary?.analyze || !primary.spell(word)) return false;
-  return isLexicalHyphen(stringList(primary.analyze(word)));
-}
-
-function isCorrect(word: string): boolean {
-  const hyphened = dashNormalized(word);
-  if (hyphened !== null) return !isLexicalCompound(hyphened);
-  const list = activeInstances();
-  if (!list.length) return true;
-  const cyr = /[\u0400-\u04FF\u1800-\u18AF]/.test(word);
-  const lat = /[A-Za-z]/.test(word);
-  if (lat && !cyr && !list.some((item) => item.id.startsWith("en")))
-    return true;
-  if (cyr && !lat && !list.some((item) => item.id.startsWith("mn")))
-    return true;
-  return list.some(({ inst }) => inst.spell(word));
-}
-
-const SUGGEST_CACHE_MAX = 200;
-const suggestCache = new WeakMap<SpellerInstance, Map<string, string[]>>();
-
-function cachedSuggest(inst: SpellerInstance, word: string): string[] {
-  let memo = suggestCache.get(inst);
-  if (!memo) {
-    memo = new Map();
-    suggestCache.set(inst, memo);
-  }
-  const hit = memo.get(word);
-  if (hit) {
-    memo.delete(word);
-    memo.set(word, hit);
-    return hit;
-  }
-  const result = inst.suggest(word) || [];
-  memo.set(word, result);
-  if (memo.size > SUGGEST_CACHE_MAX) memo.delete(memo.keys().next().value!);
-  return result;
-}
-
-function suggest(word: string): string[] {
-  const base = activeInstances();
-  const cyr = /[\u0400-\u04FF\u1800-\u18AF]/.test(word);
-  const lat = /[A-Za-z]/.test(word);
-  let list = base;
-  if (cyr && !lat) {
-    list = base.filter(({ id }) => id.startsWith("mn"));
-  } else if (lat && !cyr) {
-    list = base.filter(({ id }) => id.startsWith("en"));
-  }
-  if (!list.length) list = base;
-
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const { inst } of list) {
-    for (const suggestion of cachedSuggest(inst, word)) {
-      if (!seen.has(suggestion)) {
-        seen.add(suggestion);
-        out.push(suggestion);
-      }
-    }
-  }
-  return out;
+  post({
+    type: "complete",
+    loaded: results
+      .filter((result) => !result.error)
+      .map((result) => result.id),
+    failed: results.filter(
+      (result): result is { id: string; error: string } => !!result.error,
+    ),
+  });
 }
 
 self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
@@ -735,45 +101,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   if (msg.type === "init") {
     BASE = msg.base || "/";
     try {
-      backend = await resolveBackend();
-      manifest = await loadManifest();
-      const loaded: string[] = [];
-      const failed: DictFailure[] = [];
-      try {
-        await loadOne(PRIMARY);
-        loaded.push(PRIMARY);
-      } catch (err) {
-        failed.push({ id: PRIMARY, error: String(err) });
-      }
-      post({
-        type: "ready",
-        loaded,
-        failed,
-        pending: DICTIONARIES.filter((dict) => dict.id !== PRIMARY).map(
-          (dict) => dict.id,
-        ),
-        source: backend.label,
-        fallbackReason: backend.fallbackReason || null,
-        mnVersion,
-      });
-      const rest = DICTIONARIES.filter((dict) => dict.id !== PRIMARY);
-      const results = await Promise.all(
-        rest.map((dict) =>
-          loadOne(dict.id).then(
-            (id) => ({ id, error: null as string | null }),
-            (err) => ({ id: dict.id, error: String(err) }),
-          ),
-        ),
-      );
-      post({
-        type: "complete",
-        loaded: results
-          .filter((result) => !result.error)
-          .map((result) => result.id),
-        failed: results.filter(
-          (result): result is { id: string; error: string } => !!result.error,
-        ),
-      });
+      await init();
     } catch (err) {
       post({ type: "error", error: String(err) });
     }
@@ -781,18 +109,16 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   }
 
   if (msg.type === "reorderDicts") {
-    await ensureStarDicts();
-    dictOrder = await loadDictOrder().catch(() => dictOrder);
-    composeDicts();
+    await store.reorder();
     return;
   }
 
   if (msg.type === "listDicts") {
-    if (!msg.peek) await ensureStarDicts();
+    if (!msg.peek) await store.ensure();
     post({
       type: "listDicts",
       id: msg.id,
-      dicts: loadedDicts.map(({ id, user, digest, dict }) => ({
+      dicts: store.loaded().map(({ id, user, digest, dict }) => ({
         id,
         digest,
         name: dict.info.bookname,
@@ -805,20 +131,18 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   }
 
   if (msg.type === "reloadDicts") {
-    resetStarDicts();
-    await ensureStarDicts();
+    store.reset();
+    await store.ensure();
     return;
   }
 
   if (msg.type === "refresh") {
-    await refreshPrimary();
+    await spellers.refresh();
     return;
   }
 
   if (msg.type === "setActive") {
-    active.clear();
-    for (const id of msg.ids) active.add(id);
-    active.add(PRIMARY);
+    spellers.setActive(msg.ids);
     return;
   }
 
@@ -826,7 +150,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
     const out: Record<string, boolean> = {};
     for (const word of msg.words) {
       try {
-        out[word] = isCorrect(standardLetters(word));
+        out[word] = words.isCorrect(standardLetters(word));
       } catch (_) {
         out[word] = true;
       }
@@ -836,54 +160,20 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   }
 
   if (msg.type === "lookup") {
-    const found = await withDicts(async (dicts, broken) => {
-      if (!dicts.length) return null;
-      const out: Record<string, string> = {};
-      for (const raw of msg.words) {
-        const word = standardLetters(raw);
-        const mode = lookupModeOf(word);
-        for (const dict of dicts) {
-          const headword = await inDict(
-            dict,
-            broken,
-            () => headwordIn(dict, word, mode),
-            null,
-          );
-          if (headword != null) {
-            out[raw] = headword;
-            break;
-          }
-        }
-      }
-      return out;
-    });
+    const found = await lookup.headwords(msg.words);
     post({ type: "lookup", id: msg.id, found });
     return;
   }
 
   if (msg.type === "define") {
-    const word = standardLetters(msg.word);
-    const mode = lookupModeOf(word);
-    const entries = await withDicts(async (dicts, broken) => {
-      const out: DictEntry[] = [];
-      for (const dict of dicts) {
-        if (out.length >= MAX_DEFINITIONS) break;
-        const found = await inDict(
-          dict,
-          broken,
-          () => definitionsIn(dict, word, mode),
-          [],
-        );
-        out.push(...found.slice(0, MAX_DEFINITIONS - out.length));
-      }
-      return out;
-    });
+    const entries = await lookup.define(standardLetters(msg.word));
+    const dicts = store.dicts();
     post({
       type: "define",
       id: msg.id,
-      source: starDicts.length > 1 ? "" : (starDicts[0]?.info.bookname ?? ""),
+      source: dicts.length > 1 ? "" : (dicts[0]?.info.bookname ?? ""),
       entries,
-      dicts: starDicts.length,
+      dicts: dicts.length,
     });
     return;
   }
@@ -891,7 +181,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   if (msg.type === "suggest") {
     let suggestions: string[] = [];
     try {
-      suggestions = suggest(standardLetters(msg.word)) || [];
+      suggestions = words.suggest(standardLetters(msg.word)) || [];
     } catch (_) {
       suggestions = [];
     }
