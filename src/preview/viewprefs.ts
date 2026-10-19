@@ -74,6 +74,21 @@ export function saveZoom(zoom: number): void {
   else write(KEYS.pdfZoom, String(zoom));
 }
 
+export function scrollRatio(left: number, range: number): number | null {
+  return range > 0 ? Math.min(Math.max(left / range, 0), 1) : null;
+}
+
+export function loadScrollX(): number | null {
+  const value = read(KEYS.pdfScrollX);
+  if (value === null) return null;
+  const ratio = Number(value);
+  return Number.isFinite(ratio) ? Math.min(Math.max(ratio, 0), 1) : null;
+}
+
+export function saveScrollX(ratio: number): void {
+  write(KEYS.pdfScrollX, String(Math.round(ratio * 10000) / 10000));
+}
+
 export function loadInvert(): boolean {
   return read(KEYS.pdfInvert) !== "off";
 }
