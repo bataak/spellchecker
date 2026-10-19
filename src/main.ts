@@ -1,4 +1,4 @@
-import "./wipe.ts";
+import { confirmWipe } from "./wipe.ts";
 import "./style.css";
 import "./gutter.css";
 import "./mdbar/md-toolbar.css";
@@ -40,11 +40,12 @@ import { initEditorText } from "./editortext.ts";
 import { initDraftText } from "./drafttext.ts";
 import { initAppUpdate } from "./appupdate.ts";
 import { initShortcuts } from "./shortcuts.ts";
+import { createButtonCommands } from "./commands.ts";
 import { installErrorLog } from "./errorlog.ts";
 import { createEditorPort } from "./ports.ts";
 import { createDocStatus } from "./app/docstatus.ts";
 import { createCheckLoop } from "./app/checkloop.ts";
-import { createEditorView } from "./app/editorview.ts";
+import { bindLineBlocks, createEditorView } from "./app/editorview.ts";
 import { initAppHints } from "./app/apphints.ts";
 import { warmTex } from "./app/texwarm.ts";
 import { createOpenPolicy } from "./app/openpolicy.ts";
@@ -77,12 +78,7 @@ const { desktopMQ, narrowMQ, touchMQ } = els;
 const layoutChanged = createSignal<Layout>();
 
 const backdrop = createBackdrop(els.backdrop);
-backdrop.setLineBlocks(!narrowMQ.matches);
-narrowMQ.addEventListener("change", () => {
-  backdrop.setLineBlocks(!narrowMQ.matches);
-  backdrop.reset();
-  void loop.render();
-});
+bindLineBlocks(backdrop, narrowMQ, () => void loop.render());
 
 const view = createEditorView({
   editor: editorEl,
@@ -559,6 +555,8 @@ editorEl.addEventListener("input", nudgeHints);
 
 initShortcuts({
   editor: editorEl,
+  commands: createButtonCommands(),
+  wipe: confirmWipe,
   openDictMenu: () => dictionaries.openMenu(),
   lastCaret: () => lastCaret,
 });

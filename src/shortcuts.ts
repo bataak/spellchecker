@@ -1,4 +1,4 @@
-import { confirmWipe } from "./wipe.ts";
+import type { CommandId, Commands } from "./commands.ts";
 
 type Action = (e: KeyboardEvent) => void;
 
@@ -8,6 +8,21 @@ interface Binding {
   readonly anywhere?: boolean;
   readonly match: (e: KeyboardEvent) => boolean;
   readonly run: Action;
+}
+
+export interface Platform {
+  readonly desktop: boolean;
+  readonly mac: boolean;
+}
+
+export interface ShortcutDeps {
+  readonly editor: HTMLTextAreaElement;
+  readonly commands: Commands;
+  readonly wipe: () => void;
+  readonly openDictMenu: () => void;
+  readonly lastCaret: () => { start: number; end: number } | null;
+  readonly platform?: Platform;
+  readonly target?: EventTarget;
 }
 
 const letter =
@@ -20,96 +35,69 @@ const anyOf =
   (e: KeyboardEvent): boolean =>
     keys.includes(e.key) || (code !== undefined && e.code === code);
 
-export interface ShortcutDeps {
-  readonly editor: HTMLTextAreaElement;
-  readonly openDictMenu: () => void;
-  readonly lastCaret: () => { start: number; end: number } | null;
-}
-
-export function initShortcuts(deps: ShortcutDeps): void {
-  const { editor } = deps;
-  const isDesktop =
-    window.matchMedia && window.matchMedia("(pointer: fine)").matches;
-  if (!isDesktop) return;
-
-  const uaData = navigator.userAgentData;
-  const uaPlat = (uaData && uaData.platform) || "";
-  const isMac =
+export function detectPlatform(): Platform {
+  const desktop =
+    !!window.matchMedia && window.matchMedia("(pointer: fine)").matches;
+  const uaPlat = navigator.userAgentData?.platform || "";
+  const mac =
     /mac/i.test(uaPlat) ||
     /Mac|iPhone|iPad|iPod/i.test(navigator.platform || "") ||
     (/Mac OS X/i.test(navigator.userAgent || "") &&
       !/Windows|Android/i.test(navigator.userAgent || ""));
-  const mod = isMac ? "⌘" : "Ctrl+";
-  const shiftSym = isMac ? "⇧" : "Shift+";
-  const altSym = isMac ? "⌥" : "Alt+";
+  return { desktop, mac };
+}
 
-  [
+function hints(mac: boolean): readonly [CommandId, string][] {
+  const mod = mac ? "⌘" : "Ctrl+";
+  const shift = mac ? "⇧" : "Shift+";
+  const alt = mac ? "⌥" : "Alt+";
+  return [
     [
-      "#clearBtn",
+      "clear",
       mod +
-        shiftSym +
+        shift +
         "⌫\nShift товчтой хамт эсвэл удаан дарвал бүх өгөгдөл устана · " +
         mod +
-        shiftSym +
-        altSym +
+        shift +
+        alt +
         "⌫",
     ],
-    ["#pasteBtn", mod + "V"],
+    ["paste", mod + "V"],
+    ["copy", mod + "C" + "\nУдаан дарж алдаатай үгсийг хуулна · " + mod + "E"],
+    ["copyErrors", mod + "E"],
+    ["open", mod + "O"],
     [
-      "#copyBtn",
-      mod + "C" + "\nУдаан дарж алдаатай үгсийг хуулна · " + mod + "E",
-    ],
-    ["#copyErrorsBtn", mod + "E"],
-    ["#openBtn", mod + "O"],
-    [
-      "#saveBtn",
+      "save",
       mod +
         "S" +
         "\n" +
-        (isMac ? "⇧" : "Shift") +
+        (mac ? "⇧" : "Shift") +
         "-тэй эсвэл удаан дарж өргөтгөл сонгоно",
     ],
-    ["#printBtn", mod + "P"],
-    ["#fontDecBtn", mod + "-"],
-    ["#fontIncBtn", mod + "+"],
-    ["#fontResetBtn", mod + "0"],
-    ["#themeBtn", mod + shiftSym + "D"],
+    ["print", mod + "P"],
+    ["fontDec", mod + "-"],
+    ["fontInc", mod + "+"],
+    ["fontReset", mod + "0"],
+    ["theme", mod + shift + "D"],
     [
-      "#defineBtn",
-      mod +
-        shiftSym +
-        "Space" +
-        "\nТоль нэмэх · " +
-        mod +
-        shiftSym +
-        altSym +
-        "Space",
+      "define",
+      mod + shift + "Space" + "\nТоль нэмэх · " + mod + shift + alt + "Space",
     ],
-  ].forEach(([sel, combo]) => {
-    const btn = document.querySelector(sel);
-    if (!btn) return;
-    const base = btn.getAttribute("title") || "";
-    btn.setAttribute("title", base ? base + " · " + combo : combo);
-  });
+  ];
+}
 
-  const timers = new WeakMap<Element, ReturnType<typeof setTimeout>>();
-  function trigger(sel: string, doClick = true): void {
-    const btn = document.querySelector<HTMLButtonElement>(sel);
-    if (!btn || btn.disabled) return;
-    if (doClick) btn.click();
-    btn.classList.add("kbd-active");
-    clearTimeout(timers.get(btn));
-    timers.set(
-      btn,
-      setTimeout(() => btn.classList.remove("kbd-active"), 260),
-    );
-  }
+export function initShortcuts(deps: ShortcutDeps): void {
+  const { editor, commands } = deps;
+  const { desktop, mac } = deps.platform ?? detectPlatform();
+  if (!desktop) return;
+
+  for (const [id, combo] of hints(mac)) commands.hint(id, combo);
 
   const press =
-    (sel: string): Action =>
+    (id: CommandId): Action =>
     (e) => {
       e.preventDefault();
-      trigger(sel);
+      commands.run(id);
     };
 
   const inOtherField = (): boolean => {
@@ -124,11 +112,11 @@ export function initShortcuts(deps: ShortcutDeps): void {
   const openFile: Action = (e) => {
     e.preventDefault();
     if (window.showOpenFilePicker) {
-      trigger("#openBtn");
+      commands.run("open");
       return;
     }
-    document.querySelector<HTMLInputElement>("#openFile")?.click();
-    trigger("#openBtn", false);
+    commands.click("openFile");
+    commands.flash("open");
   };
 
   const paste: Action = () => {
@@ -139,7 +127,7 @@ export function initShortcuts(deps: ShortcutDeps): void {
         editor.setSelectionRange(lastCaret.start, lastCaret.end, "forward");
       }
     }
-    trigger("#pasteBtn", false);
+    commands.flash("paste");
   };
 
   const copy: Action = (e) => {
@@ -148,11 +136,11 @@ export function initShortcuts(deps: ShortcutDeps): void {
       document.activeElement === editor &&
       editor.selectionStart !== editor.selectionEnd;
     if (pageSel || editorHasSelection) {
-      trigger("#copyBtn", false);
+      commands.flash("copy");
       return;
     }
     e.preventDefault();
-    trigger("#copyBtn");
+    commands.run("copy");
   };
 
   const bindings: readonly Binding[] = [
@@ -163,8 +151,8 @@ export function initShortcuts(deps: ShortcutDeps): void {
       match: anyOf(["Backspace"]),
       run: (e) => {
         e.preventDefault();
-        trigger("#clearBtn", false);
-        confirmWipe();
+        commands.flash("clear");
+        deps.wipe();
       },
     },
     {
@@ -173,7 +161,7 @@ export function initShortcuts(deps: ShortcutDeps): void {
       match: letter("s"),
       run: (e) => {
         e.preventDefault();
-        if (!inOtherField()) trigger("#saveBtn");
+        if (!inOtherField()) commands.run("save");
       },
     },
     {
@@ -184,26 +172,26 @@ export function initShortcuts(deps: ShortcutDeps): void {
         deps.openDictMenu();
       },
     },
-    { shift: true, match: letter("d"), run: press("#themeBtn") },
-    { shift: true, match: anyOf(["Backspace"]), run: press("#clearBtn") },
-    { shift: true, match: anyOf(["+"], "Equal"), run: press("#fontIncBtn") },
+    { shift: true, match: letter("d"), run: press("theme") },
+    { shift: true, match: anyOf(["Backspace"]), run: press("clear") },
+    { shift: true, match: anyOf(["+"], "Equal"), run: press("fontInc") },
     {
       shift: false,
       match: anyOf(["-", "Subtract"], "Minus"),
-      run: press("#fontDecBtn"),
+      run: press("fontDec"),
     },
     {
       shift: false,
       match: anyOf(["+", "=", "Add"], "Equal"),
-      run: press("#fontIncBtn"),
+      run: press("fontInc"),
     },
     {
       shift: false,
       match: anyOf(["0", "Numpad0"], "Digit0"),
-      run: press("#fontResetBtn"),
+      run: press("fontReset"),
     },
     { shift: false, match: letter("o"), run: openFile },
-    { shift: false, match: letter("e"), run: press("#copyErrorsBtn") },
+    { shift: false, match: letter("e"), run: press("copyErrors") },
     { shift: false, match: letter("v"), run: paste },
     {
       shift: false,
@@ -212,8 +200,9 @@ export function initShortcuts(deps: ShortcutDeps): void {
     },
   ];
 
-  window.addEventListener("keydown", (e) => {
-    const primary = isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
+  (deps.target ?? window).addEventListener("keydown", (event) => {
+    const e = event as KeyboardEvent;
+    const primary = mac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
     if (!primary) return;
     const binding = bindings.find(
       (b) =>
