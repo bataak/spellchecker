@@ -7,6 +7,7 @@ import {
   mathSource,
   metaValue,
   parseInline,
+  safeHref,
   textLogos,
   withLogos,
   type Block,
@@ -329,6 +330,7 @@ function inline(nodes: readonly Inline[]): string {
         "\\linewidth,height=0.85\\textheight,keepaspectratio]{" +
         texImagePath(n.src) +
         "}";
+    else if (!safeHref(n.url)) out += inline(n.children);
     else if (n.auto) out += "\\url{" + escapeUrl(n.url) + "}";
     else out += "\\href{" + escapeUrl(n.url) + "}{" + inline(n.children) + "}";
   }

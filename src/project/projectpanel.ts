@@ -1,3 +1,4 @@
+import { escapeHtml } from "../core/htmlutil.ts";
 import type { ProjectStore, ProjectView } from "./projectstore.ts";
 import { KEYS, read, remove, write } from "../core/store.ts";
 import { confirmClose } from "./linkfiles.ts";
@@ -298,7 +299,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     show(true);
     deps.onOpened(true, prefer);
     const view = project();
-    if (view) deps.notify("«" + view.label + "» төслийг нээлээ");
+    if (view) deps.notify("«" + escapeHtml(view.label) + "» төслийг нээлээ");
     closeDrawer();
   };
 

@@ -1,3 +1,4 @@
+import { escapeHtml } from "../core/htmlutil.ts";
 import { readFailureMessage } from "./fileerror.ts";
 import type { PreviewSource } from "../preview/preview.ts";
 import { swapText } from "../editor/editortext.ts";
@@ -172,7 +173,9 @@ export function createOfficeSession(deps: OfficeSessionDeps): OfficeSession {
       if (out.skipped > 0) {
         console.warn("docx: алгасагдсан засвар", out.skippedWords);
         const names = out.skippedWords
-          .map((item) => '"' + item.word + '" (' + item.reason + ")")
+          .map(
+            (item) => '"' + escapeHtml(item.word) + '" (' + item.reason + ")",
+          )
           .join(", ");
         holdStatus(
           "Засагдсангүй: " +

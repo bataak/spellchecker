@@ -373,3 +373,10 @@ test("toLatex: тодорхойгүй Unicode тэмдэгтэд эмхэтгэ�
   assert.match(tex, /\\usepackage\{amssymb\}/);
   assert.doesNotMatch(toLatex(parse("Энгийн.\n")), /texttugrik/);
 });
+
+test("toLatex: аюултай холбоосыг \\href болгохгүй", () => {
+  const tex = toLatex(parse("[дар](javascript:alert(1)) ба <https://a.mn>\n"));
+  assert.doesNotMatch(tex, /javascript/);
+  assert.match(tex, /дар/);
+  assert.match(tex, /\\url\{https:\/\/a\.mn\}/);
+});

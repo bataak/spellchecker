@@ -1,4 +1,4 @@
-import { escapeHtml } from "../core/htmlutil.ts";
+import { escapeAttr, escapeHtml } from "../core/htmlutil.ts";
 import { splitName } from "../office/filename.ts";
 import { nf } from "./status.ts";
 
@@ -55,7 +55,7 @@ export function statsMessage(fileName: string | null, body: string): string {
   const parts = splitName(fileName);
   return (
     '<b class="doc-head" title="' +
-    escapeHtml(fileName) +
+    escapeAttr(fileName) +
     '">' +
     escapeHtml(parts.head) +
     "</b>" +
