@@ -92,13 +92,22 @@ export function createPdfPane(
     { passive: false },
   );
 
-  let pinch: { zoom: number; span: number; x: number; y: number } | null = null;
+  interface Pinch {
+    readonly span: number;
+    readonly x: number;
+    readonly y: number;
+    next: number;
+    dx: number;
+    dy: number;
+  }
+  let pinch: Pinch | null = null;
   body.addEventListener(
     "touchstart",
     (event) => {
       const [a, b] = event.touches;
       if (!view || event.touches.length !== 2 || !a || !b) return;
-      pinch = { zoom, span: touchSpan(a, b), ...touchMid(a, b) };
+      const mid = touchMid(a, b);
+      pinch = { span: touchSpan(a, b), ...mid, next: zoom, dx: 0, dy: 0 };
     },
     { passive: true },
   );
@@ -109,16 +118,23 @@ export function createPdfPane(
       if (!pinch || event.touches.length !== 2 || !a || !b) return;
       event.preventDefault();
       const mid = touchMid(a, b);
-      setZoom(pinchZoom(pinch.zoom, pinch.span, touchSpan(a, b)), mid);
-      body.scrollLeft += pinch.x - mid.x;
-      body.scrollTop += pinch.y - mid.y;
-      pinch.x = mid.x;
-      pinch.y = mid.y;
+      pinch.next = pinchZoom(zoom, pinch.span, touchSpan(a, b));
+      pinch.dx = mid.x - pinch.x;
+      pinch.dy = mid.y - pinch.y;
+      head().showZoom(pinch.next);
+      view?.pinch(pinch.next / zoom, pinch, { x: pinch.dx, y: pinch.dy });
     },
     { passive: false },
   );
   const endPinch = (event: TouchEvent): void => {
-    if (event.touches.length < 2) pinch = null;
+    if (!pinch || event.touches.length >= 2) return;
+    const done = pinch;
+    pinch = null;
+    view?.pinch(1, done, { x: 0, y: 0 });
+    if (done.next !== zoom) setZoom(done.next, done);
+    else head().showZoom(zoom);
+    body.scrollLeft -= done.dx;
+    body.scrollTop -= done.dy;
   };
   body.addEventListener("touchend", endPinch);
   body.addEventListener("touchcancel", endPinch);
