@@ -27,6 +27,10 @@ import {
   resolveDock,
   type Layout,
   type Metrics,
+  chooseLayout,
+  describeLayout,
+  projectViewport,
+  thumbSpans,
 } from "../src/ui/layout.ts";
 
 const x: Metrics = { ...DEFAULT_METRICS };
@@ -274,4 +278,53 @@ test("resolveDock багтахгүй баганыг алдааны талбар 
   assert.equal(resolveDock("panel", false, true), null);
   assert.equal(resolveDock("panel-top", true, false), "panel-top");
   assert.equal(resolveDock("panel-top", false, true), null);
+});
+
+test("chooseLayout: харагдац хориглогдвол сонголтоос хасна", () => {
+  const fit = available(DEFAULT_METRICS, 3000, []);
+  const wanted = { measure: "b", panel: true, preview: true } as const;
+  const open = chooseLayout(fit, wanted, false, false);
+  assert.ok(open.avail.some((l) => l.preview));
+  const blocked = chooseLayout(fit, wanted, true, false);
+  assert.ok(blocked.avail.every((l) => !l.preview));
+  assert.equal(blocked.active.preview, false);
+});
+
+test("projectViewport: багтахгүй бол самбар хөвөөд бүтэн өргөнийг өгнө", () => {
+  assert.deepEqual(projectViewport(1600, 300, 1200), {
+    viewport: 1300,
+    float: false,
+  });
+  assert.deepEqual(projectViewport(1400, 300, 1200), {
+    viewport: 1400,
+    float: true,
+  });
+});
+
+test("thumbSpans: хэсгүүдийг завсартай дараалуулна", () => {
+  const spans = thumbSpans(
+    { measure: "a", panel: true, preview: true },
+    DEFAULT_METRICS,
+    0.1,
+    4,
+  );
+  assert.deepEqual(
+    spans.map((span) => span.part),
+    ["editor", "preview", "panel"],
+  );
+  assert.equal(spans[1]!.x, spans[0]!.w + 4);
+  assert.equal(spans[2]!.x, spans[1]!.x + spans[1]!.w + 4);
+  assert.equal(
+    thumbSpans(DEFAULT_LAYOUT, DEFAULT_METRICS, 1, 4).length,
+    1 + Number(DEFAULT_LAYOUT.preview) + Number(DEFAULT_LAYOUT.panel),
+  );
+});
+
+test("describeLayout: тэмдэгтийн тоо ба нэмэлт талбаруудыг нэрлэнэ", () => {
+  assert.equal(
+    describeLayout({ measure: "b", panel: true, preview: true }),
+    "бичвэрийн талбар (" +
+      Math.round(MEASURES.b) +
+      " тэмдэгт) + харагдац + алдааны талбар",
+  );
 });
