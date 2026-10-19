@@ -24,6 +24,9 @@ test("asksWhereToSave: зөвхөн picker-гүй Firefox асуудаггүй",
   assert.equal(asksWhereToSave(FIREFOX, false), false);
   assert.equal(asksWhereToSave(FIREFOX, true), true);
   assert.equal(asksWhereToSave(CHROME, false), true);
+  const android =
+    "Mozilla/5.0 (Android 14; Mobile; rv:131.0) Gecko/131.0 Firefox/131.0";
+  assert.equal(asksWhereToSave(android, false), true);
 });
 
 test("downloadBlob: холбоосоор татаж, сонсогчдод мэдэгдэнэ", () => {
