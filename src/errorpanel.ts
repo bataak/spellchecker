@@ -1,15 +1,16 @@
-import { materializeMark } from "./backdrop.ts";
+import type { Backdrop } from "./backdrop.ts";
 import { copyText } from "./clipboard.ts";
 import { escapeHtml } from "./htmlutil.ts";
 import { nf, reveal } from "./status.ts";
 import { buildErrorList, nextOccurrence } from "./spell/textcheck.ts";
 import type { Token } from "./spell/textcheck.ts";
+import { attemptAsync } from "./attempt.ts";
 
 const LATIN = /\p{Script=Latin}/u;
 
 export interface ErrorPanelDeps {
   readonly editor: HTMLTextAreaElement;
-  readonly backdrop: HTMLElement;
+  readonly backdrop: Backdrop;
   readonly desktopMQ: MediaQueryList;
   readonly badTokens: () => Token[];
   readonly lastCaret: () => { start: number; end: number } | null;
@@ -94,8 +95,7 @@ export function initErrorPanel(deps: ErrorPanelDeps): ErrorPanel {
   }
 
   function scrollMarkIntoView(start: number): void {
-    materializeMark(start);
-    const mark = backdrop.querySelector('mark[data-start="' + start + '"]');
+    const mark = backdrop.markAt(start);
     if (!mark) return;
     const editorRect = editor.getBoundingClientRect();
     const markRect = mark.getBoundingClientRect();
@@ -136,9 +136,7 @@ export function initErrorPanel(deps: ErrorPanelDeps): ErrorPanel {
         editor.focus({ preventScroll: true });
         const lastCaret = deps.lastCaret();
         if (lastCaret) {
-          try {
-            editor.setSelectionRange(lastCaret.start, lastCaret.end, "forward");
-          } catch (_) {}
+          editor.setSelectionRange(lastCaret.start, lastCaret.end, "forward");
         }
         return;
       }
@@ -150,13 +148,7 @@ export function initErrorPanel(deps: ErrorPanelDeps): ErrorPanel {
       if (!clickedToken) return;
       deps.onPick();
       editor.focus({ preventScroll: true });
-      try {
-        editor.setSelectionRange(
-          clickedToken.start,
-          clickedToken.end,
-          "forward",
-        );
-      } catch (_) {}
+      editor.setSelectionRange(clickedToken.start, clickedToken.end, "forward");
       picked = { start: editor.selectionStart, end: editor.selectionEnd };
       editor.dataset.pick = LATIN.test(clickedToken.word) ? "latin" : "other";
       deps.setLastCaret({ start: clickedToken.end, end: clickedToken.end });
@@ -175,16 +167,18 @@ export function initErrorPanel(deps: ErrorPanelDeps): ErrorPanel {
     copy.addEventListener("click", async () => {
       const words = buildErrorList(deps.badTokens()).map((token) => token.word);
       if (!words.length) return;
-      try {
-        await copyText(words.join("\n"));
-        copy.classList.add("copied");
-        copy.innerHTML = checkIcon;
-        if (copyTimer) clearTimeout(copyTimer);
-        copyTimer = setTimeout(() => {
-          copy.classList.remove("copied");
-          copy.innerHTML = copyIcon;
-        }, 1100);
-      } catch (_) {}
+      const copied = await attemptAsync(
+        () => copyText(words.join("\n")).then(() => true),
+        false,
+      );
+      if (!copied) return;
+      copy.classList.add("copied");
+      copy.innerHTML = checkIcon;
+      if (copyTimer) clearTimeout(copyTimer);
+      copyTimer = setTimeout(() => {
+        copy.classList.remove("copied");
+        copy.innerHTML = copyIcon;
+      }, 1100);
     });
   }
 

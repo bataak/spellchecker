@@ -72,7 +72,7 @@ async function fetchFirst<T>(
 }
 
 function validIfo(text: string): boolean {
-  return text.replace(/^﻿/, "").startsWith(IFO_MAGIC);
+  return text.replace(/^\ufeff/, "").startsWith(IFO_MAGIC);
 }
 
 export function checkCoverage(dict: StarDict): void {

@@ -5,12 +5,11 @@ import {
 } from "./archive/cp1251.ts";
 import { cleanText, needsCleanup } from "./cleanup.ts";
 import { editKind, isSeparatorInput } from "./input.ts";
+import type { EditorPort } from "./ports.ts";
 
 export interface DecodeDeps {
-  readonly editor: HTMLTextAreaElement;
-  readonly setEditorText: (text: string, caret: number | null) => void;
-  readonly refresh: () => Promise<void> | void;
-  readonly saveText: () => void;
+  readonly editor: EditorPort;
+  readonly invalidate: () => void;
   readonly skip?: () => boolean;
 }
 
@@ -67,7 +66,7 @@ export function initClean(deps: DecodeDeps): DecodeControl {
 }
 
 function initFixButton(deps: DecodeDeps, spec: FixButtonSpec): DecodeControl {
-  const { editor } = deps;
+  const editor = deps.editor.el;
   const decodeBtn = document.querySelector<HTMLButtonElement>(spec.selector);
   let decodeCheckTimer: number | null = null;
   let decodeDoneTimer: number | null = null;
@@ -184,16 +183,8 @@ function initFixButton(deps: DecodeDeps, spec: FixButtonSpec): DecodeControl {
       const caret = selected
         ? start + result.text.length
         : Math.min(start, result.text.length);
-      const scrollTop = editor.scrollTop;
-      const scrollLeft = editor.scrollLeft;
-      const restoreView = (): void => {
-        editor.scrollTop = scrollTop;
-        editor.scrollLeft = scrollLeft;
-      };
-      deps.setEditorText(next, caret);
-      restoreView();
-      void Promise.resolve(deps.refresh()).then(restoreView);
-      deps.saveText();
+      deps.invalidate();
+      void deps.editor.reformat(next, caret);
       showDecodeMessage(result.message);
     });
   }

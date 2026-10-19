@@ -1,5 +1,6 @@
 import { reveal } from "./status.ts";
 import { KEYS, at, read, write } from "./store.ts";
+import { noteError } from "./errorlog.ts";
 export interface AppUpdate {
   readonly setDictVersion: (version: string | null) => void;
   readonly checkFreshness: () => Promise<void>;
@@ -29,7 +30,7 @@ async function fetchFreshEntry(): Promise<string | null> {
     if (!res.ok) return null;
     const m = (await res.text()).match(/assets\/index-[\w-]+\.js/);
     return m ? m[0] : null;
-  } catch (_) {
+  } catch {
     return null;
   }
 }
@@ -41,7 +42,7 @@ async function servesEntry(entry: string): Promise<boolean> {
       { cache: "no-store" },
     );
     return res.ok && (await res.text()).includes(entry);
-  } catch (_) {
+  } catch {
     return false;
   }
 }
@@ -93,7 +94,9 @@ export function initAppUpdate(
           if (!next || next.state === "redundant") await waitMs(5000);
         }
       }
-    } catch (_) {}
+    } catch (error) {
+      noteError(error);
+    }
     return false;
   }
 

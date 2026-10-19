@@ -4,6 +4,8 @@ import {
   type SpellBackend,
   type SpellerInstance,
 } from "./backend.ts";
+import { attempt } from "../attempt.ts";
+import { noteError } from "../errorlog.ts";
 
 export const DICTIONARIES = [
   { id: "mn_MN", label: "Монгол" },
@@ -150,11 +152,11 @@ export function createSpellers(deps: SpellersDeps): Spellers {
       mnVersion = entry.version;
       deps.onUpdated(PRIMARY, entry.version);
       if (previous && previous.dispose) {
-        try {
-          previous.dispose();
-        } catch (_) {}
+        const dispose = previous.dispose.bind(previous);
+        attempt(dispose, undefined);
       }
-    } catch (_) {
+    } catch (error) {
+      noteError(error);
     } finally {
       refreshing = false;
     }

@@ -1,8 +1,9 @@
-import { marksAtY } from "./backdrop.ts";
+import type { Backdrop } from "./backdrop.ts";
 import type { Token } from "./spell/textcheck.ts";
 
 export interface MarkTapDeps {
   readonly editor: HTMLTextAreaElement;
+  readonly backdrop: Backdrop;
   readonly tokens: () => readonly Token[];
   readonly show: (token: Token) => void;
 }
@@ -11,8 +12,12 @@ export interface MarkTap {
   consumeClick(): boolean;
 }
 
-function markAtPoint(x: number, y: number): HTMLElement | null {
-  for (const mark of marksAtY(y)) {
+function markAtPoint(
+  backdrop: Backdrop,
+  x: number,
+  y: number,
+): HTMLElement | null {
+  for (const mark of backdrop.marksAtY(y)) {
     for (const rect of mark.getClientRects()) {
       if (
         x >= rect.left &&
@@ -38,7 +43,7 @@ export function initMarkTap(deps: MarkTapDeps): MarkTap {
   deps.editor.addEventListener("pointerdown", (e) => {
     if (e.pointerType === "mouse") return;
     suppressClick = false;
-    const mark = markAtPoint(e.clientX, e.clientY);
+    const mark = markAtPoint(deps.backdrop, e.clientX, e.clientY);
     if (!mark) return;
     const token = tokenForMark(mark);
     if (!token) return;

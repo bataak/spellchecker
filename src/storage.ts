@@ -7,6 +7,7 @@ import {
   type StoreKey,
   writeJson,
 } from "./store.ts";
+import { noteError } from "./errorlog.ts";
 const IDB_TEXT_KEY = "text";
 const DB_NAME = "mn-spell";
 const STORE_NAME = "kv";
@@ -150,14 +151,18 @@ export async function storedTexts(): Promise<string[]> {
       const value = key === null ? null : localStorage.getItem(key);
       if (value) out.push(value);
     }
-  } catch (_) {}
+  } catch (error) {
+    noteError(error);
+  }
   try {
     const values = await idbRequest(
       "readonly",
       (store) => store.getAll() as IDBRequest<unknown[]>,
     );
     for (const value of values) if (typeof value === "string") out.push(value);
-  } catch (_) {}
+  } catch (error) {
+    noteError(error);
+  }
   return out;
 }
 

@@ -10,6 +10,7 @@ import {
   parseAnalyses,
   type Analysis,
 } from "./verbform.ts";
+import { attempt } from "../attempt.ts";
 
 export interface WordCheckDeps {
   readonly primary: () => SpellerInstance | undefined;
@@ -50,7 +51,7 @@ function analysesOf(inst: SpellerInstance, word: string): Analysis[] {
 function spells(inst: SpellerInstance, candidate: string): boolean {
   try {
     return inst.spell(candidate);
-  } catch (_) {
+  } catch {
     return false;
   }
 }
@@ -73,10 +74,9 @@ export function createWordCheck(deps: WordCheckDeps): WordCheck {
     };
     for (const { inst } of english) {
       if (!inst.stem) continue;
-      try {
-        for (const form of [word, lower])
-          stringList(inst.stem(form)).forEach(add);
-      } catch (_) {}
+      const stem = inst.stem.bind(inst);
+      for (const form of [word, lower])
+        attempt(() => stringList(stem(form)), []).forEach(add);
     }
     if (out.length) return out;
     const rules = englishStems(word);
@@ -160,7 +160,7 @@ export function createWordCheck(deps: WordCheckDeps): WordCheck {
         return genitive
           ? [...analyses, ...analysesOf(primary, genitive)]
           : analyses;
-      } catch (_) {
+      } catch {
         return [];
       }
     },
@@ -183,7 +183,7 @@ export function createWordCheck(deps: WordCheckDeps): WordCheck {
           ...lookupCandidates(genitive, analysesOf(primary, genitive), isWord),
         ];
         return all.filter((item, position) => all.indexOf(item) === position);
-      } catch (_) {
+      } catch {
         return [];
       }
     },
@@ -198,7 +198,7 @@ export function createWordCheck(deps: WordCheckDeps): WordCheck {
           analysesOf(primary, word),
           (candidate) => spells(primary, candidate),
         );
-      } catch (_) {
+      } catch {
         return [];
       }
     },
@@ -209,7 +209,7 @@ export function createWordCheck(deps: WordCheckDeps): WordCheck {
       if (!primary) return "any";
       try {
         return primary.spell(word.toLowerCase()) ? "any" : "proper";
-      } catch (_) {
+      } catch {
         return "any";
       }
     },

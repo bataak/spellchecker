@@ -1,11 +1,11 @@
-import { rangeRectAt } from "./backdrop.ts";
+import type { Backdrop } from "./backdrop.ts";
 import type { DefTip } from "./deftip.ts";
 import { isTouch } from "./input.ts";
 import type { WordSpan } from "./spell/lookup.ts";
 
 export interface PopoverDeps {
   readonly editor: HTMLTextAreaElement;
-  readonly backdrop: HTMLElement;
+  readonly backdrop: Backdrop;
   readonly popover: HTMLElement;
   readonly defTip: DefTip;
   readonly syncScroll: () => void;
@@ -88,7 +88,7 @@ export function initPopover(deps: PopoverDeps): Popover {
   }
 
   async function openWordPanel(span: WordSpan): Promise<void> {
-    if (!rangeRectAt(span.start, span.end)) return;
+    if (!backdrop.rangeRectAt(span.start, span.end)) return;
     defTip.hide();
     defTip.resetDefinitions();
     const def = await defTip.definitionFor(span.word);
@@ -123,7 +123,7 @@ export function initPopover(deps: PopoverDeps): Popover {
   function bringWordIntoView(): void {
     if (popover.hidden || activeStart == null) return;
     if (!isTouch()) return;
-    const mark = backdrop.querySelector(
+    const mark = backdrop.el.querySelector(
       'mark[data-start="' + activeStart + '"]',
     );
     if (!mark) return;
@@ -227,9 +227,9 @@ export function initPopover(deps: PopoverDeps): Popover {
 
   function anchorRect(): DOMRect | null {
     if (wordPanelSpan)
-      return rangeRectAt(wordPanelSpan.start, wordPanelSpan.end);
+      return backdrop.rangeRectAt(wordPanelSpan.start, wordPanelSpan.end);
     if (activeStart == null) return null;
-    const mark = backdrop.querySelector(
+    const mark = backdrop.el.querySelector(
       'mark[data-start="' + activeStart + '"]',
     );
     return mark ? mark.getBoundingClientRect() : null;

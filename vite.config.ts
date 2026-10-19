@@ -4,18 +4,16 @@ import { readFileSync, readdirSync, rmSync } from "node:fs";
 import { execSync } from "node:child_process";
 import type { Plugin, ResolvedConfig } from "vite";
 import { stardictIndex } from "./vite-stardict.ts";
+import { attempt } from "./src/attempt.ts";
 
 const pkg = JSON.parse(readFileSync("./package.json", "utf-8")) as {
   version: string;
 };
 
-let hunspellVersion = "unknown";
-try {
-  hunspellVersion = readFileSync(
-    "./vendor/hunspell-wasm/HUNSPELL_VERSION",
-    "utf-8",
-  ).trim();
-} catch {}
+const hunspellVersion = attempt(
+  () => readFileSync("./vendor/hunspell-wasm/HUNSPELL_VERSION", "utf-8").trim(),
+  "unknown",
+);
 
 const base = process.env.VITE_BASE || "/hunspell-mn/";
 
@@ -42,18 +40,11 @@ function stripRawDicts(): Plugin {
     },
     closeBundle() {
       const dir = outDir + "/dict";
-      let files: string[] = [];
-      try {
-        files = readdirSync(dir);
-      } catch {
-        return;
-      }
+      const files = attempt(() => readdirSync(dir), null);
+      if (!files) return;
       for (const f of files) {
-        if (/\.(aff|dic)$/.test(f)) {
-          try {
-            rmSync(dir + "/" + f);
-          } catch {}
-        }
+        if (/\.(aff|dic)$/.test(f))
+          attempt(() => rmSync(dir + "/" + f), undefined);
       }
     },
   };

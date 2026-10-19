@@ -1,6 +1,7 @@
 import { persistImages, restoreImages } from "./images.ts";
 import { storedTexts } from "./storage.ts";
 import { storedHistoryTexts } from "./undohistory.ts";
+import { noteError } from "./errorlog.ts";
 
 interface StoredImage {
   readonly src: string;
@@ -33,7 +34,9 @@ async function saveImage(src: string, blob: Blob): Promise<void> {
     await settled(
       db.transaction(STORE, "readwrite").objectStore(STORE).put({ src, blob }),
     );
-  } catch {}
+  } catch (error) {
+    noteError(error);
+  }
 }
 
 export function referenced(src: string, texts: readonly string[]): boolean {

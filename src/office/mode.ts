@@ -305,7 +305,6 @@ export function mapToSource(
       const length = edit.start - sourceCursor;
       consider(renderCursor, renderCursor + length, sourceCursor, edit.start);
       renderCursor += length;
-      sourceCursor = edit.start;
     }
     consider(
       renderCursor,
