@@ -501,6 +501,25 @@ function lineElementAt(
   return (node.children[index] as HTMLElement | undefined) ?? null;
 }
 
+function localOffsetAtY(node: ChunkNode, body: string, y: number): number {
+  let lo = 0;
+  let hi = body.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (caretRectAt(node, body, mid).bottom > y) hi = mid;
+    else lo = mid + 1;
+  }
+  return lo;
+}
+
+export function offsetAtY(y: number): number | null {
+  if (!root) return null;
+  const node = nodes.find((n) => n.getBoundingClientRect().bottom > y);
+  if (!node) return null;
+  const body = stripChunkNewline(node._src);
+  return node._start + Math.min(localOffsetAtY(node, body, y), body.length);
+}
+
 function viewTop(): number {
   return root!.getBoundingClientRect().top + root!.clientTop;
 }
@@ -520,13 +539,7 @@ export function captureTopAnchor(): void {
   }
   const body = stripChunkNewline(node._src);
   const y0 = viewTop();
-  let lo = 0;
-  let hi = body.length;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (caretRectAt(node, body, mid).bottom > y0) hi = mid;
-    else lo = mid + 1;
-  }
+  const lo = localOffsetAtY(node, body, y0);
   topAnchor = {
     offset: node._start + lo,
     delta: caretRectAt(node, body, lo).top - y0,
