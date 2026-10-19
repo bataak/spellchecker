@@ -355,8 +355,8 @@ const {
   layoutChanged,
   sideBySide: () => desktopMQ.matches,
   visibleOffset: view.visibleOffset,
-  onFormat: (next) =>
-    void editor.reformat(next, Math.min(editorEl.selectionStart, next.length)),
+  onFormat: (next, caret = Math.min(editorEl.selectionStart, next.length)) =>
+    void editor.reformat(next, caret),
   isLatex: isLatexText,
   projectKey: () => projectLink.key(),
   inProject: () => projectLink.bound(),
