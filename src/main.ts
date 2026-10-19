@@ -18,16 +18,17 @@ import { initSurvey } from "./survey.ts";
 import { getIgnored, onIgnoredChange } from "./spell/ignore.ts";
 import { initIgnoreList } from "./ignorelist.ts";
 import { initAppearance } from "./appearance.ts";
-import { initMeasureControl, type MeasureControl } from "./measure.ts";
-import { initPreview, type Preview } from "./preview/preview.ts";
-import { initPaneToggle, type PaneToggle } from "./panetoggle.ts";
+import { initMeasureControl } from "./measure.ts";
+import type { Layout } from "./layout.ts";
+import { initPreview } from "./preview/preview.ts";
+import { initPaneToggle } from "./panetoggle.ts";
 import { initSaveHints } from "./savehints.ts";
 import { missingNote, setSaveBusy } from "./savepdf.ts";
 import { zipTexText } from "./tex/texzip.ts";
 import { createPreviewMode } from "./previewmode.ts";
 import { createDocMode } from "./docmode.ts";
 import { createDocumentSession } from "./docsession.ts";
-import { initProjectLink, type ProjectLink } from "./project/projectlink.ts";
+import { initProjectLink } from "./project/projectlink.ts";
 import { PROJECT_SLOT, isFileSlot } from "./fileslots.ts";
 import { createProjectStore } from "./project/projectstore.ts";
 import { KEYS, write } from "./store.ts";
@@ -36,15 +37,15 @@ import { isDashSuffix } from "./spell/textcheck.ts";
 import { saveDraftFile, loadDraftFile } from "./storage.ts";
 import { initMdToolbar, sharedSlot } from "./mdtoolbar.ts";
 import { initSlotSwitch } from "./slotswitch.ts";
-import { initTabGuard, type TabGuard } from "./tabguard.ts";
+import { initTabGuard } from "./tabguard.ts";
 import { PLAIN } from "./templates.ts";
-import { initExport, type ExportControl } from "./export.ts";
+import { initExport } from "./export.ts";
 import { createBackdrop } from "./backdrop.ts";
 import { createMarkLayer } from "./marklayer.ts";
 import { initMarkTap } from "./marktap.ts";
 import { initTexComplete } from "./tex/texcomplete.ts";
 import { initKeyboardLayout } from "./kblayout.ts";
-import { initUndoHistory, type UndoControl } from "./undohistory.ts";
+import { initUndoHistory } from "./undohistory.ts";
 import { initTexImageInput, insertPickedImage } from "./tex/teximages.ts";
 import { initDefineControls } from "./definecontrols.ts";
 import { initSuggestPopover } from "./suggestpopover.ts";
@@ -75,6 +76,8 @@ import { initAppHints } from "./app/apphints.ts";
 import { warmTex } from "./app/texwarm.ts";
 import { createOpenPolicy } from "./app/openpolicy.ts";
 import { createPdfSave } from "./app/pdfsave.ts";
+import { createSignal } from "./app/signal.ts";
+import { requireEl } from "./app/dom.ts";
 import {
   bindArming,
   bindComposition,
@@ -87,24 +90,19 @@ installErrorLog();
 const projectStore = createProjectStore();
 const { onProjectChange, project } = projectStore;
 
-let previewCtl: Preview | null = null;
-let paneCtl: PaneToggle | null = null;
-let projectLink: ProjectLink | null = null;
-let measureCtl: MeasureControl | null = null;
-let exportCtl: ExportControl | null = null;
-let undoCtl: UndoControl | null = null;
-let tabGuard: TabGuard | null = null;
-
 document.body.classList.add("ready");
 
 const els = {
-  status: document.querySelector("#statusText") as HTMLElement,
-  editor: document.querySelector("#editor") as HTMLTextAreaElement,
-  backdrop: document.querySelector("#backdrop") as HTMLElement,
-  popover: document.querySelector("#popover") as HTMLElement,
+  status: requireEl("#statusText"),
+  editor: requireEl<HTMLTextAreaElement>("#editor"),
+  backdrop: requireEl("#backdrop"),
+  popover: requireEl("#popover"),
   emptyState: document.querySelector<HTMLElement>("#emptyState"),
 };
 const editorEl = els.editor;
+const workspace = requireEl(".workspace");
+const editorWrap = requireEl(".editor-wrap", workspace);
+const layoutChanged = createSignal<Layout>();
 
 const desktopMQ = window.matchMedia("(min-width: 1024px)");
 const narrowMQ = window.matchMedia("(max-width: 700px)");
@@ -156,12 +154,12 @@ const editor = createEditorPort({
 const office = createOfficeSession({
   editor,
   status,
-  showSource: (source) => previewCtl?.setSource(source),
-  baseline: () => undoCtl?.baseline(),
+  showSource: (source) => previewCtl.setSource(source),
+  baseline: () => undoCtl.baseline(),
   syncFixButtons: () => syncFixButtons(),
   onModeChange: () => {
     doc.syncSaveHint();
-    exportCtl?.syncPrint();
+    exportCtl.syncPrint();
   },
 });
 const officeActive = (): boolean => office.active() !== null;
@@ -189,7 +187,6 @@ const docStatus = createDocStatus({
 
 const docMode = createDocMode({
   officeActive,
-  projectBound: () => projectLink?.bound() ?? false,
   fileName: doc.name,
 });
 
@@ -210,8 +207,8 @@ function syncTexMode(): void {
   applyTexPaint(tex);
   mdBar.refresh();
   enterMdMode(doc.markdownActive());
-  previewCtl?.update();
-  projectLink?.sync();
+  previewCtl.update();
+  projectLink.sync();
   clean.sync();
 }
 
@@ -228,11 +225,11 @@ function applyTexPaint(on: boolean): void {
 
 const previewMode = createPreviewMode({
   hasText: () => editorEl.value.length > 0,
-  setPaneAvailable: (on) => paneCtl?.setAvailable(on),
+  setPaneAvailable: (on) => paneCtl.setAvailable(on),
   setBodyMode: (on) => document.body.classList.toggle("preview-mode", on),
   setLayout: (blocked, wanted, tex) => {
-    measureCtl?.setPreviewBlocked(blocked);
-    measureCtl?.setPreviewMode(wanted, tex);
+    measureCtl.setPreviewBlocked(blocked);
+    measureCtl.setPreviewMode(wanted, tex);
   },
 });
 
@@ -262,7 +259,7 @@ const loop = createCheckLoop({
     syncEmptyState(text);
     syncTexMode();
     marks.follow();
-    previewCtl?.update();
+    previewCtl.update();
   },
   unready: (text) => {
     view.syncScroll();
@@ -285,12 +282,13 @@ const render = loop.render;
 const syncSaveTitles = initSaveHints();
 
 const defDock = initDefDock({
-  workspace: document.querySelector(".workspace") as HTMLElement,
-  editorWrap: editorEl.closest(".editor-wrap") as HTMLElement,
-  errorPanel: document.querySelector("#errorPanel") as HTMLElement,
+  workspace,
+  editorWrap,
+  errorPanel: requireEl("#errorPanel"),
   desktopMQ,
-  room: (side, active) => measureCtl?.dockRoom(side, active) ?? false,
+  room: (side, active) => measureCtl.dockRoom(side, active),
 });
+layoutChanged.on((l) => defDock.sync(l.panel));
 
 const defTip = initDefTip({
   editor: editorEl,
@@ -371,7 +369,7 @@ const hadSelection = bindArming(
 const editorText = initEditorText({
   editor: editorEl,
   onEdit: () => fixFlow.drop(),
-  onReplace: () => previewCtl?.setSource(null),
+  onReplace: () => previewCtl.setSource(null),
   accept: (old, next) => {
     const docx = office.active();
     if (docx && !docx.sync(old, next)) {
@@ -444,51 +442,42 @@ bindEditorInput({
 
 initAppearance();
 
-const editorWrap = editorEl.closest<HTMLElement>(".editor-wrap");
-if (editorWrap) {
-  measureCtl = initMeasureControl(editorWrap, editorEl, (l) => {
-    defDock.sync(l.panel);
-    paneCtl?.sync();
-    if (l.preview) previewCtl?.update();
-    projectLink?.sync();
-  });
-  defDock.sync();
-  previewCtl = initPreview({
-    wrap: editorWrap,
-    area: editorEl,
-    onFormat: (next) =>
-      void editor.reformat(
-        next,
-        Math.min(editorEl.selectionStart, next.length),
-      ),
-    isLatex: isLatexText,
-    projectKey: () => projectLink?.key() ?? null,
-    inProject: () => projectLink?.bound() ?? false,
-    texProject: () => projectLink?.texProject() ?? null,
-    pdfName: () => pdfSave.name(),
-    jump: view.revealRange,
-  });
-  const workspace = editorWrap.closest<HTMLElement>(".workspace");
-  if (workspace)
-    paneCtl = initPaneToggle(
-      workspace,
-      editorEl,
-      () => desktopMQ.matches && (measureCtl?.layout().preview ?? false),
-      (on) => {
-        if (!on) return;
-        previewCtl?.update();
-        previewCtl?.revealAt(view.visibleOffset());
-      },
-    );
-}
+const measureCtl = initMeasureControl(editorWrap, editorEl, layoutChanged.emit);
+defDock.sync();
+const previewCtl = initPreview({
+  wrap: editorWrap,
+  area: editorEl,
+  onFormat: (next) =>
+    void editor.reformat(next, Math.min(editorEl.selectionStart, next.length)),
+  isLatex: isLatexText,
+  projectKey: () => projectLink.key(),
+  inProject: () => projectLink.bound(),
+  texProject: () => projectLink.texProject(),
+  pdfName: () => pdfSave.name(),
+  jump: view.revealRange,
+});
+const paneCtl = initPaneToggle(
+  workspace,
+  editorEl,
+  () => desktopMQ.matches && measureCtl.layout().preview,
+  (on) => {
+    if (!on) return;
+    previewCtl.update();
+    previewCtl.revealAt(view.visibleOffset());
+  },
+);
+layoutChanged.on(() => paneCtl.sync());
+layoutChanged.on((l) => {
+  if (l.preview) previewCtl.update();
+});
 
 const pdfSave = createPdfSave({
-  preview: () => previewCtl,
-  mainFile: () => (projectLink?.bound() ? (project()?.main ?? null) : null),
+  preview: previewCtl,
+  mainFile: () => (projectLink.bound() ? (project()?.main ?? null) : null),
   baseName: doc.baseName,
   mobileTex: () =>
     touchMQ.matches && !desktopMQ.matches && !officeActive() && isTexFile(),
-  saveProject: () => projectLink?.save(true),
+  saveProject: () => projectLink.save(true),
   notify: status.hold,
 });
 
@@ -504,28 +493,23 @@ const fileIO = initFileIO({
     save: office.save,
   },
   project: {
-    save: () => projectLink?.save() ?? Promise.resolve(null),
-    openZip: async (file) => {
-      if (projectLink) await projectLink.openZip(file);
-    },
-    openDir: async (handle) => {
-      if (projectLink) await projectLink.openDir(handle);
-    },
-    openExisting: (name, text) =>
-      projectLink?.openExisting(name, text) ?? false,
+    save: () => projectLink.save(),
+    openZip: (file) => projectLink.openZip(file),
+    openDir: (handle) => projectLink.openDir(handle),
+    openExisting: (name, text) => projectLink.openExisting(name, text),
   },
   pdf: pdfSave,
   defaultExt: () => (isTexFile() ? "tex" : doc.markdownActive() ? "md" : "txt"),
   onFileOpened: (ref) => {
-    projectLink?.unbind(true);
+    projectLink.unbind(true);
     saveDraftFile(ref, mdBar.slot());
     doc.open(ref ? ref.name : null);
     if (ref?.kind === "text")
-      queueMicrotask(() => projectLink?.fileOpened(ref.name));
+      queueMicrotask(() => projectLink.fileOpened(ref.name));
   },
   prepareOpen: createOpenPolicy(() => mdBar, status.hold),
   onLoaded: () => {
-    undoCtl?.reset();
+    undoCtl.reset();
     mdBar.markSaved();
   },
   onSaved: (written) => mdBar.markSaved(written),
@@ -552,7 +536,7 @@ const slots = initSlotSwitch({
   project: () => projectLink,
   draft: (slot) => mdBar.draft(slot),
   setName: doc.setName,
-  refreshPreview: () => previewCtl?.update(),
+  refreshPreview: () => previewCtl.update(),
   entered: doc.entered,
 });
 
@@ -575,13 +559,13 @@ const mdBar = initMdToolbar({
     clean.sync();
     if (from !== mdBar.slot()) slots.enter(mdBar.slot());
     syncTexMode();
-    projectLink?.sync();
+    projectLink.sync();
     enterMdMode(doc.markdownActive());
-    tabGuard?.sync();
+    tabGuard.sync();
   },
   onExample: () => enterMdMode(!isTexFile()),
   projectDirty: () => project()?.unsaved ?? false,
-  onCloseProject: () => projectLink?.close(),
+  onCloseProject: () => projectLink.close(),
   onCloseFile: (slot) => slots.forget(slot),
 });
 const nudgeHints = initAppHints({
@@ -600,62 +584,59 @@ initTexComplete({
   onImage: () => void insertPickedImage(editorEl),
 });
 initTexImageInput({ editor: editorEl, active: () => marks.tex() });
-const workspaceEl = document.querySelector<HTMLElement>(".workspace");
-if (workspaceEl)
-  projectLink = initProjectLink({
-    store: projectStore,
-    editor: editorEl,
-    workspace: workspaceEl,
-    tools: () =>
-      editorWrap?.querySelector<HTMLElement>(".editor-tools") ?? null,
-    slots: {
-      current: () => mdBar.slot(),
-      inProject: () => mdBar.template() === PROJECT_SLOT,
-      enterProject: () => mdBar.enterProject(),
-      close: (id) => mdBar.closeFile(id, true),
-      files: () => mdBar.fileSlots(),
+const projectLink = initProjectLink({
+  store: projectStore,
+  editor: editorEl,
+  workspace,
+  tools: () => editorWrap.querySelector<HTMLElement>(".editor-tools"),
+  slots: {
+    current: () => mdBar.slot(),
+    inProject: () => mdBar.template() === PROJECT_SLOT,
+    enterProject: () => mdBar.enterProject(),
+    close: (id) => mdBar.closeFile(id, true),
+    files: () => mdBar.fileSlots(),
+  },
+  file: {
+    name: doc.name,
+    handle: () => fileIO.targetHandle(),
+    bind: (name) => {
+      fileIO.putFile(name ? { handle: null, name } : null);
+      saveDraftFile(name ? { name, kind: "text" } : null, mdBar.slot());
+      doc.setName(name);
+      docStatus.restore();
     },
-    file: {
-      name: doc.name,
-      handle: () => fileIO.targetHandle(),
-      bind: (name) => {
-        fileIO.putFile(name ? { handle: null, name } : null);
-        saveDraftFile(name ? { name, kind: "text" } : null, mdBar.slot());
-        doc.setName(name);
-        docStatus.restore();
-      },
-    },
-    texActive: isTexFile,
-    afterSwitch: () => {
-      undoCtl?.baseline();
-      syncTexMode();
-      enterMdMode(doc.markdownActive());
-      void render();
-      draft.save();
-    },
-    onProject: (name) => {
-      mdBar.setProject(name);
-      if (name === null) mdBar.leaveProject();
-    },
-    onChange: () => {
-      syncTexMode();
-      previewCtl?.update();
-    },
-    layout: () => measureCtl?.refresh(),
-    notify: (message) => status.hold(message, 6000, false),
-    show: (source) => previewCtl?.setSource(source),
-  });
+  },
+  texActive: isTexFile,
+  onBound: docMode.setProjectBound,
+  afterSwitch: () => {
+    undoCtl.baseline();
+    syncTexMode();
+    enterMdMode(doc.markdownActive());
+    void render();
+    draft.save();
+  },
+  onProject: (name) => {
+    mdBar.setProject(name);
+    if (name === null) mdBar.leaveProject();
+  },
+  onChange: () => {
+    syncTexMode();
+    previewCtl.update();
+  },
+  layout: () => measureCtl.refresh(),
+  notify: (message) => status.hold(message, 6000, false),
+  show: (source) => previewCtl.setSource(source),
+});
+layoutChanged.on(() => projectLink.sync());
 const kbLayout = initKeyboardLayout({ editor: editorEl, status: els.status });
 void initImageStore(() => editorEl.value);
-undoCtl = initUndoHistory({
+const undoCtl = initUndoHistory({
   editor: editorEl,
   slot: () => {
-    const path = projectLink?.path();
+    const path = projectLink.path();
     return path ? mdBar.slot() + "\u0000" + path : mdBar.slot();
   },
 });
-enterMdMode(doc.markdownActive());
-editorEl.addEventListener("input", nudgeHints);
 
 function enterMdMode(on: boolean): void {
   const markup = on || doc.isMarkdownFile();
@@ -664,12 +645,12 @@ function enterMdMode(on: boolean): void {
     void render();
   }
   previewMode.enter(on, isTexFile());
-  previewCtl?.setMarkdownMode(on);
-  exportCtl?.syncPrint();
+  previewCtl.setMarkdownMode(on);
+  exportCtl.syncPrint();
   nudgeHints();
 }
 
-exportCtl = initExport({
+const exportCtl = initExport({
   editor: editorEl,
   saveButton: document.querySelector<HTMLElement>("#saveBtn"),
   printButton: document.querySelector<HTMLElement>("#printBtn"),
@@ -682,23 +663,22 @@ exportCtl = initExport({
   baseName: doc.baseName,
   blocked: officeActive,
   isTex: isTexFile,
-  texProject: () => projectLink?.texProject() ?? null,
+  texProject: () => projectLink.texProject(),
   texZip: async (text, name) => {
-    if (projectLink?.bound()) return projectLink.zip();
+    if (projectLink.bound()) return projectLink.zip();
     const { blob, missing } = await zipTexText(text, name);
     if (missing.length)
       status.hold(missingNote("Архивт ороогүй зураг: ", missing), 8000, false);
     return blob;
   },
-  texZipped: () => projectLink?.zipped(),
+  texZipped: () => projectLink.zipped(),
   texPdf: async () => {
-    if (!previewCtl) throw new Error("no preview");
     const { pdf, missing } = await previewCtl.pdf();
     if (missing.length)
       status.hold(missingNote("PDF-д ороогүй зураг: ", missing), 8000, false);
     return pdf;
   },
-  texSource: (name) => fileIO.saveSource(name, !!projectLink?.bound()),
+  texSource: (name) => fileIO.saveSource(name, projectLink.bound()),
   onDone: () => flash("#saveBtn", "Хадгаллаа"),
   onBlocked: () => flash("#saveBtn", "Экспорт хийх боломжгүй"),
   onPrintError: (error) => {
@@ -709,6 +689,8 @@ exportCtl = initExport({
   onBusy: (busy, ext) =>
     setSaveBusy(busy, ext === "zip" ? "Архивлаж байна…" : undefined),
 });
+enterMdMode(doc.markdownActive());
+editorEl.addEventListener("input", nudgeHints);
 
 async function restoreDraftFile(): Promise<void> {
   const ref = loadDraftFile(mdBar.slot());
@@ -739,9 +721,9 @@ const dictLife = createDictLife({
 
 async function restoreView(): Promise<void> {
   await draft.load();
-  undoCtl?.baseline();
+  undoCtl.baseline();
   await restoreDraftFile();
-  await projectLink?.restore();
+  await projectLink.restore();
   void render();
   document.documentElement.classList.remove("booting");
   editorEl.focus({ preventScroll: true });
@@ -768,16 +750,10 @@ async function boot(): Promise<void> {
 }
 
 desktopMQ.addEventListener("change", () => {
-  paneCtl?.sync();
+  paneCtl.sync();
   pop.hide();
   errorPanel.render();
 });
-
-void boot();
-
-setTimeout(() => {
-  document.documentElement.classList.remove("booting");
-}, 2000);
 
 initToolbar({
   editor,
@@ -786,7 +762,7 @@ initToolbar({
   office: { active: officeActive, close: office.close },
   forgetFile: () => {
     previewMode.cleared();
-    projectLink?.cleared();
+    projectLink.cleared();
     fileIO.forgetFile();
   },
   afterClear: (cleared) => {
@@ -812,7 +788,7 @@ initIgnoreList(() => void render());
 onIgnoredChange(() => void render());
 
 let guardedProject: string | null = null;
-tabGuard = initTabGuard({
+const tabGuard = initTabGuard({
   slot: () => mdBar.slot(),
   project: () => project()?.uid ?? null,
   warn: (message) => status.hold(message, 8000, false),
@@ -821,9 +797,8 @@ onProjectChange(() => {
   const uid = project()?.uid ?? null;
   if (uid === guardedProject) return;
   guardedProject = uid;
-  tabGuard?.sync();
+  tabGuard.sync();
 });
-
 
 initReportButton(() => {
   const active = dicts.active();
@@ -833,7 +808,7 @@ initReportButton(() => {
     officeActive: officeActive(),
     markdownActive: doc.markdownActive(),
     fileName: doc.fileName(),
-    layout: measureCtl?.layout() ?? null,
+    layout: measureCtl.layout(),
     text: editorEl.value,
     errorWords: marks.tokens().map((token) => token.word),
     personalDict: getIgnored(),
@@ -863,3 +838,9 @@ if (import.meta.env.DEV) {
   editorEl.addEventListener("input", assertMetrics);
   void document.fonts.ready.then(assertMetrics);
 }
+
+void boot();
+
+setTimeout(() => {
+  document.documentElement.classList.remove("booting");
+}, 2000);
