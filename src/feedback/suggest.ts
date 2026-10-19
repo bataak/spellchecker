@@ -439,8 +439,8 @@ export function initSuggest(deps: SuggestDeps): void {
       if (e.key === "Enter") {
         e.preventDefault();
         e.stopPropagation();
-        if (wordEl.value.trim()) addFromInput(true);
-        else submit();
+        if (wordEl.value.trim()) void addFromInput(true);
+        else void submit();
       } else if (e.key === "Backspace" && wordEl.value === "" && words.length) {
         words.pop();
         renderChips();
@@ -457,7 +457,7 @@ export function initSuggest(deps: SuggestDeps): void {
       if (target.tagName === "BUTTON") return;
       if (target.tagName === "A") return;
       e.preventDefault();
-      submit();
+      void submit();
     });
 
     document.addEventListener(

@@ -1,3 +1,4 @@
+import { transactionFailure } from "./idb.ts";
 import {
   KEYS,
   at,
@@ -122,7 +123,7 @@ function openDb(): Promise<IDBDatabase> {
     };
     req.onerror = () => {
       dbPromise = null;
-      reject(req.error);
+      reject(req.error ?? new Error("IndexedDB request failed"));
     };
   });
   return dbPromise;
@@ -138,7 +139,7 @@ function idbRequest<T>(
         const tx = db.transaction(STORE_NAME, mode);
         const req = run(tx.objectStore(STORE_NAME));
         tx.oncomplete = () => resolve(req.result);
-        tx.onabort = () => reject(tx.error ?? req.error);
+        tx.onabort = () => reject(transactionFailure(tx, req));
       }),
   );
 }

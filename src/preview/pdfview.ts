@@ -99,9 +99,19 @@ export interface PdfView {
   destroy(): void;
 }
 
+export type PdfLoadingTask = ReturnType<
+  (typeof import("pdfjs-dist"))["getDocument"]
+>;
+
 export interface PdfViewOptions {
   readonly inset?: () => number;
   readonly onPage?: (page: number, pages: number) => void;
+  readonly load?: (data: Uint8Array) => PdfLoadingTask;
+}
+
+async function pdfLoader(): Promise<(data: Uint8Array) => PdfLoadingTask> {
+  const pdfjs = await loadPdfjs();
+  return (data) => pdfjs.getDocument({ data, worker: pdfWorker(pdfjs) });
 }
 
 export async function renderPdfInto(
@@ -111,9 +121,9 @@ export async function renderPdfInto(
   zoom = 1,
   options: PdfViewOptions = {},
 ): Promise<PdfView> {
-  const pdfjs = await loadPdfjs();
+  const load = options.load ?? (await pdfLoader());
   const data = new Uint8Array(await file.arrayBuffer());
-  const task = pdfjs.getDocument({ data, worker: pdfWorker(pdfjs) });
+  const task = load(data);
   const doc = await task.promise.catch((error: unknown) => {
     dropWorker();
     throw error;

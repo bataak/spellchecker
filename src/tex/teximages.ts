@@ -1,3 +1,4 @@
+import { openDatabase } from "../core/idb.ts";
 import { replaceRange } from "../editor/editortext.ts";
 import { pickImage } from "../files/images.ts";
 import { expandMacros, pathMacros, uncommented } from "./texproject.ts";
@@ -90,12 +91,7 @@ function asset(path: string): string {
 }
 
 function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
-    request.onupgradeneeded = () => request.result.createObjectStore(DB_STORE);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
+  return openDatabase(DB_NAME, (db) => db.createObjectStore(DB_STORE));
 }
 
 async function savedDir(): Promise<FileSystemDirectoryHandle | null> {
