@@ -1,3 +1,4 @@
+import { ALIGN_ENV, alignRows } from "./texalign.ts";
 import { spansInRange, texSpans } from "./texhighlight.ts";
 
 const INDENT = "  ";
@@ -125,6 +126,7 @@ type Keep = "none" | "rest" | "all";
 interface Plan {
   readonly depth: number[];
   readonly keep: Keep[];
+  readonly aligned: Map<number, string>;
 }
 
 function knownEnvs(text: string): Set<string> {
@@ -153,7 +155,37 @@ function closing(
   return text.length;
 }
 
-function plan(text: string, starts: readonly number[]): Plan {
+function alignBlocks(
+  text: string,
+  lines: readonly string[],
+  starts: readonly number[],
+  marks: readonly EnvMark[],
+  keep: readonly Keep[],
+): Map<number, string> {
+  const aligned = new Map<number, string>();
+  marks.forEach((mark, index) => {
+    if (!mark.open || !ALIGN_ENV.has(mark.name)) return;
+    const stop = closing(marks, index, text);
+    if (stop >= text.length) return;
+    const first = lineOf(starts, mark.at);
+    const last = lineOf(starts, stop);
+    if (last - first < 3) return;
+    if (marks.some((other) => other.at > mark.at && other.at < stop)) return;
+    if (!BLANK.test(text.slice(starts[last], stop))) return;
+    if (lines[first]!.slice(mark.at - starts[first]!).includes("&")) return;
+    for (let i = first; i <= last; i++) if (keep[i] !== "none") return;
+    alignRows(lines.slice(first + 1, last), mark.name)?.forEach((row, k) =>
+      aligned.set(first + 1 + k, row),
+    );
+  });
+  return aligned;
+}
+
+function plan(
+  text: string,
+  lines: readonly string[],
+  starts: readonly number[],
+): Plan {
   const count = starts.length;
   const depth = new Array<number>(count).fill(0);
   const keep = new Array<Keep>(count).fill("none");
@@ -183,7 +215,11 @@ function plan(text: string, starts: readonly number[]): Plan {
     depth[i] = Math.max(0, level - (leadingEnd[i] ? 1 : 0));
     level = Math.max(0, level + change[i]!);
   }
-  return { depth, keep };
+  return {
+    depth,
+    keep,
+    aligned: alignBlocks(text, lines, starts, marks, keep),
+  };
 }
 
 export function tidyTex(text: string): string {
@@ -195,7 +231,7 @@ export function tidyTex(text: string): string {
     starts.push(at);
     at += line.length + 1;
   }
-  const { depth, keep } = plan(text, starts);
+  const { depth, keep, aligned } = plan(text, lines, starts);
   const out: string[] = [];
   let blank = false;
   lines.forEach((line, i) => {
@@ -209,7 +245,7 @@ export function tidyTex(text: string): string {
       blank = false;
       return;
     }
-    const body = line.replace(LEAD, "").replace(TRAIL, "");
+    const body = aligned.get(i) ?? line.replace(LEAD, "").replace(TRAIL, "");
     if (body === "") {
       if (!blank && out.length) out.push("");
       blank = true;
