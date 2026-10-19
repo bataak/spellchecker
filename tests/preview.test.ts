@@ -8,9 +8,12 @@ import {
   clampZoom,
   loadInvert,
   loadZoom,
+  pinchZoom,
   saveInvert,
   saveZoom,
   stepZoom,
+  touchMid,
+  touchSpan,
   wheelZoom,
   ZOOM_MAX,
   ZOOM_MIN,
@@ -44,6 +47,18 @@ test("wheelZoom: хулганы дугуй шатаар, touchpad жигд то�
   assert.equal(wheelZoom(1, { deltaY: 3, deltaMode: 1 }), 0.9);
   const smooth = wheelZoom(1, { deltaY: -10.5, deltaMode: 0 });
   assert.ok(smooth > 1 && smooth < 1.2);
+});
+
+test("pinchZoom: хоёр хурууны зайн харьцаагаар томруулна", () => {
+  const a = { clientX: 0, clientY: 0 };
+  const b = { clientX: 30, clientY: 40 };
+  assert.equal(touchSpan(a, b), 50);
+  assert.deepEqual(touchMid(a, b), { x: 15, y: 20 });
+  assert.equal(pinchZoom(1, 100, 150), 1.5);
+  assert.equal(pinchZoom(1.2, 100, 50), 0.6);
+  assert.equal(pinchZoom(2, 100, 400), ZOOM_MAX);
+  assert.equal(pinchZoom(1, 100, 10), ZOOM_MIN);
+  assert.equal(pinchZoom(1.25, 0, 80), 1.25);
 });
 
 test("zoom ба invert тохиргоог хадгалж уншина", () => {
