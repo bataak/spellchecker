@@ -50,11 +50,10 @@ test("wheelZoom: хулганы дугуй шатаар, touchpad жигд то�
   assert.ok(smooth > 1 && smooth < 1.2);
 });
 
-test("ZOOM_MAX 900% хүртэл томруулна", () => {
-  assert.equal(ZOOM_MAX, 9);
+test("ZOOM_MAX 600% хүртэл томруулна", () => {
+  assert.equal(ZOOM_MAX, 6);
   assert.equal(stepZoom(3, 1), 4);
-  assert.equal(stepZoom(6, 1), 7);
-  assert.equal(stepZoom(9, -1), 8);
+  assert.equal(stepZoom(6, -1), 5);
 });
 
 test("canvasDensity: canvas-ийн пикселийг хязгаарт багтаана", () => {
@@ -74,7 +73,7 @@ test("pinchZoom: хоёр хурууны зайн харьцаагаар том�
   assert.deepEqual(touchMid(a, b), { x: 15, y: 20 });
   assert.equal(pinchZoom(1, 100, 150), 1.5);
   assert.equal(pinchZoom(1.2, 100, 50), 0.6);
-  assert.equal(pinchZoom(2, 100, 600), ZOOM_MAX);
+  assert.equal(pinchZoom(2, 100, 400), ZOOM_MAX);
   assert.equal(pinchZoom(1, 100, 10), ZOOM_MIN);
   assert.equal(pinchZoom(1.25, 0, 80), 1.25);
 });
