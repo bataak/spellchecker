@@ -1,5 +1,6 @@
 import { DICTIONARIES } from "./spell/spellchecker.ts";
 import { escapeHtml } from "./htmlutil.ts";
+import { noteError } from "./errorlog.ts";
 
 export async function requestDurableStorage(): Promise<void> {
   try {
@@ -9,7 +10,9 @@ export async function requestDurableStorage(): Promise<void> {
         : false;
       if (!already) await navigator.storage.persist();
     }
-  } catch (_) {}
+  } catch (error) {
+    noteError(error);
+  }
 }
 
 export function offlineCapable(): boolean {
@@ -41,7 +44,7 @@ export async function isOfflineReady(): Promise<boolean> {
     const mn = (man.dicts || []).find((dict) => dict.id === "mn_MN");
     if (!mn) return false;
     return !!(await caches.match(resolveAppUrl("dict/" + mn.dic), opt));
-  } catch (_) {
+  } catch {
     return false;
   }
 }

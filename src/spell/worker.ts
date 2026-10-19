@@ -4,6 +4,7 @@ import { createStarDictStore, isLatinDict } from "../dict/stardictstore.ts";
 import { createSpellers, DICTIONARIES, PRIMARY } from "./spellers.ts";
 import { createWordCheck } from "./wordcheck.ts";
 import { standardLetters } from "./letters.ts";
+import { attempt, attemptAsync } from "../attempt.ts";
 
 declare global {
   interface Window {
@@ -26,10 +27,11 @@ if (!self.__cacheFirstFetch) {
           ? input.href
           : (input && input.url) || "";
     if (url && (!init || init.method == null || init.method === "GET")) {
-      try {
-        const cached = await caches.match(url, { ignoreSearch: true });
-        if (cached) return cached;
-      } catch {}
+      const cached = await attemptAsync(
+        () => caches.match(url, { ignoreSearch: true }),
+        undefined,
+      );
+      if (cached) return cached;
     }
     return origFetch(input, init);
   };
@@ -151,7 +153,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
     for (const word of msg.words) {
       try {
         out[word] = words.isCorrect(standardLetters(word));
-      } catch (_) {
+      } catch {
         out[word] = true;
       }
     }
@@ -179,12 +181,10 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   }
 
   if (msg.type === "suggest") {
-    let suggestions: string[] = [];
-    try {
-      suggestions = words.suggest(standardLetters(msg.word)) || [];
-    } catch (_) {
-      suggestions = [];
-    }
+    const suggestions = attempt(
+      () => words.suggest(standardLetters(msg.word)) || [],
+      [],
+    );
     post({ type: "suggest", id: msg.id, suggestions });
   }
 };

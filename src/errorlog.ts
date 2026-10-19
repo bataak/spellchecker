@@ -1,4 +1,5 @@
 import { safeFrame, toSafeError, type SafeError } from "./safeerror.ts";
+import { attempt } from "./attempt.ts";
 
 export const ERROR_LOG_SIZE = 5;
 
@@ -29,14 +30,14 @@ function fromErrorEvent(ev: Event): SafeError {
 
 export function attachErrorLog(target: EventTarget, ring: ErrorRing): void {
   target.addEventListener("error", (ev) => {
-    try {
-      ring.record(fromErrorEvent(ev));
-    } catch {}
+    attempt(() => ring.record(fromErrorEvent(ev)), undefined);
   });
   target.addEventListener("unhandledrejection", (ev) => {
-    try {
-      ring.record(toSafeError((ev as Partial<PromiseRejectionEvent>).reason));
-    } catch {}
+    attempt(
+      () =>
+        ring.record(toSafeError((ev as Partial<PromiseRejectionEvent>).reason)),
+      undefined,
+    );
   });
 }
 
@@ -48,4 +49,8 @@ export function installErrorLog(): void {
 
 export function recentErrors(): SafeError[] {
   return globalRing.list();
+}
+
+export function noteError(error: unknown): void {
+  globalRing.record(toSafeError(error));
 }

@@ -179,9 +179,7 @@ export function initShortcuts(deps: ShortcutDeps): void {
         editor.focus({ preventScroll: true });
         const lastCaret = deps.lastCaret();
         if (lastCaret) {
-          try {
-            editor.setSelectionRange(lastCaret.start, lastCaret.end, "forward");
-          } catch (_) {}
+          editor.setSelectionRange(lastCaret.start, lastCaret.end, "forward");
         }
       }
       trigger("#pasteBtn", false);

@@ -1,4 +1,5 @@
 import type { TexProject } from "../project/projectbuild.ts";
+import { noteError } from "../errorlog.ts";
 
 const PDF_CACHE = "tex-preview";
 const PDF_TEXT_KEY = "tex-preview/last.tex";
@@ -91,7 +92,9 @@ async function saveCachedPdf(
     );
     for (const request of pdfs.slice(0, Math.max(0, pdfs.length - CACHED_PDFS)))
       await cache.delete(request);
-  } catch {}
+  } catch (error) {
+    noteError(error);
+  }
 }
 
 export async function digestOf(

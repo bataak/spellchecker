@@ -20,7 +20,8 @@ export function copyText(str: string): Promise<void> {
       ta.setSelectionRange(0, str.length);
       const ok = document.execCommand("copy");
       document.body.removeChild(ta);
-      ok ? resolve() : reject(new Error("exec"));
+      if (ok) resolve();
+      else reject(new Error("exec"));
     } catch (e) {
       reject(e);
     }

@@ -60,6 +60,7 @@ import {
   type ProjectKind,
   type State,
 } from "./projectstate.ts";
+import { attemptAsync } from "../attempt.ts";
 
 export interface ProjectView {
   readonly id: number;
@@ -229,11 +230,11 @@ export function createProjectStore() {
   async function openDirHandle(
     handle: FileSystemDirectoryHandle,
   ): Promise<void> {
-    let writable = false;
-    try {
-      writable =
-        (await handle.requestPermission?.({ mode: "readwrite" })) === "granted";
-    } catch {}
+    const writable = await attemptAsync(
+      async () =>
+        (await handle.requestPermission?.({ mode: "readwrite" })) === "granted",
+      false,
+    );
     const { files, dirs, stamps } = await readDir(handle);
     adopt(
       withStamps(
@@ -307,12 +308,12 @@ export function createProjectStore() {
       return true;
     }
     if (!meta.handle) return false;
-    let granted = false;
-    try {
-      granted =
-        (await meta.handle.queryPermission?.({ mode: "readwrite" })) ===
-        "granted";
-    } catch {}
+    const handle = meta.handle;
+    const granted = await attemptAsync(
+      async () =>
+        (await handle.queryPermission?.({ mode: "readwrite" })) === "granted",
+      false,
+    );
     if (granted) {
       const { files, dirs, stamps } = await readDir(meta.handle);
       applyRestored(
@@ -342,12 +343,12 @@ export function createProjectStore() {
   async function grantProject(): Promise<boolean> {
     const s = state;
     if (!s?.pending || !s.handle) return false;
-    let granted = false;
-    try {
-      granted =
-        (await s.handle.requestPermission?.({ mode: "readwrite" })) ===
-        "granted";
-    } catch {}
+    const handle = s.handle;
+    const granted = await attemptAsync(
+      async () =>
+        (await handle.requestPermission?.({ mode: "readwrite" })) === "granted",
+      false,
+    );
     if (!granted) return false;
     const { files, dirs, stamps } = await readDir(s.handle);
     const meta = metaOf(s);

@@ -1,3 +1,5 @@
+import { noteError } from "../errorlog.ts";
+
 export interface StoredDict {
   ifo: string;
   version: string;
@@ -48,7 +50,7 @@ export async function readStoredDict(key: string): Promise<StoredDict | null> {
       request<StoredDict | undefined>(store.get(key)),
     );
     return value ?? null;
-  } catch (_) {
+  } catch {
     return null;
   }
 }
@@ -60,7 +62,7 @@ export async function writeStoredDict(
   try {
     await withStore("readwrite", (store) => request(store.put(value, key)));
     return true;
-  } catch (_) {
+  } catch {
     return false;
   }
 }
@@ -68,7 +70,9 @@ export async function writeStoredDict(
 export async function removeStoredDict(key: string): Promise<void> {
   try {
     await withStore("readwrite", (store) => request(store.delete(key)));
-  } catch (_) {}
+  } catch (error) {
+    noteError(error);
+  }
 }
 
 export async function requestPersistence(): Promise<boolean> {
@@ -76,7 +80,7 @@ export async function requestPersistence(): Promise<boolean> {
     if (!navigator.storage?.persist) return false;
     if (await navigator.storage.persisted()) return true;
     return await navigator.storage.persist();
-  } catch (_) {
+  } catch {
     return false;
   }
 }

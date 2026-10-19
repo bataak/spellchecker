@@ -365,14 +365,14 @@ export async function importDictFiles(
     }
     try {
       plain.push(...(await expandArchive(file)));
-    } catch (_) {
+    } catch {
       result.failed.push(file.name);
     }
   }
   for (const [base, group] of groupDictFiles(plain)) {
     try {
       await importGroup(base, group, known, result);
-    } catch (_) {
+    } catch {
       result.failed.push(base);
     }
   }

@@ -19,6 +19,7 @@ import {
 import { flatten } from "../office/flatten.ts";
 import { columnWidths } from "../office/table.ts";
 import { splitSlides, type Slide } from "../slides.ts";
+import { attempt } from "../attempt.ts";
 
 const BASE_PREAMBLE = `\\documentclass[12pt,a4paper]{article}
 \\usepackage[T2A]{fontenc}
@@ -171,7 +172,7 @@ function greek(ch: string): string | null {
 }
 
 const GREEK_RE = /[\u0391-\u03a9\u03b1-\u03c9]/gu;
-const ZERO_WIDTH = /[\u200b\u200c\u200d\u2060\ufe0e\ufe0f\ufeff]/gu;
+const ZERO_WIDTH = /\u200b|\u200c|\u200d|\u2060|\ufe0e|\ufe0f|\ufeff/gu;
 
 const TUGRIK = `\\DeclareRobustCommand\\texttugrik{\\leavevmode\\hbox{\\ooalign{Т\\cr
   \\hidewidth\\raisebox{0.42ex}{\\rotatebox{-22}{\\rule{0.42em}{0.09ex}}}\\hidewidth\\cr
@@ -274,11 +275,7 @@ function oneLine(nodes: readonly Inline[]): string {
 }
 
 export function texImagePath(src: string): string {
-  let path = src;
-  try {
-    path = decodeURIComponent(src);
-  } catch {}
-  return path.replace(/[{}%#\\]/g, "_");
+  return attempt(() => decodeURIComponent(src), src).replace(/[{}%#\\]/g, "_");
 }
 
 const ENUM_COUNTERS = ["enumi", "enumii", "enumiii", "enumiv"];

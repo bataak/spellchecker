@@ -535,7 +535,8 @@ function decodeStream(input: Uint8Array, start: number, out: Output): number {
     blocks++;
   }
   const indexStart = pos;
-  let [records, at] = readVarint(input, pos + 1);
+  const [records, indexAt] = readVarint(input, pos + 1);
+  let at = indexAt;
   if (records !== blocks) fail("индекс зөрсөн");
   for (let i = 0; i < records; i++) {
     at = readVarint(input, at)[1];

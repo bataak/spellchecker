@@ -1,3 +1,5 @@
+import { attempt } from "../attempt.ts";
+
 const CP1252_HIGH =
   "\u20AC\uFFFF\u201A\u0192\u201E\u2026\u2020\u2021" +
   "\u02C6\u2030\u0160\u2039\u0152\uFFFF\u017D\uFFFF" +
@@ -62,9 +64,11 @@ export function decodeFileBytes(bytes: Uint8Array): string {
     return new TextDecoder("utf-16le").decode(bytes.subarray(2));
   if (bytes[0] === 0xfe && bytes[1] === 0xff)
     return new TextDecoder("utf-16be").decode(bytes.subarray(2));
-  try {
-    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-  } catch {}
+  const utf8 = attempt(
+    () => new TextDecoder("utf-8", { fatal: true }).decode(bytes),
+    null,
+  );
+  if (utf8 !== null) return utf8;
   const table = TABLES.cp1251;
   let out = "";
   for (const byte of bytes)

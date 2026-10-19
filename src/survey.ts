@@ -277,7 +277,7 @@ export function initSurvey(): Survey {
       } else {
         note("Илгээхэд алдаа гарлаа — дахин оролдоно уу", "err");
       }
-    } catch (_) {
+    } catch {
       note("Сүлжээний алдаа — дахин оролдоно уу", "err");
     } finally {
       busy = false;

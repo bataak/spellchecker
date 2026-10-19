@@ -17,6 +17,7 @@ import type { DraftFile } from "./storage.ts";
 import { deliverText, isDesktopApp } from "./textfile.ts";
 import { flash } from "./clipboard.ts";
 import type { EditorPort, StatusPort } from "./ports.ts";
+import { attemptAsync } from "./attempt.ts";
 
 export interface OfficeFiles {
   readonly active: () => boolean;
@@ -153,7 +154,7 @@ export function initFileIO({
     for (const { file, handle } of entries) {
       try {
         if (!(await openOne(file, handle))) return;
-      } catch (_) {
+      } catch {
         flash("#openBtn", "Боломжгүй");
       }
     }
@@ -166,7 +167,7 @@ export function initFileIO({
     if (docs.active()) {
       try {
         flash("#saveBtn", (await docs.save()) ? "Хадгаллаа" : "Цуцаллаа");
-      } catch (_) {
+      } catch {
         flash("#saveBtn", "Боломжгүй");
       }
       return;
@@ -184,7 +185,7 @@ export function initFileIO({
           flash("#saveBtn", label);
           return;
         }
-      } catch (_) {
+      } catch {
         flash("#saveBtn", "Боломжгүй");
         return;
       }
@@ -199,14 +200,18 @@ export function initFileIO({
       currentFileHandle &&
       (!source || (!source.inProject && source.name === currentFileName))
     ) {
-      try {
-        const writableStream = await currentFileHandle.createWritable();
+      const handle = currentFileHandle;
+      const written = await attemptAsync(async () => {
+        const writableStream = await handle.createWritable();
         await writableStream.write(text);
         await writableStream.close();
+        return true;
+      }, false);
+      if (written) {
         flash("#saveBtn", "Хадгаллаа");
         saved(true);
         return;
-      } catch (_) {}
+      }
     }
 
     const fileName = source?.name ?? currentFileName;
@@ -220,7 +225,7 @@ export function initFileIO({
         const done = await deliver(text, fileName);
         flash("#saveBtn", done ? "Хадгалав" : "Цуцаллаа");
         if (done) saved(false);
-      } catch (_) {
+      } catch {
         flash("#saveBtn", "Боломжгүй");
       }
       return;
@@ -247,7 +252,7 @@ export function initFileIO({
     try {
       const done = await deliver(text, stamp());
       flash("#saveBtn", done ? "Хадгаллаа" : "Цуцаллаа");
-    } catch (_) {
+    } catch {
       flash("#saveBtn", "Боломжгүй");
     }
   }

@@ -8,6 +8,8 @@ import {
   svgToPdf,
   usesSvgPackage,
 } from "./texsvg.ts";
+import { noteError } from "../errorlog.ts";
+import { attemptAsync } from "../attempt.ts";
 
 const INCLUDE =
   /\\includegraphics\s*((?:\*\s*)?(?:\[[^\]]*\]\s*)*)\{((?:[^{}]|\{[^{}]*\})*)\}/g;
@@ -122,7 +124,9 @@ async function saveDir(handle: FileSystemDirectoryHandle): Promise<void> {
       tx.oncomplete = () => resolve();
       tx.onerror = () => resolve();
     });
-  } catch {}
+  } catch (error) {
+    noteError(error);
+  }
 }
 
 async function fromDir(
@@ -177,14 +181,14 @@ async function resolveFile(
   const known = local.get(path) ?? fetched.get(path);
   if (known) return known;
   if (EXAMPLE_IMAGES.has(path)) {
-    try {
+    const blob = await attemptAsync(async () => {
       const response = await fetch(asset(EXAMPLE_BASE + path));
-      if (response.ok) {
-        const blob = await response.blob();
-        fetched.set(path, blob);
-        return blob;
-      }
-    } catch {}
+      return response.ok ? response.blob() : null;
+    }, null);
+    if (blob) {
+      fetched.set(path, blob);
+      return blob;
+    }
   }
   return dir ? fromDir(dir, path) : null;
 }
@@ -337,22 +341,25 @@ async function resolveSvg(
 export async function chooseImageFolder(): Promise<void> {
   const saved = await savedDir();
   if (saved?.requestPermission) {
-    try {
-      if ((await saved.requestPermission({ mode: "read" })) === "granted") {
-        const pending = await readableDir();
-        if (pending) {
-          notify();
-          return;
-        }
-      }
-    } catch {}
+    const granted = await attemptAsync(
+      async () =>
+        (await saved.requestPermission!({ mode: "read" })) === "granted",
+      false,
+    );
+    if (granted && (await readableDir())) {
+      notify();
+      return;
+    }
   }
   if (window.showDirectoryPicker) {
-    try {
-      const dir = await window.showDirectoryPicker({ mode: "read" });
+    const dir = await attemptAsync(
+      () => window.showDirectoryPicker!({ mode: "read" }),
+      null,
+    );
+    if (dir) {
       await saveDir(dir);
       notify();
-    } catch {}
+    }
     return;
   }
   const input = document.createElement("input");

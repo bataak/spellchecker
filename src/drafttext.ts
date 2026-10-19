@@ -6,6 +6,7 @@ import {
   saveDraftFile,
 } from "./storage.ts";
 import { KEYS, read, remove, write } from "./store.ts";
+import { noteError } from "./errorlog.ts";
 
 export interface SlotStore {
   readonly slot: () => string;
@@ -114,13 +115,13 @@ export function initDraftText(deps: DraftTextDeps): DraftText {
         const len = editor.value.length;
         const start = Math.min(Math.max(0, caret.start), len);
         const end = Math.min(Math.max(start, caret.end), len);
-        try {
-          editor.setSelectionRange(start, end);
-        } catch (_) {}
+        editor.setSelectionRange(start, end);
         deps.onCaret({ start, end });
         if (caret.scroll > 0) bootScroll = caret.scroll;
       }
-    } catch (_) {}
+    } catch (error) {
+      noteError(error);
+    }
   }
 
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
