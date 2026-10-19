@@ -1,3 +1,4 @@
+import { requestResult } from "../core/idb.ts";
 import { gunzipSync } from "fflate";
 import { IFO_MAGIC, parseIfo, type StarDict } from "./stardict.ts";
 import { buildStarDict } from "./stardictload.ts";
@@ -135,13 +136,6 @@ async function readBytes(file: Blob): Promise<Uint8Array> {
   return unzip(new Uint8Array(await file.arrayBuffer()));
 }
 
-function settle<T>(request: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
 function openDb(): Promise<IDBDatabase> {
   const request = indexedDB.open(DB_NAME, DB_VERSION);
   request.onupgradeneeded = () => {
@@ -151,7 +145,7 @@ function openDb(): Promise<IDBDatabase> {
     if (!db.objectStoreNames.contains(SETTINGS))
       db.createObjectStore(SETTINGS, { keyPath: "key" });
   };
-  return settle(request);
+  return requestResult(request);
 }
 
 async function withStore<T>(
@@ -161,7 +155,9 @@ async function withStore<T>(
 ): Promise<T> {
   const db = await openDb();
   try {
-    return await settle(run(db.transaction(name, mode).objectStore(name)));
+    return await requestResult(
+      run(db.transaction(name, mode).objectStore(name)),
+    );
   } finally {
     db.close();
   }

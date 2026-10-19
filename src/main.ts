@@ -318,7 +318,7 @@ const markTap = initMarkTap({
   editor: editorEl,
   backdrop,
   tokens: () => marks.tokens(),
-  show: (token) => suggestPopover.showFor(token),
+  show: (token) => void suggestPopover.showFor(token),
 });
 
 bindEditorInput({

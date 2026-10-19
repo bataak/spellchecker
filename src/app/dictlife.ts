@@ -58,16 +58,18 @@ export function createDictLife(deps: DictLifeDeps): DictLife {
     });
   };
 
+  const reportFatal = async (reason: string): Promise<void> => {
+    if (await appUpdate.recoverStale()) return;
+    status.set(
+      "Алдаа шалгагч зогслоо: " +
+        escapeHtml(String(reason)) +
+        " — хуудсыг дахин ачаална уу",
+    );
+  };
+
   return {
     watchFatal() {
-      checker.onFatal = async (reason) => {
-        if (await appUpdate.recoverStale()) return;
-        status.set(
-          "Алдаа шалгагч зогслоо: " +
-            escapeHtml(String(reason)) +
-            " — хуудсыг дахин ачаална уу",
-        );
-      };
+      checker.onFatal = (reason) => void reportFatal(reason);
     },
     async start() {
       try {

@@ -147,7 +147,7 @@ export function initSuggestPopover(deps: SuggestPopoverDeps): SuggestPopover {
             });
             return;
           }
-          deps.apply(token, btn.textContent);
+          void deps.apply(token, btn.textContent);
         });
       });
     popover.querySelectorAll<HTMLElement>(".sg-dot").forEach(defTip.bindDot);

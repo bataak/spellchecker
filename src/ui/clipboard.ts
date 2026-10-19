@@ -23,7 +23,7 @@ export function copyText(str: string): Promise<void> {
       if (ok) resolve();
       else reject(new Error("exec"));
     } catch (e) {
-      reject(e);
+      reject(e instanceof Error ? e : new Error(String(e)));
     }
   });
 }
