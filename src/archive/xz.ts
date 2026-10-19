@@ -342,14 +342,107 @@ class Lzma2Decoder {
     );
   }
 
+  private literal(pos: number, state: number): void {
+    const rc = this.rc;
+    const probs = this.probs;
+    const out = this.out;
+    const lc = this.lc;
+    const lpMask = (1 << this.lp) - 1;
+    const prev = pos > this.dictStart ? out.bytes[pos - 1]! : 0;
+    const base =
+      LITERAL + LITERAL_SIZE * (((pos & lpMask) << lc) + (prev >>> (8 - lc)));
+    let symbol = 1;
+    if (state < LITERAL_STATES) {
+      do symbol = (symbol << 1) | rc.bit(probs, base + symbol);
+      while (symbol < 0x100);
+    } else {
+      if (pos - this.dictStart <= this.rep0) fail("зай буруу");
+      let match = out.bytes[pos - this.rep0 - 1]! << 1;
+      let offset = 0x100;
+      do {
+        const matchBit = match & offset;
+        match <<= 1;
+        if (rc.bit(probs, base + offset + matchBit + symbol)) {
+          symbol = (symbol << 1) | 1;
+          offset = matchBit;
+        } else {
+          symbol <<= 1;
+          offset &= ~matchBit;
+        }
+      } while (symbol < 0x100);
+    }
+    out.bytes[out.length++] = symbol & 0xff;
+    this.state = state < 4 ? 0 : state < 10 ? state - 3 : state - 6;
+  }
+
+  private distance(length: number): number {
+    const rc = this.rc;
+    const probs = this.probs;
+    const distState =
+      length < DIST_STATES + MATCH_LEN_MIN
+        ? length - MATCH_LEN_MIN
+        : DIST_STATES - 1;
+    const slot = rc.tree(probs, DIST_SLOT + distState * DIST_SLOTS, 6);
+    if (slot < DIST_MODEL_START) return slot;
+    const limit = (slot >>> 1) - 1;
+    let distance = (2 | (slot & 1)) * 2 ** limit;
+    if (slot < DIST_MODEL_END)
+      distance += rc.reverse(probs, DIST_SPECIAL + distance - slot - 1, limit);
+    else {
+      distance += rc.direct(limit - ALIGN_BITS) * 2 ** ALIGN_BITS;
+      distance += rc.reverse(probs, DIST_ALIGN, ALIGN_BITS);
+    }
+    if (distance >= 0xffffffff) fail("төгсгөлийн тэмдэг");
+    return distance;
+  }
+
+  private match(state: number, posState: number): number {
+    this.state = state < LITERAL_STATES ? 7 : 10;
+    this.rep3 = this.rep2;
+    this.rep2 = this.rep1;
+    this.rep1 = this.rep0;
+    const length = this.length(MATCH_LEN, posState);
+    this.rep0 = this.distance(length);
+    return length;
+  }
+
+  private repDistance(state: number): void {
+    const rc = this.rc;
+    const probs = this.probs;
+    let distance: number;
+    if (rc.bit(probs, IS_REP1 + state) === 0) distance = this.rep1;
+    else {
+      if (rc.bit(probs, IS_REP2 + state) === 0) distance = this.rep2;
+      else {
+        distance = this.rep3;
+        this.rep3 = this.rep2;
+      }
+      this.rep2 = this.rep1;
+    }
+    this.rep1 = this.rep0;
+    this.rep0 = distance;
+  }
+
+  private rep(state: number, posState: number): number {
+    const rc = this.rc;
+    const probs = this.probs;
+    if (rc.bit(probs, IS_REP0 + state) !== 0) this.repDistance(state);
+    else if (
+      rc.bit(probs, IS_REP0_LONG + state * POS_STATES_MAX + posState) === 0
+    ) {
+      this.state = state < LITERAL_STATES ? 9 : 11;
+      return 1;
+    }
+    this.state = state < LITERAL_STATES ? 8 : 11;
+    return this.length(REP_LEN, posState);
+  }
+
   private chunk(unpacked: number): void {
     const rc = this.rc;
     const probs = this.probs;
     const out = this.out;
     const end = out.length + unpacked;
     const pbMask = (1 << this.pb) - 1;
-    const lpMask = (1 << this.lp) - 1;
-    const lc = this.lc;
     out.reserve(unpacked);
     if (this.pending > 0) {
       const now = Math.min(this.pending, end - out.length);
@@ -361,90 +454,13 @@ class Lzma2Decoder {
       const posState = pos & pbMask;
       const state = this.state;
       if (rc.bit(probs, IS_MATCH + state * POS_STATES_MAX + posState) === 0) {
-        const prev = pos > this.dictStart ? out.bytes[pos - 1]! : 0;
-        const base =
-          LITERAL +
-          LITERAL_SIZE * (((pos & lpMask) << lc) + (prev >>> (8 - lc)));
-        let symbol = 1;
-        if (state < LITERAL_STATES) {
-          do symbol = (symbol << 1) | rc.bit(probs, base + symbol);
-          while (symbol < 0x100);
-        } else {
-          if (pos - this.dictStart <= this.rep0) fail("зай буруу");
-          let match = out.bytes[pos - this.rep0 - 1]! << 1;
-          let offset = 0x100;
-          do {
-            const matchBit = match & offset;
-            match <<= 1;
-            if (rc.bit(probs, base + offset + matchBit + symbol)) {
-              symbol = (symbol << 1) | 1;
-              offset = matchBit;
-            } else {
-              symbol <<= 1;
-              offset &= ~matchBit;
-            }
-          } while (symbol < 0x100);
-        }
-        out.bytes[out.length++] = symbol & 0xff;
-        this.state = state < 4 ? 0 : state < 10 ? state - 3 : state - 6;
+        this.literal(pos, state);
         continue;
       }
-      let length: number;
-      if (rc.bit(probs, IS_REP + state) === 0) {
-        this.state = state < LITERAL_STATES ? 7 : 10;
-        this.rep3 = this.rep2;
-        this.rep2 = this.rep1;
-        this.rep1 = this.rep0;
-        length = this.length(MATCH_LEN, posState);
-        const distState =
-          length < DIST_STATES + MATCH_LEN_MIN
-            ? length - MATCH_LEN_MIN
-            : DIST_STATES - 1;
-        const slot = rc.tree(probs, DIST_SLOT + distState * DIST_SLOTS, 6);
-        if (slot < DIST_MODEL_START) this.rep0 = slot;
-        else {
-          const limit = (slot >>> 1) - 1;
-          let distance = (2 | (slot & 1)) * 2 ** limit;
-          if (slot < DIST_MODEL_END)
-            distance += rc.reverse(
-              probs,
-              DIST_SPECIAL + distance - slot - 1,
-              limit,
-            );
-          else {
-            distance += rc.direct(limit - ALIGN_BITS) * 2 ** ALIGN_BITS;
-            distance += rc.reverse(probs, DIST_ALIGN, ALIGN_BITS);
-          }
-          if (distance >= 0xffffffff) fail("төгсгөлийн тэмдэг");
-          this.rep0 = distance;
-        }
-      } else {
-        if (rc.bit(probs, IS_REP0 + state) === 0) {
-          if (
-            rc.bit(probs, IS_REP0_LONG + state * POS_STATES_MAX + posState) ===
-            0
-          ) {
-            this.state = state < LITERAL_STATES ? 9 : 11;
-            this.copy(this.rep0, 1);
-            continue;
-          }
-        } else {
-          let distance: number;
-          if (rc.bit(probs, IS_REP1 + state) === 0) distance = this.rep1;
-          else {
-            if (rc.bit(probs, IS_REP2 + state) === 0) distance = this.rep2;
-            else {
-              distance = this.rep3;
-              this.rep3 = this.rep2;
-            }
-            this.rep2 = this.rep1;
-          }
-          this.rep1 = this.rep0;
-          this.rep0 = distance;
-        }
-        this.state = state < LITERAL_STATES ? 8 : 11;
-        length = this.length(REP_LEN, posState);
-      }
+      const length =
+        rc.bit(probs, IS_REP + state) === 0
+          ? this.match(state, posState)
+          : this.rep(state, posState);
       const now = Math.min(length, end - out.length);
       this.copy(this.rep0, now);
       this.pending = length - now;
@@ -491,64 +507,70 @@ function verifyCheck(
   }
 }
 
-function decodeStream(input: Uint8Array, start: number, out: Output): number {
-  if (!matches(input, start, HEADER_MAGIC)) fail("xz файл биш");
-  const flags = input[start + 7]!;
-  if (input[start + 6] !== 0 || flags > 0x0f) fail("урсгалын туг буруу");
-  if (crc32(input, start + 6, start + 8) !== readUint32(input, start + 8))
-    fail("толгойн CRC таарсангүй");
-  const checkSize = CHECK_SIZE[flags]!;
-  let pos = start + 12;
-  let blocks = 0;
-  for (;;) {
-    if (pos >= input.length) fail("өгөгдөл дутуу");
-    const sizeByte = input[pos]!;
-    if (sizeByte === 0) break;
-    const headerSize = (sizeByte + 1) * 4;
-    if (pos + headerSize > input.length) fail("өгөгдөл дутуу");
-    if (
-      crc32(input, pos, pos + headerSize - 4) !==
-      readUint32(input, pos + headerSize - 4)
-    )
-      fail("блокийн толгойн CRC таарсангүй");
-    const blockFlags = input[pos + 1]!;
-    if (blockFlags & 0x3c) fail("блокийн туг буруу");
-    let at = pos + 2;
-    if (blockFlags & 0x40) at = readVarint(input, at)[1];
-    if (blockFlags & 0x80) at = readVarint(input, at)[1];
-    if ((blockFlags & 0x03) !== 0) fail("LZMA2-оос өөр шүүлтүүр дэмжихгүй");
-    const [filter, afterId] = readVarint(input, at);
-    const [propsSize, afterSize] = readVarint(input, afterId);
-    if (filter !== FILTER_LZMA2 || propsSize !== 1)
-      fail("LZMA2-оос өөр шүүлтүүр дэмжихгүй");
-    if (input[afterSize]! > 40) fail("толины хэмжээ буруу");
-    const dataStart = out.length;
-    const blockStart = pos;
-    pos = new Lzma2Decoder(input, out).decode(pos + headerSize);
-    while ((pos - blockStart) % 4 !== 0) {
-      if (input[pos] !== 0) fail("блокийн дүүргэлт буруу");
-      pos++;
-    }
-    if (pos + checkSize > input.length) fail("өгөгдөл дутуу");
-    verifyCheck(flags, out.bytes, dataStart, out.length, input, pos);
-    pos += checkSize;
-    blocks++;
+function readBlockHeader(input: Uint8Array, pos: number): number {
+  const headerSize = (input[pos]! + 1) * 4;
+  if (pos + headerSize > input.length) fail("өгөгдөл дутуу");
+  if (
+    crc32(input, pos, pos + headerSize - 4) !==
+    readUint32(input, pos + headerSize - 4)
+  )
+    fail("блокийн толгойн CRC таарсангүй");
+  const blockFlags = input[pos + 1]!;
+  if (blockFlags & 0x3c) fail("блокийн туг буруу");
+  let at = pos + 2;
+  if (blockFlags & 0x40) at = readVarint(input, at)[1];
+  if (blockFlags & 0x80) at = readVarint(input, at)[1];
+  if ((blockFlags & 0x03) !== 0) fail("LZMA2-оос өөр шүүлтүүр дэмжихгүй");
+  const [filter, afterId] = readVarint(input, at);
+  const [propsSize, afterSize] = readVarint(input, afterId);
+  if (filter !== FILTER_LZMA2 || propsSize !== 1)
+    fail("LZMA2-оос өөр шүүлтүүр дэмжихгүй");
+  if (input[afterSize]! > 40) fail("толины хэмжээ буруу");
+  return headerSize;
+}
+
+function decodeBlock(
+  input: Uint8Array,
+  pos: number,
+  out: Output,
+  flags: number,
+): number {
+  const headerSize = readBlockHeader(input, pos);
+  const dataStart = out.length;
+  let at = new Lzma2Decoder(input, out).decode(pos + headerSize);
+  while ((at - pos) % 4 !== 0) {
+    if (input[at] !== 0) fail("блокийн дүүргэлт буруу");
+    at++;
   }
-  const indexStart = pos;
-  const [records, indexAt] = readVarint(input, pos + 1);
+  const checkSize = CHECK_SIZE[flags]!;
+  if (at + checkSize > input.length) fail("өгөгдөл дутуу");
+  verifyCheck(flags, out.bytes, dataStart, out.length, input, at);
+  return at + checkSize;
+}
+
+function readIndex(input: Uint8Array, start: number, blocks: number): number {
+  const [records, indexAt] = readVarint(input, start + 1);
   let at = indexAt;
   if (records !== blocks) fail("индекс зөрсөн");
   for (let i = 0; i < records; i++) {
     at = readVarint(input, at)[1];
     at = readVarint(input, at)[1];
   }
-  while ((at - indexStart) % 4 !== 0) {
+  while ((at - start) % 4 !== 0) {
     if (input[at] !== 0) fail("индексийн дүүргэлт буруу");
     at++;
   }
-  if (crc32(input, indexStart, at) !== readUint32(input, at))
+  if (crc32(input, start, at) !== readUint32(input, at))
     fail("индексийн CRC таарсангүй");
-  at += 4;
+  return at + 4;
+}
+
+function checkFooter(
+  input: Uint8Array,
+  at: number,
+  indexStart: number,
+  flags: number,
+): void {
   if (at + 12 > input.length) fail("өгөгдөл дутуу");
   if (!matches(input, at + 10, FOOTER_MAGIC)) fail("төгсгөл буруу");
   if (crc32(input, at + 4, at + 10) !== readUint32(input, at))
@@ -557,6 +579,29 @@ function decodeStream(input: Uint8Array, start: number, out: Output): number {
     fail("индексийн хэмжээ зөрсөн");
   if (input[at + 8] !== 0 || input[at + 9] !== flags)
     fail("төгсгөлийн туг зөрсөн");
+}
+
+function readStreamFlags(input: Uint8Array, start: number): number {
+  if (!matches(input, start, HEADER_MAGIC)) fail("xz файл биш");
+  const flags = input[start + 7]!;
+  if (input[start + 6] !== 0 || flags > 0x0f) fail("урсгалын туг буруу");
+  if (crc32(input, start + 6, start + 8) !== readUint32(input, start + 8))
+    fail("толгойн CRC таарсангүй");
+  return flags;
+}
+
+function decodeStream(input: Uint8Array, start: number, out: Output): number {
+  const flags = readStreamFlags(input, start);
+  let pos = start + 12;
+  let blocks = 0;
+  for (;;) {
+    if (pos >= input.length) fail("өгөгдөл дутуу");
+    if (input[pos] === 0) break;
+    pos = decodeBlock(input, pos, out, flags);
+    blocks++;
+  }
+  const at = readIndex(input, pos, blocks);
+  checkFooter(input, at, pos, flags);
   return at + 12;
 }
 

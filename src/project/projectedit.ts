@@ -81,8 +81,7 @@ export function dropEntries(s: State, path: string): void {
   recountDirty(s);
 }
 
-export function applyScan(s: State, scan: DirScan): boolean {
-  const present = new Set([...scan.same, ...scan.files.map(([path]) => path)]);
+function pruneMissing(s: State, present: ReadonlySet<string>): boolean {
   let touched = false;
   for (const path of [...s.texts.keys()])
     if (!present.has(path) && !s.dirty.has(path)) {
@@ -95,23 +94,36 @@ export function applyScan(s: State, scan: DirScan): boolean {
       s.binaries.delete(path);
       touched = true;
     }
-  for (const [path, bytes] of scan.files) {
-    if (!isEditablePath(path)) {
-      s.binaries.set(path, bytes);
-      touched = true;
-      continue;
-    }
-    const { text, crlf } = readText(bytes);
-    noteEol(s, path, crlf);
-    if (s.saved.get(path) === text && s.texts.has(path)) continue;
-    s.saved.set(path, text);
-    s.added.delete(path);
-    if (!s.dirty.has(path) || !s.texts.has(path)) s.texts.set(path, text);
-    touched = true;
+  return touched;
+}
+
+function mergeFile(s: State, path: string, bytes: Uint8Array): boolean {
+  if (!isEditablePath(path)) {
+    s.binaries.set(path, bytes);
+    return true;
   }
+  const { text, crlf } = readText(bytes);
+  noteEol(s, path, crlf);
+  if (s.saved.get(path) === text && s.texts.has(path)) return false;
+  s.saved.set(path, text);
+  s.added.delete(path);
+  if (!s.dirty.has(path) || !s.texts.has(path)) s.texts.set(path, text);
+  return true;
+}
+
+function scannedDirs(s: State, scan: DirScan): Set<string> {
   const dirs = new Set(scan.dirs);
   for (const path of s.texts.keys())
     for (const dir of parentDirs(path)) dirs.add(dir);
+  return dirs;
+}
+
+export function applyScan(s: State, scan: DirScan): boolean {
+  const present = new Set([...scan.same, ...scan.files.map(([path]) => path)]);
+  let touched = pruneMissing(s, present);
+  for (const [path, bytes] of scan.files)
+    if (mergeFile(s, path, bytes)) touched = true;
+  const dirs = scannedDirs(s, scan);
   if (dirs.size !== s.dirs.size || [...dirs].some((dir) => !s.dirs.has(dir)))
     touched = true;
   s.stamps = scan.stamps;

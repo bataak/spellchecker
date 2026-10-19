@@ -21,54 +21,60 @@ function skipZeroTerminated(bytes: Uint8Array, pos: number): number {
   return end < 0 ? -1 : end + 1;
 }
 
-export function parseDictZip(head: Uint8Array): DictZip | null {
-  if (head.length < 12) return null;
-  if (head[0] !== 0x1f || head[1] !== 0x8b || head[2] !== 0x08) return null;
-  const flags = head[3]!;
-  if ((flags & FEXTRA) === 0) return null;
-
-  const view = new DataView(head.buffer, head.byteOffset, head.byteLength);
-  const extraLength = view.getUint16(10, true);
+function findRaField(view: DataView, head: Uint8Array, end: number): number {
   let pos = 12;
-  const extraEnd = pos + extraLength;
-  if (extraEnd > head.length) return null;
-
-  let field = -1;
-  while (pos + 4 <= extraEnd) {
-    const length = view.getUint16(pos + 2, true);
-    if (head[pos] === 0x52 && head[pos + 1] === 0x41) {
-      field = pos + 4;
-      break;
-    }
-    pos += 4 + length;
+  while (pos + 4 <= end) {
+    if (head[pos] === 0x52 && head[pos + 1] === 0x41) return pos + 4;
+    pos += 4 + view.getUint16(pos + 2, true);
   }
-  if (field < 0 || field + 6 > extraEnd) return null;
+  return -1;
+}
 
-  const version = view.getUint16(field, true);
-  if (version !== 1) return null;
-  const chunkLength = view.getUint16(field + 2, true);
-  const count = view.getUint16(field + 4, true);
-  if (chunkLength === 0 || field + 6 + count * 2 > extraEnd) return null;
-
-  const sizes = new Uint16Array(count);
-  const starts = new Uint32Array(count);
-  for (let i = 0; i < count; i++)
-    sizes[i] = view.getUint16(field + 6 + i * 2, true);
-
+function headerEnd(head: Uint8Array, flags: number, extraEnd: number): number {
   let after = extraEnd;
   if ((flags & FNAME) !== 0) after = skipZeroTerminated(head, after);
   if (after >= 0 && (flags & FCOMMENT) !== 0)
     after = skipZeroTerminated(head, after);
-  if (after < 0) return null;
+  if (after < 0) return -1;
   if ((flags & FHCRC) !== 0) after += 2;
-  if (after > head.length) return null;
+  return after > head.length ? -1 : after;
+}
 
+function isDictZipHead(head: Uint8Array): boolean {
+  return (
+    head.length >= 12 &&
+    head[0] === 0x1f &&
+    head[1] === 0x8b &&
+    head[2] === 0x08 &&
+    (head[3]! & FEXTRA) !== 0
+  );
+}
+
+export function parseDictZip(head: Uint8Array): DictZip | null {
+  if (!isDictZipHead(head)) return null;
+  const flags = head[3]!;
+  const view = new DataView(head.buffer, head.byteOffset, head.byteLength);
+  const extraEnd = 12 + view.getUint16(10, true);
+  if (extraEnd > head.length) return null;
+
+  const field = findRaField(view, head, extraEnd);
+  if (field < 0 || field + 6 > extraEnd) return null;
+  if (view.getUint16(field, true) !== 1) return null;
+  const chunkLength = view.getUint16(field + 2, true);
+  const count = view.getUint16(field + 4, true);
+  if (chunkLength === 0 || field + 6 + count * 2 > extraEnd) return null;
+
+  const after = headerEnd(head, flags, extraEnd);
+  if (after < 0) return null;
+
+  const sizes = new Uint16Array(count);
+  const starts = new Uint32Array(count);
   let at = after;
   for (let i = 0; i < count; i++) {
+    sizes[i] = view.getUint16(field + 6 + i * 2, true);
     starts[i] = at;
     at += sizes[i]!;
   }
-
   return { chunkLength, sizes, starts, dataStart: after };
 }
 

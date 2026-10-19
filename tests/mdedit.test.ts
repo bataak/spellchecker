@@ -2,10 +2,8 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 
 import {
-  alignAt,
   cycleCase,
   headingDepthAt,
-  toggleAlign,
   toggleHeading,
   toggleList,
   toggleWrap,
@@ -14,13 +12,17 @@ import {
   insertImage,
   setImageSize,
   insertPageBreak,
-  insertSignature,
   insertTable,
   minimalDiff,
   toggleQuote,
   wrapLink,
 } from "../src/mdbar/mdedit.ts";
-import type { AlignKind } from "../src/mdbar/mdedit.ts";
+import {
+  alignAt,
+  insertSignature,
+  toggleAlign,
+  type AlignKind,
+} from "../src/mdbar/mdalign.ts";
 
 function at(marked: string): { text: string; start: number; end: number } {
   const start = marked.indexOf("|");

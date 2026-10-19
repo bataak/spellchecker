@@ -1,16 +1,14 @@
 import { escapeAttr } from "../htmlutil.ts";
+import { insertSignature, toggleAlign, type AlignKind } from "./mdalign.ts";
 import {
   cycleCase,
   insertPageBreak,
-  insertSignature,
   insertTable,
-  toggleAlign,
   toggleHeading,
   toggleList,
   toggleQuote,
   toggleWrap,
   wrapLink,
-  type AlignKind,
   type Edit,
 } from "./mdedit.ts";
 
