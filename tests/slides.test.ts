@@ -123,3 +123,27 @@ test("илтгэлийн хүснэгт ODP, PPTX-д жинхэнэ хүснэг
   assert.equal(pptx.match(/<a:tr /g)?.length, 2);
   assert.ok(pptx.includes('<a:pPr algn="r"/>'));
 });
+
+test("buildPptx: илтгэгчийн тэмдэглэлийг notesSlide болгоно", () => {
+  const md =
+    "# Илтгэл\n\n## Нэг\n\nАгуулга\n\n::: notes\nЭхний тэмдэглэл\n:::\n\n## Хоёр\n\nТэмдэглэлгүй\n";
+  const out = files(buildPptx(deck(md)));
+  assert.ok(out["ppt/notesMasters/notesMaster1.xml"]);
+  assert.ok(
+    out["ppt/notesSlides/notesSlide2.xml"]!.includes("Эхний тэмдэглэл"),
+  );
+  assert.equal(out["ppt/notesSlides/notesSlide3.xml"], undefined);
+  assert.match(out["ppt/slides/_rels/slide2.xml.rels"]!, /notesSlide2\.xml/);
+  assert.doesNotMatch(out["ppt/slides/_rels/slide3.xml.rels"]!, /notesSlide/);
+  assert.match(out["ppt/presentation.xml"]!, /<p:notesMasterIdLst>/);
+  assert.match(out["[Content_Types].xml"]!, /notesSlide2\.xml/);
+});
+
+test("buildPptx: тэмдэглэлгүй бол notes хэсэг үүсгэхгүй", () => {
+  const out = files(buildPptx(deck("# Илтгэл\n\n## Нэг\n\nАгуулга\n")));
+  assert.equal(
+    Object.keys(out).some((name) => name.includes("notes")),
+    false,
+  );
+  assert.doesNotMatch(out["ppt/presentation.xml"]!, /notesMaster/);
+});
