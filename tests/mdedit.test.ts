@@ -16,6 +16,7 @@ import {
   minimalDiff,
   toggleQuote,
   wrapLink,
+  caretInTable,
 } from "../src/mdbar/mdedit.ts";
 import {
   alignAt,
@@ -586,4 +587,12 @@ test("олон мөрт гарчиг, хоосон мөр, хэсэгчлэн т
 
 test("олон мөрт зөвхөн тэмдэглэгээ сонгосон бол өөрчлөхгүй", () => {
   assert.equal(wrap("|## \n- |", "**"), "|## \n-| ");
+});
+
+test("caretInTable: хүснэгтийн мөрийг таньж, энгийн мөрийг алгасна", () => {
+  const text = "Догол | биш\n\n| а | б |\n|---|---|\n1 | 2\n\nТөгсгөл";
+  assert.equal(caretInTable(text, text.indexOf("биш")), false);
+  assert.equal(caretInTable(text, text.indexOf("| а")), true);
+  assert.equal(caretInTable(text, text.indexOf("1 | 2")), true);
+  assert.equal(caretInTable(text, text.indexOf("Төгсгөл")), false);
 });

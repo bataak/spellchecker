@@ -1,3 +1,4 @@
+import { downloadBlob } from "../files/download.ts";
 import {
   baseName,
   cleanPath,
@@ -37,7 +38,6 @@ import {
 } from "./projectpersist.ts";
 import {
   digestOf,
-  download,
   downloadChanged,
   writeChanged,
   zipOf,
@@ -537,7 +537,7 @@ export function createProjectStore() {
 
   async function exportZip(): Promise<void> {
     const snap = projectSnapshot();
-    download(await projectZip(), requireState().name + ".zip");
+    downloadBlob(await projectZip(), requireState().name + ".zip");
     markExported(snap);
   }
 

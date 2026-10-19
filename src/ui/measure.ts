@@ -8,6 +8,7 @@ import {
   dockColumnFits,
   key,
   pageWidth,
+  previewMeasure,
   parseLayout,
   rowKey,
   has,
@@ -422,6 +423,10 @@ export function initMeasureControl(
     const { avail, active } = choose(fit);
     shown = active;
     viewportW = viewport;
+    root.style.setProperty(
+      "--preview-measure",
+      String(previewMeasure(active, metrics, viewport)),
+    );
     apply(active);
 
     syncToolbar();

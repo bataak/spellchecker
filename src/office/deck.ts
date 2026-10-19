@@ -70,6 +70,38 @@ function deckTable(block: Extract<Block, { type: "table" }>): DeckTable {
   };
 }
 
+function imagesOf(children: readonly Inline[]): IrImage[] {
+  return flatten(children).flatMap((run) => (run.image ? [run.image] : []));
+}
+
+function withoutImages(children: readonly Inline[]): Inline[] {
+  const out: Inline[] = [];
+  let cut = false;
+  for (const node of children) {
+    if (node.type === "image") {
+      cut = true;
+      continue;
+    }
+    const last = out.at(-1);
+    if (
+      cut &&
+      node.type === "text" &&
+      (last === undefined || (last.type === "text" && last.value.endsWith(" ")))
+    )
+      out.push({ ...node, value: node.value.replace(/^ +/, "") });
+    else if (
+      node.type === "strong" ||
+      node.type === "em" ||
+      node.type === "del" ||
+      node.type === "link"
+    )
+      out.push({ ...node, children: withoutImages(node.children) });
+    else out.push(node);
+    cut = false;
+  }
+  return out;
+}
+
 function parts(blocks: readonly Block[]): DeckPart[] {
   const out: DeckPart[] = [];
   let pending: Block[] = [];
@@ -85,12 +117,11 @@ function parts(blocks: readonly Block[]): DeckPart[] {
         out.push({ kind: "table", table: deckTable(b) });
       } else if (b.type === "paragraph" && isFigure(b.children)) {
         flush();
-        out.push({
-          kind: "image",
-          images: flatten(b.children).flatMap((run) =>
-            run.image ? [run.image] : [],
-          ),
-        });
+        out.push({ kind: "image", images: imagesOf(b.children) });
+      } else if (b.type === "paragraph" && imagesOf(b.children).length) {
+        pending.push({ ...b, children: withoutImages(b.children) });
+        flush();
+        out.push({ kind: "image", images: imagesOf(b.children) });
       } else if (b.type === "div" && !b.classes.includes("notes"))
         visit(b.children);
       else pending.push(b);

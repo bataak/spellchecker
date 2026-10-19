@@ -1,17 +1,7 @@
+import { downloadBlob } from "../files/download.ts";
 import { baseName, within } from "../tex/texproject.ts";
 import { writeEntry } from "./projectdisk.ts";
 import { diskText, recountDirty, type State } from "./projectstate.ts";
-
-export function download(blob: Blob, name: string): void {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = name;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
 
 export async function writeChanged(
   s: State,
@@ -41,9 +31,12 @@ export async function downloadChanged(s: State): Promise<boolean> {
     if (text === undefined) {
       const bytes = s.binaries.get(path);
       if (bytes)
-        download(new Blob([bytes as Uint8Array<ArrayBuffer>]), baseName(path));
+        downloadBlob(
+          new Blob([bytes as Uint8Array<ArrayBuffer>]),
+          baseName(path),
+        );
     } else {
-      download(
+      downloadBlob(
         new Blob([diskText(s, path, text)], {
           type: "text/plain;charset=utf-8",
         }),

@@ -31,6 +31,8 @@ import {
   describeLayout,
   projectViewport,
   thumbSpans,
+  PREVIEW_MIN_MEASURE,
+  previewMeasure,
 } from "../src/ui/layout.ts";
 
 const x: Metrics = { ...DEFAULT_METRICS };
@@ -327,4 +329,41 @@ test("describeLayout: тэмдэгтийн тоо ба нэмэлт талбар
       Math.round(MEASURES.b) +
       " тэмдэгт) + харагдац + алдааны талбар",
   );
+});
+
+test("previewMeasure: багтвал 80, давчуу үед 60 хүртэл нарийсна", () => {
+  const view = { measure: "a", panel: false, preview: true } as const;
+  const full = pageWidth(view, x);
+  const tight = pageWidth(view, x, PREVIEW_MIN_MEASURE);
+  assert.equal(previewMeasure(view, x, full + 500), PREVIEW_MEASURE);
+  assert.equal(previewMeasure(view, x, full), PREVIEW_MEASURE);
+  assert.equal(previewMeasure(view, x, tight), PREVIEW_MIN_MEASURE);
+  const mid = previewMeasure(view, x, tight + 10 * x.per);
+  assert.equal(mid, PREVIEW_MIN_MEASURE + 10);
+  assert.equal(previewMeasure(DEFAULT_LAYOUT, x, 300), PREVIEW_MEASURE);
+});
+
+test("available: 14 инчийн дэлгэцэд хажуу байрлал гарч ирнэ", () => {
+  const keys = (w: number) =>
+    available(x, w, [])
+      .filter((l) => l.preview)
+      .map(key);
+  assert.deepEqual(keys(1366), []);
+  assert.ok(keys(1440).includes("a-v"));
+  assert.ok(keys(1536).includes("a-v"));
+  assert.ok(keys(1920).includes("a-v"));
+});
+
+test("available: 80 тэмдэгтийн preview багтвал хуучин дүрмээр сонгоно", () => {
+  for (const w of [1600, 1700, 1920, 2200, 2800]) {
+    const strict = ALL_LAYOUTS.filter((l) => fits(l, x, w));
+    if (strict.some((l) => l.preview))
+      assert.deepEqual(
+        available(x, w, []).map(key),
+        strict.map(key),
+        String(w),
+      );
+  }
+  const narrow = available(x, 1440, []);
+  assert.ok(narrow.every((l) => fits(l, x, 1440, false, PREVIEW_MIN_MEASURE)));
 });
