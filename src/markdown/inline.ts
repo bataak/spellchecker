@@ -54,23 +54,32 @@ const emphasis = (ch: string, n: number, body: string): string => {
 const wordBound = (pattern: string): string =>
   "(?<![" + WORD + "])" + pattern + "(?![" + WORD + "])";
 
-const TOKEN = new RegExp(
-  [
-    "(`+)([\\s\\S]*?)\\1",
-    emphasis("~", 2, "[\\s\\S]+?"),
-    emphasis("\\*", 3, "[\\s\\S]+?"),
-    wordBound(emphasis("_", 3, "[\\s\\S]+?")),
-    emphasis("\\*", 2, "[\\s\\S]+?"),
-    wordBound(emphasis("_", 2, "[\\s\\S]+?")),
-    emphasis("\\*", 1, "[^*]+?"),
-    wordBound(emphasis("_", 1, "[^_]+?")),
-    "\\[([^\\]]*)\\]\\(((?:[^()\\s]|\\([^()\\s]*\\))*)\\)",
-    "<((?:[a-z][a-z0-9+.-]*:|[^\\s<>@]+@)[^\\s<>]+)>",
-    MATH_HOLD + "(\\d+)" + MATH_HOLD,
-    "!\\[([^\\]]*)\\]\\(((?:[^()\\s]|\\([^()\\s]*\\))+)\\)(?:\\{([^{}]*)\\})?",
-  ].join("|"),
-  "iu",
-);
+const LINK = "\\[([^\\]]*)\\]\\(((?:[^()\\s]|\\([^()\\s]*\\))*)\\)";
+const IMAGE =
+  "!\\[([^\\]]*)\\]\\(((?:[^()\\s]|\\([^()\\s]*\\))+)\\)(?:\\{([^{}]*)\\})?";
+const NEVER = (pattern: string): string => pattern.replace("\\[", "\\[(?!)");
+
+const tokenPattern = (link: string, image: string): RegExp =>
+  new RegExp(
+    [
+      "(`+)([\\s\\S]*?)\\1",
+      emphasis("~", 2, "[\\s\\S]+?"),
+      emphasis("\\*", 3, "[\\s\\S]+?"),
+      wordBound(emphasis("_", 3, "[\\s\\S]+?")),
+      emphasis("\\*", 2, "[\\s\\S]+?"),
+      wordBound(emphasis("_", 2, "[\\s\\S]+?")),
+      emphasis("\\*", 1, "[^*]+?"),
+      wordBound(emphasis("_", 1, "[^_]+?")),
+      link,
+      "<((?:[a-z][a-z0-9+.-]*:|[^\\s<>@]+@)[^\\s<>]+)>",
+      MATH_HOLD + "(\\d+)" + MATH_HOLD,
+      image,
+    ].join("|"),
+    "iu",
+  );
+
+const TOKEN = tokenPattern(LINK, IMAGE);
+const TOKEN_NO_LINK = tokenPattern(NEVER(LINK), NEVER(IMAGE));
 
 export interface ImageSize {
   width?: number;
@@ -180,13 +189,15 @@ function parseInlineMasked(
 ): Inline[] {
   const out: Inline[] = [];
   let rest = src;
+  let linked = rest.includes("](");
   for (;;) {
-    const m = TOKEN.exec(rest);
+    const m = (linked ? TOKEN : TOKEN_NO_LINK).exec(rest);
     if (!m) break;
     appendText(out, rest.slice(0, m.index), held);
     const node = tokenNode(m, held, lifted);
     if (node) out.push(node);
     rest = rest.slice(m.index + m[0].length);
+    if (linked) linked = rest.includes("](");
   }
   appendText(out, rest, held);
   return out;
