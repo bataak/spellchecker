@@ -9,6 +9,10 @@ import {
   nextFileId,
   sameFile,
   textSum,
+  addSlot,
+  fallbackSlot,
+  markSlotSaved,
+  renameSlot,
 } from "../slots/fileslots.ts";
 import { PLAIN, findTemplate, isPlain } from "../doc/templates.ts";
 import { KEYS } from "../core/store.ts";
@@ -161,9 +165,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     shownFile = name;
     const slot = slots.find(templateId);
     if (slot && name && slot.name !== name) {
-      slots.update((list) =>
-        list.map((item) => (item.id === slot.id ? { ...item, name } : item)),
-      );
+      slots.update((list) => renameSlot(list, slot.id, name));
       rebuildMenu();
     }
     select.textContent = name ? "Файл" : pickedLabel;
@@ -330,10 +332,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     const current = slots.stored();
     if (current.length >= FILE_LIMIT) return false;
     const id = nextFileId(current);
-    slots.update((list) => [
-      ...list,
-      { id, name, sum: null, ...(hash ? { hash } : {}) },
-    ]);
+    slots.update((list) => addSlot(list, id, name, hash));
     rebuildMenu();
     chooseTemplate(id);
     return true;
@@ -351,8 +350,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     )
       return;
     if (templateId === id) {
-      const others = slots.all().filter((item) => item.id !== id);
-      chooseTemplate(others.at(-1)?.id ?? lastTemplate);
+      chooseTemplate(fallbackSlot(slots.all(), id, lastTemplate));
     }
     slots.update((list) => list.filter((item) => item.id !== id));
     dropDraft(id);
@@ -384,14 +382,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   function markSaved(written = false): void {
     if (!isFileSlot(templateId)) return;
     const sum = textSum(editor.value);
-    slots.update((list) =>
-      list.map((item) => {
-        if (item.id !== templateId) return item;
-        if (!written) return { ...item, sum };
-        const { hash: _opened, ...rest } = item;
-        return { ...rest, sum };
-      }),
-    );
+    slots.update((list) => markSlotSaved(list, templateId, sum, written));
   }
 
   async function loadDefault(key: string, example: string): Promise<void> {

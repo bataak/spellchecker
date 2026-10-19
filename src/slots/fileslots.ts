@@ -99,3 +99,42 @@ export function saveSlots(slots: readonly FileSlot[]): void {
   if (slots.length) writeJson(KEYS.slots, slots);
   else remove(KEYS.slots);
 }
+
+export function addSlot(
+  list: readonly FileSlot[],
+  id: string,
+  name: string,
+  hash?: string,
+): FileSlot[] {
+  return [...list, { id, name, sum: null, ...(hash ? { hash } : {}) }];
+}
+
+export function renameSlot(
+  list: readonly FileSlot[],
+  id: string,
+  name: string,
+): FileSlot[] {
+  return list.map((item) => (item.id === id ? { ...item, name } : item));
+}
+
+export function markSlotSaved(
+  list: readonly FileSlot[],
+  id: string,
+  sum: string,
+  written: boolean,
+): FileSlot[] {
+  return list.map((item) => {
+    if (item.id !== id) return item;
+    if (!written) return { ...item, sum };
+    const { hash: _opened, ...rest } = item;
+    return { ...rest, sum };
+  });
+}
+
+export function fallbackSlot(
+  list: readonly FileSlot[],
+  closing: string,
+  last: string,
+): string {
+  return list.filter((item) => item.id !== closing).at(-1)?.id ?? last;
+}
