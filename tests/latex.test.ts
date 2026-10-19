@@ -180,12 +180,26 @@ test("хуудасны дугааргүй сонголт", () => {
   );
 });
 
-test("албан бичгийн эхний гарчиг дугааргүй", () => {
+test("албан бичгийн эхний гарчиг голлосон, тод, дугааргүй", () => {
   const src = "# Өргөдөл гаргах нь:\n\nБие.\n\n## Хавсралт\n";
   const tex = toLatex(parse(src), undefined, { letter: true });
-  assert.ok(tex.includes("\\section*{Өргөдөл гаргах нь:}"));
+  assert.ok(
+    tex.includes("{\\centering\\large\\bfseries Өргөдөл гаргах нь:\\par}"),
+  );
+  assert.ok(!tex.includes("\\section*{Өргөдөл"));
   assert.ok(tex.includes("\\subsection{Хавсралт}"));
   assert.ok(toLatex(parse(src)).includes("\\section{Өргөдөл гаргах нь:}"));
+});
+
+test("албан бичигт MNS 5140-ийн захын зай ба доголгүй догол", () => {
+  const letter = toLatex(parse("# А\n\nБие.\n"), undefined, { letter: true });
+  assert.match(
+    letter,
+    /\\usepackage\[a4paper,top=2cm,bottom=2cm,left=3cm,right=1\.5cm\]\{geometry\}/,
+  );
+  assert.match(letter, /\\setlength\{\\parindent\}\{0pt\}/);
+  assert.ok(letter.indexOf("{geometry}") < letter.indexOf("\\begin{document}"));
+  assert.doesNotMatch(toLatex(parse("# А\n\nБие.\n")), /geometry/);
 });
 
 test("гарчгийн жагсаалт сонголтоор", () => {

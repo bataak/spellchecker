@@ -18,6 +18,7 @@ import {
 import { splitSlides, type Slide } from "../doc/slides.ts";
 import { attempt } from "../core/attempt.ts";
 import { tableLatex } from "./latextable.ts";
+import { LETTER_PAGE, letterTitle } from "./latexletter.ts";
 
 const BASE_PREAMBLE = `\\documentclass[12pt,a4paper]{article}
 \\usepackage[T2A]{fontenc}
@@ -495,29 +496,19 @@ export interface LatexOptions {
   readonly letter?: boolean;
 }
 
-function unnumberFirstHeading(blocks: readonly Block[]): Block[] {
-  let done = false;
-  const visit = (list: readonly Block[]): Block[] =>
-    list.map((b) => {
-      if (done) return b;
-      if (b.type === "div") return { ...b, children: visit(b.children) };
-      if (b.type !== "heading" || oneLine(b.children).trim() === "") return b;
-      done = true;
-      return { ...b, attrs: b.attrs ? b.attrs.replace(/\}$/, " -}") : "{-}" };
-    });
-  return visit(blocks);
-}
-
 export function toLatex(
   blocks: readonly Block[],
   preamble?: string,
   options: LatexOptions = {},
 ): string {
-  if (options.letter) blocks = unnumberFirstHeading(blocks);
+  if (options.letter) blocks = letterTitle(blocks, oneLine);
   const head = titleBlock(blocks[0]);
   const plain = options.pageNumbers !== false;
   const body = toLatexBody(blocks);
-  const top = (preamble ?? preambleFor(head + body)).replace(/\s*$/, "\n");
+  const base =
+    preamble ??
+    preambleFor(head + body) + (options.letter ? "\n" + LETTER_PAGE : "");
+  const top = base.replace(/\s*$/, "\n");
   return (
     top +
     (preamble === undefined
