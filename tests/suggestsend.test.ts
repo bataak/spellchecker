@@ -5,7 +5,7 @@ import {
   postSuggestion,
   sendBlock,
   sendFailure,
-} from "../src/suggestsend.ts";
+} from "../src/feedback/suggestsend.ts";
 
 test("sendBlock илгээх боломжгүй шалтгааныг дарааллаар нь буцаана", () => {
   assert.match(sendBlock(0, false, "")!, /нэг үг/);

@@ -1,12 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import {
-  mapToSource,
-  mergeEdit,
-  renderFlat,
-  suggestName,
-} from "../src/office/mode.ts";
+import { mapToSource, mergeEdit, suggestName } from "../src/office/mode.ts";
+import { renderFlat } from "../src/office/textdoc.ts";
 import { splitName } from "../src/office/filename.ts";
 import type { OfficeEdit } from "../src/office/mode.ts";
 

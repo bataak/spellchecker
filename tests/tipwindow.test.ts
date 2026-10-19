@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parsePin } from "../src/tipwindow.ts";
+import { parsePin } from "../src/define/tipwindow.ts";
 
 test("parsePin хадгалсан байрлалыг уншина", () => {
   assert.deepEqual(parsePin("120,48"), { left: 120, top: 48 });

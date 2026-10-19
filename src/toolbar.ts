@@ -217,38 +217,44 @@ function initButtons({
     port.save();
   }
 
+  function pasteManually(): void {
+    editor.focus();
+    if (isTouch()) {
+      setStatus(
+        "Талбар дотор удаан дарахад гарах <b>Paste</b> цэсийг ашиглан буулгана уу",
+      );
+      return;
+    }
+    const uaData = navigator.userAgentData;
+    const isMac =
+      /mac/i.test((uaData && uaData.platform) || "") ||
+      /Mac|iPhone|iPad|iPod/i.test(navigator.platform || "");
+    flash("#pasteBtn", isMac ? "⌘V" : "Ctrl+V");
+  }
+
   document.querySelector("#pasteBtn")!.addEventListener("click", async () => {
     if (office.active()) {
       flash("#pasteBtn", "Боломжгүй");
       return;
     }
-    try {
-      if (navigator.clipboard && navigator.clipboard.readText) {
-        const text = await navigator.clipboard.readText();
-        if (!text) {
-          editor.focus();
-          return;
-        }
-        const fixed = standardLetters(text);
-        insertAtCaret(fixed);
-        if (fixed !== text) lettersFixed();
-        return;
-      }
-      throw new Error("no-api");
-    } catch {
-      editor.focus();
-      if (isTouch())
-        setStatus(
-          "Талбар дотор удаан дарахад гарах <b>Paste</b> цэсийг ашиглан буулгана уу",
-        );
-      else {
-        const uaData = navigator.userAgentData;
-        const isMac =
-          /mac/i.test((uaData && uaData.platform) || "") ||
-          /Mac|iPhone|iPad|iPod/i.test(navigator.platform || "");
-        flash("#pasteBtn", isMac ? "⌘V" : "Ctrl+V");
-      }
+    if (!navigator.clipboard?.readText) {
+      pasteManually();
+      return;
     }
+    let text: string;
+    try {
+      text = await navigator.clipboard.readText();
+    } catch {
+      pasteManually();
+      return;
+    }
+    if (!text) {
+      editor.focus();
+      return;
+    }
+    const fixed = standardLetters(text);
+    insertAtCaret(fixed);
+    if (fixed !== text) lettersFixed();
   });
 
   (function initCopyErrorsHold() {

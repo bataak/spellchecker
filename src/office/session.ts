@@ -1,3 +1,4 @@
+import { readFailureMessage } from "./fileerror.ts";
 import type { PreviewSource } from "../preview/preview.ts";
 import { swapText } from "../editortext.ts";
 import type { EditorPort, StatusPort } from "../ports.ts";
@@ -33,18 +34,6 @@ export interface OfficeSession {
 
 function isPdfFile(file: File): boolean {
   return file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
-}
-
-function sizeLimitMessage(reason: string, fallbackMb: string): string {
-  return (
-    "Файл хэт том байна — " +
-    (reason.split(":")[1] || fallbackMb) +
-    " мегабайтаас хэтэрч болохгүй"
-  );
-}
-
-function errorReason(error: unknown): string {
-  return error instanceof Error ? error.message : "";
 }
 
 export function createOfficeSession(deps: OfficeSessionDeps): OfficeSession {
@@ -94,14 +83,7 @@ export function createOfficeSession(deps: OfficeSessionDeps): OfficeSession {
       });
     } catch (e) {
       if (stallTimer) clearTimeout(stallTimer);
-      const reason = errorReason(e);
-      holdStatus(
-        reason.startsWith("too-large")
-          ? sizeLimitMessage(reason, "20")
-          : reason === "no-text"
-            ? "Сканердсан баримт байна — текстийн давхарга агуулаагүй тул уншиж чадсангүй"
-            : "PDF файлыг уншиж чадсангүй",
-      );
+      holdStatus(readFailureMessage(e, "PDF файлыг уншиж чадсангүй"));
       return true;
     }
     if (stallTimer) clearTimeout(stallTimer);
@@ -135,14 +117,7 @@ export function createOfficeSession(deps: OfficeSessionDeps): OfficeSession {
     try {
       opened = await mod.openOfficeMode(file);
     } catch (e) {
-      const reason = errorReason(e);
-      holdStatus(
-        reason.startsWith("too-large")
-          ? sizeLimitMessage(reason, "12")
-          : reason === "unpacked-too-large"
-            ? "Файлыг задлахад хэт том болж байна — гэмтсэн эсвэл хортой файл байж магадгүй"
-            : "Файлыг уншиж чадсангүй",
-      );
+      holdStatus(readFailureMessage(e, "Файлыг уншиж чадсангүй"));
       return true;
     }
     if (cancelled?.()) return true;

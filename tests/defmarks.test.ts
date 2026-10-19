@@ -4,7 +4,7 @@ import {
   displayHeadword,
   pickDefinitionMarks,
   placeTipAtPointer,
-} from "../src/defmarks.ts";
+} from "../src/define/defmarks.ts";
 
 test("тайлбартай санал бүрийг тэмдэглэнэ", () => {
   const found = {

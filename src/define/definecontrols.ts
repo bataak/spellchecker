@@ -1,12 +1,12 @@
-import type { Backdrop } from "./backdrop.ts";
+import type { Backdrop } from "../backdrop.ts";
 import type { DefDock } from "./defdock.ts";
 import type { DefTip } from "./deftip.ts";
-import { createDictManager } from "./dict/dictmanager.ts";
-import { isTouch } from "./input.ts";
-import type { Popover } from "./popover.ts";
-import { isLookupKey, wordAt, type WordSpan } from "./spell/lookup.ts";
-import type { SpellChecker } from "./spell/spellchecker.ts";
-import type { Token } from "./spell/textcheck.ts";
+import { createDictManager } from "../dict/dictmanager.ts";
+import { isTouch } from "../input.ts";
+import type { Popover } from "../popover.ts";
+import { isLookupKey, wordAt, type WordSpan } from "../spell/lookup.ts";
+import type { SpellChecker } from "../spell/spellchecker.ts";
+import type { Token } from "../spell/textcheck.ts";
 
 const WORD_CHAR = /[\p{L}\p{M}\p{N}]/u;
 const LATIN_WORD = /\p{Script=Latin}/u;

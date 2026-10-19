@@ -1,3 +1,4 @@
+import { FileReadError } from "../office/fileerror.ts";
 import { repairCyrillic } from "../archive/cp1251.ts";
 import { isSoftHyphenBreak } from "../office/pdf/dehyphen.ts";
 import { stripInvisible } from "../office/sanitize.ts";
@@ -240,7 +241,7 @@ export async function extractPdfText(
   onProgress?: (page: number, total: number) => void,
 ): Promise<string> {
   if (file.size > MAX_PDF_MB * 1024 * 1024)
-    throw new Error("too-large:" + MAX_PDF_MB);
+    throw new FileReadError({ kind: "too-large", limitMb: MAX_PDF_MB });
   let pdfjs: typeof import("pdfjs-dist");
   try {
     pdfjs = await import("pdfjs-dist");
@@ -294,6 +295,6 @@ export async function extractPdfText(
     await loadingTask.destroy();
   }
   const text = repairCyrillic(tidy(pages.join("\n\n")));
-  if (!text) throw new Error("no-text");
+  if (!text) throw new FileReadError({ kind: "no-text" });
   return text;
 }
