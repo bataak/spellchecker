@@ -288,7 +288,6 @@ const defDock = initDefDock({
   desktopMQ,
   room: (side, active) => measureCtl.dockRoom(side, active),
 });
-layoutChanged.on((l) => defDock.sync(l.panel));
 
 const defTip = initDefTip({
   editor: editorEl,
@@ -443,7 +442,8 @@ bindEditorInput({
 initAppearance();
 
 const measureCtl = initMeasureControl(editorWrap, editorEl, layoutChanged.emit);
-defDock.sync();
+defDock.sync(measureCtl.layout().panel);
+layoutChanged.on((l) => defDock.sync(l.panel));
 const previewCtl = initPreview({
   wrap: editorWrap,
   area: editorEl,

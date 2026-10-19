@@ -2,7 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { MAX_FRAMES, safeFrame, toSafeError } from "../src/safeerror.ts";
-import { attachErrorLog, createErrorRing } from "../src/errorlog.ts";
+import {
+  attachErrorLog,
+  createErrorRing,
+  recordOnce,
+} from "../src/errorlog.ts";
 
 const CYR = "НУУЦмаркер";
 const LAT = "SECRETmarker";
@@ -182,4 +186,20 @@ test("errorlog: error байхгүй event-ээс filename/lineno-г ашигл�
   assert.deepEqual(ring.list(), [
     { name: null, code: null, frames: ["b.js:4:7"] },
   ]);
+});
+
+test("errorlog: recordOnce давтагдсан алдаагаар ring-ийг дүүргэхгүй", () => {
+  const ring = createErrorRing();
+  const quota = {
+    name: "QuotaExceededError",
+    code: null,
+    frames: ["a.js:1:1"],
+  };
+  for (let i = 0; i < 10; i++) recordOnce(ring, quota);
+  recordOnce(ring, { name: "TypeError", code: null, frames: ["b.js:2:2"] });
+  assert.equal(ring.list().length, 2);
+  assert.deepEqual(
+    ring.list().map((item) => item.name),
+    ["QuotaExceededError", "TypeError"],
+  );
 });
