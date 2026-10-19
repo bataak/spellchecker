@@ -125,3 +125,65 @@ test("дараалсан pinch-ийн дараа хуудас сунахгүй, 
   assert.equal(left, 0);
   await context.close();
 });
+
+test("томруулсан PDF-ийн хэвтээ байрлалыг refresh болон дахин хөрвүүлэлтийн дараа хадгална", async () => {
+  const context = await app.browser.newContext({
+    viewport: { width: 1600, height: 950 },
+  });
+  const page = await context.newPage();
+  await page.goto(app.url);
+  await ready(page);
+  await page.evaluate(() => localStorage.setItem("pdfZoom", "1.5"));
+  await chooseSlot(page, "Судалгаа");
+  await page.evaluate((text) => {
+    const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
+    area.value = text;
+    area.dispatchEvent(new InputEvent("input", { bubbles: true }));
+  }, TEX);
+  const body = ".preview-panel .preview-body";
+  const canvas = () =>
+    until(
+      () =>
+        page.evaluate(
+          () => !!document.querySelector(".preview-panel.has-pages canvas"),
+        ),
+      (value) => value,
+      90000,
+    );
+  const ratio = () =>
+    page.evaluate((sel) => {
+      const el = document.querySelector<HTMLElement>(sel)!;
+      const range = el.scrollWidth - el.clientWidth;
+      return range > 0 ? el.scrollLeft / range : -1;
+    }, body);
+  assert.equal(await canvas(), true);
+  await page.reload();
+  await ready(page);
+  assert.equal(await canvas(), true);
+  await page.waitForTimeout(500);
+  assert.ok((await ratio()) >= 0, "PDF томруулахад хэвтээ scroll гарна");
+  await page.evaluate((sel) => {
+    const el = document.querySelector<HTMLElement>(sel)!;
+    el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2;
+  }, body);
+  await page.waitForTimeout(600);
+  const centered = await ratio();
+  assert.ok(Math.abs(centered - 0.5) < 0.02, String(centered));
+
+  await page.reload();
+  await ready(page);
+  assert.equal(await canvas(), true);
+  await page.waitForTimeout(500);
+  const restored = await ratio();
+  assert.ok(Math.abs(restored - 0.5) < 0.02, String(restored));
+
+  await page.evaluate(() => {
+    const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
+    area.value = area.value.replace("Сайн байна уу.", "Сайн байна уу. Нэмэлт.");
+    area.dispatchEvent(new InputEvent("input", { bubbles: true }));
+  });
+  await page.waitForTimeout(6000);
+  const recompiled = await ratio();
+  assert.ok(Math.abs(recompiled - 0.5) < 0.02, String(recompiled));
+  await context.close();
+});
