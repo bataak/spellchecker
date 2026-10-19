@@ -96,12 +96,18 @@ test("editorPort: settle нь popover хааж, хадгалж, дараа нь 
   await port.replace("x", 1);
   assert.deepEqual(calls.splice(0), ["set:x:1", "hide", "save", "render"]);
 
+  const frames: FrameRequestCallback[] = [];
+  globals.requestAnimationFrame = (cb: FrameRequestCallback) => frames.push(cb);
   el.scrollTop = 40;
   el.scrollLeft = 7;
   await port.reformat("y", 0);
   assert.deepEqual(calls, ["set:y:0", "save", "render"]);
   assert.equal(el.scrollTop, 40);
   assert.equal(el.scrollLeft, 7);
+  el.scrollTop = 900;
+  while (frames.length) frames.shift()!(0);
+  assert.equal(el.scrollTop, 40);
+  delete globals.requestAnimationFrame;
 });
 
 function slots(state: {
