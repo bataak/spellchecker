@@ -60,90 +60,76 @@ export function parseOdfPart(name: string, xml: string): DocxPart {
     buffer += char;
   };
 
-  const onTag = (tag: TagInfo): void => {
-    const { name: tagName, kind } = tag;
+  const spaces = (tag: TagInfo): string => {
+    const count = Number.parseInt(readAttr(xml, tag, "text:c") ?? "1", 10);
+    return " ".repeat(Number.isFinite(count) && count > 0 ? count : 1);
+  };
 
-    if (kind === "self") {
-      if (SKIPPED_ELEMENTS.has(tagName)) return;
+  const onSelf = (tag: TagInfo): void => {
+    const tagName = tag.name;
+    if (SKIPPED_ELEMENTS.has(tagName) || !collecting()) return;
+    if (tagName === "text:s") pushGlyph(tag, spaces(tag));
+    else if (tagName === "text:tab") pushGlyph(tag, "\t");
+    else buffer += SEPARATORS[tagName] ?? "";
+  };
 
-      if (tagName === "text:s" && collecting()) {
-        const count = Number.parseInt(readAttr(xml, tag, "text:c") ?? "1", 10);
-        pushGlyph(
-          tag,
-          " ".repeat(Number.isFinite(count) && count > 0 ? count : 1),
-        );
-        return;
-      }
+  const openParagraph = (tag: TagInfo): void => {
+    paragraphDepth = stack.length;
+    paragraphStart = tag.start;
+    buffer = "";
+    nodes = [];
+    styleId = readAttr(xml, tag, "text:style-name");
+    styleStack.length = 0;
+  };
 
-      if (tagName === "text:tab" && collecting()) {
-        pushGlyph(tag, "\t");
-        return;
-      }
-
-      const separator = SEPARATORS[tagName];
-      if (separator !== undefined && collecting()) buffer += separator;
+  const onOpen = (tag: TagInfo): void => {
+    const tagName = tag.name;
+    stack.push(tagName);
+    const paragraph = PARAGRAPHS.has(tagName);
+    if (SKIPPED_ELEMENTS.has(tagName) || (paragraph && paragraphDepth >= 0)) {
+      skipMarks.push(stack.length);
       return;
     }
+    if (skipping()) return;
+    if (paragraph) openParagraph(tag);
+    else if (tagName === "text:span" && paragraphDepth >= 0)
+      styleStack.push(spanStyle(xml, tag));
+  };
 
-    if (kind === "open") {
-      stack.push(tagName);
+  const closeParagraph = (tag: TagInfo): void => {
+    paragraphs.push({
+      part: name,
+      index: paragraphs.length,
+      rawStart: paragraphStart,
+      rawEnd: tag.end,
+      text: buffer,
+      nodes,
+      styleId,
+      stale: [],
+    });
+    paragraphDepth = -1;
+    styleStack.length = 0;
+  };
 
-      if (SKIPPED_ELEMENTS.has(tagName)) {
-        skipMarks.push(stack.length);
-        return;
-      }
-
-      if (PARAGRAPHS.has(tagName) && paragraphDepth >= 0) {
-        skipMarks.push(stack.length);
-        return;
-      }
-
-      if (skipping()) return;
-
-      if (PARAGRAPHS.has(tagName)) {
-        paragraphDepth = stack.length;
-        paragraphStart = tag.start;
-        buffer = "";
-        nodes = [];
-        styleId = readAttr(xml, tag, "text:style-name");
-        styleStack.length = 0;
-        return;
-      }
-
-      if (tagName === "text:span" && paragraphDepth >= 0) {
-        styleStack.push(spanStyle(xml, tag));
-      }
-      return;
-    }
-
-    if (
-      skipMarks.length > 0 &&
-      skipMarks[skipMarks.length - 1] === stack.length
-    ) {
+  const onClose = (tag: TagInfo): void => {
+    const tagName = tag.name;
+    if (skipMarks[skipMarks.length - 1] === stack.length) {
       skipMarks.pop();
       stack.pop();
       return;
     }
-
     if (!skipping()) {
       if (tagName === "text:span" && styleStack.length > 0) styleStack.pop();
-      else if (PARAGRAPHS.has(tagName) && paragraphDepth === stack.length) {
-        paragraphs.push({
-          part: name,
-          index: paragraphs.length,
-          rawStart: paragraphStart,
-          rawEnd: tag.end,
-          text: buffer,
-          nodes,
-          styleId,
-          stale: [],
-        });
-        paragraphDepth = -1;
-        styleStack.length = 0;
-      }
+      else if (PARAGRAPHS.has(tagName) && paragraphDepth === stack.length)
+        closeParagraph(tag);
     }
-
     stack.pop();
+  };
+
+  const onTag = (tag: TagInfo): void => {
+    if (tag.kind === "self") onSelf(tag);
+    else if (tag.kind === "open") onOpen(tag);
+    else onClose(tag);
   };
 
   const onText = (start: number, end: number): void => {
