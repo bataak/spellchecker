@@ -1,3 +1,4 @@
+import { initTableWrap } from "../editor/tablewrap.ts";
 import type { Backdrop } from "../editor/backdrop.ts";
 import type { MarkLayer } from "../editor/marklayer.ts";
 import type { Token } from "../spell/textcheck.ts";
@@ -33,6 +34,7 @@ export function createEditorView(deps: EditorViewDeps): EditorView {
     backdrop.el.scrollTop = editor.scrollTop;
     backdrop.el.scrollLeft = editor.scrollLeft;
   };
+  initTableWrap({ editor, backdrop, syncScroll });
 
   const syncActiveLine = (): void => {
     const line = caretLine(editor.value, editor.selectionStart ?? 0);
