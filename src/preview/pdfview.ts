@@ -6,6 +6,13 @@ import {
   TOUCH_CANVAS_PIXELS,
 } from "./viewprefs.ts";
 import { covers, detailRect, type Box, type DetailRect } from "./pdfdetail.ts";
+import { noteError } from "../errorlog.ts";
+
+function noteUnlessCancelled(error: unknown): void {
+  if (error instanceof Error && error.name === "RenderingCancelledException")
+    return;
+  noteError(error);
+}
 
 let pdfjsPromise: Promise<typeof import("pdfjs-dist")> | null = null;
 
@@ -258,7 +265,8 @@ export async function renderPdfInto(
       snap(slot);
       page.cleanup();
       scheduleDetail();
-    } catch {
+    } catch (error) {
+      noteUnlessCancelled(error);
     } finally {
       if (gen === slot.gen) slot.rendering = false;
     }
@@ -331,7 +339,8 @@ export async function renderPdfInto(
         freeCanvas(old.canvas);
       }
       snap(slot);
-    } catch {
+    } catch (error) {
+      noteUnlessCancelled(error);
     } finally {
       if (slot.detail?.canvas !== canvas) freeCanvas(canvas);
     }

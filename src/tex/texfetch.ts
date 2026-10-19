@@ -1,6 +1,7 @@
 import { TEX_LIVE_YEAR, TEX_PACKAGE_INDEX } from "./texpackages.ts";
 import { isXz } from "../archive/xz.ts";
 import { KEYS, readJson, writeJson } from "../store.ts";
+import { noteError } from "../errorlog.ts";
 
 export { wantedFiles } from "./texmissing.ts";
 
@@ -121,7 +122,9 @@ async function prune(cache: Cache, keepName: string): Promise<void> {
   try {
     for (const request of await cache.keys())
       if (!known.has(request.url)) await cache.delete(request);
-  } catch {}
+  } catch (error) {
+    noteError(error);
+  }
 }
 
 function touch(name: string, size: number): void {
@@ -230,7 +233,9 @@ async function packageBytes(
       await cache.put(url, new Response(bytes.slice()));
       touch(name, bytes.length);
       await prune(cache, name);
-    } catch {}
+    } catch (error) {
+      noteError(error);
+    }
   }
   return bytes;
 }

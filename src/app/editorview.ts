@@ -83,9 +83,7 @@ export function createEditorView(deps: EditorViewDeps): EditorView {
     captureTop: backdrop.captureTopAnchor,
     revealRange(start, end) {
       editor.focus({ preventScroll: true });
-      try {
-        editor.setSelectionRange(start, end, "forward");
-      } catch {}
+      editor.setSelectionRange(start, end, "forward");
       const box = editor.getBoundingClientRect();
       const rect = backdrop.rangeRectAt(start, Math.max(end, start + 1));
       const top = rect

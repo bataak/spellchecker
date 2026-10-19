@@ -8,6 +8,7 @@ import {
   TEX_FONTS,
 } from "./texbundle.ts";
 import { KEYS, at } from "../store.ts";
+import { noteError } from "../errorlog.ts";
 
 export interface EngineReply {
   readonly result?: string;
@@ -159,7 +160,9 @@ async function dropOldFontCaches(): Promise<void> {
     for (const key of await caches.keys())
       if (key.startsWith("tex-fonts-") && key !== FONT_CACHE)
         await caches.delete(key);
-  } catch {}
+  } catch (error) {
+    noteError(error);
+  }
 }
 
 let warmed: Promise<boolean> | null = null;
@@ -185,7 +188,9 @@ async function persistStorage(): Promise<void> {
   try {
     if (navigator.storage && !(await navigator.storage.persisted()))
       await navigator.storage.persist();
-  } catch {}
+  } catch (error) {
+    noteError(error);
+  }
 }
 
 let prefetching: Promise<boolean> | null = null;
@@ -479,7 +484,9 @@ async function reinstallPackages(worker: Worker): Promise<void> {
   for (const name of sessionPackages)
     try {
       await installPackage(worker, name);
-    } catch {}
+    } catch (error) {
+      noteError(error);
+    }
 }
 
 async function addPackages(worker: Worker, log: string): Promise<boolean> {

@@ -235,7 +235,7 @@ function initButtons({
         return;
       }
       throw new Error("no-api");
-    } catch (_) {
+    } catch {
       editor.focus();
       if (isTouch())
         setStatus(
@@ -295,7 +295,7 @@ function initButtons({
         try {
           await copyText(words.join("\n"));
           showStatus("Алдаатай үгс хуулагдлаа");
-        } catch (_) {
+        } catch {
           showStatus("Хуулах боломжгүй");
         }
         return;
@@ -304,7 +304,7 @@ function initButtons({
       try {
         await copyText(editor.value);
         flash("#copyBtn", "Хуулагдав");
-      } catch (_) {
+      } catch {
         flash("#copyBtn", "Боломжгүй");
       }
     });

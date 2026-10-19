@@ -14,6 +14,7 @@ import {
   type Token,
 } from "./spell/textcheck.ts";
 import { copyText } from "./clipboard.ts";
+import { attempt } from "./attempt.ts";
 
 interface Turnstile {
   render(
@@ -182,7 +183,7 @@ export function initSuggest(deps: SuggestDeps): void {
     if (!list.length) return null;
     try {
       return await deps.checkKnown(list);
-    } catch (_) {
+    } catch {
       return null;
     }
   }
@@ -275,7 +276,7 @@ export function initSuggest(deps: SuggestDeps): void {
     try {
       await copyText(list.join("\n"));
       note(list.length + " үг санах ойд хуулагдлаа", "ok");
-    } catch (_) {
+    } catch {
       note("Хуулж чадсангүй — дахин оролдоно уу", "err");
     }
   }
@@ -371,9 +372,9 @@ export function initSuggest(deps: SuggestDeps): void {
 
   function resetTurnstile(): void {
     if (!window.turnstile || widgetId == null) return;
-    try {
-      window.turnstile.reset(widgetId);
-    } catch (_) {}
+    const turnstile = window.turnstile;
+    const id = widgetId;
+    attempt(() => turnstile.reset(id), undefined);
   }
 
   function build(): void {
@@ -537,7 +538,7 @@ export function initSuggest(deps: SuggestDeps): void {
     wordEl.value = "";
     try {
       await loadTurnstile();
-    } catch (_) {
+    } catch {
       note("Баталгаажуулалт ачаалагдсангүй — интернетээ шалгана уу", "err");
       return;
     }

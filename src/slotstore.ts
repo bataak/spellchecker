@@ -22,7 +22,7 @@ function validTemplateId(stored: string | null): string {
     if (raw === null) return PLAIN;
     if (findTemplate(raw) !== undefined || raw === PROJECT_SLOT) return raw;
     return loadSlots().some((slot) => slot.id === raw) ? raw : PLAIN;
-  } catch (_) {
+  } catch {
     return PLAIN;
   }
 }
@@ -82,7 +82,7 @@ export async function readDraft(id: string): Promise<string | null> {
   await slotOps.get(id);
   try {
     return await loadSlotText(id);
-  } catch (_) {
+  } catch {
     return null;
   }
 }

@@ -1,5 +1,6 @@
 import { swapOrigin } from "./editortext.ts";
 import { minimalDiff } from "./mdedit.ts";
+import { noteError } from "./errorlog.ts";
 
 export interface Step {
   from: number;
@@ -190,7 +191,9 @@ async function saveStored(entry: Stored): Promise<void> {
     await done(
       db.transaction(STORE, "readwrite").objectStore(STORE).put(entry),
     );
-  } catch {}
+  } catch (error) {
+    noteError(error);
+  }
 }
 
 export interface UndoDeps {

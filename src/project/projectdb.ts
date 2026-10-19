@@ -1,3 +1,5 @@
+import { noteError } from "../errorlog.ts";
+
 const DB_NAME = "bichig-project";
 const DB_STORE = "kv";
 
@@ -36,5 +38,7 @@ export async function dbPut(entries: Record<string, unknown>): Promise<void> {
       tx.onerror = () => resolve();
       tx.onabort = () => resolve();
     });
-  } catch {}
+  } catch (error) {
+    noteError(error);
+  }
 }

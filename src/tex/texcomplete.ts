@@ -167,7 +167,7 @@ export function initTexComplete(deps: TexCompleteDeps): void {
     close();
     editor.focus({ preventScroll: true });
     applying = true;
-    let native = true;
+    let native: boolean;
     try {
       native = replaceRange(editor, edit.from, edit.to, edit.text);
     } finally {
