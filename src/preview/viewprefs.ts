@@ -1,7 +1,7 @@
 import { KEYS, read, remove, write } from "../store.ts";
 
 const ZOOM_STEPS = [
-  0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 5, 6, 7, 8, 9,
+  0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 5, 6,
 ];
 
 export const ZOOM_MIN = ZOOM_STEPS[0]!;
@@ -51,8 +51,8 @@ export function pinchZoom(zoom: number, from: number, to: number): number {
   return from > 0 ? clampZoom((zoom * to) / from) : zoom;
 }
 
-export const TOUCH_CANVAS_PIXELS = 4_000_000;
-export const DESKTOP_CANVAS_PIXELS = 8_000_000;
+export const TOUCH_CANVAS_PIXELS = 12_000_000;
+export const DESKTOP_CANVAS_PIXELS = 32_000_000;
 
 export function canvasDensity(
   width: number,
