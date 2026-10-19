@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { strToU8, zipSync } from "fflate";
-import { chromium } from "playwright";
+import { chromium, firefox } from "playwright";
 import type { Browser, BrowserContext, Page } from "playwright";
 import { createServer } from "vite";
 import type { ViteDevServer } from "vite";
@@ -27,7 +27,11 @@ export interface Fixtures {
   readonly docx: string;
 }
 
+export const FIREFOX = process.env.E2E_ENGINE === "firefox";
+export const CDP_ONLY = FIREFOX && "pinch-ийг зөвхөн Chromium-ийн CDP дуурайна";
+
 async function launch(): Promise<Browser> {
+  if (FIREFOX) return firefox.launch();
   const path = process.env.E2E_BROWSER;
   if (path) return chromium.launch({ executablePath: path });
   try {
@@ -105,7 +109,7 @@ export async function startApp(): Promise<App> {
     async context(options = {}) {
       const context = await browser.newContext({
         viewport: { width: 1600, height: 950 },
-        ...(options.clipboard
+        ...(options.clipboard && !FIREFOX
           ? { permissions: ["clipboard-read", "clipboard-write"] }
           : {}),
       });
