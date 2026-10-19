@@ -143,14 +143,22 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
     (pdfOfProject !== project ||
       (!project && (pdfText === null || !isEditOf(text, pdfText))));
 
-  const render = async (): Promise<void> => {
+  interface Job {
+    readonly seq: number;
+    readonly key: string;
+    readonly text: string;
+    readonly project: string | null;
+    readonly force: boolean;
+  }
+
+  const begin = (): Job | null => {
     texTimer = 0;
     cancelRetry();
     const text = area.value;
     const project = projectKey();
     const key = texKey();
     if (!texMode || key === texShown || key === compiling || !deps.visible())
-      return;
+      return null;
     if (key !== triedText) {
       triedText = key;
       retries = 0;
@@ -159,33 +167,41 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
     const force = forced;
     forced = false;
     compileBtn.disabled = true;
-    const kept = force ? undefined : pool.touch(key);
-    if (kept) {
-      const shown = await showBytes(kept.pdf, seq).catch(() => false);
-      if (seq !== texSeq) return;
-      compileBtn.disabled = false;
-      if (shown) {
-        showCompiled(key, kept.text, project, kept.missing);
-        return;
-      }
-    }
-    const digest = await digestOf(
-      text,
-      project === null ? null : deps.texProject(),
-    );
-    if (!current(seq)) return;
-    const cached = digest === null || force ? null : await cachedPdf(digest);
-    if (cached && (await showBytes(cached, seq).catch(() => false))) {
-      pool.put(key, { text, pdf: cached, missing: [] });
-      showCompiled(key, text, project, []);
-      compileBtn.disabled = false;
-      return;
-    }
-    if (!current(seq)) return;
-    if (!texRestored && project === null) await restoreTex(text, seq);
+    return { seq, key, text, project, force };
+  };
+
+  const showPooled = async (job: Job): Promise<"shown" | "stale" | "miss"> => {
+    const kept = job.force ? undefined : pool.touch(job.key);
+    if (!kept) return "miss";
+    const shown = await showBytes(kept.pdf, job.seq).catch(() => false);
+    if (job.seq !== texSeq) return "stale";
+    compileBtn.disabled = false;
+    if (!shown) return "miss";
+    showCompiled(job.key, kept.text, job.project, kept.missing);
+    return "shown";
+  };
+
+  const showCached = async (
+    job: Job,
+    digest: string | null,
+  ): Promise<boolean> => {
+    const cached =
+      digest === null || job.force ? null : await cachedPdf(digest);
+    if (!cached || !(await showBytes(cached, job.seq).catch(() => false)))
+      return false;
+    pool.put(job.key, { text: job.text, pdf: cached, missing: [] });
+    showCompiled(job.key, job.text, job.project, []);
+    compileBtn.disabled = false;
+    return true;
+  };
+
+  const prepareCompile = async (job: Job): Promise<boolean> => {
+    if (!current(job.seq)) return false;
+    if (!texRestored && job.project === null)
+      await restoreTex(job.text, job.seq);
     texRestored = true;
-    if (!current(seq)) return;
-    if (stale(text, project !== null)) {
+    if (!current(job.seq)) return false;
+    if (stale(job.text, job.project !== null)) {
       drop();
       deps.setError(null);
     }
@@ -197,6 +213,30 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
       if (!savingPdf && mod.compileRunningFor() > STALE_COMPILE_MS)
         mod.cancelCompile();
     });
+    return true;
+  };
+
+  const failed = (job: Job, error: unknown): void => {
+    if (!current(job.seq)) return;
+    texShown = job.key;
+    const delay = RETRY_MS[retries];
+    const message =
+      explainTexError(error, window.isSecureContext) +
+      (delay ? " — дахин оролдож байна…" : "");
+    if (pane.view()) deps.setError(message);
+    else deps.showNotice(message);
+    if (!delay) return;
+    retries++;
+    retryTimer = window.setTimeout(() => {
+      retryTimer = 0;
+      if (!texMode || texKey() !== job.key) return;
+      texShown = null;
+      void render();
+    }, delay);
+  };
+
+  const compileJob = async (job: Job, digest: string | null): Promise<void> => {
+    const { seq, key, text, project } = job;
     compiling = key;
     try {
       const [{ compileTexDocument, onTexPackage }, images] = await Promise.all([
@@ -215,27 +255,25 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
       retries = 0;
       showCompiled(key, text, project, missing);
     } catch (error) {
-      if (!current(seq)) return;
-      texShown = key;
-      const delay = RETRY_MS[retries];
-      const message =
-        explainTexError(error, window.isSecureContext) +
-        (delay ? " — дахин оролдож байна…" : "");
-      if (pane.view()) deps.setError(message);
-      else deps.showNotice(message);
-      if (delay) {
-        retries++;
-        retryTimer = window.setTimeout(() => {
-          retryTimer = 0;
-          if (!texMode || texKey() !== key) return;
-          texShown = null;
-          void render();
-        }, delay);
-      }
+      failed(job, error);
     } finally {
       if (compiling === key) compiling = null;
       if (seq === texSeq) compileBtn.disabled = false;
     }
+  };
+
+  const render = async (): Promise<void> => {
+    const job = begin();
+    if (!job) return;
+    if ((await showPooled(job)) !== "miss") return;
+    const digest = await digestOf(
+      job.text,
+      job.project === null ? null : deps.texProject(),
+    );
+    if (!current(job.seq)) return;
+    if (await showCached(job, digest)) return;
+    if (!(await prepareCompile(job))) return;
+    await compileJob(job, digest);
   };
 
   return {
