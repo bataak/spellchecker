@@ -1,4 +1,4 @@
-import { attempt } from "../attempt.ts";
+import { attempt } from "../core/attempt.ts";
 
 const CP1252_HIGH =
   "\u20AC\uFFFF\u201A\u0192\u201E\u2026\u2020\u2021" +

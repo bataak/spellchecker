@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { attempt, attemptAsync } from "../src/attempt.ts";
+import { attempt, attemptAsync } from "../src/core/attempt.ts";
 
 test("attempt: амжилттай бол үр дүнг буцаана", () => {
   assert.equal(

@@ -1,12 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { MAX_FRAMES, safeFrame, toSafeError } from "../src/safeerror.ts";
+import { MAX_FRAMES, safeFrame, toSafeError } from "../src/core/safeerror.ts";
 import {
   attachErrorLog,
   createErrorRing,
   recordOnce,
-} from "../src/errorlog.ts";
+} from "../src/core/errorlog.ts";
 
 const CYR = "НУУЦмаркер";
 const LAT = "SECRETmarker";

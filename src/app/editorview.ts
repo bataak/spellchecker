@@ -1,7 +1,7 @@
-import type { Backdrop } from "../backdrop.ts";
-import type { MarkLayer } from "../marklayer.ts";
+import type { Backdrop } from "../editor/backdrop.ts";
+import type { MarkLayer } from "../editor/marklayer.ts";
 import type { Token } from "../spell/textcheck.ts";
-import { caretLine } from "../statusline.ts";
+import { caretLine } from "../ui/statusline.ts";
 import { debounce } from "./checkloop.ts";
 
 const MARKS_SETTLE_MS = 100;

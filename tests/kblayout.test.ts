@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mapKey, otherLayout, systemLayout } from "../src/kblayout.ts";
+import { mapKey, otherLayout, systemLayout } from "../src/editor/kblayout.ts";
 
 test("монгол layout стандарт байрлалаар үсэг гаргана", () => {
   const word = ["KeyG", "KeyD", "KeyO", "KeyF"].map((code) =>

@@ -1,4 +1,4 @@
-import { noteError } from "../errorlog.ts";
+import { noteError } from "../core/errorlog.ts";
 
 export interface StoredDict {
   ifo: string;

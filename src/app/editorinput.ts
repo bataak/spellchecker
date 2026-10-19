@@ -1,17 +1,17 @@
-import type { DecodeControl } from "../decode.ts";
+import type { DecodeControl } from "../editor/decode.ts";
 import {
   composeDropped,
   composeTypedWord,
   pasteComposed,
   swapOrigin,
   type EditorText,
-} from "../editortext.ts";
-import { isBulkDelete, isSeparatorInput } from "../input.ts";
-import type { MarkLayer } from "../marklayer.ts";
-import type { MarkTap } from "../marktap.ts";
+} from "../editor/editortext.ts";
+import { isBulkDelete, isSeparatorInput } from "../editor/input.ts";
+import type { MarkLayer } from "../editor/marklayer.ts";
+import type { MarkTap } from "../editor/marktap.ts";
 import type { FixFlow } from "../spell/fixflow.ts";
 import type { Token } from "../spell/textcheck.ts";
-import type { SuggestPopover } from "../suggestpopover.ts";
+import type { SuggestPopover } from "../ui/suggestpopover.ts";
 import type { CheckLoop } from "./checkloop.ts";
 
 const NAV_KEYS = new Set([

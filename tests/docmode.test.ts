@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createDocMode } from "../src/docmode.ts";
+import { createDocMode } from "../src/doc/docmode.ts";
 
 const setup = () => {
   const state = { office: false, name: null as string | null };

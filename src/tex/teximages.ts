@@ -1,5 +1,5 @@
-import { replaceRange } from "../editortext.ts";
-import { pickImage } from "../images.ts";
+import { replaceRange } from "../editor/editortext.ts";
+import { pickImage } from "../files/images.ts";
 import { expandMacros, pathMacros, uncommented } from "./texproject.ts";
 import {
   rewriteSvg,
@@ -8,8 +8,8 @@ import {
   svgToPdf,
   usesSvgPackage,
 } from "./texsvg.ts";
-import { noteError } from "../errorlog.ts";
-import { attemptAsync } from "../attempt.ts";
+import { noteError } from "../core/errorlog.ts";
+import { attemptAsync } from "../core/attempt.ts";
 
 const INCLUDE =
   /\\includegraphics\s*((?:\*\s*)?(?:\[[^\]]*\]\s*)*)\{((?:[^{}]|\{[^{}]*\})*)\}/g;

@@ -7,8 +7,8 @@ import {
   TEX_FONT_FILES,
   TEX_FONTS,
 } from "./texbundle.ts";
-import { KEYS, at } from "../store.ts";
-import { noteError } from "../errorlog.ts";
+import { KEYS, at } from "../core/store.ts";
+import { noteError } from "../core/errorlog.ts";
 
 export interface EngineReply {
   readonly result?: string;

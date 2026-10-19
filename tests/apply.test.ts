@@ -4,7 +4,7 @@ import { test } from "node:test";
 
 import { looksLatex } from "../src/spell/codeskip.ts";
 import { format, parse } from "../src/markdown.ts";
-import { TEMPLATES, findTemplate } from "../src/templates.ts";
+import { TEMPLATES, findTemplate } from "../src/doc/templates.ts";
 import { applyTemplate, guillemets } from "../src/office/apply.ts";
 
 const styles = (md: string, id: string): string[] =>

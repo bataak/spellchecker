@@ -7,8 +7,8 @@ import {
   modeHint,
   openHint,
   spellDictHint,
-} from "../hint.ts";
-import { caretPoint } from "../kblayout.ts";
+} from "../ui/hint.ts";
+import { caretPoint } from "../editor/kblayout.ts";
 
 export interface AppHintsDeps {
   readonly editor: HTMLTextAreaElement;

@@ -6,7 +6,7 @@ import {
   TOUCH_CANVAS_PIXELS,
 } from "./viewprefs.ts";
 import { covers, detailRect, type Box, type DetailRect } from "./pdfdetail.ts";
-import { noteError } from "../errorlog.ts";
+import { noteError } from "../core/errorlog.ts";
 
 function noteUnlessCancelled(error: unknown): void {
   if (error instanceof Error && error.name === "RenderingCancelledException")

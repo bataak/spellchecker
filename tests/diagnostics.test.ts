@@ -10,7 +10,7 @@ import {
   entryHash,
   type DiagnosticsState,
 } from "../src/feedback/diagnostics.ts";
-import { toSafeError, type SafeError } from "../src/safeerror.ts";
+import { toSafeError, type SafeError } from "../src/core/safeerror.ts";
 
 const CYR = "НУУЦмаркер";
 const LAT = "SECRETmarker";

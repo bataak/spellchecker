@@ -13,7 +13,7 @@ import {
   persistImages,
   putImage,
   restoreImages,
-} from "../src/images.ts";
+} from "../src/files/images.ts";
 
 test("imagePath: хоосон зай, хаалтыг кодлоно", () => {
   assert.equal(imagePath("үнэмлэх (1).jpg"), "үнэмлэх%20%281%29.jpg");

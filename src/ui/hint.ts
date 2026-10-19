@@ -1,0 +1,238 @@
+import "./hint.css";
+import { KEYS, at, read, write } from "../core/store.ts";
+
+const SHOW_DELAY_MS = 600;
+const HIDE_AFTER_MS = 12000;
+const COOLDOWN_MS = 20000;
+const QUIET_MS = 2500;
+const GAP = 10;
+const EDGE = 8;
+
+export interface Hint {
+  readonly id: string;
+  readonly target: () => HTMLElement | null;
+  readonly html: string;
+  readonly anchor?: (el: HTMLElement) => DOMRect | null;
+}
+
+function seen(id: string): boolean {
+  return read(at(KEYS.hintSeen, id)) === "1";
+}
+
+function markSeen(id: string): void {
+  write(at(KEYS.hintSeen, id), "1");
+}
+
+function isMac(): boolean {
+  const plat = navigator.userAgentData?.platform ?? navigator.platform ?? "";
+  return /mac|iphone|ipad|ipod/i.test(plat);
+}
+
+function isTouch(): boolean {
+  return !!window.matchMedia?.("(pointer: coarse)").matches;
+}
+
+function kbd(win: string, mac: string): string {
+  return "<kbd>" + (isMac() ? mac : win) + "</kbd>";
+}
+
+function visible(el: HTMLElement | null): el is HTMLElement {
+  if (!el || !el.isConnected) return false;
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0;
+}
+
+function display(hint: Hint, button: HTMLElement, onHide: () => void): void {
+  const tip = document.createElement("div");
+  tip.className = "hint-bubble";
+  tip.setAttribute("role", "status");
+  tip.innerHTML = hint.html;
+
+  const place = (): void => {
+    if (!visible(button)) {
+      hide();
+      return;
+    }
+    const r = hint.anchor
+      ? hint.anchor(button)
+      : button.getBoundingClientRect();
+    if (!r) {
+      hide();
+      return;
+    }
+    const w = tip.offsetWidth;
+    const h = tip.offsetHeight;
+    const vw = document.documentElement.clientWidth;
+    const vh = document.documentElement.clientHeight;
+    const center = r.left + r.width / 2;
+    const left = Math.min(Math.max(center - w / 2, EDGE), vw - w - EDGE);
+    const above = hint.anchor
+      ? r.bottom + GAP + h > vh - EDGE
+      : r.top - GAP - h >= EDGE;
+    tip.dataset.side = above ? "above" : "below";
+    tip.style.left = `${left}px`;
+    tip.style.top = `${above ? r.top - GAP - h : r.bottom + GAP}px`;
+    tip.style.setProperty("--arrow-x", `${center - left}px`);
+  };
+
+  const follow = !!hint.anchor;
+  const onKey = (event: KeyboardEvent): void => {
+    if (!follow || event.key === "Escape") hide();
+  };
+
+  const hideTimer = setTimeout(() => hide(), HIDE_AFTER_MS);
+
+  function hide(): void {
+    clearTimeout(hideTimer);
+    window.removeEventListener("resize", place);
+    window.removeEventListener("scroll", place, true);
+    document.removeEventListener("pointerdown", hide, true);
+    document.removeEventListener("keydown", onKey, true);
+    if (follow) {
+      button.removeEventListener("input", place);
+      button.removeEventListener("focusout", hide);
+      document.removeEventListener("selectionchange", place);
+    }
+    tip.remove();
+    delete button.dataset.hinted;
+    onHide();
+  }
+
+  button.dataset.hinted = "";
+  document.body.append(tip);
+  place();
+  markSeen(hint.id);
+  window.addEventListener("resize", place);
+  window.addEventListener("scroll", place, true);
+  document.addEventListener("pointerdown", hide, true);
+  document.addEventListener("keydown", onKey, true);
+  if (follow) {
+    button.addEventListener("input", place);
+    button.addEventListener("focusout", hide);
+    document.addEventListener("selectionchange", place);
+  }
+}
+
+export function initHints(source: () => readonly Hint[]): () => void {
+  if (isTouch()) return () => {};
+  let showing = false;
+  let readyAt = 0;
+  let lastActive = 0;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const activity = (): void => {
+    lastActive = Date.now();
+  };
+  document.addEventListener("keydown", activity, true);
+  document.addEventListener("input", activity, true);
+
+  function schedule(delay: number): void {
+    clearTimeout(timer);
+    timer = setTimeout(tryShow, delay);
+  }
+
+  function tryShow(): void {
+    if (showing) return;
+    const now = Date.now();
+    const wait = Math.max(readyAt - now, lastActive + QUIET_MS - now);
+    if (wait > 0) {
+      schedule(wait);
+      return;
+    }
+    for (const hint of source()) {
+      if (seen(hint.id)) continue;
+      const button = hint.target();
+      if (!visible(button)) continue;
+      showing = true;
+      display(hint, button, () => {
+        showing = false;
+        readyAt = Date.now() + COOLDOWN_MS;
+        schedule(COOLDOWN_MS);
+      });
+      return;
+    }
+  }
+
+  return () => {
+    if (!showing) schedule(SHOW_DELAY_MS);
+  };
+}
+
+export function layoutHint(target: () => HTMLElement | null): Hint {
+  return {
+    id: "layout",
+    target,
+    html: "Дэлгэцний горимыг энд дарж сонгоно.",
+  };
+}
+
+export function keyboardHint(
+  target: () => HTMLElement | null,
+  anchor: (el: HTMLElement) => DOMRect | null,
+): Hint {
+  return {
+    id: "keyboard",
+    target,
+    anchor,
+    html:
+      "Монгол, англи гарын байрлалыг " +
+      "<kbd>Ctrl+\\</kbd>" +
+      " товчоор сэлгэнэ. Системдээ монгол гар суулгаагүй ч монголоор бичих боломжтой.",
+  };
+}
+
+export function exportHint(target: () => HTMLElement | null): Hint {
+  return {
+    id: "export",
+    target,
+    html:
+      "PDF, DOCX зэрэг файл болгох бол " +
+      kbd("Ctrl+Shift+Alt+S", "⌘⇧⌥S") +
+      " эсвэл " +
+      kbd("Shift", "⇧") +
+      " дарж байгаад <b>Хадгалах</b> товчийг дарна.",
+  };
+}
+
+export function openHint(target: () => HTMLElement | null): Hint {
+  return {
+    id: "open",
+    target,
+    html:
+      "txt, md, tex, docx, pptx, odt, odp, pdf файлууд дахь бичвэрийн алдааг шалгана (" +
+      kbd("Ctrl+O", "⌘O") +
+      "). Файлаа бичвэрийн талбар уруу чирч оруулж болно.",
+  };
+}
+
+export function defineHint(target: () => HTMLElement | null): Hint {
+  return {
+    id: "define",
+    target,
+    html:
+      "Үгэн дээр заагчаа байрлуулаад энэ товчийг дарвал үгийн тайлбар харагдана (" +
+      kbd("Ctrl+Shift+Space", "⌘⇧Space") +
+      "). " +
+      kbd("Shift", "⇧") +
+      " товчтой дарвал тайлбар толинуудыг удирдана.",
+  };
+}
+
+export function spellDictHint(target: () => HTMLElement | null): Hint {
+  return {
+    id: "spelldict",
+    target,
+    html:
+      "Монгол, англи алдаа шалгах толинуудаа эндээс сонгоно (" +
+      kbd("Ctrl+Shift+L", "⌘⇧L") +
+      ").",
+  };
+}
+
+export function modeHint(target: () => HTMLElement | null): Hint {
+  return {
+    id: "mode",
+    target,
+    html: "Бичвэрийн горимыг энд дарж солино.",
+  };
+}

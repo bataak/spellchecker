@@ -1,4 +1,4 @@
-import { KEYS, read, remove, writeJson } from "../store.ts";
+import { KEYS, read, remove, writeJson } from "../core/store.ts";
 export const FILE_LIMIT = 10;
 export const PROJECT_SLOT = "project";
 const FILE_PREFIX = "file-";

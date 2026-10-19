@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { strFromU8, unzipSync } from "fflate";
 
 import { parse } from "../src/markdown.ts";
-import { findTemplate } from "../src/templates.ts";
+import { findTemplate } from "../src/doc/templates.ts";
 import { applyTemplate } from "../src/office/apply.ts";
 import { buildDocx } from "../src/office/docx/create.ts";
 import { buildOdt } from "../src/office/odt/create.ts";

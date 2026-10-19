@@ -4,7 +4,7 @@ import { createStarDictStore, isLatinDict } from "../dict/stardictstore.ts";
 import { createSpellers, DICTIONARIES, PRIMARY } from "./spellers.ts";
 import { createWordCheck } from "./wordcheck.ts";
 import { standardLetters } from "./letters.ts";
-import { attempt, attemptAsync } from "../attempt.ts";
+import { attempt, attemptAsync } from "../core/attempt.ts";
 
 declare global {
   interface Window {

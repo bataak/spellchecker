@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { createButtonCommands } from "../src/commands.ts";
+import { createButtonCommands } from "../src/ui/commands.ts";
 
 class FakeButton {
   disabled = false;

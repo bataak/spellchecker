@@ -10,7 +10,7 @@ import type {
 } from "./docir.ts";
 import { listTree, type ListTree } from "../markdown.ts";
 import { odfFont } from "./fonts.ts";
-import { applyDataStyles } from "../htmlutil.ts";
+import { applyDataStyles } from "../core/htmlutil.ts";
 import { columnWidths, officeMetrics } from "./table.ts";
 
 const LINE_RATIO = 1.15;

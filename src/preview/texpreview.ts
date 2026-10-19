@@ -1,4 +1,4 @@
-import { isEditOf } from "../samedoc.ts";
+import { isEditOf } from "../editor/samedoc.ts";
 import {
   cachedPdf,
   createPdfPool,

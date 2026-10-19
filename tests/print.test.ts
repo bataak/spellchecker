@@ -5,7 +5,7 @@ import { parse } from "../src/markdown.ts";
 import { applyTemplate } from "../src/office/apply.ts";
 import { docImages, imageKey } from "../src/office/docir.ts";
 import { printHtml, splitStyles } from "../src/office/print.ts";
-import { findTemplate } from "../src/templates.ts";
+import { findTemplate } from "../src/doc/templates.ts";
 
 function letter(md: string): string {
   const template = findTemplate("letter")!;

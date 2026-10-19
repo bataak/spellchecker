@@ -1,6 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { countLines, markedHtml, plainHtml } from "../src/backdrophtml.ts";
+import {
+  countLines,
+  markedHtml,
+  plainHtml,
+} from "../src/editor/backdrophtml.ts";
 import { texSpans } from "../src/tex/texhighlight.ts";
 import type { Token } from "../src/spell/textcheck.ts";
 
