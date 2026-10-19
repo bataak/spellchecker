@@ -63,10 +63,10 @@ import {
   setActiveLine,
   setLineBlocks,
   backdropLineCount,
-  marksAtY,
   rangeRectAt,
 } from "./backdrop.ts";
 import { shiftTokens } from "./tokenshift.ts";
+import { initMarkTap } from "./marktap.ts";
 import { texSpans } from "./tex/texhighlight.ts";
 import { initTexComplete } from "./tex/texcomplete.ts";
 import { caretPoint, initKeyboardLayout } from "./kblayout.ts";
@@ -679,10 +679,7 @@ new ResizeObserver(() => {
 }).observe(els.editor);
 els.editor.addEventListener("click", () => {
   fixFlow.drop();
-  if (suppressNextClick) {
-    suppressNextClick = false;
-    return;
-  }
+  if (markTap.consumeClick()) return;
   suggestPopover.atCaret();
 });
 els.editor.addEventListener("keyup", (e) => {
@@ -697,38 +694,10 @@ els.editor.addEventListener("keyup", (e) => {
   if (nav.indexOf(e.key) !== -1) fixFlow.drop();
 });
 
-let suppressNextClick = false;
-
-function markAtPoint(x: number, y: number): HTMLElement | null {
-  for (const mark of marksAtY(y)) {
-    const rects = mark.getClientRects();
-    for (const rect of rects) {
-      if (
-        x >= rect.left &&
-        x <= rect.right &&
-        y >= rect.top &&
-        y <= rect.bottom
-      )
-        return mark;
-    }
-  }
-  return null;
-}
-function tokenForMark(mark: HTMLElement): Token | null {
-  const start = Number(mark.getAttribute("data-start"));
-  for (const token of badTokens) if (token.start === start) return token;
-  return null;
-}
-els.editor.addEventListener("pointerdown", (e) => {
-  if (e.pointerType === "mouse") return;
-  suppressNextClick = false;
-  const mark = markAtPoint(e.clientX, e.clientY);
-  if (!mark) return;
-  const markToken = tokenForMark(mark);
-  if (!markToken) return;
-  e.preventDefault();
-  suppressNextClick = true;
-  showPopoverFor(markToken);
+const markTap = initMarkTap({
+  editor: els.editor,
+  tokens: () => badTokens,
+  show: (token) => showPopoverFor(token),
 });
 
 els.editor.addEventListener("contextmenu", (e) => {
@@ -823,8 +792,7 @@ const fileIO = initFileIO({
   openProjectDir: async (handle) => {
     if (projectLink) await projectLink.openDir(handle);
   },
-  openInProject: (name, text) =>
-    projectLink?.openExisting(name, text) ?? false,
+  openInProject: (name, text) => projectLink?.openExisting(name, text) ?? false,
   prepareOpen: (name, hash, text) => {
     const open = mdBar.findFile(name, hash, text);
     if (open !== null) {
@@ -929,7 +897,8 @@ const nudgeHints = initHints(() => {
     },
   );
   const mode = modeHint(find(".md-select"));
-  if (doc.markdownActive()) return [keyboard, mode, layout, exportHint(find("#saveBtn"))];
+  if (doc.markdownActive())
+    return [keyboard, mode, layout, exportHint(find("#saveBtn"))];
   if (els.editor.value.trim())
     return [keyboard, mode, layout, defineHint(find("#defineBtn"))];
   return [
@@ -1062,7 +1031,6 @@ exportCtl = initExport({
   onBusy: (busy, ext) =>
     setSaveBusy(busy, ext === "zip" ? "Архивлаж байна…" : undefined),
 });
-
 
 function savesPdf(): boolean {
   return (
