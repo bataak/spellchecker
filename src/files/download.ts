@@ -29,7 +29,11 @@ export function downloadBlob(blob: Blob, name: string): void {
 }
 
 export function asksWhereToSave(userAgent: string, picker: boolean): boolean {
-  return picker || !/\bFirefox\//.test(userAgent);
+  return (
+    picker ||
+    !/\bFirefox\//.test(userAgent) ||
+    /\b(?:Android|Mobile)\b/.test(userAgent)
+  );
 }
 
 export function initDownloadHint(
