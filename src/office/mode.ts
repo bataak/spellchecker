@@ -2,6 +2,7 @@ import { lineDiff } from "./linediff.ts";
 import { openDocx, saveDocx } from "./docx/index.ts";
 import { openOdf, saveOdf } from "./odf/index.ts";
 import { openPptx, savePptx } from "./pptx/index.ts";
+import { FileReadError } from "./fileerror.ts";
 import { renderFlat } from "./textdoc.ts";
 import type { SaveResult, TextEdit, TextIndex } from "./textdoc.ts";
 import type { SkipReason } from "./docx/edit.ts";
@@ -39,7 +40,8 @@ interface Engine {
   save: (edits: OfficeEdit[]) => SaveResult;
 }
 
-export const SIZE_LIMIT = 30 * 1024 * 1024;
+const SIZE_LIMIT_MB = 30;
+export const SIZE_LIMIT = SIZE_LIMIT_MB * 1024 * 1024;
 const UNPACKED_LIMIT = 512 * 1024 * 1024;
 
 export const MIME: Record<OfficeFormat, string> = {
@@ -165,12 +167,13 @@ export async function deliver(
 
 export async function openOfficeMode(file: File): Promise<OfficeMode> {
   const format = officeFormat(file);
-  if (format === null) throw new Error("unsupported");
-  if (file.size > SIZE_LIMIT) throw new Error("too-large:30");
+  if (format === null) throw new FileReadError({ kind: "unsupported" });
+  if (file.size > SIZE_LIMIT)
+    throw new FileReadError({ kind: "too-large", limitMb: SIZE_LIMIT_MB });
 
   const bytes = await readBytes(file);
   if (unpackedSize(bytes) > UNPACKED_LIMIT)
-    throw new Error("unpacked-too-large");
+    throw new FileReadError({ kind: "unpacked-too-large" });
   const engine = ENGINES[format](bytes);
   const source = engine.text;
   const fileName = file.name;
