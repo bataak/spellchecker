@@ -29,6 +29,26 @@ export function wheelZoom(
   return clampZoom(zoom * Math.exp(-delta / 100));
 }
 
+export interface TouchPoint {
+  readonly clientX: number;
+  readonly clientY: number;
+}
+
+export function touchSpan(a: TouchPoint, b: TouchPoint): number {
+  return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+}
+
+export function touchMid(
+  a: TouchPoint,
+  b: TouchPoint,
+): { x: number; y: number } {
+  return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
+}
+
+export function pinchZoom(zoom: number, from: number, to: number): number {
+  return from > 0 ? clampZoom((zoom * to) / from) : zoom;
+}
+
 export function loadZoom(): number {
   const value = Number(read(KEYS.pdfZoom));
   return value > 0 ? clampZoom(value) : 1;
