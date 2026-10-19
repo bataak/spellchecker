@@ -1,5 +1,6 @@
 import { ALIGN_ROLE, HEADING_DEPTH, type Role } from "./mdbuttons.ts";
-import { alignAt, headingDepthAt, type AlignKind } from "./mdedit.ts";
+import { alignAt, type AlignKind } from "./mdalign.ts";
+import { headingDepthAt } from "./mdedit.ts";
 
 export interface ButtonState {
   sync(): void;
