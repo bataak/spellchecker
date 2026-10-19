@@ -9,7 +9,11 @@ import {
   locateFile,
   saveMessage,
 } from "./linkfiles.ts";
-import type { ProjectStore, ProjectSnapshot } from "./projectstore.ts";
+import type {
+  ProjectSnapshot,
+  ProjectStore,
+  ProjectView,
+} from "./projectstore.ts";
 import {
   baseName,
   isLatexDocument,
@@ -334,51 +338,64 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
 
   let shownName: string | null = null;
   let shownId = 0;
+  const announce = (view: ProjectView | null): void => {
+    const name = view?.label ?? null;
+    if (name === shownName && (view?.id ?? 0) === shownId) return;
+    shownName = name;
+    shownId = view?.id ?? 0;
+    deps.onProject(name);
+  };
+
+  const leaveProject = (): void => {
+    deps.file.bind(null);
+    deps.afterSwitch();
+  };
+
+  const moveBound = (active: string): void => {
+    const moved = places.get(boundPath ?? "");
+    if (moved && boundPath) places.delete(boundPath);
+    boundPath = active;
+    if (moved) places.set(active, moved);
+    deps.file.bind(baseName(active));
+  };
+
+  const reloadBound = (view: ProjectView): void => {
+    if (boundPath === null || view.dirty.has(boundPath)) return;
+    const text = projectText(boundPath);
+    if (text === null || text === editor.value) return;
+    load(text, {
+      start: editor.selectionStart,
+      end: editor.selectionEnd,
+      scroll: editor.scrollTop,
+    });
+  };
+
+  const followBound = (view: ProjectView | null): boolean => {
+    if (!bound) return true;
+    if (!view) {
+      unbind(true);
+      leaveProject();
+      return true;
+    }
+    if (view.id !== boundId) {
+      unbind(false);
+      return true;
+    }
+    if (view.active === null) {
+      unbind(false);
+      if (view.main) openFile(view.main);
+      else leaveProject();
+      return false;
+    }
+    if (view.active !== boundPath) moveBound(view.active);
+    reloadBound(view);
+    return true;
+  };
+
   onProjectChange(() => {
     const view = project();
-    const name = view?.label ?? null;
-    if (name !== shownName || (view?.id ?? 0) !== shownId) {
-      shownName = name;
-      shownId = view?.id ?? 0;
-      deps.onProject(name);
-    }
-    if (bound && !view) {
-      unbind(true);
-      deps.file.bind(null);
-      deps.afterSwitch();
-    } else if (bound && view && view.id !== boundId) {
-      unbind(false);
-    } else if (bound && view) {
-      if (view.active === null) {
-        unbind(false);
-        if (view.main) openFile(view.main);
-        else {
-          deps.file.bind(null);
-          deps.afterSwitch();
-        }
-        return;
-      }
-      if (view.active !== null && view.active !== boundPath) {
-        const moved = places.get(boundPath ?? "");
-        if (moved && boundPath) places.delete(boundPath);
-        boundPath = view.active;
-        if (moved) places.set(view.active, moved);
-        deps.file.bind(baseName(view.active));
-      }
-      const text = boundPath === null ? null : projectText(boundPath);
-      if (
-        text !== null &&
-        text !== editor.value &&
-        boundPath !== null &&
-        !view.dirty.has(boundPath)
-      )
-        load(text, {
-          start: editor.selectionStart,
-          end: editor.selectionEnd,
-          scroll: editor.scrollTop,
-        });
-    }
-    deps.onChange();
+    announce(view);
+    if (followBound(view)) deps.onChange();
   });
 
   let lastRefresh = 0;

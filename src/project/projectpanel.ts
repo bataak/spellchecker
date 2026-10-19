@@ -1,4 +1,4 @@
-import type { ProjectStore } from "./projectstore.ts";
+import type { ProjectStore, ProjectView } from "./projectstore.ts";
 import { KEYS, read, remove, write } from "../store.ts";
 import { confirmClose } from "./linkfiles.ts";
 import { failureMessage } from "./projecterror.ts";
@@ -204,10 +204,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     exportBtn.title = exportTitle(exportedAt, Date.now());
   };
 
-  const render = (): void => {
-    const view = project();
-    syncVisibility();
-    if (syncFloat() || panel.hidden) return;
+  const renderChrome = (view: ProjectView | null): boolean => {
     const pending = view?.pending ?? false;
     const ready = view !== null && !pending;
     title.textContent = view ? view.label : "LaTeX төсөл";
@@ -231,22 +228,21 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     grantBtn.hidden = !pending;
     forgetBtn.hidden = !pending;
     emptyText.textContent = emptyMessage(pending ? view!.label : null, file);
+    return ready;
+  };
 
-    if (!ready) {
-      tree.replaceChildren();
-      state.shown = "";
-      return;
-    }
+  const focusedPath = (): string | undefined => {
+    const active = document.activeElement;
+    if (!(active instanceof HTMLElement) || !tree.contains(active))
+      return undefined;
+    return active.closest<HTMLElement>(".project-row")?.dataset.path;
+  };
 
+  const renderTree = (view: ProjectView): void => {
     const stamp = treeStamp(view, state.collapsed, state.selected);
     if (state.editing || stamp === state.shown) return;
     state.shown = stamp;
-    const focusPath =
-      document.activeElement instanceof HTMLElement &&
-      tree.contains(document.activeElement)
-        ? document.activeElement.closest<HTMLElement>(".project-row")?.dataset
-            .path
-        : undefined;
+    const focusPath = focusedPath();
     const rows = treeRows(view, state.collapsed, state.selected);
     tree.replaceChildren(...rows);
     const first =
@@ -255,6 +251,18 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
       rows[0];
     if (first) first.tabIndex = 0;
     if (focusPath !== undefined && first) first.focus({ preventScroll: true });
+  };
+
+  const render = (): void => {
+    const view = project();
+    syncVisibility();
+    if (syncFloat() || panel.hidden) return;
+    if (!renderChrome(view) || view === null) {
+      tree.replaceChildren();
+      state.shown = "";
+      return;
+    }
+    renderTree(view);
   };
 
   const treeControl = initTreeControl({
