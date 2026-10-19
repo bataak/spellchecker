@@ -14,7 +14,7 @@ function chevron(): SVGSVGElement {
   svg.setAttribute("class", "pane-toggle-glyph");
   svg.setAttribute("aria-hidden", "true");
   const path = document.createElementNS(SVG_NS, "path");
-  path.setAttribute("d", "M10 3.5 5.5 8l4.5 4.5");
+  path.setAttribute("d", "M8 3.5 3.5 8 8 12.5M12.5 3.5 8 8l4.5 4.5");
   svg.append(path);
   return svg;
 }
@@ -33,7 +33,8 @@ export function initPaneToggle(
   button.hidden = true;
   button.append(chevron());
   button.addEventListener("mousedown", (event) => event.preventDefault());
-  workspace.append(button);
+  const editorWrap = area.closest<HTMLElement>(".editor-wrap") ?? workspace;
+  editorWrap.append(button);
 
   let available = false;
   let preview = false;
@@ -49,13 +50,17 @@ export function initPaneToggle(
     next = next && available && !sideBySide();
     if (next === preview) return;
     preview = next;
+    const focused = document.activeElement === button;
     if (preview) {
       root.dataset.pane = "preview";
       area.blur();
     } else delete root.dataset.pane;
+    (preview ? workspace : editorWrap).append(button);
     paint();
     onChange(preview);
-    if (!preview && document.activeElement === button) area.focus();
+    if (!focused) return;
+    if (preview) button.focus();
+    else area.focus();
   };
 
   const sync = (): void => {
