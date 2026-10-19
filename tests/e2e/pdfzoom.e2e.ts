@@ -1,5 +1,6 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
+import type { BrowserContext, Page } from "playwright";
 import { chooseSlot, ready, startApp, until, type App } from "./harness.ts";
 
 let app: App;
@@ -13,11 +14,12 @@ after(async () => {
 const TEX =
   "\\documentclass{article}\n\\begin{document}\nСайн байна уу.\n\\end{document}\n";
 
-test("гар утсан дээр PDF харагдацыг хоёр хуруугаар томруулна", async () => {
+const openPhone = async (deviceScaleFactor = 1) => {
   const context = await app.browser.newContext({
     viewport: { width: 390, height: 800 },
     isMobile: true,
     hasTouch: true,
+    deviceScaleFactor,
   });
   const page = await context.newPage();
   await page.goto(app.url);
@@ -39,7 +41,15 @@ test("гар утсан дээр PDF харагдацыг хоёр хурууг�
     90000,
   );
   assert.equal(shown, true);
+  return { context, page };
+};
 
+const pinchAt = async (
+  context: BrowserContext,
+  page: Page,
+  from: number,
+  to: number,
+) => {
   const box = (await page
     .locator(".preview-panel .preview-body")
     .boundingBox())!;
@@ -52,26 +62,66 @@ test("гар утсан дээр PDF харагдацыг хоёр хурууг�
   const cdp = await context.newCDPSession(page);
   await cdp.send("Input.dispatchTouchEvent", {
     type: "touchStart",
-    touchPoints: fingers(40),
+    touchPoints: fingers(from),
   });
-  for (let gap = 50; gap <= 80; gap += 10)
+  for (let step = 1; step <= 4; step++)
     await cdp.send("Input.dispatchTouchEvent", {
       type: "touchMove",
-      touchPoints: fingers(gap),
+      touchPoints: fingers(from + ((to - from) * step) / 4),
     });
   await cdp.send("Input.dispatchTouchEvent", {
     type: "touchEnd",
     touchPoints: [],
   });
+};
+
+const zoomLevel = (page: Page) =>
+  page.evaluate(
+    () => document.querySelector(".pdf-zoom-level")?.textContent ?? "",
+  );
+
+test("гар утсан дээр PDF харагдацыг хоёр хуруугаар томруулна", async () => {
+  const { context, page } = await openPhone();
+
+  await pinchAt(context, page, 40, 80);
 
   const zoom = await until(
-    () =>
-      page.evaluate(
-        () => document.querySelector(".pdf-zoom-level")?.textContent ?? "",
-      ),
+    () => zoomLevel(page),
     (value) => value === "200%",
   );
   assert.equal(zoom, "200%");
   assert.equal(await page.evaluate(() => visualViewport?.scale ?? 1), 1);
+  await context.close();
+});
+
+test("дараалсан pinch-ийн дараа хуудас сунахгүй, томруулсан хэсэг тод зурагдана", async () => {
+  const { context, page } = await openPhone(2);
+  await pinchAt(context, page, 30, 90);
+  await pinchAt(context, page, 30, 90);
+  await until(
+    () => zoomLevel(page),
+    (value) => value === "600%",
+  );
+  assert.equal(
+    await page.evaluate(
+      () => document.querySelector<HTMLElement>(".pdf-pages")!.style.transform,
+    ),
+    "",
+  );
+  const detail = await until(
+    () => page.evaluate(() => document.querySelectorAll(".pdf-detail").length),
+    (count) => count > 0,
+  );
+  assert.ok(detail > 0);
+  await pinchAt(context, page, 90, 30);
+  await until(
+    () => zoomLevel(page),
+    (value) => value === "200%",
+  );
+  const left = await until(
+    () => page.evaluate(() => document.querySelectorAll(".pdf-detail").length),
+    (count) => count === 0,
+  );
+  assert.equal(left, 0);
   await context.close();
 });
