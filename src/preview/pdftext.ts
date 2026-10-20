@@ -298,3 +298,11 @@ export async function extractPdfText(
   if (!text) throw new FileReadError({ kind: "no-text" });
   return text;
 }
+
+export function textLeft(lines: readonly Line[], width: number): number | null {
+  if (!(width > 0)) return null;
+  let left = Infinity;
+  for (const line of lines)
+    if (line.left !== undefined) left = Math.min(left, line.left);
+  return Number.isFinite(left) ? Math.min(Math.max(left / width, 0), 1) : null;
+}

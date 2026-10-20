@@ -1,4 +1,5 @@
 import type { Line, TextItem } from "./pdftext.ts";
+import { createSyncMark } from "./syncmark.ts";
 import type { PdfWord } from "../tex/texsync.ts";
 import {
   canvasDensity,
@@ -387,7 +388,7 @@ export async function renderPdfInto(
 
   let found: Promise<readonly PdfWord[]> | null = null;
   const readWords = async (): Promise<readonly PdfWord[]> => {
-    const [{ pageLines }, { pdfWords }] = await Promise.all([
+    const [{ pageLines, textLeft }, { pdfWords }] = await Promise.all([
       import("./pdftext.ts"),
       import("../tex/texsync.ts"),
     ]);
@@ -400,13 +401,14 @@ export async function renderPdfInto(
       lines.push(pageLines(content.items as TextItem[]));
       heights.push(page.view[3]! - page.view[1]!);
       widths.push(page.view[2]! - page.view[0]!);
+      margins[i - 1] = textLeft(lines[i - 1]!, widths[i - 1]!);
       page.cleanup();
     }
     return pdfWords(lines, heights, widths);
   };
 
-  let mark: HTMLElement | null = null;
-  let markTimer = 0;
+  const syncMark = createSyncMark(list);
+  const margins: (number | null)[] = [];
 
   const visible = new Set<PageSlot>();
   let zooming = false;
@@ -536,25 +538,7 @@ export async function renderPdfInto(
       const at = box.top + slot.el.clientTop + y * slot.el.clientHeight;
       const delta = revealShift(at, top, frame.bottom);
       if (delta) host.scrollTop += delta;
-      mark ??= document.createElement("div");
-      mark.className = "sync-mark";
-      const band = slot.el.clientHeight * 0.022;
-      mark.style.top =
-        slot.el.offsetTop +
-        slot.el.clientTop +
-        y * slot.el.clientHeight -
-        band +
-        "px";
-      mark.style.left = slot.el.offsetLeft + "px";
-      mark.style.width = slot.el.offsetWidth + "px";
-      mark.style.height = band * 1.3 + "px";
-      mark.classList.remove("is-fading");
-      list.append(mark);
-      clearTimeout(markTimer);
-      markTimer = window.setTimeout(
-        () => mark?.classList.add("is-fading"),
-        900,
-      );
+      syncMark.show(slot.el, y, margins[page - 1] ?? null);
     },
     setZoom(next, origin) {
       if (next === zoom) return;
@@ -629,7 +613,7 @@ export async function renderPdfInto(
       host.removeEventListener("scroll", onScroll);
       if (snapFrame) cancelAnimationFrame(snapFrame);
       clearTimeout(resizeTimer);
-      clearTimeout(markTimer);
+      syncMark.clear();
       clearTimeout(detailTimer);
       ro.disconnect();
       io.disconnect();
