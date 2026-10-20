@@ -111,7 +111,7 @@ test("GitLab-аар нэвтрэх товчоор token оруулахгүйгэ
   await openMore(page);
   await page.fill('.git-panel input[name="dir"]', "tex");
   const button = page.locator(".git-signin-btn");
-  assert.equal(await button.textContent(), "GitLab-ээр нэвтрэх");
+  assert.equal(await button.textContent(), "Нэвтрэх");
   await button.click();
   await until(
     () => rows(page),
