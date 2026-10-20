@@ -24,7 +24,38 @@ import {
   type TreeEntry,
 } from "./githost.ts";
 
+import {
+  conflictsOf,
+  merge3,
+  resolveChunks,
+  type Chunk,
+  type Conflict,
+  type Pick,
+} from "./merge3.ts";
+
 const FILE_MODE = "100644";
+
+export type MergeItem =
+  | {
+      readonly path: string;
+      readonly kind: "text";
+      readonly conflicts: readonly Conflict[];
+    }
+  | {
+      readonly path: string;
+      readonly kind: "file";
+      readonly ours: "changed" | "deleted";
+      readonly theirs: "changed" | "deleted";
+    };
+
+export type MergeAnswer = ReadonlyMap<
+  string,
+  readonly Pick[] | "ours" | "theirs"
+>;
+
+export type Resolver = (
+  items: readonly MergeItem[],
+) => Promise<MergeAnswer | null>;
 
 export interface RemoteFile {
   readonly sha: string;
@@ -188,6 +219,7 @@ async function catchUp(
   remote: GitRemote,
   plan: Plan,
   head: string,
+  resolve?: Resolver,
 ): Promise<GitRemote> {
   const listing = await api.list(head);
   const tree = listing.tree;
@@ -199,16 +231,59 @@ async function catchUp(
     ...plan.writes.map(([path]) => path),
     ...plan.deletes,
   ]);
-  const clash = changed.filter((path) => touched.has(path));
-  if (clash.length)
-    throw new ProjectError(
-      "Commit хийсэнгүй: repo дээр эдгээр файлыг өөр газраас өөрчилсөн байна — " +
-        clash.join(", "),
-    );
+  const clash = new Set(changed.filter((path) => touched.has(path)));
   const fetched = await inBatches(changed, (path) =>
     files[path] ? api.blob(files[path].sha) : Promise.resolve(null),
   );
-  changed.forEach((path, index) => applyRemoteFile(s, path, fetched[index]!));
+  const theirs = new Map(changed.map((path, index) => [path, fetched[index]!]));
+  const merges = new Map<string, Chunk[]>();
+  const items: MergeItem[] = [];
+  for (const path of clash) {
+    const bytes = theirs.get(path) ?? null;
+    const ours = s.texts.get(path);
+    const base = s.saved.get(path);
+    if (
+      bytes &&
+      isEditablePath(path) &&
+      ours !== undefined &&
+      base !== undefined &&
+      remote.files[path] !== undefined
+    ) {
+      const chunks = merge3(base, ours, readText(bytes).text);
+      merges.set(path, chunks);
+      const conflicts = conflictsOf(chunks);
+      if (conflicts.length) items.push({ path, kind: "text", conflicts });
+      continue;
+    }
+    items.push({
+      path,
+      kind: "file",
+      ours: s.texts.has(path) || s.binaries.has(path) ? "changed" : "deleted",
+      theirs: bytes ? "changed" : "deleted",
+    });
+  }
+  let answer: MergeAnswer = new Map();
+  if (items.length) {
+    if (!resolve)
+      throw new ProjectError(
+        "Commit хийсэнгүй: repo дээр эдгээр файлыг өөр газраас өөрчилсөн байна — " +
+          items.map((item) => item.path).join(", "),
+      );
+    const picked = await resolve(items);
+    if (!picked) throw new ProjectError("Commit хийхийг цуцаллаа");
+    answer = picked;
+  }
+  for (const path of changed) {
+    const bytes = theirs.get(path) ?? null;
+    const chunks = merges.get(path);
+    const choice = answer.get(path);
+    if (!clash.has(path)) applyRemoteFile(s, path, bytes);
+    else if (chunks) {
+      const merged = resolveChunks(chunks, Array.isArray(choice) ? choice : []);
+      applyRemoteFile(s, path, bytes);
+      s.texts.set(path, merged);
+    } else if (choice === "theirs") applyRemoteFile(s, path, bytes);
+  }
   for (const dir of dirs) s.dirs.add(dir);
   return { ...remote, head, tree, files };
 }
@@ -216,6 +291,7 @@ async function catchUp(
 export interface CommitOutcome {
   readonly remote: GitRemote;
   readonly pulled: boolean;
+  readonly committed: boolean;
 }
 
 export async function commitChanges(
@@ -223,6 +299,7 @@ export async function commitChanges(
   s: State,
   remote: GitRemote,
   message: string,
+  resolve?: Resolver,
 ): Promise<CommitOutcome | null> {
   let plan = await planChanges(s, remote);
   if (!plan.writes.length && !plan.deletes.length) return null;
@@ -230,9 +307,13 @@ export async function commitChanges(
   let base = remote;
   const pulled = head !== remote.head;
   if (pulled) {
-    base = await catchUp(api, s, remote, plan, head);
+    base = await catchUp(api, s, remote, plan, head, resolve);
     s.remote = base;
     plan = await planChanges(s, base);
+    if (!plan.writes.length && !plan.deletes.length) {
+      recountDirty(s);
+      return { remote: base, pulled, committed: false };
+    }
   }
   const shas = await inBatches(plan.writes, ([, bytes]) => gitBlobSha(bytes));
   const done = await api.commit({
@@ -270,5 +351,6 @@ export async function commitChanges(
   return {
     remote: { ...base, head: done.head, tree: done.tree, files },
     pulled,
+    committed: true,
   };
 }

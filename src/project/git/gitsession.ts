@@ -10,7 +10,12 @@ import {
 import { createGitApi, githubHost } from "./github.ts";
 import { createGitlabHost } from "./gitlab.ts";
 import type { GitHost, LoadWatch, Provider, RepoSpec } from "./githost.ts";
-import { commitChanges, loadRepo, type LoadedRepo } from "./gitsync.ts";
+import {
+  commitChanges,
+  loadRepo,
+  type LoadedRepo,
+  type Resolver,
+} from "./gitsync.ts";
 
 export interface RepoFields {
   readonly provider: Provider;
@@ -114,7 +119,11 @@ export async function openRepo(
   return loaded;
 }
 
-export async function commitState(s: State, message: string): Promise<boolean> {
+export async function commitState(
+  s: State,
+  message: string,
+  resolve?: Resolver,
+): Promise<boolean> {
   const remote = s.remote;
   if (!remote) throw new ProjectError("Repo-ийн мэдээлэл олдсонгүй");
   const outcome = await withToken(remote, async () =>
@@ -123,9 +132,11 @@ export async function commitState(s: State, message: string): Promise<boolean> {
       s,
       remote,
       message,
+      resolve,
     ),
   );
   if (!outcome) return false;
   s.remote = outcome.remote;
+  if (!outcome.committed) return false;
   return true;
 }

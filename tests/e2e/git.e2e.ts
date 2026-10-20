@@ -5,6 +5,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  editor,
   errors,
   openFile,
   openPage,
@@ -357,5 +358,57 @@ test("github.com, gitlab.com-оос өөр серверийн repo-г нээхг
     2,
   );
   assert.equal(leaked, false);
+  await context.close();
+});
+
+test("нэг мөрийг хоёр талаас өөрчилбөл зөрчлийн цонхоор шийдэж commit хийнэ", async () => {
+  const github = new FakeGithub({
+    "main.tex": MAIN,
+    "ch.tex": "Нэг.\nХоёр.\n",
+  });
+  const context = await app.context();
+  await github.attach(context);
+  const page = await openPage(app, context);
+  await openPanel(page);
+  await page.selectOption('.git-panel select[name="service"]', "github");
+  await page.fill('.git-panel input[name="repo"]', "o/r");
+  await openMore(page);
+  await page.fill('.git-panel input[name="dir"]', "");
+  await page.fill('.git-panel input[name="token"]', "tok");
+  await page.click(".git-panel .export-confirm");
+  await until(
+    () => rows(page),
+    (paths) => paths.includes("ch.tex"),
+    20000,
+  );
+  github.push({ "ch.tex": "Нэг бусдын.\nХоёр.\n" });
+  await projectFile(page, "ch.tex");
+  await page.evaluate(() => {
+    const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
+    area.focus();
+    area.setSelectionRange(3, 3);
+  });
+  await page.keyboard.type(" миний");
+  await commit(page, "Миний засвар");
+  const pick = page.locator('.git-panel select[name="ch.tex#0"]');
+  await pick.waitFor({ timeout: 15000 });
+  assert.equal(
+    await page.textContent(".git-panel .export-title"),
+    "Зөрчил шийдэх",
+  );
+  assert.deepEqual(
+    await page.locator(".git-panel .git-version-text").allTextContents(),
+    ["Нэг миний.", "Нэг бусдын."],
+  );
+  await pick.selectOption("both");
+  await page.click(".git-panel .export-confirm");
+  await until(
+    () => Promise.resolve(github.text("ch.tex")),
+    (text) => text === "Нэг миний.\nНэг бусдын.\nХоёр.\n",
+    15000,
+  );
+  assert.equal(github.text("ch.tex"), "Нэг миний.\nНэг бусдын.\nХоёр.\n");
+  assert.equal(await editor(page), "Нэг миний.\nНэг бусдын.\nХоёр.\n");
+  assert.deepEqual(errors(page), []);
   await context.close();
 });
