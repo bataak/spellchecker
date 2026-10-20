@@ -17,7 +17,6 @@ export interface SyncDeps {
 }
 
 export interface PreviewSync {
-  schedule(): void;
   shown(): void;
   reveal(offset: number): void;
   flush(): Promise<void>;
@@ -130,7 +129,6 @@ export function createPreviewSync(deps: SyncDeps): PreviewSync {
   area.addEventListener("input", onEdit);
 
   return {
-    schedule,
     shown() {
       syncedAt = -1;
       schedule();
