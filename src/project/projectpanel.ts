@@ -1,6 +1,6 @@
 import type { ProjectStore } from "./projectstore.ts";
 import { failureMessage } from "./projecterror.ts";
-import { buildPanel } from "./panelmarkup.ts";
+import { buildPanel, type PanelParts } from "./panelmarkup.ts";
 import type { OpenedFile } from "./panelview.ts";
 import { createProjectMenu, type ProjectMenu } from "./projectmenu.ts";
 import { createTreeState, initTreeControl } from "./treecontrol.ts";
@@ -35,15 +35,14 @@ export interface ProjectPanel {
 function openProjectMenu(
   menu: ProjectMenu,
   anchor: HTMLElement,
-  buttons: readonly HTMLButtonElement[],
+  parts: PanelParts,
 ): void {
-  const [folder, zip, git] = buttons;
   const box = anchor.getBoundingClientRect();
   menu.open(
     [
-      { label: "Хавтас нээх", run: () => folder?.click() },
-      { label: "Zip нээх", run: () => zip?.click() },
-      { label: "Git repo нээх", run: () => git?.click() },
+      { label: "Хавтас нээх", run: () => parts.folderBtn.click() },
+      { label: "Zip нээх", run: () => parts.zipBtn.click() },
+      { label: "Git repo нээх", run: () => parts.gitBtn.click() },
     ],
     box.left,
     box.top,
@@ -113,9 +112,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     notify: deps.notify,
     openFile: deps.openFile,
     view: deps.view,
-    closeDrawer: () => {
-      if (!vis.wide.matches) vis.show(false);
-    },
+    closeDrawer: vis.closeDrawer,
   });
 
   document.addEventListener("pointerdown", (event) => {
@@ -163,12 +160,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     sync: render,
     show: vis.show,
     openZipFile,
-    openMenu: (anchor) =>
-      openProjectMenu(menu, anchor, [
-        parts.folderBtn,
-        parts.zipBtn,
-        parts.gitBtn,
-      ]),
+    openMenu: (anchor) => openProjectMenu(menu, anchor, parts),
     reveal: vis.reveal,
   };
 }

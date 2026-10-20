@@ -46,7 +46,10 @@ function applyChange(s: State, change: CopyChange): void {
   recountDirty(s);
 }
 
-export function workingCopy(s: State): WorkingCopy {
+export function workingCopy(
+  s: State,
+  applied: () => void = () => {},
+): WorkingCopy {
   const encoder = new TextEncoder();
   return {
     texts: s.texts,
@@ -54,6 +57,9 @@ export function workingCopy(s: State): WorkingCopy {
     saved: (path) => s.saved.get(path),
     added: (path) => s.added.has(path),
     encode: (path, text) => encoder.encode(diskText(s, path, text)),
-    apply: (change) => applyChange(s, change),
+    apply: (change) => {
+      applyChange(s, change);
+      applied();
+    },
   };
 }

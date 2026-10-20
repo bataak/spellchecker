@@ -39,7 +39,11 @@ export function createSaving(core: StoreCore) {
     const s = core.require();
     if (s.kind === "git") {
       try {
-        return (await commitState(s, message, resolve)) ? "committed" : "clean";
+        return (await commitState(s, message, resolve, () =>
+          core.changed(true),
+        ))
+          ? "committed"
+          : "clean";
       } finally {
         core.changed(true);
       }

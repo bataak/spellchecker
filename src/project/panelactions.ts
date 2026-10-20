@@ -19,7 +19,7 @@ export interface ActionDeps {
   readonly render: () => void;
 }
 
-function createOpened(a: ActionDeps): (prefer?: string) => void {
+function afterOpen(a: ActionDeps): (prefer?: string) => void {
   return (prefer) => {
     a.state.collapsed.clear();
     a.state.focus = null;
@@ -139,7 +139,7 @@ function wireProjectButtons(a: ActionDeps): void {
 }
 
 export function wireActions(a: ActionDeps): (file: File) => Promise<void> {
-  const opened = createOpened(a);
+  const opened = afterOpen(a);
   wireProjectButtons(a);
   return wireOpening(a, opened);
 }

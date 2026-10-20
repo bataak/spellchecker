@@ -146,13 +146,14 @@ export async function commitState(
   s: State,
   message: string,
   resolve?: Resolver,
+  applied?: () => void,
 ): Promise<boolean> {
   const remote = s.remote;
   if (!remote) throw new ProjectError("Repo-ийн мэдээлэл олдсонгүй");
   const outcome = await withToken(remote, null, async () =>
     commitChanges(
       hostFor(remote, await freshToken(remote)),
-      workingCopy(s),
+      workingCopy(s, applied),
       remote,
       message,
       resolve,

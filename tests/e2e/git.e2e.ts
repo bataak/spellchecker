@@ -412,3 +412,65 @@ test("нэг мөрийг хоёр талаас өөрчилбөл зөрчли�
   assert.deepEqual(errors(page), []);
   await context.close();
 });
+
+test("татаж нэгтгэсний дараа commit бүтэлгүйтвэл засварлагч нэгтгэсэн бичвэрийг харуулж, дараагийн commit бусдын засварыг буцаахгүй", async () => {
+  const github = new FakeGithub({
+    "main.tex": MAIN,
+    "ch.tex": "Нэг.\nХоёр.\n",
+  });
+  const context = await app.context();
+  await github.attach(context);
+  let refuse = true;
+  await context.route(
+    "https://api.github.com/repos/o/r/git/refs/heads/**",
+    (route) => {
+      if (route.request().method() === "PATCH" && refuse) {
+        refuse = false;
+        return route.fulfill({
+          status: 422,
+          headers: { "access-control-allow-origin": "*" },
+          body: "{}",
+        });
+      }
+      return route.fallback();
+    },
+  );
+  const page = await openPage(app, context);
+  await openPanel(page);
+  await page.selectOption('.git-panel select[name="service"]', "github");
+  await page.fill('.git-panel input[name="repo"]', "o/r");
+  await openMore(page);
+  await page.fill('.git-panel input[name="dir"]', "");
+  await page.fill('.git-panel input[name="token"]', "tok");
+  await page.click(".git-panel .export-confirm");
+  await until(
+    () => rows(page),
+    (paths) => paths.includes("ch.tex"),
+    20000,
+  );
+  github.push({ "ch.tex": "Нэг.\nХоёр.\nГурав бусдын.\n" });
+  await projectFile(page, "ch.tex");
+  await page.evaluate(() => {
+    const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
+    area.focus();
+    area.setSelectionRange(3, 3);
+  });
+  await page.keyboard.type(" миний");
+  await commit(page, "Эхний оролдлого");
+  await until(
+    () => editor(page),
+    (text) => text === "Нэг миний.\nХоёр.\nГурав бусдын.\n",
+    15000,
+  );
+  assert.equal(await editor(page), "Нэг миний.\nХоёр.\nГурав бусдын.\n");
+  await page.keyboard.press("End");
+  await page.keyboard.type("!");
+  await commit(page, "Дахин");
+  await until(
+    () => Promise.resolve(github.text("ch.tex")),
+    (text) => text?.includes("!") ?? false,
+    15000,
+  );
+  assert.equal(github.text("ch.tex"), "Нэг миний.!\nХоёр.\nГурав бусдын.\n");
+  await context.close();
+});

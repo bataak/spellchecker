@@ -99,7 +99,7 @@ async function exportPdf(c: TexCtx): Promise<CompiledPdf> {
   if (kept) return kept;
   const shown = deps.pane.shown();
   if (st.texMode && shown && !deps.downloadBtn.disabled && st.texShown === key)
-    return { pdf: shown, missing: [] };
+    return { pdf: shown, missing: st.shownMissing };
   st.savingPdf++;
   try {
     const running = pool.running(key);
@@ -166,8 +166,7 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
       st.compiling = null;
       cancelRetry(c);
       deps.compileBtn.disabled = false;
-      if (st.texTimer) clearTimeout(st.texTimer);
-      st.texTimer = 0;
+      cancelTimer(c);
       drop(c);
       deps.setError(null);
       deps.setMissing([]);
@@ -207,7 +206,7 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
     },
     pdf: () => exportPdf(c),
     destroy() {
-      if (st.texTimer) clearTimeout(st.texTimer);
+      cancelTimer(c);
       cancelRetry(c);
       drop(c);
       st.offTexImages?.();
