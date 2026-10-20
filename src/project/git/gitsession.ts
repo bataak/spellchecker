@@ -9,7 +9,7 @@ import {
 } from "./gitauth.ts";
 import { createGitApi, githubHost } from "./github.ts";
 import { createGitlabHost } from "./gitlab.ts";
-import type { GitHost, Provider, RepoSpec } from "./githost.ts";
+import type { GitHost, LoadWatch, Provider, RepoSpec } from "./githost.ts";
 import { commitChanges, loadRepo, type LoadedRepo } from "./gitsync.ts";
 
 export interface RepoFields {
@@ -83,12 +83,13 @@ export async function openRepo(
   spec: RepoSpec,
   token: StoredToken,
   host = spec.host,
+  watch: LoadWatch = {},
 ): Promise<LoadedRepo> {
   const fresh =
     typeof token !== "string" && spec.provider === "gitlab"
       ? await refreshed(spec.host, token)
       : token;
-  const loaded = await loadRepo(hostFor(spec, accessOf(fresh)), spec);
+  const loaded = await loadRepo(hostFor(spec, accessOf(fresh)), spec, watch);
   rememberToken(spec, fresh);
   writeJson(KEYS.gitRepo, {
     provider: spec.provider,

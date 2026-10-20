@@ -324,9 +324,19 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     void askRepo(
       lastRepo(),
       (provider, host) => savedToken({ provider, host }),
-      async (choice) => {
+      async (choice, busy) => {
         try {
-          const loaded = await openRepo(choice.spec, choice.token, choice.host);
+          const loaded = await openRepo(
+            choice.spec,
+            choice.token,
+            choice.host,
+            {
+              signal: busy.signal,
+              progress: (done, total) =>
+                busy.say("Уншиж байна… " + done + " / " + total),
+            },
+          );
+          busy.signal.throwIfAborted();
           let chosen: string | null = null;
           const pick = async (folders: string[]): Promise<string | null> =>
             (chosen = await askFolder(folders));

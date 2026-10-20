@@ -18,6 +18,7 @@ import {
 import {
   inBatches,
   type GitHost,
+  type LoadWatch,
   type Provider,
   type RepoSpec,
   type TreeEntry,
@@ -98,17 +99,22 @@ export function remoteFiles(
 export async function loadRepo(
   api: GitHost,
   spec: RepoSpec,
+  watch: LoadWatch = {},
 ): Promise<LoadedRepo> {
   const branch = spec.branch ?? (await api.defaultBranch());
   const head = await api.head(branch);
-  const { tree, entries } = await api.list(head);
+  const { tree, entries } = await api.list(head, watch.signal);
   const { files, dirs } = remoteFiles(spec, entries);
   const paths = Object.keys(files);
   if (!paths.length) throw new ProjectError("Сонгосон хавтаст файл олдсонгүй");
   const limit = budget();
   const sizes = new Map(entries.map((entry) => [entry.path, entry.size ?? 0]));
   for (const path of paths) limit.take(sizes.get(repoPath(spec, path)) ?? 0);
-  const bytes = await inBatches(paths, (path) => api.blob(files[path]!.sha));
+  const bytes = await inBatches(
+    paths,
+    (path) => api.blob(files[path]!.sha),
+    watch,
+  );
   return {
     name: baseName(spec.dir || spec.project),
     files: paths.map((path, index) => [path, bytes[index]!]),

@@ -81,9 +81,14 @@ function input(field: Field): Control {
   return control;
 }
 
+export interface Busy {
+  readonly signal: AbortSignal;
+  say(text: string): void;
+}
+
 function showForm<T>(
   form: Form,
-  read: (values: Record<string, string>) => T | Promise<T>,
+  read: (values: Record<string, string>, busy: Busy) => T | Promise<T>,
 ): Promise<T | null> {
   return new Promise((resolve) => {
     const restore = document.activeElement as HTMLElement | null;
@@ -159,9 +164,10 @@ function showForm<T>(
       panel.addEventListener("input", () => changed(values(), panel));
       changed(values(), panel);
     }
-    let pending = false;
+    let work: AbortController | null = null;
     const finish = (value: T | null): void => {
-      if (closed.signal.aborted || (pending && value === null)) return;
+      if (closed.signal.aborted) return;
+      work?.abort();
       closed.abort();
       overlay.remove();
       restore?.focus({ preventScroll: true });
@@ -171,10 +177,17 @@ function showForm<T>(
       problem instanceof ProjectError ? problem.message : String(problem);
     panel.addEventListener("submit", (event) => {
       event.preventDefault();
-      if (pending) return;
+      if (work) return;
+      const current = new AbortController();
+      const busy: Busy = {
+        signal: current.signal,
+        say: (text) => {
+          confirm.textContent = text;
+        },
+      };
       let result: T | Promise<T>;
       try {
-        result = read(values());
+        result = read(values(), busy);
       } catch (problem) {
         fail(problemText(problem));
         return;
@@ -184,18 +197,23 @@ function showForm<T>(
         return;
       }
       const label = confirm.textContent;
-      pending = true;
-      panel.inert = true;
+      const lock = (on: boolean): void => {
+        for (const control of controls) control.disabled = on;
+        confirm.disabled = on;
+      };
+      work = current;
+      lock(true);
       error.hidden = true;
       confirm.textContent = form.pending ?? label;
       result.then(
         (value) => {
-          pending = false;
+          work = null;
           finish(value);
         },
         (problem: unknown) => {
-          pending = false;
-          panel.inert = false;
+          work = null;
+          if (closed.signal.aborted) return;
+          lock(false);
           confirm.textContent = label;
           fail(problemText(problem));
         },
@@ -364,7 +382,7 @@ function signInFlow(
 export function askRepo(
   initial: RepoFields,
   savedToken: (provider: Provider, host: string) => StoredToken | null,
-  open: (choice: RepoChoice) => Promise<void>,
+  open: (choice: RepoChoice, busy: Busy) => Promise<void>,
 ): Promise<RepoChoice | null> {
   const note = document.createElement("p");
   note.className = "git-note";
@@ -493,7 +511,7 @@ export function askRepo(
         { name: "token", label: "Token", kind: "password" },
       ],
     },
-    (values) => {
+    (values, busy) => {
       const where = whereOf(values);
       const spec = parseRepo(where.provider, values.repo ?? "", {
         branch: values.branch ?? "",
@@ -507,7 +525,7 @@ export function askRepo(
           needsToken(where) ? "Token оруулна уу" : "Нэвтэрнэ үү",
         );
       const choice = { spec, token, host: where.host.trim() };
-      return open(choice).then(() => choice);
+      return open(choice, busy).then(() => choice);
     },
   );
 }
