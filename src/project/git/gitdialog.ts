@@ -363,6 +363,7 @@ function signInFlow(
     const current = new AbortController();
     attempt = current;
     const finish = (token: OAuthToken): void => {
+      if (current.signal.aborted) return;
       lock(false);
       done(token);
       form.submit();
