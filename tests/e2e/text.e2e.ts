@@ -12,6 +12,7 @@ import {
   typeAtEnd,
   until,
   type App,
+  ready,
 } from "./harness.ts";
 
 let app: App;
@@ -223,5 +224,32 @@ test("LaTeX-д монгол байрлалын ьь-г шууд, вв-г зай�
   await press("Backspace");
   assert.equal(await line(), "Б: «ивв ");
   assert.deepEqual(errors(page), []);
+  await context.close();
+});
+
+test("утсан дээр toolbar-ыг төгсгөл рүү гүйлгэхэд «LaTeX төсөл» товч бүтэн харагдана", async () => {
+  const context = await app.browser.newContext({
+    viewport: { width: 390, height: 800 },
+  });
+  const page = await context.newPage();
+  await page.goto(app.url);
+  await ready(page);
+  await page.evaluate(() => {
+    const bar = document.querySelector<HTMLElement>(".toolbar")!;
+    bar.scrollLeft = bar.scrollWidth - bar.clientWidth - 30;
+  });
+  const gap = await until(
+    () =>
+      page.evaluate(() => {
+        const bar = document.querySelector<HTMLElement>(".toolbar")!;
+        const end = document.querySelector<HTMLElement>("#projectBtn")!;
+        return (
+          end.getBoundingClientRect().right - bar.getBoundingClientRect().right
+        );
+      }),
+    (value) => Math.abs(value) <= 1,
+    3000,
+  );
+  assert.ok(Math.abs(gap) <= 1, String(gap));
   await context.close();
 });
