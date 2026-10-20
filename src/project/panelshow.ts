@@ -14,8 +14,8 @@ export interface ShowDeps {
 }
 
 export interface PanelShow {
-  readonly wide: MediaQueryList;
   isOpen(): boolean;
+  closeDrawer(): void;
   show(on: boolean): void;
   visible(): boolean;
   syncVisibility(): void;
@@ -124,8 +124,10 @@ export function createPanelShow(deps: ShowDeps): PanelShow {
     if (!wide.matches && !panel.hidden) show(false);
   });
   return {
-    wide,
     isOpen: () => open,
+    closeDrawer() {
+      if (!wide.matches) show(false);
+    },
     show,
     visible,
     syncVisibility,
