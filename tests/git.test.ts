@@ -492,3 +492,16 @@ test("GitLab: бусдын давхцахгүй өөрчлөлтийг тата�
   );
   assert.equal(repo.branches.get("main"), before);
 });
+
+test("GitLab: шалгалт ба commit-ийн хооронд орсон бусдын засварыг дарж бичихгүй", async () => {
+  const repo = new FakeGitlab({ "main.tex": MAIN, "a.tex": "А" });
+  repo.push({ "main.tex": MAIN + "%\n" });
+  const synced = await openGitlab(repo);
+  synced.s.texts.set("a.tex", "А миний");
+  repo.beforeCommit = () => repo.push({ "a.tex": "А бусдын" });
+  await assert.rejects(
+    commitChanges(gitlab(repo), synced.s, synced.remote, "x"),
+    ProjectError,
+  );
+  assert.equal(repo.text("a.tex"), "А бусдын");
+});
