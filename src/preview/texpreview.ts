@@ -1,4 +1,5 @@
 import { isEditOf } from "../editor/samedoc.ts";
+import { tidyTex } from "../tex/textidy.ts";
 import {
   cachedPdf,
   createPdfPool,
@@ -68,6 +69,7 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
   let savingPdf = 0;
   let forced = false;
   let offTexImages: (() => void) | null = null;
+  let shownMissing: readonly string[] = [];
 
   const texKey = (): string => {
     const project = projectKey();
@@ -133,9 +135,24 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
     pdfText = text;
     pdfOfProject = project !== null;
     texShown = key;
+    shownMissing = missing;
     downloadBtn.disabled = pane.shown() === null;
     deps.setError(null);
     deps.setMissing(missing);
+  };
+
+  const keepTidied = (): boolean => {
+    const pdf = pane.shown();
+    const text = area.value;
+    if (projectKey() !== null || pdfOfProject || !pdf || !pane.view())
+      return false;
+    if (pdfText === null || texShown !== pdfText || text === pdfText)
+      return false;
+    if (tidyTex(pdfText) !== text) return false;
+    pool.put(text, { text, pdf, missing: shownMissing });
+    pdfText = text;
+    texShown = text;
+    return true;
   };
 
   const stale = (text: string, project: boolean): boolean =>
@@ -295,6 +312,7 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
     },
     drop,
     schedule() {
+      if (keepTidied()) return;
       if (texKey() !== texShown) downloadBtn.disabled = true;
       const project = deps.inProject();
       if (
@@ -302,6 +320,7 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
         (pdfOfProject !== project ||
           (!project && pdfText !== null && !isEditOf(area.value, pdfText)))
       ) {
+        texSeq++;
         drop();
         deps.setError(null);
         deps.setMissing([]);

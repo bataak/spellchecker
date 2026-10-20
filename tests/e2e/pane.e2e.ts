@@ -146,3 +146,48 @@ test("хадгалсан тайлбарын самбарын байрлалта�
     await page.close();
   }
 });
+
+test("LaTeX-ийг хэлбэржүүлэхэд харагдаж буй PDF арилж дахин зурагдахгүй", async () => {
+  const context = await app.context();
+  const page = await openPage(app, context);
+  await chooseSlot(page, "Судалгаа");
+  const src =
+    "\\documentclass{article}\n\\begin{document}\n\\begin{itemize}\n\\item Нэг   \n\n\n\\item Хоёр\n\\end{itemize}\n\\end{document}\n";
+  await page.evaluate((text) => {
+    const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
+    area.value = text;
+    area.dispatchEvent(new InputEvent("input", { bubbles: true }));
+  }, src);
+  await until(
+    () => shown(page, ".preview-panel.has-pages canvas"),
+    (on) => on,
+    90000,
+  );
+  await page.waitForSelector(".tidy-btn:not([hidden])", { timeout: 30000 });
+  await page.evaluate(() => {
+    const win = window as unknown as Record<string, unknown>;
+    win.first = document.querySelector(".preview-body canvas");
+    win.gaps = 0;
+    const tick = (): void => {
+      if (!document.querySelector(".preview-panel.has-pages canvas"))
+        win.gaps = (win.gaps as number) + 1;
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  await page.click(".tidy-btn");
+  await page.waitForTimeout(3000);
+  const after = await page.evaluate(() => {
+    const win = window as unknown as Record<string, unknown>;
+    return {
+      gaps: win.gaps,
+      same: document.querySelector(".preview-body canvas") === win.first,
+      text: document.querySelector<HTMLTextAreaElement>("#editor")!.value,
+    };
+  });
+  assert.ok(after.text.includes("  \\item Нэг\n"), after.text);
+  assert.equal(after.gaps, 0);
+  assert.equal(after.same, true);
+  assert.deepEqual(errors(page), []);
+  await context.close();
+});
