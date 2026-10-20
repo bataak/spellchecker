@@ -83,6 +83,8 @@ interface PageSlot {
 
 export interface PdfView {
   readonly pages: number;
+  readonly ready: Promise<void>;
+  show(): void;
   setZoom(zoom: number, origin?: { x: number; y: number }): void;
   pinch(
     scale: number,
@@ -107,6 +109,7 @@ export interface PdfViewOptions {
   readonly inset?: () => number;
   readonly onPage?: (page: number, pages: number) => void;
   readonly load?: (data: Uint8Array) => PdfLoadingTask;
+  readonly behind?: boolean;
 }
 
 async function pdfLoader(): Promise<(data: Uint8Array) => PdfLoadingTask> {
@@ -137,7 +140,10 @@ export async function renderPdfInto(
   const list = document.createElement("div");
   list.className = "pdf-pages";
   list.style.setProperty("--pdf-zoom", String(zoom));
-  host.replaceChildren(list);
+  if (options.behind) {
+    list.classList.add("is-pending");
+    host.append(list);
+  } else host.replaceChildren(list);
 
   const slots: PageSlot[] = [];
   const dpr = Math.min(globalThis.devicePixelRatio || 1, MAX_DPR);
@@ -404,20 +410,29 @@ export async function renderPdfInto(
 
   const visible = new Set<PageSlot>();
   let zooming = false;
+  let settle = (): void => {};
+  const ready = new Promise<void>((resolve) => {
+    settle = resolve;
+  });
+  let firstBatch = true;
 
   const io = new IntersectionObserver(
     (entries) => {
+      const drawing: Promise<void>[] = [];
       for (const entry of entries) {
         const slot = slots[Number(entry.target.getAttribute("data-page")) - 1];
         if (!slot) continue;
         if (entry.isIntersecting) {
           visible.add(slot);
-          if (!zooming) void draw(slot);
+          if (!zooming) drawing.push(draw(slot));
         } else {
           visible.delete(slot);
           release(slot);
         }
       }
+      if (!firstBatch) return;
+      firstBatch = false;
+      void Promise.all(drawing).then(settle);
     },
     { root: host, rootMargin: ROOT_MARGIN },
   );
@@ -482,6 +497,10 @@ export async function renderPdfInto(
 
   const view: PdfView = {
     pages: slots.length,
+    ready,
+    show() {
+      list.classList.remove("is-pending");
+    },
     goTo(page) {
       const slot = slots[Math.min(Math.max(page, 1), slots.length) - 1];
       if (!slot) return;
@@ -605,6 +624,7 @@ export async function renderPdfInto(
       }
     },
     destroy() {
+      settle();
       signal?.removeEventListener("abort", onAbort);
       host.removeEventListener("scroll", onScroll);
       if (snapFrame) cancelAnimationFrame(snapFrame);
