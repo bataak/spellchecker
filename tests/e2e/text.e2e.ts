@@ -185,7 +185,7 @@ test("гараар зассан алдаатай үгийг бусад давт�
 });
 
 test(
-  "LaTeX-д ЬЬ ба ВВ-г « » болгож, шууд Backspace дарвал буцаана",
+  "LaTeX-д ЬЬ ба ВВ-г шууд « » болгож, Backspace дарвал буцаана",
   { skip: FIREFOX && "Playwright Firefox кирилл үсгийг IME-ээр оруулдаг" },
   async () => {
     const page = await openPage(app, await app.context());
@@ -209,12 +209,15 @@ test(
     assert.equal(await line(), "Б: «");
     await page.keyboard.press("Backspace");
     assert.equal(await line(), "Б: ЬЬ");
+    await page.keyboard.type("Ь");
+    assert.equal(await line(), "Б: ЬЬЬ");
     await page.keyboard.press("Backspace");
     await page.keyboard.press("Backspace");
-    await page.keyboard.type("ЬЬүгВВ ");
-    assert.equal(await line(), "Б: «үг» ");
     await page.keyboard.press("Backspace");
-    assert.equal(await line(), "Б: «үгВВ ");
+    await page.keyboard.type("ььүгвв");
+    assert.equal(await line(), "Б: «үг»");
+    await page.keyboard.press("Backspace");
+    assert.equal(await line(), "Б: «үгвв");
     assert.deepEqual(errors(page), []);
   },
 );
