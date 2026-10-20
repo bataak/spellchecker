@@ -23,18 +23,11 @@ test("challengeOf: RFC 7636-ийн жишээ утгатай таарна", asyn
   );
 });
 
-test("canSignIn: тохируулсан үндсэн серверт л нэвтрэх товч гаргана", () => {
-  assert.equal(canSignIn("github", "https://github.com", config), true);
-  assert.equal(canSignIn("gitlab", "https://gitlab.com", config), true);
-  assert.equal(canSignIn("gitlab", "https://gitlab.corp.mn", config), false);
-  assert.equal(
-    canSignIn("github", "https://github.com", { ...config, proxy: "" }),
-    false,
-  );
-  assert.equal(
-    canSignIn("gitlab", "https://gitlab.com", { ...config, gitlabClient: "" }),
-    false,
-  );
+test("canSignIn: тохиргоо бүрэн үед л нэвтрэх товч гаргана", () => {
+  assert.equal(canSignIn("github", config), true);
+  assert.equal(canSignIn("gitlab", config), true);
+  assert.equal(canSignIn("github", { ...config, proxy: "" }), false);
+  assert.equal(canSignIn("gitlab", { ...config, gitlabClient: "" }), false);
 });
 
 const device = (replies: Record<string, unknown>[]) => {

@@ -28,25 +28,17 @@ export interface GitApi {
   moveBranch(branch: string, commit: string): Promise<boolean>;
 }
 
-export function githubApiBase(host: string): string {
-  return /^https?:\/\/(www\.)?github\.com$/.test(host)
-    ? "https://api.github.com"
-    : host + "/api/v3";
-}
-
 function refPath(branch: string): string {
   return branch.split("/").map(encodeURIComponent).join("/");
 }
 
 export function createGitApi(
   token: string,
-  host: string,
   project: string,
   fetcher: Fetch = (url, init) => fetch(url, init),
 ): GitApi {
   const base =
-    githubApiBase(host) +
-    "/repos/" +
+    "https://api.github.com/repos/" +
     project.split("/").map(encodeURIComponent).join("/");
 
   const call = async <T>(

@@ -199,10 +199,6 @@ test("parseRepo: GitHub-ийн нэр болон хаягийг задлана",
       dir: "d",
     },
   );
-  assert.equal(
-    parseRepo("github", "a/b", { host: "git.corp.mn/" }).host,
-    "https://git.corp.mn",
-  );
   assert.throws(() => parseRepo("github", "thesis"), ProjectError);
   assert.throws(() => parseRepo("github", "a/b/c"), ProjectError);
 });
@@ -395,7 +391,7 @@ test("commitChanges: татсаны дараа commit бүтэлгүйтвэл �
 
 test("createGitApi: token-тойгоор зөв хаяг руу хандаж, алдааг ойлгомжтой болгоно", async () => {
   const calls: { url: string; init: RequestInit | undefined }[] = [];
-  const api = createGitApi("tok", "https://github.com", "o/r", (url, init) => {
+  const api = createGitApi("tok", "o/r", (url, init) => {
     calls.push({ url, init });
     if (url.endsWith("/git/ref/heads/feature/x"))
       return Promise.resolve(Response.json({ object: { sha: "abc" } }));
@@ -407,16 +403,6 @@ test("createGitApi: token-тойгоор зөв хаяг руу хандаж, а
     "Bearer tok",
   );
   await assert.rejects(api.defaultBranch(), /token буруу/);
-});
-
-test("createGitApi: GitHub Enterprise серверт /api/v3 хаягаар хандана", async () => {
-  const urls: string[] = [];
-  const api = createGitApi("tok", "https://git.corp.mn", "o/r", (url) => {
-    urls.push(url);
-    return Promise.resolve(Response.json({ default_branch: "main" }));
-  });
-  await api.defaultBranch();
-  assert.equal(urls[0], "https://git.corp.mn/api/v3/repos/o/r");
 });
 
 const gitlab = (repo: FakeGitlab): GitHost =>

@@ -173,7 +173,7 @@ const SEGMENT = /^[\w.-]+$/;
 export function parseRepo(
   provider: Provider,
   input: string,
-  options: { branch?: string; dir?: string; host?: string } = {},
+  options: { branch?: string; dir?: string } = {},
 ): RepoSpec {
   const { origin, rest } = splitUrl(input);
   const marker = provider === "gitlab" ? "/-/tree/" : "/tree/";
@@ -197,7 +197,7 @@ export function parseRepo(
   );
   return {
     provider,
-    host: cleanHost(options.host?.trim() || origin || "", provider),
+    host: cleanHost(origin ?? "", provider),
     project: parts.join("/"),
     branch: branch || null,
     dir,
