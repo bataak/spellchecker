@@ -35,6 +35,9 @@ jobs:
         env:
           VITE_BASE: /
           VITE_TEX_PACKAGES_URL: ${{ vars.TEX_PACKAGES_URL }}
+          VITE_GIT_AUTH_URL: ${{ vars.GIT_AUTH_URL }}
+          VITE_GITHUB_CLIENT_ID: ${{ vars.GITHUB_CLIENT_ID }}
+          VITE_GITLAB_CLIENT_ID: ${{ vars.GITLAB_CLIENT_ID }}
       - id: pages
         uses: actions/configure-pages@v5
       - run: sh scripts/keep-old-assets.sh "${{ steps.pages.outputs.base_url }}" dist 7

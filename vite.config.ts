@@ -91,6 +91,7 @@ export default defineConfig({
           "**/assets/svgpdf/**",
         ],
         navigateFallback: base + "index.html",
+        navigateFallbackDenylist: [/\/oauth\.html/],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
