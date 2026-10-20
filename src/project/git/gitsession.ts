@@ -14,7 +14,6 @@ import { commitChanges, loadRepo, type LoadedRepo } from "./gitsync.ts";
 
 export interface RepoFields {
   readonly provider: Provider;
-  readonly host: string;
   readonly repo: string;
   readonly branch: string;
   readonly dir: string;
@@ -77,7 +76,6 @@ export function lastRepo(): RepoFields {
   const saved = readJson(KEYS.gitRepo) as Partial<RepoFields> | null;
   return {
     provider: saved?.provider === "gitlab" ? "gitlab" : "github",
-    host: text(saved?.host),
     repo: text(saved?.repo),
     branch: text(saved?.branch),
     dir: text(saved?.dir),
@@ -90,13 +88,12 @@ export function hostFor(
 ): GitHost {
   return spec.provider === "gitlab"
     ? createGitlabHost(token, spec.host, spec.project)
-    : githubHost(createGitApi(token, spec.host, spec.project));
+    : githubHost(createGitApi(token, spec.project));
 }
 
 export async function openRepo(
   spec: RepoSpec,
   token: StoredToken,
-  host = spec.host,
   watch: LoadWatch = {},
 ): Promise<LoadedRepo> {
   const { fresh, loaded } = await withToken(spec, async () => {
@@ -110,7 +107,6 @@ export async function openRepo(
   rememberToken(spec, fresh);
   writeJson(KEYS.gitRepo, {
     provider: spec.provider,
-    host,
     repo: spec.project,
     branch: spec.branch ?? "",
     dir: spec.dir,
