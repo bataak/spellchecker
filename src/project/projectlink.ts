@@ -51,6 +51,8 @@ export interface ProjectLinkDeps {
   readonly workspace: HTMLElement;
   readonly tools: () => HTMLElement | null;
   readonly openButton: HTMLElement | null;
+  readonly fileButton: HTMLElement | null;
+  readonly fileTypes: string;
   readonly slots: SlotPort;
   readonly file: OpenFilePort;
   readonly texActive: () => boolean;
@@ -166,7 +168,11 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
   });
 
   const openButton = deps.openButton;
-  openButton?.addEventListener("click", () => panel.openMenu(openButton));
+  openButton?.addEventListener("click", () =>
+    panel.openMenu(openButton, [
+      { label: deps.fileTypes, run: () => deps.fileButton?.click() },
+    ]),
+  );
   watchProject(deps, binding);
 
   const fail = (error: unknown): void => {

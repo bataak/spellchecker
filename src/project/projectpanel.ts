@@ -2,7 +2,11 @@ import type { ProjectStore } from "./projectstore.ts";
 import { failureMessage } from "./projecterror.ts";
 import { buildPanel, type PanelParts } from "./panelmarkup.ts";
 import type { OpenedFile } from "./panelview.ts";
-import { createProjectMenu, type ProjectMenu } from "./projectmenu.ts";
+import {
+  createProjectMenu,
+  type MenuItem,
+  type ProjectMenu,
+} from "./projectmenu.ts";
 import { createTreeState, initTreeControl } from "./treecontrol.ts";
 import { wireActions } from "./panelactions.ts";
 import { renderChrome, renderTree, syncFoot } from "./panelrender.ts";
@@ -29,20 +33,27 @@ export interface ProjectPanel {
   readonly show: (on: boolean) => void;
   readonly openZipFile: (file: File) => Promise<void>;
   readonly reveal: () => void;
-  readonly openMenu: (anchor: HTMLElement) => void;
+  readonly openMenu: (anchor: HTMLElement, before: readonly MenuItem[]) => void;
 }
 
 function openProjectMenu(
   menu: ProjectMenu,
   anchor: HTMLElement,
   parts: PanelParts,
+  before: readonly MenuItem[],
 ): void {
   const box = anchor.getBoundingClientRect();
   menu.open(
     [
-      { label: "Хавтас нээх", run: () => parts.folderBtn.click() },
-      { label: "Zip нээх", run: () => parts.zipBtn.click() },
-      { label: "Git repo нээх", run: () => parts.gitBtn.click() },
+      ...before,
+      {
+        label: "LaTeX төсөл",
+        items: [
+          { label: "Хавтас нээх", run: () => parts.folderBtn.click() },
+          { label: "Zip файл нээх", run: () => parts.zipBtn.click() },
+          { label: "Git repo нээх", run: () => parts.gitBtn.click() },
+        ],
+      },
     ],
     box.left,
     box.top,
@@ -160,7 +171,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     sync: render,
     show: vis.show,
     openZipFile,
-    openMenu: (anchor) => openProjectMenu(menu, anchor, parts),
+    openMenu: (anchor, before) => openProjectMenu(menu, anchor, parts, before),
     reveal: vis.reveal,
   };
 }
