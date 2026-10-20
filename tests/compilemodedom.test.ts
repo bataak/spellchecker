@@ -133,3 +133,15 @@ test("autoDelay ба tooSlowForAuto: хүлээлт compile-ийн хугаца�
   assert.equal(tooSlowForAuto(16000, false), true);
   assert.equal(tooSlowForAuto(40000, true), false);
 });
+
+test("compileButton: удаан дараад гадагш гаргасны дараа гараас дарахад хөрвүүлнэ", async () => {
+  const { button, calls, control } = setup();
+  press(button);
+  await new Promise((resolve) => setTimeout(resolve, 650));
+  button.dispatchEvent(
+    new dom.window.PointerEvent("pointerleave") as unknown as Event,
+  );
+  button.click();
+  assert.deepEqual(calls, ["auto", "compile"]);
+  control.destroy();
+});

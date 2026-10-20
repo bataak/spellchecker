@@ -77,10 +77,15 @@ export function initCompileButton(deps: CompileButtonDeps): CompileButton {
 
   const onMenu = (event: Event): void => event.preventDefault();
 
+  const abandon = (): void => {
+    release();
+    held = false;
+  };
+
   button.addEventListener("pointerdown", onDown);
   button.addEventListener("pointerup", release);
-  button.addEventListener("pointerleave", release);
-  button.addEventListener("pointercancel", release);
+  button.addEventListener("pointerleave", abandon);
+  button.addEventListener("pointercancel", abandon);
   button.addEventListener("contextmenu", onMenu);
   button.addEventListener("click", onClick);
   area.addEventListener("keydown", onKey);
@@ -92,8 +97,8 @@ export function initCompileButton(deps: CompileButtonDeps): CompileButton {
       release();
       button.removeEventListener("pointerdown", onDown);
       button.removeEventListener("pointerup", release);
-      button.removeEventListener("pointerleave", release);
-      button.removeEventListener("pointercancel", release);
+      button.removeEventListener("pointerleave", abandon);
+      button.removeEventListener("pointercancel", abandon);
       button.removeEventListener("contextmenu", onMenu);
       button.removeEventListener("click", onClick);
       area.removeEventListener("keydown", onKey);
