@@ -250,3 +250,67 @@ test("LaTeX засах бүрт шинэ PDF-ийг хуучныхыг арил�
   assert.deepEqual(errors(page), []);
   await context.close();
 });
+
+test("гар горимд засвар хийсний дараа ч сум хуучин PDF дээр синк хийнэ", async () => {
+  const context = await app.context();
+  const page = await openPage(app, context);
+  await page.setViewportSize({ width: 1920, height: 1000 });
+  await chooseSlot(page, "Судалгаа");
+  await page.evaluate(() => {
+    const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
+    area.value =
+      "\\documentclass{article}\n\\begin{document}\n" +
+      Array.from(
+        { length: 12 },
+        (_, i) => `Энэ бол ${i + 1}-р догол мөр бөгөөд туршилтын өгүүлбэр.\n\n`,
+      ).join("") +
+      "\\end{document}\n";
+    area.dispatchEvent(new InputEvent("input", { bubbles: true }));
+  });
+  await until(
+    () => shown(page, ".preview-panel.has-pages canvas"),
+    (on) => on,
+    90000,
+  );
+  await page.click(".tex-compile:not(.tex-download)");
+  await page.waitForTimeout(2500);
+  await page.evaluate(() => {
+    const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
+    area.focus();
+    const at = area.value.indexOf("5-р");
+    area.setSelectionRange(at, at);
+  });
+  await page.keyboard.type("а");
+  await page.waitForTimeout(2600);
+  await page.evaluate(() => {
+    const win = window as unknown as Record<string, unknown>;
+    win.marks = 0;
+    win.on = false;
+    new MutationObserver(() => {
+      const mark = document.querySelector(".sync-mark:not(.is-fading)");
+      if (mark && !win.on) win.marks = (win.marks as number) + 1;
+      win.on = !!mark;
+    }).observe(document.querySelector(".preview-body")!, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["class", "style"],
+    });
+  });
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("ArrowDown");
+  await page.waitForTimeout(1200);
+  const marks = await page.evaluate(
+    () => (window as unknown as Record<string, number>).marks!,
+  );
+  const manual = await page.evaluate(
+    () =>
+      !document
+        .querySelector(".tex-compile:not(.tex-download)")!
+        .classList.contains("is-auto"),
+  );
+  assert.equal(manual, true);
+  assert.equal(marks, 1);
+  assert.deepEqual(errors(page), []);
+  await context.close();
+});

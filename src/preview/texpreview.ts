@@ -318,7 +318,10 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
 
   const api: TexPreview = {
     active: () => texMode,
-    pending: () => texMode && texKey() !== texShown,
+    pending: () =>
+      texMode &&
+      texKey() !== texShown &&
+      (auto || texTimer !== 0 || compiling !== null),
     setActive(on) {
       if (on === texMode) return false;
       texMode = on;
