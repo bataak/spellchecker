@@ -199,8 +199,14 @@ export interface OAuthMessage {
   readonly error?: string | null;
 }
 
+export interface LoginWatch {
+  readonly signal?: AbortSignal;
+  readonly returned?: () => void;
+}
+
 export function gitlabLogin(
   host: string,
+  watch: LoginWatch = {},
   config: AuthConfig = authConfig(),
   fetcher: Fetch = (url, init) => fetch(url, init),
   now: () => number = Date.now,
@@ -214,12 +220,15 @@ export function gitlabLogin(
   const state = randomVerifier();
   return new Promise<OAuthToken>((resolve, reject) => {
     const channel = new BroadcastChannel("git-oauth");
-    let timer = 0;
     const done = (): void => {
-      clearInterval(timer);
+      watch.signal?.removeEventListener("abort", stop);
       window.removeEventListener("message", onWindow);
       channel.close();
       if (!popup.closed) popup.close();
+    };
+    const stop = (): void => {
+      done();
+      reject(new ProjectError("Нэвтрэхийг цуцаллаа"));
     };
     const take = (data: unknown): void => {
       const message = data as OAuthMessage | null;
@@ -229,6 +238,7 @@ export function gitlabLogin(
         reject(new ProjectError("GitLab-аар нэвтрэхийг цуцаллаа"));
         return;
       }
+      watch.returned?.();
       gitlabToken(
         host,
         {
@@ -248,11 +258,8 @@ export function gitlabLogin(
     };
     window.addEventListener("message", onWindow);
     channel.onmessage = (event) => take(event.data);
-    timer = window.setInterval(() => {
-      if (!popup.closed) return;
-      done();
-      reject(new ProjectError("Нэвтрэх цонхыг хаалаа"));
-    }, 500);
+    if (watch.signal?.aborted) return stop();
+    watch.signal?.addEventListener("abort", stop);
     void challengeOf(verifier).then((challenge) => {
       const query = new URLSearchParams({
         client_id: config.gitlabClient,
