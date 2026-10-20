@@ -294,8 +294,10 @@ export function initPreview(deps: PreviewDeps): Preview {
     if ((target as Element | null)?.closest("img, a, button, input")) return;
     htmlSync.jumpFrom(x, y);
   };
+  let tappedAt = -Infinity;
   const onJump = (event: MouseEvent): void => {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || event.timeStamp - tappedAt < DOUBLE_TAP_MS)
+      return;
     jumpAt(event.clientX, event.clientY, event.target);
   };
   body.addEventListener("dblclick", onJump);
@@ -324,6 +326,7 @@ export function initPreview(deps: PreviewDeps): Preview {
       Math.hypot(x - before.x, y - before.y) < DOUBLE_TAP_SLOP
     ) {
       lastTap = null;
+      tappedAt = now;
       jumpAt(x, y, event.target);
       return;
     }

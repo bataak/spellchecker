@@ -43,11 +43,8 @@ export function createGitlabHost(
   const json = async <T>(path: string): Promise<T> =>
     (await (await call(path)).json()) as T;
 
-  const lastCommit = async (
-    path: string,
-    ref: string,
-  ): Promise<string | null> =>
-    (
+  const lastCommit = async (path: string, ref: string): Promise<string> => {
+    const id = (
       await call(
         "/repository/files/" +
           encodeURIComponent(path) +
@@ -56,6 +53,12 @@ export function createGitlabHost(
         { method: "HEAD" },
       )
     ).headers.get("x-gitlab-last-commit-id");
+    if (!id)
+      throw new ProjectError(
+        "GitLab-аас «" + path + "» файлын сүүлийн commit-ийг уншиж чадсангүй",
+      );
+    return id;
+  };
 
   const head = async (branch: string): Promise<string> =>
     (

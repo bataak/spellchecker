@@ -2,6 +2,8 @@ export class ProjectError extends Error {}
 
 export class AuthError extends ProjectError {}
 
+export class Cancelled extends ProjectError {}
+
 export function failureMessage(
   error: unknown,
   fallback: string,
