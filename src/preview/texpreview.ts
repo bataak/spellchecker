@@ -94,11 +94,7 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
     bytes: Uint8Array<ArrayBuffer>,
     seq: number,
   ): Promise<boolean> => {
-    const shown = await pane.showBytes(bytes, () => {
-      if (!current(seq)) return false;
-      drop();
-      return true;
-    });
+    const shown = await pane.showBytes(bytes, () => current(seq));
     if (shown) deps.onShown();
     return shown;
   };

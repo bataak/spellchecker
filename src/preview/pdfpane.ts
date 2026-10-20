@@ -27,6 +27,8 @@ export interface PdfPane {
   ): Promise<boolean>;
 }
 
+const SWAP_WAIT_MS = 1500;
+
 export function createPdfPane(
   panel: HTMLElement,
   body: HTMLElement,
@@ -34,6 +36,7 @@ export function createPdfPane(
 ): PdfPane {
   let view: PdfView | null = null;
   let abort: AbortController | null = null;
+  let pending: AbortController | null = null;
   let shown: Uint8Array<ArrayBuffer> | null = null;
   let zoom = loadZoom();
   let scrollX = loadScrollX();
@@ -91,6 +94,8 @@ export function createPdfPane(
 
   const drop = (): void => {
     shown = null;
+    pending?.abort();
+    pending = null;
     abort?.abort();
     abort = null;
     view?.destroy();
@@ -100,21 +105,34 @@ export function createPdfPane(
   const renderFile = async (
     file: File,
     controller: AbortController,
+    behind = false,
   ): Promise<PdfView | null> => {
     const mod = await import("./pdfview.ts");
     if (controller.signal.aborted) return null;
     rendering += 1;
+    const start = zoom;
     try {
       const next = await mod.renderPdfInto(
         body,
         file,
         controller.signal,
         zoom,
-        options,
+        { ...options, behind },
       );
+      if (behind)
+        await Promise.race([
+          next.ready,
+          new Promise((resolve) => setTimeout(resolve, SWAP_WAIT_MS)),
+        ]);
       if (controller.signal.aborted) {
         next.destroy();
         return null;
+      }
+      if (behind) {
+        abort?.abort();
+        abort = controller;
+        next.show();
+        if (zoom !== start) next.setZoom(zoom);
       }
       setView(next);
       restoreScrollX();
@@ -206,12 +224,17 @@ export function createPdfPane(
       await import("./pdfview.ts");
       const scroll = body.scrollTop;
       if (!beforeRender()) return false;
+      const behind = view !== null;
+      pending?.abort();
       const controller = new AbortController();
-      abort = controller;
+      if (behind) pending = controller;
+      else abort = controller;
       const file = new File([bytes], "preview.pdf", {
         type: "application/pdf",
       });
-      if (!(await renderFile(file, controller))) return false;
+      const next = await renderFile(file, controller, behind);
+      if (pending === controller) pending = null;
+      if (!next) return false;
       shown = bytes;
       panel.classList.remove("is-blank");
       body.classList.remove("is-empty");
