@@ -9,7 +9,6 @@ import { MultiSpellChecker } from "./spell/spellchecker.ts";
 import { createSpellSession } from "./spell/spellsession.ts";
 import { createFixFlow } from "./spell/fixflow.ts";
 import type { SpellChecker } from "./spell/spellchecker.ts";
-import { initFileIO } from "./files/fileio.ts";
 import { initImageStore } from "./files/imagestore.ts";
 import { initToolbar } from "./ui/toolbar.ts";
 import { initKeyboardToolbar } from "./editor/kbtoolbar.ts";
@@ -21,12 +20,8 @@ import { initSaveHints } from "./export/savehints.ts";
 import { createPreviewMode } from "./ui/previewmode.ts";
 import { createDocMode } from "./doc/docmode.ts";
 import { createDocumentSession } from "./doc/docsession.ts";
-import { initProjectLink } from "./project/projectlink.ts";
-import { PROJECT_SLOT } from "./slots/fileslots.ts";
 import { createProjectStore } from "./project/projectstore.ts";
-import { saveDraftFile } from "./core/storage.ts";
 import { initMdToolbar, sharedSlot } from "./mdbar/mdtoolbar.ts";
-import { initSlotSwitch } from "./slots/slotswitch.ts";
 import { createBackdrop } from "./editor/backdrop.ts";
 import { createMarkLayer } from "./editor/marklayer.ts";
 import { initMarkTap } from "./editor/marktap.ts";
@@ -41,7 +36,6 @@ import { initDraftText } from "./editor/drafttext.ts";
 import { initAppUpdate } from "./core/appupdate.ts";
 import { initShortcuts } from "./ui/shortcuts.ts";
 import { createButtonCommands } from "./ui/commands.ts";
-import { createSaveChain } from "./ui/savechain.ts";
 import { installErrorLog } from "./core/errorlog.ts";
 import { createEditorPort } from "./app/ports.ts";
 import { createDocStatus } from "./app/docstatus.ts";
@@ -49,7 +43,6 @@ import { createCheckLoop } from "./app/checkloop.ts";
 import { bindLineBlocks, createEditorView } from "./app/editorview.ts";
 import { initAppHints } from "./app/apphints.ts";
 import { warmTex } from "./app/texwarm.ts";
-import { createOpenPolicy } from "./app/openpolicy.ts";
 import { createSignal } from "./app/signal.ts";
 import { createEmptyState } from "./app/emptystate.ts";
 import { createTexMode } from "./app/texmode.ts";
@@ -58,6 +51,8 @@ import { boot } from "./app/boot.ts";
 import { restoreDraftFile } from "./app/draftfile.ts";
 import { createPopovers } from "./app/popovers.ts";
 import { createFixers } from "./app/fixers.ts";
+import { createFileWiring } from "./app/filewiring.ts";
+import { createProjectWiring } from "./app/projectwiring.ts";
 import { createPreviewPane } from "./app/previewpane.ts";
 import { watchTabs } from "./app/tabwatch.ts";
 import { initTexInput } from "./app/texinput.ts";
@@ -372,63 +367,17 @@ const {
 
 const appUpdate = initAppUpdate((html) => status.hold(html), import.meta.url);
 
-const saveChain = createSaveChain(document.querySelector("#saveBtn"));
-const fileIO = initFileIO({
-  saveChain,
+const { saveChain, fileIO, slots } = createFileWiring({
   editor,
   status,
-  office: {
-    active: officeActive,
-    open: office.open,
-    close: office.close,
-    save: office.save,
-  },
-  project: {
-    save: () => projectLink.save(),
-    openZip: (file) => projectLink.openZip(file),
-    openDir: (handle) => projectLink.openDir(handle),
-    openExisting: (name, text) => projectLink.openExisting(name, text),
-  },
+  office,
+  doc,
   pdf: pdfSave,
-  defaultExt: () => (isTexFile() ? "tex" : doc.markdownActive() ? "md" : "txt"),
-  onFileOpened: (ref) => {
-    projectLink.unbind(true);
-    saveDraftFile(ref, mdBar.slot());
-    doc.open(ref ? ref.name : null);
-    if (ref?.kind === "text")
-      queueMicrotask(() => projectLink.fileOpened(ref.name));
-  },
-  prepareOpen: createOpenPolicy(() => mdBar, status.hold),
-  onLoaded: () => {
-    undoCtl.reset();
-    mdBar.markSaved();
-  },
-  onSaved: (written) => mdBar.markSaved(written),
-});
-
-const slots = initSlotSwitch({
-  editor: editorEl,
-  files: {
-    take: () => fileIO.takeFile(),
-    put: (file) => fileIO.putFile(file),
-    restore: (ref) => fileIO.restoreFile(ref),
-    name: () => fileIO.targetName(),
-  },
-  office: {
-    file: office.file,
-    park: office.park,
-    open: async (file, text, cancelled) => {
-      await office.open(file, text, cancelled);
-      return officeActive();
-    },
-    queue: office.queue,
-    settled: office.settled,
-  },
+  isTex: isTexFile,
   project: () => projectLink,
-  draft: (slot) => mdBar.draft(slot),
-  setName: doc.setName,
+  mdBar: () => mdBar,
+  undo: () => undoCtl,
   refreshPreview: () => previewCtl.update(),
-  entered: doc.entered,
 });
 
 const mdBar = initMdToolbar({
@@ -472,48 +421,25 @@ initTexInput({
   active: () => marks.tex(),
   rectAt: backdrop.rangeRectAt,
 });
-const projectLink = initProjectLink({
+const projectLink = createProjectWiring({
   store: projectStore,
   editor: editorEl,
   workspace,
-  tools: () => editorWrap.querySelector<HTMLElement>(".editor-tools"),
-  slots: {
-    current: () => mdBar.slot(),
-    inProject: () => mdBar.template() === PROJECT_SLOT,
-    enterProject: () => mdBar.enterProject(),
-    close: (id) => mdBar.closeFile(id, true),
-    files: () => mdBar.fileSlots(),
-  },
-  file: {
-    name: doc.name,
-    handle: () => fileIO.targetHandle(),
-    bind: (name) => {
-      fileIO.putFile(name ? { handle: null, name } : null);
-      saveDraftFile(name ? { name, kind: "text" } : null, mdBar.slot());
-      doc.setName(name);
-      docStatus.restore();
-    },
-  },
-  texActive: isTexFile,
-  onBound: docMode.setProjectBound,
-  afterSwitch: () => {
-    undoCtl.baseline();
-    texMode.sync();
-    enterMdMode(doc.markdownActive());
-    void render();
-    draft.save();
-  },
-  onProject: (name) => {
-    mdBar.setProject(name);
-    if (name === null) mdBar.leaveProject();
-  },
-  onChange: () => {
-    texMode.sync();
-    previewCtl.update();
-  },
-  layout: () => measureCtl.refresh(),
-  notify: (message) => status.hold(message, 6000, false),
-  show: (source) => previewCtl.setSource(source),
+  editorWrap,
+  mdBar,
+  fileIO,
+  doc,
+  docStatus,
+  docMode,
+  texMode,
+  isTex: isTexFile,
+  undo: () => undoCtl,
+  draft,
+  preview: previewCtl,
+  measure: measureCtl,
+  status,
+  enterMdMode,
+  render,
 });
 layoutChanged.on(() => projectLink.sync());
 const kbLayout = initKeyboardLayout({ editor: editorEl, status: els.status });
