@@ -44,7 +44,7 @@ function paintNote(note: HTMLElement, provider: Provider): void {
   link.textContent = help.link;
   note.replaceChildren(
     link,
-    help.rest + " Token зөвхөн энэ хөтөчид хадгалагдана.",
+    help.rest + " Token зөвхөн энэ хөтчид хадгалагдана.",
   );
 }
 
