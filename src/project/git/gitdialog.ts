@@ -84,6 +84,7 @@ function input(field: Field): Control {
 export interface Busy {
   readonly signal: AbortSignal;
   say(text: string): void;
+  hide(): void;
 }
 
 function showForm<T>(
@@ -184,6 +185,9 @@ function showForm<T>(
         say: (text) => {
           confirm.textContent = text;
         },
+        hide: () => {
+          overlay.hidden = true;
+        },
       };
       let result: T | Promise<T>;
       try {
@@ -213,6 +217,7 @@ function showForm<T>(
         (problem: unknown) => {
           work = null;
           if (closed.signal.aborted) return;
+          overlay.hidden = false;
           lock(false);
           confirm.textContent = label;
           fail(problemText(problem));

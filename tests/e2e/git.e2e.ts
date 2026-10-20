@@ -207,8 +207,10 @@ test("олон хавтсанд үндсэн файл байвал хавтас 
       ),
     ["csm301/exam1", "csm301/exam2"],
   );
+  assert.equal(await page.locator(".git-panel").count(), 2);
+  assert.equal(await page.locator(".git-panel:visible").count(), 1);
   await folder.selectOption("csm301/exam2");
-  await page.click('.git-panel:has(select[name="folder"]) .export-confirm');
+  await page.click(".git-panel:visible .export-confirm");
   await until(
     () =>
       page.evaluate(
