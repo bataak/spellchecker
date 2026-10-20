@@ -1322,14 +1322,16 @@ a.tbtn {
 
 .sync-mark {
   position: absolute;
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--layout-accent-mn) 22%, transparent);
+  min-width: 6px;
+  min-height: 6px;
+  background: var(--layout-accent-mn);
+  clip-path: polygon(10% 4%, 100% 50%, 10% 96%, 28% 50%);
   pointer-events: none;
   transition: opacity 0.6s ease;
 }
 
 .preview-body[data-layout="en"] .sync-mark {
-  background: color-mix(in srgb, var(--layout-accent-en) 22%, transparent);
+  background: var(--layout-accent-en);
 }
 
 .sync-mark.is-fading {
