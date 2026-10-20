@@ -288,31 +288,49 @@ function signInRow(
   status.className = "git-note git-device";
   status.hidden = true;
   row.append(button, status);
+  let attempt: AbortController | null = null;
+  form.signal.addEventListener("abort", () => attempt?.abort());
+  const say = (text: string): void => {
+    status.textContent = text;
+    status.hidden = false;
+  };
   button.addEventListener("click", () => {
     const where = whereOf(form.values());
     const provider = where.provider;
     const host = cleanHost(where.host, provider);
-    button.disabled = true;
+    attempt?.abort();
+    const current = new AbortController();
+    attempt = current;
     const finish = (token: OAuthToken): void => {
       done(token);
       form.submit();
     };
     const failed = (problem: unknown): void => {
+      if (current.signal.aborted) return;
       button.disabled = false;
       status.hidden = true;
-      if (form.signal.aborted) return;
       form.fail(
         problem instanceof ProjectError ? problem.message : "Нэвтэрч чадсангүй",
       );
     };
     if (provider === "gitlab") {
-      gitlabLogin(host).then(finish, failed);
+      say(
+        "Нээгдсэн цонхонд GitLab-д нэвтэрч зөвшөөрнө үү. Цонх хаагдсан бол дахин дарна уу.",
+      );
+      gitlabLogin(host, {
+        signal: current.signal,
+        returned: () => {
+          button.disabled = true;
+          say("Нэвтэрч байна…");
+        },
+      }).then(finish, failed);
       return;
     }
-    githubDevice((code, url) => showCode(status, code, url), form.signal).then(
-      finish,
-      failed,
-    );
+    button.disabled = true;
+    githubDevice(
+      (code, url) => showCode(status, code, url),
+      current.signal,
+    ).then(finish, failed);
   });
   return row;
 }

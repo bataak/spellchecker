@@ -68,7 +68,14 @@ const fakeGitlabLogin = async (context: BrowserContext) => {
     const back = new URL(url.searchParams.get("redirect_uri")!);
     back.searchParams.set("code", "abc");
     back.searchParams.set("state", url.searchParams.get("state")!);
-    return route.fulfill({ status: 302, headers: { location: back.href } });
+    return route.fulfill({
+      status: 200,
+      headers: {
+        "content-type": "text/html",
+        "cross-origin-opener-policy": "same-origin",
+      },
+      body: `<script>setTimeout(() => location.replace(${JSON.stringify(back.href)}), 1500)</script>`,
+    });
   });
   await context.route("https://gitlab.com/oauth/token", (route) => {
     if (route.request().method() === "OPTIONS")
