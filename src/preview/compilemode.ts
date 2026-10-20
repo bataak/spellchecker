@@ -13,7 +13,7 @@ export function tooSlowForAuto(compileMs: number, fetched: boolean): boolean {
 export const MANUAL_TITLE =
   "Хөрвүүлэх (Ctrl+Enter). Удаан дарвал автомат горимд шилжинэ (Ctrl+Shift+Enter)";
 export const AUTO_TITLE =
-  "Автомат горим: бичиж зогсоход хөрвүүлнэ. Дарвал гараар горимд шилжиж хөрвүүлнэ (Ctrl+Enter)";
+  "Автомат горим: бичиж зогсоход хөрвүүлнэ. Дарвал гар горимд шилжиж хөрвүүлнэ (Ctrl+Enter)";
 
 export interface CompileButtonDeps {
   readonly button: HTMLButtonElement;
