@@ -546,6 +546,51 @@
   margin-top: 14px;
 }
 
+.git-panel.git-wide {
+  width: min(44rem, 100%);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+
+.git-versions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.git-version {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.git-version-title {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.git-version-text {
+  margin: 0;
+  max-height: 9rem;
+  overflow: auto;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+}
+
+@media (max-width: 560px) {
+  .git-versions {
+    grid-template-columns: 1fr;
+  }
+}
+
 textarea.git-input {
   height: auto;
   padding: 8px 10px;

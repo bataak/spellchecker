@@ -41,7 +41,7 @@ import {
   zipOf,
 } from "./projectsave.ts";
 import { commitState } from "./git/gitsession.ts";
-import type { LoadedRepo } from "./git/gitsync.ts";
+import type { LoadedRepo, Resolver } from "./git/gitsync.ts";
 import type { Provider } from "./git/githost.ts";
 import {
   pickDirectoryFiles,
@@ -514,12 +514,15 @@ export function createProjectStore() {
     return zipOf(requireState());
   }
 
-  async function saveProject(message = ""): Promise<SaveResult> {
+  async function saveProject(
+    message = "",
+    resolve?: Resolver,
+  ): Promise<SaveResult> {
     const s = requireState();
     if (s.kind === "git") {
       let committed: boolean;
       try {
-        committed = await commitState(s, message);
+        committed = await commitState(s, message, resolve);
       } catch (error) {
         changed(true);
         throw error;
