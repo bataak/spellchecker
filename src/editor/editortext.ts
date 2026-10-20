@@ -57,6 +57,39 @@ export function swapText(
   editor.dispatchEvent(event);
 }
 
+export function patchText(
+  editor: HTMLTextAreaElement,
+  text: string,
+  origin: SwapOrigin,
+): void {
+  const old = editor.value;
+  if (old === text) return;
+  let head = 0;
+  const shortest = Math.min(old.length, text.length);
+  while (head < shortest && old[head] === text[head]) head++;
+  let tail = 0;
+  while (
+    tail < shortest - head &&
+    old[old.length - 1 - tail] === text[text.length - 1 - tail]
+  )
+    tail++;
+  const scroll = editor.scrollTop;
+  for (const hook of swapHooks) hook(origin);
+  editor.setRangeText(
+    text.slice(head, text.length - tail),
+    head,
+    old.length - tail,
+    "preserve",
+  );
+  editor.scrollTop = scroll;
+  const event = new InputEvent("input", {
+    bubbles: true,
+    inputType: "insertReplacementText",
+  });
+  swapEvents.set(event, origin);
+  editor.dispatchEvent(event);
+}
+
 export function replaceRange(
   editor: HTMLTextAreaElement | HTMLInputElement,
   from: number,
