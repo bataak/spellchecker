@@ -530,7 +530,7 @@ function versions(
   const box = document.createElement("div");
   box.className = "git-versions";
   for (const [title, lines] of [
-    ["Миний", ours],
+    ["Минийх", ours],
     [theirName, theirs],
   ] as const) {
     const side = document.createElement("div");
@@ -560,7 +560,7 @@ export function askMerge(
       const detail = document.createElement("p");
       detail.className = "git-note";
       detail.textContent =
-        "Миний: " +
+        "Минийх: " +
         STATE_TEXT[item.ours] +
         " · " +
         theirName +
@@ -590,9 +590,9 @@ export function askMerge(
         value: "ours",
         detail: versions(conflict.ours, conflict.theirs, theirName),
         options: [
-          ["ours", "Миний"],
+          ["ours", "Минийх"],
           ["theirs", theirName],
-          ["both", "Хоёулаа (миний, дараа нь " + theirName + ")"],
+          ["both", "Хоёулаа (минийх, дараа нь " + theirName + ")"],
         ],
       });
     });
@@ -600,10 +600,10 @@ export function askMerge(
   const note = document.createElement("p");
   note.className = "git-note";
   note.textContent =
-    "Repo дээр эдгээр хэсгийг өөр газраас өөрчилсөн байна. Хэсэг бүрт аль хувилбарыг үлдээхийг сонгоно уу.";
+    "Repo дээр эдгээр хэсгийг өөр газраас өөрчилсөн байна. Хэсэг бүрд аль хувилбарыг үлдээхийг сонгоно уу.";
   return showForm(
     {
-      title: "Зөрчил шийдэх",
+      title: "Зөрчлийг шийдвэрлэх",
       confirm: "Нэгтгэж commit хийх",
       wide: true,
       note,
