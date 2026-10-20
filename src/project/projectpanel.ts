@@ -244,11 +244,11 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   };
 
   const renderTree = (view: ProjectView): void => {
-    const stamp = treeStamp(view, state.collapsed, state.selected);
+    const stamp = treeStamp(view, state.collapsed, state.selected, state.focus);
     if (state.editing || stamp === state.shown) return;
     state.shown = stamp;
     const focusPath = focusedPath();
-    const rows = treeRows(view, state.collapsed, state.selected);
+    const rows = treeRows(view, state.collapsed, state.selected, state.focus);
     tree.replaceChildren(...rows);
     const first =
       rows.find((row) => row.dataset.path === focusPath) ??
@@ -298,6 +298,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
 
   const opened = (prefer?: string): void => {
     state.collapsed.clear();
+    state.focus = null;
     state.selected = null;
     state.shown = "";
     show(true);
@@ -326,7 +327,13 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
       async (choice) => {
         try {
           const loaded = await openRepo(choice.spec, choice.token, choice.host);
-          if (await openGitRepo(loaded, askFolder)) opened(prefer);
+          let chosen: string | null = null;
+          const pick = async (folders: string[]): Promise<string | null> =>
+            (chosen = await askFolder(folders));
+          if (!(await openGitRepo(loaded, pick))) return;
+          opened(prefer);
+          state.focus = chosen;
+          render();
         } catch (error) {
           throw new ProjectError(
             failureMessage(error, "Repo-г нээж чадсангүй") ?? "Цуцаллаа",

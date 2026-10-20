@@ -1,14 +1,30 @@
 import { strict as assert } from "node:assert";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import { FORMATS } from "../src/export/exportformats.ts";
-import { TEX_BUNDLE, TEX_ENGINE } from "../src/tex/texbundle.ts";
+import {
+  TEX_BUNDLE,
+  TEX_ENGINE,
+  TEX_FONT_FILES,
+} from "../src/tex/texbundle.ts";
+import { unzipSync } from "fflate";
 
 test("PDF экспортын хөдөлгүүр ба TeX багц public/-д байна", () => {
   assert.ok(existsSync("public/" + TEX_ENGINE));
   assert.ok(existsSync("public/" + TEX_ENGINE.replace(/\.js$/, ".wasm")));
   assert.ok(existsSync("public/" + TEX_BUNDLE));
+});
+
+test("T1 кодчилолтой EC фонт бүр cm-super Type1 фонт руу map-тай", () => {
+  const files = unzipSync(readFileSync("public/" + TEX_BUNDLE));
+  assert.ok(files["cm-super-t1.enc"]);
+  const map = new TextDecoder().decode(files["pdftex.map"]);
+  const mapped = new Set(map.split("\n").map((line) => line.split(/\s+/)[0]));
+  const missing = TEX_FONT_FILES.map((file) => "ec" + file.slice(2, -4)).filter(
+    (font) => !mapped.has(font),
+  );
+  assert.deepEqual(missing, []);
 });
 
 test("PDF формат баримт, слайдад санал болгогдоно", () => {

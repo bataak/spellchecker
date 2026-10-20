@@ -19,10 +19,17 @@ export interface TreeState {
   selected: string | null;
   editing: HTMLInputElement | null;
   shown: string;
+  focus: string | null;
 }
 
 export function createTreeState(): TreeState {
-  return { collapsed: new Set(), selected: null, editing: null, shown: "" };
+  return {
+    collapsed: new Set(),
+    selected: null,
+    editing: null,
+    shown: "",
+    focus: null,
+  };
 }
 
 export interface TreeControlDeps {
@@ -195,6 +202,11 @@ export function initTreeControl(deps: TreeControlDeps): TreeControl {
   };
 
   deps.tree.addEventListener("click", (event) => {
+    if ((event.target as Element).closest(".project-skip")) {
+      state.focus = null;
+      deps.render();
+      return;
+    }
     const row = rowOf(event.target);
     if (!row || row.classList.contains("is-new")) return;
     const path = row.dataset.path ?? "";
