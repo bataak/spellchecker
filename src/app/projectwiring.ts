@@ -42,6 +42,7 @@ export function createProjectWiring(deps: ProjectWiringDeps): ProjectLink {
     editor: deps.editor,
     workspace: deps.workspace,
     tools: () => deps.editorWrap.querySelector<HTMLElement>(".editor-tools"),
+    openButton: document.querySelector<HTMLElement>("#projectBtn"),
     slots: {
       current: () => mdBar.slot(),
       inProject: () => mdBar.template() === PROJECT_SLOT,
