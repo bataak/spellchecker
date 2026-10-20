@@ -217,7 +217,19 @@ test("олон хавтсанд үндсэн файл байвал хавтас 
     (text) => text.includes("Хоёр"),
     20000,
   );
-  assert.ok((await rows(page)).includes("figs/a.txt"));
+  assert.deepEqual(await rows(page), [
+    "csm301",
+    "csm301/exam2",
+    "csm301/exam2/main.tex",
+  ]);
+  assert.equal(await page.locator(".project-skip").count(), 2);
+  await page.locator(".project-skip").first().click();
+  await until(
+    () => rows(page),
+    (paths) => paths.includes("figs/a.txt") && paths.includes("csm301/exam1"),
+    5000,
+  );
+  assert.equal(await page.locator(".project-skip").count(), 0);
   assert.equal(await page.isVisible(".project-panel"), true);
   assert.deepEqual(errors(page), []);
   await context.close();

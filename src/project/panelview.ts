@@ -65,6 +65,7 @@ export function treeStamp(
   view: ProjectView,
   collapsed: ReadonlySet<string>,
   selected: string | null,
+  focus: string | null,
 ): string {
   return [
     view.version,
@@ -73,6 +74,7 @@ export function treeStamp(
     [...view.dirty].join("|"),
     [...collapsed].join("|"),
     selected,
+    focus,
   ]
     .map(String)
     .join(":");
