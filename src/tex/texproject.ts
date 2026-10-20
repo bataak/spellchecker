@@ -179,6 +179,31 @@ export function findMain(texts: ReadonlyMap<string, string>): string | null {
   return scored[0]?.path ?? null;
 }
 
+export function documentFolders(
+  texts: ReadonlyMap<string, string>,
+): Map<string, string> {
+  const documents = [...texts]
+    .filter(([path, text]) => isTexSource(path) && isLatexDocument(text))
+    .map(([path]) => path);
+  const inside = (path: string, dir: string): boolean =>
+    dir === "" || within(path, dir);
+  const tops = [...new Set(documents.map(dirName))]
+    .filter(
+      (dir, _, all) =>
+        !all.some((other) => other !== dir && inside(dir, other)),
+    )
+    .sort((a, b) => a.localeCompare(b));
+  const folders = new Map<string, string>();
+  for (const dir of tops) {
+    const outside = new Set(documents.filter((path) => !inside(path, dir)));
+    const main = findMain(
+      new Map([...texts].filter(([path]) => !outside.has(path))),
+    );
+    if (main) folders.set(dir, main);
+  }
+  return folders;
+}
+
 export function graphicsPaths(text: string): string[] {
   const out: string[] = [];
   for (const match of uncommented(text).matchAll(GRAPHICSPATH))
