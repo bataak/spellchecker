@@ -41,6 +41,7 @@ export interface ProjectPanel {
   readonly show: (on: boolean) => void;
   readonly openZipFile: (file: File) => Promise<void>;
   readonly reveal: () => void;
+  readonly openMenu: (anchor: HTMLElement) => void;
 }
 
 function loadOpen(): boolean {
@@ -301,8 +302,8 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     state.focus = null;
     state.selected = null;
     state.shown = "";
-    show(true);
     deps.onOpened(true, prefer);
+    show(true);
     const view = project();
     if (view) deps.notify("«" + escapeHtml(view.label) + "» төслийг нээлээ");
   };
@@ -428,6 +429,20 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     sync: render,
     show,
     openZipFile,
+    openMenu: (anchor) => {
+      const box = anchor.getBoundingClientRect();
+      menu.open(
+        [
+          { label: "Хавтас нээх", run: () => folderBtn.click() },
+          { label: "Zip нээх", run: () => zipBtn.click() },
+          { label: "Git repo нээх", run: () => gitBtn.click() },
+        ],
+        box.left,
+        box.top,
+      );
+      menu.el.style.top =
+        Math.max(8, box.top - menu.el.offsetHeight - 4) + "px";
+    },
     reveal: () => {
       if (!panel.hidden) return;
       show(true);

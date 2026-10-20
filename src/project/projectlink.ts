@@ -60,6 +60,7 @@ export interface ProjectLinkDeps {
   readonly editor: HTMLTextAreaElement;
   readonly workspace: HTMLElement;
   readonly tools: () => HTMLElement | null;
+  readonly openButton: HTMLElement | null;
   readonly slots: SlotPort;
   readonly file: OpenFilePort;
   readonly texActive: () => boolean;
@@ -334,6 +335,9 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     onLayout: deps.layout,
     notify: deps.notify,
   });
+
+  const openButton = deps.openButton;
+  openButton?.addEventListener("click", () => panel.openMenu(openButton));
 
   onSwap((origin) => {
     if (origin !== "project" && bound && !deps.slots.inProject())
