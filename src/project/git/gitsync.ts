@@ -6,7 +6,7 @@ import {
   skippedPath,
 } from "../../tex/texproject.ts";
 import { MAX_BYTES, budget } from "../projectdisk.ts";
-import { ProjectError } from "../projecterror.ts";
+import { Cancelled, ProjectError } from "../projecterror.ts";
 import { dropEntries } from "../projectedit.ts";
 import {
   diskText,
@@ -213,6 +213,13 @@ function applyRemoteFile(
   for (const dir of parentDirs(path)) s.dirs.add(dir);
 }
 
+function localBytes(s: State, path: string): Uint8Array | null {
+  const text = s.texts.get(path);
+  if (text !== undefined)
+    return new TextEncoder().encode(diskText(s, path, text));
+  return s.binaries.get(path) ?? null;
+}
+
 async function catchUp(
   api: GitHost,
   s: State,
@@ -231,11 +238,23 @@ async function catchUp(
     ...plan.writes.map(([path]) => path),
     ...plan.deletes,
   ]);
-  const clash = new Set(changed.filter((path) => touched.has(path)));
   const fetched = await inBatches(changed, (path) =>
     files[path] ? api.blob(files[path].sha) : Promise.resolve(null),
   );
   const theirs = new Map(changed.map((path, index) => [path, fetched[index]!]));
+  const edited = (path: string): boolean =>
+    s.added.has(path) ||
+    (s.texts.has(path) && s.texts.get(path) !== s.saved.get(path));
+  const clash = new Set<string>();
+  for (const path of changed) {
+    if (!touched.has(path) && !edited(path)) continue;
+    const local = localBytes(s, path);
+    const sha = files[path]?.sha;
+    const same = sha
+      ? local !== null && (await gitBlobSha(local)) === sha
+      : local === null;
+    if (!same) clash.add(path);
+  }
   const merges = new Map<string, Chunk[]>();
   const items: MergeItem[] = [];
   for (const path of clash) {
@@ -270,7 +289,7 @@ async function catchUp(
           items.map((item) => item.path).join(", "),
       );
     const picked = await resolve(items);
-    if (!picked) throw new ProjectError("Commit хийхийг цуцаллаа");
+    if (!picked) throw new Cancelled("Commit хийхийг цуцаллаа");
     answer = picked;
   }
   for (const path of changed) {

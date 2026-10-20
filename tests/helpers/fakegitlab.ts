@@ -30,6 +30,7 @@ export class FakeGitlab {
   readonly pages: number[] = [];
   pageSize = 2;
   beforeCommit: (() => void) | null = null;
+  hideLastCommit = false;
   private next = 0;
 
   readonly host: string;
@@ -165,7 +166,9 @@ export class FakeGitlab {
       return last
         ? {
             status: 200,
-            headers: { ...CORS, "x-gitlab-last-commit-id": last },
+            headers: this.hideLastCommit
+              ? CORS
+              : { ...CORS, "x-gitlab-last-commit-id": last },
             body: "",
           }
         : this.json(404, {});

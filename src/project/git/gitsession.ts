@@ -9,7 +9,13 @@ import {
 } from "./gitauth.ts";
 import { createGitApi, githubHost } from "./github.ts";
 import { createGitlabHost } from "./gitlab.ts";
-import type { GitHost, LoadWatch, Provider, RepoSpec } from "./githost.ts";
+import {
+  DEFAULT_HOST,
+  type GitHost,
+  type LoadWatch,
+  type Provider,
+  type RepoSpec,
+} from "./githost.ts";
 import {
   commitChanges,
   loadRepo,
@@ -54,11 +60,21 @@ function forgetToken(where: Where): void {
   writeJson(KEYS.gitTokens, rest);
 }
 
-async function withToken<T>(where: Where, task: () => Promise<T>): Promise<T> {
+async function withToken<T>(
+  where: Where,
+  used: StoredToken | null,
+  task: () => Promise<T>,
+): Promise<T> {
   try {
     return await task();
   } catch (error) {
-    if (error instanceof AuthError) forgetToken(where);
+    const saved = stored(where);
+    if (
+      error instanceof AuthError &&
+      saved &&
+      (!used || accessOf(saved) === accessOf(used))
+    )
+      forgetToken(where);
     throw error;
   }
 }
@@ -91,6 +107,12 @@ export function hostFor(
   spec: Pick<RepoSpec, "provider" | "host" | "project">,
   token: string,
 ): GitHost {
+  if (spec.host !== DEFAULT_HOST[spec.provider])
+    throw new ProjectError(
+      "Энэ төсөл " +
+        spec.host +
+        " сервертэй холбоотой — одоо зөвхөн github.com, gitlab.com дэмжинэ. Repo-г дахин нээнэ үү",
+    );
   return spec.provider === "gitlab"
     ? createGitlabHost(token, spec.host, spec.project)
     : githubHost(createGitApi(token, spec.project));
@@ -101,7 +123,7 @@ export async function openRepo(
   token: StoredToken,
   watch: LoadWatch = {},
 ): Promise<LoadedRepo> {
-  const { fresh, loaded } = await withToken(spec, async () => {
+  const { fresh, loaded } = await withToken(spec, token, async () => {
     const fresh =
       typeof token !== "string" && spec.provider === "gitlab"
         ? await refreshed(spec.host, token)
@@ -126,7 +148,7 @@ export async function commitState(
 ): Promise<boolean> {
   const remote = s.remote;
   if (!remote) throw new ProjectError("Repo-ийн мэдээлэл олдсонгүй");
-  const outcome = await withToken(remote, async () =>
+  const outcome = await withToken(remote, null, async () =>
     commitChanges(
       hostFor(remote, await freshToken(remote)),
       s,

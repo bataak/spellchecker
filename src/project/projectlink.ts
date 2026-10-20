@@ -1,4 +1,4 @@
-import { failureMessage } from "./projecterror.ts";
+import { Cancelled, failureMessage } from "./projecterror.ts";
 import { initProjectPanel, type ProjectPanel } from "./projectpanel.ts";
 import { askCommitMessage, askMerge } from "./git/gitdialog.ts";
 import {
@@ -470,6 +470,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
           askMerge(items, provider),
         );
       } catch (error) {
+        if (error instanceof Cancelled) return CANCELLED;
         const text = failureMessage(error, "Хадгалж чадсангүй");
         if (text) deps.notify(escapeHtml(text));
         throw error;
