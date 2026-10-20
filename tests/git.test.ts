@@ -30,6 +30,7 @@ import {
 } from "../src/project/projectedit.ts";
 import { Cancelled, ProjectError } from "../src/project/projecterror.ts";
 import { hostFor } from "../src/project/git/gitsession.ts";
+import { workingCopy } from "../src/project/workingcopy.ts";
 
 const encode = (text: string): Uint8Array => new TextEncoder().encode(text);
 
@@ -268,7 +269,7 @@ test("planChanges: зөвхөн өөрчлөгдсөн, нэмэгдсэн, нэ
     "img.png": "PNG",
   });
   const { s, remote } = await open(repo);
-  assert.deepEqual(await planChanges(s, remote), {
+  assert.deepEqual(await planChanges(workingCopy(s), remote), {
     writes: [],
     deletes: [],
     texts: new Map(),
@@ -277,7 +278,7 @@ test("planChanges: зөвхөн өөрчлөгдсөн, нэмэгдсэн, нэ
   putFile(s, "new.tex", encode("Шинэ"));
   moveEntries(s, "b.tex", "c.tex");
   s.binaries.delete("img.png");
-  const plan = await planChanges(s, remote);
+  const plan = await planChanges(workingCopy(s), remote);
   assert.deepEqual(plan.writes.map(([path]) => path).sort(), [
     "a.tex",
     "c.tex",
@@ -291,7 +292,12 @@ test("commitChanges: өөрчлөлтийг нэг commit болгож салб�
   const { s, remote } = await open(repo);
   s.texts.set("a.tex", "А шинэ");
   putFile(s, "b.tex", encode("Б"));
-  const done = await commitChanges(githubHost(repo), s, remote, "Засвар");
+  const done = await commitChanges(
+    githubHost(repo),
+    workingCopy(s),
+    remote,
+    "Засвар",
+  );
   assert.ok(done);
   assert.equal(done.pulled, false);
   assert.equal(repo.text("a.tex"), "А шинэ");
@@ -301,7 +307,7 @@ test("commitChanges: өөрчлөлтийг нэг commit болгож салб�
   assert.equal(s.dirty.size, 0);
   assert.equal(s.unsynced, false);
   assert.equal(
-    await commitChanges(githubHost(repo), s, done.remote, "дахин"),
+    await commitChanges(githubHost(repo), workingCopy(s), done.remote, "дахин"),
     null,
   );
 });
@@ -315,7 +321,12 @@ test("commitChanges: repo дээрх давхцахгүй өөрчлөлтийг
   const { s, remote } = await open(repo);
   await repo.push({ "b.tex": "Б бусдын", "c.tex": "В бусдын" });
   s.texts.set("a.tex", "А миний");
-  const done = await commitChanges(githubHost(repo), s, remote, "Миний засвар");
+  const done = await commitChanges(
+    githubHost(repo),
+    workingCopy(s),
+    remote,
+    "Миний засвар",
+  );
   assert.ok(done);
   assert.equal(done.pulled, true);
   assert.equal(repo.text("a.tex"), "А миний");
@@ -332,7 +343,7 @@ test("commitChanges: ижил файлыг хоёр талаас өөрчилс�
   const before = repo.branches.get("main");
   s.texts.set("a.tex", "А миний");
   await assert.rejects(
-    commitChanges(githubHost(repo), s, remote, "x"),
+    commitChanges(githubHost(repo), workingCopy(s), remote, "x"),
     (error: unknown) =>
       error instanceof ProjectError && /a\.tex/.test(error.message),
   );
@@ -346,7 +357,7 @@ test("commitChanges: салбар яг тэр мөчид шилжвэл алда
   s.texts.set("a.tex", "А миний");
   repo.race = true;
   await assert.rejects(
-    commitChanges(githubHost(repo), s, remote, "x"),
+    commitChanges(githubHost(repo), workingCopy(s), remote, "x"),
     ProjectError,
   );
   assert.equal(s.saved.get("a.tex"), "А");
@@ -365,7 +376,7 @@ test("commitChanges: commit хийх зуур бичсэн засварыг ха
       return host.commit(input);
     },
   };
-  const done = await commitChanges(api, s, remote, "Засвар");
+  const done = await commitChanges(api, workingCopy(s), remote, "Засвар");
   assert.ok(done);
   assert.equal(repo.text("a.tex"), "А шинэ");
   assert.equal(s.saved.get("a.tex"), "А шинэ");
@@ -384,12 +395,17 @@ test("commitChanges: татсаны дараа commit бүтэлгүйтвэл �
   s.texts.set("a.tex", "А миний");
   repo.race = true;
   await assert.rejects(
-    commitChanges(githubHost(repo), s, remote, "x"),
+    commitChanges(githubHost(repo), workingCopy(s), remote, "x"),
     ProjectError,
   );
   assert.equal(s.remote.head, repo.branches.get("main"));
   repo.race = false;
-  const done = await commitChanges(githubHost(repo), s, s.remote, "дахин");
+  const done = await commitChanges(
+    githubHost(repo),
+    workingCopy(s),
+    s.remote,
+    "дахин",
+  );
   assert.ok(done);
   assert.equal(repo.text("a.tex"), "А миний");
   assert.equal(repo.text("b.tex"), "Б бусдын");
@@ -453,7 +469,12 @@ test("GitLab: засах, нэмэх, устгах, нэр солихыг нэг
   s.texts.set("a.tex", "А шинэ");
   putFile(s, "c.tex", encode("В"));
   moveEntries(s, "b.tex", "d.tex");
-  const done = await commitChanges(gitlab(repo), s, remote, "GitLab засвар");
+  const done = await commitChanges(
+    gitlab(repo),
+    workingCopy(s),
+    remote,
+    "GitLab засвар",
+  );
   assert.ok(done);
   assert.equal(repo.text("tex/a.tex"), "А шинэ");
   assert.equal(repo.text("tex/c.tex"), "В");
@@ -461,7 +482,10 @@ test("GitLab: засах, нэмэх, устгах, нэр солихыг нэг
   assert.equal(repo.text("tex/b.tex"), undefined);
   assert.equal(repo.lastMessage(), "GitLab засвар");
   assert.equal(done.remote.head, repo.branches.get("main"));
-  assert.equal(await commitChanges(gitlab(repo), s, done.remote, "x"), null);
+  assert.equal(
+    await commitChanges(gitlab(repo), workingCopy(s), done.remote, "x"),
+    null,
+  );
 });
 
 test("GitLab: бусдын давхцахгүй өөрчлөлтийг татаж, давхцахыг зогсооно", async () => {
@@ -469,7 +493,12 @@ test("GitLab: бусдын давхцахгүй өөрчлөлтийг тата�
   const first = await openGitlab(repo);
   repo.push({ "b.tex": "Б бусдын" });
   first.s.texts.set("a.tex", "А миний");
-  const done = await commitChanges(gitlab(repo), first.s, first.remote, "м");
+  const done = await commitChanges(
+    gitlab(repo),
+    workingCopy(first.s),
+    first.remote,
+    "м",
+  );
   assert.ok(done?.pulled);
   assert.equal(first.s.texts.get("b.tex"), "Б бусдын");
   assert.equal(repo.text("a.tex"), "А миний");
@@ -479,7 +508,7 @@ test("GitLab: бусдын давхцахгүй өөрчлөлтийг тата�
   second.s.texts.set("a.tex", "А зөрчил");
   const before = repo.branches.get("main");
   await assert.rejects(
-    commitChanges(gitlab(repo), second.s, second.remote, "x"),
+    commitChanges(gitlab(repo), workingCopy(second.s), second.remote, "x"),
     /a\.tex/,
   );
   assert.equal(repo.branches.get("main"), before);
@@ -492,7 +521,7 @@ test("GitLab: файлын сүүлийн commit-ийг уншиж чадааг�
   const before = repo.branches.get("main");
   s.texts.set("a.tex", "А миний");
   await assert.rejects(
-    commitChanges(gitlab(repo), s, remote, "x"),
+    commitChanges(gitlab(repo), workingCopy(s), remote, "x"),
     /сүүлийн commit/,
   );
   assert.equal(repo.branches.get("main"), before);
@@ -505,7 +534,7 @@ test("GitLab: шалгалт ба commit-ийн хооронд орсон бус
   synced.s.texts.set("a.tex", "А миний");
   repo.beforeCommit = () => repo.push({ "a.tex": "А бусдын" });
   await assert.rejects(
-    commitChanges(gitlab(repo), synced.s, synced.remote, "x"),
+    commitChanges(gitlab(repo), workingCopy(synced.s), synced.remote, "x"),
     ProjectError,
   );
   assert.equal(repo.text("a.tex"), "А бусдын");
@@ -549,7 +578,12 @@ test("commitChanges: нэг файлын өөр мөрүүдийг хоёр та
   const { s, remote } = await open(repo);
   await repo.push({ "a.tex": "нэг\nхоёр\nгурав бусдын" });
   s.texts.set("a.tex", "нэг миний\nхоёр\nгурав");
-  const done = await commitChanges(githubHost(repo), s, remote, "м");
+  const done = await commitChanges(
+    githubHost(repo),
+    workingCopy(s),
+    remote,
+    "м",
+  );
   assert.ok(done?.pulled);
   assert.equal(repo.text("a.tex"), "нэг миний\nхоёр\nгурав бусдын");
   assert.equal(s.texts.get("a.tex"), "нэг миний\nхоёр\nгурав бусдын");
@@ -568,7 +602,7 @@ test("commitChanges: зөрчилтэй мөрийг сонголтоор ший
   s.texts.set("a.tex", "нэг\nхоёр миний");
   const asked: MergeItem[][] = [];
   await assert.rejects(
-    commitChanges(githubHost(repo), s, remote, "x", (items) => {
+    commitChanges(githubHost(repo), workingCopy(s), remote, "x", (items) => {
       asked.push([...items]);
       return Promise.resolve(null);
     }),
@@ -578,8 +612,12 @@ test("commitChanges: зөрчилтэй мөрийг сонголтоор ший
   assert.equal(s.texts.get("a.tex"), "нэг\nхоёр миний");
   assert.equal(s.texts.get("b.tex"), "Б");
   assert.equal(s.remote, remote);
-  const done = await commitChanges(githubHost(repo), s, remote, "м", () =>
-    Promise.resolve(new Map([["a.tex", ["both"] as const]])),
+  const done = await commitChanges(
+    githubHost(repo),
+    workingCopy(s),
+    remote,
+    "м",
+    () => Promise.resolve(new Map([["a.tex", ["both"] as const]])),
   );
   assert.ok(done);
   assert.equal(repo.text("a.tex"), "нэг\nхоёр миний\nхоёр бусдын");
@@ -604,10 +642,16 @@ test("commitChanges: татаж байх зуур засварласан фай�
     },
   };
   const asked: string[] = [];
-  const done = await commitChanges(api, s, remote, "м", (items) => {
-    asked.push(...items.map((item) => item.path));
-    return Promise.resolve(new Map([["b.tex", ["ours"] as const]]));
-  });
+  const done = await commitChanges(
+    api,
+    workingCopy(s),
+    remote,
+    "м",
+    (items) => {
+      asked.push(...items.map((item) => item.path));
+      return Promise.resolve(new Map([["b.tex", ["ours"] as const]]));
+    },
+  );
   assert.deepEqual(asked, ["b.tex"]);
   assert.ok(done?.committed);
   assert.equal(repo.text("b.tex"), "Б миний");
@@ -623,8 +667,12 @@ test("commitChanges: хоёр тал ижил файлыг устгасан бо
   await repo.push({ "old.tex": null });
   dropEntries(s, "old.tex");
   s.texts.set("a.tex", "А миний");
-  const done = await commitChanges(githubHost(repo), s, remote, "м", () =>
-    Promise.reject(new Error("асуух ёсгүй")),
+  const done = await commitChanges(
+    githubHost(repo),
+    workingCopy(s),
+    remote,
+    "м",
+    () => Promise.reject(new Error("асуух ёсгүй")),
   );
   assert.ok(done?.committed);
   assert.equal(repo.text("old.tex"), undefined);
@@ -637,7 +685,7 @@ test("commitChanges: зөрчлийн цонхыг болиулбал Cancelled 
   await repo.push({ "a.tex": "А бусдын" });
   s.texts.set("a.tex", "А миний");
   await assert.rejects(
-    commitChanges(githubHost(repo), s, remote, "м", () =>
+    commitChanges(githubHost(repo), workingCopy(s), remote, "м", () =>
       Promise.resolve(null),
     ),
     Cancelled,
@@ -669,7 +717,7 @@ test("commitChanges: нэг тал устгаж нөгөө тал өөрчилс
   let seen: MergeItem | undefined;
   const done = await commitChanges(
     githubHost(repo),
-    s,
+    workingCopy(s),
     remote,
     "м",
     (items) => {
