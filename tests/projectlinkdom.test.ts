@@ -33,6 +33,8 @@ async function setup() {
     workspace: document.querySelector<HTMLElement>(".workspace")!,
     tools: () => document.querySelector<HTMLElement>(".editor-tools"),
     openButton: null,
+    fileButton: null,
+    fileTypes: "",
     slots: {
       current: () => slot,
       inProject: () => slot === "project",

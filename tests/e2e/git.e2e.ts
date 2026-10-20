@@ -307,12 +307,13 @@ test("том repo уншиж байхад явцыг харуулж, Болих 
   await context.close();
 });
 
-test("доод мөрний «LaTeX төсөл» товчоор .tex файлгүйгээр Git repo нээнэ", async () => {
+test("«Файл нээх» цэсний «LaTeX төсөл» хэсгээс .tex файлгүйгээр Git repo нээнэ", async () => {
   const github = new FakeGithub({ "main.tex": MAIN, "ch.tex": "Нэг.\n" });
   const context = await app.context();
   await github.attach(context);
   const page = await openPage(app, context);
   await page.click("#projectBtn");
+  await page.locator(".project-menu-item", { hasText: "LaTeX төсөл" }).click();
   await page
     .locator(".project-menu-item", { hasText: "Git repo нээх" })
     .click();

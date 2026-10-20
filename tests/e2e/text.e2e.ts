@@ -227,7 +227,7 @@ test("LaTeX-д монгол байрлалын ьь-г шууд, вв-г зай�
   await context.close();
 });
 
-test("утсан дээр toolbar-ыг төгсгөл рүү гүйлгэхэд «LaTeX төсөл» товч бүтэн харагдана", async () => {
+test("утсан дээр toolbar-ыг төгсгөл рүү гүйлгэхэд «Файл нээх» цэсний товч бүтэн харагдана", async () => {
   const context = await app.browser.newContext({
     viewport: { width: 390, height: 800 },
   });

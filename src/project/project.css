@@ -373,6 +373,34 @@
   outline: none;
 }
 
+.project-menu-item.is-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.project-menu-item.is-group::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+}
+
+.project-menu-item.is-group[aria-expanded="true"]::after {
+  transform: translateY(2px) rotate(-135deg);
+}
+
+.project-menu-item.is-child {
+  padding-inline-start: 22px;
+}
+
+.project-menu-item[hidden] {
+  display: none;
+}
+
 .project-menu-item.is-danger {
   color: var(--proof);
 }
