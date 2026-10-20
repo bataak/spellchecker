@@ -1,25 +1,19 @@
 import { initImageEdit } from "./imageedit.ts";
 import { onImagesChange } from "../files/images.ts";
-import { fitBlanks, format, parse, toHtml } from "../markdown.ts";
-import { applyDataStyles } from "../core/htmlutil.ts";
 import { createHtmlSync } from "./htmlsync.ts";
-import { handleImageClick, resolveImages } from "./mdimages.ts";
+import { handleImageClick } from "./mdimages.ts";
+import { createFileView } from "./previewfile.ts";
+import { createMarkdownView } from "./previewmd.ts";
 import type { CompiledPdf } from "./pdfcache.ts";
 import { createPdfPane } from "./pdfpane.ts";
 import { buildPreviewHead, HEAD_TEXT } from "./previewhead.ts";
 import { createTexPreview } from "./texpreview.ts";
 import { initCompileButton } from "./compilemode.ts";
 import type { TexProject } from "../project/projectbuild.ts";
-import { tidyCaret, tidyTex } from "../tex/textidy.ts";
+import { onDoubleTap } from "./previewgesture.ts";
+import { createPreviewSync, previewShown } from "./previewsync.ts";
+import { createTidy } from "./previewtidy.ts";
 
-const TIDY_LIMIT = 400_000;
-const TIDY_IDLE_MS = 5000;
-const SYNC_MS = 250;
-const SYNC_AFTER_EDIT_MS = 2000;
-const TAP_SLOP = 10;
-const DOUBLE_TAP_MS = 350;
-const DOUBLE_TAP_SLOP = 30;
-const MD_TIDY_TITLE = "Markdown бичвэрийг жигдрүүлэх";
 const MD_NAME = /\.(md|markdown|mdown|mkd)$/i;
 
 function isSameDocument(next: string, ref: string): boolean {
@@ -57,37 +51,11 @@ export interface Preview {
   destroy(): void;
 }
 
-export function initPreview(deps: PreviewDeps): Preview {
-  const {
-    wrap,
-    area,
-    onFormat,
-    isLatex,
-    projectKey,
-    inProject,
-    pdfName,
-    jump,
-  } = deps;
-
-  const panel = document.createElement("section");
-  panel.className = "preview-panel";
-  panel.setAttribute("aria-label", "Харагдац");
-
-  const ui = buildPreviewHead(panel, {
-    onZoom: (action) => pane.zoom(action),
-    onGoTo: (page) => pane.goTo(page),
-    canNavigate: () => pane.view() !== null,
-  });
-  const { head, title, compileBtn, downloadBtn } = ui;
-
-  const body = document.createElement("div");
-  body.className = "preview-body";
-
+function buildNotes(projectKey: () => string | null) {
   const texError = document.createElement("p");
   texError.className = "preview-error";
   texError.setAttribute("role", "status");
   texError.hidden = true;
-
   const texMissing = document.createElement("p");
   texMissing.className = "preview-missing";
   texMissing.setAttribute("role", "status");
@@ -101,318 +69,165 @@ export function initPreview(deps: PreviewDeps): Preview {
     void import("../tex/teximages.ts").then((mod) => mod.chooseImageFolder());
   });
   texMissing.append(texMissingText, texFolder);
-
   const notes = document.createElement("div");
   notes.className = "preview-notes";
   notes.append(texMissing, texError);
-
-  panel.append(head, body, notes);
-  const pane = createPdfPane(panel, body, () => ui);
-  pane.syncZoom();
-  const imageEdit = initImageEdit(body, area);
-  const htmlSync = createHtmlSync(body, area, () => head.offsetHeight, jump);
-  wrap.after(panel);
-
-  const tidy = document.createElement("button");
-  tidy.type = "button";
-  tidy.className = "tidy-btn";
-  tidy.textContent = "Хэлбэржүүлэх";
-  tidy.title = MD_TIDY_TITLE;
-  tidy.hidden = true;
-
-  const tools = wrap.querySelector<HTMLElement>(".editor-tools");
-  const anchor = tools?.querySelector<HTMLElement>(".measure-ctl") ?? null;
-  if (tools) tools.insertBefore(tidy, anchor);
-  else head.append(tidy);
-
-  let raf = 0;
-  let tidied: string | null = null;
-  let typingTimer = 0;
-  let latexStale = false;
-  const showTidy = (): void => {
-    tidy.hidden = tidied === null || typingTimer !== 0 || !!source;
+  return {
+    notes,
+    setMissing(paths: readonly string[]): void {
+      texMissing.hidden = paths.length === 0;
+      texFolder.hidden = projectKey() !== null;
+      texMissingText.textContent = paths.length
+        ? "Зураг олдсонгүй: " + paths.join(", ")
+        : "";
+    },
+    setError(message: string | null): void {
+      texError.hidden = message === null;
+      texError.textContent = message ?? "";
+    },
   };
-  const onTyping = (event: Event): void => {
-    if (!event.isTrusted) return;
-    if (typingTimer) clearTimeout(typingTimer);
-    tidy.hidden = true;
-    typingTimer = window.setTimeout(() => {
-      typingTimer = 0;
-      if (latexStale && tex.active()) tidyLatex();
-      showTidy();
-    }, TIDY_IDLE_MS);
-  };
-  let isMdFile = false;
-  let markdownMode = false;
-  let source: PreviewSource | null = null;
-  let imageUrl: string | null = null;
-  let sourceText = "";
-  let shownHtml: string | null = null;
-  let mathView: typeof import("./mathview.ts") | null = null;
-  let syncTimer = 0;
-  let editedAt = -Infinity;
-  let syncedAt = -1;
-  let pendingReveal: number | null = null;
-  let sourceCache: {
-    readonly text: string;
-    readonly words: readonly import("../tex/texsync.ts").SourceWord[];
-  } | null = null;
+}
 
-  const renderMarkdown = (): void => {
-    const text = area.value;
-    const blocks = text.trim() ? parse(text) : [];
-    const html = blocks.length ? toHtml(fitBlanks(blocks)) : "";
-    if (html !== shownHtml) {
-      shownHtml = html;
-      const next = document.createElement("div");
-      next.innerHTML = html;
-      applyDataStyles(next);
-      resolveImages(next);
-      if (next.querySelector(".math")) {
-        if (mathView) mathView.renderMath(next);
-        else
-          void import("./mathview.ts")
-            .then((mod) => {
-              mathView = mod;
-              mod.renderMath(body);
-            })
-            .catch(() => undefined);
-      }
-      body.replaceChildren(...next.childNodes);
-      imageEdit.refresh();
-    }
-    body.classList.toggle("is-empty", !blocks.length);
+function noticeOf(text: string): HTMLElement {
+  const note = document.createElement("p");
+  note.className = "preview-notice";
+  note.textContent = text;
+  return note;
+}
 
-    tidied = null;
-    tidy.title = MD_TIDY_TITLE;
-    const looksMd = isMdFile || markdownMode;
-    if (looksMd && text.length <= TIDY_LIMIT && !isLatex(text)) {
-      const next = format(text, blocks);
-      if (next !== text) tidied = next;
-    }
-    showTidy();
-  };
+interface TexWiring {
+  readonly deps: PreviewDeps;
+  readonly pane: ReturnType<typeof createPdfPane>;
+  readonly ui: ReturnType<typeof buildPreviewHead>;
+  readonly notes: ReturnType<typeof buildNotes>;
+  readonly showNotice: (text: string) => void;
+  readonly shown: () => void;
+  readonly update: () => void;
+}
 
-  const setTexMissing = (paths: readonly string[]): void => {
-    texMissing.hidden = paths.length === 0;
-    texFolder.hidden = projectKey() !== null;
-    texMissingText.textContent = paths.length
-      ? "Зураг олдсонгүй: " + paths.join(", ")
-      : "";
-  };
-
-  const setTexError = (message: string | null): void => {
-    texError.hidden = message === null;
-    texError.textContent = message ?? "";
-  };
-
-  const previewShown = (): boolean =>
-    document.documentElement.dataset.preview === "on" ||
-    document.documentElement.dataset.pane === "preview";
-
-  const sourceWordsOf = (
-    text: string,
-    sourceWords: (
-      text: string,
-    ) => readonly import("../tex/texsync.ts").SourceWord[],
-  ): readonly import("../tex/texsync.ts").SourceWord[] => {
-    if (sourceCache?.text !== text)
-      sourceCache = { text, words: sourceWords(text) };
-    return sourceCache.words;
-  };
-
-  const revealOffset = async (offset: number): Promise<boolean> => {
-    if (area.dataset.layout) body.dataset.layout = area.dataset.layout;
-    else delete body.dataset.layout;
-    const view = pane.view();
-    if (!tex.active()) {
-      if (view || source || !shownHtml) return false;
-      htmlSync.revealLine(area.value.slice(0, offset).split("\n").length - 1);
-      return true;
-    }
-    if (!view) return false;
-    const { locate, sourceWords } = await import("../tex/texsync.ts");
-    const words = sourceWordsOf(area.value, sourceWords);
-    const pdf = await view.words();
-    if (view !== pane.view()) return false;
-    const hit = locate(words, offset, pdf);
-    if (hit) view.reveal(hit.page, hit.y);
-    return true;
-  };
-
-  const syncToCaret = async (): Promise<void> => {
-    if (!previewShown() || document.activeElement !== area) return;
-    if (tex.pending()) return;
-    const caret = area.selectionStart;
-    if (caret === syncedAt) return;
-    syncedAt = caret;
-    if (!(await revealOffset(caret))) syncedAt = -1;
-  };
-
-  const flushReveal = async (): Promise<void> => {
-    const offset = pendingReveal;
-    if (offset === null || !previewShown()) return;
-    if ((await revealOffset(offset)) && pendingReveal === offset)
-      pendingReveal = null;
-  };
-
-  function scheduleSync(): void {
-    clearTimeout(syncTimer);
-    const typing = performance.now() - editedAt < SYNC_AFTER_EDIT_MS;
-    syncTimer = window.setTimeout(
-      () => void syncToCaret(),
-      typing ? SYNC_AFTER_EDIT_MS : SYNC_MS,
-    );
-  }
-
-  const jumpFromPdf = async (
-    view: import("./pdfview.ts").PdfView,
-    clientX: number,
-    clientY: number,
-  ): Promise<void> => {
-    const point = view.pointAt(clientX, clientY);
-    if (!point) return;
-    const [{ locateSource, pdfWordAt, sourceWords }, pdf] = await Promise.all([
-      import("../tex/texsync.ts"),
-      view.words(),
-    ]);
-    if (view !== pane.view()) return;
-    const index = pdfWordAt(pdf, point.page, point.x, point.y);
-    if (index < 0) return;
-    const words = sourceWordsOf(area.value, sourceWords);
-    const hit = locateSource(words, pdf, index);
-    if (hit) jump(hit.at, hit.at + hit.word.length);
-  };
-
-  const jumpAt = (x: number, y: number, target: EventTarget | null): void => {
-    const view = pane.view();
-    if (tex.active() && view) {
-      void jumpFromPdf(view, x, y);
-      return;
-    }
-    if (tex.active() || view || source || !shownHtml) return;
-    if ((target as Element | null)?.closest("img, a, button, input")) return;
-    htmlSync.jumpFrom(x, y);
-  };
-  let tappedAt = -Infinity;
-  const onJump = (event: MouseEvent): void => {
-    if (event.button !== 0 || event.timeStamp - tappedAt < DOUBLE_TAP_MS)
-      return;
-    jumpAt(event.clientX, event.clientY, event.target);
-  };
-  body.addEventListener("dblclick", onJump);
-
-  let press: { x: number; y: number; id: number } | null = null;
-  let lastTap: { x: number; y: number; at: number } | null = null;
-  const onPress = (event: PointerEvent): void => {
-    if (event.pointerType === "mouse" || !event.isPrimary) {
-      press = null;
-      return;
-    }
-    press = { x: event.clientX, y: event.clientY, id: event.pointerId };
-  };
-  const onRelease = (event: PointerEvent): void => {
-    const start = press;
-    press = null;
-    if (!start || start.id !== event.pointerId) return;
-    const x = event.clientX;
-    const y = event.clientY;
-    if (Math.hypot(x - start.x, y - start.y) > TAP_SLOP) return;
-    const now = event.timeStamp;
-    const before = lastTap;
-    if (
-      before &&
-      now - before.at < DOUBLE_TAP_MS &&
-      Math.hypot(x - before.x, y - before.y) < DOUBLE_TAP_SLOP
-    ) {
-      lastTap = null;
-      tappedAt = now;
-      jumpAt(x, y, event.target);
-      return;
-    }
-    lastTap = { x, y, at: now };
-  };
-  const onCancel = (): void => {
-    press = null;
-  };
-  body.addEventListener("pointerdown", onPress);
-  body.addEventListener("pointerup", onRelease);
-  body.addEventListener("pointercancel", onCancel);
-
-  const onEdit = (): void => {
-    editedAt = performance.now();
-    syncedAt = -1;
-    pendingReveal = null;
-  };
-
-  const onSelection = (): void => {
-    if (document.activeElement === area) scheduleSync();
-  };
-  document.addEventListener("selectionchange", onSelection);
-  area.addEventListener("input", onEdit);
-
+function wireTex(w: TexWiring) {
+  const { deps, pane, ui } = w;
   const tex = createTexPreview({
-    area,
+    area: deps.area,
     pane,
-    compileBtn,
-    downloadBtn,
-    projectKey,
-    inProject,
+    compileBtn: ui.compileBtn,
+    downloadBtn: ui.downloadBtn,
+    projectKey: deps.projectKey,
+    inProject: deps.inProject,
     texProject: deps.texProject,
     visible: previewShown,
-    showNotice: (text) => showNotice(text),
-    setError: setTexError,
-    setMissing: setTexMissing,
-    onShown: () => {
-      syncedAt = -1;
-      scheduleSync();
-      void flushReveal();
-    },
-    onImagesChanged: () => update(),
+    showNotice: w.showNotice,
+    setError: w.notes.setError,
+    setMissing: w.notes.setMissing,
+    onShown: w.shown,
+    onImagesChanged: w.update,
     onModeChange: (_auto, note) => {
       compileMode.paint();
       if (note) deps.notify(note, 9000, false);
     },
   });
-
   const compileMode = initCompileButton({
-    button: compileBtn,
-    area,
+    button: ui.compileBtn,
+    area: deps.area,
     active: () => tex.active(),
     auto: () => tex.auto(),
     compile: () => tex.compileNow(),
     toAuto: () => tex.setAuto(true),
   });
-  downloadBtn.addEventListener("click", () => {
+  ui.downloadBtn.addEventListener("click", () => {
     const bytes = pane.shown();
     if (!bytes) return;
     void import("../export/export.ts").then(({ deliverFile }) =>
-      deliverFile(bytes, pdfName(), "application/pdf"),
+      deliverFile(bytes, deps.pdfName(), "application/pdf"),
     );
+  });
+  return { tex, compileMode };
+}
+
+function buildPreview(deps: PreviewDeps) {
+  const { wrap, area } = deps;
+  const panel = document.createElement("section");
+  panel.className = "preview-panel";
+  panel.setAttribute("aria-label", "Харагдац");
+  const ui = buildPreviewHead(panel, {
+    onZoom: (action) => pane.zoom(action),
+    onGoTo: (page) => pane.goTo(page),
+    canNavigate: () => pane.view() !== null,
+  });
+  const body = document.createElement("div");
+  body.className = "preview-body";
+  const notes = buildNotes(deps.projectKey);
+  panel.append(ui.head, body, notes.notes);
+  const pane = createPdfPane(panel, body, () => ui);
+  pane.syncZoom();
+  const imageEdit = initImageEdit(body, area);
+  const htmlSync = createHtmlSync(
+    body,
+    area,
+    () => ui.head.offsetHeight,
+    deps.jump,
+  );
+  wrap.after(panel);
+  return { panel, ui, body, notes, pane, imageEdit, htmlSync };
+}
+
+export function initPreview(deps: PreviewDeps): Preview {
+  const { wrap, area, isLatex } = deps;
+  const { panel, ui, body, notes, pane, imageEdit, htmlSync } =
+    buildPreview(deps);
+
+  let raf = 0;
+  let isMdFile = false;
+  let markdownMode = false;
+  let source: PreviewSource | null = null;
+  let sourceText = "";
+  const md = createMarkdownView(body);
+  const tidy = createTidy({
+    wrap,
+    head: ui.head,
+    area,
+    onFormat: deps.onFormat,
+    texActive: () => tex.active(),
+    hasSource: () => source !== null,
+    isLatex,
+  });
+  const sync = createPreviewSync({
+    area,
+    body,
+    view: () => pane.view(),
+    htmlSync,
+    texActive: () => tex.active(),
+    texPending: () => tex.pending(),
+    htmlShown: () => source === null && md.shown(),
+    jump: deps.jump,
+  });
+  const offTap = onDoubleTap(body, sync.jumpAt);
+
+  const showNotice = (text: string): void => {
+    md.clear();
+    body.replaceChildren(noticeOf(text));
+    body.classList.remove("is-empty");
+    panel.classList.add("is-blank");
+  };
+  const files = createFileView(body, pane, showNotice);
+  const { tex, compileMode } = wireTex({
+    deps,
+    pane,
+    ui,
+    notes,
+    showNotice,
+    shown: () => sync.shown(),
+    update: () => update(),
   });
 
   const setTexMode = (on: boolean): void => {
     if (!tex.setActive(on)) return;
     panel.classList.toggle("tex-mode", on);
-    shownHtml = null;
+    md.clear();
     body.replaceChildren();
     panel.classList.remove("is-blank");
     panel.classList.toggle("is-pdf", on);
-    tidy.hidden = true;
-  };
-
-  const tidyLatex = (): void => {
-    tidy.title = "LaTeX бичвэрийн догол мөр, хоосон мөрийг жигдрүүлэх";
-    latexStale = typingTimer !== 0;
-    if (latexStale) {
-      tidied = null;
-      showTidy();
-      return;
-    }
-    const text = area.value;
-    const next = text.length <= TIDY_LIMIT ? tidyTex(text) : text;
-    tidied = next === text ? null : next;
-    showTidy();
+    tidy.hide();
   };
 
   const update = (): void => {
@@ -423,142 +238,85 @@ export function initPreview(deps: PreviewDeps): Preview {
     setTexMode(isLatex(area.value));
     if (tex.active()) {
       tex.schedule();
-      tidyLatex();
+      tidy.latex();
       return;
     }
     if (raf) return;
     raf = requestAnimationFrame(() => {
       raf = 0;
-      renderMarkdown();
-      void flushReveal();
+      const text = area.value;
+      const blocks = md.render(text, () => imageEdit.refresh());
+      tidy.markdown(text, blocks, isMdFile || markdownMode);
+      void sync.flush();
     });
-  };
-
-  const showNotice = (text: string): void => {
-    const note = document.createElement("p");
-    note.className = "preview-notice";
-    note.textContent = text;
-    shownHtml = null;
-    body.replaceChildren(note);
-    body.classList.remove("is-empty");
-    panel.classList.add("is-blank");
   };
 
   const setSource = (next: PreviewSource | null): void => {
     if (next === null && source === null) return;
     source = next;
     setTexMode(false);
-    tidy.hidden = true;
+    tidy.hide();
     tex.drop();
-    if (imageUrl) URL.revokeObjectURL(imageUrl);
-    imageUrl = null;
-
+    files.release();
     panel.classList.remove("is-blank");
-
+    md.clear();
     if (!next) {
-      title.textContent = HEAD_TEXT;
+      ui.title.textContent = HEAD_TEXT;
       panel.classList.remove("is-pdf");
-      shownHtml = null;
       body.replaceChildren();
       update();
       return;
     }
-
     sourceText = area.value;
     const name = next.kind === "office" ? next.name : next.file.name;
-    title.textContent = `${HEAD_TEXT} · ${name}`;
+    ui.title.textContent = `${HEAD_TEXT} · ${name}`;
     panel.classList.toggle("is-pdf", next.kind === "pdf");
-
-    if (next.kind === "pdf") {
-      body.classList.remove("is-empty");
-      shownHtml = null;
-      body.replaceChildren();
-      void pane.render(next.file, () =>
-        showNotice("PDF хуудсыг зурж чадсангүй"),
-      );
-      return;
-    }
-    if (next.kind === "image") {
-      imageUrl = URL.createObjectURL(next.file);
-      const image = document.createElement("img");
-      image.className = "preview-image";
-      image.alt = next.file.name;
-      image.src = imageUrl;
-      image.addEventListener("error", () =>
-        showNotice("Зургийг харуулж чадсангүй"),
-      );
-      shownHtml = null;
-      body.replaceChildren(image);
-      body.classList.remove("is-empty");
-      return;
-    }
-    showNotice("Уг файлыг үзүүлэх боломжгүй");
+    if (next.kind === "office") showNotice("Уг файлыг үзүүлэх боломжгүй");
+    else files.show(next.kind, next.file);
   };
-
-  tidy.addEventListener("mousedown", (event) => event.preventDefault());
-  tidy.addEventListener("click", () => {
-    if (tidied === null) return;
-    if (tex.active())
-      onFormat(tidied, tidyCaret(area.value, tidied, area.selectionStart));
-    else onFormat(tidied);
-  });
 
   body.addEventListener("click", (event) =>
     handleImageClick(body, event.target as Element),
   );
-
   const offImages = onImagesChange(() => {
     if (source || tex.active()) return;
-    shownHtml = null;
+    md.clear();
     update();
   });
-
-  area.addEventListener("input", onTyping);
   area.addEventListener("input", update);
   update();
 
-  const setFileName = (name: string | null): void => {
-    isMdFile = MD_NAME.test(name ?? "");
-    update();
-  };
-
-  const setMarkdownMode = (on: boolean): void => {
-    if (on === markdownMode) return;
-    markdownMode = on;
-    shownHtml = null;
-    update();
-  };
-
   return {
     update,
-    setFileName,
-    setMarkdownMode,
+    setFileName(name) {
+      isMdFile = MD_NAME.test(name ?? "");
+      update();
+    },
+    setMarkdownMode(on) {
+      if (on === markdownMode) return;
+      markdownMode = on;
+      md.clear();
+      update();
+    },
     setSource,
     revealAt(offset) {
-      pendingReveal = offset;
+      sync.reveal(offset);
       update();
-      void flushReveal();
+      void sync.flush();
     },
     pdf: () => tex.pdf(),
     destroy() {
-      if (imageUrl) URL.revokeObjectURL(imageUrl);
+      files.release();
       if (raf) cancelAnimationFrame(raf);
       tex.destroy();
       compileMode.destroy();
       offImages();
       imageEdit.destroy();
       htmlSync.destroy();
-      if (typingTimer) clearTimeout(typingTimer);
-      clearTimeout(syncTimer);
-      document.removeEventListener("selectionchange", onSelection);
-      area.removeEventListener("input", onEdit);
-      body.removeEventListener("dblclick", onJump);
-      body.removeEventListener("pointerdown", onPress);
-      body.removeEventListener("pointerup", onRelease);
-      body.removeEventListener("pointercancel", onCancel);
-      area.removeEventListener("input", onTyping);
+      sync.destroy();
+      offTap();
+      tidy.destroy();
       area.removeEventListener("input", update);
-      tidy.remove();
       panel.remove();
     },
   };
