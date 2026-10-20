@@ -109,7 +109,7 @@ function initToolbarSnap(): void {
   if (window.matchMedia("(min-width: 1024px)").matches) return;
   const bar = document.querySelector<HTMLElement>(".toolbar");
   const clearBtn = document.querySelector<HTMLElement>("#clearBtn");
-  const endBtn = document.querySelector<HTMLElement>("#openBtn");
+  const endBtn = document.querySelector<HTMLElement>("#projectBtn");
   if (!bar || !clearBtn || !endBtn) return;
   const ZONE = 56;
   let snapTimer: ReturnType<typeof setTimeout> | undefined;
