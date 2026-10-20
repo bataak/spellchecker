@@ -157,7 +157,7 @@ export function buildPreviewHead(
 
   const compileBtn = headButton(
     "tex-compile",
-    "Дахин хөрвүүлэх",
+    "Хөрвүүлэх",
     strokeGlyph(["M13 8a5 5 0 1 1-1.46-3.54", "M13 2.5V5.5H10"]),
   );
   const downloadBtn = headButton(

@@ -8,6 +8,7 @@ import type { CompiledPdf } from "./pdfcache.ts";
 import { createPdfPane } from "./pdfpane.ts";
 import { buildPreviewHead, HEAD_TEXT } from "./previewhead.ts";
 import { createTexPreview } from "./texpreview.ts";
+import { initCompileButton } from "./compilemode.ts";
 import type { TexProject } from "../project/projectbuild.ts";
 import { tidyCaret, tidyTex } from "../tex/textidy.ts";
 
@@ -40,6 +41,7 @@ export interface PreviewDeps {
   readonly texProject: () => TexProject | null;
   readonly pdfName: () => string;
   readonly jump: (start: number, end: number) => void;
+  readonly notify: (html: string, ms: number, animate: boolean) => void;
 }
 
 export interface Preview {
@@ -323,9 +325,20 @@ export function initPreview(deps: PreviewDeps): Preview {
       void flushReveal();
     },
     onImagesChanged: () => update(),
+    onModeChange: (_auto, note) => {
+      compileMode.paint();
+      if (note) deps.notify(note, 9000, false);
+    },
   });
 
-  compileBtn.addEventListener("click", () => tex.recompile());
+  const compileMode = initCompileButton({
+    button: compileBtn,
+    area,
+    active: () => tex.active(),
+    auto: () => tex.auto(),
+    compile: () => tex.compileNow(),
+    toAuto: () => tex.setAuto(true),
+  });
   downloadBtn.addEventListener("click", () => {
     const bytes = pane.shown();
     if (!bytes) return;
@@ -487,6 +500,7 @@ export function initPreview(deps: PreviewDeps): Preview {
       if (imageUrl) URL.revokeObjectURL(imageUrl);
       if (raf) cancelAnimationFrame(raf);
       tex.destroy();
+      compileMode.destroy();
       offImages();
       imageEdit.destroy();
       htmlSync.destroy();
