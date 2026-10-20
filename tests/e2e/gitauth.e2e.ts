@@ -55,6 +55,11 @@ const openDialog = async (page: Page): Promise<void> => {
   await page.locator(".project-open", { hasText: "Git repo-оос нээх" }).click();
 };
 
+const openMore = async (page: Page): Promise<void> => {
+  if ((await page.getAttribute(".git-more", "open")) === null)
+    await page.click(".git-more > summary");
+};
+
 const fakeGitlabLogin = async (context: BrowserContext) => {
   const seen: { challenge?: string; verified?: boolean } = {};
   await context.route("https://gitlab.com/oauth/authorize**", (route) => {
@@ -99,8 +104,11 @@ test("GitLab-аар нэвтрэх товчоор token оруулахгүйгэ
   const seen = await fakeGitlabLogin(context);
   const page = await openPage(app, context);
   await openDialog(page);
-  await page.selectOption('.git-panel select[name="provider"]', "gitlab");
+  await page.selectOption('.git-panel select[name="service"]', "gitlab");
+  assert.equal(await page.isVisible('.git-panel input[name="token"]'), false);
+  assert.equal(await page.isVisible('.git-panel input[name="host"]'), false);
   await page.fill('.git-panel input[name="repo"]', GITLAB_PROJECT);
+  await openMore(page);
   await page.fill('.git-panel input[name="dir"]', "tex");
   const button = page.locator(".git-signin-btn");
   assert.equal(await button.textContent(), "GitLab-ээр нэвтрэх");
@@ -144,9 +152,9 @@ test("GitHub-ээр нэвтрэхэд код харуулж, зөвшөөрмө
   });
   const page = await openPage(app, context);
   await openDialog(page);
-  await page.selectOption('.git-panel select[name="provider"]', "github");
-  await page.fill('.git-panel input[name="host"]', "");
+  await page.selectOption('.git-panel select[name="service"]', "github");
   await page.fill('.git-panel input[name="repo"]', "o/r");
+  await openMore(page);
   await page.fill('.git-panel input[name="dir"]', "");
   await page.locator(".git-signin-btn").click();
   await page.locator(".git-code").waitFor({ timeout: 10000 });

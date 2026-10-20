@@ -23,10 +23,12 @@ interface Field {
   readonly placeholder?: string;
   readonly kind?: "text" | "password" | "area" | "select";
   readonly options?: readonly (readonly [string, string])[];
+  readonly more?: boolean;
 }
 
 interface Form {
   readonly title: string;
+  readonly more?: string;
   readonly fields: readonly Field[];
   readonly confirm: string;
   readonly note?: Node;
@@ -95,15 +97,26 @@ function showForm<T>(
     title.className = "export-title";
     title.textContent = form.title;
     panel.append(title);
+    const more = document.createElement("details");
+    more.className = "git-more";
+    const summary = document.createElement("summary");
+    summary.textContent = form.more ?? "";
+    const body = document.createElement("div");
+    body.className = "git-more-body";
+    more.append(summary, body);
     const controls = form.fields.map((field) => {
       const label = document.createElement("label");
       label.className = "export-field";
       label.textContent = field.label;
       const control = input(field);
       label.append(control);
-      panel.append(label);
+      if (field.more) {
+        body.append(label);
+        if (field.value) more.open = true;
+      } else panel.append(label);
       return control;
     });
+    if (body.childElementCount) panel.append(more);
     if (form.note) panel.append(form.note);
     const error = document.createElement("p");
     error.className = "export-error";
@@ -178,7 +191,10 @@ function showForm<T>(
     overlay.addEventListener("mousedown", (event) => {
       if (event.target === overlay) finish(null);
     });
-    (controls.find((control) => !control.value) ?? controls[0])?.focus();
+    const shown = controls.filter(
+      (control) => control.getClientRects().length > 0,
+    );
+    (shown.find((control) => !control.value) ?? shown[0])?.focus();
   });
 }
 
@@ -216,6 +232,23 @@ function paintNote(note: HTMLElement, provider: Provider, host: string): void {
 
 const providerOf = (value: string | undefined): Provider =>
   value === "gitlab" ? "gitlab" : "github";
+
+function whereOf(values: Record<string, string>): {
+  provider: Provider;
+  host: string;
+} {
+  if (values.service !== "other")
+    return { provider: providerOf(values.service), host: "" };
+  return { provider: providerOf(values.provider), host: values.host ?? "" };
+}
+
+const needsToken = (where: { provider: Provider; host: string }): boolean =>
+  !canSignIn(where.provider, cleanHost(where.host, where.provider));
+
+function showField(panel: HTMLElement, name: string, on: boolean): void {
+  const label = panel.querySelector(`[name="${name}"]`)?.closest("label");
+  if (label) label.hidden = !on;
+}
 
 export interface RepoChoice {
   readonly spec: RepoSpec;
@@ -255,9 +288,9 @@ function signInRow(
   status.hidden = true;
   row.append(button, status);
   button.addEventListener("click", () => {
-    const values = form.values();
-    const provider = providerOf(values.provider);
-    const host = cleanHost(values.host ?? "", provider);
+    const where = whereOf(form.values());
+    const provider = where.provider;
+    const host = cleanHost(where.host, provider);
     button.disabled = true;
     const finish = (token: OAuthToken): void => {
       done(token);
@@ -291,10 +324,14 @@ export function askRepo(
   note.className = "git-note";
   let signed: OAuthToken | null = null;
   let row: HTMLElement | null = null;
+  const other =
+    cleanHost(initial.host, initial.provider) !==
+    DEFAULT_HOST[initial.provider];
   return showForm(
     {
       title: "Git repo-оос төсөл нээх",
       confirm: "Нээх",
+      more: "Салбар, хавтас",
       note,
       extra: (form) => {
         row = signInRow(form, (token) => {
@@ -303,11 +340,16 @@ export function askRepo(
         note.before(row);
       },
       onChange: (values, panel) => {
-        const provider = providerOf(values.provider);
-        const host = values.host ?? "";
+        const where = whereOf(values);
+        const { provider, host } = where;
+        const token = needsToken(where);
+        showField(panel, "host", values.service === "other");
+        showField(panel, "provider", values.service === "other");
+        showField(panel, "token", token);
+        note.hidden = !token;
         paintNote(note, provider, host);
         if (row) {
-          row.hidden = !canSignIn(provider, cleanHost(host, provider));
+          row.hidden = token;
           const button = row.querySelector("button");
           if (button)
             button.textContent = PROVIDER_NAME[provider] + "-ээр нэвтрэх";
@@ -318,10 +360,16 @@ export function askRepo(
             provider === "gitlab" ? "бүлэг/төсөл" : "bataak/thesis";
         const hostInput =
           panel.querySelector<HTMLInputElement>('[name="host"]');
-        if (hostInput) hostInput.placeholder = DEFAULT_HOST[provider];
-        const token = panel.querySelector<HTMLInputElement>('[name="token"]');
-        if (token)
-          token.placeholder = savedToken(provider, cleanHost(host, provider))
+        if (hostInput)
+          hostInput.placeholder =
+            provider === "gitlab" ? "gitlab.example.com" : "github.example.com";
+        const tokenInput =
+          panel.querySelector<HTMLInputElement>('[name="token"]');
+        if (tokenInput)
+          tokenInput.placeholder = savedToken(
+            provider,
+            cleanHost(host, provider),
+          )
             ? "Хадгалсан token-ыг ашиглана"
             : provider === "gitlab"
               ? "glpat-…"
@@ -329,18 +377,30 @@ export function askRepo(
       },
       fields: [
         {
-          name: "provider",
+          name: "service",
           label: "Үйлчилгээ",
           kind: "select",
-          value: initial.provider,
-          options: (["github", "gitlab"] as const).map(
-            (provider) => [provider, PROVIDER_NAME[provider]] as const,
-          ),
+          value: other ? "other" : initial.provider,
+          options: [
+            ["github", PROVIDER_NAME.github],
+            ["gitlab", PROVIDER_NAME.gitlab],
+            ["other", "Бусад"],
+          ],
         },
         {
           name: "host",
-          label: "Сервер — хоосон бол github.com / gitlab.com",
-          value: initial.host,
+          label: "Сервер",
+          value: other ? initial.host : "",
+        },
+        {
+          name: "provider",
+          label: "Төрөл",
+          kind: "select",
+          value: other ? initial.provider : "gitlab",
+          options: [
+            ["gitlab", PROVIDER_NAME.gitlab],
+            ["github", "GitHub Enterprise"],
+          ],
         },
         {
           name: "repo",
@@ -351,28 +411,31 @@ export function askRepo(
           name: "branch",
           label: "Салбар — хоосон бол үндсэн салбар",
           value: initial.branch,
+          more: true,
         },
         {
           name: "dir",
           label: "Хавтас — хоосон бол repo бүхэлдээ",
           value: initial.dir,
+          more: true,
         },
         { name: "token", label: "Token", kind: "password" },
       ],
     },
     (values) => {
-      const provider = providerOf(values.provider);
-      const spec = parseRepo(provider, values.repo ?? "", {
+      const where = whereOf(values);
+      const spec = parseRepo(where.provider, values.repo ?? "", {
         branch: values.branch ?? "",
         dir: values.dir ?? "",
-        host: values.host ?? "",
+        host: where.host,
       });
-      const token =
-        (values.token ?? "").trim() ||
-        signed ||
-        savedToken(provider, spec.host);
-      if (!token) throw new ProjectError("Нэвтэрнэ үү эсвэл token оруулна уу");
-      return { spec, token, host: (values.host ?? "").trim() };
+      const typed = needsToken(where) ? (values.token ?? "").trim() : "";
+      const token = typed || signed || savedToken(where.provider, spec.host);
+      if (!token)
+        throw new ProjectError(
+          needsToken(where) ? "Token оруулна уу" : "Нэвтэрнэ үү",
+        );
+      return { spec, token, host: where.host.trim() };
     },
   );
 }

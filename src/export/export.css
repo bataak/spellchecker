@@ -41,6 +41,10 @@
   color: var(--muted);
 }
 
+.export-field[hidden] {
+  display: none;
+}
+
 .export-name {
   height: 34px;
   padding: 0 10px;
