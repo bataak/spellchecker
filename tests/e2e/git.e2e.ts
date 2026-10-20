@@ -207,7 +207,7 @@ test("олон хавтсанд үндсэн файл байвал хавтас 
     ["csm301/exam1", "csm301/exam2"],
   );
   await folder.selectOption("csm301/exam2");
-  await page.click(".git-panel .export-confirm");
+  await page.click('.git-panel:has(select[name="folder"]) .export-confirm');
   await until(
     () =>
       page.evaluate(
@@ -217,6 +217,31 @@ test("олон хавтсанд үндсэн файл байвал хавтас 
     20000,
   );
   assert.ok((await rows(page)).includes("figs/a.txt"));
+  assert.deepEqual(errors(page), []);
+  await context.close();
+});
+
+test("үндсэн файлгүй repo-г нээхэд алдааг цонхон дотор харуулна", async () => {
+  const github = new FakeGithub({
+    "csm301/soril1.tex": "\\begin{question}\nА\n\\end{question}\n",
+  });
+  const context = await app.context();
+  await github.attach(context);
+  const page = await openPage(app, context);
+  await openPanel(page);
+  await page.selectOption('.git-panel select[name="service"]', "github");
+  await page.fill('.git-panel input[name="repo"]', "o/r");
+  await openMore(page);
+  await page.fill('.git-panel input[name="dir"]', "");
+  await page.fill('.git-panel input[name="token"]', "tok");
+  await page.click(".git-panel .export-confirm");
+  const error = page.locator(".git-panel .export-error");
+  await error.waitFor({ timeout: 20000 });
+  assert.match(
+    (await error.textContent()) ?? "",
+    /үндсэн \.tex файл олдсонгүй/,
+  );
+  assert.equal(await page.textContent(".git-panel .export-confirm"), "Нээх");
   assert.deepEqual(errors(page), []);
   await context.close();
 });
