@@ -259,3 +259,42 @@ test("үндсэн файлгүй repo-г нээхэд алдааг цонхон
   assert.deepEqual(errors(page), []);
   await context.close();
 });
+
+test("том repo уншиж байхад явцыг харуулж, Болих товчоор зогсооно", async () => {
+  const files: Record<string, string> = { "main.tex": MAIN };
+  for (let i = 0; i < 40; i++) files["ch" + i + ".tex"] = "Бүлэг " + i + ".\n";
+  const github = new FakeGithub(files);
+  const context = await app.context();
+  await github.attach(context);
+  let served = 0;
+  await context.route(
+    "https://api.github.com/repos/o/r/git/blobs/**",
+    async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      served++;
+      await route.fallback();
+    },
+  );
+  const page = await openPage(app, context);
+  await openPanel(page);
+  await page.selectOption('.git-panel select[name="service"]', "github");
+  await page.fill('.git-panel input[name="repo"]', "o/r");
+  await openMore(page);
+  await page.fill('.git-panel input[name="dir"]', "");
+  await page.fill('.git-panel input[name="token"]', "tok");
+  await page.click(".git-panel .export-confirm");
+  const label = await until(
+    () => page.textContent(".git-panel .export-confirm"),
+    (text) => /Уншиж байна… \d+ \/ 41/.test(text ?? ""),
+    15000,
+  );
+  assert.match(label ?? "", /\/ 41/);
+  await page.click(".git-panel .export-cancel");
+  assert.equal(await page.locator(".git-panel").count(), 0);
+  const stopped = served;
+  await page.waitForTimeout(1500);
+  assert.ok(served <= stopped + 6, served + " > " + stopped);
+  assert.deepEqual(await rows(page), []);
+  assert.deepEqual(errors(page), []);
+  await context.close();
+});
