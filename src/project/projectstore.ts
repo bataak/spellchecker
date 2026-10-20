@@ -2,18 +2,14 @@ import { downloadBlob } from "../files/download.ts";
 import {
   baseName,
   cleanPath,
-  dirName,
   isEditablePath,
   isLatexDocument,
   isTexSource,
-  joinPath,
-  sameOnDisk,
   within,
 } from "../tex/texproject.ts";
 import { buildProject, type ProjectBuild } from "./projectbuild.ts";
 import {
   dirHandleFor,
-  moveEntry,
   readDir,
   removeEntry,
   writeEntry,
@@ -39,9 +35,12 @@ import {
 import {
   digestOf,
   downloadChanged,
+  moveOnDisk,
   writeChanged,
   zipOf,
 } from "./projectsave.ts";
+import { commitState } from "./github/gitsession.ts";
+import type { LoadedRepo } from "./github/gitsync.ts";
 import {
   pickDirectoryFiles,
   readFileList,
@@ -49,7 +48,6 @@ import {
   type LoadedFiles,
 } from "./projectsources.ts";
 import {
-  diskText,
   exists,
   markDirty,
   metaOf,
@@ -84,7 +82,8 @@ export type { ProjectBuild } from "./projectbuild.ts";
 export type { ProjectSnapshot } from "./projectedit.ts";
 export type { ProjectKind } from "./projectstate.ts";
 
-export type SaveResult = "saved" | "downloaded" | "files" | "clean";
+export type SaveResult =
+  "saved" | "downloaded" | "files" | "committed" | "clean";
 
 export function createProjectStore() {
   let state: State | null = null;
@@ -124,7 +123,7 @@ export function createProjectStore() {
       unsaved:
         dirty.size > 0 ||
         s.fresh.size > 0 ||
-        (s.kind === "memory" && s.unsynced),
+        ((s.kind === "memory" || s.kind === "github") && s.unsynced),
       pending: s.pending,
       version: s.version,
       exportedAt: s.exportedAt,
@@ -287,6 +286,12 @@ export function createProjectStore() {
     adopt(fromLoaded("memory", await readZip(file)));
   }
 
+  function openGithub(loaded: LoadedRepo): void {
+    const next = fromLoaded("github", loaded);
+    next.remote = loaded.remote;
+    adopt(next);
+  }
+
   let pendingEdits: Record<string, string> = {};
 
   function applyRestored(
@@ -313,6 +318,7 @@ export function createProjectStore() {
         Object.entries(files),
         meta.dirs,
       );
+      next.remote = meta.remote ?? null;
       applyRestored(next, meta, edits);
       return true;
     }
@@ -462,32 +468,6 @@ export function createProjectStore() {
     changed(true);
   }
 
-  async function moveOnDisk(
-    s: State,
-    root: FileSystemDirectoryHandle,
-    from: string,
-    target: string,
-  ): Promise<void> {
-    const files: [string, Uint8Array | string][] = [
-      ...[...s.saved].map(([path, text]): [string, string] => [
-        path,
-        diskText(s, path, text),
-      ]),
-      ...s.binaries,
-    ];
-    const dir = s.dirs.has(from);
-    if (!sameOnDisk(from, target)) {
-      await moveEntry(root, { from, source: from, target, dir }, files);
-      return;
-    }
-    const temp = joinPath(
-      dirName(from),
-      "." + baseName(from) + "-" + Date.now().toString(36),
-    );
-    await moveEntry(root, { from, source: from, target: temp, dir }, files);
-    await moveEntry(root, { from, source: temp, target, dir }, files);
-  }
-
   async function renamePath(from: string, to: string): Promise<void> {
     const s = requireState();
     const target = cleanPath(to);
@@ -519,8 +499,13 @@ export function createProjectStore() {
     return zipOf(requireState());
   }
 
-  async function saveProject(): Promise<SaveResult> {
+  async function saveProject(message = ""): Promise<SaveResult> {
     const s = requireState();
+    if (s.kind === "github") {
+      if (!(await commitState(s, message))) return "clean";
+      changed(true);
+      return "committed";
+    }
     if (s.kind === "dir") {
       if (!(await writeChanged(s, diskRoot()))) return "clean";
       changed(true);
@@ -571,6 +556,7 @@ export function createProjectStore() {
     openDirHandle,
     pickFolder,
     openZip,
+    openGithub,
     restoreProject,
     grantProject,
     closeProject,

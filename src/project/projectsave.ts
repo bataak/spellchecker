@@ -1,6 +1,12 @@
 import { downloadBlob } from "../files/download.ts";
-import { baseName, within } from "../tex/texproject.ts";
-import { writeEntry } from "./projectdisk.ts";
+import {
+  baseName,
+  dirName,
+  joinPath,
+  sameOnDisk,
+  within,
+} from "../tex/texproject.ts";
+import { moveEntry, writeEntry } from "./projectdisk.ts";
 import { diskText, recountDirty, type State } from "./projectstate.ts";
 
 export async function writeChanged(
@@ -87,4 +93,30 @@ export async function digestOf(s: State): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+export async function moveOnDisk(
+  s: State,
+  root: FileSystemDirectoryHandle,
+  from: string,
+  target: string,
+): Promise<void> {
+  const files: [string, Uint8Array | string][] = [
+    ...[...s.saved].map(([path, text]): [string, string] => [
+      path,
+      diskText(s, path, text),
+    ]),
+    ...s.binaries,
+  ];
+  const dir = s.dirs.has(from);
+  if (!sameOnDisk(from, target)) {
+    await moveEntry(root, { from, source: from, target, dir }, files);
+    return;
+  }
+  const temp = joinPath(
+    dirName(from),
+    "." + baseName(from) + "-" + Date.now().toString(36),
+  );
+  await moveEntry(root, { from, source: from, target: temp, dir }, files);
+  await moveEntry(root, { from, source: temp, target, dir }, files);
 }

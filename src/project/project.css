@@ -500,3 +500,21 @@
   height: 22px;
   margin-left: 2px;
 }
+
+.git-note {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.git-note a {
+  color: var(--accent);
+}
+
+textarea.git-input {
+  height: auto;
+  padding: 8px 10px;
+  font: inherit;
+  resize: vertical;
+}
