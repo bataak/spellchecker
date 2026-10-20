@@ -1,5 +1,5 @@
 import { AuthError, ProjectError } from "../projecterror.ts";
-import { DEFAULT_HOST, type Fetch, type Provider } from "./githost.ts";
+import type { Fetch, Provider } from "./githost.ts";
 
 export interface OAuthToken {
   readonly access: string;
@@ -32,10 +32,8 @@ export function authConfig(): AuthConfig {
 
 export function canSignIn(
   provider: Provider,
-  host: string,
   config: AuthConfig = authConfig(),
 ): boolean {
-  if (host !== DEFAULT_HOST[provider]) return false;
   return provider === "github"
     ? !!config.proxy && !!config.githubClient
     : !!config.gitlabClient;
