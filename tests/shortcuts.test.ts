@@ -189,7 +189,7 @@ test("shortcuts: буулгахад засварлагчид төвлөрч сү
   assert.deepEqual(focused.calls, ["flash:paste"]);
 });
 
-test("shortcuts: сонголттой үед хуулалтыг хөтөчид үлдээнэ", () => {
+test("shortcuts: сонголттой үед хуулалтыг хөтчид үлдээнэ", () => {
   const selected = setup({ pageSelection: "үг" });
   assert.equal(selected.press({ key: "c", ctrl: true }), false);
   assert.deepEqual(selected.calls, ["flash:copy"]);
