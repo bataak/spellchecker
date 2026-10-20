@@ -15,7 +15,8 @@ import {
 import { createProjectMenu } from "./projectmenu.ts";
 import { createTreeState, initTreeControl } from "./treecontrol.ts";
 import { treeRows } from "./treerows.ts";
-import { askFolder, askRepo } from "./git/gitdialog.ts";
+import { askFolder } from "./git/gitdialog.ts";
+import { askRepo } from "./git/repodialog.ts";
 import { lastRepo, openRepo, savedToken } from "./git/gitsession.ts";
 
 const PEEK_MS = 5000;
