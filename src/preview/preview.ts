@@ -371,6 +371,7 @@ export function initPreview(deps: PreviewDeps): Preview {
   };
 
   const setSource = (next: PreviewSource | null): void => {
+    if (next === null && source === null) return;
     source = next;
     setTexMode(false);
     tidy.hidden = true;
