@@ -300,3 +300,28 @@ test("том repo уншиж байхад явцыг харуулж, Болих 
   assert.deepEqual(errors(page), []);
   await context.close();
 });
+
+test("доод мөрний «LaTeX төсөл» товчоор .tex файлгүйгээр Git repo нээнэ", async () => {
+  const github = new FakeGithub({ "main.tex": MAIN, "ch.tex": "Нэг.\n" });
+  const context = await app.context();
+  await github.attach(context);
+  const page = await openPage(app, context);
+  await page.click("#projectBtn");
+  await page
+    .locator(".project-menu-item", { hasText: "Git repo нээх" })
+    .click();
+  await page.selectOption('.git-panel select[name="service"]', "github");
+  await page.fill('.git-panel input[name="repo"]', "o/r");
+  await openMore(page);
+  await page.fill('.git-panel input[name="dir"]', "");
+  await page.fill('.git-panel input[name="token"]', "tok");
+  await page.click(".git-panel .export-confirm");
+  await until(
+    () => rows(page),
+    (paths) => paths.includes("ch.tex"),
+    20000,
+  );
+  assert.equal(await page.isVisible(".project-panel"), true);
+  assert.deepEqual(errors(page), []);
+  await context.close();
+});
