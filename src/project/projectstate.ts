@@ -1,4 +1,5 @@
 import { decodeFileBytes } from "../archive/cp1251.ts";
+import type { GitRemote } from "./git/gitsync.ts";
 import {
   findMain,
   isEditablePath,
@@ -7,7 +8,7 @@ import {
   within,
 } from "../tex/texproject.ts";
 
-export type ProjectKind = "dir" | "folder" | "memory";
+export type ProjectKind = "dir" | "folder" | "memory" | "git";
 
 export interface Meta {
   readonly kind: ProjectKind;
@@ -19,6 +20,7 @@ export interface Meta {
   readonly exportedAt?: number | null;
   readonly twin?: boolean;
   readonly uid?: string;
+  readonly remote?: GitRemote | null;
 }
 
 export interface State {
@@ -44,6 +46,7 @@ export interface State {
   twin: boolean;
   uid: string;
   persisted: Record<string, string>;
+  remote: GitRemote | null;
 }
 
 export function markDirty(s: State, path: string): void {
@@ -68,6 +71,7 @@ export function metaOf(s: State): Meta {
     exportedAt: s.exportedAt,
     twin: s.twin,
     uid: s.uid,
+    remote: s.remote,
   };
 }
 
@@ -189,6 +193,7 @@ export function newState(
     twin: false,
     uid: newUid(),
     persisted: {},
+    remote: null,
   };
 }
 

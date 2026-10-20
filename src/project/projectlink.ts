@@ -1,5 +1,6 @@
 import { failureMessage } from "./projecterror.ts";
 import { initProjectPanel, type ProjectPanel } from "./projectpanel.ts";
+import { askCommitMessage } from "./git/gitdialog.ts";
 import {
   confirmClose,
   confirmReplace,
@@ -8,12 +9,14 @@ import {
   findSameFile,
   isTexName,
   locateFile,
+  commitSuggestion,
   saveMessage,
 } from "./linkfiles.ts";
 import type {
   ProjectSnapshot,
   ProjectStore,
   ProjectView,
+  SaveResult,
 } from "./projectstore.ts";
 import {
   baseName,
@@ -28,6 +31,9 @@ import type { PreviewSource } from "../preview/preview.ts";
 import type { TexProject } from "./projectbuild.ts";
 import { onSwap, swapOrigin, swapText } from "../editor/editortext.ts";
 import { KEYS, read, remove, write } from "../core/store.ts";
+import { escapeHtml } from "../core/htmlutil.ts";
+
+const CANCELLED = "Цуцаллаа";
 
 export interface SlotFile {
   readonly id: string;
@@ -435,7 +441,21 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
       if (!bound || !hasProject()) return null;
       if (diskOnly && project()?.kind !== "dir") return null;
       pushText();
-      const result = await saveProject();
+      const view = project();
+      let message = "";
+      if (view?.kind === "git") {
+        const asked = await askCommitMessage(commitSuggestion(view.dirty));
+        if (asked === null) return CANCELLED;
+        message = asked;
+      }
+      let result: SaveResult;
+      try {
+        result = await saveProject(message);
+      } catch (error) {
+        const text = failureMessage(error, "Хадгалж чадсангүй");
+        if (text) deps.notify(escapeHtml(text));
+        throw error;
+      }
       if (result === "files") deps.notify(FILES_SAVED_NOTICE);
       return saveMessage(result);
     },
