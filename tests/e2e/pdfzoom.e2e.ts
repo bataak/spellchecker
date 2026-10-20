@@ -205,3 +205,33 @@ test("томруулсан PDF-ийн хэвтээ байрлалыг refresh б
   assert.ok(Math.abs(recompiled - 0.5) < 0.02, String(recompiled));
   await context.close();
 });
+
+test("iOS шиг dblclick илгээдэггүй утсан дээр PDF-ийг хоёр товшиход LaTeX эх дэх үгийг сонгоно", async () => {
+  const { context, page } = await openPhone();
+  await page.evaluate(() =>
+    window.addEventListener(
+      "dblclick",
+      (event) => event.stopImmediatePropagation(),
+      true,
+    ),
+  );
+  const box = (await page
+    .locator(".preview-panel.has-pages canvas")
+    .first()
+    .boundingBox())!;
+  const x = box.x + box.width * 0.3;
+  const y = box.y + box.height * 0.135;
+  await page.touchscreen.tap(x, y);
+  await page.touchscreen.tap(x, y);
+  const picked = await until(
+    () =>
+      page.evaluate(() => {
+        const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
+        return area.value.slice(area.selectionStart, area.selectionEnd);
+      }),
+    (text) => text !== "",
+    5000,
+  );
+  assert.equal(picked, "байна");
+  await context.close();
+});
