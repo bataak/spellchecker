@@ -123,10 +123,7 @@
           </div>
           <div id="errorList" class="error-list"></div>
           <div class="error-panel-foot">
-            <a
-              class="ignore-list-link"
-              href="#"
-              title="Алгасах үгийн жагсаалт"
+            <a class="ignore-list-link" href="#" title="Алгасах үгийн жагсаалт"
               ><svg
                 viewbox="0 0 16 16"
                 width="13"
@@ -213,10 +210,7 @@
             <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
           </svg>
         </button>
-        <a
-          class="tbtn tlink ignorectl"
-          href="#"
-          title="Алгасах үгийн жагсаалт"
+        <a class="tbtn tlink ignorectl" href="#" title="Алгасах үгийн жагсаалт"
           >Үг алгасах</a
         >
         <a
@@ -273,7 +267,9 @@
             stroke-linejoin="round"
             aria-hidden="true"
           >
-            <path d="M22 12.88A10 10 0 1 1 11.12 2 7.78 7.78 0 0 0 22 12.88z"></path>
+            <path
+              d="M22 12.88A10 10 0 1 1 11.12 2 7.78 7.78 0 0 0 22 12.88z"
+            ></path>
           </svg>
           <svg
             class="icon-sun"
@@ -363,7 +359,13 @@
             aria-hidden="true"
           >
             <path d="M8.67 7.56a3.33 3.33 0 0 1 6.66 0"></path>
-            <rect x="6.44" y="7.56" width="11.11" height="14.44" rx="5.56"></rect>
+            <rect
+              x="6.44"
+              y="7.56"
+              width="11.11"
+              height="14.44"
+              rx="5.56"
+            ></rect>
             <line x1="12" y1="11.44" x2="12" y2="22"></line>
             <line x1="6.44" y1="12.56" x2="2" y2="11.44"></line>
             <line x1="17.56" y1="12.56" x2="22" y2="11.44"></line>
@@ -424,6 +426,15 @@
           title="txt, md, tex, docx, pptx, odt, odp, pdf файл нээх"
         >
           Файл нээх
+        </button>
+        <button
+          id="projectBtn"
+          class="tbtn"
+          type="button"
+          title="Хавтас, zip эсвэл Git repo-оос LaTeX төсөл нээх"
+          aria-haspopup="menu"
+        >
+          LaTeX төсөл
         </button>
         <input
           id="openFile"
