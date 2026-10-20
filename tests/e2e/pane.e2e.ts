@@ -191,3 +191,62 @@ test("LaTeX-ийг хэлбэржүүлэхэд харагдаж буй PDF ар
   assert.deepEqual(errors(page), []);
   await context.close();
 });
+
+test("LaTeX засах бүрт шинэ PDF-ийг хуучныхыг арилгалгүй сольж харуулна", async () => {
+  const context = await app.context();
+  const page = await openPage(app, context);
+  await chooseSlot(page, "Судалгаа");
+  const doc = (word: string): string =>
+    "\\documentclass{article}\n\\begin{document}\n" +
+    Array.from({ length: 30 }, (_, i) =>
+      i === 5 ? `Мөр ${word}.\n\n` : `Мөр ${i}.\n\n`,
+    ).join("") +
+    "\\end{document}\n";
+  const set = (text: string): Promise<void> =>
+    page.evaluate((value) => {
+      const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
+      area.value = value;
+      area.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    }, text);
+  await set(doc("нэг"));
+  await until(
+    () => shown(page, ".preview-panel.has-pages canvas"),
+    (on) => on,
+    90000,
+  );
+  await page.evaluate(() => {
+    const win = window as unknown as Record<string, unknown>;
+    win.first = document.querySelector(".preview-body canvas");
+    win.gaps = 0;
+    const tick = (): void => {
+      if (
+        !document.querySelector(
+          ".preview-panel.has-pages .pdf-pages:not(.is-pending) canvas",
+        )
+      )
+        win.gaps = (win.gaps as number) + 1;
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  await set(doc("хоёр"));
+  const replaced = await until(
+    () =>
+      page.evaluate(() => {
+        const win = window as unknown as Record<string, unknown>;
+        return document.querySelector(".preview-body canvas") !== win.first;
+      }),
+    (on) => on,
+    90000,
+  );
+  await page.waitForTimeout(500);
+  const after = await page.evaluate(() => ({
+    gaps: (window as unknown as Record<string, unknown>).gaps,
+    lists: document.querySelectorAll(".preview-body .pdf-pages").length,
+  }));
+  assert.equal(replaced, true);
+  assert.equal(after.gaps, 0);
+  assert.equal(after.lists, 1);
+  assert.deepEqual(errors(page), []);
+  await context.close();
+});
