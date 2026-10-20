@@ -304,7 +304,6 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     deps.onOpened(true, prefer);
     const view = project();
     if (view) deps.notify("«" + escapeHtml(view.label) + "» төслийг нээлээ");
-    closeDrawer();
   };
 
   folderBtn.addEventListener("click", () => {

@@ -189,6 +189,7 @@ test("олон хавтсанд үндсэн файл байвал хавтас 
   const context = await app.context();
   await github.attach(context);
   const page = await openPage(app, context);
+  await page.setViewportSize({ width: 800, height: 900 });
   await openPanel(page);
   await page.selectOption('.git-panel select[name="service"]', "github");
   await page.fill('.git-panel input[name="repo"]', "o/r");
@@ -217,6 +218,7 @@ test("олон хавтсанд үндсэн файл байвал хавтас 
     20000,
   );
   assert.ok((await rows(page)).includes("figs/a.txt"));
+  assert.equal(await page.isVisible(".project-panel"), true);
   assert.deepEqual(errors(page), []);
   await context.close();
 });
