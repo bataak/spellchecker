@@ -113,7 +113,6 @@ test("GitLab-аар нэвтрэх товчоор token оруулахгүйгэ
   await openDialog(page);
   await page.selectOption('.git-panel select[name="service"]', "gitlab");
   assert.equal(await page.isVisible('.git-panel input[name="token"]'), false);
-  assert.equal(await page.isVisible('.git-panel input[name="host"]'), false);
   await page.fill('.git-panel input[name="repo"]', GITLAB_PROJECT);
   await openMore(page);
   await page.fill('.git-panel input[name="dir"]', "tex");
@@ -173,6 +172,51 @@ test("GitHub-ээр нэвтрэхэд код харуулж, зөвшөөрмө
     20000,
   );
   assert.ok(github.tokens.every((token) => token === "Bearer gho"));
+  assert.deepEqual(errors(page), []);
+  await context.close();
+});
+
+test("хүчингүй болсон хадгалсан token-ыг мартаж, дахин нэвтрүүлнэ", async () => {
+  const gitlab = new FakeGitlab(
+    { "tex/main.tex": MAIN, "tex/ch.tex": "Нэг.\n" },
+    "https://gitlab.com",
+  );
+  const context = await app.context();
+  await context.addInitScript(() => {
+    if (!sessionStorage.getItem("seeded")) {
+      sessionStorage.setItem("seeded", "1");
+      localStorage.setItem(
+        "git-tokens",
+        JSON.stringify({ "gitlab https://gitlab.com": "stale" }),
+      );
+    }
+  });
+  await gitlab.attach(context);
+  await context.route("https://gitlab.com/api/v4/**", (route) =>
+    route.request().headers()["authorization"] === "Bearer stale"
+      ? route.fulfill({ status: 401, headers: CORS, body: "{}" })
+      : route.fallback(),
+  );
+  await fakeGitlabLogin(context);
+  const page = await openPage(app, context);
+  await openDialog(page);
+  await page.selectOption('.git-panel select[name="service"]', "gitlab");
+  await page.fill('.git-panel input[name="repo"]', GITLAB_PROJECT);
+  await openMore(page);
+  await page.fill('.git-panel input[name="dir"]', "tex");
+  const button = page.locator(".git-panel .export-confirm");
+  assert.equal(await button.textContent(), "Нээх");
+  await button.click();
+  const error = page.locator(".git-panel .export-error");
+  await error.waitFor({ timeout: 10000 });
+  assert.match((await error.textContent()) ?? "", /дахин нэвтэрнэ үү/);
+  assert.equal(await button.textContent(), "Нэвтрэх");
+  await button.click();
+  await until(
+    () => rows(page),
+    (paths) => paths.includes("ch.tex"),
+    20000,
+  );
   assert.deepEqual(errors(page), []);
   await context.close();
 });

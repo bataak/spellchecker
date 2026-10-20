@@ -1,5 +1,5 @@
 import { KEYS, readJson, writeJson } from "../../core/store.ts";
-import { ProjectError } from "../projecterror.ts";
+import { AuthError, ProjectError } from "../projecterror.ts";
 import type { State } from "../projectstate.ts";
 import {
   accessOf,
@@ -45,6 +45,20 @@ function rememberToken(where: Where, token: StoredToken): void {
   writeJson(KEYS.gitTokens, { ...tokens(), [tokenKey(where)]: token });
 }
 
+function forgetToken(where: Where): void {
+  const { [tokenKey(where)]: _, ...rest } = tokens();
+  writeJson(KEYS.gitTokens, rest);
+}
+
+async function withToken<T>(where: Where, task: () => Promise<T>): Promise<T> {
+  try {
+    return await task();
+  } catch (error) {
+    if (error instanceof AuthError) forgetToken(where);
+    throw error;
+  }
+}
+
 async function freshToken(where: Where): Promise<string> {
   const token = stored(where);
   if (!token)
@@ -85,11 +99,14 @@ export async function openRepo(
   host = spec.host,
   watch: LoadWatch = {},
 ): Promise<LoadedRepo> {
-  const fresh =
-    typeof token !== "string" && spec.provider === "gitlab"
-      ? await refreshed(spec.host, token)
-      : token;
-  const loaded = await loadRepo(hostFor(spec, accessOf(fresh)), spec, watch);
+  const { fresh, loaded } = await withToken(spec, async () => {
+    const fresh =
+      typeof token !== "string" && spec.provider === "gitlab"
+        ? await refreshed(spec.host, token)
+        : token;
+    const loaded = await loadRepo(hostFor(spec, accessOf(fresh)), spec, watch);
+    return { fresh, loaded };
+  });
   rememberToken(spec, fresh);
   writeJson(KEYS.gitRepo, {
     provider: spec.provider,
@@ -104,11 +121,13 @@ export async function openRepo(
 export async function commitState(s: State, message: string): Promise<boolean> {
   const remote = s.remote;
   if (!remote) throw new ProjectError("Repo-ийн мэдээлэл олдсонгүй");
-  const outcome = await commitChanges(
-    hostFor(remote, await freshToken(remote)),
-    s,
-    remote,
-    message,
+  const outcome = await withToken(remote, async () =>
+    commitChanges(
+      hostFor(remote, await freshToken(remote)),
+      s,
+      remote,
+      message,
+    ),
   );
   if (!outcome) return false;
   s.remote = outcome.remote;

@@ -1,4 +1,4 @@
-import { ProjectError } from "../projecterror.ts";
+import { AuthError, ProjectError } from "../projecterror.ts";
 import { DEFAULT_HOST, type Fetch, type Provider } from "./githost.ts";
 
 export interface OAuthToken {
@@ -183,7 +183,7 @@ async function gitlabToken(
   }
   const reply = (await response.json().catch(() => ({}))) as TokenReply;
   if (!response.ok || !reply.access_token)
-    throw new ProjectError("GitLab-аар нэвтэрч чадсангүй — дахин нэвтэрнэ үү");
+    throw new AuthError("GitLab-аар нэвтэрч чадсангүй — дахин нэвтэрнэ үү");
   return {
     access: reply.access_token,
     verifier,
@@ -284,7 +284,7 @@ export async function refreshed(
 ): Promise<OAuthToken> {
   if (!token.expires || token.expires - 60000 > now()) return token;
   if (!token.refresh)
-    throw new ProjectError("Нэвтрэлтийн хугацаа дууссан — дахин нэвтэрнэ үү");
+    throw new AuthError("Нэвтрэлтийн хугацаа дууссан — дахин нэвтэрнэ үү");
   return gitlabToken(
     host,
     {
