@@ -57,7 +57,7 @@ export interface CommitInput {
 export interface GitHost {
   defaultBranch(): Promise<string>;
   head(branch: string): Promise<string>;
-  list(commit: string): Promise<Listing>;
+  list(commit: string, signal?: AbortSignal): Promise<Listing>;
   blob(sha: string): Promise<Uint8Array>;
   commit(input: CommitInput): Promise<{ head: string; tree: string }>;
 }
@@ -68,16 +68,25 @@ export const RACE = "Repo дээр яг одоо шинэ өөрчлөлт ор�
 
 const PARALLEL = 6;
 
+export interface LoadWatch {
+  readonly signal?: AbortSignal;
+  readonly progress?: (done: number, total: number) => void;
+}
+
 export async function inBatches<T, R>(
   items: readonly T[],
   run: (item: T) => Promise<R>,
+  watch: LoadWatch = {},
 ): Promise<R[]> {
   const out: R[] = new Array<R>(items.length);
   let next = 0;
+  let done = 0;
   const worker = async (): Promise<void> => {
     while (next < items.length) {
+      watch.signal?.throwIfAborted();
       const index = next++;
       out[index] = await run(items[index]!);
+      watch.progress?.(++done, items.length);
     }
   };
   await Promise.all(
