@@ -184,7 +184,7 @@ test("гараар зассан алдаатай үгийг бусад давт�
   assert.deepEqual(errors(page), []);
 });
 
-test("LaTeX-д монгол байрлалын ьь ба вв-г шууд « » болгож, Backspace дарвал буцаана", async () => {
+test("LaTeX-д монгол байрлалын ьь-г шууд, вв-г зайны дараа « » болгож, Backspace дарвал буцаана", async () => {
   const context = await app.context();
   await context.addInitScript(() =>
     localStorage.setItem("keyboard-layout", "mn"),
@@ -217,9 +217,11 @@ test("LaTeX-д монгол байрлалын ьь ба вв-г шууд « » 
   assert.equal(await line(), "Б: ььь");
   await press("Backspace", "Backspace", "Backspace");
   await press("Comma", "Comma", "KeyN", "Period", "Period");
-  assert.equal(await line(), "Б: «и»");
-  await press("Backspace");
   assert.equal(await line(), "Б: «ивв");
+  await press("Space");
+  assert.equal(await line(), "Б: «и» ");
+  await press("Backspace");
+  assert.equal(await line(), "Б: «ивв ");
   assert.deepEqual(errors(page), []);
   await context.close();
 });

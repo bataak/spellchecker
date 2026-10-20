@@ -8,28 +8,31 @@ const apply = (text: string, typed: string): string => {
   return text.slice(0, edit.from) + edit.insert + text.slice(edit.to);
 };
 
-test("quoteEdit: ЬЬ-г « , ВВ-г » болгож шууд хөрвүүлнэ", () => {
+test("quoteEdit: ЬЬ-г бичмэгц « болгоно", () => {
   assert.equal(apply("ЬЬ", "Ь"), "«");
-  assert.equal(apply("Тэр ЬЬ", "Ь"), "Тэр «");
-  assert.equal(apply("үгВВ", "В"), "үг»");
-  assert.equal(apply("үг ВВ", "В"), "үг »");
-  assert.equal(apply("\\textbf{ЬЬ", "Ь"), "\\textbf{«");
-});
-
-test("quoteEdit: жижиг үсэг болон холимог үсгийг ч хөрвүүлнэ", () => {
-  assert.equal(apply("ьь", "ь"), "«");
-  assert.equal(apply("үгвв", "в"), "үг»");
-  assert.equal(apply("Ьь", "ь"), "«");
-});
-
-test("quoteEdit: ганц үсэг эсвэл гурав дахь ижил үсэгт хөрвүүлэхгүй", () => {
+  assert.equal(apply("Тэр ьь", "ь"), "Тэр «");
+  assert.equal(apply("\\textbf{Ьь", "ь"), "\\textbf{«");
   assert.equal(apply("Ь", "Ь"), "Ь");
   assert.equal(apply("ЬЬЬ", "Ь"), "ЬЬЬ");
-  assert.equal(apply("аВ", "В"), "аВ");
-  assert.equal(apply("ВВ", "а"), "ВВ");
 });
 
-test("quoteEdit: шинэ каретыг хашилтын араас байрлуулна", () => {
+test("quoteEdit: ВВ-г араас нь зай эсвэл цэг таслал ирэхэд » болгоно", () => {
+  assert.equal(apply("үгвв ", " "), "үг» ");
+  assert.equal(apply("үгВВ,", ","), "үг»,");
+  assert.equal(apply("үгвв.", "."), "үг».");
+  assert.equal(apply("үгвв?", "?"), "үг»?");
+  assert.equal(apply("{үгвв}", "}"), "{үг»}");
+  assert.equal(apply("үгвв\n", "\n"), "үг»\n");
+});
+
+test("quoteEdit: ВВ-ийн араас үсэг ирвэл эсвэл ганц В бол хөрвүүлэхгүй", () => {
+  assert.equal(apply("үгвв", "в"), "үгвв");
+  assert.equal(apply("үгввы", "ы"), "үгввы");
+  assert.equal(apply("үгв ", " "), "үгв ");
+  assert.equal(apply("үгввв ", " "), "үгввв ");
+});
+
+test("quoteEdit: шинэ каретыг солилтын араас байрлуулна", () => {
   assert.deepEqual(quoteEdit("а ЬЬ", 4, "Ь"), {
     from: 2,
     to: 4,
@@ -37,11 +40,11 @@ test("quoteEdit: шинэ каретыг хашилтын араас байрл�
     caret: 3,
     original: "ЬЬ",
   });
-  assert.deepEqual(quoteEdit("үгвв", 4, "в"), {
+  assert.deepEqual(quoteEdit("үгвв ", 5, " "), {
     from: 2,
     to: 4,
     insert: "»",
-    caret: 3,
+    caret: 4,
     original: "вв",
   });
 });
@@ -51,10 +54,13 @@ test("undoQuote: хөрвүүлсний дараах Backspace анхны үсг
   const undo = undoQuote("а «", 3, open)!;
   assert.equal("а «".slice(0, undo.from) + undo.insert, "а ЬЬ");
   assert.equal(undo.caret, 4);
-  const close = quoteEdit("үгвв", 4, "в")!;
-  const back = undoQuote("үг»", 3, close)!;
-  assert.equal("үг»".slice(0, back.from) + back.insert, "үгвв");
-  assert.equal(back.caret, 4);
+  const close = quoteEdit("үгвв ", 5, " ")!;
+  const back = undoQuote("үг» ", 4, close)!;
+  assert.equal(
+    "үг» ".slice(0, back.from) + back.insert + "үг» ".slice(back.to),
+    "үгвв ",
+  );
+  assert.equal(back.caret, 5);
 });
 
 test("undoQuote: карет эсвэл тэмдэгт өөрчлөгдсөн бол буцаахгүй", () => {

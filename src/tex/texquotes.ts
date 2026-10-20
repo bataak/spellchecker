@@ -1,6 +1,8 @@
 import { replaceRange } from "../editor/editortext.ts";
 
-const QUOTES: Readonly<Record<string, string>> = { ь: "«", в: "»" };
+const OPEN = "ь";
+const CLOSE = "в";
+const AFTER_CLOSE = /[\s.,;:!?)\]}]/;
 
 export interface QuoteEdit {
   readonly from: number;
@@ -26,20 +28,48 @@ export function undoQuote(
   };
 }
 
+function pairAt(text: string, to: number, letter: string): string | null {
+  const from = to - 2;
+  if (from < 0) return null;
+  const pair = text.slice(from, to);
+  if (pair.toLowerCase() !== letter + letter) return null;
+  if (text[from - 1]?.toLowerCase() === letter) return null;
+  return pair;
+}
+
 export function quoteEdit(
   text: string,
   caret: number,
   typed: string,
 ): QuoteEdit | null {
-  const letter = typed.toLowerCase();
-  const quote = QUOTES[letter];
-  if (!quote || typed.length !== 1) return null;
-  const from = caret - 2;
-  if (from < 0) return null;
-  const pair = text.slice(from, caret);
-  if (pair.toLowerCase() !== letter + letter) return null;
-  if (text[from - 1]?.toLowerCase() === letter) return null;
-  return { from, to: caret, insert: quote, caret: from + 1, original: pair };
+  if (typed.length !== 1) return null;
+  if (typed.toLowerCase() === OPEN) {
+    const pair = pairAt(text, caret, OPEN);
+    if (pair === null) return null;
+    const from = caret - 2;
+    return { from, to: caret, insert: "«", caret: from + 1, original: pair };
+  }
+  if (!AFTER_CLOSE.test(typed)) return null;
+  const to = caret - 1;
+  const pair = pairAt(text, to, CLOSE);
+  if (pair === null) return null;
+  return {
+    from: to - 2,
+    to,
+    insert: "»",
+    caret: caret - 1,
+    original: pair,
+  };
+}
+
+function typedText(event: InputEvent): string | null {
+  if (event.inputType === "insertText") return event.data;
+  if (
+    event.inputType === "insertLineBreak" ||
+    event.inputType === "insertParagraph"
+  )
+    return "\n";
+  return null;
 }
 
 export interface TexQuotesDeps {
@@ -62,8 +92,9 @@ export function initTexQuotes(deps: TexQuotesDeps): void {
     if (editor.readOnly || !deps.active()) return;
     const caret = editor.selectionStart;
     if (caret !== editor.selectionEnd) return;
-    if (event.inputType !== "insertText" || event.data === null) return;
-    const edit = quoteEdit(editor.value, caret, event.data);
+    const typed = typedText(event);
+    if (typed === null) return;
+    const edit = quoteEdit(editor.value, caret, typed);
     if (!edit) return;
     apply(edit);
     last = edit;
