@@ -1,6 +1,7 @@
 import { KEYS, readJson, writeJson } from "../../core/store.ts";
 import { AuthError, ProjectError } from "../projecterror.ts";
 import type { State } from "../projectstate.ts";
+import { workingCopy } from "../workingcopy.ts";
 import {
   accessOf,
   refreshed,
@@ -151,14 +152,11 @@ export async function commitState(
   const outcome = await withToken(remote, null, async () =>
     commitChanges(
       hostFor(remote, await freshToken(remote)),
-      s,
+      workingCopy(s),
       remote,
       message,
       resolve,
     ),
   );
-  if (!outcome) return false;
-  s.remote = outcome.remote;
-  if (!outcome.committed) return false;
-  return true;
+  return outcome?.committed ?? false;
 }

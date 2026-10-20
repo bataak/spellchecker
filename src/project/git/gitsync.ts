@@ -7,14 +7,7 @@ import {
 } from "../../tex/texproject.ts";
 import { MAX_BYTES, budget } from "../projectdisk.ts";
 import { Cancelled, ProjectError } from "../projecterror.ts";
-import { dropEntries } from "../projectedit.ts";
-import {
-  diskText,
-  noteEol,
-  readText,
-  recountDirty,
-  type State,
-} from "../projectstate.ts";
+import { readText } from "../projectstate.ts";
 import {
   inBatches,
   type GitHost,
@@ -171,96 +164,89 @@ export async function loadRepo(
   };
 }
 
-export async function planChanges(s: State, remote: GitRemote): Promise<Plan> {
+export interface CopyChange {
+  readonly remote: GitRemote;
+  readonly pulled?: ReadonlyMap<string, Uint8Array | null>;
+  readonly merged?: ReadonlyMap<string, string>;
+  readonly dirs?: ReadonlySet<string>;
+  readonly committed?: Plan;
+}
+
+export interface WorkingCopy {
+  readonly texts: ReadonlyMap<string, string>;
+  readonly binaries: ReadonlyMap<string, Uint8Array>;
+  saved(path: string): string | undefined;
+  added(path: string): boolean;
+  encode(path: string, text: string): Uint8Array;
+  apply(change: CopyChange): void;
+}
+
+export async function planChanges(
+  copy: WorkingCopy,
+  remote: GitRemote,
+): Promise<Plan> {
   const writes: [string, Uint8Array][] = [];
   const texts = new Map<string, string>();
-  const encoder = new TextEncoder();
-  for (const [path, text] of s.texts) {
+  for (const [path, text] of copy.texts) {
     const unchanged =
       remote.files[path] !== undefined &&
-      !s.added.has(path) &&
-      s.saved.get(path) === text;
+      !copy.added(path) &&
+      copy.saved(path) === text;
     if (unchanged) continue;
-    writes.push([path, encoder.encode(diskText(s, path, text))]);
+    writes.push([path, copy.encode(path, text)]);
     texts.set(path, text);
   }
-  for (const [path, bytes] of s.binaries) {
+  for (const [path, bytes] of copy.binaries) {
     const known = remote.files[path];
     if (!known || (await gitBlobSha(bytes)) !== known.sha)
       writes.push([path, bytes]);
   }
   const deletes = Object.keys(remote.files).filter(
-    (path) => !s.texts.has(path) && !s.binaries.has(path),
+    (path) => !copy.texts.has(path) && !copy.binaries.has(path),
   );
   return { writes, deletes, texts };
 }
 
-function applyRemoteFile(
-  s: State,
-  path: string,
-  bytes: Uint8Array | null,
-): void {
-  if (bytes === null) {
-    dropEntries(s, path);
-    return;
-  }
-  if (isEditablePath(path)) {
-    const { text, crlf } = readText(bytes);
-    noteEol(s, path, crlf);
-    s.texts.set(path, text);
-    s.saved.set(path, text);
-  } else s.binaries.set(path, bytes);
-  for (const dir of parentDirs(path)) s.dirs.add(dir);
+function localBytes(copy: WorkingCopy, path: string): Uint8Array | null {
+  const text = copy.texts.get(path);
+  if (text !== undefined) return copy.encode(path, text);
+  return copy.binaries.get(path) ?? null;
 }
 
-function localBytes(s: State, path: string): Uint8Array | null {
-  const text = s.texts.get(path);
-  if (text !== undefined)
-    return new TextEncoder().encode(diskText(s, path, text));
-  return s.binaries.get(path) ?? null;
-}
-
-async function catchUp(
-  api: GitHost,
-  s: State,
-  remote: GitRemote,
-  plan: Plan,
-  head: string,
-  resolve?: Resolver,
-): Promise<GitRemote> {
-  const listing = await api.list(head);
-  const tree = listing.tree;
-  const { files, dirs } = remoteFiles(remote, listing.entries);
-  const changed = [
-    ...new Set([...Object.keys(files), ...Object.keys(remote.files)]),
-  ].filter((path) => files[path]?.sha !== remote.files[path]?.sha);
-  const touched = new Set([
-    ...plan.writes.map(([path]) => path),
-    ...plan.deletes,
-  ]);
-  const fetched = await inBatches(changed, (path) =>
-    files[path] ? api.blob(files[path].sha) : Promise.resolve(null),
-  );
-  const theirs = new Map(changed.map((path, index) => [path, fetched[index]!]));
+async function clashes(
+  copy: WorkingCopy,
+  changed: readonly string[],
+  touched: ReadonlySet<string>,
+  files: Readonly<Record<string, RemoteFile>>,
+): Promise<Set<string>> {
   const edited = (path: string): boolean =>
-    s.added.has(path) ||
-    (s.texts.has(path) && s.texts.get(path) !== s.saved.get(path));
+    copy.added(path) ||
+    (copy.texts.has(path) && copy.texts.get(path) !== copy.saved(path));
   const clash = new Set<string>();
   for (const path of changed) {
     if (!touched.has(path) && !edited(path)) continue;
-    const local = localBytes(s, path);
+    const local = localBytes(copy, path);
     const sha = files[path]?.sha;
     const same = sha
       ? local !== null && (await gitBlobSha(local)) === sha
       : local === null;
     if (!same) clash.add(path);
   }
+  return clash;
+}
+
+function mergeItems(
+  copy: WorkingCopy,
+  clash: ReadonlySet<string>,
+  theirs: ReadonlyMap<string, Uint8Array | null>,
+  remote: GitRemote,
+): { items: MergeItem[]; merges: Map<string, Chunk[]> } {
   const merges = new Map<string, Chunk[]>();
   const items: MergeItem[] = [];
   for (const path of clash) {
     const bytes = theirs.get(path) ?? null;
-    const ours = s.texts.get(path);
-    const base = s.saved.get(path);
+    const ours = copy.texts.get(path);
+    const base = copy.saved(path);
     if (
       bytes &&
       isEditablePath(path) &&
@@ -277,34 +263,73 @@ async function catchUp(
     items.push({
       path,
       kind: "file",
-      ours: s.texts.has(path) || s.binaries.has(path) ? "changed" : "deleted",
+      ours:
+        copy.texts.has(path) || copy.binaries.has(path) ? "changed" : "deleted",
       theirs: bytes ? "changed" : "deleted",
     });
   }
-  let answer: MergeAnswer = new Map();
-  if (items.length) {
-    if (!resolve)
-      throw new ProjectError(
-        "Commit хийсэнгүй: repo дээр эдгээр файлыг өөр газраас өөрчилсөн байна — " +
-          items.map((item) => item.path).join(", "),
-      );
-    const picked = await resolve(items);
-    if (!picked) throw new Cancelled("Commit хийхийг цуцаллаа");
-    answer = picked;
-  }
+  return { items, merges };
+}
+
+async function ask(
+  items: readonly MergeItem[],
+  resolve?: Resolver,
+): Promise<MergeAnswer> {
+  if (!items.length) return new Map();
+  if (!resolve)
+    throw new ProjectError(
+      "Commit хийсэнгүй: repo дээр эдгээр файлыг өөр газраас өөрчилсөн байна — " +
+        items.map((item) => item.path).join(", "),
+    );
+  const picked = await resolve(items);
+  if (!picked) throw new Cancelled("Commit хийхийг цуцаллаа");
+  return picked;
+}
+
+async function pullChanges(
+  api: GitHost,
+  copy: WorkingCopy,
+  remote: GitRemote,
+  plan: Plan,
+  head: string,
+  resolve?: Resolver,
+): Promise<CopyChange> {
+  const listing = await api.list(head);
+  const { files, dirs } = remoteFiles(remote, listing.entries);
+  const changed = [
+    ...new Set([...Object.keys(files), ...Object.keys(remote.files)]),
+  ].filter((path) => files[path]?.sha !== remote.files[path]?.sha);
+  const touched = new Set([
+    ...plan.writes.map(([path]) => path),
+    ...plan.deletes,
+  ]);
+  const fetched = await inBatches(changed, (path) =>
+    files[path] ? api.blob(files[path].sha) : Promise.resolve(null),
+  );
+  const theirs = new Map(changed.map((path, index) => [path, fetched[index]!]));
+  const clash = await clashes(copy, changed, touched, files);
+  const { items, merges } = mergeItems(copy, clash, theirs, remote);
+  const answer = await ask(items, resolve);
+  const pulled = new Map<string, Uint8Array | null>();
+  const merged = new Map<string, string>();
   for (const path of changed) {
     const bytes = theirs.get(path) ?? null;
     const chunks = merges.get(path);
     const choice = answer.get(path);
-    if (!clash.has(path)) applyRemoteFile(s, path, bytes);
-    else if (chunks) {
-      const merged = resolveChunks(chunks, Array.isArray(choice) ? choice : []);
-      applyRemoteFile(s, path, bytes);
-      s.texts.set(path, merged);
-    } else if (choice === "theirs") applyRemoteFile(s, path, bytes);
+    if (!clash.has(path) || chunks || choice === "theirs")
+      pulled.set(path, bytes);
+    if (chunks)
+      merged.set(
+        path,
+        resolveChunks(chunks, Array.isArray(choice) ? choice : []),
+      );
   }
-  for (const dir of dirs) s.dirs.add(dir);
-  return { ...remote, head, tree, files };
+  return {
+    remote: { ...remote, head, tree: listing.tree, files },
+    pulled,
+    merged,
+    dirs,
+  };
 }
 
 export interface CommitOutcome {
@@ -315,24 +340,23 @@ export interface CommitOutcome {
 
 export async function commitChanges(
   api: GitHost,
-  s: State,
+  copy: WorkingCopy,
   remote: GitRemote,
   message: string,
   resolve?: Resolver,
 ): Promise<CommitOutcome | null> {
-  let plan = await planChanges(s, remote);
+  let plan = await planChanges(copy, remote);
   if (!plan.writes.length && !plan.deletes.length) return null;
   const head = await api.head(remote.branch);
   let base = remote;
   const pulled = head !== remote.head;
   if (pulled) {
-    base = await catchUp(api, s, remote, plan, head, resolve);
-    s.remote = base;
-    plan = await planChanges(s, base);
-    if (!plan.writes.length && !plan.deletes.length) {
-      recountDirty(s);
+    const change = await pullChanges(api, copy, remote, plan, head, resolve);
+    copy.apply(change);
+    base = change.remote;
+    plan = await planChanges(copy, base);
+    if (!plan.writes.length && !plan.deletes.length)
       return { remote: base, pulled, committed: false };
-    }
   }
   const shas = await inBatches(plan.writes, ([, bytes]) => gitBlobSha(bytes));
   const done = await api.commit({
@@ -359,17 +383,7 @@ export async function commitChanges(
     };
   });
   for (const path of plan.deletes) delete files[path];
-  for (const [path, text] of plan.texts) {
-    s.saved.set(path, text);
-    s.added.delete(path);
-  }
-  for (const [path] of plan.writes) s.fresh.delete(path);
-  for (const path of plan.deletes) s.saved.delete(path);
-  s.unsynced = false;
-  recountDirty(s);
-  return {
-    remote: { ...base, head: done.head, tree: done.tree, files },
-    pulled,
-    committed: true,
-  };
+  const next = { ...base, head: done.head, tree: done.tree, files };
+  copy.apply({ remote: next, committed: plan });
+  return { remote: next, pulled, committed: true };
 }
