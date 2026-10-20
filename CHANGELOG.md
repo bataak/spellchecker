@@ -1,5 +1,55 @@
 # Changelog
 
+## [1.114.0](https://github.com/bataak/spellchecker/compare/v1.113.0...v1.114.0) (2026-10-20)
+
+
+### Features
+
+* **editor:** select whole lines with Ctrl+Shift+. downward and Ctrl+Shift+, upward ([d9d459e](https://github.com/bataak/spellchecker/commit/d9d459e3dc661f083b0c37342f6f6662a2f427b7))
+* **editor:** stop wrapping while the caret is in a markdown table on phones ([e5891b8](https://github.com/bataak/spellchecker/commit/e5891b8961082e005dd915c87733d1f598bb6e5a))
+* **export:** list missing images in the export dialog and let users pick them ([fee6c7c](https://github.com/bataak/spellchecker/commit/fee6c7cc891aa9a83827ecd713b446f0eaec1f70))
+* **export:** offer speaker notes on a second screen for Beamer PDF and LaTeX ([1cc7fa8](https://github.com/bataak/spellchecker/commit/1cc7fa881e8192d69da77efac9a43aebf5097f7c))
+* **files:** share one download helper and hint Firefox users where files go ([a3edbc8](https://github.com/bataak/spellchecker/commit/a3edbc8e511ace6907266409cd2a1ac68cf4925f))
+* **latex:** lay out letters like DOCX with a centred title and MNS 5140 margins ([69997d9](https://github.com/bataak/spellchecker/commit/69997d9942d1b06cf2ee067479ac95ebbc126cc2))
+* **layout:** narrow the preview down to 60 characters when the full-width preview does not fit beside the editor ([1f0da3a](https://github.com/bataak/spellchecker/commit/1f0da3a7320b8bd75286b8058c2df08c0338ea1c))
+* **pptx:** export speaker notes as notes slides ([64243a2](https://github.com/bataak/spellchecker/commit/64243a2b3e7253b5faddc25a01cbb8e6c3770f41))
+* **preview:** compile LaTeX and sync the caret arrow two seconds after typing stops ([862598d](https://github.com/bataak/spellchecker/commit/862598d26272fea4102a8f3b18f093e8993ba6a2))
+* **preview:** draw a recompiled PDF behind the shown one and swap without flashing ([5763139](https://github.com/bataak/spellchecker/commit/57631393735ecc2a954b7e54c4ad2d4a6fe115e6))
+* **preview:** point at the synced PDF line with a small arrow in the text margin ([440bf0a](https://github.com/bataak/spellchecker/commit/440bf0a83f099473f9acb70d1ae27bc89fb0f7e4))
+* **preview:** switch LaTeX compiling between auto and manual from the Compile button ([1479e7b](https://github.com/bataak/spellchecker/commit/1479e7be949ac0aa8d73190903670d376dabc7e5))
+* **project:** warn when a file with unsaved edits changes on disk ([8e084d3](https://github.com/bataak/spellchecker/commit/8e084d3c1e3c56354cee7ceb390d23500fd868ab))
+* **slides:** place images from mixed paragraphs below their text ([6eb1b40](https://github.com/bataak/spellchecker/commit/6eb1b40791416b27393d60beeced2c5cba077996))
+* **tex:** align table and equation columns when tidying LaTeX ([18b6e8d](https://github.com/bataak/spellchecker/commit/18b6e8d4a9d395c2120e29d0b1051555f8b42a3a))
+* **tex:** convert ьь and вв to « and » as soon as they are typed ([61e7f5a](https://github.com/bataak/spellchecker/commit/61e7f5a2596c30561ffa6c43c4590eed75a68d85))
+* **tex:** offer to tidy indentation, trailing spaces and blank lines in LaTeX documents ([926ac13](https://github.com/bataak/spellchecker/commit/926ac139608a0c34b8b171ea2b641f278938e4b1))
+* **tex:** turn вв into » only when a space or punctuation follows ([e75489c](https://github.com/bataak/spellchecker/commit/e75489c1b918aba3001f1c8c95d8367eceec011c))
+* **tex:** turn ЬЬ and ВВ into « and » while typing LaTeX, with Backspace to undo ([9ac4f4c](https://github.com/bataak/spellchecker/commit/9ac4f4c84491d3b8c2d4baadf74be14a42fba4a7))
+* **undo:** drop stored histories of closed files, removed project files and old entries ([c90e25f](https://github.com/bataak/spellchecker/commit/c90e25f62d02214fe1377f0ce0a35d2b318a8cac))
+
+
+### Bug Fixes
+
+* **editor:** keep the view in place after formatting when Firefox scrolls to the caret late ([9fb3923](https://github.com/bataak/spellchecker/commit/9fb3923955367b7a138c0b6e49571c5ef9b35a52))
+* escape file names and words in status messages and drop unsafe export links ([4ee0721](https://github.com/bataak/spellchecker/commit/4ee0721f9b8111d6218bfb08d5e12ac55d9ca700))
+* **files:** skip the Firefox save hint on Android, where those settings do not exist ([621e502](https://github.com/bataak/spellchecker/commit/621e50226cf7859fabb8d6e30013329e2dc56ed4))
+* keep LaTeX tidy fast on equation-heavy documents and polish the PDF swap ([b8fa078](https://github.com/bataak/spellchecker/commit/b8fa07868fd796352753c654686f057ae632aee8))
+* **layout:** size the project panel check with the preview width actually shown ([a1618ba](https://github.com/bataak/spellchecker/commit/a1618ba8c394e262eae4c1ad0eee257fdf388d62))
+* **markdown:** stop the block parser from looping on quote lines ending in U+2028 ([519b136](https://github.com/bataak/spellchecker/commit/519b136f4b53fa3dd5cb7250f5e3c9d086db44e2))
+* **odt:** keep code block lines, indentation and blank lines ([42b2b35](https://github.com/bataak/spellchecker/commit/42b2b35b326263dea9b6f6db7f7820b258abf5cb))
+* **preview:** call manual compiling гар горим ([2d883eb](https://github.com/bataak/spellchecker/commit/2d883eb232569a04ad5c082e4d9455c6a8c304d4))
+* **preview:** forget an abandoned long press on the Compile button ([a038d35](https://github.com/bataak/spellchecker/commit/a038d35768b011f1ff706879b0cb0a1c31f45cd0))
+* **preview:** keep the caret arrow syncing in manual compile mode ([dea7361](https://github.com/bataak/spellchecker/commit/dea73612b47a41cbda35760919f61dfbba96bab2))
+* **preview:** keep the LaTeX PDF in place when formatting only tidies its source ([52c2e7e](https://github.com/bataak/spellchecker/commit/52c2e7e35c6236930ee5aa90d31f3e81995ffc96))
+* **shortcuts:** keep key feedback when the click disables its button ([69931d4](https://github.com/bataak/spellchecker/commit/69931d4eac4ec3e8542548975d7926912d3b36a3))
+* **tex:** keep a caret at the end of the file at the end after tidying ([adddc0f](https://github.com/bataak/spellchecker/commit/adddc0f38cb0b85950b8e748f2d6df24b2687573))
+* **tex:** let Backspace undo a quote typed with the in-app Mongolian layout ([122a659](https://github.com/bataak/spellchecker/commit/122a659c007319a93d99a2cdb9d9c146084f6d7b))
+
+
+### Performance Improvements
+
+* **markdown:** find display math ends without rescanning unclosed openers ([def0b71](https://github.com/bataak/spellchecker/commit/def0b71f66b9964e28aae0a53a1ea417449aa8a8))
+* **markdown:** skip link scanning when no link can close ([7d01c00](https://github.com/bataak/spellchecker/commit/7d01c007da249de9bf067e346e942bd8b35a5b92))
+
 ## [1.113.0](https://github.com/bataak/spellchecker/compare/v1.112.0...v1.113.0) (2026-10-19)
 
 
