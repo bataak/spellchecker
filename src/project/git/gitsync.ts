@@ -168,6 +168,7 @@ export interface CopyChange {
   readonly remote: GitRemote;
   readonly pulled?: ReadonlyMap<string, Uint8Array | null>;
   readonly merged?: ReadonlyMap<string, string>;
+  readonly seen?: ReadonlyMap<string, string | undefined>;
   readonly dirs?: ReadonlySet<string>;
   readonly committed?: Plan;
 }
@@ -308,6 +309,7 @@ async function pullChanges(
   );
   const theirs = new Map(changed.map((path, index) => [path, fetched[index]!]));
   const clash = await clashes(copy, changed, touched, files);
+  const seen = new Map(changed.map((path) => [path, copy.texts.get(path)]));
   const { items, merges } = mergeItems(copy, clash, theirs, remote);
   const answer = await ask(items, resolve);
   const pulled = new Map<string, Uint8Array | null>();
@@ -328,6 +330,7 @@ async function pullChanges(
     remote: { ...remote, head, tree: listing.tree, files },
     pulled,
     merged,
+    seen,
     dirs,
   };
 }
