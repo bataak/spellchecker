@@ -338,8 +338,11 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
           );
           busy.signal.throwIfAborted();
           let chosen: string | null = null;
-          const pick = async (folders: string[]): Promise<string | null> =>
-            (chosen = await askFolder(folders));
+          const pick = async (folders: string[]): Promise<string | null> => {
+            busy.hide();
+            chosen = await askFolder(folders);
+            return chosen;
+          };
           if (!(await openGitRepo(loaded, pick))) return;
           opened(prefer);
           state.focus = chosen;
