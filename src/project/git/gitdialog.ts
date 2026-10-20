@@ -274,27 +274,25 @@ function showCode(status: HTMLElement, code: string, url: string): void {
   status.hidden = false;
 }
 
-function signInRow(
+function signInFlow(
   form: FormApi,
   done: (token: OAuthToken) => void,
-): HTMLElement {
-  const row = document.createElement("div");
-  row.className = "git-signin";
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "tbtn git-signin-btn";
-  button.textContent = "Нэвтрэх";
+): { status: HTMLElement; start: () => void } {
+  const confirm =
+    form.panel.querySelector<HTMLButtonElement>(".export-confirm");
   const status = document.createElement("p");
-  status.className = "git-note git-device";
+  status.className = "git-note";
   status.hidden = true;
-  row.append(button, status);
   let attempt: AbortController | null = null;
   form.signal.addEventListener("abort", () => attempt?.abort());
   const say = (text: string): void => {
     status.textContent = text;
     status.hidden = false;
   };
-  button.addEventListener("click", () => {
+  const lock = (on: boolean): void => {
+    if (confirm) confirm.disabled = on;
+  };
+  const start = (): void => {
     const where = whereOf(form.values());
     const provider = where.provider;
     const host = cleanHost(where.host, provider);
@@ -302,12 +300,13 @@ function signInRow(
     const current = new AbortController();
     attempt = current;
     const finish = (token: OAuthToken): void => {
+      lock(false);
       done(token);
       form.submit();
     };
     const failed = (problem: unknown): void => {
       if (current.signal.aborted) return;
-      button.disabled = false;
+      lock(false);
       status.hidden = true;
       form.fail(
         problem instanceof ProjectError ? problem.message : "Нэвтэрч чадсангүй",
@@ -320,19 +319,19 @@ function signInRow(
       gitlabLogin(host, {
         signal: current.signal,
         returned: () => {
-          button.disabled = true;
+          lock(true);
           say("Нэвтэрч байна…");
         },
       }).then(finish, failed);
       return;
     }
-    button.disabled = true;
+    lock(true);
     githubDevice(
       (code, url) => showCode(status, code, url),
       current.signal,
     ).then(finish, failed);
-  });
-  return row;
+  };
+  return { status, start };
 }
 
 export function askRepo(
@@ -342,7 +341,14 @@ export function askRepo(
   const note = document.createElement("p");
   note.className = "git-note";
   let signed: OAuthToken | null = null;
-  let row: HTMLElement | null = null;
+  const signIn = (values: Record<string, string>): boolean => {
+    const where = whereOf(values);
+    return (
+      !signed &&
+      !needsToken(where) &&
+      !savedToken(where.provider, cleanHost(where.host, where.provider))
+    );
+  };
   const other =
     cleanHost(initial.host, initial.provider) !==
     DEFAULT_HOST[initial.provider];
@@ -353,10 +359,32 @@ export function askRepo(
       more: "Салбар, хавтас",
       note,
       extra: (form) => {
-        row = signInRow(form, (token) => {
+        const flow = signInFlow(form, (token) => {
           signed = token;
         });
-        note.before(row);
+        note.before(flow.status);
+        form.panel.addEventListener("submit", (event) => {
+          const values = form.values();
+          if (!signIn(values)) return;
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          try {
+            const where = whereOf(values);
+            parseRepo(where.provider, values.repo ?? "", {
+              branch: values.branch ?? "",
+              dir: values.dir ?? "",
+              host: where.host,
+            });
+          } catch (problem) {
+            form.fail(
+              problem instanceof ProjectError
+                ? problem.message
+                : String(problem),
+            );
+            return;
+          }
+          flow.start();
+        });
       },
       onChange: (values, panel) => {
         const where = whereOf(values);
@@ -367,7 +395,9 @@ export function askRepo(
         showField(panel, "token", token);
         note.hidden = !token;
         paintNote(note, provider, host);
-        if (row) row.hidden = token;
+        const confirm =
+          panel.querySelector<HTMLButtonElement>(".export-confirm");
+        if (confirm) confirm.textContent = signIn(values) ? "Нэвтрэх" : "Нээх";
         const repo = panel.querySelector<HTMLInputElement>('[name="repo"]');
         if (repo) repo.placeholder = cleanHost(host, provider) + "/нэр/төсөл";
         const hostInput =

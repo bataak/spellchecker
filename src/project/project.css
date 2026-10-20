@@ -534,22 +534,6 @@ textarea.git-input {
   resize: vertical;
 }
 
-.git-signin {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.git-signin[hidden] {
-  display: none;
-}
-
-.git-signin-btn {
-  justify-content: center;
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
 .git-code {
   font-family: var(--mono);
   font-size: 1.05rem;
