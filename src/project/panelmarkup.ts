@@ -57,7 +57,7 @@ export function buildPanel(): PanelParts {
   const emptyText = document.createElement("p");
   const folderBtn = textButton("project-open", "Хавтас нээх");
   const zipBtn = textButton("project-open", "Zip нээх");
-  const gitBtn = textButton("project-open", "Git repo-оос нээх");
+  const gitBtn = textButton("project-open", "Git repo нээх");
   const grantBtn = textButton("project-open", "Хандах зөвшөөрөл өгөх");
   const forgetBtn = textButton("project-open project-quiet", "Мартах");
   empty.append(emptyText, folderBtn, zipBtn, gitBtn, grantBtn, forgetBtn);

@@ -44,7 +44,7 @@ const openPanel = async (page: Page): Promise<void> => {
     if (!panel || panel.hidden)
       document.querySelector<HTMLElement>(".project-toggle")?.click();
   });
-  await page.locator(".project-open", { hasText: "Git repo-оос нээх" }).click();
+  await page.locator(".project-open", { hasText: "Git repo нээх" }).click();
 };
 
 const openMore = async (page: Page): Promise<void> => {
