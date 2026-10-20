@@ -74,17 +74,36 @@ function treeRow(
   return row;
 }
 
+function skipRow(hidden: number, depth: number): HTMLElement {
+  const skip = document.createElement("button");
+  skip.type = "button";
+  skip.className = "project-skip";
+  skip.style.setProperty("--depth", String(depth));
+  skip.textContent = "…";
+  skip.title = "Бусад " + hidden + " зүйлийг харуулах";
+  skip.setAttribute("aria-label", skip.title);
+  return skip;
+}
+
 export function treeRows(
   view: ProjectView,
   collapsed: ReadonlySet<string>,
   selected: string | null,
+  focus: string | null = null,
 ): HTMLElement[] {
   const rows: HTMLElement[] = [];
+  const onPath = (node: TreeNode): boolean =>
+    focus !== null &&
+    node.dir &&
+    (focus === node.path || focus.startsWith(node.path + "/"));
   const walk = (nodes: readonly TreeNode[], depth: number): void => {
-    for (const node of nodes) {
+    const shown = nodes.some(onPath) ? nodes.filter(onPath) : nodes;
+    for (const node of shown) {
       rows.push(treeRow(node, depth, view, collapsed, selected));
       if (node.dir && !collapsed.has(node.path)) walk(node.children, depth + 1);
     }
+    if (shown.length < nodes.length)
+      rows.push(skipRow(nodes.length - shown.length, depth));
   };
   walk(buildTree(view.files, view.dirs), 0);
   return rows;
