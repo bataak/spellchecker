@@ -131,25 +131,29 @@ test("GitHub-аас төсөл нээж, засаад commit хийж, дахи�
   await context.close();
 });
 
-test("өөрийн GitLab серверээс дэд бүлгийн төсөл нээж commit хийнэ", async () => {
-  const gitlab = new FakeGitlab({
-    "README.md": "readme",
-    "tex/main.tex": MAIN,
-    "tex/ch.tex": "Бүлэг нэг.\n",
-  });
+test("GitLab-аас дэд бүлгийн төсөл нээж commit хийнэ", async () => {
+  const gitlab = new FakeGitlab(
+    {
+      "README.md": "readme",
+      "tex/main.tex": MAIN,
+      "tex/ch.tex": "Бүлэг нэг.\n",
+    },
+    "https://gitlab.com",
+  );
   const context = await app.context();
   await gitlab.attach(context);
   const page = await openPage(app, context);
   await openPanel(page);
-  await page.selectOption('.git-panel select[name="service"]', "other");
-  await page.selectOption('.git-panel select[name="provider"]', "gitlab");
-  await page.fill('.git-panel input[name="host"]', gitlab.host);
+  await page.selectOption('.git-panel select[name="service"]', "gitlab");
   await page.fill('.git-panel input[name="repo"]', GITLAB_PROJECT);
   await openMore(page);
   await page.fill('.git-panel input[name="dir"]', "tex");
   await page.fill('.git-panel input[name="token"]', "glpat");
   const help = await page.getAttribute(".git-note a", "href");
-  assert.equal(help, gitlab.host + "/-/user_settings/personal_access_tokens");
+  assert.equal(
+    help,
+    "https://gitlab.com/-/user_settings/personal_access_tokens",
+  );
   await page.click(".git-panel .export-confirm");
   await until(
     () => rows(page),
@@ -323,5 +327,35 @@ test("доод мөрний «LaTeX төсөл» товчоор .tex файлг�
   );
   assert.equal(await page.isVisible(".project-panel"), true);
   assert.deepEqual(errors(page), []);
+  await context.close();
+});
+
+test("github.com, gitlab.com-оос өөр серверийн repo-г нээхгүй", async () => {
+  const context = await app.context();
+  let leaked = false;
+  await context.route("https://git.example.org/**", (route) => {
+    leaked = true;
+    return route.abort();
+  });
+  const page = await openPage(app, context);
+  await openPanel(page);
+  await page.selectOption('.git-panel select[name="service"]', "github");
+  await page.fill(
+    '.git-panel input[name="repo"]',
+    "https://git.example.org/o/r",
+  );
+  await page.fill('.git-panel input[name="token"]', "tok");
+  await page.click(".git-panel .export-confirm");
+  const error = page.locator(".git-panel .export-error");
+  await error.waitFor({ timeout: 5000 });
+  assert.match(
+    (await error.textContent()) ?? "",
+    /github\.com болон gitlab\.com/,
+  );
+  assert.equal(
+    await page.locator('.git-panel select[name="service"] option').count(),
+    2,
+  );
+  assert.equal(leaked, false);
   await context.close();
 });

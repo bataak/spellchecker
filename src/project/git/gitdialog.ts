@@ -287,9 +287,21 @@ function whereOf(values: Record<string, string>): {
   provider: Provider;
   host: string;
 } {
-  if (values.service !== "other")
-    return { provider: providerOf(values.service), host: "" };
-  return { provider: providerOf(values.provider), host: values.host ?? "" };
+  return { provider: providerOf(values.service), host: "" };
+}
+
+function specOf(values: Record<string, string>): RepoSpec {
+  const provider = providerOf(values.service);
+  const spec = parseRepo(provider, values.repo ?? "", {
+    branch: values.branch ?? "",
+    dir: values.dir ?? "",
+    host: "",
+  });
+  if (spec.host !== DEFAULT_HOST[provider])
+    throw new ProjectError(
+      "Зөвхөн github.com болон gitlab.com дээрх repo-г нээнэ — хаяг «Үйлчилгээ»-тэй таарах ёстой",
+    );
+  return spec;
 }
 
 const needsToken = (where: { provider: Provider; host: string }): boolean =>
@@ -400,9 +412,6 @@ export function askRepo(
       !savedToken(where.provider, cleanHost(where.host, where.provider))
     );
   };
-  const other =
-    cleanHost(initial.host, initial.provider) !==
-    DEFAULT_HOST[initial.provider];
   return showForm(
     {
       title: "Git repo төсөл",
@@ -421,12 +430,7 @@ export function askRepo(
           event.preventDefault();
           event.stopImmediatePropagation();
           try {
-            const where = whereOf(values);
-            parseRepo(where.provider, values.repo ?? "", {
-              branch: values.branch ?? "",
-              dir: values.dir ?? "",
-              host: where.host,
-            });
+            specOf(values);
           } catch (problem) {
             form.fail(
               problem instanceof ProjectError
@@ -442,8 +446,6 @@ export function askRepo(
         const where = whereOf(values);
         const { provider, host } = where;
         const token = needsToken(where);
-        showField(panel, "host", values.service === "other");
-        showField(panel, "provider", values.service === "other");
         showField(panel, "token", token);
         note.hidden = !token;
         paintNote(note, provider, host);
@@ -452,11 +454,6 @@ export function askRepo(
         if (confirm) confirm.textContent = signIn(values) ? "Нэвтрэх" : "Нээх";
         const repo = panel.querySelector<HTMLInputElement>('[name="repo"]');
         if (repo) repo.placeholder = cleanHost(host, provider) + "/нэр/төсөл";
-        const hostInput =
-          panel.querySelector<HTMLInputElement>('[name="host"]');
-        if (hostInput)
-          hostInput.placeholder =
-            provider === "gitlab" ? "gitlab.example.com" : "github.example.com";
         const tokenInput =
           panel.querySelector<HTMLInputElement>('[name="token"]');
         if (tokenInput)
@@ -474,26 +471,10 @@ export function askRepo(
           name: "service",
           label: "Үйлчилгээ",
           kind: "select",
-          value: other ? "other" : initial.provider,
+          value: initial.provider,
           options: [
             ["github", PROVIDER_NAME.github],
             ["gitlab", PROVIDER_NAME.gitlab],
-            ["other", "Бусад"],
-          ],
-        },
-        {
-          name: "host",
-          label: "Сервер",
-          value: other ? initial.host : "",
-        },
-        {
-          name: "provider",
-          label: "Төрөл",
-          kind: "select",
-          value: other ? initial.provider : "gitlab",
-          options: [
-            ["gitlab", PROVIDER_NAME.gitlab],
-            ["github", "GitHub Enterprise"],
           ],
         },
         {
@@ -518,11 +499,7 @@ export function askRepo(
     },
     (values, busy) => {
       const where = whereOf(values);
-      const spec = parseRepo(where.provider, values.repo ?? "", {
-        branch: values.branch ?? "",
-        dir: values.dir ?? "",
-        host: where.host,
-      });
+      const spec = specOf(values);
       const typed = needsToken(where) ? (values.token ?? "").trim() : "";
       const token = typed || signed || savedToken(where.provider, spec.host);
       if (!token)
