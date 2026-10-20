@@ -15,6 +15,7 @@ export interface PanelParts {
   readonly emptyText: HTMLParagraphElement;
   readonly folderBtn: HTMLButtonElement;
   readonly zipBtn: HTMLButtonElement;
+  readonly githubBtn: HTMLButtonElement;
   readonly grantBtn: HTMLButtonElement;
   readonly forgetBtn: HTMLButtonElement;
   readonly zipInput: HTMLInputElement;
@@ -56,9 +57,10 @@ export function buildPanel(): PanelParts {
   const emptyText = document.createElement("p");
   const folderBtn = textButton("project-open", "Хавтас нээх");
   const zipBtn = textButton("project-open", "Zip нээх");
+  const githubBtn = textButton("project-open", "GitHub-аас нээх");
   const grantBtn = textButton("project-open", "Хандах зөвшөөрөл өгөх");
   const forgetBtn = textButton("project-open project-quiet", "Мартах");
-  empty.append(emptyText, folderBtn, zipBtn, grantBtn, forgetBtn);
+  empty.append(emptyText, folderBtn, zipBtn, githubBtn, grantBtn, forgetBtn);
 
   const zipInput = document.createElement("input");
   zipInput.type = "file";
@@ -102,6 +104,7 @@ export function buildPanel(): PanelParts {
     emptyText,
     folderBtn,
     zipBtn,
+    githubBtn,
     grantBtn,
     forgetBtn,
     zipInput,

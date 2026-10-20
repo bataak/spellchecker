@@ -15,6 +15,8 @@ import {
 import { createProjectMenu } from "./projectmenu.ts";
 import { createTreeState, initTreeControl } from "./treecontrol.ts";
 import { treeRows } from "./treerows.ts";
+import { askRepo } from "./github/gitdialog.ts";
+import { githubToken, lastRepo, openRepo } from "./github/gitsession.ts";
 
 const PEEK_MS = 5000;
 
@@ -56,6 +58,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     grantProject,
     onProjectChange,
     openZip,
+    openGithub,
     exportZip,
     pickFolder,
     refreshProject,
@@ -77,6 +80,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     emptyText,
     folderBtn,
     zipBtn,
+    githubBtn,
     grantBtn,
     forgetBtn,
     zipInput,
@@ -313,6 +317,19 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   zipBtn.addEventListener("click", () => {
     if (!deps.beforeOpen()) return;
     zipInput.click();
+  });
+  githubBtn.addEventListener("click", () => {
+    if (!deps.beforeOpen()) return;
+    void (async () => {
+      const choice = await askRepo(lastRepo(), githubToken());
+      if (!choice) return;
+      deps.notify("GitHub-аас уншиж байна…");
+      await run(async () => {
+        const prefer = deps.openedFile()?.name;
+        openGithub(await openRepo(choice.spec, choice.token));
+        opened(prefer);
+      });
+    })();
   });
 
   const openZipFile = (file: File): Promise<void> =>

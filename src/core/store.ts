@@ -41,6 +41,8 @@ export const KEYS = {
   pdfZoom: shared("pdfZoom"),
   pdfScrollX: shared("pdfScrollX"),
   texAuto: shared("tex-auto"),
+  githubToken: shared("github-token"),
+  githubRepo: shared("github-repo"),
   defPin: shared("def-pin"),
   defDock: shared("def-dock"),
   hintSeen: shared("hintSeen:"),

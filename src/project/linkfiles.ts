@@ -9,6 +9,7 @@ const SAVE_MESSAGES: Record<SaveResult, string> = {
   downloaded: "Архивлалаа",
   files: "Засварласан файлуудыг татлаа",
   saved: "Хадгаллаа",
+  committed: "GitHub-д commit хийлээ",
   clean: "Өөрчлөлт алга",
 };
 
@@ -20,6 +21,13 @@ export function conflictNotice(paths: readonly string[]): string {
     names +
     " дискэн дээр өөрчлөгдсөн байна. Таны хадгалаагүй засвар хэвээр үлдсэн бөгөөд хадгалбал дискэн дээрх хувилбарыг дарна"
   );
+}
+
+export function commitSuggestion(dirty: Iterable<string>): string {
+  const names = [...new Set([...dirty].map(baseName))];
+  if (!names.length) return "Төслийн өөрчлөлт";
+  const shown = names.slice(0, 3).join(", ");
+  return "Засвар: " + shown + (names.length > 3 ? " болон бусад" : "");
 }
 
 export function saveMessage(result: SaveResult): string {
