@@ -1,6 +1,7 @@
 import { Cancelled, failureMessage } from "./projecterror.ts";
 import { initProjectPanel, type ProjectPanel } from "./projectpanel.ts";
-import { askCommitMessage, askMerge } from "./git/gitdialog.ts";
+import { askCommitMessage } from "./git/gitdialog.ts";
+import { askMerge } from "./git/mergedialog.ts";
 import {
   confirmClose,
   confirmReplace,
