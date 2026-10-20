@@ -5,7 +5,7 @@ import {
   parentDirs,
   skippedPath,
 } from "../../tex/texproject.ts";
-import { budget } from "../projectdisk.ts";
+import { MAX_BYTES, budget } from "../projectdisk.ts";
 import { ProjectError } from "../projecterror.ts";
 import { dropEntries } from "../projectedit.ts";
 import {
@@ -52,6 +52,7 @@ export interface LoadedRepo {
 export interface Plan {
   readonly writes: readonly [string, Uint8Array][];
   readonly deletes: readonly string[];
+  readonly texts: ReadonlyMap<string, string>;
 }
 
 export async function gitBlobSha(bytes: Uint8Array): Promise<string> {
@@ -110,9 +111,16 @@ export async function loadRepo(
   const limit = budget();
   const sizes = new Map(entries.map((entry) => [entry.path, entry.size ?? 0]));
   for (const path of paths) limit.take(sizes.get(repoPath(spec, path)) ?? 0);
+  let total = 0;
   const bytes = await inBatches(
     paths,
-    (path) => api.blob(files[path]!.sha),
+    async (path) => {
+      const blob = await api.blob(files[path]!.sha);
+      total += blob.length;
+      if (total > MAX_BYTES)
+        throw new ProjectError("Төсөл хэт том байна (200 MB-аас ихгүй)");
+      return blob;
+    },
     watch,
   );
   return {
@@ -134,14 +142,16 @@ export async function loadRepo(
 
 export async function planChanges(s: State, remote: GitRemote): Promise<Plan> {
   const writes: [string, Uint8Array][] = [];
+  const texts = new Map<string, string>();
   const encoder = new TextEncoder();
   for (const [path, text] of s.texts) {
     const unchanged =
       remote.files[path] !== undefined &&
       !s.added.has(path) &&
       s.saved.get(path) === text;
-    if (!unchanged)
-      writes.push([path, encoder.encode(diskText(s, path, text))]);
+    if (unchanged) continue;
+    writes.push([path, encoder.encode(diskText(s, path, text))]);
+    texts.set(path, text);
   }
   for (const [path, bytes] of s.binaries) {
     const known = remote.files[path];
@@ -151,7 +161,7 @@ export async function planChanges(s: State, remote: GitRemote): Promise<Plan> {
   const deletes = Object.keys(remote.files).filter(
     (path) => !s.texts.has(path) && !s.binaries.has(path),
   );
-  return { writes, deletes };
+  return { writes, deletes, texts };
 }
 
 function applyRemoteFile(
@@ -221,6 +231,7 @@ export async function commitChanges(
   const pulled = head !== remote.head;
   if (pulled) {
     base = await catchUp(api, s, remote, plan, head);
+    s.remote = base;
     plan = await planChanges(s, base);
   }
   const shas = await inBatches(plan.writes, ([, bytes]) => gitBlobSha(bytes));
@@ -248,9 +259,12 @@ export async function commitChanges(
     };
   });
   for (const path of plan.deletes) delete files[path];
-  s.saved = new Map(s.texts);
-  s.added.clear();
-  s.fresh.clear();
+  for (const [path, text] of plan.texts) {
+    s.saved.set(path, text);
+    s.added.delete(path);
+  }
+  for (const [path] of plan.writes) s.fresh.delete(path);
+  for (const path of plan.deletes) s.saved.delete(path);
   s.unsynced = false;
   recountDirty(s);
   return {

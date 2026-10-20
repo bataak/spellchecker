@@ -266,7 +266,11 @@ test("planChanges: зөвхөн өөрчлөгдсөн, нэмэгдсэн, нэ
     "img.png": "PNG",
   });
   const { s, remote } = await open(repo);
-  assert.deepEqual(await planChanges(s, remote), { writes: [], deletes: [] });
+  assert.deepEqual(await planChanges(s, remote), {
+    writes: [],
+    deletes: [],
+    texts: new Map(),
+  });
   s.texts.set("a.tex", "А засвар");
   putFile(s, "new.tex", encode("Шинэ"));
   moveEntries(s, "b.tex", "c.tex");
@@ -345,6 +349,48 @@ test("commitChanges: салбар яг тэр мөчид шилжвэл алда
   );
   assert.equal(s.saved.get("a.tex"), "А");
   assert.equal(s.texts.get("a.tex"), "А миний");
+});
+
+test("commitChanges: commit хийх зуур бичсэн засварыг хадгалсан гэж тооцохгүй", async () => {
+  const repo = await FakeRepo.create({ "main.tex": MAIN, "a.tex": "А" });
+  const { s, remote } = await open(repo);
+  s.texts.set("a.tex", "А шинэ");
+  const host = githubHost(repo);
+  const api = {
+    ...host,
+    commit: (input: Parameters<typeof host.commit>[0]) => {
+      s.texts.set("a.tex", "А шинэ дараа");
+      return host.commit(input);
+    },
+  };
+  const done = await commitChanges(api, s, remote, "Засвар");
+  assert.ok(done);
+  assert.equal(repo.text("a.tex"), "А шинэ");
+  assert.equal(s.saved.get("a.tex"), "А шинэ");
+  assert.ok(s.dirty.has("a.tex"));
+});
+
+test("commitChanges: татсаны дараа commit бүтэлгүйтвэл дараагийн хадгалалт ажиллана", async () => {
+  const repo = await FakeRepo.create({
+    "main.tex": MAIN,
+    "a.tex": "А",
+    "b.tex": "Б",
+  });
+  const { s, remote } = await open(repo);
+  s.remote = remote;
+  await repo.push({ "b.tex": "Б бусдын", "c.png": "PNG" });
+  s.texts.set("a.tex", "А миний");
+  repo.race = true;
+  await assert.rejects(
+    commitChanges(githubHost(repo), s, remote, "x"),
+    ProjectError,
+  );
+  assert.equal(s.remote.head, repo.branches.get("main"));
+  repo.race = false;
+  const done = await commitChanges(githubHost(repo), s, s.remote, "дахин");
+  assert.ok(done);
+  assert.equal(repo.text("a.tex"), "А миний");
+  assert.equal(repo.text("b.tex"), "Б бусдын");
 });
 
 test("createGitApi: token-тойгоор зөв хаяг руу хандаж, алдааг ойлгомжтой болгоно", async () => {
@@ -445,4 +491,47 @@ test("GitLab: бусдын давхцахгүй өөрчлөлтийг тата�
     /a\.tex/,
   );
   assert.equal(repo.branches.get("main"), before);
+});
+
+test("GitLab: шалгалт ба commit-ийн хооронд орсон бусдын засварыг дарж бичихгүй", async () => {
+  const repo = new FakeGitlab({ "main.tex": MAIN, "a.tex": "А" });
+  repo.push({ "main.tex": MAIN + "%\n" });
+  const synced = await openGitlab(repo);
+  synced.s.texts.set("a.tex", "А миний");
+  repo.beforeCommit = () => repo.push({ "a.tex": "А бусдын" });
+  await assert.rejects(
+    commitChanges(gitlab(repo), synced.s, synced.remote, "x"),
+    ProjectError,
+  );
+  assert.equal(repo.text("a.tex"), "А бусдын");
+});
+
+test("loadRepo: хэмжээг нь мэдэхгүй файлуудыг татахдаа 200 MB-аас хэтрэхэд зогсооно", async () => {
+  const big = new Uint8Array(70 * 1024 * 1024);
+  const host: GitHost = {
+    defaultBranch: () => Promise.resolve("main"),
+    head: () => Promise.resolve("h"),
+    list: () =>
+      Promise.resolve({
+        tree: "h",
+        entries: ["a.pdf", "b.pdf", "c.pdf", "d.pdf", "e.pdf"].map((path) => ({
+          path,
+          mode: "100644",
+          type: "blob",
+          sha: path,
+        })),
+      }),
+    blob: () => Promise.resolve(big),
+    commit: () => Promise.reject(new Error("no")),
+  };
+  await assert.rejects(
+    loadRepo(host, {
+      provider: "gitlab",
+      host: "https://gitlab.com",
+      project: "o/r",
+      branch: null,
+      dir: "",
+    }),
+    /200 MB/,
+  );
 });

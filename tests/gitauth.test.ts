@@ -97,6 +97,30 @@ test("githubDevice: цуцалсан эсвэл хугацаа дууссан б
   );
 });
 
+test("githubDevice: хүсэлт явж байхад цуцалбал token буцаахгүй", async () => {
+  const controller = new AbortController();
+  let polls = 0;
+  const fetcher = (url: string): Promise<Response> => {
+    if (url.endsWith("/code"))
+      return Promise.resolve(
+        Response.json({
+          device_code: "dev",
+          user_code: "X",
+          verification_uri: "u",
+          interval: 0,
+        }),
+      );
+    polls++;
+    controller.abort();
+    return Promise.resolve(Response.json({ access_token: "late" }));
+  };
+  await assert.rejects(
+    githubDevice(() => {}, controller.signal, config, fetcher),
+    (error: unknown) => error instanceof DOMException,
+  );
+  assert.equal(polls, 1);
+});
+
 test("refreshed: хугацаа дуусаагүй бол хэвээр, дууссан бол refresh token-оор шинэчилнэ", async () => {
   const bodies: string[] = [];
   const fetcher = (url: string, init?: RequestInit): Promise<Response> => {

@@ -1,6 +1,7 @@
 import { ProjectError } from "../projecterror.ts";
 import {
   RACE,
+  inBatches,
   request,
   toBase64,
   type Fetch,
@@ -41,6 +42,20 @@ export function createGitlabHost(
 
   const json = async <T>(path: string): Promise<T> =>
     (await (await call(path)).json()) as T;
+
+  const lastCommit = async (
+    path: string,
+    ref: string,
+  ): Promise<string | null> =>
+    (
+      await call(
+        "/repository/files/" +
+          encodeURIComponent(path) +
+          "?ref=" +
+          encodeURIComponent(ref),
+        { method: "HEAD" },
+      )
+    ).headers.get("x-gitlab-last-commit-id");
 
   const head = async (branch: string): Promise<string> =>
     (
@@ -87,25 +102,46 @@ export function createGitlabHost(
     async commit(input) {
       if ((await head(input.branch)) !== input.head)
         throw new ProjectError(RACE);
-      const response = await call("/repository/commits", {
-        method: "POST",
-        body: {
-          branch: input.branch,
-          commit_message: input.message,
-          actions: [
-            ...input.writes.map((write) => ({
-              action: write.exists ? "update" : "create",
-              file_path: write.path,
-              content: toBase64(write.bytes),
-              encoding: "base64",
-            })),
-            ...input.deletes.map((del) => ({
-              action: "delete",
-              file_path: del.path,
-            })),
-          ],
-        },
-      });
+      const known = [
+        ...input.writes.filter((write) => write.exists).map((w) => w.path),
+        ...input.deletes.map((del) => del.path),
+      ];
+      const lasts = await inBatches(known, (path) =>
+        lastCommit(path, input.head),
+      );
+      const last = new Map(known.map((path, index) => [path, lasts[index]]));
+      const guard = (path: string): { last_commit_id?: string } => {
+        const id = last.get(path);
+        return id ? { last_commit_id: id } : {};
+      };
+      let response: Response;
+      try {
+        response = await call("/repository/commits", {
+          method: "POST",
+          body: {
+            branch: input.branch,
+            commit_message: input.message,
+            actions: [
+              ...input.writes.map((write) => ({
+                action: write.exists ? "update" : "create",
+                file_path: write.path,
+                content: toBase64(write.bytes),
+                encoding: "base64",
+                ...(write.exists ? guard(write.path) : {}),
+              })),
+              ...input.deletes.map((del) => ({
+                action: "delete",
+                file_path: del.path,
+                ...guard(del.path),
+              })),
+            ],
+          },
+        });
+      } catch (error) {
+        if ((await head(input.branch)) !== input.head)
+          throw new ProjectError(RACE);
+        throw error;
+      }
       const id = ((await response.json()) as { id: string }).id;
       return { head: id, tree: id };
     },
