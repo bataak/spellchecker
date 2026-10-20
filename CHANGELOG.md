@@ -1,5 +1,51 @@
 # Changelog
 
+## [1.115.0](https://github.com/bataak/spellchecker/compare/v1.114.0...v1.115.0) (2026-10-20)
+
+
+### Features
+
+* **project:** add a «LaTeX төсөл» button to the bottom bar that opens a folder, zip or git repo without a .tex file open ([5777334](https://github.com/bataak/spellchecker/commit/577733483433b9c7fb6fed4b54c3f7000f5959a6))
+* **project:** ask which folder to open when a repo holds several LaTeX projects ([21100f5](https://github.com/bataak/spellchecker/commit/21100f5ab2f408b66875c2a3e3de4e34280b4df9))
+* **project:** fold sign-in into the confirm button, which reads «Нэвтрэх» until a token is at hand ([306ef20](https://github.com/bataak/spellchecker/commit/306ef201acdb6db583c851005c31cbe18e9159e6))
+* **project:** hide the git dialog while the folder picker is open ([08667e4](https://github.com/bataak/spellchecker/commit/08667e475098901a7ecb6f4a3ac80696ea87e357))
+* **project:** keep the git dialog open while the repo loads and show load errors inside it ([578871b](https://github.com/bataak/spellchecker/commit/578871b85a0f461d924c0e0e9c8f1a8c18e0c01c))
+* **project:** label the git button «Git repo нээх» ([dcb7e03](https://github.com/bataak/spellchecker/commit/dcb7e03eda8b8f0f20869b04acac50caa89dbcac))
+* **project:** label the project button «LaTeX төсөл» and place it before «Файл нээх» ([1ca1c6b](https://github.com/bataak/spellchecker/commit/1ca1c6b39ad898ef0f42c83638cb29f608ebd18b))
+* **project:** label the sign-in button simply «Нэвтрэх» ([3d5ecaa](https://github.com/bataak/spellchecker/commit/3d5ecaa802354c8713f4b6dc426fa9158f00260c))
+* **project:** merge files changed on both sides line by line and let the user resolve clashing lines in a dialog ([7c777ac](https://github.com/bataak/spellchecker/commit/7c777ace77eae72b567dc2aa3395fc9761b0cbae))
+* **project:** move self-hosted servers under «Бусад», fold branch and folder away and ask for a token only when sign-in is unavailable ([6007954](https://github.com/bataak/spellchecker/commit/600795406bde144acb5f05521675b56e9ab1b9a5))
+* **project:** open a LaTeX project from GitHub and commit changes back with Ctrl+S ([c4cc7dc](https://github.com/bataak/spellchecker/commit/c4cc7dc165525cd1f0a5fbcf66861b51d3e7ac62))
+* **project:** open projects from GitLab or self-hosted servers through a shared git host interface ([71a4107](https://github.com/bataak/spellchecker/commit/71a4107b6f5e480078f23b3c18dfc1aaafe1a8ea))
+* **project:** put «LaTeX төсөл» at the right end of the bottom bar ([2acf4e3](https://github.com/bataak/spellchecker/commit/2acf4e373ae6cad4e5e9873025babc339e486451))
+* **project:** show one repo placeholder, the server address followed by нэр/төсөл ([65e4b94](https://github.com/bataak/spellchecker/commit/65e4b94d436bd89e8373cb3f1ab802a2c6883deb))
+* **project:** show only the chosen folder of a multi-project repo and fold the rest into «…» rows ([27f7d8d](https://github.com/bataak/spellchecker/commit/27f7d8d79b50bff04e9323b2ab8b6eb94be11b43))
+* **project:** show the LaTeX project button as a folder icon ([1430f8e](https://github.com/bataak/spellchecker/commit/1430f8ed3a6c332d965ac59c7878a71ddeabe937))
+* **project:** sign in to GitHub with a device code and to GitLab with PKCE instead of pasting tokens ([1d32ec3](https://github.com/bataak/spellchecker/commit/1d32ec3543a9bfd1ec22136bcfaff69fef17b642))
+* **project:** title the git dialog «Git repo төсөл» ([146fbe2](https://github.com/bataak/spellchecker/commit/146fbe2eba6e38780ef9d0075d4854aa6fbc8465))
+
+
+### Bug Fixes
+
+* **preview:** sync from the PDF on a touch double tap, since iOS sends no dblclick ([af1e93c](https://github.com/bataak/spellchecker/commit/af1e93cd4e1867b9df919f3c934219f0486fa4a3))
+* **project:** forget a rejected saved token so the dialog offers sign-in again ([94f4f54](https://github.com/bataak/spellchecker/commit/94f4f54d7f3637ba96418755f99072b3dc1dc0f2))
+* **project:** keep edits typed during a commit unsaved, survive a failed commit after pulling, refuse a second commit while one runs and name the right host in the commit dialog ([6b8f044](https://github.com/bataak/spellchecker/commit/6b8f044b43cd3beb8041caee022872bf9c728ec9))
+* **project:** keep waiting for GitLab sign-in after gitlab.com's COOP header cuts the popup off, and say what is happening ([0d47e77](https://github.com/bataak/spellchecker/commit/0d47e77c8ec88802a797bdc36eb5cc89092df1ca))
+* **project:** leave the project panel open after a project opens on narrow screens ([df0071a](https://github.com/bataak/spellchecker/commit/df0071ab2f76525005187f9939188bb12c18824a))
+* **project:** let «Болих» stop a repo that is still loading and show how many files are read ([9d1e586](https://github.com/bataak/spellchecker/commit/9d1e5869c13cde891375c2d3f8a2f64eca5aabe1))
+* **project:** open repos only from github.com and gitlab.com so a token never reaches another host ([de2c51a](https://github.com/bataak/spellchecker/commit/de2c51aa5b363d2c045392f3bd53f9fdf34aed47))
+* **project:** rebase edits typed during a pull instead of losing them, patch the editor in place without stealing focus or moving the caret, and notify once per pull ([8da4b07](https://github.com/bataak/spellchecker/commit/8da4b07b6d06fde8a1a19659336a0ac995c8346b))
+* **project:** refresh after a pull with nothing to commit, merge files edited mid-pull, keep tokens on transient or unrelated failures, refuse stale hosts, require GitLab last-commit ids, skip identical changes, treat a cancelled merge as cancel and stop double sync on Android ([65a2e7a](https://github.com/bataak/spellchecker/commit/65a2e7a428d7feb8078f509bbe5f99d80f67c9d4))
+* **project:** reword the merge dialog «Зөрчлийг шийдвэрлэх», «Минийх», «Хэсэг бүрд» ([89248e9](https://github.com/bataak/spellchecker/commit/89248e93a73403cffb29871b00314d9e5cc08f5c))
+* **project:** send each GitLab file's last commit with the commit so a push in between is refused instead of overwritten ([ee86c71](https://github.com/bataak/spellchecker/commit/ee86c7160da5ad28bb8a9936273a75e3632395cc))
+* **project:** show merged text in the editor after a pull and keep missing-image notes on the shown PDF; tidy timer, panel and sync APIs ([373e600](https://github.com/bataak/spellchecker/commit/373e60003f51c558f601c56f84bbeda74a62502d))
+* **project:** spell «хөтчид» in the token note ([cb46f73](https://github.com/bataak/spellchecker/commit/cb46f734803f17b1280aaf0a44b58f935fcfde8e))
+* **project:** stop GitHub device sign-in for good once it is cancelled ([96ce9fb](https://github.com/bataak/spellchecker/commit/96ce9fb00623f699d1f230ba997ed14818e32869))
+* **project:** stop loading a repo once its downloaded files pass 200 MB, since GitLab does not report sizes ([1f5f219](https://github.com/bataak/spellchecker/commit/1f5f219a0e0b2d4aa0a55751b3dd2694632d86f5))
+* **tex:** map every T1 EC font to its cm-super Type1 file so sans serif and small sizes compile ([336e279](https://github.com/bataak/spellchecker/commit/336e2799fd59d70a59b5a561a6ce2f01acfa9cb9))
+* **ui:** keep the title clear of the iOS status bar blur by adding room below the safe area ([5d6e99a](https://github.com/bataak/spellchecker/commit/5d6e99ae2695b2f33c6af83fccebc56a659333a8))
+* **ui:** snap the phone toolbar's end to «LaTeX төсөл» so it is not hidden past the edge ([3867523](https://github.com/bataak/spellchecker/commit/3867523b565d50ba656162f64a45c04702125140))
+
 ## [1.114.0](https://github.com/bataak/spellchecker/compare/v1.113.0...v1.114.0) (2026-10-20)
 
 
