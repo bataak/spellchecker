@@ -266,7 +266,11 @@ test("planChanges: зөвхөн өөрчлөгдсөн, нэмэгдсэн, нэ
     "img.png": "PNG",
   });
   const { s, remote } = await open(repo);
-  assert.deepEqual(await planChanges(s, remote), { writes: [], deletes: [] });
+  assert.deepEqual(await planChanges(s, remote), {
+    writes: [],
+    deletes: [],
+    texts: new Map(),
+  });
   s.texts.set("a.tex", "А засвар");
   putFile(s, "new.tex", encode("Шинэ"));
   moveEntries(s, "b.tex", "c.tex");
@@ -345,6 +349,48 @@ test("commitChanges: салбар яг тэр мөчид шилжвэл алда
   );
   assert.equal(s.saved.get("a.tex"), "А");
   assert.equal(s.texts.get("a.tex"), "А миний");
+});
+
+test("commitChanges: commit хийх зуур бичсэн засварыг хадгалсан гэж тооцохгүй", async () => {
+  const repo = await FakeRepo.create({ "main.tex": MAIN, "a.tex": "А" });
+  const { s, remote } = await open(repo);
+  s.texts.set("a.tex", "А шинэ");
+  const host = githubHost(repo);
+  const api = {
+    ...host,
+    commit: (input: Parameters<typeof host.commit>[0]) => {
+      s.texts.set("a.tex", "А шинэ дараа");
+      return host.commit(input);
+    },
+  };
+  const done = await commitChanges(api, s, remote, "Засвар");
+  assert.ok(done);
+  assert.equal(repo.text("a.tex"), "А шинэ");
+  assert.equal(s.saved.get("a.tex"), "А шинэ");
+  assert.ok(s.dirty.has("a.tex"));
+});
+
+test("commitChanges: татсаны дараа commit бүтэлгүйтвэл дараагийн хадгалалт ажиллана", async () => {
+  const repo = await FakeRepo.create({
+    "main.tex": MAIN,
+    "a.tex": "А",
+    "b.tex": "Б",
+  });
+  const { s, remote } = await open(repo);
+  s.remote = remote;
+  await repo.push({ "b.tex": "Б бусдын", "c.png": "PNG" });
+  s.texts.set("a.tex", "А миний");
+  repo.race = true;
+  await assert.rejects(
+    commitChanges(githubHost(repo), s, remote, "x"),
+    ProjectError,
+  );
+  assert.equal(s.remote.head, repo.branches.get("main"));
+  repo.race = false;
+  const done = await commitChanges(githubHost(repo), s, s.remote, "дахин");
+  assert.ok(done);
+  assert.equal(repo.text("a.tex"), "А миний");
+  assert.equal(repo.text("b.tex"), "Б бусдын");
 });
 
 test("createGitApi: token-тойгоор зөв хаяг руу хандаж, алдааг ойлгомжтой болгоно", async () => {

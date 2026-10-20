@@ -42,6 +42,7 @@ import {
 } from "./projectsave.ts";
 import { commitState } from "./git/gitsession.ts";
 import type { LoadedRepo } from "./git/gitsync.ts";
+import type { Provider } from "./git/githost.ts";
 import {
   pickDirectoryFiles,
   readFileList,
@@ -76,6 +77,7 @@ export interface ProjectView {
   readonly version: number;
   readonly exportedAt: number | null;
   readonly uid: string;
+  readonly provider: Provider | null;
 }
 
 export { ProjectError } from "./projecterror.ts";
@@ -129,6 +131,7 @@ export function createProjectStore() {
       version: s.version,
       exportedAt: s.exportedAt,
       uid: s.uid,
+      provider: s.remote?.provider ?? null,
     };
   }
 
@@ -514,7 +517,14 @@ export function createProjectStore() {
   async function saveProject(message = ""): Promise<SaveResult> {
     const s = requireState();
     if (s.kind === "git") {
-      if (!(await commitState(s, message))) return "clean";
+      let committed: boolean;
+      try {
+        committed = await commitState(s, message);
+      } catch (error) {
+        changed(true);
+        throw error;
+      }
+      if (!committed) return "clean";
       changed(true);
       return "committed";
     }
