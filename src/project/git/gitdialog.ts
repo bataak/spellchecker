@@ -330,7 +330,7 @@ export function askRepo(
     DEFAULT_HOST[initial.provider];
   return showForm(
     {
-      title: "Git repo-оос төсөл нээх",
+      title: "Git repo төсөл",
       confirm: "Нээх",
       more: "Салбар, хавтас",
       note,
