@@ -9,11 +9,14 @@ import {
 } from "./pdfcache.ts";
 import type { PdfPane } from "./pdfpane.ts";
 import type { TexProject } from "../project/projectbuild.ts";
+import { KEYS, read, write } from "../core/store.ts";
+import { autoDelay, tooSlowForAuto } from "./compilemode.ts";
 
-const TEX_DELAY_MS = 2000;
 const RETRY_MS = [2000, 5000, 15000];
 const STALE_COMPILE_MS = 3000;
 const PREPARING = "PDF бэлтгэж байна…";
+export const AUTO_OFF_NOTE =
+  "Баримт том тул автомат хөрвүүлэлтийг зогсоолоо. Хөрвүүлэх товч эсвэл Ctrl+Enter ашиглана уу. Удаан дарвал автомат горимд буцна.";
 
 const NETWORK_ERROR =
   /fake worker|dynamically imported module|Failed to fetch|NetworkError|Load failed|татагдсангүй|ачаалагдсангүй/i;
@@ -40,6 +43,7 @@ export interface TexPreviewDeps {
   readonly setMissing: (paths: readonly string[]) => void;
   readonly onShown: () => void;
   readonly onImagesChanged: () => void;
+  readonly onModeChange: (auto: boolean, note: string | null) => void;
 }
 
 export interface TexPreview {
@@ -49,6 +53,9 @@ export interface TexPreview {
   drop(): void;
   schedule(): void;
   recompile(): void;
+  auto(): boolean;
+  setAuto(on: boolean, note?: string | null): void;
+  compileNow(): void;
   pdf(): Promise<CompiledPdf>;
   destroy(): void;
 }
@@ -56,6 +63,8 @@ export interface TexPreview {
 export function createTexPreview(deps: TexPreviewDeps): TexPreview {
   const { area, pane, compileBtn, downloadBtn, projectKey } = deps;
   const pool = createPdfPool();
+  let auto = read(KEYS.texAuto) !== "0";
+  let lastCompileMs = 0;
   let texMode = false;
   let texShown: string | null = null;
   let pdfText: string | null = null;
@@ -84,6 +93,12 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
     pdfText = null;
     texShown = null;
     pane.drop();
+  };
+
+  const cancelTimer = (): void => {
+    if (texTimer) clearTimeout(texTimer);
+    texTimer = 0;
+    scheduled = null;
   };
 
   const cancelRetry = (): void => {
@@ -262,12 +277,19 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
         import("../tex/teximages.ts"),
       ]);
       watchImages(images);
+      let fetched = false;
       onTexPackage((message) => {
+        if (message) fetched = true;
         if (current(seq) && !pane.view()) deps.showNotice(message ?? PREPARING);
       });
+      const started = performance.now();
       const { pdf, missing } = await pool.compile(key, () =>
         compileTexDocument(text, deps.texProject()),
       );
+      const took = performance.now() - started;
+      if (!fetched) lastCompileMs = took;
+      if (auto && tooSlowForAuto(took, fetched))
+        api.setAuto(false, AUTO_OFF_NOTE);
       pool.keep(key, { text, pdf, missing }, digest, project);
       if (!(await showBytes(pdf, seq))) return;
       retries = 0;
@@ -294,7 +316,7 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
     await compileJob(job, digest);
   };
 
-  return {
+  const api: TexPreview = {
     active: () => texMode,
     pending: () => texMode && texKey() !== texShown,
     setActive(on) {
@@ -329,12 +351,16 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
       }
       const key = texKey();
       const text = area.value;
+      if (!auto && texShown !== null) {
+        cancelTimer();
+        return;
+      }
       if (texTimer && scheduled?.key === key && scheduled.text === text) return;
       scheduled = { key, text };
       if (texTimer) clearTimeout(texTimer);
       texTimer = window.setTimeout(
         () => void render(),
-        texShown === null ? 0 : TEX_DELAY_MS,
+        texShown === null ? 0 : autoDelay(lastCompileMs),
       );
     },
     recompile() {
@@ -343,6 +369,28 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
       retries = 0;
       triedText = null;
       texShown = null;
+      void render();
+    },
+    auto: () => auto,
+    setAuto(on, note = null) {
+      if (on === auto) return;
+      auto = on;
+      write(KEYS.texAuto, on ? "1" : "0");
+      deps.onModeChange(on, note);
+      if (!on) cancelTimer();
+      else if (texMode && texKey() !== texShown) {
+        cancelTimer();
+        void render();
+      }
+    },
+    compileNow() {
+      api.setAuto(false);
+      if (!texMode || compiling !== null) return;
+      if (texKey() === texShown) {
+        api.recompile();
+        return;
+      }
+      cancelTimer();
       void render();
     },
     async pdf() {
@@ -384,4 +432,5 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
       offTexImages?.();
     },
   };
+  return api;
 }
