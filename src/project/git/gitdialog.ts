@@ -283,6 +283,7 @@ function signInRow(
   const button = document.createElement("button");
   button.type = "button";
   button.className = "tbtn git-signin-btn";
+  button.textContent = "Нэвтрэх";
   const status = document.createElement("p");
   status.className = "git-note git-device";
   status.hidden = true;
@@ -329,7 +330,7 @@ export function askRepo(
     DEFAULT_HOST[initial.provider];
   return showForm(
     {
-      title: "Git repo-оос төсөл нээх",
+      title: "Git repo төсөл",
       confirm: "Нээх",
       more: "Салбар, хавтас",
       note,
@@ -348,16 +349,9 @@ export function askRepo(
         showField(panel, "token", token);
         note.hidden = !token;
         paintNote(note, provider, host);
-        if (row) {
-          row.hidden = token;
-          const button = row.querySelector("button");
-          if (button)
-            button.textContent = PROVIDER_NAME[provider] + "-ээр нэвтрэх";
-        }
+        if (row) row.hidden = token;
         const repo = panel.querySelector<HTMLInputElement>('[name="repo"]');
-        if (repo)
-          repo.placeholder =
-            provider === "gitlab" ? "бүлэг/төсөл" : "bataak/thesis";
+        if (repo) repo.placeholder = cleanHost(host, provider) + "/нэр/төсөл";
         const hostInput =
           panel.querySelector<HTMLInputElement>('[name="host"]');
         if (hostInput)
