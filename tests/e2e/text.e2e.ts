@@ -2,6 +2,7 @@ import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import {
   FIREFOX,
+  chooseSlot,
   editor,
   errors,
   openPage,
@@ -182,3 +183,38 @@ test("гараар зассан алдаатай үгийг бусад давт�
   );
   assert.deepEqual(errors(page), []);
 });
+
+test(
+  "LaTeX-д ЬЬ ба ВВ-г « » болгож, шууд Backspace дарвал буцаана",
+  { skip: FIREFOX && "Playwright Firefox кирилл үсгийг IME-ээр оруулдаг" },
+  async () => {
+    const page = await openPage(app, await app.context());
+    await chooseSlot(page, "Судалгаа");
+    await page.evaluate(() => {
+      const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
+      area.value =
+        "\\documentclass{article}\n\\begin{document}\nБ:\n\\end{document}\n";
+      area.dispatchEvent(new InputEvent("input", { bubbles: true }));
+      area.focus();
+      const at = area.value.indexOf("Б:") + 2;
+      area.setSelectionRange(at, at);
+    });
+    await page.waitForTimeout(500);
+    const line = (): Promise<string> =>
+      page.evaluate(() => {
+        const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
+        return area.value.slice(area.value.indexOf("Б:"), area.selectionStart);
+      });
+    await page.keyboard.type(" ЬЬ");
+    assert.equal(await line(), "Б: «");
+    await page.keyboard.press("Backspace");
+    assert.equal(await line(), "Б: ЬЬ");
+    await page.keyboard.press("Backspace");
+    await page.keyboard.press("Backspace");
+    await page.keyboard.type("ЬЬүгВВ ");
+    assert.equal(await line(), "Б: «үг» ");
+    await page.keyboard.press("Backspace");
+    assert.equal(await line(), "Б: «үгВВ ");
+    assert.deepEqual(errors(page), []);
+  },
+);
