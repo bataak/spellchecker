@@ -520,16 +520,11 @@ export function createProjectStore() {
   ): Promise<SaveResult> {
     const s = requireState();
     if (s.kind === "git") {
-      let committed: boolean;
       try {
-        committed = await commitState(s, message, resolve);
-      } catch (error) {
+        return (await commitState(s, message, resolve)) ? "committed" : "clean";
+      } finally {
         changed(true);
-        throw error;
       }
-      if (!committed) return "clean";
-      changed(true);
-      return "committed";
     }
     if (s.kind === "dir") {
       if (!(await writeChanged(s, diskRoot()))) return "clean";

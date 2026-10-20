@@ -28,7 +28,8 @@ import {
   moveEntries,
   putFile,
 } from "../src/project/projectedit.ts";
-import { ProjectError } from "../src/project/projecterror.ts";
+import { Cancelled, ProjectError } from "../src/project/projecterror.ts";
+import { hostFor } from "../src/project/git/gitsession.ts";
 
 const encode = (text: string): Uint8Array => new TextEncoder().encode(text);
 
@@ -484,6 +485,19 @@ test("GitLab: бусдын давхцахгүй өөрчлөлтийг тата�
   assert.equal(repo.branches.get("main"), before);
 });
 
+test("GitLab: файлын сүүлийн commit-ийг уншиж чадаагүй бол хамгаалалтгүй commit хийхгүй", async () => {
+  const repo = new FakeGitlab({ "main.tex": MAIN, "a.tex": "А" });
+  const { s, remote } = await openGitlab(repo);
+  repo.hideLastCommit = true;
+  const before = repo.branches.get("main");
+  s.texts.set("a.tex", "А миний");
+  await assert.rejects(
+    commitChanges(gitlab(repo), s, remote, "x"),
+    /сүүлийн commit/,
+  );
+  assert.equal(repo.branches.get("main"), before);
+});
+
 test("GitLab: шалгалт ба commit-ийн хооронд орсон бусдын засварыг дарж бичихгүй", async () => {
   const repo = new FakeGitlab({ "main.tex": MAIN, "a.tex": "А" });
   repo.push({ "main.tex": MAIN + "%\n" });
@@ -570,6 +584,81 @@ test("commitChanges: зөрчилтэй мөрийг сонголтоор ший
   assert.ok(done);
   assert.equal(repo.text("a.tex"), "нэг\nхоёр миний\nхоёр бусдын");
   assert.equal(repo.text("b.tex"), "Б бусдын");
+});
+
+test("commitChanges: татаж байх зуур засварласан файлыг дарж бичихгүй, зөрчил гэж асууна", async () => {
+  const repo = await FakeRepo.create({
+    "main.tex": MAIN,
+    "a.tex": "А",
+    "b.tex": "Б",
+  });
+  const { s, remote } = await open(repo);
+  await repo.push({ "b.tex": "Б бусдын" });
+  s.texts.set("a.tex", "А миний");
+  const host = githubHost(repo);
+  const api: GitHost = {
+    ...host,
+    list: (commit, signal) => {
+      s.texts.set("b.tex", "Б миний");
+      return host.list(commit, signal);
+    },
+  };
+  const asked: string[] = [];
+  const done = await commitChanges(api, s, remote, "м", (items) => {
+    asked.push(...items.map((item) => item.path));
+    return Promise.resolve(new Map([["b.tex", ["ours"] as const]]));
+  });
+  assert.deepEqual(asked, ["b.tex"]);
+  assert.ok(done?.committed);
+  assert.equal(repo.text("b.tex"), "Б миний");
+});
+
+test("commitChanges: хоёр тал ижил файлыг устгасан бол зөрчил гэж асуухгүй", async () => {
+  const repo = await FakeRepo.create({
+    "main.tex": MAIN,
+    "a.tex": "А",
+    "old.tex": "Х",
+  });
+  const { s, remote } = await open(repo);
+  await repo.push({ "old.tex": null });
+  dropEntries(s, "old.tex");
+  s.texts.set("a.tex", "А миний");
+  const done = await commitChanges(githubHost(repo), s, remote, "м", () =>
+    Promise.reject(new Error("асуух ёсгүй")),
+  );
+  assert.ok(done?.committed);
+  assert.equal(repo.text("old.tex"), undefined);
+  assert.equal(repo.text("a.tex"), "А миний");
+});
+
+test("commitChanges: зөрчлийн цонхыг болиулбал Cancelled алдаа өгнө", async () => {
+  const repo = await FakeRepo.create({ "main.tex": MAIN, "a.tex": "А" });
+  const { s, remote } = await open(repo);
+  await repo.push({ "a.tex": "А бусдын" });
+  s.texts.set("a.tex", "А миний");
+  await assert.rejects(
+    commitChanges(githubHost(repo), s, remote, "м", () =>
+      Promise.resolve(null),
+    ),
+    Cancelled,
+  );
+});
+
+test("hostFor: github.com, gitlab.com-оос өөр серверт хадгалсан төслийг холбохгүй", () => {
+  assert.throws(
+    () =>
+      hostFor(
+        { provider: "github", host: "https://ghe.corp", project: "o/r" },
+        "tok",
+      ),
+    /github\.com, gitlab\.com/,
+  );
+  assert.ok(
+    hostFor(
+      { provider: "gitlab", host: "https://gitlab.com", project: "o/r" },
+      "tok",
+    ),
+  );
 });
 
 test("commitChanges: нэг тал устгаж нөгөө тал өөрчилсөн файлыг бүтнээр нь сонгуулна", async () => {

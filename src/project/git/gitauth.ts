@@ -192,8 +192,14 @@ async function gitlabToken(
     throw new ProjectError("GitLab-тай холбогдож чадсангүй");
   }
   const reply = (await response.json().catch(() => ({}))) as TokenReply;
-  if (!response.ok || !reply.access_token)
+  if (response.status === 400 || response.status === 401)
     throw new AuthError("GitLab-аар нэвтэрч чадсангүй — дахин нэвтэрнэ үү");
+  if (!response.ok || !reply.access_token)
+    throw new ProjectError(
+      "GitLab-ийн нэвтрэх үйлчилгээ алдаа өглөө (" +
+        response.status +
+        ") — дахин оролдоно уу",
+    );
   return {
     access: reply.access_token,
     verifier,
