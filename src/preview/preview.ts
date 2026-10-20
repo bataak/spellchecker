@@ -16,6 +16,9 @@ const TIDY_LIMIT = 400_000;
 const TIDY_IDLE_MS = 5000;
 const SYNC_MS = 250;
 const SYNC_AFTER_EDIT_MS = 2000;
+const TAP_SLOP = 10;
+const DOUBLE_TAP_MS = 350;
+const DOUBLE_TAP_SLOP = 30;
 const MD_TIDY_TITLE = "Markdown бичвэрийг жигдрүүлэх";
 const MD_NAME = /\.(md|markdown|mdown|mkd)$/i;
 
@@ -281,19 +284,57 @@ export function initPreview(deps: PreviewDeps): Preview {
     if (hit) jump(hit.at, hit.at + hit.word.length);
   };
 
-  const onJump = (event: MouseEvent): void => {
-    if (event.button !== 0) return;
+  const jumpAt = (x: number, y: number, target: EventTarget | null): void => {
     const view = pane.view();
     if (tex.active() && view) {
-      void jumpFromPdf(view, event.clientX, event.clientY);
+      void jumpFromPdf(view, x, y);
       return;
     }
     if (tex.active() || view || source || !shownHtml) return;
-    if ((event.target as Element | null)?.closest("img, a, button, input"))
-      return;
-    htmlSync.jumpFrom(event.clientX, event.clientY);
+    if ((target as Element | null)?.closest("img, a, button, input")) return;
+    htmlSync.jumpFrom(x, y);
+  };
+  const onJump = (event: MouseEvent): void => {
+    if (event.button !== 0) return;
+    jumpAt(event.clientX, event.clientY, event.target);
   };
   body.addEventListener("dblclick", onJump);
+
+  let press: { x: number; y: number; id: number } | null = null;
+  let lastTap: { x: number; y: number; at: number } | null = null;
+  const onPress = (event: PointerEvent): void => {
+    if (event.pointerType === "mouse" || !event.isPrimary) {
+      press = null;
+      return;
+    }
+    press = { x: event.clientX, y: event.clientY, id: event.pointerId };
+  };
+  const onRelease = (event: PointerEvent): void => {
+    const start = press;
+    press = null;
+    if (!start || start.id !== event.pointerId) return;
+    const x = event.clientX;
+    const y = event.clientY;
+    if (Math.hypot(x - start.x, y - start.y) > TAP_SLOP) return;
+    const now = event.timeStamp;
+    const before = lastTap;
+    if (
+      before &&
+      now - before.at < DOUBLE_TAP_MS &&
+      Math.hypot(x - before.x, y - before.y) < DOUBLE_TAP_SLOP
+    ) {
+      lastTap = null;
+      jumpAt(x, y, event.target);
+      return;
+    }
+    lastTap = { x, y, at: now };
+  };
+  const onCancel = (): void => {
+    press = null;
+  };
+  body.addEventListener("pointerdown", onPress);
+  body.addEventListener("pointerup", onRelease);
+  body.addEventListener("pointercancel", onCancel);
 
   const onEdit = (): void => {
     editedAt = performance.now();
@@ -509,6 +550,9 @@ export function initPreview(deps: PreviewDeps): Preview {
       document.removeEventListener("selectionchange", onSelection);
       area.removeEventListener("input", onEdit);
       body.removeEventListener("dblclick", onJump);
+      body.removeEventListener("pointerdown", onPress);
+      body.removeEventListener("pointerup", onRelease);
+      body.removeEventListener("pointercancel", onCancel);
       area.removeEventListener("input", onTyping);
       area.removeEventListener("input", update);
       tidy.remove();
