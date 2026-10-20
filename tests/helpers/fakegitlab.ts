@@ -16,8 +16,8 @@ interface Reply {
 const CORS = {
   "access-control-allow-origin": "*",
   "access-control-allow-headers": "authorization, content-type",
-  "access-control-allow-methods": "GET, POST, OPTIONS",
-  "access-control-expose-headers": "x-next-page",
+  "access-control-allow-methods": "GET, HEAD, POST, OPTIONS",
+  "access-control-expose-headers": "x-next-page, x-gitlab-last-commit-id",
 };
 
 export const GITLAB_PROJECT = "group/sub/thesis";
@@ -29,6 +29,7 @@ export class FakeGitlab {
   readonly tokens: string[] = [];
   readonly pages: number[] = [];
   pageSize = 2;
+  beforeCommit: (() => void) | null = null;
   private next = 0;
 
   readonly host: string;
@@ -82,6 +83,19 @@ export class FakeGitlab {
     const commit = this.id();
     this.commits.set(commit, { files: map, parent: head, message: "other" });
     this.branches.set("main", commit);
+  }
+
+  lastCommitFor(ref: string, path: string): string | null {
+    let id: string | null = ref;
+    const sha = this.commits.get(ref)?.files.get(path);
+    if (sha === undefined) return null;
+    while (id) {
+      const commit: Commit = this.commits.get(id)!;
+      const parent = commit.parent ? this.commits.get(commit.parent) : null;
+      if (!parent || parent.files.get(path) !== sha) return id;
+      id = commit.parent;
+    }
+    return null;
   }
 
   private json(status: number, body: unknown, extra = {}): Reply {
@@ -140,6 +154,22 @@ export class FakeGitlab {
         url.searchParams.get("ref")!,
         Number(url.searchParams.get("page") ?? "1"),
       );
+    if (
+      (match = /^\/repository\/files\/(.+)$/.exec(path)) &&
+      method === "HEAD"
+    ) {
+      const last = this.lastCommitFor(
+        url.searchParams.get("ref")!,
+        decodeURIComponent(match[1]!),
+      );
+      return last
+        ? {
+            status: 200,
+            headers: { ...CORS, "x-gitlab-last-commit-id": last },
+            body: "",
+          }
+        : this.json(404, {});
+    }
     if ((match = /^\/repository\/blobs\/(\w+)\/raw$/.exec(path)))
       return { status: 200, headers: CORS, body: this.blobs.get(match[1]!)! };
     if (path === "/repository/commits" && method === "POST") {
@@ -150,8 +180,11 @@ export class FakeGitlab {
           action: string;
           file_path: string;
           content?: string;
+          last_commit_id?: string;
         }[];
       };
+      this.beforeCommit?.();
+      this.beforeCommit = null;
       const head = this.branches.get(input.branch)!;
       const map = new Map(this.commits.get(head)!.files);
       for (const action of input.actions) {
@@ -160,6 +193,11 @@ export class FakeGitlab {
           return this.json(400, { message: "exists" });
         if (action.action !== "create" && !exists)
           return this.json(400, { message: "missing" });
+        if (
+          action.last_commit_id &&
+          this.lastCommitFor(head, action.file_path) !== action.last_commit_id
+        )
+          return this.json(400, { message: "changed since" });
         if (action.action === "delete") map.delete(action.file_path);
         else
           map.set(

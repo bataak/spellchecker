@@ -34,6 +34,7 @@ import { KEYS, read, remove, write } from "../core/store.ts";
 import { escapeHtml } from "../core/htmlutil.ts";
 
 const CANCELLED = "Цуцаллаа";
+const COMMITTING = "Commit хийгдэж байна…";
 
 export interface SlotFile {
   readonly id: string;
@@ -133,6 +134,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
   } = deps.store;
   const { editor } = deps;
   let bound = false;
+  let committing = false;
   let boundPath: string | null = null;
   let boundId = 0;
   const places = new Map<string, Place>();
@@ -447,18 +449,29 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
       pushText();
       const view = project();
       let message = "";
-      if (view?.kind === "git") {
-        const asked = await askCommitMessage(commitSuggestion(view.dirty));
-        if (asked === null) return CANCELLED;
-        message = asked;
+      const git = view?.kind === "git";
+      if (git) {
+        if (committing) return COMMITTING;
+        if (!view.unsaved) return saveMessage("clean");
+        committing = true;
       }
       let result: SaveResult;
       try {
+        if (git) {
+          const asked = await askCommitMessage(
+            commitSuggestion(view.dirty),
+            view.provider ?? "github",
+          );
+          if (asked === null) return CANCELLED;
+          message = asked;
+        }
         result = await saveProject(message);
       } catch (error) {
         const text = failureMessage(error, "Хадгалж чадсангүй");
         if (text) deps.notify(escapeHtml(text));
         throw error;
+      } finally {
+        if (git) committing = false;
       }
       if (result === "files") deps.notify(FILES_SAVED_NOTICE);
       return saveMessage(result);

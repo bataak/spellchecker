@@ -1,4 +1,4 @@
-import { ProjectError } from "../projecterror.ts";
+import { AuthError, ProjectError } from "../projecterror.ts";
 import { DEFAULT_HOST, type Fetch, type Provider } from "./githost.ts";
 
 export interface OAuthToken {
@@ -78,23 +78,30 @@ interface DeviceReply {
   readonly interval?: number;
 }
 
+const aborted = (): DOMException => new DOMException("aborted", "AbortError");
+
 const sleep = (ms: number, signal?: AbortSignal): Promise<void> =>
   new Promise((resolve, reject) => {
-    const timer = setTimeout(resolve, ms);
-    signal?.addEventListener(
-      "abort",
-      () => {
-        clearTimeout(timer);
-        reject(new DOMException("aborted", "AbortError"));
-      },
-      { once: true },
-    );
+    if (signal?.aborted) {
+      reject(aborted());
+      return;
+    }
+    const stop = (): void => {
+      clearTimeout(timer);
+      reject(aborted());
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", stop);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", stop, { once: true });
   });
 
 async function postJson<T>(
   fetcher: Fetch,
   url: string,
   body: Record<string, string>,
+  signal?: AbortSignal,
 ): Promise<T> {
   let response: Response;
   try {
@@ -102,10 +109,13 @@ async function postJson<T>(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      ...(signal ? { signal } : {}),
     });
   } catch {
+    signal?.throwIfAborted();
     throw new ProjectError("Нэвтрэх үйлчилгээтэй холбогдож чадсангүй");
   }
+  signal?.throwIfAborted();
   if (!response.ok)
     throw new ProjectError(
       "Нэвтрэх үйлчилгээ алдаа өглөө (" + response.status + ")",
@@ -124,6 +134,7 @@ export async function githubDevice(
     fetcher,
     config.proxy + "/github/device/code",
     { client_id: config.githubClient, scope: "repo" },
+    signal,
   );
   onCode(start.user_code, start.verification_uri);
   let wait = (start.interval ?? 5) * 1000;
@@ -138,6 +149,7 @@ export async function githubDevice(
         device_code: start.device_code,
         grant_type: "urn:ietf:params:oauth:grant-type:device_code",
       },
+      signal,
     );
     if (reply.access_token)
       return {
@@ -183,7 +195,7 @@ async function gitlabToken(
   }
   const reply = (await response.json().catch(() => ({}))) as TokenReply;
   if (!response.ok || !reply.access_token)
-    throw new ProjectError("GitLab-аар нэвтэрч чадсангүй — дахин нэвтэрнэ үү");
+    throw new AuthError("GitLab-аар нэвтэрч чадсангүй — дахин нэвтэрнэ үү");
   return {
     access: reply.access_token,
     verifier,
@@ -284,7 +296,7 @@ export async function refreshed(
 ): Promise<OAuthToken> {
   if (!token.expires || token.expires - 60000 > now()) return token;
   if (!token.refresh)
-    throw new ProjectError("Нэвтрэлтийн хугацаа дууссан — дахин нэвтэрнэ үү");
+    throw new AuthError("Нэвтрэлтийн хугацаа дууссан — дахин нэвтэрнэ үү");
   return gitlabToken(
     host,
     {
