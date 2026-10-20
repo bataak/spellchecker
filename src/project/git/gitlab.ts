@@ -54,10 +54,11 @@ export function createGitlabHost(
       return (await json<{ default_branch: string }>("")).default_branch;
     },
     head,
-    async list(commit) {
+    async list(commit, signal) {
       const entries: TreeEntry[] = [];
       let page: string | null = "1";
       for (let count = 0; page; count++) {
+        signal?.throwIfAborted();
         if (count >= MAX_PAGES)
           throw new ProjectError("Repo хэт том тул бүрэн уншиж чадсангүй");
         const response = await call(
