@@ -15,6 +15,7 @@ import {
   type App,
 } from "./harness.ts";
 import { FakeGithub } from "../helpers/fakegithub.ts";
+import { FakeGitlab, GITLAB_PROJECT } from "../helpers/fakegitlab.ts";
 
 let app: App;
 before(async () => {
@@ -34,6 +35,18 @@ const rows = (page: Page): Promise<string[]> =>
     ),
   );
 
+const openPanel = async (page: Page): Promise<void> => {
+  const local = join(mkdtempSync(join(tmpdir(), "git-e2e-")), "local.tex");
+  writeFileSync(local, MAIN);
+  await openFile(page, local);
+  await page.evaluate(() => {
+    const panel = document.querySelector<HTMLElement>(".project-panel");
+    if (!panel || panel.hidden)
+      document.querySelector<HTMLElement>(".project-toggle")?.click();
+  });
+  await page.locator(".project-open", { hasText: "Git repo-оос нээх" }).click();
+};
+
 const commit = async (page: Page, message?: string): Promise<void> => {
   await page.keyboard.press("Control+s");
   const area = page.locator(".git-panel textarea");
@@ -51,15 +64,7 @@ test("GitHub-аас төсөл нээж, засаад commit хийж, дахи�
   const context = await app.context();
   await github.attach(context);
   const page = await openPage(app, context);
-  const local = join(mkdtempSync(join(tmpdir(), "gh-e2e-")), "local.tex");
-  writeFileSync(local, MAIN);
-  await openFile(page, local);
-  await page.evaluate(() => {
-    const panel = document.querySelector<HTMLElement>(".project-panel");
-    if (!panel || panel.hidden)
-      document.querySelector<HTMLElement>(".project-toggle")?.click();
-  });
-  await page.locator(".project-open", { hasText: "GitHub-аас нээх" }).click();
+  await openPanel(page);
   await page.fill('.git-panel input[name="repo"]', "o/r");
   await page.fill('.git-panel input[name="dir"]', "thesis");
   await page.fill('.git-panel input[name="token"]', "tok");
@@ -116,6 +121,49 @@ test("GitHub-аас төсөл нээж, засаад commit хийж, дахи�
     15000,
   );
   assert.equal(github.branches.get("main"), before);
+  assert.deepEqual(errors(page), []);
+  await context.close();
+});
+
+test("өөрийн GitLab серверээс дэд бүлгийн төсөл нээж commit хийнэ", async () => {
+  const gitlab = new FakeGitlab({
+    "README.md": "readme",
+    "tex/main.tex": MAIN,
+    "tex/ch.tex": "Бүлэг нэг.\n",
+  });
+  const context = await app.context();
+  await gitlab.attach(context);
+  const page = await openPage(app, context);
+  await openPanel(page);
+  await page.selectOption('.git-panel select[name="provider"]', "gitlab");
+  await page.fill('.git-panel input[name="host"]', gitlab.host);
+  await page.fill('.git-panel input[name="repo"]', GITLAB_PROJECT);
+  await page.fill('.git-panel input[name="dir"]', "tex");
+  await page.fill('.git-panel input[name="token"]', "glpat");
+  const help = await page.getAttribute(".git-note a", "href");
+  assert.equal(help, gitlab.host + "/-/user_settings/personal_access_tokens");
+  await page.click(".git-panel .export-confirm");
+  await until(
+    () => rows(page),
+    (paths) => paths.includes("ch.tex"),
+    20000,
+  );
+  await projectFile(page, "ch.tex");
+  await page.evaluate(() => {
+    const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
+    area.focus();
+    area.setSelectionRange(area.value.length, area.value.length);
+  });
+  await page.keyboard.type("GitLab мөр.");
+  await commit(page, "GitLab-д засвар");
+  await until(
+    () => Promise.resolve(gitlab.lastMessage()),
+    (message) => message === "GitLab-д засвар",
+    15000,
+  );
+  assert.ok(gitlab.text("tex/ch.tex")!.includes("GitLab мөр."));
+  assert.equal(gitlab.text("README.md"), "readme");
+  assert.ok(gitlab.tokens.every((token) => token === "Bearer glpat"));
   assert.deepEqual(errors(page), []);
   await context.close();
 });

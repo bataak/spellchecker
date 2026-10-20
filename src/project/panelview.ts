@@ -24,8 +24,8 @@ export function exportTitle(exportedAt: number | null, now: number): string {
 
 export function projectTitle(view: ProjectView | null): string {
   if (!view) return "";
-  if (view.kind === "github")
-    return view.label + " — GitHub repo · Ctrl+S дарахад commit хийнэ";
+  if (view.kind === "git")
+    return view.label + " — git repo · Ctrl+S дарахад commit хийнэ";
   return view.kind === "dir"
     ? view.label + " — дискэн дээрх хавтас"
     : view.label + " — энэ хөтөч дотор хадгалагдана";
@@ -58,7 +58,7 @@ export function emptyMessage(
         ? "Үндсэн файл байгаа дээд хавтсыг сонгоно уу."
         : "Тэр файл байгаа хавтсыг сонгоно уу.")
     );
-  return "LaTeX төслийг хавтас, zip файл эсвэл GitHub-аас нээх боломжтой.";
+  return "LaTeX төслийг хавтас, zip файл эсвэл GitHub, GitLab-аас нээх боломжтой.";
 }
 
 export function treeStamp(

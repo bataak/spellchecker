@@ -1,6 +1,6 @@
 import { failureMessage } from "./projecterror.ts";
 import { initProjectPanel, type ProjectPanel } from "./projectpanel.ts";
-import { askCommitMessage } from "./github/gitdialog.ts";
+import { askCommitMessage } from "./git/gitdialog.ts";
 import {
   confirmClose,
   confirmReplace,
@@ -443,7 +443,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
       pushText();
       const view = project();
       let message = "";
-      if (view?.kind === "github") {
+      if (view?.kind === "git") {
         const asked = await askCommitMessage(commitSuggestion(view.dirty));
         if (asked === null) return CANCELLED;
         message = asked;

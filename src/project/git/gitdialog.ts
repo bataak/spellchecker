@@ -1,15 +1,21 @@
 import { ProjectError } from "../projecterror.ts";
-import { parseRepo, type RepoSpec } from "./gitapi.ts";
+import {
+  DEFAULT_HOST,
+  cleanHost,
+  PROVIDER_NAME,
+  parseRepo,
+  type Provider,
+  type RepoSpec,
+} from "./githost.ts";
 import type { RepoFields } from "./gitsession.ts";
-
-const TOKEN_URL = "https://github.com/settings/personal-access-tokens/new";
 
 interface Field {
   readonly name: string;
   readonly label: string;
   readonly value?: string;
   readonly placeholder?: string;
-  readonly kind?: "text" | "password" | "area";
+  readonly kind?: "text" | "password" | "area" | "select";
+  readonly options?: readonly (readonly [string, string])[];
 }
 
 interface Form {
@@ -17,9 +23,28 @@ interface Form {
   readonly fields: readonly Field[];
   readonly confirm: string;
   readonly note?: Node;
+  readonly onChange?: (
+    values: Record<string, string>,
+    panel: HTMLElement,
+  ) => void;
 }
 
-function input(field: Field): HTMLInputElement | HTMLTextAreaElement {
+type Control = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+
+function input(field: Field): Control {
+  if (field.kind === "select") {
+    const select = document.createElement("select");
+    select.className = "export-name git-input";
+    select.name = field.name;
+    for (const [value, label] of field.options ?? []) {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      select.append(option);
+    }
+    select.value = field.value ?? "";
+    return select;
+  }
   const control =
     field.kind === "area"
       ? document.createElement("textarea")
@@ -83,6 +108,15 @@ function showForm<T>(
     overlay.append(panel);
     document.body.append(overlay);
 
+    const values = (): Record<string, string> =>
+      Object.fromEntries(
+        controls.map((control) => [control.name, control.value]),
+      );
+    if (form.onChange) {
+      const changed = form.onChange;
+      panel.addEventListener("input", () => changed(values(), panel));
+      changed(values(), panel);
+    }
     const finish = (value: T | null): void => {
       overlay.remove();
       restore?.focus({ preventScroll: true });
@@ -90,11 +124,8 @@ function showForm<T>(
     };
     panel.addEventListener("submit", (event) => {
       event.preventDefault();
-      const values = Object.fromEntries(
-        controls.map((control) => [control.name, control.value]),
-      );
       try {
-        finish(read(values));
+        finish(read(values()));
       } catch (problem) {
         error.textContent =
           problem instanceof ProjectError ? problem.message : String(problem);
@@ -122,41 +153,96 @@ function showForm<T>(
   });
 }
 
-function tokenNote(): HTMLElement {
-  const note = document.createElement("p");
-  note.className = "git-note";
+const TOKEN_HELP: Readonly<
+  Record<Provider, { path: string; link: string; rest: string }>
+> = {
+  github: {
+    path: "/settings/personal-access-tokens/new",
+    link: "Fine-grained token үүсгэх",
+    rest: " — зөвхөн энэ repo-г сонгож, Contents эрхийг «Read and write» болгоно.",
+  },
+  gitlab: {
+    path: "/-/user_settings/personal_access_tokens",
+    link: "Personal access token үүсгэх",
+    rest: " — «api» эрх сонгоно. Эсвэл зөвхөн энэ төсөлд Project access token үүсгэнэ.",
+  },
+};
+
+function tokenUrl(provider: Provider, host: string): string {
+  return (host || DEFAULT_HOST[provider]) + TOKEN_HELP[provider].path;
+}
+
+function paintNote(note: HTMLElement, provider: Provider, host: string): void {
+  const help = TOKEN_HELP[provider];
   const link = document.createElement("a");
-  link.href = TOKEN_URL;
+  link.href = tokenUrl(provider, host.trim().replace(/\/+$/, ""));
   link.target = "_blank";
   link.rel = "noopener noreferrer";
-  link.textContent = "Fine-grained token үүсгэх";
-  note.append(
+  link.textContent = help.link;
+  note.replaceChildren(
     link,
-    " — зөвхөн энэ repo-г сонгож, Contents эрхийг «Read and write» болгоно. Token зөвхөн энэ хөтөчид хадгалагдана.",
+    help.rest + " Token зөвхөн энэ хөтөчид хадгалагдана.",
   );
-  return note;
 }
+
+const providerOf = (value: string | undefined): Provider =>
+  value === "gitlab" ? "gitlab" : "github";
 
 export interface RepoChoice {
   readonly spec: RepoSpec;
   readonly token: string;
+  readonly host: string;
 }
 
 export function askRepo(
   initial: RepoFields,
-  savedToken: string | null,
+  savedToken: (provider: Provider, host: string) => string | null,
 ): Promise<RepoChoice | null> {
+  const note = document.createElement("p");
+  note.className = "git-note";
   return showForm(
     {
-      title: "GitHub-аас төсөл нээх",
+      title: "Git repo-оос төсөл нээх",
       confirm: "Нээх",
-      note: tokenNote(),
+      note,
+      onChange: (values, panel) => {
+        const provider = providerOf(values.provider);
+        const host = values.host ?? "";
+        paintNote(note, provider, host);
+        const repo = panel.querySelector<HTMLInputElement>('[name="repo"]');
+        if (repo)
+          repo.placeholder =
+            provider === "gitlab" ? "бүлэг/төсөл" : "bataak/thesis";
+        const hostInput =
+          panel.querySelector<HTMLInputElement>('[name="host"]');
+        if (hostInput) hostInput.placeholder = DEFAULT_HOST[provider];
+        const token = panel.querySelector<HTMLInputElement>('[name="token"]');
+        if (token)
+          token.placeholder = savedToken(provider, cleanHost(host, provider))
+            ? "Хадгалсан token-ыг ашиглана"
+            : provider === "gitlab"
+              ? "glpat-…"
+              : "github_pat_…";
+      },
       fields: [
         {
+          name: "provider",
+          label: "Үйлчилгээ",
+          kind: "select",
+          value: initial.provider,
+          options: (["github", "gitlab"] as const).map(
+            (provider) => [provider, PROVIDER_NAME[provider]] as const,
+          ),
+        },
+        {
+          name: "host",
+          label: "Сервер — хоосон бол github.com / gitlab.com",
+          value: initial.host,
+        },
+        {
           name: "repo",
-          label: "Repo — эзэн/нэр эсвэл GitHub хаяг",
+          label: "Repo — нэр эсвэл хаяг",
           value: initial.repo,
-          placeholder: "bataak/thesis",
         },
         {
           name: "branch",
@@ -168,25 +254,20 @@ export function askRepo(
           label: "Хавтас — хоосон бол repo бүхэлдээ",
           value: initial.dir,
         },
-        {
-          name: "token",
-          label: "Token",
-          kind: "password",
-          placeholder: savedToken
-            ? "Хадгалсан token-ыг ашиглана"
-            : "github_pat_…",
-        },
+        { name: "token", label: "Token", kind: "password" },
       ],
     },
     (values) => {
-      const spec = parseRepo(
-        values.repo ?? "",
-        values.branch ?? "",
-        values.dir ?? "",
-      );
-      const token = (values.token ?? "").trim() || savedToken;
+      const provider = providerOf(values.provider);
+      const spec = parseRepo(provider, values.repo ?? "", {
+        branch: values.branch ?? "",
+        dir: values.dir ?? "",
+        host: values.host ?? "",
+      });
+      const token =
+        (values.token ?? "").trim() || savedToken(provider, spec.host);
       if (!token) throw new ProjectError("Token оруулна уу");
-      return { spec, token };
+      return { spec, token, host: (values.host ?? "").trim() };
     },
   );
 }

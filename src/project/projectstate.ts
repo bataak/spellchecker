@@ -1,5 +1,5 @@
 import { decodeFileBytes } from "../archive/cp1251.ts";
-import type { GitRemote } from "./github/gitsync.ts";
+import type { GitRemote } from "./git/gitsync.ts";
 import {
   findMain,
   isEditablePath,
@@ -8,7 +8,7 @@ import {
   within,
 } from "../tex/texproject.ts";
 
-export type ProjectKind = "dir" | "folder" | "memory" | "github";
+export type ProjectKind = "dir" | "folder" | "memory" | "git";
 
 export interface Meta {
   readonly kind: ProjectKind;

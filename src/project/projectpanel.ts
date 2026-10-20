@@ -15,8 +15,8 @@ import {
 import { createProjectMenu } from "./projectmenu.ts";
 import { createTreeState, initTreeControl } from "./treecontrol.ts";
 import { treeRows } from "./treerows.ts";
-import { askRepo } from "./github/gitdialog.ts";
-import { githubToken, lastRepo, openRepo } from "./github/gitsession.ts";
+import { askRepo } from "./git/gitdialog.ts";
+import { lastRepo, openRepo, savedToken } from "./git/gitsession.ts";
 
 const PEEK_MS = 5000;
 
@@ -58,7 +58,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     grantProject,
     onProjectChange,
     openZip,
-    openGithub,
+    openGitRepo,
     exportZip,
     pickFolder,
     refreshProject,
@@ -80,7 +80,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     emptyText,
     folderBtn,
     zipBtn,
-    githubBtn,
+    gitBtn,
     grantBtn,
     forgetBtn,
     zipInput,
@@ -318,15 +318,17 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
     if (!deps.beforeOpen()) return;
     zipInput.click();
   });
-  githubBtn.addEventListener("click", () => {
+  gitBtn.addEventListener("click", () => {
     if (!deps.beforeOpen()) return;
     void (async () => {
-      const choice = await askRepo(lastRepo(), githubToken());
+      const choice = await askRepo(lastRepo(), (provider, host) =>
+        savedToken({ provider, host }),
+      );
       if (!choice) return;
-      deps.notify("GitHub-аас уншиж байна…");
+      deps.notify("Repo-оос уншиж байна…");
       await run(async () => {
         const prefer = deps.openedFile()?.name;
-        openGithub(await openRepo(choice.spec, choice.token));
+        openGitRepo(await openRepo(choice.spec, choice.token, choice.host));
         opened(prefer);
       });
     })();

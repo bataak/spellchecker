@@ -1,21 +1,14 @@
 import { ProjectError } from "../projecterror.ts";
-
-const API = "https://api.github.com";
-
-export interface RepoSpec {
-  readonly owner: string;
-  readonly repo: string;
-  readonly branch: string | null;
-  readonly dir: string;
-}
-
-export interface TreeEntry {
-  readonly path: string;
-  readonly mode: string;
-  readonly type: string;
-  readonly sha: string;
-  readonly size?: number;
-}
+import {
+  RACE,
+  fromBase64,
+  inBatches,
+  request,
+  toBase64,
+  type Fetch,
+  type GitHost,
+  type TreeEntry,
+} from "./githost.ts";
 
 export interface TreeChange {
   readonly path: string;
@@ -35,80 +28,37 @@ export interface GitApi {
   moveBranch(branch: string, commit: string): Promise<boolean>;
 }
 
-export type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
-
-export function parseRepo(input: string, branch = "", dir = ""): RepoSpec {
-  const text = input.trim().replace(/\.git$/, "");
-  const url =
-    /^(?:https?:\/\/)?(?:www\.)?github\.com\/([^/\s]+)\/([^/\s]+)(?:\/tree\/([^/\s]+)(?:\/(.+))?)?\/?$/.exec(
-      text,
-    );
-  const short = /^([\w.-]+)\/([\w.-]+)$/.exec(text);
-  const match = url ?? short;
-  if (!match) throw new ProjectError("Repo-г «эзэн/нэр» хэлбэрээр бичнэ үү");
-  const pickedBranch = branch.trim() || (url?.[3] ?? "");
-  const pickedDir = (dir.trim() || (url?.[4] ?? "")).replace(/^\/+|\/+$/g, "");
-  return {
-    owner: match[1]!,
-    repo: match[2]!,
-    branch: pickedBranch || null,
-    dir: pickedDir,
-  };
-}
-
-export function toBase64(bytes: Uint8Array): string {
-  let binary = "";
-  const step = 0x8000;
-  for (let i = 0; i < bytes.length; i += step)
-    binary += String.fromCharCode(...bytes.subarray(i, i + step));
-  return btoa(binary);
-}
-
-export function fromBase64(text: string): Uint8Array {
-  const binary = atob(text.replace(/\s/g, ""));
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
+export function githubApiBase(host: string): string {
+  return /^https?:\/\/(www\.)?github\.com$/.test(host)
+    ? "https://api.github.com"
+    : host + "/api/v3";
 }
 
 function refPath(branch: string): string {
   return branch.split("/").map(encodeURIComponent).join("/");
 }
 
-function failure(status: number): ProjectError {
-  if (status === 401)
-    return new ProjectError(
-      "GitHub token буруу эсвэл хугацаа нь дууссан байна",
-    );
-  if (status === 403)
-    return new ProjectError(
-      "GitHub хандалтыг хориглолоо: token-д Contents эрх өгсөн эсэхийг шалгана уу",
-    );
-  if (status === 404)
-    return new ProjectError("Repo, салбар эсвэл хавтас олдсонгүй");
-  return new ProjectError("GitHub-тай холбогдож чадсангүй (" + status + ")");
-}
-
 export function createGitApi(
   token: string,
-  spec: Pick<RepoSpec, "owner" | "repo">,
+  host: string,
+  project: string,
   fetcher: Fetch = (url, init) => fetch(url, init),
 ): GitApi {
   const base =
-    API +
+    githubApiBase(host) +
     "/repos/" +
-    encodeURIComponent(spec.owner) +
-    "/" +
-    encodeURIComponent(spec.repo);
+    project.split("/").map(encodeURIComponent).join("/");
 
   const call = async <T>(
     path: string,
     init: { method?: string; body?: unknown } = {},
     allow: readonly number[] = [],
   ): Promise<{ status: number; data: T | null }> => {
-    let response: Response;
-    try {
-      response = await fetcher(base + path, {
+    const response = await request(
+      "github",
+      fetcher,
+      base + path,
+      {
         method: init.method ?? "GET",
         headers: {
           Accept: "application/vnd.github+json",
@@ -117,13 +67,11 @@ export function createGitApi(
           ...(init.body ? { "Content-Type": "application/json" } : {}),
         },
         ...(init.body ? { body: JSON.stringify(init.body) } : {}),
-      });
-    } catch {
-      throw new ProjectError("GitHub-тай холбогдож чадсангүй");
-    }
+      },
+      allow,
+    );
     if (allow.includes(response.status))
       return { status: response.status, data: null };
-    if (!response.ok) throw failure(response.status);
     return { status: response.status, data: (await response.json()) as T };
   };
 
@@ -200,6 +148,39 @@ export function createGitApi(
         [409, 422],
       );
       return status !== 409 && status !== 422;
+    },
+  };
+}
+
+export function githubHost(api: GitApi): GitHost {
+  return {
+    defaultBranch: () => api.defaultBranch(),
+    head: (branch) => api.head(branch),
+    async list(commit) {
+      const tree = await api.commitTree(commit);
+      return { tree, entries: await api.tree(tree) };
+    },
+    blob: (sha) => api.blob(sha),
+    async commit(input) {
+      const shas = await inBatches(input.writes, (write) =>
+        api.createBlob(write.bytes),
+      );
+      const tree = await api.createTree(input.tree, [
+        ...input.writes.map((write, index) => ({
+          path: write.path,
+          mode: write.mode,
+          sha: shas[index]!,
+        })),
+        ...input.deletes.map((del) => ({
+          path: del.path,
+          mode: del.mode,
+          sha: null,
+        })),
+      ]);
+      const head = await api.createCommit(input.message, tree, input.head);
+      if (!(await api.moveBranch(input.branch, head)))
+        throw new ProjectError(RACE);
+      return { head, tree };
     },
   };
 }
