@@ -202,7 +202,10 @@ body {
 main {
   max-width: var(--page-max);
   margin: 0 auto;
-  padding: max(clamp(12px, 2.5vw, 24px), env(safe-area-inset-top))
+  padding: max(
+      clamp(12px, 2.5vw, 24px),
+      env(safe-area-inset-top) + min(env(safe-area-inset-top) * 100, 24px)
+    )
     max(20px, env(safe-area-inset-right))
     calc(14px + env(safe-area-inset-bottom))
     max(20px, env(safe-area-inset-left));
