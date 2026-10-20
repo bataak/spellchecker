@@ -9,7 +9,7 @@ const SAVE_MESSAGES: Record<SaveResult, string> = {
   downloaded: "Архивлалаа",
   files: "Засварласан файлуудыг татлаа",
   saved: "Хадгаллаа",
-  committed: "GitHub-д commit хийлээ",
+  committed: "Commit хийлээ",
   clean: "Өөрчлөлт алга",
 };
 

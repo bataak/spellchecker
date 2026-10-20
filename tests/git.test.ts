@@ -2,19 +2,25 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   createGitApi,
+  githubHost,
+  type GitApi,
+  type TreeChange,
+} from "../src/project/git/github.ts";
+import { createGitlabHost } from "../src/project/git/gitlab.ts";
+import {
   fromBase64,
   parseRepo,
   toBase64,
-  type GitApi,
-  type TreeChange,
+  type GitHost,
   type TreeEntry,
-} from "../src/project/github/gitapi.ts";
+} from "../src/project/git/githost.ts";
 import {
   commitChanges,
   gitBlobSha,
   loadRepo,
   planChanges,
-} from "../src/project/github/gitsync.ts";
+} from "../src/project/git/gitsync.ts";
+import { FakeGitlab, GITLAB_PROJECT } from "./helpers/fakegitlab.ts";
 import { newState } from "../src/project/projectstate.ts";
 import { moveEntries, putFile } from "../src/project/projectedit.ts";
 import { ProjectError } from "../src/project/projecterror.ts";
@@ -151,34 +157,75 @@ const MAIN =
   "\\documentclass{article}\n\\begin{document}\nСайн\n\\end{document}\n";
 
 const open = async (repo: FakeRepo, dir = "") => {
-  const loaded = await loadRepo(repo, {
-    owner: "o",
-    repo: "r",
+  const loaded = await loadRepo(githubHost(repo), {
+    provider: "github",
+    host: "https://github.com",
+    project: "o/r",
     branch: null,
     dir,
   });
-  const s = newState(1, "github", loaded.name, null, loaded.files, loaded.dirs);
+  const s = newState(1, "git", loaded.name, null, loaded.files, loaded.dirs);
   return { s, remote: loaded.remote };
 };
 
-test("parseRepo: эзэн/нэр болон GitHub хаягийг задлана", () => {
-  assert.deepEqual(parseRepo("bataak/thesis"), {
-    owner: "bataak",
-    repo: "thesis",
+test("parseRepo: GitHub-ийн нэр болон хаягийг задлана", () => {
+  assert.deepEqual(parseRepo("github", "bataak/thesis"), {
+    provider: "github",
+    host: "https://github.com",
+    project: "bataak/thesis",
     branch: null,
     dir: "",
   });
   assert.deepEqual(
-    parseRepo("https://github.com/bataak/thesis/tree/dev/chapters/one/"),
-    { owner: "bataak", repo: "thesis", branch: "dev", dir: "chapters/one" },
+    parseRepo(
+      "github",
+      "https://github.com/bataak/thesis/tree/dev/chapters/one/",
+    ),
+    {
+      provider: "github",
+      host: "https://github.com",
+      project: "bataak/thesis",
+      branch: "dev",
+      dir: "chapters/one",
+    },
   );
-  assert.deepEqual(parseRepo("github.com/a/b.git", "x", "/d/"), {
-    owner: "a",
-    repo: "b",
-    branch: "x",
-    dir: "d",
+  assert.deepEqual(
+    parseRepo("github", "github.com/a/b.git", { branch: "x", dir: "/d/" }),
+    {
+      provider: "github",
+      host: "https://github.com",
+      project: "a/b",
+      branch: "x",
+      dir: "d",
+    },
+  );
+  assert.equal(
+    parseRepo("github", "a/b", { host: "git.corp.mn/" }).host,
+    "https://git.corp.mn",
+  );
+  assert.throws(() => parseRepo("github", "thesis"), ProjectError);
+  assert.throws(() => parseRepo("github", "a/b/c"), ProjectError);
+});
+
+test("parseRepo: GitLab-ийн дэд бүлэг, өөрийн сервер болон хаягийг задлана", () => {
+  assert.deepEqual(parseRepo("gitlab", "group/sub/thesis"), {
+    provider: "gitlab",
+    host: "https://gitlab.com",
+    project: "group/sub/thesis",
+    branch: null,
+    dir: "",
   });
-  assert.throws(() => parseRepo("thesis"), ProjectError);
+  assert.deepEqual(
+    parseRepo("gitlab", "https://gitlab.num.edu.mn/lab/thesis/-/tree/main/tex"),
+    {
+      provider: "gitlab",
+      host: "https://gitlab.num.edu.mn",
+      project: "lab/thesis",
+      branch: "main",
+      dir: "tex",
+    },
+  );
+  assert.throws(() => parseRepo("gitlab", "thesis"), ProjectError);
 });
 
 test("base64: кирилл болон бинар өгөгдлийг алдагдуулахгүй", () => {
@@ -238,7 +285,7 @@ test("commitChanges: өөрчлөлтийг нэг commit болгож салб�
   const { s, remote } = await open(repo);
   s.texts.set("a.tex", "А шинэ");
   putFile(s, "b.tex", encode("Б"));
-  const done = await commitChanges(repo, s, remote, "Засвар");
+  const done = await commitChanges(githubHost(repo), s, remote, "Засвар");
   assert.ok(done);
   assert.equal(done.pulled, false);
   assert.equal(repo.text("a.tex"), "А шинэ");
@@ -247,7 +294,10 @@ test("commitChanges: өөрчлөлтийг нэг commit болгож салб�
   assert.equal(done.remote.head, repo.branches.get("main"));
   assert.equal(s.dirty.size, 0);
   assert.equal(s.unsynced, false);
-  assert.equal(await commitChanges(repo, s, done.remote, "дахин"), null);
+  assert.equal(
+    await commitChanges(githubHost(repo), s, done.remote, "дахин"),
+    null,
+  );
 });
 
 test("commitChanges: repo дээрх давхцахгүй өөрчлөлтийг татаад дээр нь commit хийнэ", async () => {
@@ -259,7 +309,7 @@ test("commitChanges: repo дээрх давхцахгүй өөрчлөлтийг
   const { s, remote } = await open(repo);
   await repo.push({ "b.tex": "Б бусдын", "c.tex": "В бусдын" });
   s.texts.set("a.tex", "А миний");
-  const done = await commitChanges(repo, s, remote, "Миний засвар");
+  const done = await commitChanges(githubHost(repo), s, remote, "Миний засвар");
   assert.ok(done);
   assert.equal(done.pulled, true);
   assert.equal(repo.text("a.tex"), "А миний");
@@ -276,7 +326,7 @@ test("commitChanges: ижил файлыг хоёр талаас өөрчилс�
   const before = repo.branches.get("main");
   s.texts.set("a.tex", "А миний");
   await assert.rejects(
-    commitChanges(repo, s, remote, "x"),
+    commitChanges(githubHost(repo), s, remote, "x"),
     (error: unknown) =>
       error instanceof ProjectError && /a\.tex/.test(error.message),
   );
@@ -289,14 +339,17 @@ test("commitChanges: салбар яг тэр мөчид шилжвэл алда
   const { s, remote } = await open(repo);
   s.texts.set("a.tex", "А миний");
   repo.race = true;
-  await assert.rejects(commitChanges(repo, s, remote, "x"), ProjectError);
+  await assert.rejects(
+    commitChanges(githubHost(repo), s, remote, "x"),
+    ProjectError,
+  );
   assert.equal(s.saved.get("a.tex"), "А");
   assert.equal(s.texts.get("a.tex"), "А миний");
 });
 
 test("createGitApi: token-тойгоор зөв хаяг руу хандаж, алдааг ойлгомжтой болгоно", async () => {
   const calls: { url: string; init: RequestInit | undefined }[] = [];
-  const api = createGitApi("tok", { owner: "o", repo: "r" }, (url, init) => {
+  const api = createGitApi("tok", "https://github.com", "o/r", (url, init) => {
     calls.push({ url, init });
     if (url.endsWith("/git/ref/heads/feature/x"))
       return Promise.resolve(Response.json({ object: { sha: "abc" } }));
@@ -308,4 +361,88 @@ test("createGitApi: token-тойгоор зөв хаяг руу хандаж, а
     "Bearer tok",
   );
   await assert.rejects(api.defaultBranch(), /token буруу/);
+});
+
+test("createGitApi: GitHub Enterprise серверт /api/v3 хаягаар хандана", async () => {
+  const urls: string[] = [];
+  const api = createGitApi("tok", "https://git.corp.mn", "o/r", (url) => {
+    urls.push(url);
+    return Promise.resolve(Response.json({ default_branch: "main" }));
+  });
+  await api.defaultBranch();
+  assert.equal(urls[0], "https://git.corp.mn/api/v3/repos/o/r");
+});
+
+const gitlab = (repo: FakeGitlab): GitHost =>
+  createGitlabHost("glpat", repo.host, GITLAB_PROJECT, repo.fetch);
+
+const openGitlab = async (repo: FakeGitlab, dir = "") => {
+  const loaded = await loadRepo(gitlab(repo), {
+    provider: "gitlab",
+    host: repo.host,
+    project: GITLAB_PROJECT,
+    branch: null,
+    dir,
+  });
+  const s = newState(1, "git", loaded.name, null, loaded.files, loaded.dirs);
+  return { s, remote: loaded.remote };
+};
+
+test("GitLab: хуудаслагдсан модыг бүрэн уншиж, дэд хавтсаар шүүнэ", async () => {
+  const repo = new FakeGitlab({
+    "README.md": "readme",
+    "tex/main.tex": MAIN,
+    "tex/ch/one.tex": "Нэг",
+    "tex/img.png": "PNG",
+  });
+  const { s, remote } = await openGitlab(repo, "tex");
+  assert.ok(repo.pages.length > 2);
+  assert.equal(s.name, "tex");
+  assert.deepEqual([...s.texts.keys()].sort(), ["ch/one.tex", "main.tex"]);
+  assert.deepEqual([...s.binaries.keys()], ["img.png"]);
+  assert.equal(remote.provider, "gitlab");
+  assert.equal(remote.tree, remote.head);
+  assert.ok(repo.tokens.every((token) => token === "Bearer glpat"));
+});
+
+test("GitLab: засах, нэмэх, устгах, нэр солихыг нэг commit болгоно", async () => {
+  const repo = new FakeGitlab({
+    "tex/main.tex": MAIN,
+    "tex/a.tex": "А",
+    "tex/b.tex": "Б",
+  });
+  const { s, remote } = await openGitlab(repo, "tex");
+  s.texts.set("a.tex", "А шинэ");
+  putFile(s, "c.tex", encode("В"));
+  moveEntries(s, "b.tex", "d.tex");
+  const done = await commitChanges(gitlab(repo), s, remote, "GitLab засвар");
+  assert.ok(done);
+  assert.equal(repo.text("tex/a.tex"), "А шинэ");
+  assert.equal(repo.text("tex/c.tex"), "В");
+  assert.equal(repo.text("tex/d.tex"), "Б");
+  assert.equal(repo.text("tex/b.tex"), undefined);
+  assert.equal(repo.lastMessage(), "GitLab засвар");
+  assert.equal(done.remote.head, repo.branches.get("main"));
+  assert.equal(await commitChanges(gitlab(repo), s, done.remote, "x"), null);
+});
+
+test("GitLab: бусдын давхцахгүй өөрчлөлтийг татаж, давхцахыг зогсооно", async () => {
+  const repo = new FakeGitlab({ "main.tex": MAIN, "a.tex": "А", "b.tex": "Б" });
+  const first = await openGitlab(repo);
+  repo.push({ "b.tex": "Б бусдын" });
+  first.s.texts.set("a.tex", "А миний");
+  const done = await commitChanges(gitlab(repo), first.s, first.remote, "м");
+  assert.ok(done?.pulled);
+  assert.equal(first.s.texts.get("b.tex"), "Б бусдын");
+  assert.equal(repo.text("a.tex"), "А миний");
+
+  const second = await openGitlab(repo);
+  repo.push({ "a.tex": "А бусдын дахин" });
+  second.s.texts.set("a.tex", "А зөрчил");
+  const before = repo.branches.get("main");
+  await assert.rejects(
+    commitChanges(gitlab(repo), second.s, second.remote, "x"),
+    /a\.tex/,
+  );
+  assert.equal(repo.branches.get("main"), before);
 });

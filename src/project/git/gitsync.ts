@@ -15,9 +15,14 @@ import {
   recountDirty,
   type State,
 } from "../projectstate.ts";
-import type { GitApi, RepoSpec, TreeChange, TreeEntry } from "./gitapi.ts";
+import {
+  inBatches,
+  type GitHost,
+  type Provider,
+  type RepoSpec,
+  type TreeEntry,
+} from "./githost.ts";
 
-const PARALLEL = 6;
 const FILE_MODE = "100644";
 
 export interface RemoteFile {
@@ -26,8 +31,9 @@ export interface RemoteFile {
 }
 
 export interface GitRemote {
-  readonly owner: string;
-  readonly repo: string;
+  readonly provider: Provider;
+  readonly host: string;
+  readonly project: string;
   readonly branch: string;
   readonly dir: string;
   readonly head: string;
@@ -45,24 +51,6 @@ export interface LoadedRepo {
 export interface Plan {
   readonly writes: readonly [string, Uint8Array][];
   readonly deletes: readonly string[];
-}
-
-async function inBatches<T, R>(
-  items: readonly T[],
-  run: (item: T) => Promise<R>,
-): Promise<R[]> {
-  const out: R[] = new Array<R>(items.length);
-  let next = 0;
-  const worker = async (): Promise<void> => {
-    while (next < items.length) {
-      const index = next++;
-      out[index] = await run(items[index]!);
-    }
-  };
-  await Promise.all(
-    Array.from({ length: Math.min(PARALLEL, items.length) }, worker),
-  );
-  return out;
 }
 
 export async function gitBlobSha(bytes: Uint8Array): Promise<string> {
@@ -108,13 +96,12 @@ export function remoteFiles(
 }
 
 export async function loadRepo(
-  api: GitApi,
+  api: GitHost,
   spec: RepoSpec,
 ): Promise<LoadedRepo> {
   const branch = spec.branch ?? (await api.defaultBranch());
   const head = await api.head(branch);
-  const tree = await api.commitTree(head);
-  const entries = await api.tree(tree);
+  const { tree, entries } = await api.list(head);
   const { files, dirs } = remoteFiles(spec, entries);
   const paths = Object.keys(files);
   if (!paths.length) throw new ProjectError("Сонгосон хавтаст файл олдсонгүй");
@@ -123,12 +110,13 @@ export async function loadRepo(
   for (const path of paths) limit.take(sizes.get(repoPath(spec, path)) ?? 0);
   const bytes = await inBatches(paths, (path) => api.blob(files[path]!.sha));
   return {
-    name: spec.dir ? baseName(spec.dir) : spec.repo,
+    name: baseName(spec.dir || spec.project),
     files: paths.map((path, index) => [path, bytes[index]!]),
     dirs,
     remote: {
-      owner: spec.owner,
-      repo: spec.repo,
+      provider: spec.provider,
+      host: spec.host,
+      project: spec.project,
       branch,
       dir: spec.dir,
       head,
@@ -179,14 +167,15 @@ function applyRemoteFile(
 }
 
 async function catchUp(
-  api: GitApi,
+  api: GitHost,
   s: State,
   remote: GitRemote,
   plan: Plan,
   head: string,
 ): Promise<GitRemote> {
-  const tree = await api.commitTree(head);
-  const { files, dirs } = remoteFiles(remote, await api.tree(tree));
+  const listing = await api.list(head);
+  const tree = listing.tree;
+  const { files, dirs } = remoteFiles(remote, listing.entries);
   const changed = [
     ...new Set([...Object.keys(files), ...Object.keys(remote.files)]),
   ].filter((path) => files[path]?.sha !== remote.files[path]?.sha);
@@ -214,7 +203,7 @@ export interface CommitOutcome {
 }
 
 export async function commitChanges(
-  api: GitApi,
+  api: GitHost,
   s: State,
   remote: GitRemote,
   message: string,
@@ -228,27 +217,23 @@ export async function commitChanges(
     base = await catchUp(api, s, remote, plan, head);
     plan = await planChanges(s, base);
   }
-  const shas = await inBatches(plan.writes, ([, bytes]) =>
-    api.createBlob(bytes),
-  );
-  const changes: TreeChange[] = [
-    ...plan.writes.map(([path], index) => ({
+  const shas = await inBatches(plan.writes, ([, bytes]) => gitBlobSha(bytes));
+  const done = await api.commit({
+    branch: base.branch,
+    head: base.head,
+    tree: base.tree,
+    message,
+    writes: plan.writes.map(([path, bytes]) => ({
       path: repoPath(base, path),
       mode: base.files[path]?.mode ?? FILE_MODE,
-      sha: shas[index]!,
+      bytes,
+      exists: base.files[path] !== undefined,
     })),
-    ...plan.deletes.map((path) => ({
+    deletes: plan.deletes.map((path) => ({
       path: repoPath(base, path),
       mode: base.files[path]!.mode,
-      sha: null,
     })),
-  ];
-  const tree = await api.createTree(base.tree, changes);
-  const commit = await api.createCommit(message, tree, base.head);
-  if (!(await api.moveBranch(base.branch, commit)))
-    throw new ProjectError(
-      "Repo дээр яг одоо шинэ өөрчлөлт орлоо — дахин хадгална уу",
-    );
+  });
   const files: Record<string, RemoteFile> = { ...base.files };
   plan.writes.forEach(([path], index) => {
     files[path] = {
@@ -262,5 +247,8 @@ export async function commitChanges(
   s.fresh.clear();
   s.unsynced = false;
   recountDirty(s);
-  return { remote: { ...base, head: commit, tree, files }, pulled };
+  return {
+    remote: { ...base, head: done.head, tree: done.tree, files },
+    pulled,
+  };
 }

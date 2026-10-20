@@ -39,8 +39,8 @@ import {
   writeChanged,
   zipOf,
 } from "./projectsave.ts";
-import { commitState } from "./github/gitsession.ts";
-import type { LoadedRepo } from "./github/gitsync.ts";
+import { commitState } from "./git/gitsession.ts";
+import type { LoadedRepo } from "./git/gitsync.ts";
 import {
   pickDirectoryFiles,
   readFileList,
@@ -123,7 +123,7 @@ export function createProjectStore() {
       unsaved:
         dirty.size > 0 ||
         s.fresh.size > 0 ||
-        ((s.kind === "memory" || s.kind === "github") && s.unsynced),
+        ((s.kind === "memory" || s.kind === "git") && s.unsynced),
       pending: s.pending,
       version: s.version,
       exportedAt: s.exportedAt,
@@ -286,8 +286,8 @@ export function createProjectStore() {
     adopt(fromLoaded("memory", await readZip(file)));
   }
 
-  function openGithub(loaded: LoadedRepo): void {
-    const next = fromLoaded("github", loaded);
+  function openGitRepo(loaded: LoadedRepo): void {
+    const next = fromLoaded("git", loaded);
     next.remote = loaded.remote;
     adopt(next);
   }
@@ -501,7 +501,7 @@ export function createProjectStore() {
 
   async function saveProject(message = ""): Promise<SaveResult> {
     const s = requireState();
-    if (s.kind === "github") {
+    if (s.kind === "git") {
       if (!(await commitState(s, message))) return "clean";
       changed(true);
       return "committed";
@@ -556,7 +556,7 @@ export function createProjectStore() {
     openDirHandle,
     pickFolder,
     openZip,
-    openGithub,
+    openGitRepo,
     restoreProject,
     grantProject,
     closeProject,
