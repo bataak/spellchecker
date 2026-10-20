@@ -83,7 +83,7 @@ export function initTexQuotes(deps: TexQuotesDeps): void {
   });
 
   editor.addEventListener("keydown", (event) => {
-    if (event.key !== "Backspace") last = null;
+    if (event.key !== "Backspace" && !event.defaultPrevented) last = null;
   });
   editor.addEventListener("pointerdown", () => {
     last = null;

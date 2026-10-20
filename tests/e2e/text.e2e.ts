@@ -184,40 +184,42 @@ test("гараар зассан алдаатай үгийг бусад давт�
   assert.deepEqual(errors(page), []);
 });
 
-test(
-  "LaTeX-д ЬЬ ба ВВ-г шууд « » болгож, Backspace дарвал буцаана",
-  { skip: FIREFOX && "Playwright Firefox кирилл үсгийг IME-ээр оруулдаг" },
-  async () => {
-    const page = await openPage(app, await app.context());
-    await chooseSlot(page, "Судалгаа");
-    await page.evaluate(() => {
+test("LaTeX-д монгол байрлалын ьь ба вв-г шууд « » болгож, Backspace дарвал буцаана", async () => {
+  const context = await app.context();
+  await context.addInitScript(() =>
+    localStorage.setItem("keyboard-layout", "mn"),
+  );
+  const page = await openPage(app, context);
+  await chooseSlot(page, "Судалгаа");
+  await page.evaluate(() => {
+    const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
+    area.value =
+      "\\documentclass{article}\n\\begin{document}\nБ:\n\\end{document}\n";
+    area.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    area.focus();
+    const at = area.value.indexOf("Б:") + 2;
+    area.setSelectionRange(at, at);
+  });
+  await page.waitForTimeout(500);
+  const line = (): Promise<string> =>
+    page.evaluate(() => {
       const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
-      area.value =
-        "\\documentclass{article}\n\\begin{document}\nБ:\n\\end{document}\n";
-      area.dispatchEvent(new InputEvent("input", { bubbles: true }));
-      area.focus();
-      const at = area.value.indexOf("Б:") + 2;
-      area.setSelectionRange(at, at);
+      return area.value.slice(area.value.indexOf("Б:"), area.selectionStart);
     });
-    await page.waitForTimeout(500);
-    const line = (): Promise<string> =>
-      page.evaluate(() => {
-        const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
-        return area.value.slice(area.value.indexOf("Б:"), area.selectionStart);
-      });
-    await page.keyboard.type(" ЬЬ");
-    assert.equal(await line(), "Б: «");
-    await page.keyboard.press("Backspace");
-    assert.equal(await line(), "Б: ЬЬ");
-    await page.keyboard.type("Ь");
-    assert.equal(await line(), "Б: ЬЬЬ");
-    await page.keyboard.press("Backspace");
-    await page.keyboard.press("Backspace");
-    await page.keyboard.press("Backspace");
-    await page.keyboard.type("ььүгвв");
-    assert.equal(await line(), "Б: «үг»");
-    await page.keyboard.press("Backspace");
-    assert.equal(await line(), "Б: «үгвв");
-    assert.deepEqual(errors(page), []);
-  },
-);
+  const press = async (...keys: string[]): Promise<void> => {
+    for (const key of keys) await page.keyboard.press(key);
+  };
+  await press("Space", "Comma", "Comma");
+  assert.equal(await line(), "Б: «");
+  await press("Backspace");
+  assert.equal(await line(), "Б: ьь");
+  await press("Comma");
+  assert.equal(await line(), "Б: ььь");
+  await press("Backspace", "Backspace", "Backspace");
+  await press("Comma", "Comma", "KeyN", "Period", "Period");
+  assert.equal(await line(), "Б: «и»");
+  await press("Backspace");
+  assert.equal(await line(), "Б: «ивв");
+  assert.deepEqual(errors(page), []);
+  await context.close();
+});
