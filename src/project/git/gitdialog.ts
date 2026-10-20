@@ -220,6 +220,7 @@ function showForm<T>(
           overlay.hidden = false;
           lock(false);
           confirm.textContent = label;
+          form.onChange?.(values(), panel);
           fail(problemText(problem));
         },
       );

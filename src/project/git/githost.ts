@@ -1,4 +1,4 @@
-import { ProjectError } from "../projecterror.ts";
+import { AuthError, ProjectError } from "../projecterror.ts";
 
 export type Provider = "github" | "gitlab";
 
@@ -113,8 +113,8 @@ export function fromBase64(text: string): Uint8Array {
 export function hostFailure(provider: Provider, status: number): ProjectError {
   const name = PROVIDER_NAME[provider];
   if (status === 401)
-    return new ProjectError(
-      name + " token буруу эсвэл хугацаа нь дууссан байна",
+    return new AuthError(
+      name + " token буруу эсвэл хугацаа нь дууссан байна — дахин нэвтэрнэ үү",
     );
   if (status === 403)
     return new ProjectError(
