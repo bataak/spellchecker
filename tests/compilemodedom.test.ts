@@ -75,7 +75,7 @@ const key = (
   return event;
 };
 
-test("compileButton: авто горимыг тэмдэглэж, товшилтоор гараар горимд хөрвүүлнэ", () => {
+test("compileButton: авто горимыг тэмдэглэж, товшилтоор гар горимд хөрвүүлнэ", () => {
   const { button, calls, control } = setup();
   assert.equal(button.classList.contains("is-auto"), true);
   assert.equal(button.getAttribute("aria-label"), AUTO_TITLE);
