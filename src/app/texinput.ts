@@ -1,5 +1,6 @@
 import { initTexComplete } from "../tex/texcomplete.ts";
 import { initTexImageInput, insertPickedImage } from "../tex/teximages.ts";
+import { initTexQuotes } from "../tex/texquotes.ts";
 
 export interface TexInputDeps {
   readonly editor: HTMLTextAreaElement;
@@ -16,4 +17,5 @@ export function initTexInput(deps: TexInputDeps): void {
     onImage: () => void insertPickedImage(editor),
   });
   initTexImageInput({ editor, active });
+  initTexQuotes({ editor, active });
 }
