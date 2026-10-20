@@ -15,7 +15,7 @@ import {
 import { createProjectMenu } from "./projectmenu.ts";
 import { createTreeState, initTreeControl } from "./treecontrol.ts";
 import { treeRows } from "./treerows.ts";
-import { askRepo } from "./git/gitdialog.ts";
+import { askFolder, askRepo } from "./git/gitdialog.ts";
 import { lastRepo, openRepo, savedToken } from "./git/gitsession.ts";
 
 const PEEK_MS = 5000;
@@ -328,8 +328,8 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
       deps.notify("Repo-оос уншиж байна…");
       await run(async () => {
         const prefer = deps.openedFile()?.name;
-        openGitRepo(await openRepo(choice.spec, choice.token, choice.host));
-        opened(prefer);
+        const loaded = await openRepo(choice.spec, choice.token, choice.host);
+        if (await openGitRepo(loaded, askFolder)) opened(prefer);
       });
     })();
   });

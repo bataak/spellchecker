@@ -482,6 +482,25 @@ export function askRepo(
   );
 }
 
+export function askFolder(folders: readonly string[]): Promise<string | null> {
+  return showForm(
+    {
+      title: "Төслийн хавтас",
+      confirm: "Нээх",
+      fields: [
+        {
+          name: "folder",
+          label: "Repo-д хэд хэдэн төсөл байна — аль хавтсыг нээх вэ?",
+          kind: "select",
+          value: folders[0] ?? "",
+          options: folders.map((folder) => [folder, folder] as const),
+        },
+      ],
+    },
+    (values) => values.folder ?? "",
+  );
+}
+
 export function askCommitMessage(suggested: string): Promise<string | null> {
   return showForm(
     {

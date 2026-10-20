@@ -7,6 +7,7 @@ import {
   commonRoot,
   compilePasses,
   expandMacros,
+  documentFolders,
   findMain,
   graphicRefs,
   graphicsPaths,
@@ -342,4 +343,34 @@ test("sameOnDisk: том жижиг үсэг, NFC/NFD-ээр ялгаатай н
   assert.equal(sameOnDisk("бүлэг.tex", "Бүлэг.tex"), true);
   assert.equal(sameOnDisk("\u0451.tex", "\u0435\u0308.tex"), true);
   assert.equal(sameOnDisk("a.tex", "b.tex"), false);
+});
+
+test("documentFolders: хавтас бүрийн үндсэн файлыг, дэд хавтсыг нь нэгтгэж олно", () => {
+  const doc =
+    "\\documentclass{article}\n\\begin{document}\nА\n\\end{document}\n";
+  const texts = new Map([
+    ["csm301/exam1/main.tex", doc],
+    ["csm301/exam1/fig/tree.tex", doc],
+    ["csm301/exam2/b.tex", doc],
+    ["csm301/exam2/a.tex", '% TeX-master: "b.tex"\n'],
+    ["csm301/exam2/c.tex", doc],
+    ["figs/x.tex", "x"],
+  ]);
+  assert.deepEqual(
+    [...documentFolders(texts)],
+    [
+      ["csm301/exam1", "csm301/exam1/main.tex"],
+      ["csm301/exam2", "csm301/exam2/b.tex"],
+    ],
+  );
+});
+
+test("documentFolders: үндэст үндсэн файл байвал ганц хавтас буцаана", () => {
+  const doc =
+    "\\documentclass{article}\n\\begin{document}\nА\n\\end{document}\n";
+  const texts = new Map([
+    ["main.tex", doc],
+    ["standalone/fig.tex", doc],
+  ]);
+  assert.deepEqual([...documentFolders(texts)], [["", "main.tex"]]);
 });
