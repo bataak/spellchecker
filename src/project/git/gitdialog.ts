@@ -8,6 +8,13 @@ import {
   type RepoSpec,
 } from "./githost.ts";
 import type { RepoFields } from "./gitsession.ts";
+import {
+  canSignIn,
+  githubDevice,
+  gitlabLogin,
+  type OAuthToken,
+  type StoredToken,
+} from "./gitauth.ts";
 
 interface Field {
   readonly name: string;
@@ -27,6 +34,15 @@ interface Form {
     values: Record<string, string>,
     panel: HTMLElement,
   ) => void;
+  readonly extra?: (form: FormApi) => void;
+}
+
+interface FormApi {
+  readonly panel: HTMLElement;
+  readonly signal: AbortSignal;
+  values(): Record<string, string>;
+  fail(text: string): void;
+  submit(): void;
 }
 
 type Control = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
@@ -112,12 +128,25 @@ function showForm<T>(
       Object.fromEntries(
         controls.map((control) => [control.name, control.value]),
       );
+    const closed = new AbortController();
+    const fail = (text: string): void => {
+      error.textContent = text;
+      error.hidden = false;
+    };
+    form.extra?.({
+      panel,
+      signal: closed.signal,
+      values,
+      fail,
+      submit: () => panel.requestSubmit(),
+    });
     if (form.onChange) {
       const changed = form.onChange;
       panel.addEventListener("input", () => changed(values(), panel));
       changed(values(), panel);
     }
     const finish = (value: T | null): void => {
+      closed.abort();
       overlay.remove();
       restore?.focus({ preventScroll: true });
       resolve(value);
@@ -127,9 +156,9 @@ function showForm<T>(
       try {
         finish(read(values()));
       } catch (problem) {
-        error.textContent =
-          problem instanceof ProjectError ? problem.message : String(problem);
-        error.hidden = false;
+        fail(
+          problem instanceof ProjectError ? problem.message : String(problem),
+        );
       }
     });
     panel.addEventListener("keydown", (event) => {
@@ -190,25 +219,99 @@ const providerOf = (value: string | undefined): Provider =>
 
 export interface RepoChoice {
   readonly spec: RepoSpec;
-  readonly token: string;
+  readonly token: StoredToken;
   readonly host: string;
+}
+
+function showCode(status: HTMLElement, code: string, url: string): void {
+  const link = document.createElement("a");
+  link.href = url;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.textContent = url.replace(/^https?:\/\//, "");
+  const strong = document.createElement("strong");
+  strong.className = "git-code";
+  strong.textContent = code;
+  status.replaceChildren(
+    link,
+    " хуудсанд очоод ",
+    strong,
+    " кодыг оруулна уу. Зөвшөөрмөгц автоматаар үргэлжилнэ.",
+  );
+  status.hidden = false;
+}
+
+function signInRow(
+  form: FormApi,
+  done: (token: OAuthToken) => void,
+): HTMLElement {
+  const row = document.createElement("div");
+  row.className = "git-signin";
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "tbtn git-signin-btn";
+  const status = document.createElement("p");
+  status.className = "git-note git-device";
+  status.hidden = true;
+  row.append(button, status);
+  button.addEventListener("click", () => {
+    const values = form.values();
+    const provider = providerOf(values.provider);
+    const host = cleanHost(values.host ?? "", provider);
+    button.disabled = true;
+    const finish = (token: OAuthToken): void => {
+      done(token);
+      form.submit();
+    };
+    const failed = (problem: unknown): void => {
+      button.disabled = false;
+      status.hidden = true;
+      if (form.signal.aborted) return;
+      form.fail(
+        problem instanceof ProjectError ? problem.message : "Нэвтэрч чадсангүй",
+      );
+    };
+    if (provider === "gitlab") {
+      gitlabLogin(host).then(finish, failed);
+      return;
+    }
+    githubDevice((code, url) => showCode(status, code, url), form.signal).then(
+      finish,
+      failed,
+    );
+  });
+  return row;
 }
 
 export function askRepo(
   initial: RepoFields,
-  savedToken: (provider: Provider, host: string) => string | null,
+  savedToken: (provider: Provider, host: string) => StoredToken | null,
 ): Promise<RepoChoice | null> {
   const note = document.createElement("p");
   note.className = "git-note";
+  let signed: OAuthToken | null = null;
+  let row: HTMLElement | null = null;
   return showForm(
     {
       title: "Git repo-оос төсөл нээх",
       confirm: "Нээх",
       note,
+      extra: (form) => {
+        row = signInRow(form, (token) => {
+          signed = token;
+        });
+        note.before(row);
+      },
       onChange: (values, panel) => {
         const provider = providerOf(values.provider);
         const host = values.host ?? "";
         paintNote(note, provider, host);
+        if (row) {
+          row.hidden = !canSignIn(provider, cleanHost(host, provider));
+          const button = row.querySelector("button");
+          if (button)
+            button.textContent = PROVIDER_NAME[provider] + "-ээр нэвтрэх";
+        }
         const repo = panel.querySelector<HTMLInputElement>('[name="repo"]');
         if (repo)
           repo.placeholder =
@@ -265,8 +368,10 @@ export function askRepo(
         host: values.host ?? "",
       });
       const token =
-        (values.token ?? "").trim() || savedToken(provider, spec.host);
-      if (!token) throw new ProjectError("Token оруулна уу");
+        (values.token ?? "").trim() ||
+        signed ||
+        savedToken(provider, spec.host);
+      if (!token) throw new ProjectError("Нэвтэрнэ үү эсвэл token оруулна уу");
       return { spec, token, host: (values.host ?? "").trim() };
     },
   );
