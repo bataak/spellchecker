@@ -586,6 +586,11 @@ function userCoverage(): string[] {
 
 const LAZY_FONT = /^sf[a-z]{2}\d{4}\.pfb$/;
 const COVERAGE_ONLY = /^example-image/;
+const MAP_ENCODINGS = [
+  "cm-super-t1.enc",
+  "cm-super-t2a.enc",
+  "cm-super-ts1.enc",
+];
 
 const KERNEL_DIRS = [
   "tex/latex/base",
@@ -672,6 +677,9 @@ async function main(): Promise<void> {
   }
   for (const [name, path] of kernelFiles())
     if (!files.has(name)) files.set(name, path);
+  for (const name of MAP_ENCODINGS)
+    if (!files.has(name))
+      files.set(name, execFileSync("kpsewhich", [name]).toString().trim());
 
   const fonts = new Set(
     [...files.keys()]
