@@ -355,9 +355,7 @@ export function askRepo(
             button.textContent = PROVIDER_NAME[provider] + "-ээр нэвтрэх";
         }
         const repo = panel.querySelector<HTMLInputElement>('[name="repo"]');
-        if (repo)
-          repo.placeholder =
-            provider === "gitlab" ? "бүлэг/төсөл" : "bataak/thesis";
+        if (repo) repo.placeholder = cleanHost(host, provider) + "/нэр/төсөл";
         const hostInput =
           panel.querySelector<HTMLInputElement>('[name="host"]');
         if (hostInput)
