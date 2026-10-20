@@ -1,5 +1,5 @@
 import { baseName } from "../tex/texproject.ts";
-import { swapText } from "../editor/editortext.ts";
+import { patchText, swapText } from "../editor/editortext.ts";
 import { KEYS, read, remove, write } from "../core/store.ts";
 import type { ProjectStore, ProjectView } from "./projectstore.ts";
 import type { OpenFilePort, SlotPort } from "./projectlink.ts";
@@ -42,7 +42,7 @@ const placeOf = (editor: HTMLTextAreaElement): Place => ({
   scroll: editor.scrollTop,
 });
 
-function loadText(deps: BindDeps, text: string, place: Place | null): string {
+function loadText(deps: BindDeps, text: string, place: Place | null): void {
   const { editor } = deps;
   const end = text.length;
   editor.focus({ preventScroll: true });
@@ -53,7 +53,6 @@ function loadText(deps: BindDeps, text: string, place: Place | null): string {
   });
   editor.scrollTop = place?.scroll ?? 0;
   deps.afterSwitch();
-  return text;
 }
 
 export function createBinding(deps: BindDeps): Binding {
@@ -66,10 +65,15 @@ export function createBinding(deps: BindDeps): Binding {
   let pushed: string | null = null;
   const places = new Map<string, Place>();
 
+  const load = (text: string, place: Place | null): void => {
+    pushed = text;
+    loadText(deps, text, place);
+  };
   const pushText = (): void => {
     if (!bound || !boundPath || detached) return;
-    pushed = editor.value;
-    store.setProjectText(boundPath, pushed);
+    const text = editor.value;
+    store.setProjectText(boundPath, text);
+    if (store.projectText(boundPath) === text) pushed = text;
   };
   const remember = (): void => {
     if (bound && boundPath) places.set(boundPath, placeOf(editor));
@@ -116,7 +120,7 @@ export function createBinding(deps: BindDeps): Binding {
     store.setActive(path);
     bind(path);
     deps.file.bind(baseName(path));
-    pushed = loadText(deps, text, places.get(path) ?? null);
+    load(text, places.get(path) ?? null);
   };
   const adopt = (strict: boolean): void => {
     const view = store.project();
@@ -132,7 +136,7 @@ export function createBinding(deps: BindDeps): Binding {
     const text = store.projectText(view.active);
     pushed = text;
     if (text === null || text === editor.value) deps.afterSwitch();
-    else loadText(deps, text, placeOf(editor));
+    else load(text, placeOf(editor));
   };
   const leave = (): void => {
     deps.file.bind(null);
@@ -150,7 +154,9 @@ export function createBinding(deps: BindDeps): Binding {
     const text = store.projectText(boundPath);
     if (text === null || text === editor.value) return;
     if (view.dirty.has(boundPath) && text === pushed) return;
-    pushed = loadText(deps, text, placeOf(editor));
+    pushed = text;
+    patchText(editor, text, "project");
+    deps.afterSwitch();
   };
   const follow = (view: ProjectView | null): boolean => {
     if (!bound) return true;

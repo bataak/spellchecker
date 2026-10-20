@@ -7,6 +7,7 @@ import { join } from "node:path";
 import {
   editor,
   errors,
+  status,
   openFile,
   openPage,
   projectFile,
@@ -463,6 +464,11 @@ test("татаж нэгтгэсний дараа commit бүтэлгүйтвэл
     15000,
   );
   assert.equal(await editor(page), "Нэг миний.\nХоёр.\nГурав бусдын.\n");
+  await until(
+    () => status(page),
+    (text) => text.includes("шинэ өөрчлөлт"),
+    15000,
+  );
   await page.keyboard.press("End");
   await page.keyboard.type("!");
   await commit(page, "Дахин");

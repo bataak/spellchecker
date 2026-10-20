@@ -735,3 +735,28 @@ test("commitChanges: нэг тал устгаж нөгөө тал өөрчилс
   assert.equal(s.texts.get("a.tex"), "А бусдын");
   assert.equal(repo.text("a.tex"), "А бусдын");
 });
+
+test("commitChanges: татах явцад бичсэн засварыг нэгтгэлт дарж бичихгүй", async () => {
+  const repo = await FakeRepo.create({
+    "main.tex": MAIN,
+    "a.tex": "А1\nА2\nА3",
+    "b.tex": "Б",
+  });
+  const { s, remote } = await open(repo);
+  await repo.push({ "a.tex": "А1\nА2\nА3 бусдын", "b.tex": "Б бусдын" });
+  s.texts.set("b.tex", "Б миний");
+  const done = await commitChanges(
+    githubHost(repo),
+    workingCopy(s),
+    remote,
+    "м",
+    () => {
+      s.texts.set("a.tex", "А1 хожуу\nА2\nА3");
+      s.texts.set("b.tex", "Б миний хожуу");
+      return Promise.resolve(new Map([["b.tex", ["ours"] as const]]));
+    },
+  );
+  assert.ok(done?.committed);
+  assert.equal(repo.text("a.tex"), "А1 хожуу\nА2\nА3 бусдын");
+  assert.equal(repo.text("b.tex"), "Б миний хожуу");
+});

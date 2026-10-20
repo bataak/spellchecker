@@ -120,14 +120,15 @@ export function createPanelShow(deps: ShowDeps): PanelShow {
       show(false);
     }, PEEK_MS);
   };
+  const closeDrawer = (): void => {
+    if (!wide.matches) show(false);
+  };
   wide.addEventListener("change", () => {
-    if (!wide.matches && !panel.hidden) show(false);
+    if (!panel.hidden) closeDrawer();
   });
   return {
     isOpen: () => open,
-    closeDrawer() {
-      if (!wide.matches) show(false);
-    },
+    closeDrawer,
     show,
     visible,
     syncVisibility,
