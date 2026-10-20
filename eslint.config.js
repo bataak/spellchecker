@@ -18,6 +18,7 @@ export default tseslint.config(
       complexity: ["warn", 20],
       "max-depth": ["warn", 4],
       "max-lines": ["warn", { max: 600, skipBlankLines: true }],
+      "max-lines-per-function": ["warn", { max: 150, skipBlankLines: true }],
     },
   },
   {
