@@ -554,10 +554,13 @@ export function askFolder(folders: readonly string[]): Promise<string | null> {
   );
 }
 
-export function askCommitMessage(suggested: string): Promise<string | null> {
+export function askCommitMessage(
+  suggested: string,
+  provider: Provider,
+): Promise<string | null> {
   return showForm(
     {
-      title: "GitHub-д commit хийх",
+      title: PROVIDER_NAME[provider] + "-д commit хийх",
       confirm: "Commit хийх",
       fields: [
         {

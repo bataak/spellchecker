@@ -52,6 +52,7 @@ export interface LoadedRepo {
 export interface Plan {
   readonly writes: readonly [string, Uint8Array][];
   readonly deletes: readonly string[];
+  readonly texts: ReadonlyMap<string, string>;
 }
 
 export async function gitBlobSha(bytes: Uint8Array): Promise<string> {
@@ -134,14 +135,16 @@ export async function loadRepo(
 
 export async function planChanges(s: State, remote: GitRemote): Promise<Plan> {
   const writes: [string, Uint8Array][] = [];
+  const texts = new Map<string, string>();
   const encoder = new TextEncoder();
   for (const [path, text] of s.texts) {
     const unchanged =
       remote.files[path] !== undefined &&
       !s.added.has(path) &&
       s.saved.get(path) === text;
-    if (!unchanged)
-      writes.push([path, encoder.encode(diskText(s, path, text))]);
+    if (unchanged) continue;
+    writes.push([path, encoder.encode(diskText(s, path, text))]);
+    texts.set(path, text);
   }
   for (const [path, bytes] of s.binaries) {
     const known = remote.files[path];
@@ -151,7 +154,7 @@ export async function planChanges(s: State, remote: GitRemote): Promise<Plan> {
   const deletes = Object.keys(remote.files).filter(
     (path) => !s.texts.has(path) && !s.binaries.has(path),
   );
-  return { writes, deletes };
+  return { writes, deletes, texts };
 }
 
 function applyRemoteFile(
@@ -221,6 +224,7 @@ export async function commitChanges(
   const pulled = head !== remote.head;
   if (pulled) {
     base = await catchUp(api, s, remote, plan, head);
+    s.remote = base;
     plan = await planChanges(s, base);
   }
   const shas = await inBatches(plan.writes, ([, bytes]) => gitBlobSha(bytes));
@@ -248,9 +252,12 @@ export async function commitChanges(
     };
   });
   for (const path of plan.deletes) delete files[path];
-  s.saved = new Map(s.texts);
-  s.added.clear();
-  s.fresh.clear();
+  for (const [path, text] of plan.texts) {
+    s.saved.set(path, text);
+    s.added.delete(path);
+  }
+  for (const [path] of plan.writes) s.fresh.delete(path);
+  for (const path of plan.deletes) s.saved.delete(path);
   s.unsynced = false;
   recountDirty(s);
   return {
