@@ -7,7 +7,7 @@ import {
   refreshed,
   type AuthConfig,
 } from "../src/project/git/gitauth.ts";
-import { ProjectError } from "../src/project/projecterror.ts";
+import { AuthError, ProjectError } from "../src/project/projecterror.ts";
 
 const config: AuthConfig = {
   proxy: "https://auth.test",
@@ -112,6 +112,21 @@ test("githubDevice: хүсэлт явж байхад цуцалбал token бу
     (error: unknown) => error instanceof DOMException,
   );
   assert.equal(polls, 1);
+});
+
+test("refreshed: GitLab түр алдаа өгвөл нэвтрэлтийг хүчингүй гэж тооцохгүй", async () => {
+  const expired = { access: "a", refresh: "r", expires: 1, verifier: "v" };
+  const reply = (status: number) => () =>
+    Promise.resolve(Response.json({ error: "x" }, { status }));
+  await assert.rejects(
+    refreshed("https://gitlab.com", expired, config, reply(503), () => 10_000),
+    (error: unknown) =>
+      error instanceof ProjectError && !(error instanceof AuthError),
+  );
+  await assert.rejects(
+    refreshed("https://gitlab.com", expired, config, reply(400), () => 10_000),
+    AuthError,
+  );
 });
 
 test("refreshed: хугацаа дуусаагүй бол хэвээр, дууссан бол refresh token-оор шинэчилнэ", async () => {
