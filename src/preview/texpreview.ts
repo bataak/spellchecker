@@ -10,7 +10,7 @@ import {
 import type { PdfPane } from "./pdfpane.ts";
 import type { TexProject } from "../project/projectbuild.ts";
 
-const TEX_DELAY_MS = 700;
+const TEX_DELAY_MS = 2000;
 const RETRY_MS = [2000, 5000, 15000];
 const STALE_COMPILE_MS = 3000;
 const PREPARING = "PDF бэлтгэж байна…";
@@ -44,6 +44,7 @@ export interface TexPreviewDeps {
 
 export interface TexPreview {
   active(): boolean;
+  pending(): boolean;
   setActive(on: boolean): boolean;
   drop(): void;
   schedule(): void;
@@ -70,6 +71,7 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
   let forced = false;
   let offTexImages: (() => void) | null = null;
   let shownMissing: readonly string[] = [];
+  let scheduled: { readonly key: string; readonly text: string } | null = null;
   let tidyMemo: { readonly from: string; readonly to: string } | null = null;
 
   const texKey = (): string => {
@@ -294,6 +296,7 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
 
   return {
     active: () => texMode,
+    pending: () => texMode && texKey() !== texShown,
     setActive(on) {
       if (on === texMode) return false;
       texMode = on;
@@ -324,6 +327,10 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
         deps.setError(null);
         deps.setMissing([]);
       }
+      const key = texKey();
+      const text = area.value;
+      if (texTimer && scheduled?.key === key && scheduled.text === text) return;
+      scheduled = { key, text };
       if (texTimer) clearTimeout(texTimer);
       texTimer = window.setTimeout(
         () => void render(),
