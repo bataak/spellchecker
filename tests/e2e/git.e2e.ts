@@ -394,7 +394,7 @@ test("нэг мөрийг хоёр талаас өөрчилбөл зөрчли�
   await pick.waitFor({ timeout: 15000 });
   assert.equal(
     await page.textContent(".git-panel .export-title"),
-    "Зөрчил шийдэх",
+    "Зөрчлийг шийдвэрлэх",
   );
   assert.deepEqual(
     await page.locator(".git-panel .git-version-text").allTextContents(),
