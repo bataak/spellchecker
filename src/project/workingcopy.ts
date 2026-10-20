@@ -1,6 +1,7 @@
 import { isEditablePath, parentDirs } from "../tex/texproject.ts";
 import type { CopyChange, WorkingCopy } from "./git/gitsync.ts";
 import { dropEntries } from "./projectedit.ts";
+import { conflictsOf, merge3, resolveChunks } from "./git/merge3.ts";
 import {
   diskText,
   noteEol,
@@ -27,10 +28,32 @@ function applyRemoteFile(
   for (const dir of parentDirs(path)) s.dirs.add(dir);
 }
 
+function rebase(seen: string, current: string, incoming: string): string {
+  const chunks = merge3(seen, current, incoming);
+  return resolveChunks(
+    chunks,
+    conflictsOf(chunks).map(() => "both"),
+  );
+}
+
 function applyChange(s: State, change: CopyChange): void {
+  const before = new Map(
+    [...(change.seen?.keys() ?? [])].map((path) => [path, s.texts.get(path)]),
+  );
   for (const [path, bytes] of change.pulled ?? [])
     applyRemoteFile(s, path, bytes);
   for (const [path, text] of change.merged ?? []) s.texts.set(path, text);
+  for (const [path, current] of before) {
+    const seen = change.seen?.get(path);
+    const incoming = s.texts.get(path);
+    if (
+      current !== undefined &&
+      seen !== undefined &&
+      incoming !== undefined &&
+      current !== seen
+    )
+      s.texts.set(path, rebase(seen, current, incoming));
+  }
   for (const dir of change.dirs ?? []) s.dirs.add(dir);
   const plan = change.committed;
   if (plan) {
@@ -48,7 +71,7 @@ function applyChange(s: State, change: CopyChange): void {
 
 export function workingCopy(
   s: State,
-  applied: () => void = () => {},
+  pulled: () => void = () => {},
 ): WorkingCopy {
   const encoder = new TextEncoder();
   return {
@@ -59,7 +82,7 @@ export function workingCopy(
     encode: (path, text) => encoder.encode(diskText(s, path, text)),
     apply: (change) => {
       applyChange(s, change);
-      applied();
+      if (change.pulled) pulled();
     },
   };
 }
