@@ -47,6 +47,11 @@ const openPanel = async (page: Page): Promise<void> => {
   await page.locator(".project-open", { hasText: "Git repo-оос нээх" }).click();
 };
 
+const openMore = async (page: Page): Promise<void> => {
+  if ((await page.getAttribute(".git-more", "open")) === null)
+    await page.click(".git-more > summary");
+};
+
 const commit = async (page: Page, message?: string): Promise<void> => {
   await page.keyboard.press("Control+s");
   const area = page.locator(".git-panel textarea");
@@ -66,6 +71,7 @@ test("GitHub-аас төсөл нээж, засаад commit хийж, дахи�
   const page = await openPage(app, context);
   await openPanel(page);
   await page.fill('.git-panel input[name="repo"]', "o/r");
+  await openMore(page);
   await page.fill('.git-panel input[name="dir"]', "thesis");
   await page.fill('.git-panel input[name="token"]', "tok");
   await page.click(".git-panel .export-confirm");
@@ -135,9 +141,11 @@ test("өөрийн GitLab серверээс дэд бүлгийн төсөл н
   await gitlab.attach(context);
   const page = await openPage(app, context);
   await openPanel(page);
+  await page.selectOption('.git-panel select[name="service"]', "other");
   await page.selectOption('.git-panel select[name="provider"]', "gitlab");
   await page.fill('.git-panel input[name="host"]', gitlab.host);
   await page.fill('.git-panel input[name="repo"]', GITLAB_PROJECT);
+  await openMore(page);
   await page.fill('.git-panel input[name="dir"]', "tex");
   await page.fill('.git-panel input[name="token"]', "glpat");
   const help = await page.getAttribute(".git-note a", "href");
