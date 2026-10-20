@@ -51,11 +51,9 @@ export interface TreeControl {
 
 export function initTreeControl(deps: TreeControlDeps): TreeControl {
   const {
-    addFile,
     createDir,
     createFile,
     project,
-    projectHas,
     projectText,
     removePath,
     renamePath,
@@ -201,6 +199,69 @@ export function initTreeControl(deps: TreeControlDeps): TreeControl {
     deps.menu.open(items, x, y);
   };
 
+  wireTreeEvents({
+    deps,
+    isDir,
+    activate,
+    openMenu,
+    startRename,
+    confirmRemove,
+    replaceOk,
+  });
+
+  return { startCreate };
+}
+
+interface TreeEvents {
+  readonly deps: TreeControlDeps;
+  readonly isDir: (path: string) => boolean;
+  readonly activate: (path: string) => void;
+  readonly openMenu: (path: string, x: number, y: number) => void;
+  readonly startRename: (path: string) => void;
+  readonly confirmRemove: (path: string) => void;
+  readonly replaceOk: (path: string) => boolean;
+}
+
+function onTreeKey(e: TreeEvents, event: KeyboardEvent): void {
+  const { deps, isDir, activate } = e;
+  const { state } = deps;
+  const row = rowOf(event.target);
+  if (!row || state.editing) return;
+  const rows = [...deps.tree.querySelectorAll<HTMLElement>(".project-row")];
+  const at = rows.indexOf(row);
+  const path = row.dataset.path ?? "";
+  const focusRow = (next: HTMLElement | undefined): void => {
+    if (!next) return;
+    row.tabIndex = -1;
+    next.tabIndex = 0;
+    next.focus();
+  };
+  const collapsed = state.collapsed.has(path);
+  if (event.key === "ArrowDown") focusRow(rows[at + 1]);
+  else if (event.key === "ArrowUp") focusRow(rows[at - 1]);
+  else if (event.key === "ArrowRight" && isDir(path) && collapsed)
+    activate(path);
+  else if (event.key === "ArrowLeft" && isDir(path) && !collapsed)
+    activate(path);
+  else if (event.key === "Enter" || event.key === " ") {
+    state.selected = path;
+    activate(path);
+  } else if (event.key === "F2") e.startRename(path);
+  else if (event.key === "Delete") e.confirmRemove(path);
+  else if (
+    event.key === "ContextMenu" ||
+    (event.shiftKey && event.key === "F10")
+  ) {
+    const box = row.getBoundingClientRect();
+    e.openMenu(path, box.left + 24, box.bottom);
+  } else return;
+  event.preventDefault();
+}
+
+function wireTreeEvents(e: TreeEvents): void {
+  const { deps, isDir, activate, openMenu } = e;
+  const { state } = deps;
+  const { project, renamePath, projectHas, addFile } = deps.store;
   deps.tree.addEventListener("click", (event) => {
     if ((event.target as Element).closest(".project-skip")) {
       state.focus = null;
@@ -210,10 +271,9 @@ export function initTreeControl(deps: TreeControlDeps): TreeControl {
     const row = rowOf(event.target);
     if (!row || row.classList.contains("is-new")) return;
     const path = row.dataset.path ?? "";
-    if ((event.target as Element).closest(".project-more")) {
-      const box = (event.target as Element)
-        .closest(".project-more")!
-        .getBoundingClientRect();
+    const more = (event.target as Element).closest(".project-more");
+    if (more) {
+      const box = more.getBoundingClientRect();
       openMenu(path, box.left, box.bottom + 4);
       return;
     }
@@ -221,55 +281,13 @@ export function initTreeControl(deps: TreeControlDeps): TreeControl {
     activate(path);
     deps.render();
   });
-
   deps.tree.addEventListener("contextmenu", (event) => {
     const row = rowOf(event.target);
     if (!row || row.classList.contains("is-new")) return;
     event.preventDefault();
     openMenu(row.dataset.path ?? "", event.clientX, event.clientY);
   });
-
-  deps.tree.addEventListener("keydown", (event) => {
-    const row = rowOf(event.target);
-    if (!row || state.editing) return;
-    const rows = [...deps.tree.querySelectorAll<HTMLElement>(".project-row")];
-    const at = rows.indexOf(row);
-    const path = row.dataset.path ?? "";
-    const focusRow = (next: HTMLElement | undefined): void => {
-      if (!next) return;
-      row.tabIndex = -1;
-      next.tabIndex = 0;
-      next.focus();
-    };
-    if (event.key === "ArrowDown") focusRow(rows[at + 1]);
-    else if (event.key === "ArrowUp") focusRow(rows[at - 1]);
-    else if (
-      event.key === "ArrowRight" &&
-      isDir(path) &&
-      state.collapsed.has(path)
-    )
-      activate(path);
-    else if (
-      event.key === "ArrowLeft" &&
-      isDir(path) &&
-      !state.collapsed.has(path)
-    )
-      activate(path);
-    else if (event.key === "Enter" || event.key === " ") {
-      state.selected = path;
-      activate(path);
-    } else if (event.key === "F2") startRename(path);
-    else if (event.key === "Delete") confirmRemove(path);
-    else if (
-      event.key === "ContextMenu" ||
-      (event.shiftKey && event.key === "F10")
-    ) {
-      const box = row.getBoundingClientRect();
-      openMenu(path, box.left + 24, box.bottom);
-    } else return;
-    event.preventDefault();
-  });
-
+  deps.tree.addEventListener("keydown", (event) => onTreeKey(e, event));
   initTreeDrag({
     tree: deps.tree,
     active: () => project() !== null,
@@ -288,12 +306,10 @@ export function initTreeControl(deps: TreeControlDeps): TreeControl {
       void deps.run(async () => {
         for (const file of files) {
           const target = joinPath(dir, file.name);
-          if (projectHas(target) && !replaceOk(target)) continue;
+          if (projectHas(target) && !e.replaceOk(target)) continue;
           await addFile(target, new Uint8Array(await file.arrayBuffer()));
         }
       });
     },
   });
-
-  return { startCreate };
 }

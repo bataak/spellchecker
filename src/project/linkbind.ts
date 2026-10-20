@@ -42,7 +42,7 @@ const placeOf = (editor: HTMLTextAreaElement): Place => ({
   scroll: editor.scrollTop,
 });
 
-function loadText(deps: BindDeps, text: string, place: Place | null): void {
+function loadText(deps: BindDeps, text: string, place: Place | null): string {
   const { editor } = deps;
   const end = text.length;
   editor.focus({ preventScroll: true });
@@ -53,6 +53,7 @@ function loadText(deps: BindDeps, text: string, place: Place | null): void {
   });
   editor.scrollTop = place?.scroll ?? 0;
   deps.afterSwitch();
+  return text;
 }
 
 export function createBinding(deps: BindDeps): Binding {
@@ -62,11 +63,13 @@ export function createBinding(deps: BindDeps): Binding {
   let boundId = 0;
   let detached = false;
   let entering = false;
+  let pushed: string | null = null;
   const places = new Map<string, Place>();
 
   const pushText = (): void => {
-    if (bound && boundPath && !detached)
-      store.setProjectText(boundPath, editor.value);
+    if (!bound || !boundPath || detached) return;
+    pushed = editor.value;
+    store.setProjectText(boundPath, pushed);
   };
   const remember = (): void => {
     if (bound && boundPath) places.set(boundPath, placeOf(editor));
@@ -113,7 +116,7 @@ export function createBinding(deps: BindDeps): Binding {
     store.setActive(path);
     bind(path);
     deps.file.bind(baseName(path));
-    loadText(deps, text, places.get(path) ?? null);
+    pushed = loadText(deps, text, places.get(path) ?? null);
   };
   const adopt = (strict: boolean): void => {
     const view = store.project();
@@ -127,6 +130,7 @@ export function createBinding(deps: BindDeps): Binding {
       return;
     bind(view.active);
     const text = store.projectText(view.active);
+    pushed = text;
     if (text === null || text === editor.value) deps.afterSwitch();
     else loadText(deps, text, placeOf(editor));
   };
@@ -142,10 +146,11 @@ export function createBinding(deps: BindDeps): Binding {
     deps.file.bind(baseName(active));
   };
   const reload = (view: ProjectView): void => {
-    if (boundPath === null || view.dirty.has(boundPath)) return;
+    if (boundPath === null || detached) return;
     const text = store.projectText(boundPath);
-    if (text !== null && text !== editor.value)
-      loadText(deps, text, placeOf(editor));
+    if (text === null || text === editor.value) return;
+    if (view.dirty.has(boundPath) && text === pushed) return;
+    pushed = loadText(deps, text, placeOf(editor));
   };
   const follow = (view: ProjectView | null): boolean => {
     if (!bound) return true;
