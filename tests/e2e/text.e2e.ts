@@ -2,6 +2,7 @@ import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import {
   FIREFOX,
+  chooseSlot,
   editor,
   errors,
   openPage,
@@ -181,4 +182,46 @@ test("гараар зассан алдаатай үгийг бусад давт�
     "Би байна. Тэр байна гэж хэлэв.\n",
   );
   assert.deepEqual(errors(page), []);
+});
+
+test("LaTeX-д монгол байрлалын ьь-г шууд, вв-г зайны дараа « » болгож, Backspace дарвал буцаана", async () => {
+  const context = await app.context();
+  await context.addInitScript(() =>
+    localStorage.setItem("keyboard-layout", "mn"),
+  );
+  const page = await openPage(app, context);
+  await chooseSlot(page, "Судалгаа");
+  await page.evaluate(() => {
+    const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
+    area.value =
+      "\\documentclass{article}\n\\begin{document}\nБ:\n\\end{document}\n";
+    area.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    area.focus();
+    const at = area.value.indexOf("Б:") + 2;
+    area.setSelectionRange(at, at);
+  });
+  await page.waitForTimeout(500);
+  const line = (): Promise<string> =>
+    page.evaluate(() => {
+      const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
+      return area.value.slice(area.value.indexOf("Б:"), area.selectionStart);
+    });
+  const press = async (...keys: string[]): Promise<void> => {
+    for (const key of keys) await page.keyboard.press(key);
+  };
+  await press("Space", "Comma", "Comma");
+  assert.equal(await line(), "Б: «");
+  await press("Backspace");
+  assert.equal(await line(), "Б: ьь");
+  await press("Comma");
+  assert.equal(await line(), "Б: ььь");
+  await press("Backspace", "Backspace", "Backspace");
+  await press("Comma", "Comma", "KeyN", "Period", "Period");
+  assert.equal(await line(), "Б: «ивв");
+  await press("Space");
+  assert.equal(await line(), "Б: «и» ");
+  await press("Backspace");
+  assert.equal(await line(), "Б: «ивв ");
+  assert.deepEqual(errors(page), []);
+  await context.close();
 });
