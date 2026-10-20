@@ -40,6 +40,7 @@ export const KEYS = {
   pdfInvert: shared("pdfInvert"),
   pdfZoom: shared("pdfZoom"),
   pdfScrollX: shared("pdfScrollX"),
+  texAuto: shared("tex-auto"),
   defPin: shared("def-pin"),
   defDock: shared("def-dock"),
   hintSeen: shared("hintSeen:"),
