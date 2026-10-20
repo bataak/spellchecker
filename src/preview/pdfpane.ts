@@ -129,10 +129,12 @@ export function createPdfPane(
         return null;
       }
       if (behind) {
+        const scroll = body.scrollTop;
         abort?.abort();
         abort = controller;
         next.show();
         if (zoom !== start) next.setZoom(zoom);
+        body.scrollTop = scroll;
       }
       setView(next);
       restoreScrollX();
@@ -238,7 +240,7 @@ export function createPdfPane(
       shown = bytes;
       panel.classList.remove("is-blank");
       body.classList.remove("is-empty");
-      body.scrollTop = scroll;
+      if (!behind) body.scrollTop = scroll;
       return true;
     },
   };

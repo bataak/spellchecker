@@ -8,11 +8,14 @@ import type { CompiledPdf } from "./pdfcache.ts";
 import { createPdfPane } from "./pdfpane.ts";
 import { buildPreviewHead, HEAD_TEXT } from "./previewhead.ts";
 import { createTexPreview } from "./texpreview.ts";
+import { initCompileButton } from "./compilemode.ts";
 import type { TexProject } from "../project/projectbuild.ts";
 import { tidyCaret, tidyTex } from "../tex/textidy.ts";
 
 const TIDY_LIMIT = 400_000;
 const TIDY_IDLE_MS = 5000;
+const SYNC_MS = 250;
+const SYNC_AFTER_EDIT_MS = 2000;
 const MD_TIDY_TITLE = "Markdown бичвэрийг жигдрүүлэх";
 const MD_NAME = /\.(md|markdown|mdown|mkd)$/i;
 
@@ -38,6 +41,7 @@ export interface PreviewDeps {
   readonly texProject: () => TexProject | null;
   readonly pdfName: () => string;
   readonly jump: (start: number, end: number) => void;
+  readonly notify: (html: string, ms: number, animate: boolean) => void;
 }
 
 export interface Preview {
@@ -121,6 +125,7 @@ export function initPreview(deps: PreviewDeps): Preview {
   let raf = 0;
   let tidied: string | null = null;
   let typingTimer = 0;
+  let latexStale = false;
   const showTidy = (): void => {
     tidy.hidden = tidied === null || typingTimer !== 0 || !!source;
   };
@@ -130,6 +135,7 @@ export function initPreview(deps: PreviewDeps): Preview {
     tidy.hidden = true;
     typingTimer = window.setTimeout(() => {
       typingTimer = 0;
+      if (latexStale && tex.active()) tidyLatex();
       showTidy();
     }, TIDY_IDLE_MS);
   };
@@ -141,6 +147,7 @@ export function initPreview(deps: PreviewDeps): Preview {
   let shownHtml: string | null = null;
   let mathView: typeof import("./mathview.ts") | null = null;
   let syncTimer = 0;
+  let editedAt = -Infinity;
   let syncedAt = -1;
   let pendingReveal: number | null = null;
   let sourceCache: {
@@ -232,6 +239,7 @@ export function initPreview(deps: PreviewDeps): Preview {
 
   const syncToCaret = async (): Promise<void> => {
     if (!previewShown() || document.activeElement !== area) return;
+    if (tex.pending()) return;
     const caret = area.selectionStart;
     if (caret === syncedAt) return;
     syncedAt = caret;
@@ -247,7 +255,11 @@ export function initPreview(deps: PreviewDeps): Preview {
 
   function scheduleSync(): void {
     clearTimeout(syncTimer);
-    syncTimer = window.setTimeout(() => void syncToCaret(), 250);
+    const typing = performance.now() - editedAt < SYNC_AFTER_EDIT_MS;
+    syncTimer = window.setTimeout(
+      () => void syncToCaret(),
+      typing ? SYNC_AFTER_EDIT_MS : SYNC_MS,
+    );
   }
 
   const jumpFromPdf = async (
@@ -284,6 +296,7 @@ export function initPreview(deps: PreviewDeps): Preview {
   body.addEventListener("dblclick", onJump);
 
   const onEdit = (): void => {
+    editedAt = performance.now();
     syncedAt = -1;
     pendingReveal = null;
   };
@@ -312,9 +325,20 @@ export function initPreview(deps: PreviewDeps): Preview {
       void flushReveal();
     },
     onImagesChanged: () => update(),
+    onModeChange: (_auto, note) => {
+      compileMode.paint();
+      if (note) deps.notify(note, 9000, false);
+    },
   });
 
-  compileBtn.addEventListener("click", () => tex.recompile());
+  const compileMode = initCompileButton({
+    button: compileBtn,
+    area,
+    active: () => tex.active(),
+    auto: () => tex.auto(),
+    compile: () => tex.compileNow(),
+    toAuto: () => tex.setAuto(true),
+  });
   downloadBtn.addEventListener("click", () => {
     const bytes = pane.shown();
     if (!bytes) return;
@@ -334,10 +358,16 @@ export function initPreview(deps: PreviewDeps): Preview {
   };
 
   const tidyLatex = (): void => {
+    tidy.title = "LaTeX бичвэрийн догол мөр, хоосон мөрийг жигдрүүлэх";
+    latexStale = typingTimer !== 0;
+    if (latexStale) {
+      tidied = null;
+      showTidy();
+      return;
+    }
     const text = area.value;
     const next = text.length <= TIDY_LIMIT ? tidyTex(text) : text;
     tidied = next === text ? null : next;
-    tidy.title = "LaTeX бичвэрийн догол мөр, хоосон мөрийг жигдрүүлэх";
     showTidy();
   };
 
@@ -470,6 +500,7 @@ export function initPreview(deps: PreviewDeps): Preview {
       if (imageUrl) URL.revokeObjectURL(imageUrl);
       if (raf) cancelAnimationFrame(raf);
       tex.destroy();
+      compileMode.destroy();
       offImages();
       imageEdit.destroy();
       htmlSync.destroy();

@@ -1,5 +1,6 @@
 const FADE_MS = 1200;
 const SIZE = 0.011;
+const MIN_PX = 6;
 const GAP = 0.5;
 const LIFT = 0.0045;
 const FALLBACK_LEFT = 0.08;
@@ -14,7 +15,7 @@ export function markBox(
   y: number,
   left: number | null,
 ): { top: number; left: number; size: number } {
-  const size = page.height * SIZE;
+  const size = Math.max(page.height * SIZE, MIN_PX);
   const edge = page.left + (left ?? FALLBACK_LEFT) * page.width;
   return {
     top: page.top + y * page.height - page.height * LIFT - size / 2,

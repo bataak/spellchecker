@@ -742,6 +742,26 @@ a.tbtn {
   display: inline-flex;
 }
 
+.tex-compile.is-auto:not(.tex-download) {
+  position: relative;
+}
+
+.tex-compile.is-auto:not(.tex-download)::after {
+  content: "A";
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  min-width: 11px;
+  height: 11px;
+  padding: 0 1px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--editor-bg);
+  font: 700 8px/11px var(--sans);
+  text-align: center;
+  pointer-events: none;
+}
+
 .tex-compile:hover:not(:disabled),
 .tex-compile:focus-visible {
   opacity: 1;
@@ -1322,8 +1342,6 @@ a.tbtn {
 
 .sync-mark {
   position: absolute;
-  min-width: 6px;
-  min-height: 6px;
   background: var(--layout-accent-mn);
   clip-path: polygon(10% 4%, 100% 50%, 10% 96%, 28% 50%);
   pointer-events: none;
