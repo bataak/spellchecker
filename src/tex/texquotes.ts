@@ -1,10 +1,6 @@
 import { replaceRange } from "../editor/editortext.ts";
 
-const OPEN_KEY = "ЬЬ";
-const CLOSE_KEY = "ВВ";
-const SPACE = /\s/;
-const BEFORE_OPEN = /[\s([{]/;
-const AFTER_CLOSE = /[\s.,;:!?)\]}]/;
+const QUOTES: Readonly<Record<string, string>> = { ь: "«", в: "»" };
 
 export interface QuoteEdit {
   readonly from: number;
@@ -35,34 +31,15 @@ export function quoteEdit(
   caret: number,
   typed: string,
 ): QuoteEdit | null {
-  if (typed === "Ь") {
-    const from = caret - OPEN_KEY.length;
-    if (from < 0 || text.slice(from, caret) !== OPEN_KEY) return null;
-    if (from > 0 && !BEFORE_OPEN.test(text[from - 1]!)) return null;
-    return {
-      from,
-      to: caret,
-      insert: "«",
-      caret: from + 1,
-      original: OPEN_KEY,
-    };
-  }
-  if (typed.length !== 1 || !AFTER_CLOSE.test(typed)) return null;
-  const to = caret - 1;
-  const from = to - CLOSE_KEY.length;
-  if (from < 1 || text.slice(from, to) !== CLOSE_KEY) return null;
-  if (SPACE.test(text[from - 1]!)) return null;
-  return { from, to, insert: "»", caret: caret - 1, original: CLOSE_KEY };
-}
-
-function typedText(event: InputEvent): string | null {
-  if (event.inputType === "insertText") return event.data;
-  if (
-    event.inputType === "insertLineBreak" ||
-    event.inputType === "insertParagraph"
-  )
-    return "\n";
-  return null;
+  const letter = typed.toLowerCase();
+  const quote = QUOTES[letter];
+  if (!quote || typed.length !== 1) return null;
+  const from = caret - 2;
+  if (from < 0) return null;
+  const pair = text.slice(from, caret);
+  if (pair.toLowerCase() !== letter + letter) return null;
+  if (text[from - 1]?.toLowerCase() === letter) return null;
+  return { from, to: caret, insert: quote, caret: from + 1, original: pair };
 }
 
 export interface TexQuotesDeps {
@@ -85,9 +62,8 @@ export function initTexQuotes(deps: TexQuotesDeps): void {
     if (editor.readOnly || !deps.active()) return;
     const caret = editor.selectionStart;
     if (caret !== editor.selectionEnd) return;
-    const typed = typedText(event);
-    if (typed === null) return;
-    const edit = quoteEdit(editor.value, caret, typed);
+    if (event.inputType !== "insertText" || event.data === null) return;
+    const edit = quoteEdit(editor.value, caret, event.data);
     if (!edit) return;
     apply(edit);
     last = edit;
