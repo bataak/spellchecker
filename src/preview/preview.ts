@@ -121,6 +121,7 @@ export function initPreview(deps: PreviewDeps): Preview {
   let raf = 0;
   let tidied: string | null = null;
   let typingTimer = 0;
+  let latexStale = false;
   const showTidy = (): void => {
     tidy.hidden = tidied === null || typingTimer !== 0 || !!source;
   };
@@ -130,6 +131,7 @@ export function initPreview(deps: PreviewDeps): Preview {
     tidy.hidden = true;
     typingTimer = window.setTimeout(() => {
       typingTimer = 0;
+      if (latexStale && tex.active()) tidyLatex();
       showTidy();
     }, TIDY_IDLE_MS);
   };
@@ -334,10 +336,16 @@ export function initPreview(deps: PreviewDeps): Preview {
   };
 
   const tidyLatex = (): void => {
+    tidy.title = "LaTeX бичвэрийн догол мөр, хоосон мөрийг жигдрүүлэх";
+    latexStale = typingTimer !== 0;
+    if (latexStale) {
+      tidied = null;
+      showTidy();
+      return;
+    }
     const text = area.value;
     const next = text.length <= TIDY_LIMIT ? tidyTex(text) : text;
     tidied = next === text ? null : next;
-    tidy.title = "LaTeX бичвэрийн догол мөр, хоосон мөрийг жигдрүүлэх";
     showTidy();
   };
 

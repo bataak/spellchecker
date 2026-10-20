@@ -135,6 +135,18 @@ function knownEnvs(text: string): Set<string> {
   return known;
 }
 
+function closingIndex(marks: readonly EnvMark[], from: number): number {
+  const name = marks[from]!.name;
+  let level = 0;
+  for (let i = from; i < marks.length; i++) {
+    const mark = marks[i]!;
+    if (mark.name !== name) continue;
+    level += mark.open ? 1 : -1;
+    if (level === 0) return i;
+  }
+  return -1;
+}
+
 function closing(
   marks: readonly EnvMark[],
   from: number,
@@ -145,14 +157,8 @@ function closing(
     const stop = text.indexOf("\\end{" + open.name + "}", open.at);
     return stop === -1 ? text.length : stop;
   }
-  let level = 0;
-  for (let i = from; i < marks.length; i++) {
-    const mark = marks[i]!;
-    if (mark.name !== open.name) continue;
-    level += mark.open ? 1 : -1;
-    if (level === 0) return mark.at;
-  }
-  return text.length;
+  const end = closingIndex(marks, from);
+  return end === -1 ? text.length : marks[end]!.at;
 }
 
 function alignBlocks(
@@ -165,12 +171,12 @@ function alignBlocks(
   const aligned = new Map<number, string>();
   marks.forEach((mark, index) => {
     if (!mark.open || !ALIGN_ENV.has(mark.name)) return;
-    const stop = closing(marks, index, text);
-    if (stop >= text.length) return;
+    if (marks[index + 1]?.open !== false) return;
+    if (marks[index + 1]!.name !== mark.name) return;
+    const stop = marks[index + 1]!.at;
     const first = lineOf(starts, mark.at);
     const last = lineOf(starts, stop);
     if (last - first < 3) return;
-    if (marks.some((other) => other.at > mark.at && other.at < stop)) return;
     if (!BLANK.test(text.slice(starts[last], stop))) return;
     if (lines[first]!.slice(mark.at - starts[first]!).includes("&")) return;
     for (let i = first; i <= last; i++) if (keep[i] !== "none") return;

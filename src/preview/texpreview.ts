@@ -70,6 +70,7 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
   let forced = false;
   let offTexImages: (() => void) | null = null;
   let shownMissing: readonly string[] = [];
+  let tidyMemo: { readonly from: string; readonly to: string } | null = null;
 
   const texKey = (): string => {
     const project = projectKey();
@@ -144,7 +145,9 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
       return false;
     if (pdfText === null || texShown !== pdfText || text === pdfText)
       return false;
-    if (tidyTex(pdfText) !== text) return false;
+    if (tidyMemo?.from !== pdfText)
+      tidyMemo = { from: pdfText, to: tidyTex(pdfText) };
+    if (tidyMemo.to !== text) return false;
     pool.put(text, { text, pdf, missing: shownMissing });
     pdfText = text;
     texShown = text;
