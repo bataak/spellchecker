@@ -19,10 +19,15 @@ import {
   gitBlobSha,
   loadRepo,
   planChanges,
+  type MergeItem,
 } from "../src/project/git/gitsync.ts";
 import { FakeGitlab, GITLAB_PROJECT } from "./helpers/fakegitlab.ts";
 import { newState } from "../src/project/projectstate.ts";
-import { moveEntries, putFile } from "../src/project/projectedit.ts";
+import {
+  dropEntries,
+  moveEntries,
+  putFile,
+} from "../src/project/projectedit.ts";
 import { ProjectError } from "../src/project/projecterror.ts";
 
 const encode = (text: string): Uint8Array => new TextEncoder().encode(text);
@@ -198,10 +203,6 @@ test("parseRepo: GitHub-ийн нэр болон хаягийг задлана",
       branch: "x",
       dir: "d",
     },
-  );
-  assert.equal(
-    parseRepo("github", "a/b", { host: "git.corp.mn/" }).host,
-    "https://git.corp.mn",
   );
   assert.throws(() => parseRepo("github", "thesis"), ProjectError);
   assert.throws(() => parseRepo("github", "a/b/c"), ProjectError);
@@ -395,7 +396,7 @@ test("commitChanges: татсаны дараа commit бүтэлгүйтвэл �
 
 test("createGitApi: token-тойгоор зөв хаяг руу хандаж, алдааг ойлгомжтой болгоно", async () => {
   const calls: { url: string; init: RequestInit | undefined }[] = [];
-  const api = createGitApi("tok", "https://github.com", "o/r", (url, init) => {
+  const api = createGitApi("tok", "o/r", (url, init) => {
     calls.push({ url, init });
     if (url.endsWith("/git/ref/heads/feature/x"))
       return Promise.resolve(Response.json({ object: { sha: "abc" } }));
@@ -407,16 +408,6 @@ test("createGitApi: token-тойгоор зөв хаяг руу хандаж, а
     "Bearer tok",
   );
   await assert.rejects(api.defaultBranch(), /token буруу/);
-});
-
-test("createGitApi: GitHub Enterprise серверт /api/v3 хаягаар хандана", async () => {
-  const urls: string[] = [];
-  const api = createGitApi("tok", "https://git.corp.mn", "o/r", (url) => {
-    urls.push(url);
-    return Promise.resolve(Response.json({ default_branch: "main" }));
-  });
-  await api.defaultBranch();
-  assert.equal(urls[0], "https://git.corp.mn/api/v3/repos/o/r");
 });
 
 const gitlab = (repo: FakeGitlab): GitHost =>
@@ -534,4 +525,76 @@ test("loadRepo: хэмжээг нь мэдэхгүй файлуудыг тата
     }),
     /200 MB/,
   );
+});
+
+test("commitChanges: нэг файлын өөр мөрүүдийг хоёр талаас өөрчилбөл автоматаар нэгтгэнэ", async () => {
+  const repo = await FakeRepo.create({
+    "main.tex": MAIN,
+    "a.tex": "нэг\nхоёр\nгурав",
+  });
+  const { s, remote } = await open(repo);
+  await repo.push({ "a.tex": "нэг\nхоёр\nгурав бусдын" });
+  s.texts.set("a.tex", "нэг миний\nхоёр\nгурав");
+  const done = await commitChanges(githubHost(repo), s, remote, "м");
+  assert.ok(done?.pulled);
+  assert.equal(repo.text("a.tex"), "нэг миний\nхоёр\nгурав бусдын");
+  assert.equal(s.texts.get("a.tex"), "нэг миний\nхоёр\nгурав бусдын");
+  assert.equal(s.dirty.size, 0);
+});
+
+test("commitChanges: зөрчилтэй мөрийг сонголтоор шийдэж, цуцалбал юуг ч өөрчлөхгүй", async () => {
+  const repo = await FakeRepo.create({
+    "main.tex": MAIN,
+    "a.tex": "нэг\nхоёр",
+    "b.tex": "Б",
+  });
+  const { s, remote } = await open(repo);
+  s.remote = remote;
+  await repo.push({ "a.tex": "нэг\nхоёр бусдын", "b.tex": "Б бусдын" });
+  s.texts.set("a.tex", "нэг\nхоёр миний");
+  const asked: MergeItem[][] = [];
+  await assert.rejects(
+    commitChanges(githubHost(repo), s, remote, "x", (items) => {
+      asked.push([...items]);
+      return Promise.resolve(null);
+    }),
+    /цуцаллаа/,
+  );
+  assert.equal(asked[0]![0]!.path, "a.tex");
+  assert.equal(s.texts.get("a.tex"), "нэг\nхоёр миний");
+  assert.equal(s.texts.get("b.tex"), "Б");
+  assert.equal(s.remote, remote);
+  const done = await commitChanges(githubHost(repo), s, remote, "м", () =>
+    Promise.resolve(new Map([["a.tex", ["both"] as const]])),
+  );
+  assert.ok(done);
+  assert.equal(repo.text("a.tex"), "нэг\nхоёр миний\nхоёр бусдын");
+  assert.equal(repo.text("b.tex"), "Б бусдын");
+});
+
+test("commitChanges: нэг тал устгаж нөгөө тал өөрчилсөн файлыг бүтнээр нь сонгуулна", async () => {
+  const repo = await FakeRepo.create({ "main.tex": MAIN, "a.tex": "А" });
+  const { s, remote } = await open(repo);
+  await repo.push({ "a.tex": "А бусдын" });
+  dropEntries(s, "a.tex");
+  let seen: MergeItem | undefined;
+  const done = await commitChanges(
+    githubHost(repo),
+    s,
+    remote,
+    "м",
+    (items) => {
+      seen = items[0];
+      return Promise.resolve(new Map([["a.tex", "theirs" as const]]));
+    },
+  );
+  assert.deepEqual(seen, {
+    path: "a.tex",
+    kind: "file",
+    ours: "deleted",
+    theirs: "changed",
+  });
+  assert.equal(done?.committed, false);
+  assert.equal(s.texts.get("a.tex"), "А бусдын");
+  assert.equal(repo.text("a.tex"), "А бусдын");
 });

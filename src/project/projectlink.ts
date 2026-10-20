@@ -1,6 +1,6 @@
 import { failureMessage } from "./projecterror.ts";
 import { initProjectPanel, type ProjectPanel } from "./projectpanel.ts";
-import { askCommitMessage } from "./git/gitdialog.ts";
+import { askCommitMessage, askMerge } from "./git/gitdialog.ts";
 import {
   confirmClose,
   confirmReplace,
@@ -465,7 +465,10 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
           if (asked === null) return CANCELLED;
           message = asked;
         }
-        result = await saveProject(message);
+        const provider = view?.provider ?? "github";
+        result = await saveProject(message, (items) =>
+          askMerge(items, provider),
+        );
       } catch (error) {
         const text = failureMessage(error, "Хадгалж чадсангүй");
         if (text) deps.notify(escapeHtml(text));

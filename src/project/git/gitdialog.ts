@@ -1,13 +1,14 @@
 import { ProjectError } from "../projecterror.ts";
 import {
   DEFAULT_HOST,
-  cleanHost,
   PROVIDER_NAME,
   parseRepo,
   type Provider,
   type RepoSpec,
 } from "./githost.ts";
 import type { RepoFields } from "./gitsession.ts";
+import type { MergeAnswer, MergeItem } from "./gitsync.ts";
+import type { Pick } from "./merge3.ts";
 import {
   canSignIn,
   githubDevice,
@@ -24,10 +25,12 @@ interface Field {
   readonly kind?: "text" | "password" | "area" | "select";
   readonly options?: readonly (readonly [string, string])[];
   readonly more?: boolean;
+  readonly detail?: Node;
 }
 
 interface Form {
   readonly title: string;
+  readonly wide?: boolean;
   readonly more?: string;
   readonly fields: readonly Field[];
   readonly confirm: string;
@@ -97,6 +100,7 @@ function showForm<T>(
     overlay.className = "export-backdrop";
     const panel = document.createElement("form");
     panel.className = "export-panel git-panel";
+    if (form.wide) panel.classList.add("git-wide");
     panel.setAttribute("role", "dialog");
     panel.setAttribute("aria-modal", "true");
     panel.setAttribute("aria-label", form.title);
@@ -116,6 +120,7 @@ function showForm<T>(
       label.className = "export-field";
       label.textContent = field.label;
       const control = input(field);
+      if (field.detail) label.append(field.detail);
       label.append(control);
       if (field.more) {
         body.append(label);
@@ -264,14 +269,14 @@ const TOKEN_HELP: Readonly<
   },
 };
 
-function tokenUrl(provider: Provider, host: string): string {
-  return (host || DEFAULT_HOST[provider]) + TOKEN_HELP[provider].path;
+function tokenUrl(provider: Provider): string {
+  return DEFAULT_HOST[provider] + TOKEN_HELP[provider].path;
 }
 
-function paintNote(note: HTMLElement, provider: Provider, host: string): void {
+function paintNote(note: HTMLElement, provider: Provider): void {
   const help = TOKEN_HELP[provider];
   const link = document.createElement("a");
-  link.href = tokenUrl(provider, host.trim().replace(/\/+$/, ""));
+  link.href = tokenUrl(provider);
   link.target = "_blank";
   link.rel = "noopener noreferrer";
   link.textContent = help.link;
@@ -284,19 +289,11 @@ function paintNote(note: HTMLElement, provider: Provider, host: string): void {
 const providerOf = (value: string | undefined): Provider =>
   value === "gitlab" ? "gitlab" : "github";
 
-function whereOf(values: Record<string, string>): {
-  provider: Provider;
-  host: string;
-} {
-  return { provider: providerOf(values.service), host: "" };
-}
-
 function specOf(values: Record<string, string>): RepoSpec {
   const provider = providerOf(values.service);
   const spec = parseRepo(provider, values.repo ?? "", {
     branch: values.branch ?? "",
     dir: values.dir ?? "",
-    host: "",
   });
   if (spec.host !== DEFAULT_HOST[provider])
     throw new ProjectError(
@@ -305,8 +302,7 @@ function specOf(values: Record<string, string>): RepoSpec {
   return spec;
 }
 
-const needsToken = (where: { provider: Provider; host: string }): boolean =>
-  !canSignIn(where.provider, cleanHost(where.host, where.provider));
+const needsToken = (provider: Provider): boolean => !canSignIn(provider);
 
 function showField(panel: HTMLElement, name: string, on: boolean): void {
   const label = panel.querySelector(`[name="${name}"]`)?.closest("label");
@@ -316,7 +312,6 @@ function showField(panel: HTMLElement, name: string, on: boolean): void {
 export interface RepoChoice {
   readonly spec: RepoSpec;
   readonly token: StoredToken;
-  readonly host: string;
 }
 
 function showCode(status: HTMLElement, code: string, url: string): void {
@@ -356,9 +351,7 @@ function signInFlow(
     if (confirm) confirm.disabled = on;
   };
   const start = (): void => {
-    const where = whereOf(form.values());
-    const provider = where.provider;
-    const host = cleanHost(where.host, provider);
+    const provider = providerOf(form.values().service);
     attempt?.abort();
     const current = new AbortController();
     attempt = current;
@@ -380,7 +373,7 @@ function signInFlow(
       say(
         "Нээгдсэн цонхонд GitLab-д нэвтэрч зөвшөөрнө үү. Цонх хаагдсан бол дахин дарна уу.",
       );
-      gitlabLogin(host, {
+      gitlabLogin(DEFAULT_HOST.gitlab, {
         signal: current.signal,
         returned: () => {
           lock(true);
@@ -407,11 +400,11 @@ export function askRepo(
   note.className = "git-note";
   let signed: OAuthToken | null = null;
   const signIn = (values: Record<string, string>): boolean => {
-    const where = whereOf(values);
+    const provider = providerOf(values.service);
     return (
       !signed &&
-      !needsToken(where) &&
-      !savedToken(where.provider, cleanHost(where.host, where.provider))
+      !needsToken(provider) &&
+      !savedToken(provider, DEFAULT_HOST[provider])
     );
   };
   return showForm(
@@ -445,24 +438,20 @@ export function askRepo(
         });
       },
       onChange: (values, panel) => {
-        const where = whereOf(values);
-        const { provider, host } = where;
-        const token = needsToken(where);
+        const provider = providerOf(values.service);
+        const token = needsToken(provider);
         showField(panel, "token", token);
         note.hidden = !token;
-        paintNote(note, provider, host);
+        paintNote(note, provider);
         const confirm =
           panel.querySelector<HTMLButtonElement>(".export-confirm");
         if (confirm) confirm.textContent = signIn(values) ? "Нэвтрэх" : "Нээх";
         const repo = panel.querySelector<HTMLInputElement>('[name="repo"]');
-        if (repo) repo.placeholder = cleanHost(host, provider) + "/нэр/төсөл";
+        if (repo) repo.placeholder = DEFAULT_HOST[provider] + "/нэр/төсөл";
         const tokenInput =
           panel.querySelector<HTMLInputElement>('[name="token"]');
         if (tokenInput)
-          tokenInput.placeholder = savedToken(
-            provider,
-            cleanHost(host, provider),
-          )
+          tokenInput.placeholder = savedToken(provider, DEFAULT_HOST[provider])
             ? "Хадгалсан token-ыг ашиглана"
             : provider === "gitlab"
               ? "glpat-…"
@@ -500,15 +489,15 @@ export function askRepo(
       ],
     },
     (values, busy) => {
-      const where = whereOf(values);
+      const provider = providerOf(values.service);
       const spec = specOf(values);
-      const typed = needsToken(where) ? (values.token ?? "").trim() : "";
-      const token = typed || signed || savedToken(where.provider, spec.host);
+      const typed = needsToken(provider) ? (values.token ?? "").trim() : "";
+      const token = typed || signed || savedToken(provider, spec.host);
       if (!token)
         throw new ProjectError(
-          needsToken(where) ? "Token оруулна уу" : "Нэвтэрнэ үү",
+          needsToken(provider) ? "Token оруулна уу" : "Нэвтэрнэ үү",
         );
-      const choice = { spec, token, host: where.host.trim() };
+      const choice = { spec, token };
       return open(choice, busy).then(() => choice);
     },
   );
@@ -530,6 +519,116 @@ export function askFolder(folders: readonly string[]): Promise<string | null> {
       ],
     },
     (values) => values.folder ?? "",
+  );
+}
+
+function versions(
+  ours: readonly string[],
+  theirs: readonly string[],
+  theirName: string,
+): HTMLElement {
+  const box = document.createElement("div");
+  box.className = "git-versions";
+  for (const [title, lines] of [
+    ["Миний", ours],
+    [theirName, theirs],
+  ] as const) {
+    const side = document.createElement("div");
+    side.className = "git-version";
+    const head = document.createElement("span");
+    head.className = "git-version-title";
+    head.textContent = title;
+    const body = document.createElement("pre");
+    body.className = "git-version-text";
+    body.textContent = lines.length ? lines.join("\n") : "(хоосон)";
+    side.append(head, body);
+    box.append(side);
+  }
+  return box;
+}
+
+const STATE_TEXT = { changed: "өөрчилсөн", deleted: "устгасан" } as const;
+
+export function askMerge(
+  items: readonly MergeItem[],
+  provider: Provider,
+): Promise<MergeAnswer | null> {
+  const theirName = PROVIDER_NAME[provider] + "-ийн";
+  const fields: Field[] = [];
+  for (const item of items) {
+    if (item.kind === "file") {
+      const detail = document.createElement("p");
+      detail.className = "git-note";
+      detail.textContent =
+        "Миний: " +
+        STATE_TEXT[item.ours] +
+        " · " +
+        theirName +
+        ": " +
+        STATE_TEXT[item.theirs];
+      fields.push({
+        name: item.path,
+        label: item.path,
+        kind: "select",
+        value: "ours",
+        detail,
+        options: [
+          ["ours", "Миний хувилбар"],
+          ["theirs", theirName + " хувилбар"],
+        ],
+      });
+      continue;
+    }
+    item.conflicts.forEach((conflict, index) => {
+      fields.push({
+        name: item.path + "#" + index,
+        label:
+          item.conflicts.length > 1
+            ? item.path + " — " + (index + 1) + "-р зөрчил"
+            : item.path,
+        kind: "select",
+        value: "ours",
+        detail: versions(conflict.ours, conflict.theirs, theirName),
+        options: [
+          ["ours", "Миний"],
+          ["theirs", theirName],
+          ["both", "Хоёулаа (миний, дараа нь " + theirName + ")"],
+        ],
+      });
+    });
+  }
+  const note = document.createElement("p");
+  note.className = "git-note";
+  note.textContent =
+    "Repo дээр эдгээр хэсгийг өөр газраас өөрчилсөн байна. Хэсэг бүрт аль хувилбарыг үлдээхийг сонгоно уу.";
+  return showForm(
+    {
+      title: "Зөрчил шийдэх",
+      confirm: "Нэгтгэж commit хийх",
+      wide: true,
+      note,
+      fields,
+    },
+    (values) => {
+      const answer = new Map<string, readonly Pick[] | "ours" | "theirs">();
+      for (const item of items) {
+        if (item.kind === "file") {
+          answer.set(
+            item.path,
+            values[item.path] === "theirs" ? "theirs" : "ours",
+          );
+          continue;
+        }
+        answer.set(
+          item.path,
+          item.conflicts.map((_, index) => {
+            const value = values[item.path + "#" + index];
+            return value === "theirs" || value === "both" ? value : "ours";
+          }),
+        );
+      }
+      return answer;
+    },
   );
 }
 
