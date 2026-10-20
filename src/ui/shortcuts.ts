@@ -1,4 +1,5 @@
 import type { CommandId, Commands } from "./commands.ts";
+import { lineSelection, type LineDirection } from "../editor/lineselect.ts";
 
 type Action = (e: KeyboardEvent) => void;
 
@@ -143,7 +144,27 @@ export function initShortcuts(deps: ShortcutDeps): void {
     commands.run("copy");
   };
 
+  const selectLines =
+    (direction: LineDirection): Action =>
+    (e) => {
+      if (document.activeElement !== editor) return;
+      e.preventDefault();
+      const [start, end] = lineSelection(
+        editor.value,
+        editor.selectionStart,
+        editor.selectionEnd,
+        direction,
+      );
+      editor.setSelectionRange(
+        start,
+        end,
+        direction === "up" ? "backward" : "forward",
+      );
+    };
+
   const bindings: readonly Binding[] = [
+    { shift: true, match: anyOf(["<"], "Comma"), run: selectLines("up") },
+    { shift: true, match: anyOf([">"], "Period"), run: selectLines("down") },
     {
       alt: true,
       shift: true,

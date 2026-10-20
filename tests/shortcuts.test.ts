@@ -197,3 +197,21 @@ test("shortcuts: сонголттой үед хуулалтыг хөтөчид �
   assert.ok(empty.press({ key: "c", ctrl: true }));
   assert.deepEqual(empty.calls, ["run:copy"]);
 });
+
+test("shortcuts: Ctrl+Shift+. ба Ctrl+Shift+, мөр сонгоно", () => {
+  const h = setup({ active: "editor" });
+  Object.assign(h.editor, {
+    value: "нэг\nхоёр\nгурав\n",
+    selectionStart: 5,
+    selectionEnd: 5,
+  });
+  assert.ok(h.press({ key: "В", code: "Period", ctrl: true, shift: true }));
+  assert.ok(h.press({ key: "<", code: "Comma", ctrl: true, shift: true }));
+  assert.deepEqual(h.calls, ["select:4-9", "select:4-9"]);
+});
+
+test("shortcuts: засварлагч фокусгүй үед мөр сонгохгүй", () => {
+  const h = setup({ active: "input" });
+  h.press({ key: ">", code: "Period", ctrl: true, shift: true });
+  assert.deepEqual(h.calls, []);
+});
