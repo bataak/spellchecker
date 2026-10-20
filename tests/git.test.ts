@@ -505,3 +505,33 @@ test("GitLab: шалгалт ба commit-ийн хооронд орсон бус
   );
   assert.equal(repo.text("a.tex"), "А бусдын");
 });
+
+test("loadRepo: хэмжээг нь мэдэхгүй файлуудыг татахдаа 200 MB-аас хэтрэхэд зогсооно", async () => {
+  const big = new Uint8Array(70 * 1024 * 1024);
+  const host: GitHost = {
+    defaultBranch: () => Promise.resolve("main"),
+    head: () => Promise.resolve("h"),
+    list: () =>
+      Promise.resolve({
+        tree: "h",
+        entries: ["a.pdf", "b.pdf", "c.pdf", "d.pdf", "e.pdf"].map((path) => ({
+          path,
+          mode: "100644",
+          type: "blob",
+          sha: path,
+        })),
+      }),
+    blob: () => Promise.resolve(big),
+    commit: () => Promise.reject(new Error("no")),
+  };
+  await assert.rejects(
+    loadRepo(host, {
+      provider: "gitlab",
+      host: "https://gitlab.com",
+      project: "o/r",
+      branch: null,
+      dir: "",
+    }),
+    /200 MB/,
+  );
+});

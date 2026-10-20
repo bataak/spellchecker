@@ -5,7 +5,7 @@ import {
   parentDirs,
   skippedPath,
 } from "../../tex/texproject.ts";
-import { budget } from "../projectdisk.ts";
+import { MAX_BYTES, budget } from "../projectdisk.ts";
 import { ProjectError } from "../projecterror.ts";
 import { dropEntries } from "../projectedit.ts";
 import {
@@ -111,9 +111,16 @@ export async function loadRepo(
   const limit = budget();
   const sizes = new Map(entries.map((entry) => [entry.path, entry.size ?? 0]));
   for (const path of paths) limit.take(sizes.get(repoPath(spec, path)) ?? 0);
+  let total = 0;
   const bytes = await inBatches(
     paths,
-    (path) => api.blob(files[path]!.sha),
+    async (path) => {
+      const blob = await api.blob(files[path]!.sha);
+      total += blob.length;
+      if (total > MAX_BYTES)
+        throw new ProjectError("Төсөл хэт том байна (200 MB-аас ихгүй)");
+      return blob;
+    },
     watch,
   );
   return {
