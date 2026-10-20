@@ -1322,8 +1322,6 @@ a.tbtn {
 
 .sync-mark {
   position: absolute;
-  min-width: 6px;
-  min-height: 6px;
   background: var(--layout-accent-mn);
   clip-path: polygon(10% 4%, 100% 50%, 10% 96%, 28% 50%);
   pointer-events: none;

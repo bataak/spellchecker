@@ -35,3 +35,9 @@ test("textLeft: хуудасны бичвэрийн хамгийн зүүн за
   assert.equal(textLeft([{ text: "a", y: 1 }], 600), null);
   assert.equal(textLeft([{ text: "a", y: 1, left: 10 }], 0), null);
 });
+
+test("markBox: жижиг хуудсан дээр сум 6px-ээс багасахгүй", () => {
+  const box = markBox({ top: 0, left: 0, width: 150, height: 200 }, 0.5, 0.2);
+  assert.equal(box.size, 6);
+  assert.ok(Math.abs(box.top + box.size / 2 - (100 - 200 * 0.0045)) < 1e-9);
+});
