@@ -175,3 +175,48 @@ test("өөрийн GitLab серверээс дэд бүлгийн төсөл н
   assert.deepEqual(errors(page), []);
   await context.close();
 });
+
+test("олон хавтсанд үндсэн файл байвал хавтас сонгуулж, тэр хавтсыг нээнэ", async () => {
+  const doc = (word: string): string =>
+    "\\documentclass{article}\n\\begin{document}\n" +
+    word +
+    "\n\\end{document}\n";
+  const github = new FakeGithub({
+    "csm301/exam1/main.tex": doc("Нэг"),
+    "csm301/exam2/main.tex": doc("Хоёр"),
+    "figs/a.txt": "a",
+  });
+  const context = await app.context();
+  await github.attach(context);
+  const page = await openPage(app, context);
+  await openPanel(page);
+  await page.selectOption('.git-panel select[name="service"]', "github");
+  await page.fill('.git-panel input[name="repo"]', "o/r");
+  await openMore(page);
+  await page.fill('.git-panel input[name="dir"]', "");
+  await page.fill('.git-panel input[name="token"]', "tok");
+  await page.click(".git-panel .export-confirm");
+  const folder = page.locator('.git-panel select[name="folder"]');
+  await folder.waitFor({ timeout: 20000 });
+  assert.deepEqual(
+    await folder
+      .locator("option")
+      .evaluateAll((options) =>
+        options.map((option) => (option as HTMLOptionElement).value),
+      ),
+    ["csm301/exam1", "csm301/exam2"],
+  );
+  await folder.selectOption("csm301/exam2");
+  await page.click(".git-panel .export-confirm");
+  await until(
+    () =>
+      page.evaluate(
+        () => document.querySelector<HTMLTextAreaElement>("#editor")!.value,
+      ),
+    (text) => text.includes("Хоёр"),
+    20000,
+  );
+  assert.ok((await rows(page)).includes("figs/a.txt"));
+  assert.deepEqual(errors(page), []);
+  await context.close();
+});

@@ -2,6 +2,7 @@ import { downloadBlob } from "../files/download.ts";
 import {
   baseName,
   cleanPath,
+  documentFolders,
   isEditablePath,
   isLatexDocument,
   isTexSource,
@@ -286,10 +287,21 @@ export function createProjectStore() {
     adopt(fromLoaded("memory", await readZip(file)));
   }
 
-  function openGitRepo(loaded: LoadedRepo): void {
+  async function openGitRepo(
+    loaded: LoadedRepo,
+    pick: (folders: string[]) => Promise<string | null>,
+  ): Promise<boolean> {
     const next = fromLoaded("git", loaded);
     next.remote = loaded.remote;
+    const folders = documentFolders(next.texts);
+    if (folders.size > 1) {
+      const folder = await pick([...folders.keys()]);
+      const main = folder === null ? undefined : folders.get(folder);
+      if (main === undefined) return false;
+      next.main = main;
+    }
     adopt(next);
+    return true;
   }
 
   let pendingEdits: Record<string, string> = {};

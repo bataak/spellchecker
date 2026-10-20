@@ -117,7 +117,7 @@ test("GitLab-аар нэвтрэх товчоор token оруулахгүйгэ
   await page.fill('.git-panel input[name="repo"]', GITLAB_PROJECT);
   await openMore(page);
   await page.fill('.git-panel input[name="dir"]', "tex");
-  const button = page.locator(".git-signin-btn");
+  const button = page.locator(".git-panel .export-confirm");
   assert.equal(await button.textContent(), "Нэвтрэх");
   await button.click();
   await until(
@@ -163,7 +163,8 @@ test("GitHub-ээр нэвтрэхэд код харуулж, зөвшөөрмө
   await page.fill('.git-panel input[name="repo"]', "o/r");
   await openMore(page);
   await page.fill('.git-panel input[name="dir"]', "");
-  await page.locator(".git-signin-btn").click();
+  assert.equal(await page.textContent(".git-panel .export-confirm"), "Нэвтрэх");
+  await page.click(".git-panel .export-confirm");
   await page.locator(".git-code").waitFor({ timeout: 10000 });
   assert.equal(await page.locator(".git-code").textContent(), "ABCD-1234");
   await until(
