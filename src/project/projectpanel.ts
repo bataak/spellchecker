@@ -2,7 +2,7 @@ import { escapeHtml } from "../core/htmlutil.ts";
 import type { ProjectStore, ProjectView } from "./projectstore.ts";
 import { KEYS, read, remove, write } from "../core/store.ts";
 import { confirmClose } from "./linkfiles.ts";
-import { failureMessage } from "./projecterror.ts";
+import { ProjectError, failureMessage } from "./projecterror.ts";
 import { buildPanel } from "./panelmarkup.ts";
 import {
   emptyMessage,
@@ -320,18 +320,21 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   });
   gitBtn.addEventListener("click", () => {
     if (!deps.beforeOpen()) return;
-    void (async () => {
-      const choice = await askRepo(lastRepo(), (provider, host) =>
-        savedToken({ provider, host }),
-      );
-      if (!choice) return;
-      deps.notify("Repo-оос уншиж байна…");
-      await run(async () => {
-        const prefer = deps.openedFile()?.name;
-        const loaded = await openRepo(choice.spec, choice.token, choice.host);
-        if (await openGitRepo(loaded, askFolder)) opened(prefer);
-      });
-    })();
+    const prefer = deps.openedFile()?.name;
+    void askRepo(
+      lastRepo(),
+      (provider, host) => savedToken({ provider, host }),
+      async (choice) => {
+        try {
+          const loaded = await openRepo(choice.spec, choice.token, choice.host);
+          if (await openGitRepo(loaded, askFolder)) opened(prefer);
+        } catch (error) {
+          throw new ProjectError(
+            failureMessage(error, "Repo-г нээж чадсангүй") ?? "Цуцаллаа",
+          );
+        }
+      },
+    );
   });
 
   const openZipFile = (file: File): Promise<void> =>

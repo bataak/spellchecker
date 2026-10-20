@@ -31,6 +31,7 @@ interface Form {
   readonly more?: string;
   readonly fields: readonly Field[];
   readonly confirm: string;
+  readonly pending?: string;
   readonly note?: Node;
   readonly onChange?: (
     values: Record<string, string>,
@@ -82,7 +83,7 @@ function input(field: Field): Control {
 
 function showForm<T>(
   form: Form,
-  read: (values: Record<string, string>) => T,
+  read: (values: Record<string, string>) => T | Promise<T>,
 ): Promise<T | null> {
   return new Promise((resolve) => {
     const restore = document.activeElement as HTMLElement | null;
@@ -158,21 +159,47 @@ function showForm<T>(
       panel.addEventListener("input", () => changed(values(), panel));
       changed(values(), panel);
     }
+    let pending = false;
     const finish = (value: T | null): void => {
+      if (closed.signal.aborted || (pending && value === null)) return;
       closed.abort();
       overlay.remove();
       restore?.focus({ preventScroll: true });
       resolve(value);
     };
+    const problemText = (problem: unknown): string =>
+      problem instanceof ProjectError ? problem.message : String(problem);
     panel.addEventListener("submit", (event) => {
       event.preventDefault();
+      if (pending) return;
+      let result: T | Promise<T>;
       try {
-        finish(read(values()));
+        result = read(values());
       } catch (problem) {
-        fail(
-          problem instanceof ProjectError ? problem.message : String(problem),
-        );
+        fail(problemText(problem));
+        return;
       }
+      if (!(result instanceof Promise)) {
+        finish(result);
+        return;
+      }
+      const label = confirm.textContent;
+      pending = true;
+      panel.inert = true;
+      error.hidden = true;
+      confirm.textContent = form.pending ?? label;
+      result.then(
+        (value) => {
+          pending = false;
+          finish(value);
+        },
+        (problem: unknown) => {
+          pending = false;
+          panel.inert = false;
+          confirm.textContent = label;
+          fail(problemText(problem));
+        },
+      );
     });
     panel.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
@@ -337,6 +364,7 @@ function signInFlow(
 export function askRepo(
   initial: RepoFields,
   savedToken: (provider: Provider, host: string) => StoredToken | null,
+  open: (choice: RepoChoice) => Promise<void>,
 ): Promise<RepoChoice | null> {
   const note = document.createElement("p");
   note.className = "git-note";
@@ -356,6 +384,7 @@ export function askRepo(
     {
       title: "Git repo төсөл",
       confirm: "Нээх",
+      pending: "Repo-г уншиж байна…",
       more: "Салбар, хавтас",
       note,
       extra: (form) => {
@@ -477,7 +506,8 @@ export function askRepo(
         throw new ProjectError(
           needsToken(where) ? "Token оруулна уу" : "Нэвтэрнэ үү",
         );
-      return { spec, token, host: where.host.trim() };
+      const choice = { spec, token, host: where.host.trim() };
+      return open(choice).then(() => choice);
     },
   );
 }
