@@ -512,6 +512,21 @@
   color: var(--accent);
 }
 
+.git-more > summary {
+  width: fit-content;
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--muted);
+  user-select: none;
+}
+
+.git-more-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 14px;
+}
+
 textarea.git-input {
   height: auto;
   padding: 8px 10px;
