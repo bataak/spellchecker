@@ -49,6 +49,82 @@ export interface TreeControl {
   readonly startCreate: (dir: boolean) => void;
 }
 
+function activatePath(deps: TreeControlDeps, dir: boolean, path: string): void {
+  const { state } = deps;
+  if (dir) {
+    if (state.collapsed.has(path)) state.collapsed.delete(path);
+    else state.collapsed.add(path);
+    deps.render();
+    return;
+  }
+  if (!isEditablePath(path)) {
+    if (deps.view(path)) {
+      state.selected = path;
+      deps.render();
+      deps.closeDrawer();
+      return;
+    }
+    deps.notify(escapeHtml(baseName(path)) + " — нээх боломжгүй файл");
+    return;
+  }
+  deps.view(null);
+  deps.openFile(path);
+  deps.closeDrawer();
+}
+
+function insertNewRow(
+  tree: HTMLElement,
+  dir: string,
+  input: HTMLInputElement,
+): void {
+  const holder = document.createElement("div");
+  holder.className = "project-row is-new";
+  const depth = dir ? dir.split("/").length : 0;
+  holder.style.setProperty("--depth", String(depth));
+  holder.append(input);
+  const anchor = dir ? tree.querySelector<HTMLElement>(rowSelector(dir)) : null;
+  if (anchor) anchor.after(holder);
+  else tree.prepend(holder);
+}
+
+function confirmReplace(
+  view: ReturnType<ProjectStore["project"]>,
+  path: string,
+): boolean {
+  return window.confirm(
+    replaceQuestion(
+      baseName(path),
+      view?.dirty.has(path) ?? false,
+      view?.kind === "dir",
+    ),
+  );
+}
+
+function confirmRemoval(disk: boolean, dir: boolean, path: string): boolean {
+  return window.confirm(removeQuestion(baseName(path), dir, disk));
+}
+
+function rowMenu(
+  dir: boolean,
+  main: boolean,
+  run: {
+    readonly main: () => void;
+    readonly create: (dir: boolean) => void;
+    readonly rename: () => void;
+    readonly remove: () => void;
+  },
+): MenuItem[] {
+  const items: MenuItem[] = [];
+  if (main) items.push({ label: "Үндсэн файл болгох", run: run.main });
+  if (dir) {
+    items.push({ label: "Шинэ файл үүсгэх", run: () => run.create(false) });
+    items.push({ label: "Шинэ хавтас үүсгэх", run: () => run.create(true) });
+  }
+  items.push({ label: "Нэр солих", run: run.rename });
+  items.push({ label: "Устгах", run: run.remove, danger: true });
+  return items;
+}
+
 export function initTreeControl(deps: TreeControlDeps): TreeControl {
   const {
     createDir,
@@ -64,27 +140,8 @@ export function initTreeControl(deps: TreeControlDeps): TreeControl {
   const isDir = (path: string): boolean =>
     project()?.dirs.includes(path) ?? false;
 
-  const activate = (path: string): void => {
-    if (isDir(path)) {
-      if (state.collapsed.has(path)) state.collapsed.delete(path);
-      else state.collapsed.add(path);
-      deps.render();
-      return;
-    }
-    if (!isEditablePath(path)) {
-      if (deps.view(path)) {
-        state.selected = path;
-        deps.render();
-        deps.closeDrawer();
-        return;
-      }
-      deps.notify(escapeHtml(baseName(path)) + " — нээх боломжгүй файл");
-      return;
-    }
-    deps.view(null);
-    deps.openFile(path);
-    deps.closeDrawer();
-  };
+  const activate = (path: string): void =>
+    activatePath(deps, isDir(path), path);
 
   const targetDir = (): string => {
     if (state.selected === null) return "";
@@ -101,17 +158,7 @@ export function initTreeControl(deps: TreeControlDeps): TreeControl {
 
   const insertRow = (input: HTMLInputElement): void => {
     state.editing = input;
-    const holder = document.createElement("div");
-    holder.className = "project-row is-new";
-    const dir = targetDir();
-    const depth = dir ? dir.split("/").length : 0;
-    holder.style.setProperty("--depth", String(depth));
-    holder.append(input);
-    const anchor = dir
-      ? deps.tree.querySelector<HTMLElement>(rowSelector(dir))
-      : null;
-    if (anchor) anchor.after(holder);
-    else deps.tree.prepend(holder);
+    insertNewRow(deps.tree, targetDir(), input);
   };
 
   const startCreate = (dir: boolean): void => {
@@ -146,26 +193,12 @@ export function initTreeControl(deps: TreeControlDeps): TreeControl {
     });
   };
 
-  const replaceOk = (path: string): boolean => {
-    const view = project();
-    return window.confirm(
-      replaceQuestion(
-        baseName(path),
-        view?.dirty.has(path) ?? false,
-        view?.kind === "dir",
-      ),
-    );
-  };
+  const replaceOk = (path: string): boolean => confirmReplace(project(), path);
 
   const confirmRemove = (path: string): void => {
     const view = project();
-    if (!view) return;
-    const question = removeQuestion(
-      baseName(path),
-      isDir(path),
-      view.kind === "dir",
-    );
-    if (!window.confirm(question)) return;
+    if (!view || !confirmRemoval(view.kind === "dir", isDir(path), path))
+      return;
     void deps.run(async () => {
       await removePath(path);
       if (state.selected === path) state.selected = null;
@@ -177,24 +210,17 @@ export function initTreeControl(deps: TreeControlDeps): TreeControl {
     if (!view || view.pending) return;
     state.selected = path;
     const dir = isDir(path);
-    const items: MenuItem[] = [];
     const text = dir ? null : projectText(path);
-    if (
+    const main =
       text !== null &&
       isTexSource(path) &&
       view.main !== path &&
-      isLatexDocument(text)
-    )
-      items.push({ label: "Үндсэн файл болгох", run: () => setMain(path) });
-    if (dir) {
-      items.push({ label: "Шинэ файл үүсгэх", run: () => startCreate(false) });
-      items.push({ label: "Шинэ хавтас үүсгэх", run: () => startCreate(true) });
-    }
-    items.push({ label: "Нэр солих", run: () => startRename(path) });
-    items.push({
-      label: "Устгах",
-      run: () => confirmRemove(path),
-      danger: true,
+      isLatexDocument(text);
+    const items = rowMenu(dir, main, {
+      main: () => setMain(path),
+      create: startCreate,
+      rename: () => startRename(path),
+      remove: () => confirmRemove(path),
     });
     deps.menu.open(items, x, y);
   };

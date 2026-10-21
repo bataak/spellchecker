@@ -11,6 +11,7 @@ import {
 import { imageKey } from "../docir.ts";
 import type { Align, ImageFiles, IrRun } from "../docir.ts";
 import { xmlAttr, xmlText } from "../sanitize.ts";
+import { fixedStyles, listStyles } from "./styles.ts";
 
 export interface OdpOptions {
   readonly images?: ImageFiles;
@@ -399,154 +400,107 @@ function tableXml(
   );
 }
 
+function coverPage(doc: DeckDoc, keys: Set<string>): string | null {
+  if (doc.title === null) return null;
+  let frames = frame(
+    "title",
+    "pr_title",
+    { x: MARGIN, y: 4, w: WIDTH, h: 3.2 },
+    para("P_cover", doc.title, keys),
+  );
+  if (doc.subtitle.length)
+    frames += frame(
+      "subtitle",
+      "pr_body",
+      { x: MARGIN, y: 7.8, w: WIDTH, h: 4 },
+      doc.subtitle.map((line) => para("P_sub", line, keys)).join(""),
+    );
+  return frames;
+}
+
+function sectionFrame(slide: DeckDoc["slides"][number], keys: Set<string>) {
+  return frame(
+    "title",
+    "pr_title",
+    { x: MARGIN, y: 5.5, w: WIDTH, h: 3.2 },
+    para("P_cover", slide.title ?? [], keys),
+  );
+}
+
+function slideFrames(
+  slide: DeckDoc["slides"][number],
+  media: Media,
+  auto: Auto,
+  keys: Set<string>,
+): string {
+  let frames = "";
+  let top = MARGIN;
+  if (slide.title !== null) {
+    frames += frame(
+      "title",
+      "pr_title",
+      { x: MARGIN, y: 0.6, w: WIDTH, h: 2.2 },
+      para("P_title", slide.title, keys),
+    );
+    top = 3.2;
+  }
+  const layout = layoutSlide(
+    slide.parts,
+    MARGIN,
+    top,
+    WIDTH,
+    PAGE.height - top - 0.9,
+    (image) => media.images.get(imageKey(image)),
+  );
+  for (const part of layout.parts)
+    frames +=
+      part.kind === "image"
+        ? part.items.map((item) => imageXml(media, item)).join("")
+        : part.kind === "text"
+          ? frame(
+              "outline",
+              "pr_body",
+              { x: MARGIN, y: part.y, w: WIDTH, h: part.h },
+              linesXml(
+                part.lines,
+                keys,
+                bodyStyle(auto, TEXT_PT * layout.scale),
+              ),
+            )
+          : tableXml(
+              auto,
+              keys,
+              part.table,
+              part.layout,
+              part,
+              TABLE_PT * layout.scale,
+            );
+  return frames;
+}
+
 function contentXml(doc: DeckDoc, media: Media): string {
   const keys = new Set<string>();
   const auto: Auto = { styles: new Map(), tables: 0 };
   const pages: string[] = [];
-
-  if (doc.title !== null) {
-    let frames = frame(
-      "title",
-      "pr_title",
-      { x: MARGIN, y: 4, w: WIDTH, h: 3.2 },
-      para("P_cover", doc.title, keys),
-    );
-    if (doc.subtitle.length)
-      frames += frame(
-        "subtitle",
-        "pr_body",
-        { x: MARGIN, y: 7.8, w: WIDTH, h: 4 },
-        doc.subtitle.map((line) => para("P_sub", line, keys)).join(""),
-      );
-    pages.push(page(pages.length + 1, frames));
-  }
-
+  const cover = coverPage(doc, keys);
+  if (cover !== null) pages.push(page(pages.length + 1, cover));
   for (const slide of doc.slides) {
     const notes = slide.notes.length ? linesXml(slide.notes, keys) : "";
-    if (slide.section) {
-      pages.push(
-        page(
-          pages.length + 1,
-          frame(
-            "title",
-            "pr_title",
-            { x: MARGIN, y: 5.5, w: WIDTH, h: 3.2 },
-            para("P_cover", slide.title ?? [], keys),
-          ),
-          notes,
-        ),
-      );
-      continue;
-    }
-    let frames = "";
-    let top = MARGIN;
-    if (slide.title !== null) {
-      frames += frame(
-        "title",
-        "pr_title",
-        { x: MARGIN, y: 0.6, w: WIDTH, h: 2.2 },
-        para("P_title", slide.title, keys),
-      );
-      top = 3.2;
-    }
-    const layout = layoutSlide(
-      slide.parts,
-      MARGIN,
-      top,
-      WIDTH,
-      PAGE.height - top - 0.9,
-      (image) => media.images.get(imageKey(image)),
-    );
-    for (const part of layout.parts)
-      frames +=
-        part.kind === "image"
-          ? part.items.map((item) => imageXml(media, item)).join("")
-          : part.kind === "text"
-            ? frame(
-                "outline",
-                "pr_body",
-                { x: MARGIN, y: part.y, w: WIDTH, h: part.h },
-                linesXml(
-                  part.lines,
-                  keys,
-                  bodyStyle(auto, TEXT_PT * layout.scale),
-                ),
-              )
-            : tableXml(
-                auto,
-                keys,
-                part.table,
-                part.layout,
-                part,
-                TABLE_PT * layout.scale,
-              );
+    const frames = slide.section
+      ? sectionFrame(slide, keys)
+      : slideFrames(slide, media, auto, keys);
     pages.push(page(pages.length + 1, frames, notes));
   }
-
-  const listLevel =
-    '<style:list-level-properties text:space-before="0cm" text:min-label-width="0.9cm"/>' +
-    '<style:text-properties fo:font-family="' +
-    FONT +
-    '" fo:font-size="100%"/>';
-
   return (
     '<?xml version="1.0" encoding="UTF-8"?>' +
     "<office:document-content" +
     NS +
     ' office:version="1.3">' +
     "<office:automatic-styles>" +
-    '<style:style style:name="dp1" style:family="drawing-page"/>' +
-    (media.paths.size
-      ? '<style:style style:name="gr_img" style:family="graphic">' +
-        '<style:graphic-properties draw:stroke="none" draw:fill="none"/>' +
-        "</style:style>"
-      : "") +
-    '<style:style style:name="pr_title" style:family="presentation">' +
-    '<style:graphic-properties draw:stroke="none" draw:fill="none" ' +
-    'draw:auto-grow-height="false" draw:textarea-vertical-align="middle"/>' +
-    "</style:style>" +
-    '<style:style style:name="pr_body" style:family="presentation">' +
-    '<style:graphic-properties draw:stroke="none" draw:fill="none" ' +
-    'draw:auto-grow-height="false" draw:textarea-vertical-align="top" ' +
-    'style:shrink-to-fit="true"/>' +
-    "</style:style>" +
-    '<style:style style:name="P_cover" style:family="paragraph">' +
-    '<style:paragraph-properties fo:text-align="center"/>' +
-    '<style:text-properties fo:font-family="' +
-    FONT +
-    '" fo:font-size="36pt" fo:font-weight="bold"/>' +
-    "</style:style>" +
-    '<style:style style:name="P_title" style:family="paragraph">' +
-    '<style:paragraph-properties fo:text-align="start"/>' +
-    '<style:text-properties fo:font-family="' +
-    FONT +
-    '" fo:font-size="30pt" fo:font-weight="bold"/>' +
-    "</style:style>" +
-    '<style:style style:name="P_sub" style:family="paragraph">' +
-    '<style:paragraph-properties fo:text-align="center"/>' +
-    '<style:text-properties fo:font-family="' +
-    FONT +
-    '" fo:font-size="20pt"/>' +
-    "</style:style>" +
-    '<style:style style:name="P_body" style:family="paragraph">' +
-    '<style:paragraph-properties fo:margin-bottom="0.2cm"/>' +
-    '<style:text-properties fo:font-family="' +
-    FONT +
-    '" fo:font-size="20pt"/>' +
-    "</style:style>" +
-    '<style:style style:name="gr_table" style:family="graphic">' +
-    '<style:graphic-properties draw:stroke="none" draw:fill="none"/>' +
-    "</style:style>" +
+    fixedStyles(media.paths.size > 0) +
     [...auto.styles.values()].join("") +
     [...keys].map(runStyle).join("") +
-    '<text:list-style style:name="L_bullet">' +
-    '<text:list-level-style-bullet text:level="1" text:bullet-char="•">' +
-    listLevel +
-    "</text:list-level-style-bullet></text:list-style>" +
-    '<text:list-style style:name="L_number">' +
-    '<text:list-level-style-number text:level="1" style:num-format="1" style:num-suffix=".">' +
-    listLevel +
-    "</text:list-level-style-number></text:list-style>" +
+    listStyles() +
     "</office:automatic-styles>" +
     "<office:body><office:presentation>" +
     pages.join("") +
