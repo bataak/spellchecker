@@ -5,22 +5,18 @@
 
 ### Features
 
-* **project:** add a «LaTeX төсөл» button to the bottom bar that opens a folder, zip or git repo without a .tex file open ([5777334](https://github.com/bataak/spellchecker/commit/577733483433b9c7fb6fed4b54c3f7000f5959a6))
+* **project:** add a «LaTeX төсөл» button at the right end of the bottom bar that opens a folder, zip or git repo without a .tex file open ([5777334](https://github.com/bataak/spellchecker/commit/577733483433b9c7fb6fed4b54c3f7000f5959a6), [1ca1c6b](https://github.com/bataak/spellchecker/commit/1ca1c6b39ad898ef0f42c83638cb29f608ebd18b), [2acf4e3](https://github.com/bataak/spellchecker/commit/2acf4e373ae6cad4e5e9873025babc339e486451), [1430f8e](https://github.com/bataak/spellchecker/commit/1430f8ed3a6c332d965ac59c7878a71ddeabe937))
 * **project:** ask which folder to open when a repo holds several LaTeX projects ([21100f5](https://github.com/bataak/spellchecker/commit/21100f5ab2f408b66875c2a3e3de4e34280b4df9))
-* **project:** fold sign-in into the confirm button, which reads «Нэвтрэх» until a token is at hand ([306ef20](https://github.com/bataak/spellchecker/commit/306ef201acdb6db583c851005c31cbe18e9159e6))
+* **project:** fold sign-in into the confirm button, which reads «Нэвтрэх» until a token is at hand ([306ef20](https://github.com/bataak/spellchecker/commit/306ef201acdb6db583c851005c31cbe18e9159e6), [3d5ecaa](https://github.com/bataak/spellchecker/commit/3d5ecaa802354c8713f4b6dc426fa9158f00260c))
 * **project:** hide the git dialog while the folder picker is open ([08667e4](https://github.com/bataak/spellchecker/commit/08667e475098901a7ecb6f4a3ac80696ea87e357))
 * **project:** keep the git dialog open while the repo loads and show load errors inside it ([578871b](https://github.com/bataak/spellchecker/commit/578871b85a0f461d924c0e0e9c8f1a8c18e0c01c))
 * **project:** label the git button «Git repo нээх» ([dcb7e03](https://github.com/bataak/spellchecker/commit/dcb7e03eda8b8f0f20869b04acac50caa89dbcac))
-* **project:** label the project button «LaTeX төсөл» and place it before «Файл нээх» ([1ca1c6b](https://github.com/bataak/spellchecker/commit/1ca1c6b39ad898ef0f42c83638cb29f608ebd18b))
-* **project:** label the sign-in button simply «Нэвтрэх» ([3d5ecaa](https://github.com/bataak/spellchecker/commit/3d5ecaa802354c8713f4b6dc426fa9158f00260c))
 * **project:** merge files changed on both sides line by line and let the user resolve clashing lines in a dialog ([7c777ac](https://github.com/bataak/spellchecker/commit/7c777ace77eae72b567dc2aa3395fc9761b0cbae))
-* **project:** move self-hosted servers under «Бусад», fold branch and folder away and ask for a token only when sign-in is unavailable ([6007954](https://github.com/bataak/spellchecker/commit/600795406bde144acb5f05521675b56e9ab1b9a5))
+* **project:** fold branch and folder away in the git dialog and ask for a token only when sign-in is unavailable ([6007954](https://github.com/bataak/spellchecker/commit/600795406bde144acb5f05521675b56e9ab1b9a5))
 * **project:** open a LaTeX project from GitHub and commit changes back with Ctrl+S ([c4cc7dc](https://github.com/bataak/spellchecker/commit/c4cc7dc165525cd1f0a5fbcf66861b51d3e7ac62))
-* **project:** open projects from GitLab or self-hosted servers through a shared git host interface ([71a4107](https://github.com/bataak/spellchecker/commit/71a4107b6f5e480078f23b3c18dfc1aaafe1a8ea))
-* **project:** put «LaTeX төсөл» at the right end of the bottom bar ([2acf4e3](https://github.com/bataak/spellchecker/commit/2acf4e373ae6cad4e5e9873025babc339e486451))
+* **project:** open projects from GitLab through a shared git host interface ([71a4107](https://github.com/bataak/spellchecker/commit/71a4107b6f5e480078f23b3c18dfc1aaafe1a8ea))
 * **project:** show one repo placeholder, the server address followed by нэр/төсөл ([65e4b94](https://github.com/bataak/spellchecker/commit/65e4b94d436bd89e8373cb3f1ab802a2c6883deb))
 * **project:** show only the chosen folder of a multi-project repo and fold the rest into «…» rows ([27f7d8d](https://github.com/bataak/spellchecker/commit/27f7d8d79b50bff04e9323b2ab8b6eb94be11b43))
-* **project:** show the LaTeX project button as a folder icon ([1430f8e](https://github.com/bataak/spellchecker/commit/1430f8ed3a6c332d965ac59c7878a71ddeabe937))
 * **project:** sign in to GitHub with a device code and to GitLab with PKCE instead of pasting tokens ([1d32ec3](https://github.com/bataak/spellchecker/commit/1d32ec3543a9bfd1ec22136bcfaff69fef17b642))
 * **project:** title the git dialog «Git repo төсөл» ([146fbe2](https://github.com/bataak/spellchecker/commit/146fbe2eba6e38780ef9d0075d4854aa6fbc8465))
 
