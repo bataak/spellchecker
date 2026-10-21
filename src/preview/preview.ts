@@ -171,8 +171,58 @@ function buildPreview(deps: PreviewDeps) {
   return { panel, ui, body, notes, pane, imageEdit, htmlSync };
 }
 
+interface ToolState {
+  readonly tex: () => ReturnType<typeof createTexPreview>;
+  readonly hasSource: () => boolean;
+  readonly mdShown: () => boolean;
+}
+
+function previewTools(
+  deps: PreviewDeps,
+  head: HTMLElement,
+  body: HTMLElement,
+  pane: ReturnType<typeof createPdfPane>,
+  htmlSync: ReturnType<typeof createHtmlSync>,
+  t: ToolState,
+) {
+  const tidy = createTidy({
+    wrap: deps.wrap,
+    head,
+    area: deps.area,
+    onFormat: deps.onFormat,
+    texActive: () => t.tex().active(),
+    hasSource: t.hasSource,
+    isLatex: deps.isLatex,
+  });
+  const sync = createPreviewSync({
+    area: deps.area,
+    body,
+    view: () => pane.view(),
+    htmlSync,
+    texActive: () => t.tex().active(),
+    texPending: () => t.tex().pending(),
+    htmlShown: () => !t.hasSource() && t.mdShown(),
+    jump: deps.jump,
+  });
+  return { tidy, sync };
+}
+
+function showSource(
+  next: PreviewSource,
+  title: HTMLElement,
+  panel: HTMLElement,
+  files: ReturnType<typeof createFileView>,
+  showNotice: (text: string) => void,
+): void {
+  const name = next.kind === "office" ? next.name : next.file.name;
+  title.textContent = `${HEAD_TEXT} · ${name}`;
+  panel.classList.toggle("is-pdf", next.kind === "pdf");
+  if (next.kind === "office") showNotice("Уг файлыг үзүүлэх боломжгүй");
+  else files.show(next.kind, next.file);
+}
+
 export function initPreview(deps: PreviewDeps): Preview {
-  const { wrap, area, isLatex } = deps;
+  const { area, isLatex } = deps;
   const { panel, ui, body, notes, pane, imageEdit, htmlSync } =
     buildPreview(deps);
 
@@ -182,24 +232,10 @@ export function initPreview(deps: PreviewDeps): Preview {
   let source: PreviewSource | null = null;
   let sourceText = "";
   const md = createMarkdownView(body);
-  const tidy = createTidy({
-    wrap,
-    head: ui.head,
-    area,
-    onFormat: deps.onFormat,
-    texActive: () => tex.active(),
+  const { tidy, sync } = previewTools(deps, ui.head, body, pane, htmlSync, {
+    tex: () => tex,
     hasSource: () => source !== null,
-    isLatex,
-  });
-  const sync = createPreviewSync({
-    area,
-    body,
-    view: () => pane.view(),
-    htmlSync,
-    texActive: () => tex.active(),
-    texPending: () => tex.pending(),
-    htmlShown: () => source === null && md.shown(),
-    jump: deps.jump,
+    mdShown: () => md.shown(),
   });
   const offTap = onDoubleTap(body, sync.jumpAt);
 
@@ -268,11 +304,7 @@ export function initPreview(deps: PreviewDeps): Preview {
       return;
     }
     sourceText = area.value;
-    const name = next.kind === "office" ? next.name : next.file.name;
-    ui.title.textContent = `${HEAD_TEXT} · ${name}`;
-    panel.classList.toggle("is-pdf", next.kind === "pdf");
-    if (next.kind === "office") showNotice("Уг файлыг үзүүлэх боломжгүй");
-    else files.show(next.kind, next.file);
+    showSource(next, ui.title, panel, files, showNotice);
   };
 
   body.addEventListener("click", (event) =>
@@ -306,16 +338,19 @@ export function initPreview(deps: PreviewDeps): Preview {
     },
     pdf: () => tex.pdf(),
     destroy() {
-      files.release();
-      if (raf) cancelAnimationFrame(raf);
-      tex.destroy();
-      compileMode.destroy();
-      offImages();
-      imageEdit.destroy();
-      htmlSync.destroy();
-      sync.destroy();
-      offTap();
-      tidy.destroy();
+      for (const stop of [
+        files.release,
+        () => raf && cancelAnimationFrame(raf),
+        tex.destroy,
+        compileMode.destroy,
+        offImages,
+        imageEdit.destroy,
+        htmlSync.destroy,
+        sync.destroy,
+        offTap,
+        tidy.destroy,
+      ])
+        stop();
       area.removeEventListener("input", update);
       panel.remove();
     },
