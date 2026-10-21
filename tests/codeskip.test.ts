@@ -230,6 +230,12 @@ test("does not treat file names as domains", () => {
     "style.css",
     "Node.js",
     "mn_MN.aff",
+    "main.ts",
+    "script.py",
+    "build.rs",
+    "archive.zip",
+    "clip.mov",
+    "run.pl",
   ]) {
     const text = "Файл нь " + name + " нэртэй.";
     assert.deepEqual(skipRanges(text), [], name);
@@ -478,4 +484,24 @@ test("a fence line with an info string does not close the block", () => {
   assert.ok(skipped(text, "эхнийүг"));
   assert.ok(skipped(text, "дарааүг"));
   assert.ok(!skipped(text, "гадна"));
+});
+
+test("skips bare domains on common generic and country TLDs", () => {
+  for (const host of [
+    "example.shop",
+    "example.store",
+    "example.biz",
+    "example.us",
+    "example.eu",
+    "example.kz",
+    "example.top",
+    "example.live",
+    "example.news",
+    "example.world",
+  ]) {
+    const text = host + "/алдаатй дараа";
+    const ranges = skipRanges(text);
+    assert.ok(inRanges(ranges, text.indexOf("алдаатй")), host);
+    assert.ok(!inRanges(ranges, text.indexOf("дараа")), host);
+  }
 });

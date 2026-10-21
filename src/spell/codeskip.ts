@@ -191,7 +191,8 @@ const MD_ATTRS = /\]\((?:[^()]|\([^()]*\))*\)(\{[^{}\n]*\})/g;
 const MD_DEFINITION = /^[ \t]{0,3}\[[^\]]+\]:[ \t]*(\S+)/gm;
 const AUTOLINK = /<[^\s<>]*(?::\/\/|@)[^\s<>]*>/g;
 const TLD =
-  "com|org|net|io|dev|mn|edu|gov|info|app|ai|co|me|ru|uk|de|fr|jp|cn|kr|tv|xyz|tech|online|site|page|blog|cloud|sh|gg";
+  "com|org|net|io|dev|mn|edu|gov|info|app|ai|co|me|ru|uk|de|fr|jp|cn|kr|tv|xyz|tech|online|site|page|blog|cloud|sh|gg|" +
+  "shop|store|biz|us|ca|au|eu|nl|it|es|ch|se|kz|top|live|news|art|club|space|website|fun|life|world|link|today|studio|design|agency|digital";
 
 const DOMAIN = new RegExp(
   String.raw`\b(?:[A-Za-z0-9][A-Za-z0-9-]*\.)+(?:${TLD})\b(?:\/${URL_CHARS}*)?`,
