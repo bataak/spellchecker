@@ -7,7 +7,8 @@ const ENV =
   ")";
 
 const VIRTUAL: Readonly<Record<string, string>> = {
-  "virtual:stardict-index": "export default [];",
+  "virtual:stardict-index":
+    "export default globalThis.__STARDICT_INDEX__ ?? [];",
 };
 
 export const resolve: ResolveHookSync = (specifier, context, nextResolve) => {
