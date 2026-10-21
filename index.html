@@ -419,41 +419,16 @@
         >
           Хэвлэх
         </button>
-        <span class="splitbtn">
-          <button
-            id="openBtn"
-            class="tbtn openctl"
-            type="button"
-            title="txt, md, tex, docx, pptx, odt, odp, pdf файл нээх"
-          >
-            Файл нээх
-          </button>
-          <button
-            id="projectBtn"
-            class="tbtn splitbtn-more"
-            type="button"
-            title="Файл эсвэл LaTeX төсөл (хавтас, zip, Git repo) нээх"
-            aria-label="Нээх сонголтууд"
-            aria-haspopup="menu"
-          >
-            <svg
-              width="10"
-              height="10"
-              viewBox="0 0 10 10"
-              aria-hidden="true"
-              focusable="false"
-            >
-              <path
-                d="M2 3.5 5 6.5 8 3.5"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.6"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-          </button>
-        </span>
+        <button
+          id="openBtn"
+          class="tbtn openctl"
+          type="button"
+          title="Файл (txt, md, tex, docx, pptx, odt, odp, pdf) эсвэл LaTeX төсөл нээх"
+          aria-haspopup="menu"
+        >
+          Файл нээх
+        </button>
+        <button id="pickBtn" type="button" hidden="">Файл сонгох</button>
         <input
           id="openFile"
           type="file"

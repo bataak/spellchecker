@@ -312,7 +312,7 @@ test("«Файл нээх» цэсний «LaTeX төсөл» хэсгээс .te
   const context = await app.context();
   await github.attach(context);
   const page = await openPage(app, context);
-  await page.click("#projectBtn");
+  await page.click("#openBtn");
   await page.locator(".project-menu-item", { hasText: "LaTeX төсөл" }).click();
   await page
     .locator(".project-menu-item", { hasText: "Git repo нээх" })
