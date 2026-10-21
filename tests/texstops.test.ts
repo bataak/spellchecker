@@ -72,7 +72,7 @@ function show(s: State): string {
   return s.text.slice(0, s.caret) + "|" + s.text.slice(s.caret);
 }
 
-test("Tab \\frac-ийн дараагийн хаалт руу, дараа нь гадагш шилжүүлнэ", () => {
+test("Tab \\frac-ийн дараагийн хаалт уруу, дараа нь гадагш шилжүүлнэ", () => {
   let s = complete(start("$|$"), "\\fr", "frac");
   assert.equal(show(s), "$\\frac{|}{}$");
   s = tab(type(s, "a+b"))!;
@@ -120,7 +120,7 @@ test("дөрвөлжин хаалттай аргумент", () => {
   assert.equal(show(s), "\\usepackage[utf8]{|}");
 });
 
-test("орчны аргументаас дотор мөр рүү шилжинэ", () => {
+test("орчны аргументаас дотор мөр уруу шилжинэ", () => {
   let s = complete(start("\\begin{|"), "tab", "tabular");
   assert.equal(show(s), "\\begin{tabular}{|}\n  \n\\end{tabular}");
   s = tab(type(s, "ll"))!;
@@ -156,7 +156,7 @@ test("курсор хэсгээс гарвал Tab хэвийн ажиллана
   assert.deepEqual(next.stack, []);
 });
 
-test("гаднаас текст өөрчлөгдөж хаалт алга болвол үсрэхгүй", () => {
+test("гаднаас текст өөрчлөгдөж хаалт алга болбол үсрэхгүй", () => {
   const s = complete(start("|"), "\\fr", "frac");
   const swapped = { ...s, text: "\\frac{}xx" };
   assert.equal(tabStop(swapped.stack, swapped.text, 6).caret, null);

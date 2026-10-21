@@ -163,7 +163,7 @@ export function layoutHint(target: () => HTMLElement | null): Hint {
   return {
     id: "layout",
     target,
-    html: "Дэлгэцний горимыг энд дарж сонгоно.",
+    html: "Дэлгэцийн горимыг энд дарж сонгоно.",
   };
 }
 

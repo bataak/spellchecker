@@ -88,7 +88,7 @@ const zoomLevel = (page: Page) =>
   );
 
 test(
-  "гар утсан дээр PDF харагдацыг хоёр хуруугаар томруулна",
+  "гар утсан дээр PDF харагдцыг хоёр хуруугаар томруулна",
   { skip: CDP_ONLY },
   async () => {
     const { context, page } = await openPhone();

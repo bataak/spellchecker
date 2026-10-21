@@ -81,7 +81,7 @@ test("backdrop: TeX өнгөлгөөг тохируулж, буцааж авах
   assert.equal(root.querySelector("[class^=tx-]"), null);
 });
 
-test("backdrop: мөрийн тооноос gutter-ийн оронг тооцно", () => {
+test("backdrop: мөрийн тооноос gutter-ийн орныг тооцно", () => {
   const { backdrop } = fresh();
   backdrop.render(Array.from({ length: 120 }, () => "x").join("\n"), []);
   assert.equal(

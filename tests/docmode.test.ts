@@ -13,7 +13,7 @@ const setup = () => {
 
 const TEX = "\\documentclass{article}\n\\begin{document}\nA\n\\end{document}";
 
-test("docmode бичвэрээс LaTeX-ийг таньна", () => {
+test("docmode бичвэрээс LaTeX-ийг танина", () => {
   const { mode } = setup();
   mode.setTemplate("plain");
   assert.equal(mode.isLatex(TEX), true);

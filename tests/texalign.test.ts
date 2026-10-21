@@ -50,7 +50,7 @@ test("alignRows: эргэлзээтэй хүснэгтэд хүрэхгүй", ()
   assert.equal(alignRows(["a & b"], "tabular"), null);
 });
 
-test("tidyTex: хүснэгтийг шатлаж, баганыг тэгшилнэ", () => {
+test("tidyTex: хүснэгтийг шаталж, баганыг тэгшилнэ", () => {
   const src = [
     "\\begin{table}",
     "\\begin{tabular}{ll}",

@@ -20,7 +20,7 @@ const dict = (id: string, name: string, user: boolean) => ({
   latin: false,
 });
 
-test("dictManager: толиудыг жагсааж, зөөх ба засах товчийг зөв идэвхжүүлнэ", async () => {
+test("dictManager: толинуудыг жагсааж, зөөх ба засах товчийг зөв идэвхжүүлнэ", async () => {
   const statuses: string[] = [];
   const manager = createDictManager({
     list: async () => [

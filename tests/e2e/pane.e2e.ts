@@ -70,7 +70,7 @@ test("харагдац хажууд багтахгүй үед товчоор б�
   assert.deepEqual(errors(page), []);
 });
 
-test("гар утсан дээр харагдацад шилжихэд бичвэрт харагдаж байсан мөрийг харуулна", async () => {
+test("гар утсан дээр харагдцад шилжихэд бичвэрт харагдаж байсан мөрийг харуулна", async () => {
   const page = await openPage(app, await app.context());
   await page.setViewportSize({ width: 390, height: 800 });
   await chooseSlot(page, "Тайлан");
@@ -192,7 +192,7 @@ test("LaTeX-ийг хэлбэржүүлэхэд харагдаж буй PDF ар
   await context.close();
 });
 
-test("LaTeX засах бүрт шинэ PDF-ийг хуучныхыг арилгалгүй сольж харуулна", async () => {
+test("LaTeX засах бүрд шинэ PDF-ийг хуучныхыг арилгалгүй сольж харуулна", async () => {
   const context = await app.context();
   const page = await openPage(app, context);
   await chooseSlot(page, "Судалгаа");

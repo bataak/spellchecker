@@ -62,7 +62,7 @@ test("харагдац нь тогтмол, measure-ээс хамаарахгү�
   }
 });
 
-test("харагдац ердийн дэлгэцэнд хүрнэ", () => {
+test("харагдац ердийн дэлгэцэд хүрнэ", () => {
   const list = available(x, 1606, []).map(key);
   assert.ok(list.includes("a-v"), `1606px дээр a-v байх ёстой: ${list}`);
 });
@@ -86,7 +86,7 @@ test("contentWidth — слотуудын нийлбэртэй тэнцэнэ", 
   }
 });
 
-test("preview + хавтас нь хоёулангийн зайг эзэлнэ", () => {
+test("preview + хавтас нь аль алиных нь зайг эзэлнэ", () => {
   for (const m of ["a", "b", "c"] as const) {
     near(
       pageWidth(pv(m, true), x) - pageWidth(pv(m, false), x),
@@ -150,7 +150,7 @@ test("pageWidth — хавтас нуухад зай чөлөөлөгдөнө", 
   }
 });
 
-test("pageWidth — c + хавтас нь 1606px дэлгэцэнд багтана", () => {
+test("pageWidth — c + хавтас нь 1606px дэлгэцэд багтана", () => {
   assert.ok(pageWidth(on("c"), x) + HYSTERESIS <= 1606);
 });
 
@@ -189,11 +189,11 @@ test("available — хавтасгүй хувилбар нам босготой"
   }
 });
 
-test("available — маш өргөн дэлгэцэнд бүгд", () => {
+test("available — маш өргөн дэлгэцэд бүгд", () => {
   assert.equal(available(x, 4000, []).length, 12);
 });
 
-test("available — нарийн дэлгэцэнд зөвхөн анхдагч", () => {
+test("available — нарийн дэлгэцэд зөвхөн анхдагч", () => {
   const narrow = pageWidth(off("a"), x) + HYSTERESIS - 1;
   const list = available(x, narrow, []);
   assert.equal(list.length, 1);
@@ -271,7 +271,7 @@ test("dockColumnFits нэмэлт баганын өргөнийг тооцно",
   assert.equal(dockColumnFits(l, x, right + x.gutterW, "left", true), true);
 });
 
-test("resolveDock багтахгүй баганыг алдааны талбар руу шилжүүлнэ", () => {
+test("resolveDock багтахгүй баганыг алдааны талбар уруу шилжүүлнэ", () => {
   assert.equal(resolveDock(null, true, true), null);
   assert.equal(resolveDock("left", true, true), "left");
   assert.equal(resolveDock("right", true, false), "panel");

@@ -41,7 +41,7 @@ test("isTexName зөвхөн tex, ltx өргөтгөлийг танина", () =
   assert.equal(isTexName(null), false);
 });
 
-test("saveMessage үр дүн бүрт мессеж өгнө", () => {
+test("saveMessage үр дүн бүрд мессеж өгнө", () => {
   assert.equal(saveMessage("saved"), "Хадгаллаа");
   assert.equal(saveMessage("clean"), "Өөрчлөлт алга");
   assert.equal(saveMessage("downloaded"), "Архивлалаа");

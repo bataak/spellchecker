@@ -91,7 +91,7 @@ test("tar-аас энгийн, GNU урт нэр, pax нэртэй файлуу�
   assert.equal(new TextDecoder().decode(entries[2]!.data), "syn");
 });
 
-test("архивын нэр, хог файлыг таньна", () => {
+test("архивын нэр, хог файлыг танина", () => {
   assert.equal(isArchiveName("stardict-mongoltoli.tar.bz2"), true);
   assert.equal(isArchiveName("x.tgz"), true);
   assert.equal(isArchiveName("x.zip"), true);

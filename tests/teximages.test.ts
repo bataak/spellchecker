@@ -7,7 +7,7 @@ import {
   texImagePaths,
 } from "../src/tex/teximages.ts";
 
-test("зургийн замыг ./-гүйгээр жигдлэнэ", () => {
+test("зургийн замыг ./-гүйгээр жигдэлнэ", () => {
   assert.equal(normalizeTexPath(" ./img/a.png "), "img/a.png");
   assert.equal(normalizeTexPath("././b.jpg"), "b.jpg");
   assert.equal(normalizeTexPath("../c.png"), "../c.png");
@@ -36,7 +36,7 @@ test("keep үед мэдэгдэхгүй зургийг хэвээр үлдээ�
   );
 });
 
-test("макроор өгсөн зургийн замыг задалж олно", () => {
+test("макрогоор өгсөн зургийн замыг задалж олно", () => {
   const text = String.raw`\newcommand{\InstituteLogo}{img/logo.png}
 \def\Dir{fig}
 \includegraphics[height=1cm]{\InstituteLogo}

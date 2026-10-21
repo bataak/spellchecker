@@ -14,7 +14,7 @@ function count(html: string, pattern: RegExp): number {
   return html.match(pattern)?.length ?? 0;
 }
 
-test("deckPrintHtml: босоо A4 хуудас бүрт 2 слайд", () => {
+test("deckPrintHtml: босоо A4 хуудас бүрд 2 слайд", () => {
   const html = deck(
     "---\ntitle: Илтгэл\n---\n\n## Нэг\n\nА\n\n## Хоёр\n\nБ\n\n## Гурав\n\nВ\n\n## Дөрөв\n\nГ\n",
   );

@@ -5,7 +5,7 @@ import { textLeft } from "../src/preview/pdftext.ts";
 
 const page = { top: 100, left: 20, width: 600, height: 800 };
 
-test("markBox: сумыг бичвэрийн зүүн захаас зүүн тийш мөрийн түвшинд байрлуулна", () => {
+test("markBox: сумыг бичвэрийн зүүн захаас зүүн тийш мөрийн төвшинд байрлуулна", () => {
   const box = markBox(page, 0.5, 0.2);
   assert.ok(Math.abs(box.size - 8.8) < 1e-9);
   assert.ok(box.left + box.size < page.left + 0.2 * page.width);

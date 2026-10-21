@@ -68,7 +68,7 @@ export function buildExportDialog(
     '<ul class="export-missing-list"></ul>' +
     "</div>" +
     '<label class="export-toc export-notes" hidden>' +
-    '<input class="export-notes-input" type="checkbox" /> Илтгэгчийн тэмдэглэлийг хоёр дахь дэлгэцэнд гаргах' +
+    '<input class="export-notes-input" type="checkbox" /> Илтгэгчийн тэмдэглэлийг хоёр дахь дэлгэцэд гаргах' +
     "</label>" +
     '<p class="export-error" role="alert" hidden></p>' +
     '<div class="export-actions">' +

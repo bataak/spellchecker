@@ -59,7 +59,7 @@ test("svg багцыг graphicx болгож, includesvg-г includegraphics бо
   );
 });
 
-test("svg-г .svg өргөтгөлөөр болон хайх хавтсаас олно", () => {
+test("svg-г .svg өргөтгөлөөр болон хайх хавтаснаас олно", () => {
   const files = new Set(["doc/fig/diagram.svg", "doc/logo.svg"]);
   const has = (path: string): boolean => files.has(path);
   assert.equal(
@@ -70,7 +70,7 @@ test("svg-г .svg өргөтгөлөөр болон хайх хавтсаас о
   assert.equal(resolveSvg("none", "doc", ["fig/"], has), null);
 });
 
-test("svg-ийн хэмжээг пункт рүү хөрвүүлнэ", () => {
+test("svg-ийн хэмжээг пункт уруу хөрвүүлнэ", () => {
   assert.deepEqual(svgSize("100", "50", null), { width: 75, height: 37.5 });
   assert.deepEqual(svgSize("2in", null, "0 0 200 100"), {
     width: 144,

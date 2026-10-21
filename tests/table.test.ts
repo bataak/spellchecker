@@ -4,7 +4,7 @@ import { OFFICE_METRICS, columnWidths } from "../src/office/table.ts";
 
 const cell = (text: string) => [{ text }];
 
-test("оффисын хүснэгтийн толгой нэг мөрөнд багтах өргөнтэй", () => {
+test("офисын хүснэгтийн толгой нэг мөрөнд багтах өргөнтэй", () => {
   const rows = [
     [cell("Машин"), cell("Ажилласан өдөр"), cell("Ашиглалт")],
     [cell("№1"), cell("54"), cell("90%")],

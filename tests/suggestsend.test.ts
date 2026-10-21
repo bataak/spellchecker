@@ -15,13 +15,13 @@ test("sendBlock илгээх боломжгүй шалтгааныг дараа�
   assert.equal(sendBlock(MAX_WORDS, true, "t"), null);
 });
 
-test("sendFailure хариуны төлвөөр мессеж сонгоно", () => {
+test("sendFailure хариуны төлөвөөр мессеж сонгоно", () => {
   assert.match(sendFailure(null), /Сүлжээний алдаа/);
   assert.match(sendFailure(429), /Цагийн хязгаар/);
   assert.match(sendFailure(500), /Илгээхэд алдаа/);
 });
 
-test("postSuggestion JSON илгээж төлвийг буцаана, сүлжээний алдаанд null", async () => {
+test("postSuggestion JSON илгээж төлөвийг буцаана, сүлжээний алдаанд null", async () => {
   const seen: RequestInit[] = [];
   const ok = (async (_url: unknown, init?: RequestInit) => {
     seen.push(init!);

@@ -108,7 +108,7 @@ test("resolveGraphic: өргөтгөлгүй замд svg-г растер зур
   assert.equal(isSvgGraphic("fig/b.png"), false);
 });
 
-test("resolveGraphic: үндсэн файлын хавтсаас эхэлж хайна", () => {
+test("resolveGraphic: үндсэн файлын хавтаснаас эхэлж хайна", () => {
   const files = new Set(["src/img/a.png", "shared/b.png"]);
   const has = (path: string): boolean => files.has(path);
   assert.equal(resolveGraphic("img/a", "src", [], has), "src/img/a.png");

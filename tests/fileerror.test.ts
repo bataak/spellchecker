@@ -18,7 +18,7 @@ test("readFailureMessage: хэмжээний хязгаарыг алдаанаа
   );
 });
 
-test("readFailureMessage: шалтгаан бүрт өөрийн мэдэгдэл", () => {
+test("readFailureMessage: шалтгаан бүрд өөрийн мэдэгдэл", () => {
   for (const kind of [
     "unsupported",
     "unpacked-too-large",

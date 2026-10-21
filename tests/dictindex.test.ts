@@ -50,7 +50,7 @@ test("collectDicts — дэд хавтаснаас олно", () => {
   );
 });
 
-test("safeBase — замын халдлагыг таслана", () => {
+test("safeBase — замын халдлагыг тасална", () => {
   assert.equal(safeBase("mn"), true);
   assert.equal(safeBase("хавтас/toli"), true);
   assert.equal(safeBase("../etc/passwd"), false);
@@ -59,7 +59,7 @@ test("safeBase — замын халдлагыг таслана", () => {
   assert.equal(safeBase("a\\b"), false);
 });
 
-test("encodeBase — сегмент бүрийг тусад нь кодлоно", () => {
+test("encodeBase — сегмент бүрийг тусад нь кодолно", () => {
   assert.equal(
     encodeBase("Mongolian Thesaurus/toli"),
     "Mongolian%20Thesaurus/toli",
@@ -138,7 +138,7 @@ test("applyOrder — жагсаалтын дарааллаар эрэмбэлн�
   );
 });
 
-test("applyOrder — хавтсын нэрээр бүлгээр заана", () => {
+test("applyOrder — хавтасны нэрээр бүлгээр заана", () => {
   const dicts = [entry("mn"), entry("Thesaurus-2.4.2/toli")];
   assert.deepEqual(
     applyOrder(dicts, ["Thesaurus-2.4.2/"]).map((item) => item.base),

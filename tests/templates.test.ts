@@ -33,7 +33,7 @@ test("isPlain: бичвэрийн талбар .txt, бусад нь markdown", 
   assert.equal(isPlain("article"), true);
 });
 
-test("хасагдсан загвар бүр одоо байгаа талбар руу заана", () => {
+test("хасагдсан загвар бүр одоо байгаа талбар уруу заана", () => {
   for (const target of Object.values(LEGACY_TEMPLATES))
     assert.ok(findTemplate(target), target);
 });

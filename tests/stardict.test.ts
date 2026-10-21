@@ -301,7 +301,7 @@ test("tag-тай толинд үйл үгийн tag-гүй оруулгыг үй
   );
 });
 
-test("латин толгой үгтэй толийг таньна", () => {
+test("латин толгой үгтэй толийг танина", () => {
   const english = buildDict(
     ["apple", "attention", "book", "matrix", "zebra"].map(
       (word): [string, string] => [word, "тайлбар"],

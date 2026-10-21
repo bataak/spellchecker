@@ -12,7 +12,7 @@ test("хаягийн мөрийн өөрчлөлтийг гар гэж анду�
   assert.equal(isKeyboardOpen(baseline, { height: 508, offsetTop: 0 }), true);
 });
 
-test("PWA-д layout viewport хамт жижгэрсэн ч гарыг таньна", () => {
+test("PWA-д layout viewport хамт жижгэрсэн ч гарыг танина", () => {
   let baseline = nextBaseline(null, 390, 844);
   baseline = nextBaseline(baseline, 390, 646);
   assert.deepEqual(baseline, { width: 390, height: 844 });

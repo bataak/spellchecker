@@ -22,7 +22,7 @@ test("алгассан код блок дахь үгийг солихгүй", ()
   assert.equal(out.text, "hello\n\n```js\nconst helo = 1;\n```");
 });
 
-test("алгасах муж өгөөгүй бол бүх тохиолдлыг сольно", () => {
+test("алгасах муж өгөөгүй бол бүх тохиолдлыг солино", () => {
   const out = replaceAllWord("helo ба helo", "helo", "hello", 0, "lower");
   assert.equal(out.text, "hello ба hello");
 });

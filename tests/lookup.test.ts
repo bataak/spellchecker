@@ -63,7 +63,7 @@ test("wordAt — дотоод таслах тэмдэг", () => {
   assert.equal(at("үгүй'ээ", 2), "үгүй'ээ");
 });
 
-test("wordAt — кирилл биш тэмдэгт таслана", () => {
+test("wordAt — кирилл биш тэмдэгт тасална", () => {
   assert.equal(at("40х60", 3), "х");
   assert.equal(at("тоо123", 2), "тоо");
   assert.equal(at("code", 2), null);
@@ -120,7 +120,7 @@ test("isLookupKey — F2 нөөц зам", () => {
   assert.equal(key({ code: "F2", ctrlKey: true }), false);
 });
 
-test("wordAt — латин үгийг зөвхөн идэвхжүүлсэн үед таньна", () => {
+test("wordAt — латин үгийг зөвхөн идэвхжүүлсэн үед танина", () => {
   const text = "Энэ attention механизм";
   assert.equal(wordAt(text, 6), null);
   assert.equal(wordAt(text, 6, true)?.word, "attention");

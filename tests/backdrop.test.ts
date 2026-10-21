@@ -172,7 +172,7 @@ test("олон мөрөнд тархсан тэмдэглэгээ", () => {
   assert.equal((html.match(/<mark /g) ?? []).length, 3);
 });
 
-test("мөр давсан тэмдэглэгээ мөр бүрт тасарна", () => {
+test("мөр давсан тэмдэглэгээ мөр бүрд тасарна", () => {
   const raw = "аав\nээж";
   const marks: Token[] = [{ word: "аав\nээж", start: 0, end: 7 }];
   const html = markedHtml(raw, 0, marks);
