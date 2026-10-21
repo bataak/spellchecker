@@ -24,17 +24,17 @@ const TEXT = sample();
 const RANDOM = new Uint8Array(randomBytes(200000));
 const REPEAT = new Uint8Array(3 << 20).fill(0x61);
 
-test("xz-ийн бүх түвшинг задлана", () => {
+test("xz-ийн бүх төвшнийг задална", () => {
   for (const level of ["-0", "-1", "-6", "-9", "-9e"])
     assert.deepEqual(unxz(xz(TEXT, [level])), TEXT, level);
 });
 
-test("CRC32, CRC64, SHA-256 ба шалгалтгүй урсгалыг задлана", () => {
+test("CRC32, CRC64, SHA-256 ба шалгалтгүй урсгалыг задална", () => {
   for (const check of ["none", "crc32", "crc64", "sha256"])
     assert.deepEqual(unxz(xz(TEXT, ["--check=" + check])), TEXT, check);
 });
 
-test("олон блок ба нийлүүлсэн урсгалыг задлана", () => {
+test("олон блок ба нийлүүлсэн урсгалыг задална", () => {
   assert.deepEqual(unxz(xz(TEXT, ["--block-size=4096"])), TEXT);
   const first = xz(TEXT, []);
   const second = xz(RANDOM, ["--check=crc32"]);
@@ -47,7 +47,7 @@ test("олон блок ба нийлүүлсэн урсгалыг задлан�
   assert.deepEqual(unxz(joined), both);
 });
 
-test("lc, lp, pb-ийн өөр утгуудыг задлана", () => {
+test("lc, lp, pb-ийн өөр утгуудыг задална", () => {
   for (const opts of [
     "lc=0,lp=0,pb=0",
     "lc=4,lp=0,pb=4",
@@ -57,7 +57,7 @@ test("lc, lp, pb-ийн өөр утгуудыг задлана", () => {
     assert.deepEqual(unxz(xz(TEXT, ["--lzma2=preset=6," + opts])), TEXT, opts);
 });
 
-test("шахагдахгүй, давтагдсан ба хоосон өгөгдлийг задлана", () => {
+test("шахагдахгүй, давтагдсан ба хоосон өгөгдлийг задална", () => {
   assert.deepEqual(unxz(xz(RANDOM, [])), RANDOM);
   assert.deepEqual(unxz(xz(REPEAT, ["-9"])), REPEAT);
   assert.deepEqual(unxz(xz(new Uint8Array(0), [])), new Uint8Array(0));

@@ -25,7 +25,7 @@ export function editName(
     const name = input.value.trim();
     if (save && name && name !== initial) {
       if (!validName(name)) {
-        deps.notify('Нэрэнд / \\ : * ? " < > | тэмдэгт орж болохгүй');
+        deps.notify('Нэрд / \\ : * ? " < > | тэмдэгт орж болохгүй');
       } else await deps.run(() => commit(name));
     }
     deps.done();

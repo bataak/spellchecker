@@ -54,7 +54,7 @@ test("checkWordsBatched: хоосон жагсаалтад checkWords дууда
   assert.equal(checker.batches.length, 0);
 });
 
-test("tokenize: тоо залгасан үгийг үсгэн хэсгээр нь салгана", () => {
+test("tokenize: тоо залгасан үгийг үсгийн хэсгээр нь салгана", () => {
   assert.deepEqual(
     [...tokenize("Конвенци-1982 онд")],
     [
@@ -89,7 +89,7 @@ test("tokenize: үг-тоо хилээр таслаад нөхцөлийг то�
   );
 });
 
-test("tokenize: үсгэн дагавартай зураас хэвээр үлдэнэ", () => {
+test("tokenize: үсгийн дагавартай зураас хэвээр үлдэнэ", () => {
   assert.deepEqual([...tokenize("e-mail")], [{ word: "e-mail", index: 0 }]);
 });
 
@@ -107,7 +107,7 @@ test("tokenize: аравтын бутархай нөхцөлтэйгөө хам�
   assert.deepEqual([...tokenize("3.5-ын")], [{ word: "3.5-ын", index: 0 }]);
 });
 
-test("tokenize: техникийн нэрийн үсгэн хэсэг тусдаа гарна", () => {
+test("tokenize: техникийн нэрийн үсгийн хэсэг тусдаа гарна", () => {
   assert.deepEqual(
     [...tokenize("Т-72")],
     [

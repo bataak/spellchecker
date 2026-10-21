@@ -347,7 +347,7 @@ test("previewTex begin{document}-ийг давхардуулахгүй, өмнө
   );
 });
 
-test("previewTex preamble-гүй хэсэгт байгаа usepackage-ийг preamble руу шилжүүлнэ", () => {
+test("previewTex preamble-гүй хэсэгт байгаа usepackage-ийг preamble уруу шилжүүлнэ", () => {
   const out = previewTex("\\usepackage{longtable}\n\\section{А}\nТекст.\n");
   const begin = out.indexOf("\\begin{document}");
   assert.ok(out.indexOf("\\usepackage{longtable}") < begin);
@@ -369,7 +369,7 @@ test("toLatexBody: [ -ээр эхэлсэн жагсаалтын мөр \\item-�
   );
 });
 
-test("escapeTex: ₮, грек, математик тэмдэгтийг командоор, zero-width-ийг хасна", () => {
+test("escapeTex: ₮, грек, математик тэмдэгтийг командаар, zero-width-ийг хасна", () => {
   assert.equal(escapeTex("1500₮"), "1500\\texttugrik{}");
   assert.equal(
     escapeTex("αΩΑο"),
@@ -379,7 +379,7 @@ test("escapeTex: ₮, грек, математик тэмдэгтийг кома
   assert.equal(escapeTex("a​b️"), "ab");
 });
 
-test("toLatex: тодорхойгүй Unicode тэмдэгтэд эмхэтгэл зогсохгүй, ₮-ийн тодорхойлолт нэмэгдэнэ", () => {
+test("toLatex: тодорхойгүй Unicode тэмдэгтэд эмхтгэл зогсохгүй, ₮-ийн тодорхойлолт нэмэгдэнэ", () => {
   const tex = toLatex(parse("Үнэ 5₮ 😀 ℝ\n"));
   assert.match(tex, /\\def\\UTFviii@undefined@err/);
   assert.match(tex, /\\DeclareRobustCommand\\texttugrik/);

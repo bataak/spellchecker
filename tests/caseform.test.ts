@@ -28,15 +28,15 @@ test("casePattern: үсэггүй тэмдэгт жижиг гэж тооцог�
   assert.equal(casePattern("123-456"), "lower");
 });
 
-test("casePattern: том үсэг олонхи байвал upper", () => {
+test("casePattern: том үсэг олонх байвал upper", () => {
   assert.equal(casePattern("МОНГОЛулс"), "upper");
 });
 
-test("casePattern: жижиг олонхи, эхнийх нь том бол capital", () => {
+test("casePattern: жижиг олонх, эхнийх нь том бол capital", () => {
   assert.equal(casePattern("Монголулс"), "capital");
 });
 
-test("casePattern: жижиг олонхи, эхнийх нь жижиг бол lower", () => {
+test("casePattern: жижиг олонх, эхнийх нь жижиг бол lower", () => {
   assert.equal(casePattern("монголУ"), "lower");
 });
 

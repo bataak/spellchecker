@@ -16,7 +16,7 @@ test("PDF экспортын хөдөлгүүр ба TeX багц public/-д б�
   assert.ok(existsSync("public/" + TEX_BUNDLE));
 });
 
-test("T1 кодчилолтой EC фонт бүр cm-super Type1 фонт руу map-тай", () => {
+test("T1 кодчилолтой EC фонт бүр cm-super Type1 фонт уруу map-тай", () => {
   const files = unzipSync(readFileSync("public/" + TEX_BUNDLE));
   assert.ok(files["cm-super-t1.enc"]);
   const map = new TextDecoder().decode(files["pdftex.map"]);
@@ -131,7 +131,7 @@ test("hasNotes: зөвхөн илтгэгчийн тэмдэглэлтэй сл�
   assert.equal(hasNotes(deck, "report"), false);
 });
 
-test("LaTeX экспорт: сонговол тэмдэглэлийг хоёр дахь дэлгэцэнд гаргана", async () => {
+test("LaTeX экспорт: сонговол тэмдэглэлийг хоёр дахь дэлгэцэд гаргана", async () => {
   const { FORMATS } = await import("../src/export/exportformats.ts");
   const tex = FORMATS.find((format) => format.id === "tex")!;
   const deck = "# Илтгэл\n\n## Нэг\n\nАгуулга\n\n::: notes\nХэлэх үг\n:::\n";

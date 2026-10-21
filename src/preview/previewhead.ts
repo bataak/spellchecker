@@ -101,7 +101,7 @@ export function buildPreviewHead(
 
   const zoomBox = document.createElement("span");
   zoomBox.className = "pdf-zoom";
-  const zoomOut = headButton("", "Жижигрүүлэх", "−");
+  const zoomOut = headButton("", "Жижгэрүүлэх", "−");
   const zoomReset = headButton("pdf-zoom-level", "Анхны хэмжээ", "100%");
   const zoomIn = headButton("", "Томруулах", "+");
   zoomBox.append(zoomOut, zoomReset, zoomIn);
@@ -114,7 +114,7 @@ export function buildPreviewHead(
   const pageLabel = document.createElement("button");
   pageLabel.type = "button";
   pageLabel.className = "pdf-page-label";
-  pageLabel.title = "Хуудас руу очих";
+  pageLabel.title = "Хуудас уруу очих";
   const pageInput = document.createElement("input");
   pageInput.type = "text";
   pageInput.inputMode = "numeric";
@@ -185,7 +185,7 @@ export function buildPreviewHead(
       pageLabel.textContent = page + " / " + pages;
       pageLabel.setAttribute(
         "aria-label",
-        "Хуудас " + page + " / " + pages + ". Хуудас руу очих",
+        "Хуудас " + page + " / " + pages + ". Хуудас уруу очих",
       );
     },
     closePageInput,

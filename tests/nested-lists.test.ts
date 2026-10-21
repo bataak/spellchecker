@@ -16,7 +16,7 @@ const unzip = (bytes: Uint8Array): Record<string, string> =>
     Object.entries(unzipSync(bytes)).map(([k, v]) => [k, strFromU8(v)]),
   );
 
-test("buildDocx: дэд жагсаалт дээд түвшинтэйгээ гарна", () => {
+test("buildDocx: дэд жагсаалт дээд төвшинтэйгөө гарна", () => {
   const out = unzip(buildDocx(doc(), { toc: false }));
   const levels = [
     ...out["word/document.xml"]!.matchAll(

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { tidyCaret, tidyTex } from "../src/tex/textidy.ts";
 
-test("tidyTex: орчны доторх мөрийг догол мөрөөр шатлана, document-ийг шатлахгүй", () => {
+test("tidyTex: орчны доторх мөрийг догол мөрөөр шатална, document-ийг шатлахгүй", () => {
   const src = [
     "\\documentclass{article}",
     "\\begin{document}",

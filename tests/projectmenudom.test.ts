@@ -36,7 +36,7 @@ const key = (target: Element, name: string) =>
 const click = (target: Element, detail = 1) =>
   target.dispatchEvent(new MouseEvent("click", { bubbles: true, detail }));
 
-test("projectMenu: Escape нь нээсэн товч руу фокус буцааж, эзэнгүй бол onEscape дуудна", () => {
+test("projectMenu: Escape нь нээсэн товч уруу фокус буцааж, эзэнгүй бол onEscape дуудна", () => {
   menu.open(items, 0, 0, owner);
   assert.equal(menu.owner(), owner);
   key(buttons()[0]!, "Escape");
@@ -48,7 +48,7 @@ test("projectMenu: Escape нь нээсэн товч руу фокус буца�
   assert.deepEqual(escaped, ["escape"]);
 });
 
-test("projectMenu: ArrowRight бүлгийг нээж, ArrowLeft хааж гарчиг руу буцна", () => {
+test("projectMenu: ArrowRight бүлгийг нээж, ArrowLeft хааж гарчиг уруу буцна", () => {
   menu.open(items, 0, 0, owner);
   const [, head, folder, git] = buttons();
   assert.equal(head!.getAttribute("aria-haspopup"), "true");

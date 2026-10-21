@@ -159,7 +159,7 @@ test("collectDiagnostics: тоон утгыг хязгаарлана", () => {
   assert.equal(out.devicePixelRatio, 0);
 });
 
-test("collectDiagnostics: userAgent-ийг ASCII болгож таслана", () => {
+test("collectDiagnostics: userAgent-ийг ASCII болгож тасална", () => {
   const out = collectDiagnostics({
     ...baseState(),
     userAgent: "A".repeat(1000) + "\n" + CYR,
@@ -237,7 +237,7 @@ test("buildIssueUrl: богино бол бүх frame үлдэнэ", () => {
   assert.deepEqual(parsePayload(url).errors, errors);
 });
 
-test("buildIssueUrl: урт бол эхлээд frame-ийг таслана", () => {
+test("buildIssueUrl: урт бол эхлээд frame-ийг тасална", () => {
   const d = collectDiagnostics(baseState());
   const errors = Array.from({ length: 5 }, (_, i) =>
     errorWithFrames(8, String(i)),
@@ -282,7 +282,7 @@ test("buildIssueUrl: frame хүрэлцэхгүй бол хуучин алдаа
   assert.equal(payload.userAgent, d.userAgent);
 });
 
-test("buildIssueUrl: хамгийн сүүлд userAgent-ийг таслана", () => {
+test("buildIssueUrl: хамгийн сүүлд userAgent-ийг тасална", () => {
   const d = collectDiagnostics({ ...baseState(), userAgent: "U".repeat(300) });
   const noErrors = buildIssueUrl(d, [], 100000).length;
   const url = buildIssueUrl(d, [errorWithFrames(8, "a")], noErrors - 100);

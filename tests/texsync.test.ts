@@ -175,7 +175,7 @@ test("PDF-ийн үгээс эх бичвэрийн байрлалыг олно"
   assert.equal(TEX.slice(joined.at, joined.at + 9), "суралцдаг");
 });
 
-test("давтагдсан хэллэгийг PDF-ээс эх рүү буцааж тоолно", () => {
+test("давтагдсан хэллэгийг PDF-ээс эх уруу буцааж тоолно", () => {
   const tex = [PHRASE, filler("а", 10), PHRASE, filler("б", 10), PHRASE].join(
     "\n",
   );

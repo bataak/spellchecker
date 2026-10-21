@@ -19,7 +19,7 @@ const setup = (text = "") => {
   return { state, mode };
 };
 
-test("previewmode markdown болон tex горимд харагдацыг хүснэ", () => {
+test("previewmode markdown болон tex горимд харагдцыг хүснэ", () => {
   const { state, mode } = setup("# a");
   mode.enter(true, false);
   assert.deepEqual(state.layout, [false, true, false]);
@@ -42,7 +42,7 @@ test("previewmode хоосон бичвэрт солих товчийг нууд
   assert.equal(state.pane, true);
 });
 
-test("previewmode цэвэрлэсний дараа бичих хүртэл харагдацыг нууна", () => {
+test("previewmode цэвэрлэсний дараа бичих хүртэл харагдцыг нууна", () => {
   const { state, mode } = setup("a");
   mode.enter(true, false);
   state.text = "";

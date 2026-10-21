@@ -77,7 +77,7 @@ test("printHtml: бэлтгэсэн зургийг голлуулсан дого
   assert.match(html, /<p class="s-Figure"><br><\/p>/);
 });
 
-test("printHtml: хэвлэлт апптай хамт ирсэн Times-тэй ижил өргөнтэй фонтыг эхэлж ашиглана", () => {
+test("printHtml: хэвлэлт аптай хамт ирсэн Times-тэй ижил өргөнтэй фонтыг эхэлж ашиглана", () => {
   const html = letter("Бие.");
   assert.match(
     html,

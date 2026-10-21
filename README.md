@@ -18,7 +18,7 @@ transpile хийдэг бол `tsc --noEmit` нь зөвхөн төрлийн ш
 ```sh
 npm ci             # шаардлагатай сангуудыг суулгах (эхний удаа)
 npm test           # төрлийн шалгалт + бичил шалгалт хийх
-npm run test:e2e   # хөтөч дээр апп-ыг бүхэлд нь шалгах (Playwright)
+npm run test:e2e   # хөтөч дээр апыг бүхэлд нь шалгах (Playwright)
 npm run typecheck  # зөвхөн төрлийн шалгалт (tsc --noEmit)
 npm run dev        # хөгжүүлэлтийн сервер (localhost)
 npm run preview    # production build хийж урьдчилан үзэх
@@ -59,7 +59,7 @@ node tools/texlive/build.ts
 туршилтын баримтад (`SAMPLE_MD`, `SHAPES`) нэмээгүй бол түүнд хэрэгтэй
 файл багцад орохгүй.
 
-Код домэйноор хавтсанд хуваагдана: `spell/` (алдаа шалгах), `tex/`
+Код доменоор хавтсанд хуваагдана: `spell/` (алдаа шалгах), `tex/`
 (LaTeX), `project/` (LaTeX төсөл), `preview/` (харагдац), `office/` (Word,
 PowerPoint), `dict/` (толь), `archive/` (шахсан файл), `markdown/`
 (Markdown задлагч, HTML болон Markdown гаралт; гадагш `src/markdown.ts`-ээр
@@ -68,7 +68,7 @@ PowerPoint), `dict/` (толь), `archive/` (шахсан файл), `markdown/`
 - `initX(deps)` нь хуудсан дээрх элементэд холбогдож, сонсогч бүртгэнэ.
 - `createX(deps)` нь өөрийн төлөв, элементтэй объект үүсгэж буцаана.
 - `buildX(...)` нь DOM эсвэл өгөгдөл үүсгээд буцаана, төлөв хадгалахгүй.
-- Хамаарлыг `XDeps` интерфэйсээр дамжуулна; утга учраар нь холбоотой
+- Хамаарлыг `XDeps` интерфейсээр дамжуулна; утга учраар нь холбоотой
   callback-уудыг port болгон бүлэглэнэ (жишээ нь `SlotPort`). Төлөвтэй
   объектыг (жишээ нь `createProjectStore()`) `main.ts` нэг удаа үүсгээд
   deps-ээр дамжуулна, модульд шууд import хийхгүй.

@@ -56,7 +56,7 @@ test("өөрчлөгдөөгүй таб reload хийхэд нөгөө табы�
   assert.equal(await editor(a), "Хуучин шинэ");
 });
 
-test("хоёр табад нээсэн файлууд хоёулаа жагсаалтад үлдэнэ", async () => {
+test("хоёр табт нээсэн файлууд хоёулаа жагсаалтад үлдэнэ", async () => {
   const context = await app.context();
   const a = await openPage(app, context);
   const b = await openPage(app, context);
@@ -71,7 +71,7 @@ test("хоёр табад нээсэн файлууд хоёулаа жагса�
   assert.deepEqual(names, ["a.txt", "b.txt"]);
 });
 
-test("өөр табад хаасан файлын дугаар дахин олгогдохгүй", async () => {
+test("өөр табт хаасан файлын дугаар дахин олгогдохгүй", async () => {
   const context = await app.context();
   const a = await openPage(app, context);
   await openFile(a, app.files.a);
@@ -100,7 +100,7 @@ test("өөр табад хаасан файлын дугаар дахин олг
   assert.ok(!ids.includes(first), ids.join());
 });
 
-test("загварын жишээний сонголт таб бүрт тусдаа", async () => {
+test("загварын жишээний сонголт таб бүрд тусдаа", async () => {
   const context = await app.context();
   const a = await openPage(app, context);
   await chooseSlot(a, "Өргөдөл");
@@ -139,7 +139,7 @@ test("ижил цонх эсвэл өөр төсөл нээлттэй бол а�
   assert.ok(other(await until(() => status(b), other)));
 });
 
-test("хоёр табад нэг төслийн өөр файлын засвар хоёулаа хадгалагдана", async () => {
+test("хоёр табт нэг төслийн өөр файлын засвар хоёулаа хадгалагдана", async () => {
   const context = await app.context();
   const a = await openPage(app, context);
   await openFile(a, app.files.project);

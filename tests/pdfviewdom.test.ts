@@ -81,7 +81,7 @@ function host(): HTMLElement {
   return document.querySelector<HTMLElement>("#host")!;
 }
 
-test("pdfView: хуудас бүрт хүрээ үүсгэж, эхний хуудасны харьцааг авна", async () => {
+test("pdfView: хуудас бүрд хүрээ үүсгэж, эхний хуудасны харьцааг авна", async () => {
   const fake: Fake = { renders: [], destroyed: 0 };
   const pages: number[][] = [];
   const view = await renderPdfInto(host(), file(), undefined, 1.5, {
@@ -168,7 +168,7 @@ test("pdfView: цэгийг хуудасны харьцангуй координ
   view.destroy();
 });
 
-test("pdfView: хуудсуудын текстийг үг болгон уншина", async () => {
+test("pdfView: хуудаснуудын текстийг үг болгон уншина", async () => {
   const fake: Fake = { renders: [], destroyed: 0 };
   const view = await renderPdfInto(host(), file(), undefined, 1, {
     load: () => fakeTask([["Сайн байна"], ["Монгол"]], fake),

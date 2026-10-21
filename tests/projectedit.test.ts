@@ -19,7 +19,7 @@ const bytes = (text: string): Uint8Array => new TextEncoder().encode(text);
 const memory = () =>
   newState(1, "memory", "төсөл", null, [["main.tex", bytes(MAIN)]], []);
 
-test("файл нэмэхэд эцэг хавтсууд үүсч, текстийг хадгалсанд тооцно", () => {
+test("файл нэмэхэд эцэг хавтаснууд үүсэж, текстийг хадгалсанд тооцно", () => {
   const s = memory();
   putFile(s, "ch/body.tex", bytes("бие\r\nмөр"));
   assert.equal(s.texts.get("ch/body.tex"), "бие\nмөр");
