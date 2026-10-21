@@ -14,6 +14,28 @@ import type { StoreCore } from "./storecore.ts";
 
 const TAKEN = "Ийм нэртэй зүйл байна";
 
+function validPath(path: string, invalid: string): string {
+  const clean = cleanPath(path);
+  if (!clean) throw new ProjectError(invalid);
+  return clean;
+}
+
+function freePath(s: State, path: string, invalid: string): string {
+  const clean = validPath(path, invalid);
+  if (exists(s, clean)) throw new ProjectError(TAKEN);
+  return clean;
+}
+
+function checkRename(s: State, from: string, target: string): void {
+  if (exists(s, target, from)) throw new ProjectError(TAKEN);
+  if (within(target, from))
+    throw new ProjectError("Хавтсыг өөр дотор нь зөөх боломжгүй");
+  if (s.dirty.has(from) && !isEditablePath(target))
+    throw new ProjectError(
+      "Хадгалаагүй өөрчлөлттэй файлыг засах боломжгүй төрөл уруу нэрлэхгүй",
+    );
+}
+
 export function createEditors(core: StoreCore) {
   function setProjectText(path: string, text: string): void {
     const s = core.state();
@@ -55,9 +77,7 @@ export function createEditors(core: StoreCore) {
 
   async function createFile(path: string): Promise<void> {
     const s = core.require();
-    const clean = cleanPath(path);
-    if (!clean) throw new ProjectError("Файлын нэр буруу байна");
-    if (exists(s, clean)) throw new ProjectError(TAKEN);
+    const clean = freePath(s, path, "Файлын нэр буруу байна");
     await storeFile(s, clean, new Uint8Array(0));
   }
 
@@ -69,8 +89,7 @@ export function createEditors(core: StoreCore) {
 
   async function addFile(path: string, bytes: Uint8Array): Promise<void> {
     const s = core.require();
-    const clean = cleanPath(path);
-    if (!clean) throw new ProjectError("Файлын нэр буруу байна");
+    const clean = validPath(path, "Файлын нэр буруу байна");
     if (
       s.dirs.has(clean) ||
       (exists(s, clean) && !s.texts.has(clean) && !s.binaries.has(clean))
@@ -81,9 +100,7 @@ export function createEditors(core: StoreCore) {
 
   async function createDir(path: string): Promise<void> {
     const s = core.require();
-    const clean = cleanPath(path);
-    if (!clean) throw new ProjectError("Хавтасны нэр буруу байна");
-    if (exists(s, clean)) throw new ProjectError(TAKEN);
+    const clean = freePath(s, path, "Хавтасны нэр буруу байна");
     if (s.kind === "dir" && s.handle) await dirHandleFor(s.handle, clean, true);
     putDir(s, clean);
     core.changed(true);
@@ -91,16 +108,9 @@ export function createEditors(core: StoreCore) {
 
   async function renamePath(from: string, to: string): Promise<void> {
     const s = core.require();
-    const target = cleanPath(to);
-    if (!target) throw new ProjectError("Нэр буруу байна");
+    const target = validPath(to, "Нэр буруу байна");
     if (target === from) return;
-    if (exists(s, target, from)) throw new ProjectError(TAKEN);
-    if (within(target, from))
-      throw new ProjectError("Хавтсыг өөр дотор нь зөөх боломжгүй");
-    if (s.dirty.has(from) && !isEditablePath(target))
-      throw new ProjectError(
-        "Хадгалаагүй өөрчлөлттэй файлыг засах боломжгүй төрөл уруу нэрлэхгүй",
-      );
+    checkRename(s, from, target);
     const root = core.diskRoot();
     if (root) await moveOnDisk(s, root, from, target);
     moveEntries(s, from, target);
