@@ -372,24 +372,7 @@ a.tbtn {
   display: inline-flex;
   align-items: center;
 }
-.splitbtn {
-  display: inline-flex;
-  flex: 0 0 auto;
-}
-.splitbtn > .openctl {
-  border-start-end-radius: 0;
-  border-end-end-radius: 0;
-}
-.splitbtn > .splitbtn-more {
-  display: inline-flex;
-  align-items: center;
-  margin-inline-start: -1px;
-  padding-inline: 7px;
-  border-start-start-radius: 0;
-  border-end-start-radius: 0;
-}
-.splitbtn > .tbtn:hover,
-.splitbtn > .tbtn:focus-visible {
+.tbtn:focus-visible {
   position: relative;
 }
 .tbtn:focus-visible {

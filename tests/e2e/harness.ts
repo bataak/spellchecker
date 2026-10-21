@@ -221,9 +221,10 @@ export async function chooseProject(page: Page): Promise<void> {
 }
 
 export async function openFile(page: Page, path: string): Promise<void> {
+  await page.click("#openBtn");
   const [chooser] = await Promise.all([
     page.waitForEvent("filechooser"),
-    page.click("#openBtn"),
+    page.click(".project-menu-item >> nth=0"),
   ]);
   await chooser.setFiles(path);
   await page.waitForTimeout(1500);
