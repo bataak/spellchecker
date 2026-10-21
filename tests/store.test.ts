@@ -22,7 +22,7 @@ beforeEach(() => {
   resetSession();
 });
 
-test("shared түлхүүр бүх табад нийтлэг", () => {
+test("shared түлхүүр бүх табт нийтлэг", () => {
   assert.equal(write(KEYS.theme, "dark"), true);
   assert.equal(rawGet("theme"), "dark");
   resetSession();
@@ -41,7 +41,7 @@ test("tab түлхүүр табдаа давуу, шинэ таб сүүлийн
   assert.equal(read(KEYS.template), "letter");
 });
 
-test("session түлхүүр зөвхөн тухайн табад", () => {
+test("session түлхүүр зөвхөн тухайн табт", () => {
   write(KEYS.wipe, "1");
   assert.equal(rawGet("mn-spell:wipe"), null);
   assert.equal(read(KEYS.wipe), "1");
