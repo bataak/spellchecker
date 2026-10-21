@@ -173,7 +173,7 @@ test("shortcuts: Ctrl+Shift+L толь бичгийн цэс нээнэ", () => 
 test("shortcuts: нээх нь picker байхгүй бол нуусан input-ыг дарна", () => {
   const withPicker = setup();
   withPicker.press({ key: "o", ctrl: true });
-  assert.deepEqual(withPicker.calls, ["run:open"]);
+  assert.deepEqual(withPicker.calls, ["click:pick", "flash:open"]);
   const without = setup({ picker: false });
   without.press({ key: "o", ctrl: true });
   assert.deepEqual(without.calls, ["click:openFile", "flash:open"]);

@@ -304,9 +304,9 @@ export function initFileIO({
   }
 
   const openFileEl = document.querySelector<HTMLInputElement>("#openFile");
-  const openBtn = document.querySelector<HTMLElement>("#openBtn");
-  if (openBtn && openFileEl) {
-    openBtn.addEventListener("click", async () => {
+  const pickBtn = document.querySelector<HTMLElement>("#pickBtn");
+  if (pickBtn && openFileEl) {
+    pickBtn.addEventListener("click", async () => {
       if (!hasFSOpen) {
         openFileEl.click();
         return;
