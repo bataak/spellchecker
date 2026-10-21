@@ -82,6 +82,13 @@ function covered(ranges: SkipRange[], offset: number): boolean {
   return false;
 }
 
+function escaped(text: string, index: number): boolean {
+  let slashes = 0;
+  while (index - slashes > 0 && text.charCodeAt(index - slashes - 1) === 92)
+    slashes += 1;
+  return slashes % 2 === 1;
+}
+
 function inlineRanges(text: string, fenced: SkipRange[]): SkipRange[] {
   const ranges: SkipRange[] = [];
   let index = 0;
@@ -92,7 +99,7 @@ function inlineRanges(text: string, fenced: SkipRange[]): SkipRange[] {
       continue;
     }
 
-    if (covered(fenced, index)) {
+    if (covered(fenced, index) || escaped(text, index)) {
       index += 1;
       continue;
     }
