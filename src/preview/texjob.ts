@@ -1,5 +1,6 @@
 import { isEditOf } from "../editor/samedoc.ts";
 import { tidyTex } from "../tex/textidy.ts";
+import { onTexImagesChange } from "../tex/teximages.ts";
 import {
   cachedPdf,
   digestOf,
@@ -93,12 +94,9 @@ async function showBytes(
   return shown;
 }
 
-function watchImages(
-  c: TexCtx,
-  mod: typeof import("../tex/teximages.ts"),
-): void {
+function watchImages(c: TexCtx): void {
   if (c.st.offTexImages) return;
-  c.st.offTexImages = mod.onTexImagesChange(() => {
+  c.st.offTexImages = onTexImagesChange(() => {
     if (!c.st.texMode) return;
     c.st.texShown = null;
     c.st.forced = true;
@@ -267,11 +265,9 @@ async function compileJob(
   const { seq, key, text, project } = job;
   st.compiling = key;
   try {
-    const [{ compileTexDocument, onTexPackage }, images] = await Promise.all([
-      import("../tex/texpdf.ts"),
-      import("../tex/teximages.ts"),
-    ]);
-    watchImages(c, images);
+    const { compileTexDocument, onTexPackage } =
+      await import("../tex/texpdf.ts");
+    watchImages(c);
     let fetched = false;
     onTexPackage((message) => {
       if (message) fetched = true;

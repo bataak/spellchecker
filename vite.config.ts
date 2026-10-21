@@ -62,6 +62,11 @@ export default defineConfig({
   build: {
     target: "es2020",
     rollupOptions: {
+      onwarn(warning, warn) {
+        if (warning.code === "INEFFECTIVE_DYNAMIC_IMPORT")
+          throw new Error(warning.message);
+        warn(warning);
+      },
       output: {
         chunkFileNames: (chunk: { name?: string; moduleIds: string[] }) =>
           chunk.name && /^pdf/.test(chunk.name)

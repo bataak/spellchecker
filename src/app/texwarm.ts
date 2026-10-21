@@ -10,6 +10,5 @@ export function warmTex(notify: (html: string, ms: number) => void): void {
     notify("LaTeX файлтай офлайн ажиллахад бэлэн боллоо", OFFLINE_READY_MS);
   });
   void import("../preview/pdfview.ts").then((mod) => mod.warmPdf());
-  void import("../tex/teximages.ts");
   void import("../tex/latex.ts");
 }
