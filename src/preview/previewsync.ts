@@ -28,25 +28,52 @@ export const previewShown = (): boolean =>
   document.documentElement.dataset.preview === "on" ||
   document.documentElement.dataset.pane === "preview";
 
-export function createPreviewSync(deps: SyncDeps): PreviewSync {
-  const { area, body, htmlSync } = deps;
-  let syncTimer = 0;
-  let editedAt = -Infinity;
-  let syncedAt = -1;
-  let pendingReveal: number | null = null;
+function createWordCache() {
   let cache: { text: string; words: readonly SourceWord[] } | null = null;
-
-  const wordsOf = (
+  return (
     text: string,
     sourceWords: (text: string) => readonly SourceWord[],
   ): readonly SourceWord[] => {
     if (cache?.text !== text) cache = { text, words: sourceWords(text) };
     return cache.words;
   };
+}
+
+function copyLayout(area: HTMLElement, body: HTMLElement): void {
+  if (area.dataset.layout) body.dataset.layout = area.dataset.layout;
+  else delete body.dataset.layout;
+}
+
+async function jumpFromPdf(
+  deps: SyncDeps,
+  wordsOf: ReturnType<typeof createWordCache>,
+  view: PdfView,
+  x: number,
+  y: number,
+): Promise<void> {
+  const point = view.pointAt(x, y);
+  if (!point) return;
+  const [{ locateSource, pdfWordAt, sourceWords }, pdf] = await Promise.all([
+    import("../tex/texsync.ts"),
+    view.words(),
+  ]);
+  if (view !== deps.view()) return;
+  const index = pdfWordAt(pdf, point.page, point.x, point.y);
+  if (index < 0) return;
+  const hit = locateSource(wordsOf(deps.area.value, sourceWords), pdf, index);
+  if (hit) deps.jump(hit.at, hit.at + hit.word.length);
+}
+
+export function createPreviewSync(deps: SyncDeps): PreviewSync {
+  const { area, body, htmlSync } = deps;
+  let syncTimer = 0;
+  let editedAt = -Infinity;
+  let syncedAt = -1;
+  let pendingReveal: number | null = null;
+  const wordsOf = createWordCache();
 
   const revealOffset = async (offset: number): Promise<boolean> => {
-    if (area.dataset.layout) body.dataset.layout = area.dataset.layout;
-    else delete body.dataset.layout;
+    copyLayout(area, body);
     const view = deps.view();
     if (!deps.texActive()) {
       if (view || !deps.htmlShown()) return false;
@@ -88,28 +115,10 @@ export function createPreviewSync(deps: SyncDeps): PreviewSync {
     );
   };
 
-  const jumpFromPdf = async (
-    view: PdfView,
-    x: number,
-    y: number,
-  ): Promise<void> => {
-    const point = view.pointAt(x, y);
-    if (!point) return;
-    const [{ locateSource, pdfWordAt, sourceWords }, pdf] = await Promise.all([
-      import("../tex/texsync.ts"),
-      view.words(),
-    ]);
-    if (view !== deps.view()) return;
-    const index = pdfWordAt(pdf, point.page, point.x, point.y);
-    if (index < 0) return;
-    const hit = locateSource(wordsOf(area.value, sourceWords), pdf, index);
-    if (hit) deps.jump(hit.at, hit.at + hit.word.length);
-  };
-
   const jumpAt = (x: number, y: number, target: EventTarget | null): void => {
     const view = deps.view();
     if (deps.texActive() && view) {
-      void jumpFromPdf(view, x, y);
+      void jumpFromPdf(deps, wordsOf, view, x, y);
       return;
     }
     if (deps.texActive() || view || !deps.htmlShown()) return;

@@ -106,58 +106,64 @@ function placeDetail(
   canvas.style.height = percent(rect.h, page.height);
 }
 
+function snapSlot(slot: PageSlot, dpr: number): void {
+  if (!slot.canvas) return;
+  const box = slot.el.getBoundingClientRect();
+  const shift = snapShift(
+    box.left + slot.el.clientLeft,
+    box.top + slot.el.clientTop,
+    dpr,
+  );
+  slot.canvas.style.transform = shift;
+  if (slot.detail) slot.detail.canvas.style.transform = shift;
+}
+
+function cancelDetail(slot: PageSlot): void {
+  slot.detailGen++;
+  slot.detailTask?.cancel();
+  slot.detailTask = null;
+}
+
+function dropDetail(slot: PageSlot): void {
+  cancelDetail(slot);
+  if (!slot.detail) return;
+  slot.detail.canvas.remove();
+  freeCanvas(slot.detail.canvas);
+  slot.detail = null;
+}
+
+function invalidate(slot: PageSlot): void {
+  slot.gen++;
+  slot.task?.cancel();
+  slot.task = null;
+  slot.rendering = false;
+  slot.canvas = null;
+}
+
+function release(slot: PageSlot): void {
+  dropDetail(slot);
+  if (slot.canvas) freeCanvas(slot.canvas);
+  invalidate(slot);
+  slot.el.replaceChildren();
+}
+
+function pageCanvas(
+  width: number,
+  height: number,
+  density: number,
+): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  canvas.style.width = width / density + "px";
+  canvas.style.height = height / density + "px";
+  return canvas;
+}
+
 export function createPagePainter(c: PaintCtx): PagePainter {
   const { doc, base, dpr } = c;
 
-  const snap = (slot: PageSlot): void => {
-    if (!slot.canvas) return;
-    const box = slot.el.getBoundingClientRect();
-    const shift = snapShift(
-      box.left + slot.el.clientLeft,
-      box.top + slot.el.clientTop,
-      dpr,
-    );
-    slot.canvas.style.transform = shift;
-    if (slot.detail) slot.detail.canvas.style.transform = shift;
-  };
-
-  const cancelDetail = (slot: PageSlot): void => {
-    slot.detailGen++;
-    slot.detailTask?.cancel();
-    slot.detailTask = null;
-  };
-
-  const dropDetail = (slot: PageSlot): void => {
-    cancelDetail(slot);
-    if (!slot.detail) return;
-    slot.detail.canvas.remove();
-    freeCanvas(slot.detail.canvas);
-    slot.detail = null;
-  };
-
-  const invalidate = (slot: PageSlot): void => {
-    slot.gen++;
-    slot.task?.cancel();
-    slot.task = null;
-    slot.rendering = false;
-    slot.canvas = null;
-  };
-
-  const release = (slot: PageSlot): void => {
-    dropDetail(slot);
-    if (slot.canvas) freeCanvas(slot.canvas);
-    invalidate(slot);
-    slot.el.replaceChildren();
-  };
-
-  const pageCanvas = (width: number, height: number, density: number) => {
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    canvas.style.width = width / density + "px";
-    canvas.style.height = height / density + "px";
-    return canvas;
-  };
+  const snap = (slot: PageSlot): void => snapSlot(slot, dpr);
 
   const draw = async (slot: PageSlot): Promise<void> => {
     if (slot.canvas || slot.rendering) return;

@@ -399,6 +399,44 @@ export interface MeasureControl {
   destroy(): void;
 }
 
+function setRootMetrics(metrics: Metrics): void {
+  const style = document.documentElement.style;
+  style.setProperty("--editor-per", `${metrics.per.toFixed(3)}px`);
+  style.setProperty("--scrollbar-w", `${measureScrollbar()}px`);
+}
+
+function watchFonts(refresh: () => void): void {
+  const fonts = (document as Document & { fonts?: FontFaceSet }).fonts;
+  void fonts?.ready.then(refresh);
+  void fonts?.load('16px "Bichig Mono"').then(refresh);
+}
+
+function bindMenu(control: Control, close: () => void): () => void {
+  const { ctl, btn, menu } = control;
+  btn.addEventListener("click", () => {
+    if (menu.hidden) {
+      menu.hidden = false;
+      btn.setAttribute("aria-expanded", "true");
+      menu.querySelector<HTMLButtonElement>(".measure-opt")?.focus();
+    } else close();
+  });
+  const onDocPointer = (e: Event): void => {
+    if (!menu.hidden && !ctl.contains(e.target as Node)) close();
+  };
+  const onKey = (e: KeyboardEvent): void => {
+    if (e.key === "Escape" && !menu.hidden) {
+      close();
+      btn.focus();
+    }
+  };
+  document.addEventListener("pointerdown", onDocPointer);
+  document.addEventListener("keydown", onKey);
+  return () => {
+    document.removeEventListener("pointerdown", onDocPointer);
+    document.removeEventListener("keydown", onKey);
+  };
+}
+
 export function initMeasureControl(
   wrap: HTMLElement,
   area: HTMLElement,
@@ -443,15 +481,7 @@ export function initMeasureControl(
 
   function refresh(): void {
     metrics = readMetrics(area, wrap);
-    document.documentElement.style.setProperty(
-      "--editor-per",
-      `${metrics.per.toFixed(3)}px`,
-    );
-
-    document.documentElement.style.setProperty(
-      "--scrollbar-w",
-      `${measureScrollbar()}px`,
-    );
+    setRootMetrics(metrics);
 
     const choose = (fit: Layout[]): LayoutChoice =>
       chooseLayout(fit, desired, previewBlocked, previewMode);
@@ -472,42 +502,17 @@ export function initMeasureControl(
     syncToolbar();
 
     const menuAvail = offered ?? avail;
-    const show = showsControl(menuAvail);
-    ctl.hidden = !show;
-    if (!show) {
-      close();
-      return;
-    }
-
-    paintMenu(control, menuAvail, active, metrics, pick);
+    ctl.hidden = !showsControl(menuAvail);
+    if (ctl.hidden) close();
+    else paintMenu(control, menuAvail, active, metrics, pick);
   }
 
-  btn.addEventListener("click", () => {
-    if (menu.hidden) {
-      menu.hidden = false;
-      btn.setAttribute("aria-expanded", "true");
-      menu.querySelector<HTMLButtonElement>(".measure-opt")?.focus();
-    } else close();
-  });
-
-  const onDocPointer = (e: Event): void => {
-    if (!menu.hidden && !ctl.contains(e.target as Node)) close();
-  };
-  const onKey = (e: KeyboardEvent): void => {
-    if (e.key === "Escape" && !menu.hidden) {
-      close();
-      btn.focus();
-    }
-  };
-  document.addEventListener("pointerdown", onDocPointer);
-  document.addEventListener("keydown", onKey);
+  const unbindMenu = bindMenu(control, close);
 
   const ro = new ResizeObserver(() => refresh());
   ro.observe(document.documentElement);
 
-  const fonts = (document as Document & { fonts?: FontFaceSet }).fonts;
-  void fonts?.ready.then(() => refresh());
-  void fonts?.load('16px "Bichig Mono"').then(() => refresh());
+  watchFonts(() => refresh());
 
   refresh();
 
@@ -537,8 +542,7 @@ export function initMeasureControl(
     },
     destroy() {
       ro.disconnect();
-      document.removeEventListener("pointerdown", onDocPointer);
-      document.removeEventListener("keydown", onKey);
+      unbindMenu();
       for (const el of tools.querySelectorAll<HTMLElement>(".decode-btn")) {
         wrap.append(el);
       }

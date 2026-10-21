@@ -124,8 +124,11 @@ function bindListKeys(
   );
 }
 
-export function initTexComplete(deps: TexCompleteDeps): void {
-  const { editor } = deps;
+function createListView(
+  editor: HTMLTextAreaElement,
+  rectAt: TexCompleteDeps["rectAt"],
+  pick: (index: number) => void,
+) {
   const list = document.createElement("ul");
   list.className = "tex-complete";
   list.id = LIST_ID;
@@ -133,6 +136,56 @@ export function initTexComplete(deps: TexCompleteDeps): void {
   list.setAttribute("aria-label", "LaTeX команд");
   list.hidden = true;
   document.body.appendChild(list);
+  return {
+    list,
+    hide(): boolean {
+      if (list.hidden) return false;
+      list.hidden = true;
+      editor.removeAttribute("aria-controls");
+      editor.removeAttribute("aria-activedescendant");
+      return true;
+    },
+    paint(items: readonly Completion[], cmd: boolean, index: number): void {
+      list.textContent = "";
+      items.forEach((item, i) => {
+        const li = optionItem(i, cmd, item, i === index);
+        li.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          pick(i);
+        });
+        list.appendChild(li);
+      });
+      list.hidden = false;
+      editor.setAttribute("aria-controls", LIST_ID);
+      editor.setAttribute("aria-activedescendant", LIST_ID + "-" + index);
+    },
+    select(index: number): void {
+      list.querySelectorAll("li").forEach((li, i) => {
+        li.setAttribute("aria-selected", i === index ? "true" : "false");
+      });
+      editor.setAttribute("aria-activedescendant", LIST_ID + "-" + index);
+    },
+    place(from: number, caret: number): boolean {
+      const rect =
+        from < caret
+          ? rectAt(from, caret)
+          : rectAt(Math.max(0, from - 1), from);
+      if (!rect) return false;
+      const { top, left } = listPosition(list.getBoundingClientRect(), rect);
+      list.style.top = top + "px";
+      list.style.left = left + "px";
+      return true;
+    },
+  };
+}
+
+export function initTexComplete(deps: TexCompleteDeps): void {
+  const { editor } = deps;
+  const view = createListView(editor, deps.rectAt, (i) => {
+    index = i;
+    accept();
+  });
+  const { list } = view;
 
   let context: CompletionContext | null = null;
   let items: Completion[] = [];
@@ -143,12 +196,9 @@ export function initTexComplete(deps: TexCompleteDeps): void {
   editor.setAttribute("aria-autocomplete", "list");
 
   function close(): void {
-    if (list.hidden) return;
-    list.hidden = true;
+    if (!view.hide()) return;
     context = null;
     items = [];
-    editor.removeAttribute("aria-controls");
-    editor.removeAttribute("aria-activedescendant");
   }
 
   function update(): void {
@@ -159,66 +209,21 @@ export function initTexComplete(deps: TexCompleteDeps): void {
     }
     const caret = editor.selectionStart;
     const next = completionContext(editor.value, caret);
-    if (!next) {
-      dismissedAt = -1;
-      close();
-      return;
-    }
-    if (next.from === dismissedAt) {
-      close();
-      return;
-    }
-    dismissedAt = -1;
-    const found = completions(next);
-    if (!found.length) {
+    if (next?.from !== dismissedAt) dismissedAt = -1;
+    const found = next && dismissedAt < 0 ? completions(next) : [];
+    if (!next || !found.length) {
       close();
       return;
     }
     context = next;
     items = found;
     index = 0;
-    paint();
+    view.paint(items, next.kind === "cmd", index);
     place(caret);
   }
 
-  function paint(): void {
-    list.textContent = "";
-    items.forEach((item, i) => {
-      const li = optionItem(i, context!.kind === "cmd", item, i === index);
-      li.addEventListener("pointerdown", (e) => {
-        e.preventDefault();
-        index = i;
-        accept();
-      });
-      list.appendChild(li);
-    });
-    list.hidden = false;
-    editor.setAttribute("aria-controls", LIST_ID);
-    editor.setAttribute("aria-activedescendant", LIST_ID + "-" + index);
-  }
-
-  function select(next: number): void {
-    const count = items.length;
-    index = (next + count) % count;
-    list.querySelectorAll("li").forEach((li, i) => {
-      li.setAttribute("aria-selected", i === index ? "true" : "false");
-    });
-    editor.setAttribute("aria-activedescendant", LIST_ID + "-" + index);
-  }
-
   function place(caret: number): void {
-    if (!context) return;
-    const rect =
-      context.from < caret
-        ? deps.rectAt(context.from, caret)
-        : deps.rectAt(Math.max(0, context.from - 1), context.from);
-    if (!rect) {
-      close();
-      return;
-    }
-    const { top, left } = listPosition(list.getBoundingClientRect(), rect);
-    list.style.top = top + "px";
-    list.style.left = left + "px";
+    if (context && !view.place(context.from, caret)) close();
   }
 
   function accept(): void {
@@ -259,7 +264,10 @@ export function initTexComplete(deps: TexCompleteDeps): void {
       dismissedAt = context ? context.from : -1;
       close();
     },
-    move: (step) => select(index + step),
+    move: (step) => {
+      index = (index + step + items.length) % items.length;
+      view.select(index);
+    },
     jump: (e) => tabs!.jump(e),
   });
 

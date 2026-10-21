@@ -1,4 +1,4 @@
-import type { PdfView } from "./pdfview.ts";
+import type { PdfView, PdfViewOptions } from "./pdfview.ts";
 import type { PreviewHead, ZoomAction } from "./previewhead.ts";
 import { loadZoom, saveZoom, stepZoom } from "./viewprefs.ts";
 import { bindZoomGestures } from "./panezoom.ts";
@@ -20,6 +20,75 @@ export interface PdfPane {
 
 const SWAP_WAIT_MS = 1500;
 
+interface RenderTarget {
+  readonly body: HTMLElement;
+  readonly options: PdfViewOptions;
+  readonly zoom: () => number;
+  readonly takeOver: (controller: AbortController) => void;
+}
+
+async function renderBehindOrNot(
+  render: typeof import("./pdfview.ts").renderPdfInto,
+  file: File,
+  controller: AbortController,
+  behind: boolean,
+  t: RenderTarget,
+): Promise<PdfView | null> {
+  const start = t.zoom();
+  const next = await render(t.body, file, controller.signal, start, {
+    ...t.options,
+    behind,
+  });
+  if (behind)
+    await Promise.race([
+      next.ready,
+      new Promise((resolve) => setTimeout(resolve, SWAP_WAIT_MS)),
+    ]);
+  if (controller.signal.aborted) {
+    next.destroy();
+    return null;
+  }
+  if (behind) {
+    const scroll = t.body.scrollTop;
+    t.takeOver(controller);
+    next.show();
+    if (t.zoom() !== start) next.setZoom(t.zoom());
+    t.body.scrollTop = scroll;
+  }
+  return next;
+}
+
+function pdfFile(bytes: Uint8Array<ArrayBuffer>): File {
+  return new File([bytes], "preview.pdf", { type: "application/pdf" });
+}
+
+function createPaneZoom(
+  body: HTMLElement,
+  head: () => PreviewHead,
+  view: () => PdfView | null,
+) {
+  let zoom = loadZoom();
+  const set = (next: number, origin?: { x: number; y: number }): void => {
+    zoom = next;
+    saveZoom(zoom);
+    head().showZoom(zoom);
+    view()?.setZoom(zoom, origin);
+  };
+  bindZoomGestures(body, {
+    view,
+    zoom: () => zoom,
+    setZoom: set,
+    showZoom: (next) => head().showZoom(next),
+  });
+  return {
+    get: () => zoom,
+    sync: () => set(zoom),
+    step(action: ZoomAction): void {
+      set(action === "reset" ? 1 : stepZoom(zoom, action === "in" ? 1 : -1));
+    },
+  };
+}
+
 export function createPdfPane(
   panel: HTMLElement,
   body: HTMLElement,
@@ -29,20 +98,22 @@ export function createPdfPane(
   let abort: AbortController | null = null;
   let pending: AbortController | null = null;
   let shown: Uint8Array<ArrayBuffer> | null = null;
-  let zoom = loadZoom();
   let rendering = 0;
   const restoreScrollX = keepScrollX(body, () => !!view && rendering === 0);
 
-  const setZoom = (next: number, origin?: { x: number; y: number }): void => {
-    zoom = next;
-    saveZoom(zoom);
-    head().showZoom(zoom);
-    view?.setZoom(zoom, origin);
-  };
+  const zoom = createPaneZoom(body, head, () => view);
 
-  const options = {
-    inset: () => head().head.offsetHeight,
-    onPage: (page: number, total: number) => head().showPage(page, total),
+  const target: RenderTarget = {
+    body,
+    options: {
+      inset: () => head().head.offsetHeight,
+      onPage: (page, total) => head().showPage(page, total),
+    },
+    zoom: zoom.get,
+    takeOver: (controller) => {
+      abort?.abort();
+      abort = controller;
+    },
   };
 
   const setView = (next: PdfView | null): void => {
@@ -69,32 +140,15 @@ export function createPdfPane(
     const mod = await import("./pdfview.ts");
     if (controller.signal.aborted) return null;
     rendering += 1;
-    const start = zoom;
     try {
-      const next = await mod.renderPdfInto(
-        body,
+      const next = await renderBehindOrNot(
+        mod.renderPdfInto,
         file,
-        controller.signal,
-        zoom,
-        { ...options, behind },
+        controller,
+        behind,
+        target,
       );
-      if (behind)
-        await Promise.race([
-          next.ready,
-          new Promise((resolve) => setTimeout(resolve, SWAP_WAIT_MS)),
-        ]);
-      if (controller.signal.aborted) {
-        next.destroy();
-        return null;
-      }
-      if (behind) {
-        const scroll = body.scrollTop;
-        abort?.abort();
-        abort = controller;
-        next.show();
-        if (zoom !== start) next.setZoom(zoom);
-        body.scrollTop = scroll;
-      }
+      if (!next) return null;
       setView(next);
       restoreScrollX();
       return next;
@@ -103,22 +157,11 @@ export function createPdfPane(
     }
   };
 
-  bindZoomGestures(body, {
-    view: () => view,
-    zoom: () => zoom,
-    setZoom,
-    showZoom: (next) => head().showZoom(next),
-  });
-
   return {
     view: () => view,
     shown: () => shown,
-    syncZoom: () => setZoom(zoom),
-    zoom(action) {
-      setZoom(
-        action === "reset" ? 1 : stepZoom(zoom, action === "in" ? 1 : -1),
-      );
-    },
+    syncZoom: zoom.sync,
+    zoom: zoom.step,
     goTo: (page) => view?.goTo(page),
     drop,
     async render(file, onError) {
@@ -139,10 +182,7 @@ export function createPdfPane(
       const controller = new AbortController();
       if (behind) pending = controller;
       else abort = controller;
-      const file = new File([bytes], "preview.pdf", {
-        type: "application/pdf",
-      });
-      const next = await renderFile(file, controller, behind);
+      const next = await renderFile(pdfFile(bytes), controller, behind);
       if (pending === controller) pending = null;
       if (!next) return false;
       shown = bytes;

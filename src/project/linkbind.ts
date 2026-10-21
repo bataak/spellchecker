@@ -55,13 +55,90 @@ function loadText(deps: BindDeps, text: string, place: Place | null): void {
   deps.afterSwitch();
 }
 
+function adoptable(deps: BindDeps, strict: boolean): string | null {
+  const view = deps.store.project();
+  if (!view?.active || view.pending) return null;
+  if (deps.file.name() !== baseName(view.active)) return null;
+  const matches = strict
+    ? deps.store.projectText(view.active) === deps.editor.value
+    : read(KEYS.projectSlot) === deps.slots.current();
+  return matches ? view.active : null;
+}
+
+function createEntering(slots: SlotPort) {
+  let entering = false;
+  return {
+    enter(): void {
+      if (slots.inProject()) return;
+      entering = true;
+      try {
+        slots.enterProject();
+      } finally {
+        entering = false;
+      }
+    },
+    active: () => entering,
+  };
+}
+
+function movePlace(
+  places: Map<string, Place>,
+  from: string | null,
+  to: string,
+): void {
+  const moved = places.get(from ?? "");
+  if (moved && from) places.delete(from);
+  if (moved) places.set(to, moved);
+}
+
+function leave(deps: BindDeps): void {
+  deps.file.bind(null);
+  deps.afterSwitch();
+}
+
+function openable(store: ProjectStore, path: string): boolean {
+  const view = store.project();
+  return !!view && !view.pending && store.projectText(path) !== null;
+}
+
+function lostBinding(
+  deps: BindDeps,
+  view: ProjectView | null,
+  boundId: number,
+  unbind: (forget: boolean) => void,
+  openFile: (path: string) => void,
+): boolean | null {
+  if (!view || view.id !== boundId) {
+    unbind(!view);
+    if (!view) leave(deps);
+    return true;
+  }
+  if (view.active !== null) return null;
+  unbind(false);
+  if (view.main) openFile(view.main);
+  else leave(deps);
+  return false;
+}
+
+function changedText(
+  deps: BindDeps,
+  view: ProjectView,
+  path: string,
+  pushed: string | null,
+): string | null {
+  const text = deps.store.projectText(path);
+  if (text === null || text === deps.editor.value) return null;
+  if (view.dirty.has(path) && text === pushed) return null;
+  return text;
+}
+
 export function createBinding(deps: BindDeps): Binding {
   const { editor, store } = deps;
   let bound = false;
   let boundPath: string | null = null;
   let boundId = 0;
   let detached = false;
-  let entering = false;
+  const entering = createEntering(deps.slots);
   let pushed: string | null = null;
   const places = new Map<string, Place>();
 
@@ -75,10 +152,8 @@ export function createBinding(deps: BindDeps): Binding {
     store.setProjectText(boundPath, text);
     if (store.projectText(boundPath) === text) pushed = text;
   };
-  const remember = (): void => {
-    if (bound && boundPath) places.set(boundPath, placeOf(editor));
-  };
   const setBound = (on: boolean): void => {
+    if (!on && bound && boundPath) places.set(boundPath, placeOf(editor));
     bound = on;
     deps.onBound(on);
   };
@@ -90,24 +165,13 @@ export function createBinding(deps: BindDeps): Binding {
     storeSlot(deps.slots.current());
   };
   const unbind = (forget: boolean): void => {
-    remember();
     setBound(false);
     boundPath = null;
     if (forget) storeSlot(null);
   };
-  const enterSlot = (): void => {
-    if (deps.slots.inProject()) return;
-    entering = true;
-    try {
-      deps.slots.enterProject();
-    } finally {
-      entering = false;
-    }
-  };
   const openFile = (path: string): void => {
-    const view = store.project();
-    if (!view || view.pending || store.projectText(path) === null) return;
-    enterSlot();
+    if (!openable(store, path)) return;
+    entering.enter();
     const text = store.projectText(path);
     if (text === null) return;
     if (bound && boundPath === path) {
@@ -115,7 +179,6 @@ export function createBinding(deps: BindDeps): Binding {
       return;
     }
     pushText();
-    remember();
     setBound(false);
     store.setActive(path);
     bind(path);
@@ -123,54 +186,31 @@ export function createBinding(deps: BindDeps): Binding {
     load(text, places.get(path) ?? null);
   };
   const adopt = (strict: boolean): void => {
-    const view = store.project();
-    if (!view?.active || view.pending || bound) return;
-    if (deps.file.name() !== baseName(view.active)) return;
-    if (
-      strict
-        ? store.projectText(view.active) !== editor.value
-        : read(KEYS.projectSlot) !== deps.slots.current()
-    )
-      return;
-    bind(view.active);
-    const text = store.projectText(view.active);
+    const active = bound ? null : adoptable(deps, strict);
+    if (active === null) return;
+    bind(active);
+    const text = store.projectText(active);
     pushed = text;
     if (text === null || text === editor.value) deps.afterSwitch();
     else load(text, placeOf(editor));
   };
-  const leave = (): void => {
-    deps.file.bind(null);
-    deps.afterSwitch();
-  };
   const moveTo = (active: string): void => {
-    const moved = places.get(boundPath ?? "");
-    if (moved && boundPath) places.delete(boundPath);
+    movePlace(places, boundPath, active);
     boundPath = active;
-    if (moved) places.set(active, moved);
     deps.file.bind(baseName(active));
   };
   const reload = (view: ProjectView): void => {
     if (boundPath === null || detached) return;
-    const text = store.projectText(boundPath);
-    if (text === null || text === editor.value) return;
-    if (view.dirty.has(boundPath) && text === pushed) return;
+    const text = changedText(deps, view, boundPath, pushed);
+    if (text === null) return;
     pushed = text;
     patchText(editor, text, "project");
     deps.afterSwitch();
   };
   const follow = (view: ProjectView | null): boolean => {
     if (!bound) return true;
-    if (!view || view.id !== boundId) {
-      unbind(!view);
-      if (!view) leave();
-      return true;
-    }
-    if (view.active === null) {
-      unbind(false);
-      if (view.main) openFile(view.main);
-      else leave();
-      return false;
-    }
+    const lost = lostBinding(deps, view, boundId, unbind, openFile);
+    if (lost !== null || !view?.active) return lost ?? true;
     if (view.active !== boundPath) moveTo(view.active);
     reload(view);
     return true;
@@ -179,7 +219,7 @@ export function createBinding(deps: BindDeps): Binding {
   return {
     bound: () => bound,
     path: () => (bound ? boundPath : null),
-    entering: () => entering,
+    entering: entering.active,
     detach() {
       detached = true;
     },

@@ -9,24 +9,16 @@ export interface ImageEdit {
   destroy(): void;
 }
 
-export function initImageEdit(
-  body: HTMLElement,
-  area: HTMLTextAreaElement,
-): ImageEdit {
-  let selected = -1;
-  let dragging = false;
-
+function buildFrame(): { frame: HTMLElement; rotate: HTMLButtonElement } {
   const frame = document.createElement("div");
   frame.className = "image-frame";
   frame.hidden = true;
-
   for (const corner of CORNERS) {
     const handle = document.createElement("span");
     handle.className = "image-handle";
     handle.dataset.corner = corner;
     frame.append(handle);
   }
-
   const rotate = document.createElement("button");
   rotate.type = "button";
   rotate.className = "image-rotate";
@@ -34,6 +26,49 @@ export function initImageEdit(
   rotate.setAttribute("aria-label", rotate.title);
   rotate.textContent = "↻";
   frame.append(rotate);
+  return { frame, rotate };
+}
+
+function dragWidth(
+  event: PointerEvent,
+  handle: HTMLElement,
+  img: HTMLImageElement,
+  box: HTMLElement,
+  moved: () => void,
+  done: (percent: number) => void,
+): void {
+  handle.setPointerCapture(event.pointerId);
+  const startX = event.clientX;
+  const startWidth = img.getBoundingClientRect().width;
+  const room = box.clientWidth;
+  const sign = handle.dataset.corner?.endsWith("w") ? -1 : 1;
+  const factor = getComputedStyle(box).textAlign === "center" ? 2 : 1;
+  let percent = (startWidth / room) * 100;
+  const move = (next: PointerEvent): void => {
+    const width = startWidth + sign * factor * (next.clientX - startX);
+    percent = Math.min(100, Math.max(MIN_PERCENT, (width / room) * 100));
+    img.style.width = `${percent}%`;
+    moved();
+  };
+  const up = (): void => {
+    handle.removeEventListener("pointermove", move);
+    handle.removeEventListener("pointerup", up);
+    handle.removeEventListener("pointercancel", up);
+    done(percent);
+  };
+  handle.addEventListener("pointermove", move);
+  handle.addEventListener("pointerup", up);
+  handle.addEventListener("pointercancel", up);
+}
+
+export function initImageEdit(
+  body: HTMLElement,
+  area: HTMLTextAreaElement,
+): ImageEdit {
+  let selected = -1;
+  let dragging = false;
+
+  const { frame, rotate } = buildFrame();
 
   const images = (): HTMLElement[] => [
     ...body.querySelectorAll<HTMLElement>(".md-image, .md-image-missing"),
@@ -102,32 +137,11 @@ export function initImageEdit(
     const box = img?.parentElement;
     if (!handle || !img || !box) return;
     event.preventDefault();
-    handle.setPointerCapture(event.pointerId);
     dragging = true;
-
-    const startX = event.clientX;
-    const startWidth = img.getBoundingClientRect().width;
-    const room = box.clientWidth;
-    const sign = handle.dataset.corner?.endsWith("w") ? -1 : 1;
-    const factor = getComputedStyle(box).textAlign === "center" ? 2 : 1;
-    let percent = (startWidth / room) * 100;
-
-    const move = (moved: PointerEvent): void => {
-      const width = startWidth + sign * factor * (moved.clientX - startX);
-      percent = Math.min(100, Math.max(MIN_PERCENT, (width / room) * 100));
-      img.style.width = `${percent}%`;
-      place();
-    };
-    const up = (): void => {
-      handle.removeEventListener("pointermove", move);
-      handle.removeEventListener("pointerup", up);
-      handle.removeEventListener("pointercancel", up);
+    dragWidth(event, handle, img, box, place, (percent) => {
       dragging = false;
       commit({ width: Math.round(percent) });
-    };
-    handle.addEventListener("pointermove", move);
-    handle.addEventListener("pointerup", up);
-    handle.addEventListener("pointercancel", up);
+    });
   };
 
   const onKey = (event: KeyboardEvent): void => {

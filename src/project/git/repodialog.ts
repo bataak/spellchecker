@@ -14,7 +14,7 @@ import {
   type OAuthToken,
   type StoredToken,
 } from "./gitauth.ts";
-import { showForm, type Busy, type FormApi } from "./form.ts";
+import { showForm, type Busy, type Field, type FormApi } from "./form.ts";
 
 const TOKEN_HELP: Readonly<
   Record<Provider, { path: string; link: string; rest: string }>
@@ -153,6 +153,39 @@ function signInFlow(
   return { status, start };
 }
 
+function repoFields(initial: RepoFields): readonly Field[] {
+  return [
+    {
+      name: "service",
+      label: "Үйлчилгээ",
+      kind: "select",
+      value: initial.provider,
+      options: [
+        ["github", PROVIDER_NAME.github],
+        ["gitlab", PROVIDER_NAME.gitlab],
+      ],
+    },
+    {
+      name: "repo",
+      label: "Repo — нэр эсвэл хаяг",
+      value: initial.repo,
+    },
+    {
+      name: "branch",
+      label: "Салбар — хоосон бол үндсэн салбар",
+      value: initial.branch,
+      more: true,
+    },
+    {
+      name: "dir",
+      label: "Хавтас — хоосон бол repo бүхэлдээ",
+      value: initial.dir,
+      more: true,
+    },
+    { name: "token", label: "Token", kind: "password" },
+  ];
+}
+
 export function askRepo(
   initial: RepoFields,
   savedToken: (provider: Provider, host: string) => StoredToken | null,
@@ -219,36 +252,7 @@ export function askRepo(
               ? "glpat-…"
               : "github_pat_…";
       },
-      fields: [
-        {
-          name: "service",
-          label: "Үйлчилгээ",
-          kind: "select",
-          value: initial.provider,
-          options: [
-            ["github", PROVIDER_NAME.github],
-            ["gitlab", PROVIDER_NAME.gitlab],
-          ],
-        },
-        {
-          name: "repo",
-          label: "Repo — нэр эсвэл хаяг",
-          value: initial.repo,
-        },
-        {
-          name: "branch",
-          label: "Салбар — хоосон бол үндсэн салбар",
-          value: initial.branch,
-          more: true,
-        },
-        {
-          name: "dir",
-          label: "Хавтас — хоосон бол repo бүхэлдээ",
-          value: initial.dir,
-          more: true,
-        },
-        { name: "token", label: "Token", kind: "password" },
-      ],
+      fields: repoFields(initial),
     },
     (values, busy) => {
       const provider = providerOf(values.service);

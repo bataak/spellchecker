@@ -32,6 +32,22 @@ function refPath(branch: string): string {
   return branch.split("/").map(encodeURIComponent).join("/");
 }
 
+function requestInit(
+  token: string,
+  init: { method?: string; body?: unknown },
+): RequestInit {
+  return {
+    method: init.method ?? "GET",
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: "Bearer " + token,
+      "X-GitHub-Api-Version": "2022-11-28",
+      ...(init.body ? { "Content-Type": "application/json" } : {}),
+    },
+    ...(init.body ? { body: JSON.stringify(init.body) } : {}),
+  };
+}
+
 export function createGitApi(
   token: string,
   project: string,
@@ -50,16 +66,7 @@ export function createGitApi(
       "github",
       fetcher,
       base + path,
-      {
-        method: init.method ?? "GET",
-        headers: {
-          Accept: "application/vnd.github+json",
-          Authorization: "Bearer " + token,
-          "X-GitHub-Api-Version": "2022-11-28",
-          ...(init.body ? { "Content-Type": "application/json" } : {}),
-        },
-        ...(init.body ? { body: JSON.stringify(init.body) } : {}),
-      },
+      requestInit(token, init),
       allow,
     );
     if (allow.includes(response.status))

@@ -87,35 +87,22 @@ function hints(mac: boolean): readonly [CommandId, string][] {
   ];
 }
 
-export function initShortcuts(deps: ShortcutDeps): void {
+function otherField(editor: HTMLTextAreaElement): boolean {
+  const ae = document.activeElement;
+  return (
+    !!ae &&
+    ae !== editor &&
+    (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")
+  );
+}
+
+function actions(deps: ShortcutDeps) {
   const { editor, commands } = deps;
-  const { desktop, mac } = deps.platform ?? detectPlatform();
-  if (!desktop) return;
-
-  for (const [id, combo] of hints(mac)) commands.hint(id, combo);
-
-  const press =
-    (id: CommandId): Action =>
-    (e) => {
-      e.preventDefault();
-      commands.run(id);
-    };
-
-  const inOtherField = (): boolean => {
-    const ae = document.activeElement;
-    return (
-      !!ae &&
-      ae !== editor &&
-      (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")
-    );
-  };
-
   const openFile: Action = (e) => {
     e.preventDefault();
     commands.click(window.showOpenFilePicker ? "pick" : "openFile");
     commands.flash("open");
   };
-
   const paste: Action = () => {
     if (document.activeElement !== editor) {
       editor.focus({ preventScroll: true });
@@ -126,7 +113,6 @@ export function initShortcuts(deps: ShortcutDeps): void {
     }
     commands.flash("paste");
   };
-
   const copy: Action = (e) => {
     const pageSel = window.getSelection?.()?.toString() ?? "";
     const editorHasSelection =
@@ -139,7 +125,6 @@ export function initShortcuts(deps: ShortcutDeps): void {
     e.preventDefault();
     commands.run("copy");
   };
-
   const selectLines =
     (direction: LineDirection): Action =>
     (e) => {
@@ -157,6 +142,25 @@ export function initShortcuts(deps: ShortcutDeps): void {
         direction === "up" ? "backward" : "forward",
       );
     };
+  return { openFile, paste, copy, selectLines };
+}
+
+export function initShortcuts(deps: ShortcutDeps): void {
+  const { editor, commands } = deps;
+  const { desktop, mac } = deps.platform ?? detectPlatform();
+  if (!desktop) return;
+
+  for (const [id, combo] of hints(mac)) commands.hint(id, combo);
+
+  const press =
+    (id: CommandId): Action =>
+    (e) => {
+      e.preventDefault();
+      commands.run(id);
+    };
+
+  const inOtherField = (): boolean => otherField(editor);
+  const { openFile, paste, copy, selectLines } = actions(deps);
 
   const bindings: readonly Binding[] = [
     { shift: true, match: anyOf(["<"], "Comma"), run: selectLines("up") },
