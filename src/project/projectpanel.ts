@@ -66,18 +66,12 @@ function openProjectMenu(
   menu.el.style.top = Math.max(8, box.top - menu.el.offsetHeight - 4) + "px";
 }
 
-export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
-  const { store } = deps;
-  const parts = buildPanel();
-  const { panel, tree, toggle } = parts;
-  deps.workspace.prepend(panel);
-  const menu = createProjectMenu(() =>
-    tree.querySelector<HTMLElement>(".project-row[tabindex='0']")?.focus(),
-  );
-  const state = createTreeState();
+function busyRunner(
+  panel: HTMLElement,
+  notify: (message: string) => void,
+): (task: () => Promise<unknown>) => Promise<void> {
   let busy = false;
-
-  const run = async (task: () => Promise<unknown>): Promise<void> => {
+  return async (task) => {
     if (busy) return;
     busy = true;
     panel.classList.add("is-busy");
@@ -88,12 +82,24 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
         error,
         "Төслийн үйлдлийг гүйцэтгэж чадсангүй",
       );
-      if (message !== null) deps.notify(message);
+      if (message !== null) notify(message);
     } finally {
       busy = false;
       panel.classList.remove("is-busy");
     }
   };
+}
+
+export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
+  const { store } = deps;
+  const parts = buildPanel();
+  const { panel, tree, toggle } = parts;
+  deps.workspace.prepend(panel);
+  const menu = createProjectMenu(() =>
+    tree.querySelector<HTMLElement>(".project-row[tabindex='0']")?.focus(),
+  );
+  const state = createTreeState();
+  const run = busyRunner(panel, deps.notify);
 
   const vis = createPanelShow({
     panel,
