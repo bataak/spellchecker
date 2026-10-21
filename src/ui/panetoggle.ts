@@ -1,7 +1,7 @@
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-const TO_PREVIEW = "Харагдац руу шилжих";
-const TO_EDITOR = "Бичвэр рүү буцах";
+const TO_PREVIEW = "Харагдац уруу шилжих";
+const TO_EDITOR = "Бичвэр уруу буцах";
 
 export interface PaneToggle {
   setAvailable(on: boolean): void;

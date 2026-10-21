@@ -64,7 +64,7 @@ test("wordcheck том үсгээр эхэлсэн үгийг жинхэнэ н�
   assert.equal(words.lookupModeOf("бат"), "any");
 });
 
-test("wordcheck англи үгийн үндсийг англи толиос авна", () => {
+test("wordcheck англи үгийн үндсийг англи толиноос авна", () => {
   const { words } = setup();
   assert.deepEqual(words.stemsOf("books"), ["book"]);
   assert.deepEqual(words.analysesFor("books"), []);

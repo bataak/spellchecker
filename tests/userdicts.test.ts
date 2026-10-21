@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { dictPartOf, groupDictFiles } from "../src/dict/userdicts.ts";
 
-test("StarDict файлын төрлийг өргөтгөлөөр таньна", () => {
+test("StarDict файлын төрлийг өргөтгөлөөр танина", () => {
   assert.deepEqual(dictPartOf("Toli.ifo"), { base: "Toli", part: "ifo" });
   assert.deepEqual(dictPartOf("Toli.idx.gz"), { base: "Toli", part: "idx" });
   assert.deepEqual(dictPartOf("Toli.IDX"), { base: "Toli", part: "idx" });
@@ -27,7 +27,7 @@ test("файлуудыг нэрээр нь бүлэглэнэ", () => {
   assert.equal(groups.get("B")?.dict, undefined);
 });
 
-test("толиудыг хадгалсан эрэмбээр байрлуулна", async () => {
+test("толинуудыг хадгалсан эрэмбээр байрлуулна", async () => {
   const { sortByOrder } = await import("../src/dict/userdicts.ts");
   const items = [{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }];
   assert.deepEqual(
@@ -66,7 +66,7 @@ test("idx-ийн SHA-256-г тооцно", async () => {
   );
 });
 
-test("давхардсан толийг idx-ийн hash-ээр таньна", async () => {
+test("давхардсан толийг idx-ийн hash-ээр танина", async () => {
   const { classifyImport } = await import("../src/dict/userdicts.ts");
   const incoming = { name: "Товч тайлбар толь", digest: "aaa" };
   const bundled = { name: "Товч тайлбар толь", digest: "aaa", user: false };

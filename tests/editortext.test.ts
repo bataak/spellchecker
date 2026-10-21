@@ -226,7 +226,7 @@ test("нийлмэл үг, үсэг шивэх, IME, readOnly үед хөндө�
   );
 });
 
-test("чирж оруулсан задарсан бичвэрийг нийлүүлнэ", () => {
+test("чирч оруулсан задарсан бичвэрийг нийлүүлнэ", () => {
   const nfd = "Сайн байна".normalize("NFD");
   const editor = Object.assign(fakeEditor("[" + nfd + "]"), {
     readOnly: false,
@@ -274,7 +274,7 @@ test("swapText: hook өмнө нь дуудагдаж, эх үүсвэр event-�
   }
 });
 
-test("кирилл үгэн дэх ижил дүрстэй ё, ө, ү үсгийг зай авахад сольно", () => {
+test("кирилл үгэн дэх ижил дүрстэй ё, ө, ү үсгийг зай авахад солино", () => {
   const { editor, handled } = typeAtEnd("\u00EBс ", "insertText", " ");
   assert.equal(handled, true);
   assert.equal(editor.value, "ёс ");
@@ -284,7 +284,7 @@ test("кирилл үгэн дэх ижил дүрстэй ё, ө, ү үсгий
   assert.equal(typeAtEnd("Yнэн ", "insertText", " ").editor.value, "Үнэн ");
 });
 
-test("буулгасан бичвэрийн ижил дүрстэй үсгийг сольно", () => {
+test("буулгасан бичвэрийн ижил дүрстэй үсгийг солино", () => {
   const editor = Object.assign(fakeEditor(""), { readOnly: false });
   const event = pasteEvent("\u0472\u028Fр hope");
   let handled = false;

@@ -32,7 +32,7 @@ test("танигдаагүй товч хувиргагдахгүй", () => {
   assert.equal(mapKey("mn", "Space", false, false), null);
 });
 
-test("системийн эсрэг layout руу шилжинэ", () => {
+test("системийн эсрэг layout уруу шилжинэ", () => {
   assert.equal(otherLayout("en"), "mn");
   assert.equal(otherLayout("mn"), "en");
   assert.equal(otherLayout(null), "mn");

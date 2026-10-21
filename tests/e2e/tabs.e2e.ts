@@ -100,7 +100,7 @@ test("өөр табад хаасан файлын дугаар дахин олг
   assert.ok(!ids.includes(first), ids.join());
 });
 
-test("загварын жишээний сонголт таб бүрт тусдаа", async () => {
+test("загварын жишээний сонголт таб бүрд тусдаа", async () => {
   const context = await app.context();
   const a = await openPage(app, context);
   await chooseSlot(a, "Өргөдөл");

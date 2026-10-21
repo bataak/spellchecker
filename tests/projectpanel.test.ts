@@ -58,7 +58,7 @@ test("removeQuestion ба replaceQuestion", () => {
   );
 });
 
-test("canMoveInto: өөр рүүгээ, доод хавтас руугаа, ижил хавтас руу зөөхгүй", () => {
+test("canMoveInto: өөр уруугаа, доод хавтас уруугаа, ижил хавтас уруу зөөхгүй", () => {
   assert.equal(canMoveInto("img/a.png", "img"), false);
   assert.equal(canMoveInto("img", "img"), false);
   assert.equal(canMoveInto("img", "img/sub"), false);

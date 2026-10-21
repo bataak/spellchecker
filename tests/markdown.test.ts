@@ -217,7 +217,7 @@ test("цэгцгүй бичвэр дээр өөрчлөлт гарна", () => {
   assert.notEqual(print(parse(messy)), messy);
 });
 
-test("isMarkdown — тодорхой тэмдэглэгээг таньна", () => {
+test("isMarkdown — тодорхой тэмдэглэгээг танина", () => {
   const strong = [
     SAMPLES.гарчиг,
     SAMPLES.ишлэл,
@@ -270,7 +270,7 @@ test("зүүлтийн од — бүхэлдээ текст хэвээр үлд�
   );
 });
 
-test("үг доторх доогуур зураас онцлол болохгүй", () => {
+test("үг доторх доогуур зураас онцлолт болохгүй", () => {
   assert.equal(
     plainText(SAMPLES.доогуурЗураас!),
     "Файлууд mn_MN.aff болон hyph_mn_MN байна.",
@@ -304,7 +304,7 @@ test("нээх тэмдэг — зайн дараах хашилтын өмнө 
     assert.ok(isMarkdown(parse(src)), src);
 });
 
-test("онцлол — жинхэнэ тэмдэглэгээ хэвээр ажиллана", () => {
+test("онцлолт — жинхэнэ тэмдэглэгээ хэвээр ажиллана", () => {
   const cases: [string, string][] = [
     ["Энэ *налуу* үг.\n", "<em>налуу</em>"],
     ["Энэ **тод** үг.\n", "<strong>тод</strong>"],
@@ -325,7 +325,7 @@ test("хаах тэмдгийн өмнөх цэг таслал зөвшөөрө�
   assert.ok(html.includes("<strong>Гарчиг:</strong>"), html);
 });
 
-test("зэргэлдээ онцлолын гүйлт тусдаа задарна", () => {
+test("зэргэлдээ онцлолтын гүйлт тусдаа задарна", () => {
   const cases: [string, string][] = [
     ["**нэг****хоёр**\n", "<strong>нэг</strong><strong>хоёр</strong>"],
     ["__нэг____хоёр__\n", "<strong>нэг</strong><strong>хоёр</strong>"],
@@ -447,7 +447,7 @@ test("parse: гарчгийн үргэлжлэл шинэ блок эсвэл х
   assert.equal(attrs.attrs, "{.unnumbered}");
 });
 
-test("parse: гарчиг доторх дан `\\` мөр таслана", () => {
+test("parse: гарчиг доторх дан `\\` мөр тасална", () => {
   const blocks = parse("# Тэнхимд \\ Өргөдөл гаргах нь:");
   const h = blocks[0] as Extract<Block, { type: "heading" }>;
   assert.deepEqual(stripLines(h.children), [
@@ -472,7 +472,7 @@ test("parse: гарчиг доторх дан `\\` мөр таслана", () =>
   );
 });
 
-test("parse: гарчгийн `\\` зайгүй ч таслана, төгсгөлийнх хасагдана", () => {
+test("parse: гарчгийн `\\` зайгүй ч тасална, төгсгөлийнх хасагдана", () => {
   const expected = stripLines(parse("# А \\ Б"));
   assert.deepEqual(stripLines(parse("# А\\Б")), expected);
   assert.deepEqual(stripLines(parse("# А\u00a0\\ Б")), expected);
@@ -500,7 +500,7 @@ test("\\today нь өнөөдрийн огноо болж, \\todayx-ийг хө�
   assert.equal(format("Огноо: \\today\n"), "Огноо: \\today\n");
 });
 
-test("цэвэр MD: ::: мөрүүдийг хасч, агуулгыг үлдээнэ", () => {
+test("цэвэр MD: ::: мөрүүдийг хасаж, агуулгыг үлдээнэ", () => {
   assert.equal(
     withoutDivs("Текст\n::: {.right}\nБаруун \\today\n:::\n\nДараа\n"),
     "Текст\n\nБаруун \\today\n\nДараа\n",

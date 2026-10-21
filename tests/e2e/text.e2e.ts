@@ -227,7 +227,7 @@ test("LaTeX-д монгол байрлалын ьь-г шууд, вв-г зай�
   await context.close();
 });
 
-test("утсан дээр toolbar-ыг төгсгөл рүү гүйлгэхэд «Файл нээх» товч бүтэн харагдана", async () => {
+test("утсан дээр toolbar-ыг төгсгөл уруу гүйлгэхэд «Файл нээх» товч бүтэн харагдана", async () => {
   const context = await app.browser.newContext({
     viewport: { width: 390, height: 800 },
   });
@@ -254,7 +254,7 @@ test("утсан дээр toolbar-ыг төгсгөл рүү гүйлгэхэд 
   await context.close();
 });
 
-test("«Файл нээх» товч цэсээ нээж хаана, Escape фокусыг товч руу буцаана", async () => {
+test("«Файл нээх» товч цэсээ нээж хаана, Escape фокусыг товч уруу буцаана", async () => {
   const context = await app.context();
   const page = await openPage(app, context);
   const menu = page.locator(".project-menu");

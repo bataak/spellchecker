@@ -70,7 +70,7 @@ test("markupMode: тэмдэглэгээг алгасах эсэх өөрчлө�
   ]);
 });
 
-test("restoreDraftFile: office файлыг сэргээж, бүтэлгүйтвэл текст болгоно", async () => {
+test("restoreDraftFile: office файлыг сэргээж, бүтэлгүйдвэл текст болгоно", async () => {
   resetStorage();
   const calls: string[] = [];
   const deps = (officeOk: boolean) => ({

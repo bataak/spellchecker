@@ -37,7 +37,7 @@ test("buildProject: үндсэн файлгүй бол ProjectError", async () =
   await assert.rejects(buildProject(source(null, {}), FAKE), ProjectError);
 });
 
-test("buildProject: ажлын хавтас, үндсэн файл, хавтсуудыг гаргана", async () => {
+test("buildProject: ажлын хавтас, үндсэн файл, хавтаснуудыг гаргана", async () => {
   const build = await buildProject(
     source(
       "paper/main.tex",

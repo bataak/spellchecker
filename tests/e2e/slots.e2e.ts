@@ -58,7 +58,7 @@ test("Word файл дахин ачаалахад сэргэнэ", async () => {
   assert.equal(await editor(page), "Ворд баримт байна.");
 });
 
-test("хуучин хувилбарын нийтлэг бичвэр цонх уруу шилжиж, хуучин түлхүүр устна", async () => {
+test("хуучин хувилбарын нийтлэг бичвэр цонх уруу шилжиж, хуучин түлхүүр устана", async () => {
   const context = await app.context();
   await context.addInitScript(() => {
     if (sessionStorage.getItem("seeded")) return;

@@ -27,7 +27,7 @@ test("fileio save: гар утасны PDF ба төслийн хадгалал�
   assert.equal(broken.label, "Боломжгүй");
 });
 
-test("fileio save: нээсэн файлын handle руу бичнэ", async (t) => {
+test("fileio save: нээсэн файлын handle уруу бичнэ", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
   const ok = await runSave({ fileName: "a.md", handle: "ok", text: "x" });
   assert.deepEqual(ok.log, [

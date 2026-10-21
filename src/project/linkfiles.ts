@@ -3,7 +3,7 @@ import { baseName } from "../tex/texproject.ts";
 import type { SaveResult } from "./projectstore.ts";
 
 export const FILES_SAVED_NOTICE =
-  "Засварласан файлуудыг «Татаж авсан файлууд» хавтас руу татлаа — анхны файлыг тэдгээрээр солино уу";
+  "Засварласан файлуудыг «Татаж авсан файлууд» хавтас уруу татлаа — анхны файлыг тэдгээрээр солино уу";
 
 const SAVE_MESSAGES: Record<SaveResult, string> = {
   downloaded: "Архивлалаа",

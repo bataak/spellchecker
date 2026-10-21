@@ -128,7 +128,7 @@ test("өргөтгөл солиход файлыг засах боломжтой
   );
 });
 
-test("хадгалаагүй файлыг засах боломжгүй төрөл рүү нэрлэхгүй", async () => {
+test("хадгалаагүй файлыг засах боломжгүй төрөл уруу нэрлэхгүй", async () => {
   const { openDirHandle, projectText, renamePath, setProjectText } =
     createProjectStore();
   const root = new FakeDir("төсөл");

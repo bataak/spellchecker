@@ -31,7 +31,7 @@ const kept = (text: string): KeptPdf => ({
   missing: [],
 });
 
-test("stepZoom: дараагийн шат руу шилжиж, хязгаараас гарахгүй", () => {
+test("stepZoom: дараагийн шат уруу шилжиж, хязгаараас гарахгүй", () => {
   assert.equal(stepZoom(1, 1), 1.1);
   assert.equal(stepZoom(1, -1), 0.9);
   assert.equal(stepZoom(1.05, 1), 1.1);
@@ -46,7 +46,7 @@ test("clampZoom: мянганы нарийвчлалтай, хязгаарт б�
   assert.equal(clampZoom(0.01), ZOOM_MIN);
 });
 
-test("wheelZoom: хулганы дугуй шатаар, touchpad жигд томруулна", () => {
+test("wheelZoom: хулганын дугуй шатаар, touchpad жигд томруулна", () => {
   assert.equal(wheelZoom(1, { deltaY: -100, deltaMode: 0 }), 1.1);
   assert.equal(wheelZoom(1, { deltaY: 3, deltaMode: 1 }), 0.9);
   const smooth = wheelZoom(1, { deltaY: -10.5, deltaMode: 0 });
