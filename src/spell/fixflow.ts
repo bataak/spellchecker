@@ -9,8 +9,14 @@ import { mergeRanges } from "./codeskip.ts";
 import type { SpellSession } from "./spellsession.ts";
 import type { Token } from "./textcheck.ts";
 
+export interface FixField {
+  readonly value: string;
+  readonly selectionStart: number;
+  scrollTop: number;
+}
+
 export interface FixFlowDeps {
-  readonly editor: HTMLTextAreaElement;
+  readonly editor: FixField;
   readonly spell: Pick<SpellSession, "correctNow" | "skipFor" | "plainFences">;
   readonly setText: (text: string, caret: number) => void;
   readonly render: () => void;
