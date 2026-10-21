@@ -1,3 +1,4 @@
+import { unzipSync } from "fflate";
 import {
   cleanPath,
   commonRoot,
@@ -45,7 +46,6 @@ export async function readFileList(
 }
 
 export async function readZip(file: File): Promise<LoadedFiles> {
-  const { unzipSync } = await import("fflate");
   let entries: Record<string, Uint8Array>;
   const bytes = new Uint8Array(await file.arrayBuffer());
   let size: number;

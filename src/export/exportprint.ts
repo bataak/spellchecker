@@ -1,5 +1,6 @@
 import { prepareImages } from "../files/images.ts";
 import { parse } from "../markdown.ts";
+import { splitSlides } from "../doc/slides.ts";
 import { docImages } from "../office/docir.ts";
 import { findTemplate, type Frame } from "../doc/templates.ts";
 import type { TexProject } from "../project/projectbuild.ts";
@@ -46,12 +47,10 @@ export function createPrinter(deps: PrintDeps): Printer {
     if (deps.isTex?.()) return printTex();
     const template = findTemplate(deps.template())!;
     if (template.frame === "slides") {
-      const [{ splitSlides }, { deckDoc, deckImages }, { printDeck }] =
-        await Promise.all([
-          import("../doc/slides.ts"),
-          import("../office/deck.ts"),
-          import("../office/deckprint.ts"),
-        ]);
+      const [{ deckDoc, deckImages }, { printDeck }] = await Promise.all([
+        import("../office/deck.ts"),
+        import("../office/deckprint.ts"),
+      ]);
       const deck = deckDoc(splitSlides(parse(deps.editor.value)));
       await printDeck(deck, await prepareImages(deckImages(deck)));
       return;

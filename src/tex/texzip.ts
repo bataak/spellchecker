@@ -1,13 +1,11 @@
+import { strToU8, zipSync } from "fflate";
+import { texImageSources } from "./teximages.ts";
 export interface TexZip {
   readonly blob: Blob;
   readonly missing: readonly string[];
 }
 
 export async function zipTexText(text: string, name: string): Promise<TexZip> {
-  const [{ zipSync, strToU8 }, { texImageSources }] = await Promise.all([
-    import("fflate"),
-    import("./teximages.ts"),
-  ]);
   const images = await texImageSources(text);
   const zip = zipSync({
     ...images.files,
