@@ -86,11 +86,37 @@ function fixSelection(
   };
 }
 
+function doneMessage(
+  button: HTMLButtonElement | null,
+  label: string,
+  sync: () => void,
+): (message: string) => void {
+  let timer: number | null = null;
+  return (message) => {
+    if (!button) return;
+    if (timer) clearTimeout(timer);
+    button.hidden = false;
+    button.disabled = true;
+    button.textContent = message;
+    button.classList.remove("is-fading");
+    button.classList.add("is-done");
+    timer = window.setTimeout(() => {
+      button.classList.add("is-fading");
+      timer = window.setTimeout(() => {
+        timer = null;
+        button.classList.remove("is-done", "is-fading");
+        button.disabled = false;
+        button.textContent = label;
+        sync();
+      }, DECODE_DONE_FADE);
+    }, DECODE_DONE_HOLD);
+  };
+}
+
 function initFixButton(deps: DecodeDeps, spec: FixButtonSpec): DecodeControl {
   const editor = deps.editor.el;
   const decodeBtn = document.querySelector<HTMLButtonElement>(spec.selector);
   let decodeCheckTimer: number | null = null;
-  let decodeDoneTimer: number | null = null;
   let decodeSkipNextInput = false;
 
   function sync(): void {
@@ -99,26 +125,7 @@ function initFixButton(deps: DecodeDeps, spec: FixButtonSpec): DecodeControl {
     decodeBtn.hidden = !!deps.skip?.() || !spec.detect(editor.value);
   }
 
-  function showDecodeMessage(message: string): void {
-    const button = decodeBtn;
-    if (!button) return;
-    if (decodeDoneTimer) clearTimeout(decodeDoneTimer);
-    button.hidden = false;
-    button.disabled = true;
-    button.textContent = message;
-    button.classList.remove("is-fading");
-    button.classList.add("is-done");
-    decodeDoneTimer = window.setTimeout(() => {
-      button.classList.add("is-fading");
-      decodeDoneTimer = window.setTimeout(() => {
-        decodeDoneTimer = null;
-        button.classList.remove("is-done", "is-fading");
-        button.disabled = false;
-        button.textContent = spec.label;
-        sync();
-      }, DECODE_DONE_FADE);
-    }, DECODE_DONE_HOLD);
-  }
+  const showDecodeMessage = doneMessage(decodeBtn, spec.label, sync);
 
   function syncSoon(): void {
     if (!decodeBtn) return;

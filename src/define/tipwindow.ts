@@ -72,6 +72,41 @@ export interface TipWindow {
   savedPin(): { left: number; top: number } | null;
 }
 
+function tipShell(deps: TipWindowDeps): HTMLDivElement {
+  const el = document.createElement("div");
+  el.id = "defTip";
+  el.className = "def-tip";
+  el.setAttribute("role", "tooltip");
+  el.hidden = true;
+  el.addEventListener("pointerenter", (e) => {
+    if (e.pointerType !== "touch") deps.onEnter();
+  });
+  el.addEventListener("pointerleave", (e) => {
+    if (e.pointerType !== "touch") deps.onLeave();
+  });
+  return el;
+}
+
+function tipBar(
+  deps: TipWindowDeps,
+  togglePin: () => void,
+): { bar: HTMLDivElement; pinBtn: HTMLButtonElement } {
+  const bar = document.createElement("div");
+  bar.className = "def-tip-bar";
+  const pinBtn = iconButton(
+    "def-tip-btn def-tip-pin",
+    PIN_ICON,
+    "Энэ байрлалд бэхлэх",
+  );
+  pinBtn.setAttribute("aria-pressed", "false");
+  pinBtn.addEventListener("click", togglePin);
+  const closeBtn = iconButton("def-tip-btn def-tip-close", CLOSE_ICON, "Хаах");
+  closeBtn.addEventListener("click", deps.onClose);
+  bar.append(deps.pause.button("def-tip-btn def-tip-pause"), pinBtn, closeBtn);
+  bar.addEventListener("mousedown", (e) => e.preventDefault());
+  return { bar, pinBtn };
+}
+
 export function createTipWindow(deps: TipWindowDeps): TipWindow {
   let tip: HTMLDivElement | null = null;
   let tipBody: HTMLDivElement | null = null;
@@ -112,40 +147,10 @@ export function createTipWindow(deps: TipWindowDeps): TipWindow {
   }
 
   function build(): HTMLDivElement {
-    const el = document.createElement("div");
-    el.id = "defTip";
-    el.className = "def-tip";
-    el.setAttribute("role", "tooltip");
-    el.hidden = true;
-    el.addEventListener("pointerenter", (e) => {
-      if (e.pointerType !== "touch") deps.onEnter();
-    });
-    el.addEventListener("pointerleave", (e) => {
-      if (e.pointerType !== "touch") deps.onLeave();
-    });
-
-    const bar = document.createElement("div");
-    bar.className = "def-tip-bar";
-    pinBtn = iconButton(
-      "def-tip-btn def-tip-pin",
-      PIN_ICON,
-      "Энэ байрлалд бэхлэх",
-    );
-    pinBtn.setAttribute("aria-pressed", "false");
-    pinBtn.addEventListener("click", () => setPinned(!pinned));
-    const closeBtn = iconButton(
-      "def-tip-btn def-tip-close",
-      CLOSE_ICON,
-      "Хаах",
-    );
-    closeBtn.addEventListener("click", deps.onClose);
-    bar.append(
-      deps.pause.button("def-tip-btn def-tip-pause"),
-      pinBtn,
-      closeBtn,
-    );
-
-    bar.addEventListener("mousedown", (e) => e.preventDefault());
+    const el = tipShell(deps);
+    const made = tipBar(deps, () => setPinned(!pinned));
+    const bar = made.bar;
+    pinBtn = made.pinBtn;
     dragBar = bar;
     bar.addEventListener("pointerdown", (e) => {
       if (e.button !== 0 || e.pointerType === "touch") return;
