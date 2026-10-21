@@ -16,7 +16,11 @@ import {
 } from "./exportformats.ts";
 import { findTemplate } from "../doc/templates.ts";
 import type { TexProject } from "../project/projectbuild.ts";
-import { buildExportDialog, missingItems } from "./exportmarkup.ts";
+import {
+  buildExportDialog,
+  missingItems,
+  type ExportParts,
+} from "./exportmarkup.ts";
 import { bindExportTriggers } from "./exporttriggers.ts";
 
 export interface ExportOptions {
@@ -166,48 +170,127 @@ async function produce(
   return null;
 }
 
+function baseOf(options: ExportOptions): string {
+  const current = options.baseName();
+  return current ? stripExt(current) : stamp();
+}
+
+function resetDialog(parts: ExportParts): void {
+  parts.errorNote.hidden = true;
+  parts.tocInput.checked = false;
+  parts.notesInput.checked = false;
+}
+
+function focusName(nameInput: HTMLInputElement, ext: string): void {
+  nameInput.focus();
+  nameInput.setSelectionRange(0, nameInput.value.length - ext.length - 1);
+}
+
+async function runFormat(
+  options: ExportOptions,
+  format: ExportFormat,
+  text: string,
+  name: string,
+  parts: ExportParts,
+): Promise<string | null> {
+  if (format.save) {
+    await format.save(name);
+    return null;
+  }
+  return produce(options, format, text, name, {
+    toc: parts.tocInput.checked,
+    notesScreen: parts.notesInput.checked,
+  });
+}
+
+function offeredFormats(
+  options: ExportOptions,
+  texFormats: ExportFormat[],
+): ExportFormat[] {
+  if (options.isTex?.()) return texFormats;
+  const frame = findTemplate(options.template())?.frame ?? "plain";
+  return FORMATS.filter((format) => format.frames.includes(frame));
+}
+
+function paintMissing(
+  parts: ExportParts,
+  options: ExportOptions,
+  chosen: ExportFormat,
+): void {
+  const missing =
+    options.isTex?.() || !EMBED_FORMATS.has(chosen.id)
+      ? []
+      : missingImages(options.editor.value);
+  parts.missingField.hidden = missing.length === 0;
+  parts.missingList.innerHTML = missingItems(missing);
+}
+
+function paintFormat(
+  parts: ExportParts,
+  options: ExportOptions,
+  chosen: ExportFormat,
+): void {
+  const text = options.editor.value;
+  for (const button of formatButtons(parts.overlay))
+    button.classList.toggle("is-on", button.dataset.format === chosen.id);
+  const template = options.template();
+  parts.tocField.hidden =
+    !TOC_FORMATS.has(chosen.id) || !hasSections(text, template);
+  parts.notesField.hidden =
+    !NOTES_FORMATS.has(chosen.id) || !hasNotes(text, template);
+  paintMissing(parts, options, chosen);
+  parts.nameInput.value = stripExt(parts.nameInput.value) + "." + chosen.ext;
+}
+
+function showOffered(overlay: HTMLElement, offered: ExportFormat[]): void {
+  const ids = new Set(offered.map((item) => item.id));
+  for (const button of formatButtons(overlay))
+    button.hidden = !ids.has(button.dataset.format ?? "");
+}
+
+function clickAction(
+  target: HTMLElement | null,
+  parts: ExportParts,
+): "close" | "run" | { format: string | undefined } | null {
+  if (target === parts.overlay || target?.closest(".export-cancel"))
+    return "close";
+  const picked = target?.closest<HTMLElement>(".export-format");
+  if (picked) return { format: picked.dataset.format };
+  return target?.closest(".export-confirm") ? "run" : null;
+}
+
+function bindDialogKeys(
+  parts: ExportParts,
+  close: () => void,
+  run: () => void,
+): void {
+  parts.overlay.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      close();
+    } else if (event.key === "Enter" && event.target === parts.nameInput) {
+      event.preventDefault();
+      run();
+    }
+  });
+}
+
 export function initExport(options: ExportOptions): ExportControl {
   const { editor } = options;
   const texFormats = texFormatsFor(options);
   const formats = [...FORMATS, ...texFormats];
   const parts = buildExportDialog(formats);
-  const { overlay, nameInput, tocInput, notesInput, errorNote } = parts;
+  const { overlay, nameInput, errorNote } = parts;
 
   let chosen = FORMATS[0]!;
   let userPicked = false;
   let restoreFocus: HTMLElement | null = null;
 
-  const baseFrom = (): string => {
-    const current = options.baseName();
-    return current ? stripExt(current) : stamp();
-  };
+  const baseFrom = (): string => baseOf(options);
 
-  function available(): ExportFormat[] {
-    if (options.isTex?.()) return texFormats;
-    const frame = findTemplate(options.template())?.frame ?? "plain";
-    return FORMATS.filter((format) => format.frames.includes(frame));
-  }
-
-  function syncMissing(): void {
-    const missing =
-      options.isTex?.() || !EMBED_FORMATS.has(chosen.id)
-        ? []
-        : missingImages(editor.value);
-    parts.missingField.hidden = missing.length === 0;
-    parts.missingList.innerHTML = missingItems(missing);
-  }
-
-  function syncFormat(): void {
-    for (const button of formatButtons(overlay))
-      button.classList.toggle("is-on", button.dataset.format === chosen.id);
-    const template = options.template();
-    parts.tocField.hidden =
-      !TOC_FORMATS.has(chosen.id) || !hasSections(editor.value, template);
-    parts.notesField.hidden =
-      !NOTES_FORMATS.has(chosen.id) || !hasNotes(editor.value, template);
-    syncMissing();
-    nameInput.value = stripExt(nameInput.value) + "." + chosen.ext;
-  }
+  const available = (): ExportFormat[] => offeredFormats(options, texFormats);
+  const syncMissing = (): void => paintMissing(parts, options, chosen);
+  const syncFormat = (): void => paintFormat(parts, options, chosen);
 
   bindMissingPick(parts.missingList);
   onImagesChange(() => {
@@ -220,24 +303,16 @@ export function initExport(options: ExportOptions): ExportControl {
       return;
     }
     restoreFocus = document.activeElement as HTMLElement | null;
-    errorNote.hidden = true;
-    tocInput.checked = false;
-    notesInput.checked = false;
+    resetDialog(parts);
     const offered = available();
     if (!userPicked || !offered.includes(chosen))
       chosen =
         offered.find((item) => item.preferred) ?? offered[0] ?? FORMATS[0]!;
-    const ids = new Set(offered.map((item) => item.id));
-    for (const button of formatButtons(overlay))
-      button.hidden = !ids.has(button.dataset.format ?? "");
+    showOffered(overlay, offered);
     nameInput.value = baseFrom();
     syncFormat();
     overlay.hidden = false;
-    nameInput.focus();
-    nameInput.setSelectionRange(
-      0,
-      nameInput.value.length - chosen.ext.length - 1,
-    );
+    focusName(nameInput, chosen.ext);
   }
 
   function close(): void {
@@ -252,14 +327,7 @@ export function initExport(options: ExportOptions): ExportControl {
     const name = withExt(nameInput.value.trim() || baseFrom(), chosen.ext);
     close();
     const format = chosen;
-    if (format.save) {
-      await format.save(name);
-      return;
-    }
-    const failed = await produce(options, format, text, name, {
-      toc: tocInput.checked,
-      notesScreen: notesInput.checked,
-    });
+    const failed = await runFormat(options, format, text, name, parts);
     if (failed !== null) showError(format, name, failed);
   }
 
@@ -283,32 +351,18 @@ export function initExport(options: ExportOptions): ExportControl {
   }
 
   overlay.addEventListener("click", (event) => {
-    const target = event.target as HTMLElement | null;
-    if (target === overlay || target?.closest(".export-cancel")) {
-      close();
-      return;
-    }
-    const picked = target?.closest<HTMLElement>(".export-format");
-    const found = formats.find((item) => item.id === picked?.dataset.format);
-    if (picked) {
-      if (found) {
-        chosen = found;
-        userPicked = true;
-        syncFormat();
-      }
-      return;
-    }
-    if (target?.closest(".export-confirm")) void run();
-  });
-  overlay.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      close();
-    } else if (event.key === "Enter" && event.target === nameInput) {
-      event.preventDefault();
-      void run();
+    const action = clickAction(event.target as HTMLElement | null, parts);
+    if (action === "close") close();
+    else if (action === "run") void run();
+    else if (action) {
+      const found = formats.find((item) => item.id === action.format);
+      if (!found) return;
+      chosen = found;
+      userPicked = true;
+      syncFormat();
     }
   });
+  bindDialogKeys(parts, close, () => void run());
 
   const triggers = bindExportTriggers({
     open,
