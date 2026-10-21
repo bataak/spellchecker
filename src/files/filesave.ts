@@ -42,21 +42,21 @@ export function stampFor(ext: string): string {
   );
 }
 
+async function saveOffice(office: OfficeFiles): Promise<boolean> {
+  if (!office.active()) return false;
+  try {
+    saved((await office.save()) ? "Хадгаллаа" : "Цуцаллаа");
+  } catch {
+    saved("Боломжгүй");
+  }
+  return true;
+}
+
 export function createFileSave(d: FileSaveDeps): SaveFile {
   const { current } = d;
   const stamp = (): string => stampFor(d.defaultExt());
   const deliver = (text: string, name: string): Promise<boolean> =>
     d.deliverText(text, textName(name, d.defaultExt(), stamp));
-
-  async function saveOffice(): Promise<boolean> {
-    if (!d.office.active()) return false;
-    try {
-      saved((await d.office.save()) ? "Хадгаллаа" : "Цуцаллаа");
-    } catch {
-      saved("Боломжгүй");
-    }
-    return true;
-  }
 
   async function savePdf(source?: SaveSource): Promise<boolean> {
     if (source || !d.pdf.applies()) return false;
@@ -141,7 +141,7 @@ export function createFileSave(d: FileSaveDeps): SaveFile {
   }
 
   return async (source) => {
-    if (await saveOffice()) return;
+    if (await saveOffice(d.office)) return;
     if (await savePdf(source)) return;
     if (await saveProject(source)) return;
     const text = d.text();
