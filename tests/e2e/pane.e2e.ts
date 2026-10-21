@@ -314,3 +314,25 @@ test("гар горимд засвар хийсний дараа ч сум ху�
   assert.deepEqual(errors(page), []);
   await context.close();
 });
+
+test("үсгийг томруулсан ч харагдацад # гарчиг ##-аас, ## нь ###-аас том", async () => {
+  const page = await openPage(app, await app.context());
+  await resize(page, 1600);
+  await chooseSlot(page, "Өргөдөл");
+  await typeAtEnd(page, "# Нэг\n\n## Хоёр\n\n### Гурав\n");
+  await until(
+    () => page.locator(".preview-body").innerHTML(),
+    (html) => html.includes("<h3"),
+  );
+  const sizes = await page.evaluate(() => {
+    document.documentElement.style.setProperty("--editor-scale", "1.3");
+    return ["h1", "h2", "h3"].map((tag) =>
+      parseFloat(
+        getComputedStyle(document.querySelector(".preview-body " + tag)!)
+          .fontSize,
+      ),
+    );
+  });
+  assert.ok(sizes[0]! > sizes[1]! && sizes[1]! > sizes[2]!, String(sizes));
+  assert.deepEqual(errors(page), []);
+});
