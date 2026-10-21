@@ -82,6 +82,11 @@ test("toolbar: хоосон бол цэвэрлэх нь юу ч арилгах�
   assert.deepEqual(calls, ["office", "forget", "replace", "after:true"]);
   assert.equal(editor.value, "");
   assert.equal(localStorage.getItem("mn-spell:last-cleared"), "сайн байна");
+  calls.length = 0;
+  openFile = true;
+  click("#clearBtn");
+  openFile = false;
+  assert.deepEqual(calls, ["office", "forget", "replace", "after:true"]);
 });
 
 test("toolbar: буулгахдаа үсгийг стандартчилж курсорын байрлалд оруулна", async () => {
