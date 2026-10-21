@@ -1,41 +1,15 @@
-import { escapeAttr } from "../core/htmlutil.ts";
 import { getSubmitted, addSubmitted } from "./submitted.ts";
+import { postSuggestion, sendBlock, sendFailure } from "./suggestsend.ts";
+import type { Token } from "../spell/textcheck.ts";
+import { createTurnstileWidget, loadTurnstile } from "./turnstile.ts";
 import {
-  MAX_WORDS,
-  postSuggestion,
-  sendBlock,
-  sendFailure,
-} from "./suggestsend.ts";
-import {
-  buildErrorList,
-  startsLowerAfterDash,
-  type Token,
-} from "../spell/textcheck.ts";
-import { copyText } from "../ui/clipboard.ts";
-import {
-  copyList,
-  mergeWords,
-  prefillWords,
-  screenWords,
-  splitParts,
-  type WordNote,
-} from "./suggestwords.ts";
-import { attempt } from "../core/attempt.ts";
-
-interface Turnstile {
-  render(
-    el: Element | null,
-    options: { sitekey: string; theme: string },
-  ): string;
-  reset(widgetId: string | null): void;
-  getResponse(widgetId: string): string;
-}
-
-declare global {
-  interface Window {
-    turnstile?: Turnstile;
-  }
-}
+  FORM_TITLE,
+  SUGGEST_HTML,
+  submittedChips,
+  submittedTitle,
+} from "./suggestmarkup.ts";
+import { attachHoldToCopy, attachIssuesPress } from "./suggestpress.ts";
+import { createWordList, type WordList } from "./suggestlist.ts";
 
 export interface SuggestDeps {
   readonly getBadTokens: () => Token[];
@@ -45,513 +19,262 @@ export interface SuggestDeps {
   ) => Promise<Record<string, boolean> | null>;
 }
 
-const SITEKEY = "0x4AAAAAADvk6t3Gsh_j1vH7";
-const LONG_PRESS_MS = 550;
-const ISSUES_URL =
-  "https://github.com/bataak/dict-mn/issues?q=is%3Aissue%20label%3Auser-submitted";
+function hasActiveSelection(): boolean {
+  const active = document.activeElement;
+  if (
+    (active instanceof HTMLInputElement ||
+      active instanceof HTMLTextAreaElement) &&
+    active.selectionStart !== active.selectionEnd
+  )
+    return true;
+  const selection = window.getSelection();
+  return selection != null && selection.toString().length > 0;
+}
 
-const FORM_TITLE = "Шинэ буюу алдаатай үг мэдэгдэх";
-const SUBMITTED_TITLE = "Мэдэгдсэн үгс";
+function isCopyCombo(e: KeyboardEvent): boolean {
+  return (
+    (e.ctrlKey || e.metaKey) &&
+    !e.altKey &&
+    (e.code === "KeyC" || e.key.toLowerCase() === "c")
+  );
+}
 
-let scriptPromise: Promise<void> | null = null;
+function submitsOnEnter(target: EventTarget | null, wordEl: Element): boolean {
+  if (!(target instanceof Element) || target === wordEl) return false;
+  return !["TEXTAREA", "BUTTON", "A"].includes(target.tagName);
+}
 
-function loadTurnstile(): Promise<void> {
-  if (window.turnstile) return Promise.resolve();
-  if (!scriptPromise) {
-    scriptPromise = new Promise<void>((resolve, reject) => {
-      const turnstileScript = document.createElement("script");
-      turnstileScript.src =
-        "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-      turnstileScript.async = true;
-      turnstileScript.onload = () => resolve();
-      turnstileScript.onerror = () => {
-        scriptPromise = null;
-        turnstileScript.remove();
-        reject(new Error("turnstile-load"));
-      };
-      document.head.appendChild(turnstileScript);
-    });
-  }
-  return scriptPromise;
+interface FormParts {
+  readonly overlay: HTMLDivElement;
+  readonly card: HTMLElement;
+  readonly title: HTMLElement;
+  readonly wordEl: HTMLInputElement;
+  readonly noteInput: HTMLTextAreaElement;
+  readonly noteEl: HTMLElement;
+  readonly sendBtn: HTMLButtonElement;
+  readonly viewBtn: HTMLElement;
+}
+
+function buildForm(): FormParts {
+  const overlay = document.createElement("div");
+  overlay.className = "suggest-overlay";
+  overlay.hidden = true;
+  overlay.innerHTML = SUGGEST_HTML;
+  document.body.appendChild(overlay);
+  const find = <T extends HTMLElement>(selector: string): T =>
+    overlay.querySelector<T>(selector)!;
+  return {
+    overlay,
+    card: find(".suggest-card"),
+    title: find("#suggestTitle"),
+    wordEl: find<HTMLInputElement>("#suggestWord"),
+    noteInput: find<HTMLTextAreaElement>("#suggestNote"),
+    noteEl: find(".suggest-note"),
+    sendBtn: find<HTMLButtonElement>(".suggest-send"),
+    viewBtn: find(".suggest-view-submitted"),
+  };
+}
+
+function bindWordInput(
+  wordEl: HTMLInputElement,
+  list: WordList,
+  submit: () => Promise<void>,
+): void {
+  wordEl.addEventListener("input", () => list.addFromInput(false));
+  wordEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      e.stopPropagation();
+      if (wordEl.value.trim()) void list.addFromInput(true);
+      else void submit();
+    } else if (
+      e.key === "Backspace" &&
+      wordEl.value === "" &&
+      list.words().length
+    )
+      list.pop();
+  });
+  wordEl.addEventListener("blur", () => list.addFromInput(true));
+}
+
+function renderSubmitted({ overlay, title }: FormParts): void {
+  const submitted = [...getSubmitted()].sort((a, b) => a.localeCompare(b));
+  title.innerHTML = submittedTitle(submitted.length);
+  overlay.querySelector(".suggest-submitted-chips")!.innerHTML =
+    submittedChips(submitted);
+}
+
+function bindFormKeys(
+  f: FormParts,
+  words: WordList,
+  on: { close(): void; submit(): Promise<void>; copying(): boolean },
+): void {
+  f.overlay.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || !submitsOnEnter(e.target, f.wordEl)) return;
+    e.preventDefault();
+    void on.submit();
+  });
+  document.addEventListener(
+    "keydown",
+    (e) => {
+      if (f.overlay.hidden) return;
+      if (e.key === "Escape") {
+        on.close();
+        return;
+      }
+      if (!isCopyCombo(e)) return;
+      e.stopPropagation();
+      if (!on.copying() || hasActiveSelection()) return;
+      e.preventDefault();
+      void words.copyToClipboard();
+    },
+    true,
+  );
 }
 
 export function initSuggest(deps: SuggestDeps): void {
-  let overlay: HTMLDivElement | null = null;
-  let widgetId: string | null = null;
+  const turnstile = createTurnstileWidget();
+  let form: FormParts | null = null;
+  let list: WordList | null = null;
   let busy = false;
-  let words: string[] = [];
   let showingSubmitted = false;
   let session = 0;
-  let pendingAdd: Promise<void> = Promise.resolve();
 
-  function renderSubmittedList(): void {
-    const box = overlay!.querySelector(".suggest-submitted-chips")!;
-    const list = [...getSubmitted()].sort((a, b) => a.localeCompare(b));
-    overlay!.querySelector("#suggestTitle")!.innerHTML = list.length
-      ? SUBMITTED_TITLE +
-        ' <span class="suggest-count" aria-hidden="true">(' +
-        list.length +
-        ")</span>"
-      : SUBMITTED_TITLE;
-    box.innerHTML = list.length
-      ? list
-          .map(
-            (word) =>
-              '<span class="suggest-chip">' + escapeAttr(word) + "</span>",
-          )
-          .join("")
-      : '<span class="suggest-hint">Одоогоор мэдэгдсэн үг алга</span>';
+  function note(msg: string, kind?: string): void {
+    form!.noteEl.textContent = msg;
+    form!.noteEl.dataset.kind = kind || "";
   }
 
   function setSubmittedView(on: boolean): void {
-    const card = overlay!.querySelector<HTMLElement>(".suggest-card")!;
-    if (on && window.matchMedia("(min-width: 701px)").matches) {
+    const { card, title } = form!;
+    if (on && window.matchMedia("(min-width: 701px)").matches)
       card.style.height = card.offsetHeight + "px";
-    }
     if (!on) card.style.height = "";
     showingSubmitted = on;
     card.classList.toggle("submitted-view", on);
-    overlay!
-      .querySelector(".suggest-view-submitted")!
-      .classList.toggle("active", on);
-    overlay!.querySelector<HTMLButtonElement>(".suggest-send")!.disabled =
-      on || busy;
+    form!.viewBtn.classList.toggle("active", on);
+    form!.sendBtn.disabled = on || busy;
     note("");
-    if (on) renderSubmittedList();
-    else overlay!.querySelector("#suggestTitle")!.textContent = FORM_TITLE;
-  }
-
-  function note(msg: string, kind?: string): void {
-    const el = overlay!.querySelector<HTMLElement>(".suggest-note")!;
-    el.textContent = msg;
-    el.dataset.kind = kind || "";
-  }
-
-  function renderChips(): void {
-    const box = overlay!.querySelector(".suggest-chips")!;
-    const clr = overlay!.querySelector<HTMLElement>(".suggest-clear-all");
-    if (clr) clr.hidden = words.length < 2;
-    const cnt = overlay!.querySelector<HTMLElement>(".suggest-count");
-    if (cnt) {
-      cnt.textContent = words.length ? "(" + words.length + ")" : "";
-      cnt.classList.toggle("over", words.length > MAX_WORDS);
-    }
-    box.innerHTML = words
-      .map(
-        (word, index) =>
-          '<span class="suggest-chip">' +
-          escapeAttr(word) +
-          '<button type="button" class="suggest-chip-x" data-i="' +
-          index +
-          '" aria-label="Устгах">&times;</button></span>',
-      )
-      .join("");
-    box.querySelectorAll<HTMLElement>(".suggest-chip-x").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        words.splice(Number(btn.dataset.i), 1);
-        renderChips();
-      });
-    });
-  }
-
-  function isLowerDashSuffix(token: Token): boolean {
-    if (!deps.isDashSuffix(token)) return false;
-    return startsLowerAfterDash(token.word);
-  }
-
-  function prefillFromErrors(): void {
-    words = prefillWords(
-      buildErrorList(
-        deps.getBadTokens().filter((token) => !isLowerDashSuffix(token)),
-      ),
-      getSubmitted(),
-    );
-  }
-
-  function showNote({ word, text }: WordNote): void {
-    note(word === null ? text : "«" + word + "» — " + text, "err");
-  }
-
-  async function lookupKnown(
-    list: string[],
-  ): Promise<Record<string, boolean> | null> {
-    if (!list.length) return null;
-    try {
-      return await deps.checkKnown(list);
-    } catch {
-      return null;
-    }
-  }
-
-  async function acceptWords(
-    candidates: string[],
-    current: number,
-  ): Promise<void> {
-    const screened = screenWords(candidates, getSubmitted());
-    screened.notes.forEach(showNote);
-    const known = await lookupKnown(screened.valid);
-    if (current !== session) return;
-    const merged = mergeWords(words, screened.valid, known, MAX_WORDS);
-    merged.notes.forEach(showNote);
-    words = merged.words;
-    if (merged.added) {
-      renderChips();
-      if (
-        overlay!.querySelector<HTMLElement>(".suggest-note")!.dataset.kind !==
-        "err"
-      )
-        note("");
-    }
-  }
-
-  function addFromInput(commit: boolean): Promise<void> {
-    const wordEl = overlay!.querySelector<HTMLInputElement>("#suggestWord")!;
-    const parts = splitParts(wordEl.value);
-    const tail = commit ? "" : (parts.pop() ?? "");
-    wordEl.value = tail;
-    const candidates = parts
-      .map((part) => part.trim().normalize("NFC"))
-      .filter(Boolean);
-    if (!candidates.length) return pendingAdd;
-    const current = session;
-    pendingAdd = pendingAdd
-      .then(() => acceptWords(candidates, current))
-      .catch(() => undefined);
-    return pendingAdd;
-  }
-
-  function collectCopyWords(): string[] {
-    const wordEl = overlay!.querySelector<HTMLInputElement>("#suggestWord")!;
-    return copyList(words, wordEl.value);
-  }
-
-  async function copyWordsToClipboard(): Promise<void> {
-    const list = collectCopyWords();
-    if (!list.length) {
-      note("Хуулах үг алга");
-      return;
-    }
-    try {
-      await copyText(list.join("\n"));
-      note(list.length + " үг санах ойд хуулагдлаа", "ok");
-    } catch {
-      note("Хуулж чадсангүй — дахин оролдоно уу", "err");
-    }
-  }
-
-  function hasActiveSelection(): boolean {
-    const active = document.activeElement;
-    if (
-      (active instanceof HTMLInputElement ||
-        active instanceof HTMLTextAreaElement) &&
-      active.selectionStart !== active.selectionEnd
-    )
-      return true;
-    const selection = window.getSelection();
-    return selection != null && selection.toString().length > 0;
-  }
-
-  function attachHoldToCopy(el: HTMLElement): void {
-    let pressStart = 0;
-    let pressDuration = 0;
-    let releasedAt = 0;
-    let armTimer: ReturnType<typeof setTimeout> | null = null;
-    let verifyTimer: ReturnType<typeof setTimeout> | null = null;
-    const disarm = () => {
-      if (armTimer) clearTimeout(armTimer);
-      armTimer = null;
-    };
-    const clearVerify = () => {
-      if (verifyTimer) clearTimeout(verifyTimer);
-      verifyTimer = null;
-    };
-    el.addEventListener(
-      "touchstart",
-      (e) => {
-        if (e.touches.length !== 1) return;
-        pressStart = performance.now();
-        pressDuration = 0;
-        disarm();
-        clearVerify();
-        armTimer = setTimeout(() => {
-          armTimer = null;
-          if (showingSubmitted) return;
-          const count = collectCopyWords().length;
-          if (count) note(count + " үг санах ойд хуулагдлаа", "ok");
-          else note("Хуулах үг алга");
-        }, LONG_PRESS_MS);
-      },
-      { passive: true },
-    );
-    el.addEventListener("touchend", () => {
-      disarm();
-      if (pressStart) {
-        pressDuration = performance.now() - pressStart;
-        releasedAt = performance.now();
-        if (pressDuration >= LONG_PRESS_MS) {
-          clearVerify();
-          verifyTimer = setTimeout(() => {
-            verifyTimer = null;
-            if (!showingSubmitted && collectCopyWords().length)
-              note("Хуулж чадсангүй — дахин оролдоно уу", "err");
-          }, 400);
-        }
-      }
-      pressStart = 0;
-    });
-    el.addEventListener("touchcancel", () => {
-      disarm();
-      clearVerify();
-      pressStart = 0;
-      pressDuration = 0;
-      note("");
-    });
-    el.addEventListener("contextmenu", (e) => {
-      if (pressStart) e.preventDefault();
-    });
-    el.addEventListener("click", () => {
-      clearVerify();
-      const held =
-        pressDuration >= LONG_PRESS_MS && performance.now() - releasedAt < 700;
-      pressDuration = 0;
-      if (held && !showingSubmitted) void copyWordsToClipboard();
-    });
+    if (on) renderSubmitted(form!);
+    else title.textContent = FORM_TITLE;
   }
 
   function closeForm(): void {
-    if (!overlay || overlay.hidden) return;
-    overlay.hidden = true;
+    if (!form || form.overlay.hidden) return;
+    form.overlay.hidden = true;
     session++;
     busy = false;
-    const sendBtn = overlay.querySelector<HTMLButtonElement>(".suggest-send");
-    if (sendBtn) sendBtn.disabled = false;
-    resetTurnstile();
+    form.sendBtn.disabled = false;
+    turnstile.reset();
   }
 
-  function resetTurnstile(): void {
-    if (!window.turnstile || widgetId == null) return;
-    const turnstile = window.turnstile;
-    const id = widgetId;
-    attempt(() => turnstile.reset(id), undefined);
-  }
-
-  function build(): void {
-    overlay = document.createElement("div");
-    overlay.className = "suggest-overlay";
-    overlay.hidden = true;
-    overlay.innerHTML =
-      '<div class="suggest-card" role="dialog" aria-modal="true" aria-labelledby="suggestTitle">' +
-      '<h2 id="suggestTitle" class="suggest-title">Шинэ буюу алдаатай үг мэдэгдэх</h2>' +
-      '<p class="suggest-hint">Шинэ үгийг үгийн санд хувиллын хамт нэмүүлэх буюу алдаа мэдээлэх</p>' +
-      '<label class="suggest-label" for="suggestWord">Мэдэгдэх үг <span class="suggest-count" aria-hidden="true"></span></label>' +
-      '<div class="suggest-chips"></div>' +
-      '<div class="suggest-input-row">' +
-      '<input id="suggestWord" class="suggest-input" type="text" maxlength="50" autocomplete="off" autocapitalize="off" spellcheck="false" />' +
-      '<button type="button" class="suggest-clear-all" hidden title="Бүгдийг устгах" aria-label="Бүгдийг устгах">&times;</button>' +
-      "</div>" +
-      '<label class="suggest-label" for="suggestNote">Тайлбар (заавал биш)</label>' +
-      '<textarea id="suggestNote" class="suggest-input suggest-textarea" maxlength="500" rows="3"></textarea>' +
-      '<div class="suggest-turnstile"></div>' +
-      '<div class="suggest-submitted">' +
-      '<div class="suggest-chips suggest-submitted-chips"></div>' +
-      "</div>" +
-      '<p class="suggest-note" aria-live="polite"></p>' +
-      '<div class="suggest-actions">' +
-      '<a class="tbtn suggest-issues" href="' +
-      ISSUES_URL +
-      '" target="_blank" rel="noopener noreferrer" title="Нийт хэрэглэгчдийн мэдэгдсэн үгс">GitHub</a>' +
-      '<button type="button" class="tbtn suggest-view-submitted" title="Миний мэдэгдсэн үгс">Мэдэгдсэн үгс</button>' +
-      '<button type="button" class="tbtn suggest-cancel">Цуцлах</button>' +
-      '<button type="button" class="tbtn suggest-send">Илгээх</button>' +
-      "</div>" +
-      "</div>";
-    document.body.appendChild(overlay);
-
-    const wordEl = overlay.querySelector<HTMLInputElement>("#suggestWord")!;
-
+  function build(): [FormParts, WordList] {
+    const f = buildForm();
+    const { overlay } = f;
+    const words = createWordList({
+      overlay,
+      session: () => session,
+      note,
+      getBadTokens: deps.getBadTokens,
+      isDashSuffix: deps.isDashSuffix,
+      checkKnown: deps.checkKnown,
+    });
     overlay.addEventListener("pointerdown", (e) => {
       if (e.target === overlay) closeForm();
     });
     overlay
       .querySelector(".suggest-cancel")!
       .addEventListener("click", closeForm);
-    overlay.querySelector(".suggest-send")!.addEventListener("click", submit);
+    f.sendBtn.addEventListener("click", submit);
     overlay
       .querySelectorAll<HTMLElement>(
         "#suggestTitle, .suggest-card > .suggest-hint",
       )
-      .forEach(attachHoldToCopy);
-    const viewBtn = overlay.querySelector(".suggest-view-submitted")!;
-    viewBtn.addEventListener("click", () =>
+      .forEach((el) =>
+        attachHoldToCopy(el, {
+          enabled: () => !showingSubmitted,
+          count: () => words.copyWords().length,
+          copy: words.copyToClipboard,
+          note,
+        }),
+      );
+    f.viewBtn.addEventListener("click", () =>
       setSubmittedView(!showingSubmitted),
     );
-    let pressTimer: ReturnType<typeof setTimeout> | null = null;
-    let longPressed = false;
-    const issuesHidden = () =>
-      getComputedStyle(overlay!.querySelector(".suggest-issues")!).display ===
-      "none";
-    const startPress = () => {
-      if (!issuesHidden()) return;
-      longPressed = false;
-      pressTimer = setTimeout(() => {
-        longPressed = true;
-        window.open(ISSUES_URL, "_blank", "noopener,noreferrer");
-      }, 550);
-    };
-    const cancelPress = () => {
-      if (pressTimer) clearTimeout(pressTimer);
-      pressTimer = null;
-    };
-    viewBtn.addEventListener("pointerdown", startPress);
-    viewBtn.addEventListener("pointerup", cancelPress);
-    const dropPress = (e: Event) => {
-      cancelPress();
-      if (e.type === "pointercancel" || (e as PointerEvent).buttons)
-        longPressed = false;
-    };
-    viewBtn.addEventListener("pointerleave", dropPress);
-    viewBtn.addEventListener("pointercancel", dropPress);
-    viewBtn.addEventListener("contextmenu", (e) => {
-      if (issuesHidden()) e.preventDefault();
-    });
-    viewBtn.addEventListener(
-      "click",
-      (e) => {
-        if (longPressed) {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-          longPressed = false;
-        }
-      },
-      true,
+    attachIssuesPress(
+      f.viewBtn,
+      () =>
+        getComputedStyle(overlay.querySelector(".suggest-issues")!).display ===
+        "none",
     );
     overlay
       .querySelector(".suggest-clear-all")!
       .addEventListener("click", () => {
-        words = [];
-        renderChips();
+        words.set([]);
         note("");
-        wordEl.focus();
+        f.wordEl.focus();
       });
-
-    wordEl.addEventListener("input", () => addFromInput(false));
-    wordEl.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        e.stopPropagation();
-        if (wordEl.value.trim()) void addFromInput(true);
-        else void submit();
-      } else if (e.key === "Backspace" && wordEl.value === "" && words.length) {
-        words.pop();
-        renderChips();
-      }
+    bindWordInput(f.wordEl, words, submit);
+    bindFormKeys(f, words, {
+      close: closeForm,
+      submit,
+      copying: () => !showingSubmitted,
     });
-    wordEl.addEventListener("blur", () => addFromInput(true));
-
-    overlay.addEventListener("keydown", (e) => {
-      if (e.key !== "Enter") return;
-      const target = e.target;
-      if (!(target instanceof Element)) return;
-      if (target === wordEl) return;
-      if (target.tagName === "TEXTAREA") return;
-      if (target.tagName === "BUTTON") return;
-      if (target.tagName === "A") return;
-      e.preventDefault();
-      void submit();
-    });
-
-    document.addEventListener(
-      "keydown",
-      (e) => {
-        if (overlay!.hidden) return;
-        if (e.key === "Escape") {
-          closeForm();
-          return;
-        }
-        const isCopyCombo =
-          (e.ctrlKey || e.metaKey) &&
-          !e.altKey &&
-          (e.code === "KeyC" || e.key.toLowerCase() === "c");
-        if (!isCopyCombo) return;
-        e.stopPropagation();
-        if (showingSubmitted) return;
-        if (hasActiveSelection()) return;
-        e.preventDefault();
-        void copyWordsToClipboard();
-      },
-      true,
-    );
+    return [f, words];
   }
 
   async function openForm(): Promise<void> {
-    if (!overlay) build();
+    if (!form) [form, list] = build();
     session++;
-    overlay!.hidden = false;
+    form.overlay.hidden = false;
     setSubmittedView(false);
     note("");
-    prefillFromErrors();
-    renderChips();
-    overlay!.querySelector<HTMLTextAreaElement>("#suggestNote")!.value = "";
-    const wordEl = overlay!.querySelector<HTMLInputElement>("#suggestWord")!;
-    wordEl.value = "";
+    list!.prefill();
+    form.noteInput.value = "";
+    form.wordEl.value = "";
     try {
       await loadTurnstile();
     } catch {
       note("Баталгаажуулалт ачаалагдсангүй — интернетээ шалгана уу", "err");
       return;
     }
-    if (widgetId == null) {
-      const theme =
-        document.documentElement.dataset.theme === "dark" ? "dark" : "light";
-      widgetId = window.turnstile!.render(
-        overlay!.querySelector(".suggest-turnstile"),
-        { sitekey: SITEKEY, theme },
-      );
-    } else {
-      resetTurnstile();
-    }
+    turnstile.show(form.overlay.querySelector(".suggest-turnstile"));
   }
 
   async function submit(): Promise<void> {
     if (busy || showingSubmitted) return;
     const current = session;
     busy = true;
-    await addFromInput(true);
+    await list!.addFromInput(true);
     if (current !== session) return;
     busy = false;
-    const noteEl = overlay!.querySelector<HTMLTextAreaElement>("#suggestNote")!;
-    const sendBtn = overlay!.querySelector<HTMLButtonElement>(".suggest-send")!;
-    const token =
-      window.turnstile && widgetId != null
-        ? window.turnstile.getResponse(widgetId)
-        : "";
-
+    const { noteInput, sendBtn } = form!;
+    const token = turnstile.token();
+    const words = list!.words();
     const blocked = sendBlock(words.length, navigator.onLine, token);
     if (blocked) {
       note(blocked, "err");
-      if (!words.length)
-        overlay!.querySelector<HTMLInputElement>("#suggestWord")!.focus();
+      if (!words.length) form!.wordEl.focus();
       return;
     }
     busy = true;
     sendBtn.disabled = true;
     note("Илгээж байна…");
     const status = await postSuggestion({
-      words,
-      note: noteEl.value.trim(),
+      words: [...words],
+      note: noteInput.value.trim(),
       turnstileToken: token,
     });
     if (status === 201) {
-      addSubmitted(words);
+      addSubmitted([...words]);
       note("Илгээгдлээ, баярлалаа!", "ok");
-      words = [];
-      renderChips();
-      noteEl.value = "";
+      list!.set([]);
+      noteInput.value = "";
       setTimeout(closeForm, 1400);
       return;
     }
     note(sendFailure(status), "err");
-    resetTurnstile();
+    turnstile.reset();
     busy = false;
     sendBtn.disabled = false;
   }
