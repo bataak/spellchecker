@@ -1,4 +1,4 @@
-import { gunzipSync, unzipSync } from "fflate";
+import { fflate } from "./fflate.ts";
 import { untar, type ArchiveEntry } from "./tar.ts";
 
 const ZIP = /\.zip$/i;
@@ -20,7 +20,8 @@ export function isJunkEntry(path: string): boolean {
   return path.startsWith("__MACOSX/") || baseName(path).startsWith("._");
 }
 
-export function unpackedSize(bytes: Uint8Array): number {
+export async function unpackedSize(bytes: Uint8Array): Promise<number> {
+  const { unzipSync } = await fflate();
   let total = 0;
   unzipSync(bytes, {
     filter: (file) => {
@@ -36,10 +37,10 @@ export async function extractArchive(
   bytes: Uint8Array,
 ): Promise<ArchiveEntry[]> {
   if (ZIP.test(name))
-    return Object.entries(unzipSync(bytes))
+    return Object.entries((await fflate()).unzipSync(bytes))
       .filter(([path]) => !path.endsWith("/"))
       .map(([path, data]) => ({ name: path, data }));
-  if (TAR_GZ.test(name)) return untar(gunzipSync(bytes));
+  if (TAR_GZ.test(name)) return untar((await fflate()).gunzipSync(bytes));
   if (TAR_BZ2.test(name)) {
     const { bunzip2 } = await import("./bzip2.ts");
     return untar(bunzip2(bytes));
