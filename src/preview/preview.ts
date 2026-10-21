@@ -13,6 +13,8 @@ import type { TexProject } from "../project/projectbuild.ts";
 import { onDoubleTap } from "./previewgesture.ts";
 import { createPreviewSync, previewShown } from "./previewsync.ts";
 import { createTidy } from "./previewtidy.ts";
+import { chooseImageFolder } from "../tex/teximages.ts";
+import { deliverFile } from "../export/export.ts";
 
 const MD_NAME = /\.(md|markdown|mdown|mkd)$/i;
 
@@ -66,7 +68,7 @@ function buildNotes(projectKey: () => string | null) {
   texFolder.textContent = "Хавтас сонгох";
   texFolder.addEventListener("mousedown", (event) => event.preventDefault());
   texFolder.addEventListener("click", () => {
-    void import("../tex/teximages.ts").then((mod) => mod.chooseImageFolder());
+    void chooseImageFolder();
   });
   texMissing.append(texMissingText, texFolder);
   const notes = document.createElement("div");
@@ -137,9 +139,7 @@ function wireTex(w: TexWiring) {
   ui.downloadBtn.addEventListener("click", () => {
     const bytes = pane.shown();
     if (!bytes) return;
-    void import("../export/export.ts").then(({ deliverFile }) =>
-      deliverFile(bytes, deps.pdfName(), "application/pdf"),
-    );
+    void deliverFile(bytes, deps.pdfName(), "application/pdf");
   });
   return { tex, compileMode };
 }

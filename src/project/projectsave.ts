@@ -1,3 +1,4 @@
+import { zipSync } from "fflate";
 import { downloadBlob } from "../files/download.ts";
 import {
   baseName,
@@ -60,7 +61,6 @@ export async function downloadChanged(s: State): Promise<boolean> {
 }
 
 export async function zipOf(s: State): Promise<Blob> {
-  const { zipSync } = await import("fflate");
   const encoder = new TextEncoder();
   const entries: Record<string, Uint8Array> = {};
   for (const [path, text] of s.texts)
