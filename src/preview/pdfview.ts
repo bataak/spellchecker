@@ -92,7 +92,7 @@ interface DrawQueue {
 function createDrawQueue(
   host: HTMLElement,
   { list, slots }: Pages,
-  painter: () => PagePainter,
+  painter: PagePainter,
 ): DrawQueue {
   const visible = new Set<PageSlot>();
   let zooming = false;
@@ -119,7 +119,7 @@ function createDrawQueue(
         .sort((a, b) => a.index - b.index);
       for (const slot of order) {
         if (run !== detailRun || zooming) return;
-        await painter().drawDetail(slot);
+        await painter.drawDetail(slot);
       }
     }, DETAIL_DELAY_MS);
   };
@@ -133,10 +133,10 @@ function createDrawQueue(
         if (!slot) continue;
         if (entry.isIntersecting) {
           visible.add(slot);
-          if (!zooming) drawing.push(painter().draw(slot));
+          if (!zooming) drawing.push(painter.draw(slot));
         } else {
           visible.delete(slot);
-          painter().release(slot);
+          painter.release(slot);
         }
       }
       if (!firstBatch) return;
@@ -164,15 +164,15 @@ function createDrawQueue(
     zooming = true;
     clearTimeout(resizeTimer);
     clearTimeout(detailTimer);
-    for (const slot of slots) painter().cancelDetail(slot);
+    for (const slot of slots) painter.cancelDetail(slot);
     const gen = ++redrawGen;
     resizeTimer = window.setTimeout(async () => {
       zooming = false;
       const order = [...visible].sort((a, b) => offscreen(a) - offscreen(b));
-      for (const slot of order) painter().invalidate(slot);
+      for (const slot of order) painter.invalidate(slot);
       for (const slot of order) {
         if (gen !== redrawGen) return;
-        if (visible.has(slot)) await painter().draw(slot);
+        if (visible.has(slot)) await painter.draw(slot);
       }
     }, delay);
   };
@@ -236,7 +236,6 @@ export async function renderPdfInto(
   const built = await buildPages(host, doc, zoom, !!options.behind, dpr);
   const { list, slots, base } = built;
   const pages = slots.map((slot) => slot.el);
-  const queue = createDrawQueue(host, built, () => painter);
   const painter = createPagePainter({
     doc,
     host,
@@ -245,14 +244,16 @@ export async function renderPdfInto(
     maxPixels: maxCanvasPixels(),
     painted: () => queue.scheduleDetail(),
   });
+  const queue = createDrawQueue(host, built, painter);
 
   const inset = (): number => options.inset?.() ?? 0;
   const viewTop = (): number =>
     host.getBoundingClientRect().top + host.clientTop + inset();
   let shownPage = 0;
   const reportPage = (): void => {
-    const top = viewTop();
-    const line = top + (host.getBoundingClientRect().bottom - top) * 0.4;
+    const frame = host.getBoundingClientRect();
+    const top = frame.top + host.clientTop + inset();
+    const line = top + (frame.bottom - top) * 0.4;
     const rectOf = (index: number) => pages[index]!.getBoundingClientRect();
     const page = pageIndexAt(pages.length, (i) => rectOf(i).bottom, line);
     if (page === shownPage) return;

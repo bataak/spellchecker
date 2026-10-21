@@ -11,6 +11,7 @@ import { PROJECT_SLOT } from "../slots/fileslots.ts";
 import type { MeasureControl } from "../ui/measure.ts";
 import type { StatusControl } from "../ui/status.ts";
 import { saveDraftFile } from "../core/storage.ts";
+import { OPEN_LABEL } from "../files/filetypes.ts";
 import type { DocStatus } from "./docstatus.ts";
 import type { TexMode } from "./texmode.ts";
 
@@ -44,7 +45,7 @@ export function createProjectWiring(deps: ProjectWiringDeps): ProjectLink {
     tools: () => deps.editorWrap.querySelector<HTMLElement>(".editor-tools"),
     openButton: document.querySelector<HTMLElement>("#openBtn"),
     fileButton: document.querySelector<HTMLElement>("#pickBtn"),
-    fileTypes: "txt, md, tex, docx, pptx, odt, odp, pdf",
+    fileTypes: OPEN_LABEL,
     slots: {
       current: () => mdBar.slot(),
       inProject: () => mdBar.template() === PROJECT_SLOT,
