@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.116.0](https://github.com/bataak/spellchecker/compare/v1.115.0...v1.116.0) (2026-10-21)
+
+
+### Features
+
+* **toolbar:** «Файл нээх» opens the menu directly ([71dc822](https://github.com/bataak/spellchecker/commit/71dc822cf8ff422e3192644b4cf73c0f9d10952c))
+* **toolbar:** merge «Файл нээх» and «LaTeX төсөл» into one split button ([920d1af](https://github.com/bataak/spellchecker/commit/920d1af4d4e4302bb097c393ae58f0567ff2949b))
+
+
+### Bug Fixes
+
+* **check:** check words inside escaped backticks ([7b4f2b9](https://github.com/bataak/spellchecker/commit/7b4f2b97abcc61a6fad8bab97fb98c4efccad3cb)), closes [#288](https://github.com/bataak/spellchecker/issues/288)
+* **check:** let inline code continue across lines of one block quote ([f78c714](https://github.com/bataak/spellchecker/commit/f78c714298d37e9f102dfa864f8e5ebda563ebcb))
+* **check:** let Markdown inline code span lines like the preview does ([96cce8a](https://github.com/bataak/spellchecker/commit/96cce8aa6bff49a9fb18fc9343f776532081eb96))
+* **check:** recognise bare domains on .shop, .store and other common TLDs ([fa36d7d](https://github.com/bataak/spellchecker/commit/fa36d7da02662cc545b036122bdc95d2a558290b)), closes [#291](https://github.com/bataak/spellchecker/issues/291)
+* **markdown:** only a bare fence closes a code block ([83c6e5f](https://github.com/bataak/spellchecker/commit/83c6e5f4b5b7e479a904d8590b7c13b0a27e0253)), closes [#289](https://github.com/bataak/spellchecker/issues/289)
+* **preview:** draw the Markdown sync mark as a small margin arrow ([feb6bdd](https://github.com/bataak/spellchecker/commit/feb6bdd643f996536ee7a1db25d5e0d65d1ee493)), closes [#290](https://github.com/bataak/spellchecker/issues/290)
+* **preview:** keep backslashes literal inside inline code ([66c221e](https://github.com/bataak/spellchecker/commit/66c221eca366ab1dbe24f9aa49347f862ef51499)), closes [#293](https://github.com/bataak/spellchecker/issues/293)
+* **preview:** keep markdown headings sized # &gt; ## &gt; ### ([2f165ad](https://github.com/bataak/spellchecker/commit/2f165ad7925461cc7ab8418710958c7bb47646f5)), closes [#292](https://github.com/bataak/spellchecker/issues/292)
+* **text:** correct Mongolian spelling to match the mn_MN dictionary ([80ec306](https://github.com/bataak/spellchecker/commit/80ec3062c991e357e5df78b99223a3901c6443f4))
+* **text:** label remote images «Гаднын зураг» ([481cbca](https://github.com/bataak/spellchecker/commit/481cbca3da2986710baa65782b49fcdbb7e47f41))
+* **text:** write апп as ап and табад as табт ([628b49b](https://github.com/bataak/spellchecker/commit/628b49b5ce2f5123d9e48945ef3507dfc0a9fbb5))
+* **toolbar:** make the «Файл нээх» menu close, refocus and expand predictably ([480c879](https://github.com/bataak/spellchecker/commit/480c879c1e7ac6c8e14a0498252e7b34ec166353))
+
+
+### Performance Improvements
+
+* **build:** drop dynamic imports of modules already in the main chunk ([e7c5114](https://github.com/bataak/spellchecker/commit/e7c511472529dd158a11c7461168babd4ce3ff11))
+* **build:** load fflate only when an archive, zip or gzip file is handled ([71702a5](https://github.com/bataak/spellchecker/commit/71702a56c49ea26aa71d7452851be3a790309753))
+
 ## [1.115.0](https://github.com/bataak/spellchecker/compare/v1.114.0...v1.115.0) (2026-10-20)
 
 
