@@ -227,7 +227,7 @@ test("LaTeX-д монгол байрлалын ьь-г шууд, вв-г зай�
   await context.close();
 });
 
-test("утсан дээр toolbar-ыг төгсгөл рүү гүйлгэхэд «LaTeX төсөл» товч бүтэн харагдана", async () => {
+test("утсан дээр toolbar-ыг төгсгөл рүү гүйлгэхэд «Файл нээх» товч бүтэн харагдана", async () => {
   const context = await app.browser.newContext({
     viewport: { width: 390, height: 800 },
   });
@@ -242,7 +242,7 @@ test("утсан дээр toolbar-ыг төгсгөл рүү гүйлгэхэд 
     () =>
       page.evaluate(() => {
         const bar = document.querySelector<HTMLElement>(".toolbar")!;
-        const end = document.querySelector<HTMLElement>("#projectBtn")!;
+        const end = document.querySelector<HTMLElement>("#openBtn")!;
         return (
           end.getBoundingClientRect().right - bar.getBoundingClientRect().right
         );

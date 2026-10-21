@@ -373,6 +373,9 @@ a.tbtn {
   align-items: center;
 }
 .tbtn:focus-visible {
+  position: relative;
+}
+.tbtn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }

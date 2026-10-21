@@ -42,7 +42,9 @@ export function createProjectWiring(deps: ProjectWiringDeps): ProjectLink {
     editor: deps.editor,
     workspace: deps.workspace,
     tools: () => deps.editorWrap.querySelector<HTMLElement>(".editor-tools"),
-    openButton: document.querySelector<HTMLElement>("#projectBtn"),
+    openButton: document.querySelector<HTMLElement>("#openBtn"),
+    fileButton: document.querySelector<HTMLElement>("#pickBtn"),
+    fileTypes: "txt, md, tex, docx, pptx, odt, odp, pdf",
     slots: {
       current: () => mdBar.slot(),
       inProject: () => mdBar.template() === PROJECT_SLOT,

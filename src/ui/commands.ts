@@ -5,6 +5,7 @@ export type CommandId =
   | "copyErrors"
   | "open"
   | "openFile"
+  | "pick"
   | "save"
   | "print"
   | "fontDec"
@@ -20,6 +21,7 @@ const BUTTONS: Readonly<Record<CommandId, string>> = {
   copyErrors: "#copyErrorsBtn",
   open: "#openBtn",
   openFile: "#openFile",
+  pick: "#pickBtn",
   save: "#saveBtn",
   print: "#printBtn",
   fontDec: "#fontDecBtn",

@@ -112,11 +112,7 @@ export function initShortcuts(deps: ShortcutDeps): void {
 
   const openFile: Action = (e) => {
     e.preventDefault();
-    if (window.showOpenFilePicker) {
-      commands.run("open");
-      return;
-    }
-    commands.click("openFile");
+    commands.click(window.showOpenFilePicker ? "pick" : "openFile");
     commands.flash("open");
   };
 

@@ -423,19 +423,12 @@
           id="openBtn"
           class="tbtn openctl"
           type="button"
-          title="txt, md, tex, docx, pptx, odt, odp, pdf файл нээх"
+          title="Файл (txt, md, tex, docx, pptx, odt, odp, pdf) эсвэл LaTeX төсөл нээх"
+          aria-haspopup="menu"
         >
           Файл нээх
         </button>
-        <button
-          id="projectBtn"
-          class="tbtn"
-          type="button"
-          title="LaTeX төсөл нээх: хавтас, zip эсвэл Git repo"
-          aria-haspopup="menu"
-        >
-          LaTeX төсөл
-        </button>
+        <button id="pickBtn" type="button" hidden="">Файл сонгох</button>
         <input
           id="openFile"
           type="file"
