@@ -1,17 +1,8 @@
 import type { PdfView } from "./pdfview.ts";
 import type { PreviewHead, ZoomAction } from "./previewhead.ts";
-import {
-  loadScrollX,
-  loadZoom,
-  pinchZoom,
-  saveScrollX,
-  saveZoom,
-  scrollRatio,
-  stepZoom,
-  touchMid,
-  touchSpan,
-  wheelZoom,
-} from "./viewprefs.ts";
+import { loadZoom, saveZoom, stepZoom } from "./viewprefs.ts";
+import { bindZoomGestures } from "./panezoom.ts";
+import { keepScrollX } from "./panescroll.ts";
 
 export interface PdfPane {
   view(): PdfView | null;
@@ -39,40 +30,8 @@ export function createPdfPane(
   let pending: AbortController | null = null;
   let shown: Uint8Array<ArrayBuffer> | null = null;
   let zoom = loadZoom();
-  let scrollX = loadScrollX();
   let rendering = 0;
-  let saveTimer: number | undefined;
-
-  const flushScrollX = (): void => {
-    clearTimeout(saveTimer);
-    saveTimer = undefined;
-    if (scrollX !== null) saveScrollX(scrollX);
-  };
-
-  body.addEventListener(
-    "scroll",
-    () => {
-      if (!view || rendering > 0) return;
-      const ratio = scrollRatio(
-        body.scrollLeft,
-        body.scrollWidth - body.clientWidth,
-      );
-      if (ratio === null || ratio === scrollX) return;
-      scrollX = ratio;
-      clearTimeout(saveTimer);
-      saveTimer = window.setTimeout(flushScrollX, 300);
-    },
-    { passive: true },
-  );
-  window.addEventListener("pagehide", () => {
-    if (saveTimer !== undefined) flushScrollX();
-  });
-
-  const restoreScrollX = (): void => {
-    const range = body.scrollWidth - body.clientWidth;
-    if (scrollX !== null && range > 0)
-      body.scrollLeft = Math.round(scrollX * range);
-  };
+  const restoreScrollX = keepScrollX(body, () => !!view && rendering === 0);
 
   const setZoom = (next: number, origin?: { x: number; y: number }): void => {
     zoom = next;
@@ -144,63 +103,12 @@ export function createPdfPane(
     }
   };
 
-  body.addEventListener(
-    "wheel",
-    (event) => {
-      if (!view || !(event.ctrlKey || event.metaKey)) return;
-      event.preventDefault();
-      if (!event.deltaY) return;
-      setZoom(wheelZoom(zoom, event), { x: event.clientX, y: event.clientY });
-    },
-    { passive: false },
-  );
-
-  interface Pinch {
-    readonly span: number;
-    readonly x: number;
-    readonly y: number;
-    next: number;
-    dx: number;
-    dy: number;
-  }
-  let pinch: Pinch | null = null;
-  body.addEventListener(
-    "touchstart",
-    (event) => {
-      const [a, b] = event.touches;
-      if (!view || event.touches.length !== 2 || !a || !b) return;
-      const mid = touchMid(a, b);
-      pinch = { span: touchSpan(a, b), ...mid, next: zoom, dx: 0, dy: 0 };
-    },
-    { passive: true },
-  );
-  body.addEventListener(
-    "touchmove",
-    (event) => {
-      const [a, b] = event.touches;
-      if (!pinch || event.touches.length !== 2 || !a || !b) return;
-      event.preventDefault();
-      const mid = touchMid(a, b);
-      pinch.next = pinchZoom(zoom, pinch.span, touchSpan(a, b));
-      pinch.dx = mid.x - pinch.x;
-      pinch.dy = mid.y - pinch.y;
-      head().showZoom(pinch.next);
-      view?.pinch(pinch.next / zoom, pinch, { x: pinch.dx, y: pinch.dy });
-    },
-    { passive: false },
-  );
-  const endPinch = (event: TouchEvent): void => {
-    if (!pinch || event.touches.length >= 2) return;
-    const done = pinch;
-    pinch = null;
-    view?.pinch(1, done, { x: 0, y: 0 });
-    if (done.next !== zoom) setZoom(done.next, done);
-    else head().showZoom(zoom);
-    body.scrollLeft -= done.dx;
-    body.scrollTop -= done.dy;
-  };
-  body.addEventListener("touchend", endPinch);
-  body.addEventListener("touchcancel", endPinch);
+  bindZoomGestures(body, {
+    view: () => view,
+    zoom: () => zoom,
+    setZoom,
+    showZoom: (next) => head().showZoom(next),
+  });
 
   return {
     view: () => view,

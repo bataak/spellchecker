@@ -162,6 +162,176 @@ function cellStyles(): string {
     .join("");
 }
 
+function listXml(
+  block: Extract<IrBlock, { kind: "list" }>,
+  media: Media,
+): string {
+  const render = (tree: ListTree<readonly IrRun[]>): string =>
+    '<text:list text:style-name="' +
+    (tree.ordered ? "L_num" : "L_bullet") +
+    '">' +
+    tree.entries
+      .map(
+        ({ item, sub }, i) =>
+          "<text:list-item" +
+          (i === 0 && tree.ordered && tree.start !== 1
+            ? ' text:start-value="' + String(tree.start) + '"'
+            : "") +
+          '><text:p text:style-name="' +
+          styleName(block.style) +
+          '">' +
+          runsXml(item, media) +
+          "</text:p>" +
+          (sub ? render(sub) : "") +
+          "</text:list-item>",
+      )
+      .join("") +
+    "</text:list>";
+  return render(listTree(block));
+}
+
+function tableStyles(
+  name: string,
+  widths: readonly number[],
+  placement: string,
+): string {
+  return (
+    '<style:style style:name="' +
+    name +
+    '" style:family="table"><style:table-properties style:width="' +
+    cm(widths.reduce((sum, width) => sum + width, 0)) +
+    '" table:align="' +
+    TABLE_ALIGN[placement] +
+    '"/></style:style>' +
+    widths
+      .map(
+        (width, i) =>
+          '<style:style style:name="' +
+          name +
+          ".C" +
+          String(i + 1) +
+          '" style:family="table-column"><style:table-column-properties style:column-width="' +
+          cm(width) +
+          '"/></style:style>',
+      )
+      .join("")
+  );
+}
+
+function rowCellStyle(header: boolean, head: boolean, last: boolean): string {
+  if (!header) return "C_plain";
+  if (head) return last ? "C_only" : "C_head";
+  return last ? "C_last" : "C_plain";
+}
+
+function fillStyle(base: string, tab: number, auto: Set<string>): string {
+  const para = base + "_fill_" + String(Math.round(tab * 100));
+  auto.add(
+    '<style:style style:name="' +
+      para +
+      '" style:family="paragraph" style:parent-style-name="' +
+      base +
+      '"><style:paragraph-properties><style:tab-stops>' +
+      '<style:tab-stop style:position="' +
+      cm(tab) +
+      '" style:type="right" style:leader-style="solid" ' +
+      'style:leader-type="single" style:leader-width="0.5pt"/>' +
+      "</style:tab-stops></style:paragraph-properties></style:style>",
+  );
+  return para;
+}
+
+function alignStyle(
+  base: string,
+  align: string | null | undefined,
+  auto: Set<string>,
+): string {
+  if (!align) return base;
+  const para = base + "_" + ODT_ALIGN[align];
+  auto.add(
+    '<style:style style:name="' +
+      para +
+      '" style:family="paragraph" style:parent-style-name="' +
+      base +
+      '"><style:paragraph-properties fo:text-align="' +
+      ODT_ALIGN[align] +
+      '"/></style:style>',
+  );
+  return para;
+}
+
+function cellXml(cellStyle: string, para: string, body: string): string {
+  return (
+    '<table:table-cell table:style-name="' +
+    cellStyle +
+    '" office:value-type="string"><text:p text:style-name="' +
+    para +
+    '">' +
+    body +
+    "</text:p></table:table-cell>"
+  );
+}
+
+function tableXml(
+  block: Extract<IrBlock, { kind: "table" }>,
+  index: number,
+  doc: DocIr,
+  auto: Set<string>,
+  media: Media,
+): string {
+  const header = block.header !== false;
+  const name = "Table" + String(index + 1);
+  const widths = columnWidths(
+    block.rows,
+    header,
+    doc.page.widthCm - doc.page.marginInnerCm - doc.page.marginOuterCm,
+    officeMetrics(
+      doc.styles[block.cellStyle ?? STYLE.tableCell]?.sizePt ?? doc.font.sizePt,
+    ),
+  );
+  auto.add("cells");
+  auto.add(tableStyles(name, widths, block.placement ?? "center"));
+  const last = block.rows.length - 1;
+  const rows = block.rows
+    .map((row, rowIndex) => {
+      const head = header && rowIndex === 0;
+      const cellStyle = rowCellStyle(header, head, rowIndex === last);
+      const base = head ? "TableHead" : (block.cellStyle ?? "TableCell");
+      const cells = widths
+        .map((width, i) => {
+          const runs = row[i] ?? [];
+          if (runs.some((run) => run.fill)) {
+            const para = fillStyle(base, Math.max(0, width - 0.2), auto);
+            return cellXml(cellStyle, para, runsXml(tabFills(runs), media));
+          }
+          const para = alignStyle(base, block.align[i], auto);
+          return cellXml(cellStyle, para, runsXml(runs, media));
+        })
+        .join("");
+      return "<table:table-row>" + cells + "</table:table-row>";
+    })
+    .join("");
+  return (
+    '<table:table table:name="' +
+    name +
+    '" table:style-name="' +
+    name +
+    '">' +
+    widths
+      .map(
+        (_, i) =>
+          '<table:table-column table:style-name="' +
+          name +
+          ".C" +
+          String(i + 1) +
+          '"/>',
+      )
+      .join("") +
+    rows +
+    "</table:table>"
+  );
+}
+
 function blockXml(
   block: IrBlock,
   index: number,
@@ -177,161 +347,12 @@ function blockXml(
         doc.styles[block.style]?.outlineLevel ?? 0,
         media,
       );
-
-    case "list": {
-      const render = (tree: ListTree<readonly IrRun[]>): string =>
-        '<text:list text:style-name="' +
-        (tree.ordered ? "L_num" : "L_bullet") +
-        '">' +
-        tree.entries
-          .map(
-            ({ item, sub }, i) =>
-              "<text:list-item" +
-              (i === 0 && tree.ordered && tree.start !== 1
-                ? ' text:start-value="' + String(tree.start) + '"'
-                : "") +
-              '><text:p text:style-name="' +
-              styleName(block.style) +
-              '">' +
-              runsXml(item, media) +
-              "</text:p>" +
-              (sub ? render(sub) : "") +
-              "</text:list-item>",
-          )
-          .join("") +
-        "</text:list>";
-      return render(listTree(block));
-    }
-
-    case "table": {
-      const header = block.header !== false;
-      const name = "Table" + String(index + 1);
-      const widths = columnWidths(
-        block.rows,
-        header,
-        doc.page.widthCm - doc.page.marginInnerCm - doc.page.marginOuterCm,
-        officeMetrics(
-          doc.styles[block.cellStyle ?? STYLE.tableCell]?.sizePt ??
-            doc.font.sizePt,
-        ),
-      );
-      auto.add("cells");
-      auto.add(
-        '<style:style style:name="' +
-          name +
-          '" style:family="table"><style:table-properties style:width="' +
-          cm(widths.reduce((sum, width) => sum + width, 0)) +
-          '" table:align="' +
-          TABLE_ALIGN[block.placement ?? "center"] +
-          '"/></style:style>' +
-          widths
-            .map(
-              (width, i) =>
-                '<style:style style:name="' +
-                name +
-                ".C" +
-                String(i + 1) +
-                '" style:family="table-column"><style:table-column-properties style:column-width="' +
-                cm(width) +
-                '"/></style:style>',
-            )
-            .join(""),
-      );
-      const last = block.rows.length - 1;
-      const rows = block.rows
-        .map((row, rowIndex) => {
-          const head = header && rowIndex === 0;
-          const plainStyle = !header
-            ? "C_plain"
-            : head
-              ? rowIndex === last
-                ? "C_only"
-                : "C_head"
-              : rowIndex === last
-                ? "C_last"
-                : "C_plain";
-          const cells = widths
-            .map((_, i) => {
-              const fill = (row[i] ?? []).some((run) => run.fill);
-              const cellStyle = plainStyle;
-              const base = head
-                ? "TableHead"
-                : (block.cellStyle ?? "TableCell");
-              const align = block.align[i];
-              if (fill) {
-                const tab = Math.max(0, widths[i]! - 0.2);
-                const para = base + "_fill_" + String(Math.round(tab * 100));
-                auto.add(
-                  '<style:style style:name="' +
-                    para +
-                    '" style:family="paragraph" style:parent-style-name="' +
-                    base +
-                    '"><style:paragraph-properties><style:tab-stops>' +
-                    '<style:tab-stop style:position="' +
-                    cm(tab) +
-                    '" style:type="right" style:leader-style="solid" ' +
-                    'style:leader-type="single" style:leader-width="0.5pt"/>' +
-                    "</style:tab-stops></style:paragraph-properties></style:style>",
-                );
-                return (
-                  '<table:table-cell table:style-name="' +
-                  cellStyle +
-                  '" office:value-type="string"><text:p text:style-name="' +
-                  para +
-                  '">' +
-                  runsXml(tabFills(row[i] ?? []), media) +
-                  "</text:p></table:table-cell>"
-                );
-              }
-              const para = align ? base + "_" + ODT_ALIGN[align] : base;
-              if (align)
-                auto.add(
-                  '<style:style style:name="' +
-                    para +
-                    '" style:family="paragraph" style:parent-style-name="' +
-                    base +
-                    '"><style:paragraph-properties fo:text-align="' +
-                    ODT_ALIGN[align] +
-                    '"/></style:style>',
-                );
-              return (
-                '<table:table-cell table:style-name="' +
-                cellStyle +
-                '" office:value-type="string"><text:p text:style-name="' +
-                para +
-                '">' +
-                runsXml(row[i] ?? [], media) +
-                "</text:p></table:table-cell>"
-              );
-            })
-            .join("");
-          return "<table:table-row>" + cells + "</table:table-row>";
-        })
-        .join("");
-      return (
-        '<table:table table:name="' +
-        name +
-        '" table:style-name="' +
-        name +
-        '">' +
-        widths
-          .map(
-            (_, i) =>
-              '<table:table-column table:style-name="' +
-              name +
-              ".C" +
-              String(i + 1) +
-              '"/>',
-          )
-          .join("") +
-        rows +
-        "</table:table>"
-      );
-    }
-
+    case "list":
+      return listXml(block, media);
+    case "table":
+      return tableXml(block, index, doc, auto, media);
     case "rule":
       return '<text:p text:style-name="Rule"/>';
-
     case "break":
       return '<text:p text:style-name="PageBreak"/>';
   }
