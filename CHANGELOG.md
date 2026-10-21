@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.116.1](https://github.com/bataak/spellchecker/compare/v1.116.0...v1.116.1) (2026-10-21)
+
+
+### Bug Fixes
+
+* **export:** do not open the export dialog when the editor is empty ([3946242](https://github.com/bataak/spellchecker/commit/3946242bedca4bc7f32c1e6723fa454b06fc6bba))
+
 ## [1.116.0](https://github.com/bataak/spellchecker/compare/v1.115.0...v1.116.0) (2026-10-21)
 
 
