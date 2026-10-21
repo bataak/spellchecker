@@ -28,25 +28,32 @@ export const previewShown = (): boolean =>
   document.documentElement.dataset.preview === "on" ||
   document.documentElement.dataset.pane === "preview";
 
-export function createPreviewSync(deps: SyncDeps): PreviewSync {
-  const { area, body, htmlSync } = deps;
-  let syncTimer = 0;
-  let editedAt = -Infinity;
-  let syncedAt = -1;
-  let pendingReveal: number | null = null;
+function createWordCache() {
   let cache: { text: string; words: readonly SourceWord[] } | null = null;
-
-  const wordsOf = (
+  return (
     text: string,
     sourceWords: (text: string) => readonly SourceWord[],
   ): readonly SourceWord[] => {
     if (cache?.text !== text) cache = { text, words: sourceWords(text) };
     return cache.words;
   };
+}
+
+function copyLayout(area: HTMLElement, body: HTMLElement): void {
+  if (area.dataset.layout) body.dataset.layout = area.dataset.layout;
+  else delete body.dataset.layout;
+}
+
+export function createPreviewSync(deps: SyncDeps): PreviewSync {
+  const { area, body, htmlSync } = deps;
+  let syncTimer = 0;
+  let editedAt = -Infinity;
+  let syncedAt = -1;
+  let pendingReveal: number | null = null;
+  const wordsOf = createWordCache();
 
   const revealOffset = async (offset: number): Promise<boolean> => {
-    if (area.dataset.layout) body.dataset.layout = area.dataset.layout;
-    else delete body.dataset.layout;
+    copyLayout(area, body);
     const view = deps.view();
     if (!deps.texActive()) {
       if (view || !deps.htmlShown()) return false;
