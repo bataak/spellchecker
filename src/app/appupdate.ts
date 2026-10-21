@@ -1,6 +1,6 @@
 import { reveal } from "../ui/status.ts";
-import { KEYS, at, read, write } from "./store.ts";
-import { noteError } from "./errorlog.ts";
+import { KEYS, at, read, write } from "../core/store.ts";
+import { noteError } from "../core/errorlog.ts";
 export interface AppUpdate {
   readonly setDictVersion: (version: string | null) => void;
   readonly checkFreshness: () => Promise<void>;

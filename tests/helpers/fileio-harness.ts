@@ -1,6 +1,6 @@
 import { initFileIO, type FileIOControl } from "../../src/files/fileio.ts";
 import { createSaveChain } from "../../src/ui/savechain.ts";
-import type { EditorPort, StatusPort } from "../../src/app/ports.ts";
+import type { EditorPort, StatusPort } from "../../src/core/ports.ts";
 
 export interface SaveScenario {
   readonly text?: string;

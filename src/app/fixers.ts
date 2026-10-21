@@ -1,5 +1,5 @@
 import { initClean, initDecode, type DecodeControl } from "../editor/decode.ts";
-import type { EditorPort } from "./ports.ts";
+import type { EditorPort } from "../core/ports.ts";
 import { bindComposition } from "./editorinput.ts";
 
 const STANDARD_LETTERS_MESSAGE = "Зарим үсгийн кодыг стандарт болгов";

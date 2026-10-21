@@ -13,7 +13,7 @@ import { createSaveChain, type SaveChain } from "../ui/savechain.ts";
 import type { StatusControl } from "../ui/status.ts";
 import { saveDraftFile } from "../core/storage.ts";
 import { createOpenPolicy } from "./openpolicy.ts";
-import type { EditorPort } from "./ports.ts";
+import type { EditorPort } from "../core/ports.ts";
 
 export interface FileWiringDeps {
   readonly editor: EditorPort;
