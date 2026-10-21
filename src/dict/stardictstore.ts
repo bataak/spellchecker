@@ -101,13 +101,74 @@ async function loadBundled(
   }
 }
 
+interface DictState {
+  bundled: Map<string, LoadedDict>;
+  missing: DictListEntry[];
+  user: LoadedDict[];
+  userIncomplete: boolean;
+}
+
+function emptyState(): DictState {
+  return { bundled: new Map(), missing: [], user: [], userIncomplete: false };
+}
+
+function backoff(attempt: number): number {
+  return RELOAD_BACKOFF[Math.min(attempt, RELOAD_BACKOFF.length - 1)]!;
+}
+
+function needsRepair(state: DictState): boolean {
+  return state.missing.length > 0 || state.userIncomplete;
+}
+
+function composeList(state: DictState, order: string[]): LoadedDict[] {
+  const list = [
+    ...stardictList.flatMap((entry) => {
+      const found = state.bundled.get(entry.base);
+      return found ? [found] : [];
+    }),
+    ...state.user,
+  ];
+  return sortByOrder(list, order);
+}
+
+function mergeRepair(
+  state: DictState,
+  found: BundledResult,
+  missing: DictListEntry[],
+  user: UserResult | null,
+): void {
+  for (const [base, entry] of found.loaded) state.bundled.set(base, entry);
+  state.missing = [
+    ...found.failed,
+    ...state.missing.filter(
+      (entry) => !missing.includes(entry) && !state.bundled.has(entry.base),
+    ),
+  ];
+  if (user) {
+    state.user = user.loaded;
+    state.userIncomplete = user.incomplete;
+  }
+}
+
+function dropBroken(state: DictState, broken: StarDict[]): void {
+  for (const dict of broken) {
+    for (const [base, entry] of state.bundled) {
+      if (entry.dict !== dict) continue;
+      state.bundled.delete(base);
+      const listed = stardictList.find((item) => item.base === base);
+      if (listed && !state.missing.includes(listed)) state.missing.push(listed);
+    }
+    if (state.user.some((entry) => entry.dict === dict)) {
+      state.user = state.user.filter((entry) => entry.dict !== dict);
+      state.userIncomplete = true;
+    }
+  }
+}
+
 export function createStarDictStore(deps: StarDictStoreDeps): StarDictStore {
   let starDicts: StarDict[] = [];
   let loadedDicts: LoadedDict[] = [];
-  let bundled = new Map<string, LoadedDict>();
-  let bundledMissing: DictListEntry[] = [];
-  let userDicts: LoadedDict[] = [];
-  let userIncomplete = false;
+  let state = emptyState();
   let dictOrder: string[] = [];
   let generation = 0;
   let starDictLoading: Promise<void> | null = null;
@@ -116,28 +177,14 @@ export function createStarDictStore(deps: StarDictStoreDeps): StarDictStore {
   let repairCount = 0;
 
   function composeDicts(): void {
-    const list = [
-      ...stardictList.flatMap((entry) => {
-        const found = bundled.get(entry.base);
-        return found ? [found] : [];
-      }),
-      ...userDicts,
-    ];
-    loadedDicts = sortByOrder(list, dictOrder);
+    loadedDicts = composeList(state, dictOrder);
     starDicts = loadedDicts.map((entry) => entry.dict);
     deps.onScripts(starDicts.some((dict) => isLatinDict(dict)));
   }
 
   function scheduleRepair(): void {
-    if (!bundledMissing.length && !userIncomplete) {
-      repairCount = 0;
-      repairAt = 0;
-      return;
-    }
-    const delay =
-      RELOAD_BACKOFF[Math.min(repairCount, RELOAD_BACKOFF.length - 1)]!;
-    repairCount++;
-    repairAt = Date.now() + delay;
+    repairCount = needsRepair(state) ? repairCount + 1 : 0;
+    repairAt = repairCount ? Date.now() + backoff(repairCount - 1) : 0;
   }
 
   async function loadAllDicts(): Promise<void> {
@@ -148,10 +195,12 @@ export function createStarDictStore(deps: StarDictStoreDeps): StarDictStore {
       loadDictOrder().catch(() => []),
     ]);
     if (current !== generation) return;
-    bundled = new Map(found.loaded);
-    bundledMissing = found.failed;
-    userDicts = user.loaded;
-    userIncomplete = user.incomplete;
+    state = {
+      bundled: new Map(found.loaded),
+      missing: found.failed,
+      user: user.loaded,
+      userIncomplete: user.incomplete,
+    };
     dictOrder = order;
     composeDicts();
     scheduleRepair();
@@ -159,24 +208,14 @@ export function createStarDictStore(deps: StarDictStoreDeps): StarDictStore {
 
   async function repairDicts(): Promise<void> {
     const current = generation;
-    const missing = bundledMissing.slice();
-    const repairUser = userIncomplete;
+    const missing = state.missing.slice();
+    const repairUser = state.userIncomplete;
     const found = missing.length
       ? await loadBundled(deps.dir, missing)
       : { loaded: [], failed: [] };
     const user = repairUser ? await loadUser() : null;
     if (current !== generation) return;
-    for (const [base, entry] of found.loaded) bundled.set(base, entry);
-    bundledMissing = [
-      ...found.failed,
-      ...bundledMissing.filter(
-        (entry) => !missing.includes(entry) && !bundled.has(entry.base),
-      ),
-    ];
-    if (user) {
-      userDicts = user.loaded;
-      userIncomplete = user.incomplete;
-    }
+    mergeRepair(state, found, missing, user);
     composeDicts();
     scheduleRepair();
   }
@@ -184,31 +223,13 @@ export function createStarDictStore(deps: StarDictStoreDeps): StarDictStore {
   async function ensure(): Promise<void> {
     if (!starDictLoading) starDictLoading = loadAllDicts();
     await starDictLoading;
-    if (!bundledMissing.length && !userIncomplete) return;
+    if (!needsRepair(state)) return;
     if (Date.now() < repairAt) return;
     if (!repairing)
       repairing = repairDicts().finally(() => {
         repairing = null;
       });
     await repairing;
-  }
-
-  function markBroken(broken: StarDict[]): void {
-    for (const dict of broken) {
-      for (const [base, entry] of bundled) {
-        if (entry.dict !== dict) continue;
-        bundled.delete(base);
-        const listed = stardictList.find((item) => item.base === base);
-        if (listed && !bundledMissing.includes(listed))
-          bundledMissing.push(listed);
-      }
-      if (userDicts.some((entry) => entry.dict === dict)) {
-        userDicts = userDicts.filter((entry) => entry.dict !== dict);
-        userIncomplete = true;
-      }
-    }
-    composeDicts();
-    repairAt = 0;
   }
 
   return {
@@ -219,10 +240,7 @@ export function createStarDictStore(deps: StarDictStoreDeps): StarDictStore {
       repairing = null;
       repairAt = 0;
       repairCount = 0;
-      bundled = new Map();
-      bundledMissing = [];
-      userDicts = [];
-      userIncomplete = false;
+      state = emptyState();
       composeDicts();
     },
     async reorder() {
@@ -241,7 +259,9 @@ export function createStarDictStore(deps: StarDictStoreDeps): StarDictStore {
       const broken: StarDict[] = [];
       const result = await run(starDicts, broken);
       if (!broken.length) return result;
-      markBroken(broken);
+      dropBroken(state, broken);
+      composeDicts();
+      repairAt = 0;
       await ensure();
       return run(starDicts, []);
     },

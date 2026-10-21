@@ -61,53 +61,66 @@ function collectiveBase(inst: SpellerInstance, word: string): string | null {
   return genitive && spells(inst, genitive) ? genitive : null;
 }
 
-export function createWordCheck(deps: WordCheckDeps): WordCheck {
-  const suggestCache = new WeakMap<SpellerInstance, Map<string, string[]>>();
-
-  function englishStemsOf(word: string): string[] {
-    const english = deps.active().filter(({ id }) => ENGLISH_IDS.has(id));
-    const lower = word.toLowerCase();
-    const out: string[] = [];
-    const add = (stem: string): void => {
-      if (stem && stem !== word && stem !== lower && !out.includes(stem))
-        out.push(stem);
-    };
-    for (const { inst } of english) {
-      if (!inst.stem) continue;
-      const stem = inst.stem.bind(inst);
-      for (const form of [word, lower])
-        attempt(() => stringList(stem(form)), []).forEach(add);
-    }
-    if (out.length) return out;
-    const rules = englishStems(word);
-    if (!english.length) return rules;
-    return rules.filter((stem) =>
-      english.some(({ inst }) => spells(inst, stem)),
-    );
+function englishStemsOf(active: Speller[], word: string): string[] {
+  const english = active.filter(({ id }) => ENGLISH_IDS.has(id));
+  const lower = word.toLowerCase();
+  const out: string[] = [];
+  const add = (stem: string): void => {
+    if (stem && stem !== word && stem !== lower && !out.includes(stem))
+      out.push(stem);
+  };
+  for (const { inst } of english) {
+    if (!inst.stem) continue;
+    const stem = inst.stem.bind(inst);
+    for (const form of [word, lower])
+      attempt(() => stringList(stem(form)), []).forEach(add);
   }
+  if (out.length) return out;
+  const rules = englishStems(word);
+  if (!english.length) return rules;
+  return rules.filter((stem) => english.some(({ inst }) => spells(inst, stem)));
+}
+
+type SuggestCache = WeakMap<SpellerInstance, Map<string, string[]>>;
+
+function cachedSuggest(
+  cache: SuggestCache,
+  inst: SpellerInstance,
+  word: string,
+): string[] {
+  let memo = cache.get(inst);
+  if (!memo) {
+    memo = new Map();
+    cache.set(inst, memo);
+  }
+  const hit = memo.get(word);
+  if (hit) {
+    memo.delete(word);
+    memo.set(word, hit);
+    return hit;
+  }
+  const result = inst.suggest(word) || [];
+  memo.set(word, result);
+  if (memo.size > SUGGEST_CACHE_MAX) memo.delete(memo.keys().next().value!);
+  return result;
+}
+
+function forScript(base: Speller[], word: string): Speller[] {
+  const cyr = CYRILLIC.test(word);
+  const lat = LATIN.test(word);
+  let list = base;
+  if (cyr && !lat) list = base.filter(({ id }) => id.startsWith("mn"));
+  else if (lat && !cyr) list = base.filter(({ id }) => id.startsWith("en"));
+  return list.length ? list : base;
+}
+
+export function createWordCheck(deps: WordCheckDeps): WordCheck {
+  const suggestCache: SuggestCache = new WeakMap();
 
   function isLexicalCompound(word: string): boolean {
     const primary = deps.primary();
     if (!primary?.analyze || !primary.spell(word)) return false;
     return isLexicalHyphen(stringList(primary.analyze(word)));
-  }
-
-  function cachedSuggest(inst: SpellerInstance, word: string): string[] {
-    let memo = suggestCache.get(inst);
-    if (!memo) {
-      memo = new Map();
-      suggestCache.set(inst, memo);
-    }
-    const hit = memo.get(word);
-    if (hit) {
-      memo.delete(word);
-      memo.set(word, hit);
-      return hit;
-    }
-    const result = inst.suggest(word) || [];
-    memo.set(word, result);
-    if (memo.size > SUGGEST_CACHE_MAX) memo.delete(memo.keys().next().value!);
-    return result;
   }
 
   return {
@@ -126,21 +139,11 @@ export function createWordCheck(deps: WordCheckDeps): WordCheck {
     },
 
     suggest(word) {
-      const base = deps.active();
-      const cyr = CYRILLIC.test(word);
-      const lat = LATIN.test(word);
-      let list = base;
-      if (cyr && !lat) {
-        list = base.filter(({ id }) => id.startsWith("mn"));
-      } else if (lat && !cyr) {
-        list = base.filter(({ id }) => id.startsWith("en"));
-      }
-      if (!list.length) list = base;
-
+      const list = forScript(deps.active(), word);
       const seen = new Set<string>();
       const out: string[] = [];
       for (const { inst } of list) {
-        for (const suggestion of cachedSuggest(inst, word)) {
+        for (const suggestion of cachedSuggest(suggestCache, inst, word)) {
           if (!seen.has(suggestion)) {
             seen.add(suggestion);
             out.push(suggestion);
@@ -166,7 +169,7 @@ export function createWordCheck(deps: WordCheckDeps): WordCheck {
     },
 
     stemsOf(word) {
-      if (LATIN_WORD.test(word)) return englishStemsOf(word);
+      if (LATIN_WORD.test(word)) return englishStemsOf(deps.active(), word);
       const primary = deps.primary();
       if (!primary) return [];
       try {

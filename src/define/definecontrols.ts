@@ -135,8 +135,60 @@ function wordAtPoint(
   return span;
 }
 
+function initHoverDefine(
+  deps: DefineControlsDeps,
+  latinLookup: () => boolean,
+  showDefinition: (span: WordSpan, x?: number) => void,
+): void {
+  const { editor, backdrop, checker, defTip, defDock } = deps;
+  let hoverPoint: { x: number; y: number } | null = null;
+  let hoverSpan: WordSpan | null = null;
+  let hoverFrame = 0;
+
+  const defineAtPoint = (x: number, y: number): void => {
+    if (!checker.define) return;
+    const span = wordAtPoint(editor, backdrop, x, y, latinLookup());
+    if (!span) {
+      hoverSpan = null;
+      defTip.hideWordTip();
+      return;
+    }
+    if (hoverSpan?.start === span.start && hoverSpan.end === span.end) return;
+    hoverSpan = span;
+    showDefinition(span, x);
+  };
+
+  editor.addEventListener("pointermove", (e) => {
+    if (e.pointerType !== "mouse") return;
+    const always = (defDock.body() || defTip.pinned()) && !defTip.paused();
+    if (always && e.shiftKey) return;
+    hoverPoint = { x: e.clientX, y: e.clientY };
+    if (e.buttons !== 0 || !(isHoverDefineKey(e) || always)) {
+      hoverSpan = null;
+      return;
+    }
+    if (hoverFrame) return;
+    hoverFrame = requestAnimationFrame(() => {
+      hoverFrame = 0;
+      if (hoverPoint) defineAtPoint(hoverPoint.x, hoverPoint.y);
+    });
+  });
+
+  editor.addEventListener("pointerleave", () => {
+    hoverPoint = null;
+    hoverSpan = null;
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.repeat || (e.key !== "Control" && e.key !== "Meta")) return;
+    if (!hoverPoint || !isHoverDefineKey(e)) return;
+    hoverSpan = null;
+    defineAtPoint(hoverPoint.x, hoverPoint.y);
+  });
+}
+
 export function initDefineControls(deps: DefineControlsDeps): void {
-  const { editor, backdrop, checker, defTip, defDock, pop, holdStatus } = deps;
+  const { editor, checker, defTip, pop, holdStatus } = deps;
 
   let latinDicts: boolean | null = null;
   checker.onDictScripts = (latin) => {
@@ -227,48 +279,5 @@ export function initDefineControls(deps: DefineControlsDeps): void {
     showDefinition(span);
   });
 
-  let hoverPoint: { x: number; y: number } | null = null;
-  let hoverSpan: WordSpan | null = null;
-  let hoverFrame = 0;
-
-  const defineAtPoint = (x: number, y: number): void => {
-    if (!checker.define) return;
-    const span = wordAtPoint(editor, backdrop, x, y, latinLookup());
-    if (!span) {
-      hoverSpan = null;
-      defTip.hideWordTip();
-      return;
-    }
-    if (hoverSpan?.start === span.start && hoverSpan.end === span.end) return;
-    hoverSpan = span;
-    showDefinition(span, x);
-  };
-
-  editor.addEventListener("pointermove", (e) => {
-    if (e.pointerType !== "mouse") return;
-    const always = (defDock.body() || defTip.pinned()) && !defTip.paused();
-    if (always && e.shiftKey) return;
-    hoverPoint = { x: e.clientX, y: e.clientY };
-    if (e.buttons !== 0 || !(isHoverDefineKey(e) || always)) {
-      hoverSpan = null;
-      return;
-    }
-    if (hoverFrame) return;
-    hoverFrame = requestAnimationFrame(() => {
-      hoverFrame = 0;
-      if (hoverPoint) defineAtPoint(hoverPoint.x, hoverPoint.y);
-    });
-  });
-
-  editor.addEventListener("pointerleave", () => {
-    hoverPoint = null;
-    hoverSpan = null;
-  });
-
-  document.addEventListener("keydown", (e) => {
-    if (e.repeat || (e.key !== "Control" && e.key !== "Meta")) return;
-    if (!hoverPoint || !isHoverDefineKey(e)) return;
-    hoverSpan = null;
-    defineAtPoint(hoverPoint.x, hoverPoint.y);
-  });
+  initHoverDefine(deps, latinLookup, showDefinition);
 }

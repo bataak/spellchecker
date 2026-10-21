@@ -11,22 +11,8 @@ export function tocWidth(doc: DocIr): number {
   return doc.page.widthCm - doc.page.marginInnerCm - doc.page.marginOuterCm;
 }
 
-export function stylesXml(doc: DocIr): string {
-  const base = doc.font.family;
-
-  const paragraphs = Object.entries(doc.styles)
-    .map(
-      ([name, style]) =>
-        '<style:style style:name="' +
-        styleName(name) +
-        '" style:family="paragraph" style:parent-style-name="Standard">' +
-        paraProps(style) +
-        textProps(style, base) +
-        "</style:style>",
-    )
-    .join("");
-
-  const extra =
+function extraStyles(doc: DocIr, base: string): string {
+  return (
     '<style:style style:name="Rule" style:family="paragraph" style:parent-style-name="Standard">' +
     '<style:paragraph-properties fo:margin-top="6pt" fo:margin-bottom="6pt" ' +
     'fo:border-bottom="0.5pt solid #000000" fo:padding-bottom="2pt"/>' +
@@ -54,9 +40,12 @@ export function stylesXml(doc: DocIr): string {
     pt(doc.font.sizePt) +
     '" fo:font-family="' +
     xmlAttr(base) +
-    '"/></style:style>';
+    '"/></style:style>'
+  );
+}
 
-  const lists =
+function listStyles(): string {
+  return (
     '<text:list-style style:name="L_bullet">' +
     LIST_LEVELS.map(
       (level) =>
@@ -82,10 +71,12 @@ export function stylesXml(doc: DocIr): string {
         '" text:min-label-width="0.6cm"/>' +
         "</text:list-level-style-number>",
     ).join("") +
-    "</text:list-style>";
+    "</text:list-style>"
+  );
+}
 
-  const page = doc.page;
-  const layout = (name: string): string =>
+function pageLayout(page: DocIr["page"], name: string): string {
+  return (
     '<style:page-layout style:name="' +
     name +
     '"><style:page-layout-properties ' +
@@ -107,7 +98,24 @@ export function stylesXml(doc: DocIr): string {
     '">' +
     '<style:footer-style><style:header-footer-properties fo:min-height="0.6cm" ' +
     'fo:margin-top="0.4cm"/></style:footer-style>' +
-    "</style:page-layout-properties></style:page-layout>";
+    "</style:page-layout-properties></style:page-layout>"
+  );
+}
+
+export function stylesXml(doc: DocIr): string {
+  const base = doc.font.family;
+
+  const paragraphs = Object.entries(doc.styles)
+    .map(
+      ([name, style]) =>
+        '<style:style style:name="' +
+        styleName(name) +
+        '" style:family="paragraph" style:parent-style-name="Standard">' +
+        paraProps(style) +
+        textProps(style, base) +
+        "</style:style>",
+    )
+    .join("");
 
   const footerXml = doc.pageNumbers
     ? '<style:footer><text:p text:style-name="Footer">' +
@@ -132,11 +140,11 @@ export function stylesXml(doc: DocIr): string {
     'fo:hyphenation-remain-char-count="3" ' +
     'fo:hyphenation-push-char-count="3"/></style:style>' +
     paragraphs +
-    extra +
-    lists +
+    extraStyles(doc, base) +
+    listStyles() +
     "</office:styles>" +
     "<office:automatic-styles>" +
-    layout("Page_Body") +
+    pageLayout(doc.page, "Page_Body") +
     "</office:automatic-styles>" +
     "<office:master-styles>" +
     '<style:master-page style:name="Standard" style:page-layout-name="Page_Body">' +

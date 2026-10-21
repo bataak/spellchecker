@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { strToU8, zipSync } from "fflate";
@@ -26,6 +26,8 @@ export interface Fixtures {
   readonly other: string;
   readonly docx: string;
 }
+
+const BOOT_TIMEOUT_MS = 90_000;
 
 export const FIREFOX = process.env.E2E_ENGINE === "firefox";
 export const CDP_ONLY = FIREFOX && "pinch-ийг зөвхөн Chromium-ийн CDP дуурайна";
@@ -94,11 +96,14 @@ function fixtures(): Fixtures {
 }
 
 export async function startApp(): Promise<App> {
+  const cacheDir = mkdtempSync(join(tmpdir(), "hunspell-vite-"));
   const server: ViteDevServer = await createServer({
     logLevel: "silent",
+    cacheDir,
     server: { port: 5300 + Math.floor(Math.random() * 600) },
   });
   await server.listen();
+  await server.warmupRequest("/src/main.ts");
   const url = server.resolvedUrls!.local[0]!;
   const browser = await launch();
   const contexts: BrowserContext[] = [];
@@ -127,6 +132,7 @@ export async function startApp(): Promise<App> {
       for (const context of contexts) await context.close().catch(() => {});
       await browser.close();
       await server.close();
+      rmSync(cacheDir, { recursive: true, force: true });
     },
   };
 }
@@ -165,6 +171,8 @@ export async function openPage(
 export async function ready(page: Page): Promise<void> {
   await page.waitForFunction(
     () => !document.documentElement.classList.contains("booting"),
+    undefined,
+    { timeout: BOOT_TIMEOUT_MS },
   );
   await page.waitForTimeout(300);
 }

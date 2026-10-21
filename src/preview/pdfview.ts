@@ -81,6 +81,22 @@ async function buildPages(
   return { list, slots, base };
 }
 
+function offscreenGap(host: HTMLElement, slot: PageSlot): number {
+  const frame = host.getBoundingClientRect();
+  const box = slot.el.getBoundingClientRect();
+  return rangeGap(box.top, box.bottom, frame.top, frame.bottom);
+}
+
+function stretchCanvases(list: HTMLElement): void {
+  for (const canvas of list.querySelectorAll<HTMLCanvasElement>(
+    "canvas:not(.pdf-detail)",
+  )) {
+    canvas.style.width = "100%";
+    canvas.style.height = "auto";
+    canvas.style.transform = "";
+  }
+}
+
 interface DrawQueue {
   readonly ready: Promise<void>;
   settle(): void;
@@ -101,11 +117,7 @@ function createDrawQueue(
     settle = resolve;
   });
 
-  const offscreen = (slot: PageSlot): number => {
-    const frame = host.getBoundingClientRect();
-    const box = slot.el.getBoundingClientRect();
-    return rangeGap(box.top, box.bottom, frame.top, frame.bottom);
-  };
+  const offscreen = (slot: PageSlot): number => offscreenGap(host, slot);
 
   let detailTimer = 0;
   let detailRun = 0;
@@ -147,20 +159,10 @@ function createDrawQueue(
   );
   for (const slot of slots) io.observe(slot.el);
 
-  const stretch = (): void => {
-    for (const canvas of list.querySelectorAll<HTMLCanvasElement>(
-      "canvas:not(.pdf-detail)",
-    )) {
-      canvas.style.width = "100%";
-      canvas.style.height = "auto";
-      canvas.style.transform = "";
-    }
-  };
-
   let resizeTimer = 0;
   let redrawGen = 0;
   const redraw = (delay: number): void => {
-    stretch();
+    stretchCanvases(list);
     zooming = true;
     clearTimeout(resizeTimer);
     clearTimeout(detailTimer);
@@ -224,6 +226,32 @@ async function openDocument(
   return { task, doc };
 }
 
+function createPageReporter(
+  host: HTMLElement,
+  pages: readonly HTMLElement[],
+  options: PdfViewOptions,
+) {
+  const viewTop = (): number =>
+    host.getBoundingClientRect().top +
+    host.clientTop +
+    (options.inset?.() ?? 0);
+  let shownPage = 0;
+  const report = (): void => {
+    const top = viewTop();
+    const line = top + (host.getBoundingClientRect().bottom - top) * 0.4;
+    const rectOf = (index: number) => pages[index]!.getBoundingClientRect();
+    const page = pageIndexAt(pages.length, (i) => rectOf(i).bottom, line);
+    if (page === shownPage) return;
+    shownPage = page;
+    options.onPage?.(page, pages.length);
+  };
+  const force = (): void => {
+    shownPage = 0;
+    report();
+  };
+  return { viewTop, report, force };
+}
+
 export async function renderPdfInto(
   host: HTMLElement,
   file: File,
@@ -246,20 +274,11 @@ export async function renderPdfInto(
   });
   const queue = createDrawQueue(host, built, painter);
 
-  const inset = (): number => options.inset?.() ?? 0;
-  const viewTop = (): number =>
-    host.getBoundingClientRect().top + host.clientTop + inset();
-  let shownPage = 0;
-  const reportPage = (): void => {
-    const frame = host.getBoundingClientRect();
-    const top = frame.top + host.clientTop + inset();
-    const line = top + (frame.bottom - top) * 0.4;
-    const rectOf = (index: number) => pages[index]!.getBoundingClientRect();
-    const page = pageIndexAt(pages.length, (i) => rectOf(i).bottom, line);
-    if (page === shownPage) return;
-    shownPage = page;
-    options.onPage?.(page, pages.length);
-  };
+  const {
+    viewTop,
+    report: reportPage,
+    force,
+  } = createPageReporter(host, pages, options);
 
   let snapFrame = 0;
   const onScroll = (): void => {
@@ -292,8 +311,7 @@ export async function renderPdfInto(
       const el = pages[Math.min(Math.max(page, 1), pages.length) - 1];
       if (!el) return;
       host.scrollTop += el.getBoundingClientRect().top - viewTop() - 8;
-      shownPage = 0;
-      reportPage();
+      force();
     },
     words() {
       found ??= readPdfWords(doc, margins).catch(() => []);

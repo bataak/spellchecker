@@ -138,11 +138,78 @@ function placeDefTip(
   tip.style.top = window.scrollY + place.top + "px";
 }
 
+interface TipState {
+  anchor: HTMLElement | null;
+  shownWord: string;
+  dockedWord: string;
+}
+
+interface ShowCtx {
+  readonly deps: DefTipDeps;
+  readonly win: ReturnType<typeof createTipWindow>;
+  readonly words: ReturnType<typeof createWordAnchor>;
+  readonly definitionFor: (word: string) => Promise<Definition>;
+  readonly hide: () => void;
+  readonly position: () => void;
+}
+
+function sameTip(st: TipState, c: ShowCtx, anchor: HTMLElement, word: string) {
+  const open = c.win.el();
+  if (!open || open.hidden) return false;
+  return c.win.pinned() ? st.shownWord === word : st.anchor === anchor;
+}
+
+function light(c: ShowCtx, anchor: HTMLElement): void {
+  if (anchor === c.words.el()) anchor.classList.add("is-lit");
+}
+
+function tipWanted(st: TipState, c: ShowCtx, anchor: HTMLElement): boolean {
+  if (st.anchor !== anchor || !anchor.isConnected) return false;
+  return anchor === c.words.el() || !c.deps.popover.hidden;
+}
+
+async function showTip(
+  st: TipState,
+  c: ShowCtx,
+  anchor: HTMLElement,
+  word: string,
+): Promise<void> {
+  if (sameTip(st, c, anchor, word)) {
+    if (c.win.pinned()) {
+      st.anchor = anchor;
+      light(c, anchor);
+    }
+    return;
+  }
+  if (st.anchor && st.anchor !== anchor)
+    st.anchor.setAttribute("aria-expanded", "false");
+  st.anchor = anchor;
+  const def = await c.definitionFor(word);
+  if (!tipWanted(st, c, anchor)) return;
+  if (!def.entries.length) {
+    c.hide();
+    return;
+  }
+  const docked = c.deps.dock.body();
+  if (docked) {
+    fillBody(docked, word, def, st.dockedWord !== word);
+    docked.scrollTop = 0;
+    st.dockedWord = word;
+    light(c, anchor);
+    return;
+  }
+  const defTip = c.win.ensure();
+  fillBody(c.win.body()!, word, def, !defTip.hidden && st.shownWord !== word);
+  st.shownWord = word;
+  defTip.hidden = false;
+  defTip.scrollTop = 0;
+  anchor.setAttribute("aria-expanded", "true");
+  light(c, anchor);
+  c.position();
+}
+
 export function initDefTip(deps: DefTipDeps): DefTip {
-  const { editor, popover } = deps;
-  let shownWord = "";
-  let dockedWord = "";
-  let defTipAnchor: HTMLElement | null = null;
+  const st: TipState = { anchor: null, shownWord: "", dockedWord: "" };
   const words = createWordAnchor();
   const pause = createPauseToggle();
 
@@ -151,31 +218,31 @@ export function initDefTip(deps: DefTipDeps): DefTip {
 
   function hide(): void {
     grace.cancel();
-    if (defTipAnchor) defTipAnchor.setAttribute("aria-expanded", "false");
-    defTipAnchor = null;
+    if (st.anchor) st.anchor.setAttribute("aria-expanded", "false");
+    st.anchor = null;
     words.el()?.classList.remove("is-lit");
     const tip = win.el();
     if (tip && !win.pinned()) tip.hidden = true;
   }
 
-  function closePinned(): void {
+  const closePinned = (): void => {
     win.setPinned(false);
     hide();
-  }
+  };
 
   const win = createTipWindow({
     dock: deps.dock,
     pause,
     onEnter: grace.cancel,
     onLeave: () => {
-      if (defTipAnchor) grace.schedule();
+      if (st.anchor) grace.schedule();
     },
     onClose: closePinned,
   });
 
   const showPinned = (content: Node[]): void => {
     win.showPinned(content);
-    shownWord = "";
+    st.shownWord = "";
   };
   bindDockPin({ dock: deps.dock, win, pause, showPinned, closePinned });
 
@@ -184,88 +251,40 @@ export function initDefTip(deps: DefTipDeps): DefTip {
 
   function position(): void {
     const defTip = win.el();
-    if (!defTip || defTip.hidden || !defTipAnchor || win.pinned()) return;
-    if (!defTipAnchor.isConnected) {
+    if (!defTip || defTip.hidden || !st.anchor || win.pinned()) return;
+    if (!st.anchor.isConnected) {
       hide();
       return;
     }
-    const pointerX = defTipAnchor === words.el() ? wordTip.pointerX() : null;
-    placeDefTip(defTip, defTipAnchor, popover, editor, pointerX);
+    const pointerX = st.anchor === words.el() ? wordTip.pointerX() : null;
+    placeDefTip(defTip, st.anchor, deps.popover, deps.editor, pointerX);
   }
 
-  const light = (anchor: HTMLElement): void => {
-    if (anchor === words.el()) anchor.classList.add("is-lit");
+  const ctx: ShowCtx = { deps, win, words, definitionFor, hide, position };
+  const show = (anchor: HTMLElement, word: string): Promise<void> => {
+    grace.cancel();
+    return showTip(st, ctx, anchor, word);
   };
 
-  function tipWanted(anchor: HTMLElement): boolean {
-    if (defTipAnchor !== anchor || !anchor.isConnected) return false;
-    return anchor === words.el() || !popover.hidden;
-  }
-
-  async function show(anchor: HTMLElement, word: string): Promise<void> {
-    grace.cancel();
-    const pinned = win.pinned();
-    const open = win.el();
-    if (
-      open &&
-      !open.hidden &&
-      (pinned ? shownWord === word : defTipAnchor === anchor)
-    ) {
-      if (pinned) {
-        defTipAnchor = anchor;
-        light(anchor);
-      }
-      return;
-    }
-    if (defTipAnchor && defTipAnchor !== anchor)
-      defTipAnchor.setAttribute("aria-expanded", "false");
-    defTipAnchor = anchor;
-    const def = await definitionFor(word);
-    if (!tipWanted(anchor)) return;
-    if (!def.entries.length) {
-      hide();
-      return;
-    }
-    const docked = deps.dock.body();
-    if (docked) {
-      fillBody(docked, word, def, dockedWord !== word);
-      docked.scrollTop = 0;
-      dockedWord = word;
-      light(anchor);
-      return;
-    }
-    const defTip = win.ensure();
-    fillBody(win.body()!, word, def, !defTip.hidden && shownWord !== word);
-    shownWord = word;
-    defTip.hidden = false;
-    defTip.scrollTop = 0;
-    anchor.setAttribute("aria-expanded", "true");
-    light(anchor);
-    position();
-  }
-
-  function bindDot(dot: HTMLElement): void {
+  const bindDot = (dot: HTMLElement): void =>
     bindDefDot(dot, {
-      isAnchor: (el) => defTipAnchor === el,
+      isAnchor: (el) => st.anchor === el,
       show: (el, word) => void show(el, word),
       hide,
       scheduleHide: grace.schedule,
       showPanel: deps.showPanel,
     });
-  }
 
   hideOnOutsidePointer(hide);
 
-  function wordTipOpen(): boolean {
-    return !!defTipAnchor && defTipAnchor === words.el();
-  }
+  const wordTipOpen = (): boolean => !!st.anchor && st.anchor === words.el();
 
   function hideWordTip(): void {
     if (wordTipOpen()) hide();
   }
 
   const wordTip = createWordTip({
-    editor,
+    editor: deps.editor,
     backdrop: deps.backdrop,
     anchor: words,
     definitionFor,
@@ -297,9 +316,9 @@ export function initDefTip(deps: DefTipDeps): DefTip {
       hide();
       wordTip.forget();
       deps.dock.clear();
-      dockedWord = "";
+      st.dockedWord = "";
       win.body()?.replaceChildren(emptyNote());
-      shownWord = "";
+      st.shownWord = "";
     },
   };
 }

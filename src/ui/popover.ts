@@ -72,10 +72,85 @@ function bindDismiss(
   window.addEventListener("resize", a.place);
 }
 
+const POP_LOADING =
+  '<div class="pop-scroll">' +
+  '<div class="pop-list"><div class="muted pop-empty">тооцоолж байна…</div></div>' +
+  "</div>";
+
+const KB_DELAYS = [100, 250, 450, 650];
+
+function markOf(backdrop: Backdrop, start: number): Element | null {
+  return backdrop.el.querySelector('mark[data-start="' + start + '"]');
+}
+
+function revealWord(
+  editor: HTMLTextAreaElement,
+  mark: Element | null,
+): boolean {
+  if (!mark) return false;
+  const next = wordScrollTarget(editor, mark.getBoundingClientRect());
+  if (next === null) return false;
+  editor.scrollTop = next;
+  return true;
+}
+
+function createKbAdjust(step: () => boolean) {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const cancel = (): void => {
+    if (timer) clearTimeout(timer);
+  };
+  return {
+    cancel,
+    schedule(): void {
+      cancel();
+      let index = 0;
+      const run = (): void => {
+        if (!step()) return;
+        index++;
+        if (index < KB_DELAYS.length)
+          timer = setTimeout(run, KB_DELAYS[index]! - KB_DELAYS[index - 1]!);
+      };
+      timer = setTimeout(run, KB_DELAYS[0]);
+    },
+  };
+}
+
+function anchorOf(
+  backdrop: Backdrop,
+  span: WordSpan | null,
+  start: number | null,
+): DOMRect | null {
+  if (span) return backdrop.rangeRectAt(span.start, span.end);
+  if (start == null) return null;
+  return markOf(backdrop, start)?.getBoundingClientRect() ?? null;
+}
+
+function createDefPanel(
+  popover: HTMLElement,
+  defTip: DefTip,
+  relayout: () => void,
+) {
+  const close = (): void => {
+    popover.querySelector(".pop-def")?.remove();
+    delete popover.dataset.view;
+    relayout();
+  };
+  const show = async (word: string, onBack = close): Promise<void> => {
+    const def = await defTip.definitionFor(word);
+    if (popover.hidden) return;
+    popover.querySelector(".pop-def")?.remove();
+    const { panel, back } = buildDefPanel(word, def, defTip, onBack);
+    popover.appendChild(panel);
+    popover.dataset.view = "def";
+    relayout();
+    if (!isTouch()) back.focus();
+  };
+  return { close, show };
+}
+
 export function initPopover(deps: PopoverDeps): Popover {
   const { editor, backdrop, popover, defTip } = deps;
   let activeStart: number | null = null;
-  let kbAdjustTimer: ReturnType<typeof setTimeout> | null = null;
   let popoverScrollTop = 0;
   let wordPanelSpan: WordSpan | null = null;
 
@@ -86,30 +161,15 @@ export function initPopover(deps: PopoverDeps): Popover {
     popover.hidden = true;
     activeStart = null;
     placer.forget();
-    if (kbAdjustTimer) clearTimeout(kbAdjustTimer);
+    kbAdjust.cancel();
   }
 
-  function closeDefPanel(): void {
-    popover.querySelector(".pop-def")?.remove();
-    delete popover.dataset.view;
+  const defPanel = createDefPanel(popover, defTip, () => {
     measure();
     place();
-  }
-
-  async function showDefPanel(
-    word: string,
-    onBack = closeDefPanel,
-  ): Promise<void> {
-    const def = await defTip.definitionFor(word);
-    if (popover.hidden) return;
-    popover.querySelector(".pop-def")?.remove();
-    const { panel, back } = buildDefPanel(word, def, defTip, onBack);
-    popover.appendChild(panel);
-    popover.dataset.view = "def";
-    measure();
-    place();
-    if (!isTouch()) back.focus();
-  }
+  });
+  const closeDefPanel = defPanel.close;
+  const showDefPanel = defPanel.show;
 
   async function openWordPanel(span: WordSpan): Promise<void> {
     if (!backdrop.rangeRectAt(span.start, span.end)) return;
@@ -126,58 +186,28 @@ export function initPopover(deps: PopoverDeps): Popover {
   }
 
   function bringWordIntoView(): void {
-    if (popover.hidden || activeStart == null) return;
-    if (!isTouch()) return;
-    const mark = backdrop.el.querySelector(
-      'mark[data-start="' + activeStart + '"]',
-    );
-    if (!mark) return;
-    const next = wordScrollTarget(editor, mark.getBoundingClientRect());
-    if (next === null) return;
-    editor.scrollTop = next;
-    deps.syncScroll();
+    if (popover.hidden || activeStart == null || !isTouch()) return;
+    if (revealWord(editor, markOf(backdrop, activeStart))) deps.syncScroll();
   }
 
-  function scheduleKbAdjust(): void {
-    if (kbAdjustTimer) clearTimeout(kbAdjustTimer);
-    const delays = [100, 250, 450, 650];
-    let delayIndex = 0;
-    const run = () => {
-      if (popover.hidden) return;
-      bringWordIntoView();
-      place();
-      delayIndex++;
-      if (delayIndex < delays.length)
-        kbAdjustTimer = setTimeout(
-          run,
-          delays[delayIndex] - delays[delayIndex - 1],
-        );
-    };
-    kbAdjustTimer = setTimeout(run, delays[0]);
-  }
+  const kbAdjust = createKbAdjust(() => {
+    if (popover.hidden) return false;
+    bringWordIntoView();
+    place();
+    return true;
+  });
 
-  function list(): HTMLElement | null {
-    return popover.querySelector<HTMLElement>(".pop-list");
-  }
+  const list = (): HTMLElement | null =>
+    popover.querySelector<HTMLElement>(".pop-list");
 
   function updateScrollHint(): void {
     const target = list();
     if (target) scrollHints(popover, target);
   }
 
-  function anchorRect(): DOMRect | null {
-    if (wordPanelSpan)
-      return backdrop.rangeRectAt(wordPanelSpan.start, wordPanelSpan.end);
-    if (activeStart == null) return null;
-    const mark = backdrop.el.querySelector(
-      'mark[data-start="' + activeStart + '"]',
-    );
-    return mark ? mark.getBoundingClientRect() : null;
-  }
-
   const placer = createPlacer({
     popover,
-    anchor: anchorRect,
+    anchor: () => anchorOf(backdrop, wordPanelSpan, activeStart),
     lost: hide,
     placed: () => {
       updateScrollHint();
@@ -192,31 +222,24 @@ export function initPopover(deps: PopoverDeps): Popover {
     wordPanelSpan = null;
     delete popover.dataset.view;
     defTip.resetDefinitions();
-    popover.innerHTML =
-      '<div class="pop-scroll">' +
-      '<div class="pop-list"><div class="muted pop-empty">тооцоолж байна…</div></div>' +
-      "</div>";
+    popover.innerHTML = POP_LOADING;
     activeStart = start;
     popoverScrollTop = editor.scrollTop;
     popover.hidden = false;
     bringWordIntoView();
     measure();
     place();
-    scheduleKbAdjust();
+    kbAdjust.schedule();
   }
 
   function followScroll(): void {
     if (defTip.keyboardShifting()) {
       defTip.followWordTip();
       popoverScrollTop = editor.scrollTop;
-    } else {
-      defTip.hideWordTip();
-    }
-    if (!popover.hidden && Math.abs(editor.scrollTop - popoverScrollTop) > 20) {
+    } else defTip.hideWordTip();
+    if (!popover.hidden && Math.abs(editor.scrollTop - popoverScrollTop) > 20)
       hide();
-    } else {
-      place();
-    }
+    else place();
   }
 
   bindDismiss(deps, { hide, closeDefPanel, bringWordIntoView, place });

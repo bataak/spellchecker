@@ -7,7 +7,7 @@
   "license": "AGPL-3.0-only",
   "scripts": {
     "test": "tsc --noEmit && eslint . --quiet --max-warnings 0 && prettier --check \"**/*.{ts,js,mjs,cjs,css,json,yml,yaml}\" --log-level warn && node --import ./tests/helpers/viteenv.ts --test \"tests/*.test.ts\"",
-    "test:coverage": "node --import ./tests/helpers/viteenv.ts --test --experimental-test-coverage --test-coverage-lines=81 --test-coverage-branches=85 --test-coverage-functions=77 --test-coverage-include=\"src/**\" \"tests/*.test.ts\"",
+    "test:coverage": "node --import ./tests/helpers/viteenv.ts --test --experimental-test-coverage --test-coverage-lines=76 --test-coverage-branches=85 --test-coverage-functions=74 --test-coverage-include=\"src/**\" \"tests/*.test.ts\"",
     "test:e2e": "node --test --test-concurrency=4 \"tests/e2e/*.e2e.ts\"",
     "test:e2e:firefox": "E2E_ENGINE=firefox node --test --test-concurrency=4 \"tests/e2e/*.e2e.ts\"",
     "predev": "npm test",

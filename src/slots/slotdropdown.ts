@@ -19,27 +19,62 @@ export interface SlotDropdown {
   destroy(): void;
 }
 
-export function createSlotDropdown(deps: SlotDropdownDeps): SlotDropdown {
-  const { select } = deps;
+function slotMenu(): HTMLDivElement {
   const menu = document.createElement("div");
   menu.className = "md-menu";
   menu.setAttribute("role", "menu");
   menu.setAttribute("aria-label", "Баримтын загвар");
   menu.hidden = true;
   document.body.append(menu);
+  return menu;
+}
+
+function placeBelow(menu: HTMLElement, select: HTMLElement): void {
+  const rect = select.getBoundingClientRect();
+  const view = window.visualViewport;
+  const bottom = view ? view.offsetTop + view.height : window.innerHeight;
+  const right = document.documentElement.clientWidth;
+  menu.style.top = rect.bottom + 4 + "px";
+  menu.style.maxHeight = Math.max(120, bottom - rect.bottom - 12) + "px";
+  menu.style.minWidth = rect.width + "px";
+  menu.style.left =
+    Math.max(8, Math.min(rect.left, right - menu.offsetWidth - 8)) + "px";
+}
+
+function navIndex(key: string, at: number, count: number): number {
+  if (key === "ArrowDown") return (at + 1) % count;
+  if (key === "ArrowUp") return (at - 1 + count) % count;
+  if (key === "Home") return 0;
+  if (key === "End") return count - 1;
+  return -1;
+}
+
+function checkItems(
+  items: readonly HTMLButtonElement[],
+  value: string,
+): string | null {
+  let label: string | null = null;
+  for (const item of items) {
+    const on = item.dataset.value === value;
+    item.setAttribute("aria-checked", String(on));
+    if (on) label = item.textContent ?? "";
+  }
+  return label;
+}
+
+function onViewportChange(listener: (event: Event) => void, on: boolean): void {
+  const method = on ? "addEventListener" : "removeEventListener";
+  window[method]("resize", listener);
+  window[method]("scroll", listener, true);
+  window.visualViewport?.[method]("resize", listener);
+}
+
+export function createSlotDropdown(deps: SlotDropdownDeps): SlotDropdown {
+  const { select } = deps;
+  const menu = slotMenu();
   let items: HTMLButtonElement[] = [];
 
-  function place(): void {
-    const rect = select.getBoundingClientRect();
-    const view = window.visualViewport;
-    const bottom = view ? view.offsetTop + view.height : window.innerHeight;
-    const right = document.documentElement.clientWidth;
-    menu.style.top = rect.bottom + 4 + "px";
-    menu.style.maxHeight = Math.max(120, bottom - rect.bottom - 12) + "px";
-    menu.style.minWidth = rect.width + "px";
-    menu.style.left =
-      Math.max(8, Math.min(rect.left, right - menu.offsetWidth - 8)) + "px";
-  }
+  const place = (): void => placeBelow(menu, select);
 
   function close(refocus: boolean): void {
     if (menu.hidden) return;
@@ -90,13 +125,8 @@ export function createSlotDropdown(deps: SlotDropdownDeps): SlotDropdown {
 
   const onKey = (event: KeyboardEvent): void => {
     const at = items.indexOf(document.activeElement as HTMLButtonElement);
-    let next = -1;
-    if (event.key === "ArrowDown") next = (at + 1) % items.length;
-    else if (event.key === "ArrowUp")
-      next = (at - 1 + items.length) % items.length;
-    else if (event.key === "Home") next = 0;
-    else if (event.key === "End") next = items.length - 1;
-    else if (event.key === "Delete") {
+    const next = navIndex(event.key, at, items.length);
+    if (event.key === "Delete") {
       const id = items[at]?.dataset.value;
       if (id && deps.canClose(id)) {
         event.preventDefault();
@@ -129,33 +159,21 @@ export function createSlotDropdown(deps: SlotDropdownDeps): SlotDropdown {
   menu.addEventListener("click", onClick);
   menu.addEventListener("keydown", onKey);
   document.addEventListener("pointerdown", onPointer);
-  window.addEventListener("resize", onViewport);
-  window.addEventListener("scroll", onViewport, true);
-  window.visualViewport?.addEventListener("resize", onViewport);
+  onViewportChange(onViewport, true);
 
   return {
     render(html) {
       menu.innerHTML = html;
       items = [...menu.querySelectorAll<HTMLButtonElement>(".md-menu-item")];
     },
-    pick(value) {
-      let label: string | null = null;
-      for (const item of items) {
-        const on = item.dataset.value === value;
-        item.setAttribute("aria-checked", String(on));
-        if (on) label = item.textContent ?? "";
-      }
-      return label;
-    },
+    pick: (value) => checkItems(items, value),
     isOpen: () => !menu.hidden,
     contains: (node) => menu.contains(node),
     close,
     destroy() {
       select.removeEventListener("click", onToggle);
       document.removeEventListener("pointerdown", onPointer);
-      window.removeEventListener("resize", onViewport);
-      window.removeEventListener("scroll", onViewport, true);
-      window.visualViewport?.removeEventListener("resize", onViewport);
+      onViewportChange(onViewport, false);
       menu.remove();
     },
   };

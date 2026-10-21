@@ -81,64 +81,153 @@ function createBar(mount: HTMLElement | null): HTMLElement {
   return bar;
 }
 
-export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
-  const { editor, isMdFile, isTexFile = () => false } = options;
+interface SlotState {
+  id: string;
+  last: string;
+  legacy: string[];
+}
 
-  const mount = options.mount ?? editor.parentElement;
-  const bar = createBar(mount);
-  let templateId = loadTemplateId();
-  saveTemplateId(templateId);
+interface ChooseDeps {
+  readonly drafts: ReturnType<typeof createDraftSwitch>;
+  readonly labels: ReturnType<typeof createSlotPicker>;
+  readonly options: MdToolbarOptions;
+  readonly sync: () => void;
+}
 
-  const select = bar.querySelector<HTMLButtonElement>(".md-template")!;
-  const slots = createSlotList(
-    () => templateId,
-    () => editor.value,
-  );
+const regularSlot = (id: string): boolean =>
+  !isFileSlot(id) && id !== PROJECT_SLOT;
 
-  let lastTemplate =
-    isFileSlot(templateId) || templateId === PROJECT_SLOT ? PLAIN : templateId;
+function dropLegacy(state: SlotState): void {
+  for (const legacy of state.legacy) dropDraft(legacy);
+  state.legacy = [];
+}
+
+function chooseIn(
+  state: SlotState,
+  c: ChooseDeps,
+  id: string,
+  example?: string,
+): void {
+  const from = pickerValue(state.id);
+  if (
+    id === state.id &&
+    (example === undefined || example === chosenExample(id))
+  )
+    return;
+  c.drafts.leave(from, state.legacy.map(smallDraft));
+  dropLegacy(state);
+  state.id = id;
+  if (regularSlot(id)) state.last = id;
+  saveTemplateId(id);
+  if (example !== undefined) saveExampleChoice(id, example);
+  const key = pickerValue(id);
+  if (key !== from) c.options.onLeave?.(from, key);
+  c.drafts.enter(id, key);
+  if (c.options.onTemplate) c.options.onTemplate(id, from);
+  c.labels.pick(key);
+  c.sync();
+}
+
+function initialState(): SlotState {
+  const id = loadTemplateId();
+  saveTemplateId(id);
+  return { id, last: regularSlot(id) ? id : PLAIN, legacy: [] };
+}
+
+function isActive(options: MdToolbarOptions, state: SlotState): boolean {
+  if (options.isTexFile?.()) return false;
+  return options.fileName?.() ? options.isMdFile() : !isPlain(state.id);
+}
+
+function draftWriters(drafts: ReturnType<typeof createDraftSwitch>) {
+  return {
+    writeDraft(key: string, text: string): void {
+      if (key !== drafts.loadingKey()) saveDraft(key, text);
+    },
+    writeCaret(key: string, caret: Caret): void {
+      if (key !== drafts.loadingKey()) saveCaret(key, caret);
+    },
+  };
+}
+
+function createSlotMenu(
+  bar: HTMLElement,
+  slots: ReturnType<typeof createSlotList>,
+  state: SlotState,
+  options: MdToolbarOptions,
+  h: {
+    readonly sync: () => void;
+    readonly select: (value: string) => void;
+    readonly close: (id: string) => void;
+  },
+) {
   const labels = createSlotPicker({
     bar,
     dropdown: () => dropdown,
     slots,
-    templateId: () => templateId,
+    templateId: () => state.id,
     fileName: () => options.fileName?.() ?? null,
     projectDirty: () => options.projectDirty?.() ?? false,
   });
-  const rebuildMenu = labels.rebuild;
   const dropdown = createSlotDropdown({
-    select,
-    beforeOpen: () => rebuildMenu(),
-    afterClose: () => syncVisible(),
-    onSelect: (value) => onSelect(value),
+    select: bar.querySelector<HTMLButtonElement>(".md-template")!,
+    beforeOpen: () => labels.rebuild(),
+    afterClose: h.sync,
+    onSelect: h.select,
     canClose: isFileSlot,
-    onCloseSlot: (id) => closeFile(id),
+    onCloseSlot: h.close,
     onCloseProject: () => options.onCloseProject?.(),
   });
+  return { labels, dropdown };
+}
+
+function watchSlots(
+  slots: ReturnType<typeof createSlotList>,
+  rebuild: () => void,
+): () => void {
+  const onStorage = (event: StorageEvent): void => {
+    if (event.key !== null && event.key !== KEYS.slots.name) return;
+    slots.reload();
+    rebuild();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => window.removeEventListener("storage", onStorage);
+}
+
+export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
+  const { editor } = options;
+
+  const mount = options.mount ?? editor.parentElement;
+  const bar = createBar(mount);
+  const state = initialState();
+
+  const slots = createSlotList(
+    () => state.id,
+    () => editor.value,
+  );
+
+  const { labels, dropdown } = createSlotMenu(bar, slots, state, options, {
+    sync: () => syncVisible(),
+    select(value) {
+      const [slot = "", example] = value.split(":");
+      chooseTemplate(slot, example);
+      editor.focus();
+    },
+    close: (id) => closeFile(id),
+  });
+  const rebuildMenu = labels.rebuild;
   const group = bar.querySelector<HTMLElement>(".md-group")!;
   const picker = bar.querySelector<HTMLElement>(".md-select")!;
   const topbar = initTopbarFit(mount, bar, group);
 
   onDraftError(options.onDraftError ?? null);
-  let legacyPending = migrateLegacyDrafts(templateId);
+  state.legacy = migrateLegacyDrafts(state.id);
   migrateSlotDrafts();
-
-  function dropLegacyPending(): void {
-    for (const legacy of legacyPending) dropDraft(legacy);
-    legacyPending = [];
-  }
   rebuildMenu();
 
-  const buttons = createButtonState(
-    group,
-    editor,
-    () => !bar.hidden && !group.hidden,
-  );
-
-  function active(): boolean {
-    if (isTexFile()) return false;
-    return options.fileName?.() ? isMdFile() : !isPlain(templateId);
-  }
+  const shown = (): boolean => !bar.hidden && !group.hidden;
+  const buttons = createButtonState(group, editor, shown);
+  const active = (): boolean => isActive(options, state);
 
   const visibility = createBarVisibility({
     bar,
@@ -156,85 +245,53 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
 
   const drafts = createDraftSwitch({
     editor,
-    currentKey: () => pickerValue(templateId),
+    currentKey: () => pickerValue(state.id),
     onExample: options.onExample,
   });
 
-  function chooseTemplate(id: string, example?: string): void {
-    const from = pickerValue(templateId);
-    if (
-      id === templateId &&
-      (example === undefined || example === chosenExample(id))
-    )
-      return;
-
-    drafts.leave(from, legacyPending.map(smallDraft));
-    dropLegacyPending();
-    templateId = id;
-    if (!isFileSlot(id) && id !== PROJECT_SLOT) lastTemplate = id;
-    saveTemplateId(id);
-    if (example !== undefined) saveExampleChoice(id, example);
-
-    const key = pickerValue(id);
-    if (key !== from) options.onLeave?.(from, key);
-    drafts.enter(id, key);
-
-    if (options.onTemplate) options.onTemplate(id, from);
-    labels.pick(key);
-    syncVisible();
-  }
+  const chooseTemplate = (id: string, example?: string): void =>
+    chooseIn(
+      state,
+      { drafts, labels, options, sync: syncVisible },
+      id,
+      example,
+    );
 
   const files = createFileSlotOps({
     editor,
     slots,
-    templateId: () => templateId,
-    lastTemplate: () => lastTemplate,
+    templateId: () => state.id,
+    lastTemplate: () => state.last,
     choose: (id) => chooseTemplate(id),
     rebuild: rebuildMenu,
     onCloseFile: options.onCloseFile,
   });
   const closeFile = files.closeFile;
 
-  const onSelect = (value: string): void => {
-    const [slot = "", example] = value.split(":");
-    chooseTemplate(slot, example);
-    editor.focus();
-  };
-
   visibility.hold();
 
   const unbindFormatting = bindFormatting({ bar, editor, buttons, active });
-  const onStorage = (event: StorageEvent): void => {
-    if (event.key !== null && event.key !== KEYS.slots.name) return;
-    slots.reload();
-    rebuildMenu();
-  };
-  window.addEventListener("storage", onStorage);
+  const unwatchSlots = watchSlots(slots, rebuildMenu);
   editor.addEventListener("input", buttons.sync);
 
   return {
     refresh: syncVisible,
-    template: () => templateId,
-    slot: () => pickerValue(templateId),
+    template: () => state.id,
+    slot: () => pickerValue(state.id),
     draft: readDraft,
     caret: loadCaret,
-    writeDraft(key: string, text: string): void {
-      if (key !== drafts.loadingKey()) saveDraft(key, text);
-    },
-    writeCaret(key: string, caret: Caret): void {
-      if (key !== drafts.loadingKey()) saveCaret(key, caret);
-    },
+    ...draftWriters(drafts),
     reset(close: boolean): void {
-      dropDraft(pickerValue(templateId));
-      dropLegacyPending();
+      dropDraft(pickerValue(state.id));
+      dropLegacy(state);
       visibility.hold();
-      if (close && isFileSlot(templateId)) closeFile(templateId, true);
+      if (close && isFileSlot(state.id)) closeFile(state.id, true);
     },
     ...files,
     setProject: labels.setProject,
     destroy(): void {
       visibility.destroy();
-      window.removeEventListener("storage", onStorage);
+      unwatchSlots();
       dropdown.destroy();
       topbar.destroy();
       unbindFormatting();

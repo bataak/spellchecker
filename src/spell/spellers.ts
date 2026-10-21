@@ -59,6 +59,38 @@ const cacheOnlyFetch: typeof fetch = async (input) => {
 const order = (item: { id: string }): number =>
   DICTIONARIES.findIndex((dict) => dict.id === item.id);
 
+async function loadManifest(
+  asset: SpellersDeps["asset"],
+): Promise<Record<string, ManifestEntry>> {
+  if (import.meta.env.DEV) {
+    const out: Record<string, ManifestEntry> = {};
+    for (const dict of DICTIONARIES) {
+      out[dict.id] = {
+        id: dict.id,
+        version: null,
+        aff: dict.id + ".aff",
+        dic: dict.id + ".dic",
+      };
+    }
+    return out;
+  }
+  const res = await fetch(asset("dict/dict-manifest.json"));
+  if (!res.ok) throw new Error("dict-manifest.json -> " + res.status);
+  const data = (await res.json()) as { dicts?: ManifestEntry[] };
+  const out: Record<string, ManifestEntry> = {};
+  for (const entry of data.dicts || []) out[entry.id] = entry;
+  return out;
+}
+
+function affVersion(aff: Uint8Array): string | null {
+  return (
+    utf8
+      .decode(aff)
+      .match(/^#?\s*Version:\s*(.+)$/m)?.[1]!
+      .trim() || null
+  );
+}
+
 export function createSpellers(deps: SpellersDeps): Spellers {
   const { asset } = deps;
   const instances: Speller[] = [];
@@ -80,27 +112,6 @@ export function createSpellers(deps: SpellersDeps): Spellers {
     return null;
   };
 
-  async function loadManifest(): Promise<Record<string, ManifestEntry>> {
-    if (import.meta.env.DEV) {
-      const out: Record<string, ManifestEntry> = {};
-      for (const dict of DICTIONARIES) {
-        out[dict.id] = {
-          id: dict.id,
-          version: null,
-          aff: dict.id + ".aff",
-          dic: dict.id + ".dic",
-        };
-      }
-      return out;
-    }
-    const res = await fetch(asset("dict/dict-manifest.json"));
-    if (!res.ok) throw new Error("dict-manifest.json -> " + res.status);
-    const data = (await res.json()) as { dicts?: ManifestEntry[] };
-    const out: Record<string, ManifestEntry> = {};
-    for (const entry of data.dicts || []) out[entry.id] = entry;
-    return out;
-  }
-
   async function load(id: string): Promise<string> {
     const entry = manifest![id];
     if (!entry) throw new Error(id + " manifest-д алга");
@@ -110,13 +121,7 @@ export function createSpellers(deps: SpellersDeps): Spellers {
     ]);
     const inst = await backend!.build(aff, dic, id);
     if (id === PRIMARY) {
-      mnVersion =
-        entry.version ||
-        utf8
-          .decode(aff)
-          .match(/^#?\s*Version:\s*(.+)$/m)?.[1]!
-          .trim() ||
-        null;
+      mnVersion = entry.version || affVersion(aff);
     }
     put(id, inst);
     return id;
@@ -165,7 +170,7 @@ export function createSpellers(deps: SpellersDeps): Spellers {
   return {
     async start() {
       backend = await resolveBackend();
-      manifest = await loadManifest();
+      manifest = await loadManifest(asset);
       return backend;
     },
     load,
