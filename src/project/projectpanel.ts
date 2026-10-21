@@ -42,6 +42,10 @@ function openProjectMenu(
   parts: PanelParts,
   before: readonly MenuItem[],
 ): void {
+  if (menu.owner() === anchor) {
+    menu.close();
+    return;
+  }
   const box = anchor.getBoundingClientRect();
   menu.open(
     [
@@ -57,6 +61,7 @@ function openProjectMenu(
     ],
     box.left,
     box.top,
+    anchor,
   );
   menu.el.style.top = Math.max(8, box.top - menu.el.offsetHeight - 4) + "px";
 }
@@ -128,7 +133,12 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
 
   document.addEventListener("pointerdown", (event) => {
     const target = event.target as Node;
-    if (!menu.el.hidden && !menu.el.contains(target)) menu.close();
+    if (
+      !menu.el.hidden &&
+      !menu.el.contains(target) &&
+      !menu.owner()?.contains(target)
+    )
+      menu.close();
     if (
       vis.floating() &&
       !panel.hidden &&
