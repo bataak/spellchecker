@@ -168,6 +168,8 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
   });
 
   const openButton = deps.openButton;
+  if (openButton)
+    openButton.title = "Файл (" + deps.fileTypes + ") эсвэл LaTeX төсөл нээх";
   openButton?.addEventListener("click", () =>
     panel.openMenu(openButton, [
       { label: deps.fileTypes, run: () => deps.fileButton?.click() },
