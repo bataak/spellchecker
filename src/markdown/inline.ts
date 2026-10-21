@@ -14,12 +14,41 @@ const MATH_SPAN =
 
 const ESCAPABLE = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
 
+function closingRun(src: string, from: number, width: number): number {
+  for (let i = from; i < src.length; i++) {
+    if (src[i] !== "`") continue;
+    let end = i;
+    while (src[end] === "`") end++;
+    if (end - i === width) return i;
+    i = end;
+  }
+  return -1;
+}
+
 function mask(src: string, held: string[]): string {
-  return src.replace(/\\(.)/g, (whole, ch: string) => {
-    if (!ESCAPABLE.includes(ch)) return whole;
-    held.push(ch);
-    return HOLD + (held.length - 1) + HOLD;
-  });
+  let out = "";
+  let i = 0;
+  while (i < src.length) {
+    const ch = src[i]!;
+    if (ch === "\\" && ESCAPABLE.includes(src[i + 1] ?? "\n")) {
+      held.push(src[i + 1]!);
+      out += HOLD + (held.length - 1) + HOLD;
+      i += 2;
+      continue;
+    }
+    if (ch !== "`") {
+      out += ch;
+      i++;
+      continue;
+    }
+    let open = i;
+    while (src[open] === "`") open++;
+    const close = closingRun(src, open, open - i);
+    const end = close < 0 ? open : close + open - i;
+    out += src.slice(i, end);
+    i = end;
+  }
+  return out;
 }
 
 function unmask(src: string, held: string[], raw = false): string {
