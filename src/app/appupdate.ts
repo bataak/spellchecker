@@ -22,9 +22,9 @@ function swSettled(worker: ServiceWorker): Promise<void> {
   });
 }
 
-async function fetchFreshEntry(): Promise<string | null> {
+async function fetchFreshEntry(base: string): Promise<string | null> {
   try {
-    const swUrl = new URL(import.meta.env.BASE_URL + "sw.js", location.href);
+    const swUrl = new URL(base + "sw.js", location.href);
     swUrl.searchParams.set("fresh", String(Date.now()));
     const res = await fetch(swUrl.href, { cache: "no-store" });
     if (!res.ok) return null;
@@ -35,12 +35,11 @@ async function fetchFreshEntry(): Promise<string | null> {
   }
 }
 
-async function servesEntry(entry: string): Promise<boolean> {
+async function servesEntry(entry: string, base: string): Promise<boolean> {
   try {
-    const res = await fetch(
-      new URL(import.meta.env.BASE_URL, location.href).href,
-      { cache: "no-store" },
-    );
+    const res = await fetch(new URL(base, location.href).href, {
+      cache: "no-store",
+    });
     return res.ok && (await res.text()).includes(entry);
   } catch {
     return false;
@@ -62,13 +61,16 @@ function isNewer(entry: string | null, entryUrl: string): entry is string {
   return !!selfName && !!entry && !entry.endsWith("/" + selfName);
 }
 
-async function prepareLatest(freshEntry: string | null): Promise<boolean> {
+async function prepareLatest(
+  freshEntry: string | null,
+  base: string,
+): Promise<boolean> {
   const deadline = Date.now() + 2 * 60 * 1000;
   try {
     const reg = navigator.serviceWorker
       ? await navigator.serviceWorker.getRegistration()
       : null;
-    const entry = freshEntry ?? (await fetchFreshEntry());
+    const entry = freshEntry ?? (await fetchFreshEntry(base));
     if (!reg) return true;
     if (entry) {
       while (Date.now() < deadline) {
@@ -80,7 +82,7 @@ async function prepareLatest(freshEntry: string | null): Promise<boolean> {
           ]);
           continue;
         }
-        if (await servesEntry(entry)) return true;
+        if (await servesEntry(entry, base)) return true;
         await reg.update().catch(() => undefined);
         const next = reg.installing || reg.waiting;
         if (!next || next.state === "redundant") await waitMs(5000);
@@ -155,6 +157,7 @@ function initVersionLabel(): (version: string | null) => void {
 export function initAppUpdate(
   setStatus: (html: string) => void,
   entryUrl: string,
+  base: string = import.meta.env.BASE_URL,
 ): AppUpdate {
   const reloadEl = document.querySelector<HTMLElement>("#appReloadBtn");
   let freshEntry: string | null = null;
@@ -163,7 +166,7 @@ export function initAppUpdate(
   let prepared: Promise<boolean> | null = null;
 
   function prepareOnce(): Promise<boolean> {
-    prepared ??= prepareLatest(freshEntry).then((ok) => {
+    prepared ??= prepareLatest(freshEntry, base).then((ok) => {
       if (!ok) prepared = null;
       return ok;
     });
@@ -192,7 +195,7 @@ export function initAppUpdate(
 
   window.addEventListener("vite:preloadError", async () => {
     if (appUpdating) return;
-    const entry = freshEntry ?? (await fetchFreshEntry());
+    const entry = freshEntry ?? (await fetchFreshEntry(base));
     if (!isNewer(entry, entryUrl)) return;
     freshEntry = entry;
     if (reloadEl) reloadEl.hidden = false;
@@ -214,7 +217,7 @@ export function initAppUpdate(
 
   async function checkFreshness(): Promise<void> {
     if (!reloadEl || !reloadEl.hidden || appUpdating) return;
-    const entry = await fetchFreshEntry();
+    const entry = await fetchFreshEntry(base);
     if (!isNewer(entry, entryUrl)) return;
     freshEntry = entry;
     const ready = await prepareOnce();
@@ -226,7 +229,7 @@ export function initAppUpdate(
   async function recoverStale(deferIfActive = false): Promise<boolean> {
     if (appUpdating) return true;
     const startedAt = Date.now();
-    const entry = await fetchFreshEntry();
+    const entry = await fetchFreshEntry(base);
     if (!isNewer(entry, entryUrl)) return false;
     const key = at(KEYS.staleReload, entry);
     if (read(key) || !write(key, "1")) return false;
