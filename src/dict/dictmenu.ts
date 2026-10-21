@@ -51,6 +51,35 @@ export interface DictMenuOptions {
   onClose?: () => void;
 }
 
+function dictRow(text: string, locked: boolean): HTMLLabelElement {
+  const row = document.createElement("label");
+  row.className = locked ? "dict-row is-locked" : "dict-row";
+  const box = document.createElement("input");
+  box.type = "checkbox";
+  const span = document.createElement("span");
+  span.textContent = text;
+  row.append(box, span);
+  return row;
+}
+
+function dictDialog(): HTMLElement {
+  const dialog = document.createElement("div");
+  dialog.className = "dict-menu";
+  dialog.hidden = true;
+  dialog.setAttribute("role", "dialog");
+  dialog.setAttribute("aria-modal", "true");
+  dialog.setAttribute("aria-label", "Толь сонгох");
+  const title = document.createElement("p");
+  title.className = "dict-menu-title";
+  title.textContent = "Ашиглаж буй толь";
+  const mnRow = dictRow("Монгол", true);
+  const mnBox = mnRow.querySelector("input")!;
+  mnBox.checked = true;
+  mnBox.disabled = true;
+  dialog.append(title, mnRow);
+  return dialog;
+}
+
 export function initDictMenu(opts: DictMenuOptions): () => void {
   const { statusEl, getEnabled, onApply } = opts;
   let backdrop: HTMLElement | null = null;
@@ -77,42 +106,13 @@ export function initDictMenu(opts: DictMenuOptions): () => void {
     backdrop.hidden = true;
     backdrop.addEventListener("click", close);
 
-    dialog = document.createElement("div");
-    dialog.className = "dict-menu";
-    dialog.hidden = true;
-    dialog.setAttribute("role", "dialog");
-    dialog.setAttribute("aria-modal", "true");
-    dialog.setAttribute("aria-label", "Толь сонгох");
-
-    const title = document.createElement("p");
-    title.className = "dict-menu-title";
-    title.textContent = "Ашиглаж буй толь";
-    dialog.appendChild(title);
-
-    const mnRow = document.createElement("label");
-    mnRow.className = "dict-row is-locked";
-    const mnBox = document.createElement("input");
-    mnBox.type = "checkbox";
-    mnBox.checked = true;
-    mnBox.disabled = true;
-    const mnSpan = document.createElement("span");
-    mnSpan.textContent = "Монгол";
-    mnRow.appendChild(mnBox);
-    mnRow.appendChild(mnSpan);
-    dialog.appendChild(mnRow);
-
+    dialog = dictDialog();
     for (const id of EN_IDS) {
-      const row = document.createElement("label");
-      row.className = "dict-row";
-      const box = document.createElement("input");
-      box.type = "checkbox";
+      const row = dictRow(EN_LABEL[id]!, false);
+      const box = row.querySelector("input")!;
       box.className = "dict-en-box";
       box.dataset.id = id;
       box.addEventListener("change", apply);
-      const span = document.createElement("span");
-      span.textContent = EN_LABEL[id]!;
-      row.appendChild(box);
-      row.appendChild(span);
       dialog.appendChild(row);
     }
 

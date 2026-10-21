@@ -65,6 +65,27 @@ export function initClean(deps: DecodeDeps): DecodeControl {
   });
 }
 
+function fixSelection(
+  full: string,
+  start: number,
+  end: number,
+  spec: FixButtonSpec,
+): { next: string; caret: number; message: string } | null {
+  const selected = end > start;
+  const target = selected ? full.slice(start, end) : full;
+  const result = spec.fix(target, full);
+  if (!result) return null;
+  return {
+    next: selected
+      ? full.slice(0, start) + result.text + full.slice(end)
+      : result.text,
+    caret: selected
+      ? start + result.text.length
+      : Math.min(start, result.text.length),
+    message: result.message,
+  };
+}
+
 function initFixButton(deps: DecodeDeps, spec: FixButtonSpec): DecodeControl {
   const editor = deps.editor.el;
   const decodeBtn = document.querySelector<HTMLButtonElement>(spec.selector);
@@ -168,23 +189,18 @@ function initFixButton(deps: DecodeDeps, spec: FixButtonSpec): DecodeControl {
     decodeBtn.addEventListener("click", () => {
       const full = editor.value;
       if (!full) return;
-      const start = editor.selectionStart;
-      const end = editor.selectionEnd;
-      const selected = end > start;
-      const target = selected ? full.slice(start, end) : full;
-      const result = spec.fix(target, full);
+      const result = fixSelection(
+        full,
+        editor.selectionStart,
+        editor.selectionEnd,
+        spec,
+      );
       if (!result) {
         showDecodeMessage(spec.emptyMessage);
         return;
       }
-      const next = selected
-        ? full.slice(0, start) + result.text + full.slice(end)
-        : result.text;
-      const caret = selected
-        ? start + result.text.length
-        : Math.min(start, result.text.length);
       deps.invalidate();
-      void deps.editor.reformat(next, caret);
+      void deps.editor.reformat(result.next, result.caret);
       showDecodeMessage(result.message);
     });
   }

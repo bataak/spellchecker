@@ -29,6 +29,21 @@ function saveOpen(on: boolean): void {
   else remove(KEYS.projectPanel);
 }
 
+function createFlash(toggle: HTMLElement): () => void {
+  let timer = 0;
+  return () => {
+    toggle.classList.add("is-shown");
+    clearTimeout(timer);
+    timer = window.setTimeout(() => toggle.classList.remove("is-shown"), 5000);
+  };
+}
+
+function markProject(shown: boolean): void {
+  const root = document.documentElement;
+  if (shown) root.dataset.project = "on";
+  else delete root.dataset.project;
+}
+
 export function createPanelShow(deps: ShowDeps): PanelShow {
   const { panel, toggle } = deps;
   const wide = window.matchMedia("(min-width: 1024px)");
@@ -36,7 +51,6 @@ export function createPanelShow(deps: ShowDeps): PanelShow {
   let awayOpen: string | null = null;
   let laying = false;
   let wasFloating = false;
-  let flashTimer = 0;
   let peekTimer = 0;
 
   const floating = (): boolean =>
@@ -55,19 +69,10 @@ export function createPanelShow(deps: ShowDeps): PanelShow {
   panel.addEventListener("pointerdown", keepPeek);
   panel.addEventListener("wheel", keepPeek, { passive: true });
   panel.addEventListener("focusin", keepPeek);
-  const flashToggle = (): void => {
-    toggle.classList.add("is-shown");
-    clearTimeout(flashTimer);
-    flashTimer = window.setTimeout(
-      () => toggle.classList.remove("is-shown"),
-      5000,
-    );
-  };
+  const flashToggle = createFlash(toggle);
   const layout = (shown: boolean): void => {
     panel.hidden = !shown;
-    const root = document.documentElement;
-    if (shown) root.dataset.project = "on";
-    else delete root.dataset.project;
+    markProject(shown);
     if (!shown) deps.onHide();
     laying = true;
     try {

@@ -71,6 +71,39 @@ export interface PreviewHead {
   closePageInput(): void;
 }
 
+function invertButton(panel: HTMLElement): HTMLButtonElement {
+  let invert = loadInvert();
+  const button = headButton(
+    "pdf-invert",
+    "Хуудсыг цагаанаар харах",
+    contrastGlyph(),
+  );
+  const apply = (): void => {
+    panel.classList.toggle("no-invert", !invert);
+    button.setAttribute("aria-pressed", String(!invert));
+  };
+  button.addEventListener("click", () => {
+    invert = !invert;
+    saveInvert(invert);
+    apply();
+  });
+  apply();
+  return button;
+}
+
+function zoomControls(handlers: PreviewHeadHandlers) {
+  const box = document.createElement("span");
+  box.className = "pdf-zoom";
+  const out = headButton("", "Жижгэрүүлэх", "−");
+  const reset = headButton("pdf-zoom-level", "Анхны хэмжээ", "100%");
+  const zoomIn = headButton("", "Томруулах", "+");
+  box.append(out, reset, zoomIn);
+  out.addEventListener("click", () => handlers.onZoom("out"));
+  zoomIn.addEventListener("click", () => handlers.onZoom("in"));
+  reset.addEventListener("click", () => handlers.onZoom("reset"));
+  return { box, out, reset, zoomIn };
+}
+
 export function buildPreviewHead(
   panel: HTMLElement,
   handlers: PreviewHeadHandlers,
@@ -82,32 +115,8 @@ export function buildPreviewHead(
   title.className = "preview-title";
   title.textContent = HEAD_TEXT;
 
-  let invert = loadInvert();
-  const invertBtn = headButton(
-    "pdf-invert",
-    "Хуудсыг цагаанаар харах",
-    contrastGlyph(),
-  );
-  const applyInvert = (): void => {
-    panel.classList.toggle("no-invert", !invert);
-    invertBtn.setAttribute("aria-pressed", String(!invert));
-  };
-  invertBtn.addEventListener("click", () => {
-    invert = !invert;
-    saveInvert(invert);
-    applyInvert();
-  });
-  applyInvert();
-
-  const zoomBox = document.createElement("span");
-  zoomBox.className = "pdf-zoom";
-  const zoomOut = headButton("", "Жижгэрүүлэх", "−");
-  const zoomReset = headButton("pdf-zoom-level", "Анхны хэмжээ", "100%");
-  const zoomIn = headButton("", "Томруулах", "+");
-  zoomBox.append(zoomOut, zoomReset, zoomIn);
-  zoomOut.addEventListener("click", () => handlers.onZoom("out"));
-  zoomIn.addEventListener("click", () => handlers.onZoom("in"));
-  zoomReset.addEventListener("click", () => handlers.onZoom("reset"));
+  const invertBtn = invertButton(panel);
+  const zoom = zoomControls(handlers);
 
   const pageNav = document.createElement("span");
   pageNav.className = "pdf-page-nav";
@@ -167,17 +176,17 @@ export function buildPreviewHead(
   );
   downloadBtn.disabled = true;
 
-  head.append(title, pageNav, compileBtn, downloadBtn, zoomBox, invertBtn);
+  head.append(title, pageNav, compileBtn, downloadBtn, zoom.box, invertBtn);
 
   return {
     head,
     title,
     compileBtn,
     downloadBtn,
-    showZoom(zoom) {
-      zoomReset.textContent = Math.round(zoom * 100) + "%";
-      zoomOut.disabled = zoom <= ZOOM_MIN;
-      zoomIn.disabled = zoom >= ZOOM_MAX;
+    showZoom(level) {
+      zoom.reset.textContent = Math.round(level * 100) + "%";
+      zoom.out.disabled = level <= ZOOM_MIN;
+      zoom.zoomIn.disabled = level >= ZOOM_MAX;
     },
     showPage(next, total) {
       page = next;

@@ -13,6 +13,33 @@ import {
 import { withStamps, type ProjectKind, type State } from "./projectstate.ts";
 import type { StoreCore } from "./storecore.ts";
 
+async function writeGranted(
+  handle: FileSystemDirectoryHandle,
+): Promise<boolean> {
+  try {
+    return (
+      (await handle.queryPermission?.({ mode: "readwrite" })) === "granted"
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function chooseDirectory(
+  near: FileSystemFileHandle | null,
+): Promise<FileSystemDirectoryHandle | null> {
+  try {
+    return await window.showDirectoryPicker!({
+      mode: "readwrite",
+      ...(near ? { startIn: near } : {}),
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError")
+      return null;
+    throw error;
+  }
+}
+
 export function createOpeners(core: StoreCore) {
   const fromLoaded = (kind: ProjectKind, loaded: LoadedFiles): State =>
     core.fresh(kind, loaded.name, null, loaded.files, loaded.dirs);
@@ -29,14 +56,7 @@ export function createOpeners(core: StoreCore) {
   async function refreshFromDisk(): Promise<boolean> {
     const s = core.state();
     if (!s || s.pending || s.kind !== "dir" || !s.handle) return false;
-    try {
-      if (
-        (await s.handle.queryPermission?.({ mode: "readwrite" })) !== "granted"
-      )
-        return false;
-    } catch {
-      return false;
-    }
+    if (!(await writeGranted(s.handle))) return false;
     const scan = await readDir(s.handle, s.stamps);
     if (core.state() !== s) return false;
     const conflicts: string[] = [];
@@ -93,17 +113,8 @@ export function createOpeners(core: StoreCore) {
     near: FileSystemFileHandle | null = null,
   ): Promise<boolean> {
     if (window.showDirectoryPicker) {
-      let handle: FileSystemDirectoryHandle;
-      try {
-        handle = await window.showDirectoryPicker({
-          mode: "readwrite",
-          ...(near ? { startIn: near } : {}),
-        });
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError")
-          return false;
-        throw error;
-      }
+      const handle = await chooseDirectory(near);
+      if (!handle) return false;
       await openDirHandle(handle);
       return true;
     }
