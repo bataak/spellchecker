@@ -1,86 +1,23 @@
-import type { Line, TextItem } from "./pdftext.ts";
+import type { PDFDocumentProxy } from "pdfjs-dist";
 import { createSyncMark } from "./syncmark.ts";
 import type { PdfWord } from "../tex/texsync.ts";
+import { DESKTOP_CANVAS_PIXELS, TOUCH_CANVAS_PIXELS } from "./viewprefs.ts";
+import { pageIndexAt, rangeGap, revealShift } from "./pdfdetail.ts";
+import { dropWorker, pdfLoader, type PdfLoadingTask } from "./pdfloader.ts";
 import {
-  canvasDensity,
-  DESKTOP_CANVAS_PIXELS,
-  TOUCH_CANVAS_PIXELS,
-} from "./viewprefs.ts";
-import {
-  covers,
-  detailRect,
-  pageIndexAt,
-  rangeGap,
-  revealShift,
-  snapShift,
-  type Box,
-  type DetailRect,
-} from "./pdfdetail.ts";
-import { noteError } from "../core/errorlog.ts";
+  createPagePainter,
+  pageSlot,
+  type PagePainter,
+  type PageSlot,
+} from "./pdfpaint.ts";
+import { readPdfWords } from "./pdfwords.ts";
+import { keepAnchor, pinchPages, pointOnPage } from "./pdfzoom.ts";
 
-function noteUnlessCancelled(error: unknown): void {
-  if (error instanceof Error && error.name === "RenderingCancelledException")
-    return;
-  noteError(error);
-}
-
-let pdfjsPromise: Promise<typeof import("pdfjs-dist")> | null = null;
-
-function loadPdfjs(): Promise<typeof import("pdfjs-dist")> {
-  pdfjsPromise ??= (async () => {
-    const pdfjs = await import("pdfjs-dist");
-    pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-      "pdfjs-dist/build/pdf.worker.min.mjs",
-      import.meta.url,
-    ).toString();
-    return pdfjs;
-  })();
-  return pdfjsPromise;
-}
-
-let sharedWorker: import("pdfjs-dist").PDFWorker | null = null;
-
-function pdfWorker(
-  pdfjs: typeof import("pdfjs-dist"),
-): import("pdfjs-dist").PDFWorker {
-  if (!sharedWorker || sharedWorker.destroyed)
-    sharedWorker = new pdfjs.PDFWorker();
-  return sharedWorker;
-}
-
-export async function warmPdf(): Promise<void> {
-  pdfWorker(await loadPdfjs());
-}
-
-function dropWorker(): void {
-  sharedWorker?.destroy();
-  sharedWorker = null;
-}
+export { warmPdf, type PdfLoadingTask } from "./pdfloader.ts";
 
 const ROOT_MARGIN = "900px 0px";
-
 const MAX_DPR = 2;
-const DETAIL_MARGIN = 0.25;
 const DETAIL_DELAY_MS = 200;
-
-interface Detail {
-  readonly canvas: HTMLCanvasElement;
-  readonly rect: DetailRect;
-  readonly width: number;
-}
-
-interface PageSlot {
-  el: HTMLElement;
-  index: number;
-  canvas: HTMLCanvasElement | null;
-  task: { cancel: () => void } | null;
-  rendering: boolean;
-  gen: number;
-  density: number;
-  detail: Detail | null;
-  detailTask: { cancel: () => void } | null;
-  detailGen: number;
-}
 
 export interface PdfView {
   readonly pages: number;
@@ -102,10 +39,6 @@ export interface PdfView {
   destroy(): void;
 }
 
-export type PdfLoadingTask = ReturnType<
-  (typeof import("pdfjs-dist"))["getDocument"]
->;
-
 export interface PdfViewOptions {
   readonly inset?: () => number;
   readonly onPage?: (page: number, pages: number) => void;
@@ -113,265 +46,70 @@ export interface PdfViewOptions {
   readonly behind?: boolean;
 }
 
-async function pdfLoader(): Promise<(data: Uint8Array) => PdfLoadingTask> {
-  const pdfjs = await loadPdfjs();
-  return (data) => pdfjs.getDocument({ data, worker: pdfWorker(pdfjs) });
+interface Pages {
+  readonly list: HTMLElement;
+  readonly slots: PageSlot[];
+  readonly base: { readonly width: number; readonly height: number };
 }
 
-export async function renderPdfInto(
+async function buildPages(
   host: HTMLElement,
-  file: File,
-  signal?: AbortSignal,
-  zoom = 1,
-  options: PdfViewOptions = {},
-): Promise<PdfView> {
-  const load = options.load ?? (await pdfLoader());
-  const data = new Uint8Array(await file.arrayBuffer());
-  const task = load(data);
-  const doc = await task.promise.catch((error: unknown) => {
-    dropWorker();
-    throw error;
-  });
-
-  if (signal?.aborted) {
-    await task.destroy();
-    throw new DOMException("aborted", "AbortError");
-  }
-
+  doc: PDFDocumentProxy,
+  zoom: number,
+  behind: boolean,
+  dpr: number,
+): Promise<Pages> {
   const list = document.createElement("div");
   list.className = "pdf-pages";
   list.style.setProperty("--pdf-zoom", String(zoom));
-  if (options.behind) {
+  if (behind) {
     list.classList.add("is-pending");
     host.append(list);
   } else host.replaceChildren(list);
-
-  const slots: PageSlot[] = [];
-  const dpr = Math.min(globalThis.devicePixelRatio || 1, MAX_DPR);
-  const maxPixels = globalThis.matchMedia?.("(pointer: coarse)").matches
-    ? TOUCH_CANVAS_PIXELS
-    : DESKTOP_CANVAS_PIXELS;
-
   const first = await doc.getPage(1);
   const base = first.getViewport({ scale: 1 });
   first.cleanup();
-
+  const slots: PageSlot[] = [];
   for (let i = 1; i <= doc.numPages; i++) {
     const el = document.createElement("div");
     el.className = "pdf-page";
     el.dataset.page = String(i);
     el.style.aspectRatio = `${base.width} / ${base.height}`;
     list.append(el);
-    slots.push({
-      el,
-      index: i,
-      canvas: null,
-      task: null,
-      rendering: false,
-      gen: 0,
-      density: dpr,
-      detail: null,
-      detailTask: null,
-      detailGen: 0,
-    });
+    slots.push(pageSlot(el, i, dpr));
   }
+  return { list, slots, base };
+}
 
-  const snap = (slot: PageSlot): void => {
-    if (!slot.canvas) return;
-    const box = slot.el.getBoundingClientRect();
-    const shift = snapShift(
-      box.left + slot.el.clientLeft,
-      box.top + slot.el.clientTop,
-      dpr,
-    );
-    slot.canvas.style.transform = shift;
-    if (slot.detail) slot.detail.canvas.style.transform = shift;
-  };
+interface DrawQueue {
+  readonly ready: Promise<void>;
+  settle(): void;
+  scheduleDetail(): void;
+  redraw(delay: number): void;
+  stop(): void;
+}
 
-  const inset = (): number => options.inset?.() ?? 0;
-  const pageAt = (): number => {
+function createDrawQueue(
+  host: HTMLElement,
+  { list, slots }: Pages,
+  painter: () => PagePainter,
+): DrawQueue {
+  const visible = new Set<PageSlot>();
+  let zooming = false;
+  let settle = (): void => {};
+  const ready = new Promise<void>((resolve) => {
+    settle = resolve;
+  });
+
+  const offscreen = (slot: PageSlot): number => {
     const frame = host.getBoundingClientRect();
-    const top = frame.top + host.clientTop + inset();
-    const line = top + (frame.bottom - top) * 0.4;
-    return pageIndexAt(
-      slots.length,
-      (index) => slots[index]!.el.getBoundingClientRect().bottom,
-      line,
-    );
-  };
-  let shownPage = 0;
-  const reportPage = (): void => {
-    const page = pageAt();
-    if (page === shownPage) return;
-    shownPage = page;
-    options.onPage?.(page, slots.length);
-  };
-
-  let snapFrame = 0;
-  const onScroll = (): void => {
-    if (snapFrame) return;
-    snapFrame = requestAnimationFrame(() => {
-      snapFrame = 0;
-      for (const slot of slots) snap(slot);
-      reportPage();
-    });
-    scheduleDetail();
-  };
-  host.addEventListener("scroll", onScroll, { passive: true });
-
-  const freeCanvas = (canvas: HTMLCanvasElement): void => {
-    canvas.width = 0;
-    canvas.height = 0;
-  };
-
-  const dropDetail = (slot: PageSlot): void => {
-    slot.detailGen++;
-    slot.detailTask?.cancel();
-    slot.detailTask = null;
-    if (!slot.detail) return;
-    slot.detail.canvas.remove();
-    freeCanvas(slot.detail.canvas);
-    slot.detail = null;
-  };
-
-  const release = (slot: PageSlot): void => {
-    dropDetail(slot);
-    slot.gen++;
-    slot.task?.cancel();
-    slot.task = null;
-    if (slot.canvas) {
-      slot.canvas.width = 0;
-      slot.canvas.height = 0;
-      slot.canvas = null;
-    }
-    slot.el.replaceChildren();
-    slot.rendering = false;
-  };
-
-  const draw = async (slot: PageSlot): Promise<void> => {
-    if (slot.canvas || slot.rendering) return;
-    slot.rendering = true;
-    const gen = ++slot.gen;
-    try {
-      const page = await doc.getPage(slot.index);
-      const border = slot.el.clientLeft;
-      const width = Math.max(
-        slot.el.getBoundingClientRect().width - border * 2,
-        120,
-      );
-      const density = canvasDensity(
-        width,
-        base.height / base.width,
-        dpr,
-        maxPixels,
-      );
-      const pixels = Math.round(width * density);
-      const viewport = page.getViewport({ scale: pixels / base.width });
-      const canvas = document.createElement("canvas");
-      canvas.width = pixels;
-      canvas.height = Math.round(viewport.height);
-      canvas.style.width = canvas.width / density + "px";
-      canvas.style.height = canvas.height / density + "px";
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      const render = page.render({ canvas, canvasContext: ctx, viewport });
-      slot.task = render;
-      await render.promise;
-      if (gen !== slot.gen) return;
-      slot.task = null;
-      if (!slot.rendering) return;
-      slot.density = density;
-      if (density >= dpr) dropDetail(slot);
-      slot.el.replaceChildren(canvas);
-      if (slot.detail) slot.el.append(slot.detail.canvas);
-      slot.canvas = canvas;
-      snap(slot);
-      page.cleanup();
-      scheduleDetail();
-    } catch (error) {
-      noteUnlessCancelled(error);
-    } finally {
-      if (gen === slot.gen) slot.rendering = false;
-    }
-  };
-
-  const pageBox = (slot: PageSlot): Box => {
     const box = slot.el.getBoundingClientRect();
-    return {
-      left: box.left + slot.el.clientLeft,
-      top: box.top + slot.el.clientTop,
-      width: slot.el.clientWidth,
-      height: slot.el.clientHeight,
-    };
-  };
-
-  const viewBox = (): Box => {
-    const frame = host.getBoundingClientRect();
-    return {
-      left: frame.left + host.clientLeft,
-      top: frame.top + host.clientTop,
-      width: host.clientWidth,
-      height: host.clientHeight,
-    };
-  };
-
-  const percent = (part: number, whole: number): string =>
-    (part / whole) * 100 + "%";
-
-  const drawDetail = async (slot: PageSlot): Promise<void> => {
-    if (!slot.canvas || slot.rendering || slot.density >= dpr) return;
-    const page = pageBox(slot);
-    const view = viewBox();
-    const need = detailRect(page, view, 0, dpr);
-    if (!need) return;
-    const held = slot.detail;
-    if (held && held.width === page.width && covers(held.rect, need)) return;
-    const margin = Math.max(view.width, view.height) * DETAIL_MARGIN;
-    const rect = detailRect(page, view, margin, dpr) ?? need;
-    slot.detailTask?.cancel();
-    slot.detailTask = null;
-    const gen = ++slot.detailGen;
-    const canvas = document.createElement("canvas");
-    try {
-      const pdfPage = await doc.getPage(slot.index);
-      if (gen !== slot.detailGen) return;
-      const viewport = pdfPage.getViewport({
-        scale: (page.width * dpr) / base.width,
-        offsetX: -rect.x * dpr,
-        offsetY: -rect.y * dpr,
-      });
-      canvas.className = "pdf-detail";
-      canvas.width = Math.round(rect.w * dpr);
-      canvas.height = Math.round(rect.h * dpr);
-      canvas.style.left = percent(rect.x, page.width);
-      canvas.style.top = percent(rect.y, page.height);
-      canvas.style.width = percent(rect.w, page.width);
-      canvas.style.height = percent(rect.h, page.height);
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      const render = pdfPage.render({ canvas, canvasContext: ctx, viewport });
-      slot.detailTask = render;
-      await render.promise;
-      if (gen !== slot.detailGen || !slot.canvas) return;
-      slot.detailTask = null;
-      const old = slot.detail;
-      slot.el.append(canvas);
-      slot.detail = { canvas, rect, width: page.width };
-      if (old) {
-        old.canvas.remove();
-        freeCanvas(old.canvas);
-      }
-      snap(slot);
-    } catch (error) {
-      noteUnlessCancelled(error);
-    } finally {
-      if (slot.detail?.canvas !== canvas) freeCanvas(canvas);
-    }
+    return rangeGap(box.top, box.bottom, frame.top, frame.bottom);
   };
 
   let detailTimer = 0;
   let detailRun = 0;
-  function scheduleDetail(): void {
+  const scheduleDetail = (): void => {
     clearTimeout(detailTimer);
     const run = ++detailRun;
     detailTimer = window.setTimeout(async () => {
@@ -381,43 +119,12 @@ export async function renderPdfInto(
         .sort((a, b) => a.index - b.index);
       for (const slot of order) {
         if (run !== detailRun || zooming) return;
-        await drawDetail(slot);
+        await painter().drawDetail(slot);
       }
     }, DETAIL_DELAY_MS);
-  }
-
-  let found: Promise<readonly PdfWord[]> | null = null;
-  const readWords = async (): Promise<readonly PdfWord[]> => {
-    const [{ pageLines, textLeft }, { pdfWords }] = await Promise.all([
-      import("./pdftext.ts"),
-      import("../tex/texsync.ts"),
-    ]);
-    const lines: Line[][] = [];
-    const heights: number[] = [];
-    const widths: number[] = [];
-    for (let i = 1; i <= doc.numPages; i++) {
-      const page = await doc.getPage(i);
-      const content = await page.getTextContent();
-      lines.push(pageLines(content.items as TextItem[]));
-      heights.push(page.view[3]! - page.view[1]!);
-      widths.push(page.view[2]! - page.view[0]!);
-      margins[i - 1] = textLeft(lines[i - 1]!, widths[i - 1]!);
-      page.cleanup();
-    }
-    return pdfWords(lines, heights, widths);
   };
 
-  const syncMark = createSyncMark(list);
-  const margins: (number | null)[] = [];
-
-  const visible = new Set<PageSlot>();
-  let zooming = false;
-  let settle = (): void => {};
-  const ready = new Promise<void>((resolve) => {
-    settle = resolve;
-  });
   let firstBatch = true;
-
   const io = new IntersectionObserver(
     (entries) => {
       const drawing: Promise<void>[] = [];
@@ -426,10 +133,10 @@ export async function renderPdfInto(
         if (!slot) continue;
         if (entry.isIntersecting) {
           visible.add(slot);
-          if (!zooming) drawing.push(draw(slot));
+          if (!zooming) drawing.push(painter().draw(slot));
         } else {
           visible.delete(slot);
-          release(slot);
+          painter().release(slot);
         }
       }
       if (!firstBatch) return;
@@ -440,7 +147,6 @@ export async function renderPdfInto(
   );
   for (const slot of slots) io.observe(slot.el);
 
-  let resizeTimer = 0;
   const stretch = (): void => {
     for (const canvas of list.querySelectorAll<HTMLCanvasElement>(
       "canvas:not(.pdf-detail)",
@@ -450,40 +156,27 @@ export async function renderPdfInto(
       canvas.style.transform = "";
     }
   };
-  function offscreen(slot: PageSlot): number {
-    const frame = host.getBoundingClientRect();
-    const box = slot.el.getBoundingClientRect();
-    return rangeGap(box.top, box.bottom, frame.top, frame.bottom);
-  }
 
+  let resizeTimer = 0;
   let redrawGen = 0;
   const redraw = (delay: number): void => {
     stretch();
     zooming = true;
     clearTimeout(resizeTimer);
     clearTimeout(detailTimer);
-    for (const slot of slots) {
-      slot.detailGen++;
-      slot.detailTask?.cancel();
-      slot.detailTask = null;
-    }
+    for (const slot of slots) painter().cancelDetail(slot);
     const gen = ++redrawGen;
     resizeTimer = window.setTimeout(async () => {
       zooming = false;
       const order = [...visible].sort((a, b) => offscreen(a) - offscreen(b));
-      for (const slot of order) {
-        slot.gen++;
-        slot.task?.cancel();
-        slot.task = null;
-        slot.rendering = false;
-        slot.canvas = null;
-      }
+      for (const slot of order) painter().invalidate(slot);
       for (const slot of order) {
         if (gen !== redrawGen) return;
-        if (visible.has(slot)) await draw(slot);
+        if (visible.has(slot)) await painter().draw(slot);
       }
     }, delay);
   };
+
   let hostWidth = host.clientWidth;
   const ro = new ResizeObserver(() => {
     if (host.clientWidth === hostWidth) return;
@@ -492,6 +185,97 @@ export async function renderPdfInto(
   });
   ro.observe(host);
 
+  return {
+    ready,
+    settle: () => settle(),
+    scheduleDetail,
+    redraw,
+    stop() {
+      clearTimeout(resizeTimer);
+      clearTimeout(detailTimer);
+      ro.disconnect();
+      io.disconnect();
+    },
+  };
+}
+
+function maxCanvasPixels(): number {
+  return globalThis.matchMedia?.("(pointer: coarse)").matches
+    ? TOUCH_CANVAS_PIXELS
+    : DESKTOP_CANVAS_PIXELS;
+}
+
+async function openDocument(
+  file: File,
+  options: PdfViewOptions,
+  signal?: AbortSignal,
+): Promise<{ task: PdfLoadingTask; doc: PDFDocumentProxy }> {
+  const load = options.load ?? (await pdfLoader());
+  const data = new Uint8Array(await file.arrayBuffer());
+  const task = load(data);
+  const doc = await task.promise.catch((error: unknown) => {
+    dropWorker();
+    throw error;
+  });
+  if (signal?.aborted) {
+    await task.destroy();
+    throw new DOMException("aborted", "AbortError");
+  }
+  return { task, doc };
+}
+
+export async function renderPdfInto(
+  host: HTMLElement,
+  file: File,
+  signal?: AbortSignal,
+  zoom = 1,
+  options: PdfViewOptions = {},
+): Promise<PdfView> {
+  const { task, doc } = await openDocument(file, options, signal);
+  const dpr = Math.min(globalThis.devicePixelRatio || 1, MAX_DPR);
+  const built = await buildPages(host, doc, zoom, !!options.behind, dpr);
+  const { list, slots, base } = built;
+  const pages = slots.map((slot) => slot.el);
+  const queue = createDrawQueue(host, built, () => painter);
+  const painter = createPagePainter({
+    doc,
+    host,
+    base,
+    dpr,
+    maxPixels: maxCanvasPixels(),
+    painted: () => queue.scheduleDetail(),
+  });
+
+  const inset = (): number => options.inset?.() ?? 0;
+  const viewTop = (): number =>
+    host.getBoundingClientRect().top + host.clientTop + inset();
+  let shownPage = 0;
+  const reportPage = (): void => {
+    const top = viewTop();
+    const line = top + (host.getBoundingClientRect().bottom - top) * 0.4;
+    const rectOf = (index: number) => pages[index]!.getBoundingClientRect();
+    const page = pageIndexAt(pages.length, (i) => rectOf(i).bottom, line);
+    if (page === shownPage) return;
+    shownPage = page;
+    options.onPage?.(page, pages.length);
+  };
+
+  let snapFrame = 0;
+  const onScroll = (): void => {
+    if (snapFrame) return;
+    snapFrame = requestAnimationFrame(() => {
+      snapFrame = 0;
+      for (const slot of slots) painter.snap(slot);
+      reportPage();
+    });
+    queue.scheduleDetail();
+  };
+  host.addEventListener("scroll", onScroll, { passive: true });
+
+  const syncMark = createSyncMark(list);
+  const margins: (number | null)[] = [];
+  let found: Promise<readonly PdfWord[]> | null = null;
+
   onScroll();
 
   const onAbort = (): void => view.destroy();
@@ -499,125 +283,50 @@ export async function renderPdfInto(
 
   const view: PdfView = {
     pages: slots.length,
-    ready,
+    ready: queue.ready,
     show() {
       list.classList.remove("is-pending");
     },
     goTo(page) {
-      const slot = slots[Math.min(Math.max(page, 1), slots.length) - 1];
-      if (!slot) return;
-      const frame = host.getBoundingClientRect();
-      const top = frame.top + host.clientTop + inset();
-      host.scrollTop += slot.el.getBoundingClientRect().top - top - 8;
+      const el = pages[Math.min(Math.max(page, 1), pages.length) - 1];
+      if (!el) return;
+      host.scrollTop += el.getBoundingClientRect().top - viewTop() - 8;
       shownPage = 0;
       reportPage();
     },
     words() {
-      found ??= readWords().catch(() => []);
+      found ??= readPdfWords(doc, margins).catch(() => []);
       return found;
     },
-    pointAt(clientX, clientY) {
-      for (const slot of slots) {
-        const box = slot.el.getBoundingClientRect();
-        if (clientY < box.top || clientY > box.bottom) continue;
-        if (clientX < box.left || clientX > box.right) return null;
-        return {
-          page: slot.index,
-          x: (clientX - box.left) / box.width,
-          y: (clientY - box.top) / box.height,
-        };
-      }
-      return null;
-    },
+    pointAt: (clientX, clientY) => pointOnPage(pages, clientX, clientY),
     reveal(page, y) {
-      const slot = slots[page - 1];
-      if (!slot) return;
-      const frame = host.getBoundingClientRect();
-      const top = frame.top + host.clientTop + inset();
-      const box = slot.el.getBoundingClientRect();
-      const at = box.top + slot.el.clientTop + y * slot.el.clientHeight;
-      const delta = revealShift(at, top, frame.bottom);
+      const el = pages[page - 1];
+      if (!el) return;
+      const box = el.getBoundingClientRect();
+      const at = box.top + el.clientTop + y * el.clientHeight;
+      const bottom = host.getBoundingClientRect().bottom;
+      const delta = revealShift(at, viewTop(), bottom);
       if (delta) host.scrollTop += delta;
-      syncMark.show(slot.el, y, margins[page - 1] ?? null);
+      syncMark.show(el, y, margins[page - 1] ?? null);
     },
     setZoom(next, origin) {
       if (next === zoom) return;
-      const frame = host.getBoundingClientRect();
-      const x =
-        origin?.x ?? frame.left + host.clientLeft + host.clientWidth / 2;
-      const y = origin?.y ?? frame.top + host.clientTop + host.clientHeight / 2;
-      let anchor = slots[0];
-      let gap = Infinity;
-      for (const slot of slots) {
-        const box = slot.el.getBoundingClientRect();
-        const distance = rangeGap(box.top, box.bottom, y, y);
-        if (distance < gap) {
-          gap = distance;
-          anchor = slot;
-        }
-        if (distance === 0) break;
-      }
-      const before = anchor?.el.getBoundingClientRect();
-      const fx = before ? (x - before.left) / before.width : 0;
-      const fy = before ? (y - before.top) / before.height : 0;
-      zoom = next;
-      list.style.setProperty("--pdf-zoom", String(zoom));
-      const after = anchor?.el.getBoundingClientRect();
-      if (after) {
-        host.scrollLeft += after.left + fx * after.width - x;
-        host.scrollTop += after.top + fy * after.height - y;
-      }
-      redraw(150);
+      keepAnchor(host, pages, origin, () => {
+        zoom = next;
+        list.style.setProperty("--pdf-zoom", String(zoom));
+      });
+      queue.redraw(150);
     },
-    pinch(scale, origin, shift) {
-      if (scale === 1 && !shift.x && !shift.y) {
-        list.style.transform = "";
-        list.style.transformOrigin = "";
-        return;
-      }
-      const frame = host.getBoundingClientRect();
-      const x =
-        origin.x -
-        frame.left -
-        host.clientLeft +
-        host.scrollLeft -
-        list.offsetLeft;
-      const y =
-        origin.y - frame.top - host.clientTop + host.scrollTop - list.offsetTop;
-      list.style.transformOrigin = `${x}px ${y}px`;
-      const place = (dx: number): void => {
-        list.style.transform = `translate(${dx}px, ${shift.y}px) scale(${scale})`;
-      };
-      const left = frame.left + host.clientLeft;
-      const right = left + host.clientWidth;
-      const fix = (box: DOMRect): number => {
-        if (box.width <= host.clientWidth)
-          return (left + right - box.width) / 2 - box.left;
-        if (box.left > left) return left - box.left;
-        if (box.right < right) return right - box.right;
-        return 0;
-      };
-      let dx = shift.x;
-      place(dx);
-      for (let pass = 0; pass < 8; pass++) {
-        const box = slots[0]?.el.getBoundingClientRect();
-        const step = box ? fix(box) : 0;
-        if (Math.abs(step) < 0.5) return;
-        dx += step;
-        place(dx);
-      }
-    },
+    pinch: (scale, origin, shift) =>
+      pinchPages(host, list, pages[0], scale, origin, shift),
     destroy() {
-      settle();
+      queue.settle();
       signal?.removeEventListener("abort", onAbort);
       host.removeEventListener("scroll", onScroll);
       if (snapFrame) cancelAnimationFrame(snapFrame);
-      clearTimeout(resizeTimer);
+      queue.stop();
       syncMark.clear();
-      clearTimeout(detailTimer);
-      ro.disconnect();
-      io.disconnect();
-      for (const slot of slots) release(slot);
+      for (const slot of slots) painter.release(slot);
       list.remove();
       void task.destroy();
     },

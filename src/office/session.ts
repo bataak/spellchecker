@@ -2,7 +2,7 @@ import { escapeHtml } from "../core/htmlutil.ts";
 import { readFailureMessage } from "./fileerror.ts";
 import type { PreviewSource } from "../preview/preview.ts";
 import { swapText } from "../editor/editortext.ts";
-import type { EditorPort, StatusPort } from "../app/ports.ts";
+import type { EditorPort, StatusPort } from "../core/ports.ts";
 import {
   dropOfficeFile,
   loadOfficeFile,

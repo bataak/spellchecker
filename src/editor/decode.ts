@@ -5,7 +5,7 @@ import {
 } from "../archive/cp1251.ts";
 import { cleanText, needsCleanup } from "./cleanup.ts";
 import { editKind, isSeparatorInput } from "./input.ts";
-import type { EditorPort } from "../app/ports.ts";
+import type { EditorPort } from "../core/ports.ts";
 
 export interface DecodeDeps {
   readonly editor: EditorPort;

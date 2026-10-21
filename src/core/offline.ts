@@ -1,5 +1,3 @@
-import { DICTIONARIES } from "../spell/spellchecker.ts";
-import { escapeHtml } from "./htmlutil.ts";
 import { noteError } from "./errorlog.ts";
 
 export async function requestDurableStorage(): Promise<void> {
@@ -47,53 +45,6 @@ export async function isOfflineReady(): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-const labelOf = (id: string): string =>
-  DICTIONARIES.find((dict) => dict.id === id)?.label || id;
-
-export function dictStatusMessage(
-  loaded: string[],
-  failed: { id: string; error: string }[] | null,
-  fallbackReason: string | null,
-): string {
-  const seenName = new Set<string>();
-  const simple: string[] = [];
-  for (const id of loaded) {
-    const name = id.startsWith("mn")
-      ? "монгол"
-      : id.startsWith("en")
-        ? "англи"
-        : labelOf(id);
-    if (!seenName.has(name)) {
-      seenName.add(name);
-      simple.push(name);
-    }
-  }
-  const dictShortcut = /Mac|iPhone|iPad|iPod/i.test(navigator.platform || "")
-    ? "⌘⇧L"
-    : "Ctrl+Shift+L";
-  let msg =
-    '<span class="dict-toggle" role="button" tabindex="0" aria-haspopup="dialog" aria-label="Толь сонгох"' +
-    ' aria-keyshortcuts="Control+Shift+L Meta+Shift+L" title="Толь сонгох · ' +
-    dictShortcut +
-    '">' +
-    "Ашиглаж буй толь: <b>" +
-    simple.join(", ") +
-    "</b></span>";
-  if (failed && failed.length) {
-    msg +=
-      ' <span class="muted">(олдсонгүй: ' +
-      failed.map((fail) => escapeHtml(String(fail.id))).join(", ") +
-      ")</span>";
-  }
-  if (fallbackReason) {
-    msg +=
-      '<br><span class="muted">hunspell-wasm амжилтгүй (nspell ашиглаж байна): ' +
-      escapeHtml(fallbackReason) +
-      "</span>";
-  }
-  return msg;
 }
 
 export interface OfflineIndicatorDeps {

@@ -2,7 +2,7 @@ import { buildErrorList, type Token } from "../spell/textcheck.ts";
 import { initWipeButton } from "./wipe.ts";
 import { copyText, flash } from "./clipboard.ts";
 import { isTouch } from "../editor/input.ts";
-import type { EditorPort, StatusPort } from "../app/ports.ts";
+import type { EditorPort, StatusPort } from "../core/ports.ts";
 import { KEYS, read, write } from "../core/store.ts";
 import { standardLetters } from "../spell/letters.ts";
 

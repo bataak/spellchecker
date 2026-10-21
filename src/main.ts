@@ -33,7 +33,7 @@ import { createDictStatus } from "./dict/dictstatus.ts";
 import { initStatus, reveal } from "./ui/status.ts";
 import { initEditorText } from "./editor/editortext.ts";
 import { initDraftText } from "./editor/drafttext.ts";
-import { initAppUpdate } from "./core/appupdate.ts";
+import { initAppUpdate } from "./app/appupdate.ts";
 import { initShortcuts } from "./ui/shortcuts.ts";
 import { createButtonCommands } from "./ui/commands.ts";
 import { installErrorLog } from "./core/errorlog.ts";
@@ -59,7 +59,9 @@ import { initTexInput } from "./app/texinput.ts";
 import { initAppReport } from "./app/appreport.ts";
 import { initDictionaries } from "./app/dictionaries.ts";
 import { nextFrame, queryShell } from "./app/dom.ts";
-import { bindArming, bindEditorInput, type Caret } from "./app/editorinput.ts";
+import { bindArming, bindEditorInput } from "./app/editorinput.ts";
+import { createMarkupMode } from "./app/markupmode.ts";
+import { createLastCaret } from "./app/lastcaret.ts";
 
 installErrorLog();
 
@@ -87,7 +89,7 @@ const view = createEditorView({
 const checker: SpellChecker = new MultiSpellChecker();
 const spell = createSpellSession({
   checker,
-  markup: () => markupSkips,
+  markup: () => markupMode.skips(),
   isLatex: isLatexText,
   progress: async (message, animate) => {
     status.set(message, animate);
@@ -96,8 +98,18 @@ const spell = createSpellSession({
 });
 
 const dicts = createDictStatus();
-let markupSkips = false;
-let lastCaret: Caret | null = null;
+const lastCaret = createLastCaret();
+const markupMode = createMarkupMode({
+  isMarkdownFile: () => doc.isMarkdownFile(),
+  render: () => loop.render(),
+  entered: (on) => {
+    previewMode.enter(on, isTexFile());
+    previewCtl.setMarkdownMode(on);
+    exportCtl.syncPrint();
+    nudgeHints();
+  },
+});
+const enterMdMode = (on: boolean): void => markupMode.enter(on);
 
 const status = initStatus(els.status, () => docStatus.restore());
 
@@ -240,10 +252,8 @@ const { defDock, defTip, pop, errorPanel, suggestPopover } = createPopovers({
   tokenAtCaret: view.tokenAtCaret,
   syncScroll: view.syncScroll,
   badTokens: () => marks.tokens(),
-  lastCaret: () => lastCaret,
-  setLastCaret: (caret) => {
-    lastCaret = caret;
-  },
+  lastCaret: lastCaret.get,
+  setLastCaret: lastCaret.set,
   dockRoom: (side, active) => measureCtl.dockRoom(side, active),
   render,
   apply: (token, replacement) => fixFlow.apply(token, replacement),
@@ -294,9 +304,7 @@ const draft = initDraftText({
     fixers.sync();
     if (editorEl.value) reveal(editorEl, "glyph-reveal");
   },
-  onCaret: (caret) => {
-    lastCaret = caret;
-  },
+  onCaret: lastCaret.set,
   store: () => ({
     slot: mdBar.slot,
     shared: sharedSlot,
@@ -325,9 +333,7 @@ bindEditorInput({
   textChanged: syncEmptyState,
   saveSoon: draft.saveSoon,
   fixers: [fixers.decode, fixers.clean],
-  setLastCaret: (caret) => {
-    lastCaret = caret;
-  },
+  setLastCaret: lastCaret.set,
   markTap,
   suggest: suggestPopover,
   tokenAtCaret: view.tokenAtCaret,
@@ -393,16 +399,7 @@ const mdBar = initMdToolbar({
   isTexFile,
   fileName: doc.fileName,
   onLeave: (from) => slots.leave(from),
-  onTemplate: (id, from) => {
-    previewMode.templateChanged();
-    docMode.setTemplate(id);
-    fixers.clean.sync();
-    if (from !== mdBar.slot()) slots.enter(mdBar.slot());
-    texMode.sync();
-    projectLink.sync();
-    enterMdMode(doc.markdownActive());
-    tabGuard.sync();
-  },
+  onTemplate: (id, from) => templateChanged(id, from),
   onExample: () => enterMdMode(!isTexFile()),
   projectDirty: () => project()?.unsaved ?? false,
   onCloseProject: () => projectLink.close(),
@@ -452,16 +449,15 @@ const undoCtl = initUndoHistory({
   },
 });
 
-function enterMdMode(on: boolean): void {
-  const markup = on || doc.isMarkdownFile();
-  if (markup !== markupSkips) {
-    markupSkips = markup;
-    void render();
-  }
-  previewMode.enter(on, isTexFile());
-  previewCtl.setMarkdownMode(on);
-  exportCtl.syncPrint();
-  nudgeHints();
+function templateChanged(id: string, from: string): void {
+  previewMode.templateChanged();
+  docMode.setTemplate(id);
+  fixers.clean.sync();
+  if (from !== mdBar.slot()) slots.enter(mdBar.slot());
+  texMode.sync();
+  projectLink.sync();
+  enterMdMode(doc.markdownActive());
+  tabGuard.sync();
 }
 
 const exportCtl = initAppExport({
@@ -485,7 +481,7 @@ initShortcuts({
   commands: createButtonCommands(),
   wipe: confirmWipe,
   openDictMenu: () => dictionaries.openMenu(),
-  lastCaret: () => lastCaret,
+  lastCaret: lastCaret.get,
 });
 
 desktopMQ.addEventListener("change", () => {

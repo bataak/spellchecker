@@ -1,5 +1,5 @@
 import type { DictStatus } from "../dict/dictstatus.ts";
-import type { StatusPort } from "./ports.ts";
+import type { StatusPort } from "../core/ports.ts";
 import {
   caretLine,
   NO_STATS,

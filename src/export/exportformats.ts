@@ -1,5 +1,5 @@
 import { imageBlob, imageFiles, isRemoteImage } from "../files/images.ts";
-import { blockImages, parse } from "../markdown.ts";
+import { blockImages, parse, withoutDivs } from "../markdown.ts";
 import { docImages, imageKey } from "../office/docir.ts";
 import { findTemplate, type Frame } from "../doc/templates.ts";
 import { splitSlides } from "../doc/slides.ts";
@@ -130,8 +130,7 @@ export const FORMATS: readonly ExportFormat[] = [
     ext: "odt",
     mime: "application/vnd.oasis.opendocument.text",
     build: async (text, templateId, options) => {
-      const [{ parse }, { applyTemplate }, { buildOdt }] = await Promise.all([
-        import("../markdown.ts"),
+      const [{ applyTemplate }, { buildOdt }] = await Promise.all([
         import("../office/apply.ts"),
         import("../office/odt/create.ts"),
       ]);
@@ -151,8 +150,7 @@ export const FORMATS: readonly ExportFormat[] = [
     ext: "docx",
     mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     build: async (text, templateId, options) => {
-      const [{ parse }, { applyTemplate }, { buildDocx }] = await Promise.all([
-        import("../markdown.ts"),
+      const [{ applyTemplate }, { buildDocx }] = await Promise.all([
         import("../office/apply.ts"),
         import("../office/docx/create.ts"),
       ]);
@@ -188,14 +186,7 @@ export const FORMATS: readonly ExportFormat[] = [
     ext: "odp",
     mime: "application/vnd.oasis.opendocument.presentation",
     build: async (text) => {
-      const [
-        { parse },
-        { splitSlides },
-        { deckDoc, deckImages },
-        { buildOdp },
-      ] = await Promise.all([
-        import("../markdown.ts"),
-        import("../doc/slides.ts"),
+      const [{ deckDoc, deckImages }, { buildOdp }] = await Promise.all([
         import("../office/deck.ts"),
         import("../office/odp/create.ts"),
       ]);
@@ -211,14 +202,7 @@ export const FORMATS: readonly ExportFormat[] = [
     ext: "pptx",
     mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     build: async (text) => {
-      const [
-        { parse },
-        { splitSlides },
-        { deckDoc, deckImages },
-        { buildPptx },
-      ] = await Promise.all([
-        import("../markdown.ts"),
-        import("../doc/slides.ts"),
+      const [{ deckDoc, deckImages }, { buildPptx }] = await Promise.all([
         import("../office/deck.ts"),
         import("../office/pptx/create.ts"),
       ]);
@@ -248,7 +232,7 @@ export const FORMATS: readonly ExportFormat[] = [
     name: "Markdown (цэвэр)",
     ext: "md",
     mime: "text/markdown;charset=utf-8",
-    build: async (text) => (await import("../markdown.ts")).withoutDivs(text),
+    build: async (text) => withoutDivs(text),
   },
   {
     id: "txt",
