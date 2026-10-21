@@ -439,14 +439,7 @@ function contentSlide(
   return { xml: slideXml(shapes), links: state.links };
 }
 
-export function buildPptx(
-  doc: DeckDoc,
-  options: PptxOptions = {},
-): Uint8Array<ArrayBuffer> {
-  const media: Media = {
-    images: options.images ?? new Map(),
-    names: new Map(),
-  };
+function deckSlides(doc: DeckDoc, media: Media): BuiltSlide[] {
   const built: BuiltSlide[] = [];
   if (doc.title !== null) built.push(coverSlide(doc, doc.title));
   for (const slide of doc.slides)
@@ -458,11 +451,15 @@ export function buildPptx(
             notes: slide.notes,
           },
     );
-  const noted = built.flatMap((slide, i) =>
-    slide.notes?.length ? [i + 1] : [],
-  );
+  return built;
+}
 
-  const files: Record<string, string> = {
+function packageParts(
+  built: readonly BuiltSlide[],
+  media: Media,
+  noted: readonly number[],
+): Record<string, string> {
+  return {
     "[Content_Types].xml": contentTypesXml(
       built.length,
       [
@@ -521,53 +518,73 @@ export function buildPptx(
     ]),
     "ppt/theme/theme1.xml": THEME,
   };
+}
 
-  if (noted.length) {
-    files["ppt/notesMasters/notesMaster1.xml"] = NOTES_MASTER;
-    files["ppt/notesMasters/_rels/notesMaster1.xml.rels"] = relsXml([
-      { id: "rId1", type: REL + "/theme", target: "../theme/theme2.xml" },
-    ]);
-    files["ppt/theme/theme2.xml"] = THEME;
-  }
+function notesParts(files: Record<string, string>): void {
+  files["ppt/notesMasters/notesMaster1.xml"] = NOTES_MASTER;
+  files["ppt/notesMasters/_rels/notesMaster1.xml.rels"] = relsXml([
+    { id: "rId1", type: REL + "/theme", target: "../theme/theme2.xml" },
+  ]);
+  files["ppt/theme/theme2.xml"] = THEME;
+}
 
-  built.forEach((slide, i) => {
-    const name = "slide" + String(i + 1) + ".xml";
-    const notesName = "notesSlide" + String(i + 1) + ".xml";
-    const hasNotes = Boolean(slide.notes?.length);
-    files["ppt/slides/" + name] = slide.xml;
-    files["ppt/slides/_rels/" + name + ".rels"] = relsXml([
-      {
-        id: "rId1",
-        type: REL + "/slideLayout",
-        target: "../slideLayouts/slideLayout1.xml",
-      },
-      ...slide.links,
-      ...(hasNotes
-        ? [
-            {
-              id: "rIdNotes",
-              type: REL + "/notesSlide",
-              target: "../notesSlides/" + notesName,
-            },
-          ]
-        : []),
-    ]);
-    if (!hasNotes) return;
-    const state: SlideState = { links: [], shapeId: 4 };
-    files["ppt/notesSlides/" + notesName] = notesSlideXml(
-      linesXml(slide.notes!, state, NOTES_PT * 100),
-    );
-    files["ppt/notesSlides/_rels/" + notesName + ".rels"] = relsXml([
-      {
-        id: "rId1",
-        type: REL + "/notesMaster",
-        target: "../notesMasters/notesMaster1.xml",
-      },
-      { id: "rIdSlide", type: REL + "/slide", target: "../slides/" + name },
-      ...state.links,
-    ]);
-  });
+function slideParts(
+  files: Record<string, string>,
+  slide: BuiltSlide,
+  i: number,
+): void {
+  const name = "slide" + String(i + 1) + ".xml";
+  const notesName = "notesSlide" + String(i + 1) + ".xml";
+  const hasNotes = Boolean(slide.notes?.length);
+  files["ppt/slides/" + name] = slide.xml;
+  files["ppt/slides/_rels/" + name + ".rels"] = relsXml([
+    {
+      id: "rId1",
+      type: REL + "/slideLayout",
+      target: "../slideLayouts/slideLayout1.xml",
+    },
+    ...slide.links,
+    ...(hasNotes
+      ? [
+          {
+            id: "rIdNotes",
+            type: REL + "/notesSlide",
+            target: "../notesSlides/" + notesName,
+          },
+        ]
+      : []),
+  ]);
+  if (!hasNotes) return;
+  const state: SlideState = { links: [], shapeId: 4 };
+  files["ppt/notesSlides/" + notesName] = notesSlideXml(
+    linesXml(slide.notes!, state, NOTES_PT * 100),
+  );
+  files["ppt/notesSlides/_rels/" + notesName + ".rels"] = relsXml([
+    {
+      id: "rId1",
+      type: REL + "/notesMaster",
+      target: "../notesMasters/notesMaster1.xml",
+    },
+    { id: "rIdSlide", type: REL + "/slide", target: "../slides/" + name },
+    ...state.links,
+  ]);
+}
 
+export function buildPptx(
+  doc: DeckDoc,
+  options: PptxOptions = {},
+): Uint8Array<ArrayBuffer> {
+  const media: Media = {
+    images: options.images ?? new Map(),
+    names: new Map(),
+  };
+  const built = deckSlides(doc, media);
+  const noted = built.flatMap((slide, i) =>
+    slide.notes?.length ? [i + 1] : [],
+  );
+  const files = packageParts(built, media, noted);
+  if (noted.length) notesParts(files);
+  built.forEach((slide, i) => slideParts(files, slide, i));
   const zippable: Zippable = {};
   for (const [name, xml] of Object.entries(files))
     zippable[name] = encoder.encode(xml);
