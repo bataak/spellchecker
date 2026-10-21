@@ -1,7 +1,7 @@
 import { resetStorage } from "./helpers/mock-storage.ts";
 import { beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
-import { lineOffset, nthWordHit } from "../src/preview/htmlsync.ts";
+import { lineArrow, lineOffset, nthWordHit } from "../src/preview/htmlsync.ts";
 import { createPdfPool, type KeptPdf } from "../src/preview/pdfcache.ts";
 import { explainTexError } from "../src/preview/texpreview.ts";
 import {
@@ -159,4 +159,13 @@ test("explainTexError сүлжээний алдааг аюулгүй байдл�
   const error = new Error("Failed to fetch dynamically imported module");
   assert.match(explainTexError(error, true), /нэг удаа онлайн/);
   assert.match(explainTexError(error, false), /HTTPS биш/);
+});
+
+test("lineArrow: мөрийн зүүн захад жижиг дөрвөлжин сум байрлуулна", () => {
+  const box = lineArrow(100, 40, 24);
+  assert.equal(box.width, box.height);
+  assert.ok(box.width <= 14 && box.width >= 6);
+  assert.ok(box.left + box.width <= 40);
+  assert.equal(box.top + box.height / 2, 112);
+  assert.equal(lineArrow(0, 4, 24).left, 0);
 });

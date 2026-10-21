@@ -37,6 +37,28 @@ function lineBlocks(body: HTMLElement): HTMLElement[] {
   );
 }
 
+const ARROW_MAX = 14;
+const ARROW_MIN = 6;
+const ARROW_GAP = 4;
+
+export function lineArrow(
+  top: number,
+  left: number,
+  lineHeight: number,
+): { top: number; left: number; width: number; height: number } {
+  const size = Math.max(ARROW_MIN, Math.min(ARROW_MAX, lineHeight * 0.55));
+  return {
+    top: top + (lineHeight - size) / 2,
+    left: Math.max(0, left - size - ARROW_GAP),
+    width: size,
+    height: size,
+  };
+}
+
+function lineHeightOf(el: HTMLElement): number {
+  return parseFloat(getComputedStyle(el).lineHeight) || 24;
+}
+
 function lineTarget(
   el: HTMLElement,
   lines: readonly string[],
@@ -121,10 +143,11 @@ export function createHtmlSync(
     const left = el.getBoundingClientRect().left - frame.left - body.clientLeft;
     lineMark ??= document.createElement("div");
     lineMark.className = "sync-mark";
-    lineMark.style.top = at + "px";
-    lineMark.style.left = left - 6 + "px";
-    lineMark.style.width = el.offsetWidth + 12 + "px";
-    lineMark.style.height = height + "px";
+    const arrow = lineArrow(at, left, Math.min(height, lineHeightOf(el)));
+    lineMark.style.top = arrow.top + "px";
+    lineMark.style.left = arrow.left + "px";
+    lineMark.style.width = arrow.width + "px";
+    lineMark.style.height = arrow.height + "px";
     lineMark.classList.remove("is-fading");
     body.append(lineMark);
     clearTimeout(lineMarkTimer);
