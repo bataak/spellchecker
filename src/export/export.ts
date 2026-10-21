@@ -39,6 +39,7 @@ export interface ExportOptions {
   readonly template: () => string;
   readonly onDone?: (name: string) => void;
   readonly onBlocked?: () => void;
+  readonly onEmpty?: () => void;
   readonly onPrintError?: (error: unknown) => void;
   readonly onBusy?: (busy: boolean, ext?: string) => void;
 }
@@ -300,6 +301,10 @@ export function initExport(options: ExportOptions): ExportControl {
   function open(): void {
     if (options.blocked?.()) {
       options.onBlocked?.();
+      return;
+    }
+    if (!options.editor.value.trim() && !options.texProject?.()) {
+      options.onEmpty?.();
       return;
     }
     restoreFocus = document.activeElement as HTMLElement | null;

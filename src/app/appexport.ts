@@ -60,6 +60,7 @@ export function initAppExport(deps: AppExportDeps): ExportControl {
     texSource: (name) => deps.saveSource(name, deps.project().bound()),
     onDone: () => flash("#saveBtn", "Хадгаллаа"),
     onBlocked: () => flash("#saveBtn", "Экспорт хийх боломжгүй"),
+    onEmpty: () => flash("#saveBtn", "Хоосон байна"),
     onPrintError: (error) => {
       flash("#printBtn", "Хэвлэж чадсангүй");
       if (error instanceof Error && error.name === "PdfError")

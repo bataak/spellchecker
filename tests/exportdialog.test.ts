@@ -25,6 +25,8 @@ function setup(template = "report") {
   const saveButton = document.querySelector<HTMLElement>("#save")!;
   const saveChain = createSaveChain(null);
   const done: string[] = [];
+  const empty: number[] = [];
+  editor.value = "Бичвэр.\n";
   const control = initExport({
     editor,
     baseName: () => "тайлан.md",
@@ -33,11 +35,12 @@ function setup(template = "report") {
     saveChain,
     printButton: document.querySelector<HTMLElement>("#print"),
     onDone: (name) => done.push(name),
+    onEmpty: () => empty.push(1),
   });
   const overlay = document.querySelector<HTMLElement>(".export-backdrop")!;
   const key = (init: KeyboardEventInit) =>
     document.dispatchEvent(new KeyboardEvent("keydown", init));
-  return { control, overlay, saveButton, saveChain, done, key, editor };
+  return { control, overlay, saveButton, saveChain, done, empty, key, editor };
 }
 
 test("exportDialog: Ctrl+Alt+S нээж, сонгосон форматаар татаж авна", async () => {
@@ -101,4 +104,15 @@ test("exportDialog: Shift+хадгалах ба удаан дарахад ерд
   assert.deepEqual(handled, ["save"]);
   control.destroy();
   assert.equal(document.querySelector(".export-backdrop"), null);
+});
+
+test("exportDialog: бичвэр хоосон бол цонх нээгдэхгүй", () => {
+  const { control, overlay, saveChain, empty, key, editor } = setup();
+  editor.value = "  \n";
+  key({ key: "s", code: "KeyS", ctrlKey: true, altKey: true });
+  saveChain.run({ shift: true });
+  control.open();
+  assert.equal(overlay.hidden, true);
+  assert.equal(empty.length, 3);
+  control.destroy();
 });
