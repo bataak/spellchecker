@@ -177,6 +177,88 @@ function initClippedReveal(): void {
   );
 }
 
+function initCopyButton(
+  editor: HTMLTextAreaElement,
+  setStatus: ToolbarDeps["status"]["set"],
+  statusEl: HTMLElement,
+  badTokens: ToolbarDeps["badTokens"],
+): void {
+  const btn = document.querySelector<HTMLElement>("#copyBtn");
+  if (!btn) return;
+  const HOLD = 500;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let armed = false;
+  let revertTimer: ReturnType<typeof setTimeout> | null = null;
+  const showStatus = (msg: string): void => {
+    const prevStatus = statusEl.innerHTML;
+    setStatus(msg, false);
+    if (revertTimer) clearTimeout(revertTimer);
+    revertTimer = setTimeout(() => {
+      if (statusEl.innerHTML === msg) setStatus(prevStatus, false);
+    }, 1600);
+  };
+  btn.addEventListener("pointerdown", () => {
+    if (timer) clearTimeout(timer);
+    armed = false;
+    timer = setTimeout(() => {
+      armed = true;
+    }, HOLD);
+  });
+  const clear = () => {
+    if (timer) clearTimeout(timer);
+  };
+  const drop = (event: PointerEvent) => {
+    clear();
+    if (event.type === "pointercancel" || event.buttons) armed = false;
+  };
+  btn.addEventListener("pointerup", clear);
+  btn.addEventListener("pointercancel", drop);
+  btn.addEventListener("pointerleave", drop);
+  btn.addEventListener("contextmenu", (e) => e.preventDefault());
+  btn.addEventListener("click", async () => {
+    if (armed) {
+      armed = false;
+      const words = buildErrorList(badTokens()).map((token) => token.word);
+      if (!words.length) {
+        showStatus("Алдаатай үг алга");
+        return;
+      }
+      try {
+        await copyText(words.join("\n"));
+        showStatus("Алдаатай үгс хуулагдлаа");
+      } catch {
+        showStatus("Хуулах боломжгүй");
+      }
+      return;
+    }
+    if (!editor.value) return;
+    try {
+      await copyText(editor.value);
+      flash("#copyBtn", "Хуулагдав");
+    } catch {
+      flash("#copyBtn", "Боломжгүй");
+    }
+  });
+}
+
+function pasteManually(
+  editor: HTMLTextAreaElement,
+  setStatus: ToolbarDeps["status"]["set"],
+): void {
+  editor.focus();
+  if (isTouch()) {
+    setStatus(
+      "Талбар дотор удаан дарахад гарах <b>Paste</b> цэсийг ашиглан буулгана уу",
+    );
+    return;
+  }
+  const uaData = navigator.userAgentData;
+  const isMac =
+    /mac/i.test((uaData && uaData.platform) || "") ||
+    /Mac|iPhone|iPad|iPod/i.test(navigator.platform || "");
+  flash("#pasteBtn", isMac ? "⌘V" : "Ctrl+V");
+}
+
 function initButtons({
   editor: port,
   status,
@@ -217,35 +299,20 @@ function initButtons({
     port.save();
   }
 
-  function pasteManually(): void {
-    editor.focus();
-    if (isTouch()) {
-      setStatus(
-        "Талбар дотор удаан дарахад гарах <b>Paste</b> цэсийг ашиглан буулгана уу",
-      );
-      return;
-    }
-    const uaData = navigator.userAgentData;
-    const isMac =
-      /mac/i.test((uaData && uaData.platform) || "") ||
-      /Mac|iPhone|iPad|iPod/i.test(navigator.platform || "");
-    flash("#pasteBtn", isMac ? "⌘V" : "Ctrl+V");
-  }
-
   document.querySelector("#pasteBtn")!.addEventListener("click", async () => {
     if (office.active()) {
       flash("#pasteBtn", "Боломжгүй");
       return;
     }
     if (!navigator.clipboard?.readText) {
-      pasteManually();
+      pasteManually(editor, setStatus);
       return;
     }
     let text: string;
     try {
       text = await navigator.clipboard.readText();
     } catch {
-      pasteManually();
+      pasteManually(editor, setStatus);
       return;
     }
     if (!text) {
@@ -257,62 +324,5 @@ function initButtons({
     if (fixed !== text) lettersFixed();
   });
 
-  (function initCopyErrorsHold() {
-    const btn = document.querySelector<HTMLElement>("#copyBtn");
-    if (!btn) return;
-    const HOLD = 500;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    let armed = false;
-    let revertTimer: ReturnType<typeof setTimeout> | null = null;
-    const showStatus = (msg: string): void => {
-      const prevStatus = statusEl.innerHTML;
-      setStatus(msg, false);
-      if (revertTimer) clearTimeout(revertTimer);
-      revertTimer = setTimeout(() => {
-        if (statusEl.innerHTML === msg) setStatus(prevStatus, false);
-      }, 1600);
-    };
-    btn.addEventListener("pointerdown", () => {
-      if (timer) clearTimeout(timer);
-      armed = false;
-      timer = setTimeout(() => {
-        armed = true;
-      }, HOLD);
-    });
-    const clear = () => {
-      if (timer) clearTimeout(timer);
-    };
-    const drop = (event: PointerEvent) => {
-      clear();
-      if (event.type === "pointercancel" || event.buttons) armed = false;
-    };
-    btn.addEventListener("pointerup", clear);
-    btn.addEventListener("pointercancel", drop);
-    btn.addEventListener("pointerleave", drop);
-    btn.addEventListener("contextmenu", (e) => e.preventDefault());
-    btn.addEventListener("click", async () => {
-      if (armed) {
-        armed = false;
-        const words = buildErrorList(badTokens()).map((token) => token.word);
-        if (!words.length) {
-          showStatus("Алдаатай үг алга");
-          return;
-        }
-        try {
-          await copyText(words.join("\n"));
-          showStatus("Алдаатай үгс хуулагдлаа");
-        } catch {
-          showStatus("Хуулах боломжгүй");
-        }
-        return;
-      }
-      if (!editor.value) return;
-      try {
-        await copyText(editor.value);
-        flash("#copyBtn", "Хуулагдав");
-      } catch {
-        flash("#copyBtn", "Боломжгүй");
-      }
-    });
-  })();
+  initCopyButton(editor, status.set, statusEl, badTokens);
 }
