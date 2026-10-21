@@ -1,5 +1,6 @@
 import "./hint.css";
 import { KEYS, at, read, write } from "../core/store.ts";
+import { OPEN_LABEL } from "../files/filetypes.ts";
 
 const SHOW_DELAY_MS = 600;
 const HIDE_AFTER_MS = 12000;
@@ -199,7 +200,8 @@ export function openHint(target: () => HTMLElement | null): Hint {
     id: "open",
     target,
     html:
-      "txt, md, tex, docx, pptx, odt, odp, pdf файлууд дахь бичвэрийн алдааг шалгана (" +
+      OPEN_LABEL +
+      " файлууд дахь бичвэрийн алдааг шалгана (" +
       kbd("Ctrl+O", "⌘O") +
       "). Файлаа бичвэрийн талбар уруу чирч оруулж болно.",
   };

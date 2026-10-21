@@ -27,6 +27,8 @@ const SAVE_TYPES: Record<string, PickerType[]> = {
   tex: [{ description: "LaTeX файл", accept: { "text/x-tex": [".tex"] } }],
 };
 
+export const OPEN_LABEL = "txt, md, tex, docx, pptx, odt, odp, pdf";
+
 export const OPEN_TYPES: PickerType[] = [
   {
     description: "Текст файл",
