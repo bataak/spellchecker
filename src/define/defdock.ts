@@ -47,6 +47,124 @@ function save(place: DockPlace | null): void {
   else remove(KEYS.defDock);
 }
 
+function buildDockPane(
+  controls: readonly HTMLElement[],
+  onClose: () => void,
+): { el: HTMLElement; head: HTMLElement; body: HTMLElement } {
+  const el = document.createElement("section");
+  el.className = "def-dock";
+  el.setAttribute("aria-label", "Үгийн тайлбар");
+  const head = document.createElement("div");
+  head.className = "error-panel-head def-dock-head";
+  const title = document.createElement("span");
+  title.className = "error-panel-title";
+  title.textContent = "Үгийн тайлбар";
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "error-copy";
+  close.title = "Тайлбарын цонхыг хаах";
+  close.setAttribute("aria-label", "Тайлбарын цонхыг хаах");
+  close.innerHTML = CLOSE_ICON;
+  close.addEventListener("click", onClose);
+  head.append(title, ...controls, close);
+  const body = document.createElement("div");
+  body.className = "def-dock-body";
+  body.setAttribute("aria-live", "polite");
+  body.append(emptyNote());
+  el.append(head, body);
+  return { el, head, body };
+}
+
+function bindDragOut(
+  head: HTMLElement,
+  dragged: (e: PointerEvent) => boolean,
+): void {
+  let start: { x: number; y: number } | null = null;
+  head.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || e.pointerType === "touch") return;
+    if ((e.target as Element).closest("button")) return;
+    e.preventDefault();
+    start = { x: e.clientX, y: e.clientY };
+    head.setPointerCapture(e.pointerId);
+  });
+  head.addEventListener("pointermove", (e) => {
+    if (!start) return;
+    const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
+    if (moved < DRAG_THRESHOLD) return;
+    const from = start;
+    start = null;
+    if (!dragged(e)) start = from;
+  });
+  const stop = () => {
+    start = null;
+  };
+  head.addEventListener("pointerup", stop);
+  head.addEventListener("pointercancel", stop);
+}
+
+type DockEls = Pick<DefDockDeps, "workspace" | "editorWrap" | "errorPanel">;
+
+function dockZoneRect(
+  { workspace, editorWrap, errorPanel }: DockEls,
+  zone: DockPlace,
+): DOMRect | null {
+  const ws = workspace.getBoundingClientRect();
+  if (zone === "panel" || zone === "panel-top") {
+    const r = errorPanel.getBoundingClientRect();
+    const top = zone === "panel" ? r.top + r.height / 2 : r.top;
+    return new DOMRect(r.left, top, r.width, r.height / 2);
+  }
+  const width = errorPanel.offsetWidth || 358;
+  if (zone === "left") {
+    const r = editorWrap.getBoundingClientRect();
+    return new DOMRect(Math.max(0, r.left - width), ws.top, width, ws.height);
+  }
+  const right = Math.min(
+    ws.right + width,
+    document.documentElement.clientWidth,
+  );
+  return new DOMRect(right - width, ws.top, width, ws.height);
+}
+
+function dockZoneAt(
+  { workspace, editorWrap, errorPanel }: DockEls,
+  roomFor: (side: DockPlace) => boolean,
+  x: number,
+  y: number,
+): DockPlace | null {
+  const ws = workspace.getBoundingClientRect();
+  if (y < ws.top || y > ws.bottom) return null;
+  if (errorPanel.offsetParent !== null) {
+    const r = errorPanel.getBoundingClientRect();
+    if (x >= r.left && x <= r.right)
+      return y < r.top + r.height / 2 ? "panel-top" : "panel";
+  }
+  const box = editorWrap.querySelector(".editor")?.getBoundingClientRect();
+  if (box && x < box.left && roomFor("left")) return "left";
+  if (x > ws.right && roomFor("right")) return "right";
+  return null;
+}
+
+function createDockHint(): (rect: DOMRect | null) => void {
+  let hintEl: HTMLElement | null = null;
+  return (rect) => {
+    if (!rect) {
+      if (hintEl) hintEl.hidden = true;
+      return;
+    }
+    if (!hintEl) {
+      hintEl = document.createElement("div");
+      hintEl.className = "dock-hint";
+      document.body.append(hintEl);
+    }
+    hintEl.hidden = false;
+    hintEl.style.left = rect.left + "px";
+    hintEl.style.top = rect.top + "px";
+    hintEl.style.width = rect.width + "px";
+    hintEl.style.height = rect.height + "px";
+  };
+}
+
 export function initDefDock(deps: DefDockDeps): DefDock {
   const { workspace, editorWrap, errorPanel, desktopMQ } = deps;
   let desired = load();
@@ -54,55 +172,20 @@ export function initDefDock(deps: DefDockDeps): DefDock {
   let panelShown = true;
   let pane: HTMLElement | null = null;
   let paneBody: HTMLElement | null = null;
-  let hintEl: HTMLElement | null = null;
+  const hint = createDockHint();
   let dragOut: ((e: PointerEvent, content: Node[]) => void) | null = null;
   let shown: ((body: HTMLElement) => void) | null = null;
   const controls: HTMLElement[] = [];
 
   function build(): HTMLElement {
-    const el = document.createElement("section");
-    el.className = "def-dock";
-    el.setAttribute("aria-label", "Үгийн тайлбар");
-    const head = document.createElement("div");
-    head.className = "error-panel-head def-dock-head";
-    const title = document.createElement("span");
-    title.className = "error-panel-title";
-    title.textContent = "Үгийн тайлбар";
-    const close = document.createElement("button");
-    close.type = "button";
-    close.className = "error-copy";
-    close.title = "Тайлбарын цонхыг хаах";
-    close.setAttribute("aria-label", "Тайлбарын цонхыг хаах");
-    close.innerHTML = CLOSE_ICON;
-    close.addEventListener("click", () => {
+    const built = buildDockPane(controls, () => {
       desired = null;
       save(null);
       place();
     });
-    head.append(title, ...controls, close);
-    paneBody = document.createElement("div");
-    paneBody.className = "def-dock-body";
-    paneBody.setAttribute("aria-live", "polite");
-    paneBody.append(emptyNote());
-    el.append(head, paneBody);
-    bindDragOut(head);
-    return el;
-  }
-
-  function bindDragOut(head: HTMLElement): void {
-    let start: { x: number; y: number } | null = null;
-    head.addEventListener("pointerdown", (e) => {
-      if (e.button !== 0 || e.pointerType === "touch") return;
-      if ((e.target as Element).closest("button")) return;
-      e.preventDefault();
-      start = { x: e.clientX, y: e.clientY };
-      head.setPointerCapture(e.pointerId);
-    });
-    head.addEventListener("pointermove", (e) => {
-      if (!start || !paneBody || !dragOut) return;
-      const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
-      if (moved < DRAG_THRESHOLD) return;
-      start = null;
+    paneBody = built.body;
+    bindDragOut(built.head, (e) => {
+      if (!paneBody || !dragOut) return false;
       const content = [...paneBody.childNodes].filter(
         (node) => !(node as Element).classList?.contains("def-empty"),
       );
@@ -111,12 +194,9 @@ export function initDefDock(deps: DefDockDeps): DefDock {
       save(null);
       place();
       dragOut(e, content);
+      return true;
     });
-    const stop = () => {
-      start = null;
-    };
-    head.addEventListener("pointerup", stop);
-    head.addEventListener("pointercancel", stop);
+    return built.el;
   }
 
   function roomFor(side: DockPlace): boolean {
@@ -152,62 +232,6 @@ export function initDefDock(deps: DefDockDeps): DefDock {
     if (appearing && paneBody) shown?.(paneBody);
   }
 
-  function panelVisible(): boolean {
-    return errorPanel.offsetParent !== null;
-  }
-
-  function zoneRect(zone: DockPlace): DOMRect | null {
-    const ws = workspace.getBoundingClientRect();
-    if (zone === "panel" || zone === "panel-top") {
-      const r = errorPanel.getBoundingClientRect();
-      const top = zone === "panel" ? r.top + r.height / 2 : r.top;
-      return new DOMRect(r.left, top, r.width, r.height / 2);
-    }
-    const width = errorPanel.offsetWidth || 358;
-    if (zone === "left") {
-      const r = editorWrap.getBoundingClientRect();
-      return new DOMRect(Math.max(0, r.left - width), ws.top, width, ws.height);
-    }
-    const right = Math.min(
-      ws.right + width,
-      document.documentElement.clientWidth,
-    );
-    return new DOMRect(right - width, ws.top, width, ws.height);
-  }
-
-  function zoneAt(x: number, y: number): DockPlace | null {
-    if (!desktopMQ.matches) return null;
-    const ws = workspace.getBoundingClientRect();
-    if (y < ws.top || y > ws.bottom) return null;
-    if (panelVisible()) {
-      const r = errorPanel.getBoundingClientRect();
-      if (x >= r.left && x <= r.right)
-        return y < r.top + r.height / 2 ? "panel-top" : "panel";
-    }
-    const box = editorWrap.querySelector(".editor")?.getBoundingClientRect();
-    if (box && x < box.left && roomFor("left")) return "left";
-    if (x > ws.right && roomFor("right")) return "right";
-    return null;
-  }
-
-  function hint(zone: DockPlace | null): void {
-    const rect = zone && zoneRect(zone);
-    if (!rect) {
-      if (hintEl) hintEl.hidden = true;
-      return;
-    }
-    if (!hintEl) {
-      hintEl = document.createElement("div");
-      hintEl.className = "dock-hint";
-      document.body.append(hintEl);
-    }
-    hintEl.hidden = false;
-    hintEl.style.left = rect.left + "px";
-    hintEl.style.top = rect.top + "px";
-    hintEl.style.width = rect.width + "px";
-    hintEl.style.height = rect.height + "px";
-  }
-
   function dock(zone: DockPlace, content?: Node[]): void {
     desired = zone;
     save(zone);
@@ -222,8 +246,9 @@ export function initDefDock(deps: DefDockDeps): DefDock {
 
   return {
     body: () => (placed ? paneBody : null),
-    zoneAt,
-    hint,
+    zoneAt: (x, y) =>
+      desktopMQ.matches ? dockZoneAt(deps, roomFor, x, y) : null,
+    hint: (zone) => hint(zone && dockZoneRect(deps, zone)),
     dock,
     onDragOut(handler) {
       dragOut = handler;
