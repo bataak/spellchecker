@@ -460,3 +460,15 @@ test("www and bare domains keep balanced parentheses", () => {
     assert.ok(!inRanges(ranges, text.indexOf("ба")), text);
   }
 });
+
+test("an escaped backtick does not open inline code", () => {
+  const text = "\\`алдаатй\\`\n`кодынүг`\nдараа";
+  assert.ok(!skipped(text, "алдаатй"));
+  assert.ok(skipped(text, "кодынүг"));
+});
+
+test("an escaped backslash before a backtick still opens inline code", () => {
+  const text = "Зам \\\\`кодынүг` дуусав.";
+  assert.ok(skipped(text, "кодынүг"));
+  assert.ok(!skipped(text, "дуусав"));
+});
