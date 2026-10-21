@@ -1,4 +1,3 @@
-import "./dictmanager.css";
 import type { DictInfo } from "../spell/messages.ts";
 import {
   importDictFiles,
@@ -122,109 +121,195 @@ export interface DictManager {
   open(): Promise<void>;
 }
 
+const DICT_ACCEPT = [
+  ".ifo",
+  ".idx",
+  ".dict",
+  ".syn",
+  ".dz",
+  ".gz",
+  ".zip",
+  ".tar",
+  ".tgz",
+  ".bz2",
+  ".tbz2",
+  ".tbz",
+].join(",");
+
+interface ViewActions {
+  readonly pick: (directory: boolean) => void;
+  readonly drop: (data: DataTransfer | null) => void;
+}
+
+function managerAdders(a: ViewActions): HTMLElement {
+  const addFiles = button(
+    "Файл зааж нэмэх",
+    "StarDict файлууд эсвэл архив сонгох",
+  );
+  addFiles.addEventListener("click", () => a.pick(false));
+  const adders = document.createElement("span");
+  adders.className = "dict-manager-adders";
+  adders.appendChild(addFiles);
+  if (supportsDirectoryPicker()) {
+    const addFolder = button(
+      "Хавтас зааж нэмэх",
+      "Задарсан толины хавтас сонгох",
+    );
+    addFolder.addEventListener("click", () => a.pick(true));
+    adders.appendChild(addFolder);
+  }
+  return adders;
+}
+
+function bindDrop(dialog: HTMLElement, card: HTMLElement, a: ViewActions) {
+  dialog.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    card.classList.add("dict-manager-dropping");
+  });
+  dialog.addEventListener("dragleave", (event) => {
+    if (event.target === dialog) card.classList.remove("dict-manager-dropping");
+  });
+  dialog.addEventListener("drop", (event) => {
+    event.preventDefault();
+    card.classList.remove("dict-manager-dropping");
+    a.drop(event.dataTransfer);
+  });
+}
+
+function createManagerView(a: ViewActions): DictManagerView {
+  const dialog = document.createElement("dialog");
+  dialog.className = "suggest-overlay dict-overlay";
+  dialog.setAttribute("aria-labelledby", "dictManagerTitle");
+  const card = document.createElement("div");
+  card.className = "suggest-card dict-manager";
+  const title = document.createElement("h2");
+  title.id = "dictManagerTitle";
+  title.className = "suggest-title";
+  title.textContent = "Тайлбар толь";
+  const list = document.createElement("ol");
+  list.className = "dict-manager-list";
+  const empty = document.createElement("p");
+  empty.className = "dict-manager-empty";
+  empty.textContent = "Тайлбар толь алга";
+  const actions = document.createElement("div");
+  actions.className = "suggest-actions ignore-actions";
+  const close = button("Хаах", "Хаах");
+  actions.append(managerAdders(a), close);
+  card.append(title, list, empty);
+  if (!isCoarsePointer()) {
+    const hint = document.createElement("p");
+    hint.className = "dict-manager-hint";
+    hint.textContent = "Архив, файлууд эсвэл хавтсаар нь энд чирч оруулж болно";
+    card.appendChild(hint);
+  }
+  card.appendChild(actions);
+  dialog.appendChild(card);
+  close.addEventListener("click", () => dialog.close());
+  dialog.addEventListener("click", (event) => {
+    if (event.target === dialog) dialog.close();
+  });
+  bindDrop(dialog, card, a);
+  document.body.appendChild(dialog);
+  return { dialog, list, empty };
+}
+
+interface RowActions {
+  readonly move: (index: number, delta: number) => void;
+  readonly rename: (index: number) => void;
+  readonly remove: (index: number) => void;
+}
+
+function dictRow(
+  dict: DictInfo,
+  index: number,
+  count: number,
+  a: RowActions,
+): HTMLLIElement {
+  const item = document.createElement("li");
+  item.className = "dict-manager-row";
+  const label = document.createElement("span");
+  label.className = "dict-manager-name";
+  label.textContent = dict.name || dict.id;
+  const meta = document.createElement("span");
+  meta.className = "dict-manager-meta";
+  meta.textContent =
+    dict.words.toLocaleString("mn-MN") +
+    " үгтэй" +
+    (dict.user ? "" : " · суусан");
+  label.appendChild(meta);
+  const up = iconButton("up", "Дээш зөөх");
+  up.disabled = index === 0;
+  up.addEventListener("click", () => a.move(index, -1));
+  const down = iconButton("down", "Доош зөөх");
+  down.disabled = index === count - 1;
+  down.addEventListener("click", () => a.move(index, 1));
+  item.append(label, up, down);
+  if (dict.user) {
+    const rename = iconButton("rename", "Нэр солих");
+    rename.addEventListener("click", () => a.rename(index));
+    const remove = iconButton("remove", "Устгах");
+    remove.addEventListener("click", () => a.remove(index));
+    item.append(rename, remove);
+  }
+  return item;
+}
+
+function importSummary(r: Awaited<ReturnType<typeof importDictFiles>>): string {
+  const parts: string[] = [];
+  if (r.added.length) parts.push("Нэмэгдсэн: " + r.added.join(", "));
+  if (r.updated.length) parts.push("Шинэчлэгдсэн: " + r.updated.join(", "));
+  if (r.skipped.length)
+    parts.push("Аль хэдийн байгаа: " + r.skipped.join(", "));
+  if (r.incomplete.length)
+    parts.push(
+      "Уншиж чадсангүй, бүх файлыг сонгоно уу: *.ifo, *.idx.gz, *.dict.dz",
+    );
+  if (r.failed.length) parts.push("Уншиж чадсангүй: " + r.failed.join(", "));
+  return parts.join(". ") || "StarDict файл олдсонгүй";
+}
+
+function pickDictFiles(directory: boolean, done: (files: File[]) => void) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.multiple = true;
+  if (directory && "webkitdirectory" in input) input.webkitdirectory = true;
+  else if (!isCoarsePointer()) input.accept = DICT_ACCEPT;
+  input.addEventListener("change", () => done([...(input.files ?? [])]));
+  input.click();
+}
+
+async function droppedFiles(data: DataTransfer | null): Promise<File[]> {
+  if (!data) return [];
+  const entries: FileSystemEntry[] = [];
+  const loose: File[] = [];
+  for (const item of Array.from(data.items)) {
+    if (item.kind !== "file") continue;
+    const entry = item.webkitGetAsEntry?.();
+    if (entry) entries.push(entry);
+    else {
+      const file = item.getAsFile();
+      if (file) loose.push(file);
+    }
+  }
+  const nested = await Promise.all(entries.map(filesOf));
+  return [...loose, ...nested.flat()];
+}
+
 export function createDictManager(deps: DictManagerDeps): DictManager {
   let view: DictManagerView | null = null;
   let current: DictInfo[] = [];
 
-  function createView(): DictManagerView {
-    const dialog = document.createElement("dialog");
-    dialog.className = "suggest-overlay dict-overlay";
-    dialog.setAttribute("aria-labelledby", "dictManagerTitle");
-    const card = document.createElement("div");
-    card.className = "suggest-card dict-manager";
-    const title = document.createElement("h2");
-    title.id = "dictManagerTitle";
-    title.className = "suggest-title";
-    title.textContent = "Тайлбар толь";
-    const list = document.createElement("ol");
-    list.className = "dict-manager-list";
-    const empty = document.createElement("p");
-    empty.className = "dict-manager-empty";
-    empty.textContent = "Тайлбар толь алга";
-    const actions = document.createElement("div");
-    actions.className = "suggest-actions ignore-actions";
-    const addFiles = button(
-      "Файл зааж нэмэх",
-      "StarDict файлууд эсвэл архив сонгох",
-    );
-    const adders = document.createElement("span");
-    adders.className = "dict-manager-adders";
-    adders.appendChild(addFiles);
-    if (supportsDirectoryPicker()) {
-      const addFolder = button(
-        "Хавтас зааж нэмэх",
-        "Задарсан толины хавтас сонгох",
-      );
-      addFolder.addEventListener("click", () => pickFiles(true));
-      adders.appendChild(addFolder);
-    }
-    const close = button("Хаах", "Хаах");
-    actions.append(adders, close);
-    card.append(title, list, empty);
-    if (!isCoarsePointer()) {
-      const hint = document.createElement("p");
-      hint.className = "dict-manager-hint";
-      hint.textContent =
-        "Архив, файлууд эсвэл хавтсаар нь энд чирч оруулж болно";
-      card.appendChild(hint);
-    }
-    card.appendChild(actions);
-    dialog.appendChild(card);
-    close.addEventListener("click", () => dialog.close());
-    dialog.addEventListener("click", (event) => {
-      if (event.target === dialog) dialog.close();
-    });
-    addFiles.addEventListener("click", () => pickFiles(false));
-    dialog.addEventListener("dragover", (event) => {
-      event.preventDefault();
-      card.classList.add("dict-manager-dropping");
-    });
-    dialog.addEventListener("dragleave", (event) => {
-      if (event.target === dialog)
-        card.classList.remove("dict-manager-dropping");
-    });
-    dialog.addEventListener("drop", (event) => {
-      event.preventDefault();
-      card.classList.remove("dict-manager-dropping");
-      void dropFiles(event.dataTransfer);
-    });
-    document.body.appendChild(dialog);
-    return { dialog, list, empty };
-  }
-
-  function row(dict: DictInfo, index: number): HTMLLIElement {
-    const item = document.createElement("li");
-    item.className = "dict-manager-row";
-    const label = document.createElement("span");
-    label.className = "dict-manager-name";
-    label.textContent = dict.name || dict.id;
-    const meta = document.createElement("span");
-    meta.className = "dict-manager-meta";
-    meta.textContent =
-      dict.words.toLocaleString("mn-MN") +
-      " үгтэй" +
-      (dict.user ? "" : " · суусан");
-    label.appendChild(meta);
-    const up = iconButton("up", "Дээш зөөх");
-    up.disabled = index === 0;
-    up.addEventListener("click", () => void move(index, -1));
-    const down = iconButton("down", "Доош зөөх");
-    down.disabled = index === current.length - 1;
-    down.addEventListener("click", () => void move(index, 1));
-    item.append(label, up, down);
-    if (dict.user) {
-      const rename = iconButton("rename", "Нэр солих");
-      rename.addEventListener("click", () => void renameAt(index));
-      const remove = iconButton("remove", "Устгах");
-      remove.addEventListener("click", () => void removeAt(index));
-      item.append(rename, remove);
-    }
-    return item;
-  }
-
   function draw(): void {
     if (!view) return;
-    view.list.replaceChildren(...current.map(row));
+    view.list.replaceChildren(
+      ...current.map((dict, index) =>
+        dictRow(dict, index, current.length, {
+          move: (at, delta) => void move(at, delta),
+          rename: (at) => void renameAt(at),
+          remove: (at) => void removeAt(at),
+        }),
+      ),
+    );
     view.empty.hidden = current.length > 0;
   }
 
@@ -271,74 +356,25 @@ export function createDictManager(deps: DictManagerDeps): DictManager {
     deps.status("Толь устгагдлаа: " + dict.name);
   }
 
-  const DICT_ACCEPT = [
-    ".ifo",
-    ".idx",
-    ".dict",
-    ".syn",
-    ".dz",
-    ".gz",
-    ".zip",
-    ".tar",
-    ".tgz",
-    ".bz2",
-    ".tbz2",
-    ".tbz",
-  ].join(",");
-
   async function importFiles(files: File[]): Promise<void> {
     if (!files.length) return;
     deps.status("Толь нэмж байна…");
-    const { added, updated, skipped, incomplete, failed } =
-      await importDictFiles(files, current);
-    const parts: string[] = [];
-    if (added.length) parts.push("Нэмэгдсэн: " + added.join(", "));
-    if (updated.length) parts.push("Шинэчлэгдсэн: " + updated.join(", "));
-    if (skipped.length) parts.push("Аль хэдийн байгаа: " + skipped.join(", "));
-    if (incomplete.length)
-      parts.push(
-        "Уншиж чадсангүй, бүх файлыг сонгоно уу: *.ifo, *.idx.gz, *.dict.dz",
-      );
-    if (failed.length) parts.push("Уншиж чадсангүй: " + failed.join(", "));
-    deps.status(parts.join(". ") || "StarDict файл олдсонгүй");
+    const result = await importDictFiles(files, current);
+    deps.status(importSummary(result));
+    const { added, updated } = result;
     if (!added.length && !updated.length) return;
     deps.reload();
     deps.changed();
     await refresh();
   }
 
-  function pickFiles(directory = false): void {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.multiple = true;
-    if (directory && "webkitdirectory" in input) input.webkitdirectory = true;
-    else if (!isCoarsePointer()) input.accept = DICT_ACCEPT;
-    input.addEventListener("change", () => {
-      void importFiles([...(input.files ?? [])]);
-    });
-    input.click();
-  }
-
-  async function dropFiles(data: DataTransfer | null): Promise<void> {
-    if (!data) return;
-    const entries: FileSystemEntry[] = [];
-    const loose: File[] = [];
-    for (const item of Array.from(data.items)) {
-      if (item.kind !== "file") continue;
-      const entry = item.webkitGetAsEntry?.();
-      if (entry) entries.push(entry);
-      else {
-        const file = item.getAsFile();
-        if (file) loose.push(file);
-      }
-    }
-    const nested = await Promise.all(entries.map(filesOf));
-    await importFiles([...loose, ...nested.flat()]);
-  }
-
   return {
     async open() {
-      view ??= createView();
+      view ??= createManagerView({
+        pick: (directory) =>
+          pickDictFiles(directory, (files) => void importFiles(files)),
+        drop: (data) => void droppedFiles(data).then(importFiles),
+      });
       await refresh();
       if (!view.dialog.open) view.dialog.showModal();
     },

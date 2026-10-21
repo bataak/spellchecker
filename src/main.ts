@@ -5,6 +5,7 @@ import "./mdbar/md-toolbar.css";
 import "./export/export.css";
 import "./define/deftip.css";
 import "./project/project.css";
+import "./dict/dictmanager.css";
 import { MultiSpellChecker } from "./spell/spellchecker.ts";
 import { createSpellSession } from "./spell/spellsession.ts";
 import { createFixFlow } from "./spell/fixflow.ts";
