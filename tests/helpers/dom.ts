@@ -7,6 +7,7 @@ const GLOBALS = [
   "HTMLElement",
   "HTMLDivElement",
   "HTMLButtonElement",
+  "HTMLImageElement",
   "HTMLInputElement",
   "HTMLTextAreaElement",
   "Event",
