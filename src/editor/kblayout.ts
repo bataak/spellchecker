@@ -225,6 +225,48 @@ function typeMapped(event: KeyboardEvent, field: Field, layout: Layout): void {
     field.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
+const label = (layout: Layout): string => (layout === "mn" ? "MN" : "EN");
+
+const describe = (layout: Layout): string =>
+  layout === "mn" ? "Монгол гарын байрлал" : "US keyboard layout";
+
+function anchorPoint(field: Field): { x: number; y: number; height: number } {
+  if (field instanceof HTMLTextAreaElement) return caretPoint(field);
+  const box = field.getBoundingClientRect();
+  return { x: box.left, y: box.top, height: box.height };
+}
+
+function createBadge() {
+  const badge = document.createElement("div");
+  badge.className = "layout-badge";
+  badge.setAttribute("aria-live", "polite");
+  badge.hidden = true;
+  document.body.append(badge);
+  let timer = 0;
+  return {
+    show(layout: Layout, field: Field): void {
+      const caret = anchorPoint(field);
+      badge.textContent = label(layout);
+      badge.dataset.layout = layout;
+      badge.style.left = caret.x + 4 + "px";
+      badge.style.top = caret.y + caret.height + 2 + "px";
+      badge.hidden = false;
+      badge.classList.remove("layout-badge-out");
+      clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        badge.classList.add("layout-badge-out");
+        timer = window.setTimeout(() => {
+          badge.hidden = true;
+        }, 200);
+      }, BADGE_MS);
+    },
+    hide(): void {
+      clearTimeout(timer);
+      badge.hidden = true;
+    },
+  };
+}
+
 export function initKeyboardLayout(deps: KeyboardLayoutDeps): KeyboardLayout {
   const { editor } = deps;
   if (!window.matchMedia("(pointer: fine)").matches)
@@ -254,16 +296,7 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): KeyboardLayout {
   chip.addEventListener("click", () => setForced(null));
   deps.status.after(chip);
 
-  const badge = document.createElement("div");
-  badge.className = "layout-badge";
-  badge.setAttribute("aria-live", "polite");
-  badge.hidden = true;
-  document.body.append(badge);
-  let badgeTimer = 0;
-
-  const label = (layout: Layout): string => (layout === "mn" ? "MN" : "EN");
-  const describe = (layout: Layout): string =>
-    layout === "mn" ? "Монгол гарын байрлал" : "US keyboard layout";
+  const badge = createBadge();
 
   const sync = (): void => {
     chip.hidden = forced === null;
@@ -285,40 +318,12 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): KeyboardLayout {
     }
   };
 
-  const anchorPoint = (
-    field: Field,
-  ): { x: number; y: number; height: number } => {
-    if (field instanceof HTMLTextAreaElement) return caretPoint(field);
-    const box = field.getBoundingClientRect();
-    return { x: box.left, y: box.top, height: box.height };
-  };
-
-  const showBadge = (layout: Layout, field: Field): void => {
-    const caret = anchorPoint(field);
-    badge.textContent = label(layout);
-    badge.dataset.layout = layout;
-    badge.style.left = caret.x + 4 + "px";
-    badge.style.top = caret.y + caret.height + 2 + "px";
-    badge.hidden = false;
-    badge.classList.remove("layout-badge-out");
-    clearTimeout(badgeTimer);
-    badgeTimer = window.setTimeout(() => {
-      badge.classList.add("layout-badge-out");
-      badgeTimer = window.setTimeout(() => {
-        badge.hidden = true;
-      }, 200);
-    }, BADGE_MS);
-  };
-
   const setForced = (next: Layout | null, field: Field = editor): void => {
     forced = next;
     saveForced(forced);
     sync();
-    if (forced) showBadge(forced, field);
-    else {
-      clearTimeout(badgeTimer);
-      badge.hidden = true;
-    }
+    if (forced) badge.show(forced, field);
+    else badge.hide();
     field.focus({ preventScroll: true });
   };
 

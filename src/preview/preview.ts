@@ -161,6 +161,9 @@ function buildPreview(deps: PreviewDeps) {
   const pane = createPdfPane(panel, body, () => ui);
   pane.syncZoom();
   const imageEdit = initImageEdit(body, area);
+  body.addEventListener("click", (event) =>
+    handleImageClick(body, event.target as Element),
+  );
   const htmlSync = createHtmlSync(
     body,
     area,
@@ -221,14 +224,90 @@ function showSource(
   else files.show(next.kind, next.file);
 }
 
+function stopAll(stops: readonly (() => unknown)[]): void {
+  for (const stop of stops) stop();
+}
+
+function previewApi(
+  update: () => void,
+  setSource: (next: PreviewSource | null) => void,
+  sync: ReturnType<typeof createPreviewSync>,
+  tex: ReturnType<typeof createTexPreview>,
+  modes: {
+    file(name: string | null): void;
+    markdown(on: boolean): void;
+  },
+  destroy: () => void,
+): Preview {
+  return {
+    update,
+    setFileName: modes.file,
+    setMarkdownMode: modes.markdown,
+    setSource,
+    revealAt(offset) {
+      sync.reveal(offset);
+      update();
+      void sync.flush();
+    },
+    pdf: () => tex.pdf(),
+    destroy,
+  };
+}
+
+function createMdRender(
+  area: HTMLTextAreaElement,
+  md: ReturnType<typeof createMarkdownView>,
+  imageEdit: ReturnType<typeof initImageEdit>,
+  tidy: ReturnType<typeof createTidy>,
+  sync: ReturnType<typeof createPreviewSync>,
+) {
+  let raf = 0;
+  let isMdFile = false;
+  let markdownMode = false;
+  return {
+    schedule(): void {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const text = area.value;
+        const blocks = md.render(text, () => imageEdit.refresh());
+        tidy.markdown(text, blocks, isMdFile || markdownMode);
+        void sync.flush();
+      });
+    },
+    cancel(): void {
+      if (raf) cancelAnimationFrame(raf);
+    },
+    file(name: string | null): void {
+      isMdFile = MD_NAME.test(name ?? "");
+    },
+    markdown(on: boolean): boolean {
+      if (on === markdownMode) return false;
+      markdownMode = on;
+      md.clear();
+      return true;
+    },
+  };
+}
+
+function noticeIn(
+  panel: HTMLElement,
+  body: HTMLElement,
+  md: ReturnType<typeof createMarkdownView>,
+): (text: string) => void {
+  return (text) => {
+    md.clear();
+    body.replaceChildren(noticeOf(text));
+    body.classList.remove("is-empty");
+    panel.classList.add("is-blank");
+  };
+}
+
 export function initPreview(deps: PreviewDeps): Preview {
   const { area, isLatex } = deps;
   const { panel, ui, body, notes, pane, imageEdit, htmlSync } =
     buildPreview(deps);
 
-  let raf = 0;
-  let isMdFile = false;
-  let markdownMode = false;
   let source: PreviewSource | null = null;
   let sourceText = "";
   const md = createMarkdownView(body);
@@ -239,12 +318,8 @@ export function initPreview(deps: PreviewDeps): Preview {
   });
   const offTap = onDoubleTap(body, sync.jumpAt);
 
-  const showNotice = (text: string): void => {
-    md.clear();
-    body.replaceChildren(noticeOf(text));
-    body.classList.remove("is-empty");
-    panel.classList.add("is-blank");
-  };
+  const showNotice = noticeIn(panel, body, md);
+  const mdRender = createMdRender(area, md, imageEdit, tidy, sync);
   const files = createFileView(body, pane, showNotice);
   const { tex, compileMode } = wireTex({
     deps,
@@ -277,14 +352,7 @@ export function initPreview(deps: PreviewDeps): Preview {
       tidy.latex();
       return;
     }
-    if (raf) return;
-    raf = requestAnimationFrame(() => {
-      raf = 0;
-      const text = area.value;
-      const blocks = md.render(text, () => imageEdit.refresh());
-      tidy.markdown(text, blocks, isMdFile || markdownMode);
-      void sync.flush();
-    });
+    mdRender.schedule();
   };
 
   const setSource = (next: PreviewSource | null): void => {
@@ -307,9 +375,6 @@ export function initPreview(deps: PreviewDeps): Preview {
     showSource(next, ui.title, panel, files, showNotice);
   };
 
-  body.addEventListener("click", (event) =>
-    handleImageClick(body, event.target as Element),
-  );
   const offImages = onImagesChange(() => {
     if (source || tex.active()) return;
     md.clear();
@@ -318,41 +383,29 @@ export function initPreview(deps: PreviewDeps): Preview {
   area.addEventListener("input", update);
   update();
 
-  return {
-    update,
-    setFileName(name) {
-      isMdFile = MD_NAME.test(name ?? "");
+  const modes = {
+    file(name: string | null): void {
+      mdRender.file(name);
       update();
     },
-    setMarkdownMode(on) {
-      if (on === markdownMode) return;
-      markdownMode = on;
-      md.clear();
-      update();
-    },
-    setSource,
-    revealAt(offset) {
-      sync.reveal(offset);
-      update();
-      void sync.flush();
-    },
-    pdf: () => tex.pdf(),
-    destroy() {
-      for (const stop of [
-        files.release,
-        () => raf && cancelAnimationFrame(raf),
-        tex.destroy,
-        compileMode.destroy,
-        offImages,
-        imageEdit.destroy,
-        htmlSync.destroy,
-        sync.destroy,
-        offTap,
-        tidy.destroy,
-      ])
-        stop();
-      area.removeEventListener("input", update);
-      panel.remove();
+    markdown(on: boolean): void {
+      if (mdRender.markdown(on)) update();
     },
   };
+  return previewApi(update, setSource, sync, tex, modes, () => {
+    stopAll([
+      files.release,
+      mdRender.cancel,
+      tex.destroy,
+      compileMode.destroy,
+      offImages,
+      imageEdit.destroy,
+      htmlSync.destroy,
+      sync.destroy,
+      offTap,
+      tidy.destroy,
+    ]);
+    area.removeEventListener("input", update);
+    panel.remove();
+  });
 }

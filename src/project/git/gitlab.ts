@@ -4,6 +4,7 @@ import {
   inBatches,
   request,
   toBase64,
+  type CommitInput,
   type Fetch,
   type GitHost,
   type TreeEntry,
@@ -17,6 +18,61 @@ interface GitlabEntry {
   readonly path: string;
   readonly type: string;
   readonly mode: string;
+}
+
+function commitActions(
+  input: CommitInput,
+  last: ReadonlyMap<string, string | undefined>,
+): object[] {
+  const guard = (path: string): { last_commit_id?: string } => {
+    const id = last.get(path);
+    return id ? { last_commit_id: id } : {};
+  };
+  return [
+    ...input.writes.map((write) => ({
+      action: write.exists ? "update" : "create",
+      file_path: write.path,
+      content: toBase64(write.bytes),
+      encoding: "base64",
+      ...(write.exists ? guard(write.path) : {}),
+    })),
+    ...input.deletes.map((del) => ({
+      action: "delete",
+      file_path: del.path,
+      ...guard(del.path),
+    })),
+  ];
+}
+
+async function listTree(
+  call: (path: string) => Promise<Response>,
+  commit: string,
+  signal?: AbortSignal,
+): Promise<TreeEntry[]> {
+  const entries: TreeEntry[] = [];
+  let page: string | null = "1";
+  for (let count = 0; page; count++) {
+    signal?.throwIfAborted();
+    if (count >= MAX_PAGES)
+      throw new ProjectError("Repo хэт том тул бүрэн уншиж чадсангүй");
+    const response = await call(
+      "/repository/tree?recursive=true&per_page=" +
+        PAGE +
+        "&page=" +
+        page +
+        "&ref=" +
+        encodeURIComponent(commit),
+    );
+    for (const entry of (await response.json()) as GitlabEntry[])
+      entries.push({
+        path: entry.path,
+        mode: entry.mode,
+        type: entry.type,
+        sha: entry.id,
+      });
+    page = response.headers.get("x-next-page") || null;
+  }
+  return entries;
 }
 
 export function createGitlabHost(
@@ -73,29 +129,7 @@ export function createGitlabHost(
     },
     head,
     async list(commit, signal) {
-      const entries: TreeEntry[] = [];
-      let page: string | null = "1";
-      for (let count = 0; page; count++) {
-        signal?.throwIfAborted();
-        if (count >= MAX_PAGES)
-          throw new ProjectError("Repo хэт том тул бүрэн уншиж чадсангүй");
-        const response = await call(
-          "/repository/tree?recursive=true&per_page=" +
-            PAGE +
-            "&page=" +
-            page +
-            "&ref=" +
-            encodeURIComponent(commit),
-        );
-        for (const entry of (await response.json()) as GitlabEntry[])
-          entries.push({
-            path: entry.path,
-            mode: entry.mode,
-            type: entry.type,
-            sha: entry.id,
-          });
-        page = response.headers.get("x-next-page") || null;
-      }
+      const entries = await listTree((path) => call(path), commit, signal);
       return { tree: commit, entries };
     },
     async blob(sha) {
@@ -113,10 +147,6 @@ export function createGitlabHost(
         lastCommit(path, input.head),
       );
       const last = new Map(known.map((path, index) => [path, lasts[index]]));
-      const guard = (path: string): { last_commit_id?: string } => {
-        const id = last.get(path);
-        return id ? { last_commit_id: id } : {};
-      };
       let response: Response;
       try {
         response = await call("/repository/commits", {
@@ -124,20 +154,7 @@ export function createGitlabHost(
           body: {
             branch: input.branch,
             commit_message: input.message,
-            actions: [
-              ...input.writes.map((write) => ({
-                action: write.exists ? "update" : "create",
-                file_path: write.path,
-                content: toBase64(write.bytes),
-                encoding: "base64",
-                ...(write.exists ? guard(write.path) : {}),
-              })),
-              ...input.deletes.map((del) => ({
-                action: "delete",
-                file_path: del.path,
-                ...guard(del.path),
-              })),
-            ],
+            actions: commitActions(input, last),
           },
         });
       } catch (error) {

@@ -44,6 +44,26 @@ function copyLayout(area: HTMLElement, body: HTMLElement): void {
   else delete body.dataset.layout;
 }
 
+async function jumpFromPdf(
+  deps: SyncDeps,
+  wordsOf: ReturnType<typeof createWordCache>,
+  view: PdfView,
+  x: number,
+  y: number,
+): Promise<void> {
+  const point = view.pointAt(x, y);
+  if (!point) return;
+  const [{ locateSource, pdfWordAt, sourceWords }, pdf] = await Promise.all([
+    import("../tex/texsync.ts"),
+    view.words(),
+  ]);
+  if (view !== deps.view()) return;
+  const index = pdfWordAt(pdf, point.page, point.x, point.y);
+  if (index < 0) return;
+  const hit = locateSource(wordsOf(deps.area.value, sourceWords), pdf, index);
+  if (hit) deps.jump(hit.at, hit.at + hit.word.length);
+}
+
 export function createPreviewSync(deps: SyncDeps): PreviewSync {
   const { area, body, htmlSync } = deps;
   let syncTimer = 0;
@@ -95,28 +115,10 @@ export function createPreviewSync(deps: SyncDeps): PreviewSync {
     );
   };
 
-  const jumpFromPdf = async (
-    view: PdfView,
-    x: number,
-    y: number,
-  ): Promise<void> => {
-    const point = view.pointAt(x, y);
-    if (!point) return;
-    const [{ locateSource, pdfWordAt, sourceWords }, pdf] = await Promise.all([
-      import("../tex/texsync.ts"),
-      view.words(),
-    ]);
-    if (view !== deps.view()) return;
-    const index = pdfWordAt(pdf, point.page, point.x, point.y);
-    if (index < 0) return;
-    const hit = locateSource(wordsOf(area.value, sourceWords), pdf, index);
-    if (hit) deps.jump(hit.at, hit.at + hit.word.length);
-  };
-
   const jumpAt = (x: number, y: number, target: EventTarget | null): void => {
     const view = deps.view();
     if (deps.texActive() && view) {
-      void jumpFromPdf(view, x, y);
+      void jumpFromPdf(deps, wordsOf, view, x, y);
       return;
     }
     if (deps.texActive() || view || !deps.htmlShown()) return;

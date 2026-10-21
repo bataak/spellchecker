@@ -25,6 +25,35 @@ function spanStyle(xml: string, tag: TagInfo): string {
   return readAttr(xml, tag, "text:style-name") ?? "";
 }
 
+function spaces(xml: string, tag: TagInfo): string {
+  const count = Number.parseInt(readAttr(xml, tag, "text:c") ?? "1", 10);
+  return " ".repeat(Number.isFinite(count) && count > 0 ? count : 1);
+}
+
+function odfNode(
+  tag: { start: number; end: number },
+  content: { start: number; end: number },
+  glyph: boolean,
+  runProps: string,
+  text: string,
+  textStart: number,
+): TextNode {
+  return {
+    tagStart: tag.start,
+    tagEnd: tag.end,
+    contentStart: content.start,
+    contentEnd: content.end,
+    selfClosing: glyph,
+    glyph,
+    wrap: null,
+    attrs: "",
+    preserve: true,
+    runProps,
+    text,
+    textStart,
+  };
+}
+
 export function parseOdfPart(name: string, xml: string): DocxPart {
   const paragraphs: Paragraph[] = [];
   const stack: string[] = [];
@@ -43,32 +72,15 @@ export function parseOdfPart(name: string, xml: string): DocxPart {
     styleStack.length > 0 ? styleStack[styleStack.length - 1] : "";
 
   const pushGlyph = (tag: TagInfo, char: string): void => {
-    nodes.push({
-      tagStart: tag.start,
-      tagEnd: tag.end,
-      contentStart: tag.end,
-      contentEnd: tag.end,
-      selfClosing: true,
-      glyph: true,
-      wrap: null,
-      attrs: "",
-      preserve: true,
-      runProps: currentStyle(),
-      text: char,
-      textStart: buffer.length,
-    });
+    const at = { start: tag.end, end: tag.end };
+    nodes.push(odfNode(tag, at, true, currentStyle(), char, buffer.length));
     buffer += char;
-  };
-
-  const spaces = (tag: TagInfo): string => {
-    const count = Number.parseInt(readAttr(xml, tag, "text:c") ?? "1", 10);
-    return " ".repeat(Number.isFinite(count) && count > 0 ? count : 1);
   };
 
   const onSelf = (tag: TagInfo): void => {
     const tagName = tag.name;
     if (SKIPPED_ELEMENTS.has(tagName) || !collecting()) return;
-    if (tagName === "text:s") pushGlyph(tag, spaces(tag));
+    if (tagName === "text:s") pushGlyph(tag, spaces(xml, tag));
     else if (tagName === "text:tab") pushGlyph(tag, "\t");
     else buffer += SEPARATORS[tagName] ?? "";
   };
@@ -138,20 +150,11 @@ export function parseOdfPart(name: string, xml: string): DocxPart {
     const text = decodeXmlText(xml.slice(start, end));
     if (text === "") return;
 
-    nodes.push({
-      tagStart: start,
-      tagEnd: start,
-      contentStart: start,
-      contentEnd: end,
-      selfClosing: false,
-      glyph: false,
-      wrap: null,
-      attrs: "",
-      preserve: true,
-      runProps: currentStyle(),
-      text,
-      textStart: buffer.length,
-    });
+    const tag = { start, end: start };
+    const content = { start, end };
+    nodes.push(
+      odfNode(tag, content, false, currentStyle(), text, buffer.length),
+    );
 
     buffer += text;
   };
