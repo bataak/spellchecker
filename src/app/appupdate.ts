@@ -57,66 +57,47 @@ function waitMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)));
 }
 
-export function initAppUpdate(
-  setStatus: (html: string) => void,
-  entryUrl: string,
-): AppUpdate {
-  const reloadEl = document.querySelector<HTMLElement>("#appReloadBtn");
-  let freshEntry: string | null = null;
-  let appUpdating = false;
-  let verBase = "";
+function isNewer(entry: string | null, entryUrl: string): entry is string {
+  const selfName = entryUrl.split("/").pop();
+  return !!selfName && !!entry && !entry.endsWith("/" + selfName);
+}
 
-  let prepared: Promise<boolean> | null = null;
+async function prepareLatest(freshEntry: string | null): Promise<boolean> {
+  const deadline = Date.now() + 2 * 60 * 1000;
+  try {
+    const reg = navigator.serviceWorker
+      ? await navigator.serviceWorker.getRegistration()
+      : null;
+    const entry = freshEntry ?? (await fetchFreshEntry());
+    if (!reg) return true;
+    if (entry) {
+      while (Date.now() < deadline) {
+        const pending = reg.installing || reg.waiting;
+        if (pending && pending.state !== "redundant") {
+          await Promise.race([
+            swSettled(pending),
+            waitMs(deadline - Date.now()),
+          ]);
+          continue;
+        }
+        if (await servesEntry(entry)) return true;
+        await reg.update().catch(() => undefined);
+        const next = reg.installing || reg.waiting;
+        if (!next || next.state === "redundant") await waitMs(5000);
+      }
+    }
+  } catch (error) {
+    noteError(error);
+  }
+  return false;
+}
+
+function trackActivity(): { last(): number; composing(): boolean } {
   let lastActivity = Date.now();
   let composing = false;
-
-  async function prepareLatest(): Promise<boolean> {
-    const deadline = Date.now() + 2 * 60 * 1000;
-    try {
-      const reg = navigator.serviceWorker
-        ? await navigator.serviceWorker.getRegistration()
-        : null;
-      const entry = freshEntry ?? (await fetchFreshEntry());
-      if (!reg) return true;
-      if (entry) {
-        while (Date.now() < deadline) {
-          const pending = reg.installing || reg.waiting;
-          if (pending && pending.state !== "redundant") {
-            await Promise.race([
-              swSettled(pending),
-              waitMs(deadline - Date.now()),
-            ]);
-            continue;
-          }
-          if (await servesEntry(entry)) return true;
-          await reg.update().catch(() => undefined);
-          const next = reg.installing || reg.waiting;
-          if (!next || next.state === "redundant") await waitMs(5000);
-        }
-      }
-    } catch (error) {
-      noteError(error);
-    }
-    return false;
-  }
-
-  function prepareOnce(): Promise<boolean> {
-    prepared ??= prepareLatest().then((ok) => {
-      if (!ok) prepared = null;
-      return ok;
-    });
-    return prepared;
-  }
-
-  async function reloadToLatest(): Promise<void> {
-    appUpdating = true;
-    await prepareOnce();
-    reloadForUpdate();
-  }
-
-  function markActive(): void {
+  const markActive = (): void => {
     lastActivity = Date.now();
-  }
+  };
   for (const type of [
     "keydown",
     "pointerdown",
@@ -140,40 +121,12 @@ export function initAppUpdate(
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") markActive();
   });
+  return { last: () => lastActivity, composing: () => composing };
+}
 
-  function armIdleReload(): void {
-    const timer = setInterval(() => {
-      if (appUpdating) return clearInterval(timer);
-      if (composing || document.querySelector("dialog[open]")) return;
-      if (Date.now() - lastActivity < IDLE_RELOAD_MS) return;
-      clearInterval(timer);
-      appUpdating = true;
-      reloadForUpdate();
-    }, 30 * 1000);
-  }
-
-  window.addEventListener("vite:preloadError", async () => {
-    if (appUpdating) return;
-    const selfName = entryUrl.split("/").pop();
-    const entry = freshEntry ?? (await fetchFreshEntry());
-    if (!selfName || !entry || entry.endsWith("/" + selfName)) return;
-    freshEntry = entry;
-    if (reloadEl) reloadEl.hidden = false;
-    await waitMs(0);
-    setStatus(
-      "Шинэ хувилбар суусан тул энэ үйлдлийг хийхийн тулд ↻ товчийг дарж хуудсыг дахин ачаална уу",
-    );
-  });
-
-  if (reloadEl) {
-    reloadEl.addEventListener("click", () => {
-      reloadEl.hidden = true;
-      setStatus("Шинэ хувилбарыг ачаалж байна…");
-      void reloadToLatest();
-    });
-  }
-
+function initVersionLabel(): (version: string | null) => void {
   const verEl = document.querySelector<HTMLElement>("#appVersion");
+  let verBase = "";
   if (verEl) {
     const av = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "";
     const hv =
@@ -190,20 +143,79 @@ export function initAppUpdate(
         (expanded ? verEl.dataset.short : verEl.dataset.full) ?? "";
     });
   }
-
-  function setDictVersion(version: string | null): void {
+  return (version) => {
     if (!verEl) return;
     const full = verBase + (version ? " · mn_MN " + version : "");
     const wasExpanded = verEl.textContent === verEl.dataset.full;
     verEl.dataset.full = full;
     if (wasExpanded) verEl.textContent = full;
+  };
+}
+
+export function initAppUpdate(
+  setStatus: (html: string) => void,
+  entryUrl: string,
+): AppUpdate {
+  const reloadEl = document.querySelector<HTMLElement>("#appReloadBtn");
+  let freshEntry: string | null = null;
+  let appUpdating = false;
+
+  let prepared: Promise<boolean> | null = null;
+
+  function prepareOnce(): Promise<boolean> {
+    prepared ??= prepareLatest(freshEntry).then((ok) => {
+      if (!ok) prepared = null;
+      return ok;
+    });
+    return prepared;
   }
+
+  async function reloadToLatest(): Promise<void> {
+    appUpdating = true;
+    await prepareOnce();
+    reloadForUpdate();
+  }
+
+  const activity = trackActivity();
+
+  function armIdleReload(): void {
+    const timer = setInterval(() => {
+      if (appUpdating) return clearInterval(timer);
+      if (activity.composing() || document.querySelector("dialog[open]"))
+        return;
+      if (Date.now() - activity.last() < IDLE_RELOAD_MS) return;
+      clearInterval(timer);
+      appUpdating = true;
+      reloadForUpdate();
+    }, 30 * 1000);
+  }
+
+  window.addEventListener("vite:preloadError", async () => {
+    if (appUpdating) return;
+    const entry = freshEntry ?? (await fetchFreshEntry());
+    if (!isNewer(entry, entryUrl)) return;
+    freshEntry = entry;
+    if (reloadEl) reloadEl.hidden = false;
+    await waitMs(0);
+    setStatus(
+      "Шинэ хувилбар суусан тул энэ үйлдлийг хийхийн тулд ↻ товчийг дарж хуудсыг дахин ачаална уу",
+    );
+  });
+
+  if (reloadEl) {
+    reloadEl.addEventListener("click", () => {
+      reloadEl.hidden = true;
+      setStatus("Шинэ хувилбарыг ачаалж байна…");
+      void reloadToLatest();
+    });
+  }
+
+  const setDictVersion = initVersionLabel();
 
   async function checkFreshness(): Promise<void> {
     if (!reloadEl || !reloadEl.hidden || appUpdating) return;
-    const selfName = entryUrl.split("/").pop();
     const entry = await fetchFreshEntry();
-    if (!selfName || !entry || entry.endsWith("/" + selfName)) return;
+    if (!isNewer(entry, entryUrl)) return;
     freshEntry = entry;
     const ready = await prepareOnce();
     if (appUpdating || !reloadEl.hidden) return;
@@ -214,16 +226,15 @@ export function initAppUpdate(
   async function recoverStale(deferIfActive = false): Promise<boolean> {
     if (appUpdating) return true;
     const startedAt = Date.now();
-    const selfName = entryUrl.split("/").pop();
     const entry = await fetchFreshEntry();
-    if (!selfName || !entry || entry.endsWith("/" + selfName)) return false;
+    if (!isNewer(entry, entryUrl)) return false;
     const key = at(KEYS.staleReload, entry);
     if (read(key) || !write(key, "1")) return false;
     freshEntry = entry;
     if (deferIfActive) {
       const ready = await prepareOnce();
       if (appUpdating) return true;
-      if (lastActivity > startedAt) {
+      if (activity.last() > startedAt) {
         if (reloadEl) reloadEl.hidden = false;
         if (ready) armIdleReload();
         return false;

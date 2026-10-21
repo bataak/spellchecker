@@ -82,6 +82,25 @@ async function loadUser(): Promise<UserResult> {
   }
 }
 
+async function loadBundled(
+  dir: StarDictStoreDeps["dir"],
+  list: DictListEntry[],
+): Promise<BundledResult> {
+  try {
+    const { loaded, failed } = await loadStarDicts(dir(), list);
+    const entries = await Promise.all(
+      loaded.map(
+        async ({ entry, dict }) =>
+          [entry.base, await bundledEntry(dict)] as [string, LoadedDict],
+      ),
+    );
+    return { loaded: entries, failed };
+  } catch (err) {
+    console.warn("StarDict ачаалагдсангүй:", err);
+    return { loaded: [], failed: list.slice() };
+  }
+}
+
 export function createStarDictStore(deps: StarDictStoreDeps): StarDictStore {
   let starDicts: StarDict[] = [];
   let loadedDicts: LoadedDict[] = [];
@@ -109,22 +128,6 @@ export function createStarDictStore(deps: StarDictStoreDeps): StarDictStore {
     deps.onScripts(starDicts.some((dict) => isLatinDict(dict)));
   }
 
-  async function loadBundled(list: DictListEntry[]): Promise<BundledResult> {
-    try {
-      const { loaded, failed } = await loadStarDicts(deps.dir(), list);
-      const entries = await Promise.all(
-        loaded.map(
-          async ({ entry, dict }) =>
-            [entry.base, await bundledEntry(dict)] as [string, LoadedDict],
-        ),
-      );
-      return { loaded: entries, failed };
-    } catch (err) {
-      console.warn("StarDict ачаалагдсангүй:", err);
-      return { loaded: [], failed: list.slice() };
-    }
-  }
-
   function scheduleRepair(): void {
     if (!bundledMissing.length && !userIncomplete) {
       repairCount = 0;
@@ -140,7 +143,7 @@ export function createStarDictStore(deps: StarDictStoreDeps): StarDictStore {
   async function loadAllDicts(): Promise<void> {
     const current = generation;
     const [found, user, order] = await Promise.all([
-      loadBundled(stardictList),
+      loadBundled(deps.dir, stardictList),
       loadUser(),
       loadDictOrder().catch(() => []),
     ]);
@@ -159,7 +162,7 @@ export function createStarDictStore(deps: StarDictStoreDeps): StarDictStore {
     const missing = bundledMissing.slice();
     const repairUser = userIncomplete;
     const found = missing.length
-      ? await loadBundled(missing)
+      ? await loadBundled(deps.dir, missing)
       : { loaded: [], failed: [] };
     const user = repairUser ? await loadUser() : null;
     if (current !== generation) return;

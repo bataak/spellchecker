@@ -192,6 +192,39 @@ export interface KeyboardLayout {
 
 type Field = HTMLTextAreaElement | HTMLInputElement;
 
+function isToggle(event: KeyboardEvent): boolean {
+  return (
+    event.code === "Backslash" &&
+    event.ctrlKey &&
+    !event.altKey &&
+    !event.metaKey &&
+    !event.shiftKey
+  );
+}
+
+function typeMapped(event: KeyboardEvent, field: Field, layout: Layout): void {
+  if (event.ctrlKey || event.metaKey || event.altKey || field.readOnly) return;
+  const text = mapKey(
+    layout,
+    event.code,
+    event.shiftKey,
+    event.getModifierState("CapsLock"),
+  );
+  if (text === null) return;
+  event.preventDefault();
+  const before = new InputEvent("beforeinput", {
+    inputType: "insertText",
+    data: text,
+    bubbles: true,
+    cancelable: true,
+  });
+  if (!field.dispatchEvent(before)) return;
+  const start = field.selectionStart ?? field.value.length;
+  const end = field.selectionEnd ?? start;
+  if (!replaceRange(field, start, end, text))
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
 export function initKeyboardLayout(deps: KeyboardLayoutDeps): KeyboardLayout {
   const { editor } = deps;
   if (!window.matchMedia("(pointer: fine)").matches)
@@ -289,13 +322,6 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): KeyboardLayout {
     field.focus({ preventScroll: true });
   };
 
-  const isToggle = (event: KeyboardEvent): boolean =>
-    event.code === "Backslash" &&
-    event.ctrlKey &&
-    !event.altKey &&
-    !event.metaKey &&
-    !event.shiftKey;
-
   const toggle = (event: KeyboardEvent, field: Field): void => {
     event.preventDefault();
     event.stopPropagation();
@@ -308,34 +334,6 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): KeyboardLayout {
   const learnSystem = (event: KeyboardEvent): void => {
     if (system === null && event.code === "KeyQ" && event.key.length === 1)
       system = systemLayout(event.key);
-  };
-
-  const typeMapped = (
-    event: KeyboardEvent,
-    field: Field,
-    layout: Layout,
-  ): void => {
-    if (event.ctrlKey || event.metaKey || event.altKey || field.readOnly)
-      return;
-    const text = mapKey(
-      layout,
-      event.code,
-      event.shiftKey,
-      event.getModifierState("CapsLock"),
-    );
-    if (text === null) return;
-    event.preventDefault();
-    const before = new InputEvent("beforeinput", {
-      inputType: "insertText",
-      data: text,
-      bubbles: true,
-      cancelable: true,
-    });
-    if (!field.dispatchEvent(before)) return;
-    const start = field.selectionStart ?? field.value.length;
-    const end = field.selectionEnd ?? start;
-    if (!replaceRange(field, start, end, text))
-      field.dispatchEvent(new Event("input", { bubbles: true }));
   };
 
   const listen = (field: Field): void => {
