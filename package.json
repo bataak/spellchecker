@@ -6,7 +6,7 @@
   "description": "Монгол үгийн алдаа шалгагч — hunspell-wasm + nspell, GitHub Pages",
   "license": "AGPL-3.0-only",
   "scripts": {
-    "test": "tsc --noEmit && eslint . --quiet --max-warnings 5 && prettier --check \"**/*.{ts,js,mjs,cjs,css,json,yml,yaml}\" --log-level warn && node --test \"tests/*.test.ts\"",
+    "test": "tsc --noEmit && eslint . --quiet --max-warnings 4 && prettier --check \"**/*.{ts,js,mjs,cjs,css,json,yml,yaml}\" --log-level warn && node --test \"tests/*.test.ts\"",
     "test:coverage": "node --test --experimental-test-coverage --test-coverage-lines=78 --test-coverage-branches=87 --test-coverage-functions=78 --test-coverage-include=\"src/**\" \"tests/*.test.ts\"",
     "test:e2e": "node --test --test-concurrency=4 \"tests/e2e/*.e2e.ts\"",
     "test:e2e:firefox": "E2E_ENGINE=firefox node --test --test-concurrency=4 \"tests/e2e/*.e2e.ts\"",
