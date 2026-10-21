@@ -1,4 +1,4 @@
-import type { AppUpdate } from "../core/appupdate.ts";
+import type { AppUpdate } from "./appupdate.ts";
 import type { DraftText } from "../editor/drafttext.ts";
 import { requestDurableStorage } from "../core/offline.ts";
 import type { DictLife } from "./dictlife.ts";

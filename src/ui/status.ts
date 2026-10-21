@@ -1,8 +1,6 @@
-export interface StatusControl {
-  readonly set: (html: string, animate?: boolean) => void;
-  readonly hold: (html: string, ms?: number, animate?: boolean) => void;
-  readonly release: () => void;
-}
+import type { StatusPort } from "../core/ports.ts";
+
+export type StatusControl = StatusPort;
 
 const STATUS_HOLD_MS = 6000;
 

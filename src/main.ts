@@ -33,7 +33,7 @@ import { createDictStatus } from "./dict/dictstatus.ts";
 import { initStatus, reveal } from "./ui/status.ts";
 import { initEditorText } from "./editor/editortext.ts";
 import { initDraftText } from "./editor/drafttext.ts";
-import { initAppUpdate } from "./core/appupdate.ts";
+import { initAppUpdate } from "./app/appupdate.ts";
 import { initShortcuts } from "./ui/shortcuts.ts";
 import { createButtonCommands } from "./ui/commands.ts";
 import { installErrorLog } from "./core/errorlog.ts";

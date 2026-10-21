@@ -18,7 +18,7 @@ import {
 import type { DraftFile } from "../core/storage.ts";
 import { deliverText, isDesktopApp } from "./textfile.ts";
 import { flash } from "../ui/clipboard.ts";
-import type { EditorPort, StatusPort } from "../app/ports.ts";
+import type { EditorPort, StatusPort } from "../core/ports.ts";
 import { attemptAsync } from "../core/attempt.ts";
 
 export interface OfficeFiles {

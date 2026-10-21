@@ -1,17 +1,4 @@
-import type { StatusControl } from "../ui/status.ts";
-
-export type StatusPort = StatusControl;
-
-export interface EditorPort {
-  readonly el: HTMLTextAreaElement;
-  set(text: string, caret: number | null): void;
-  insert(text: string, start: number, end: number): void;
-  render(): Promise<void>;
-  save(): void;
-  settle(): Promise<void>;
-  replace(text: string, caret: number | null): Promise<void>;
-  reformat(text: string, caret: number): Promise<void>;
-}
+import type { EditorPort } from "../core/ports.ts";
 
 export interface EditorPortDeps {
   readonly el: HTMLTextAreaElement;
