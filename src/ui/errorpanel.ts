@@ -25,6 +25,82 @@ export interface ErrorPanel {
   readonly clear: (calculating: boolean) => void;
 }
 
+type ErrorItem = ReturnType<typeof buildErrorList>[number];
+
+function errorItemsHtml(items: readonly ErrorItem[]): string {
+  return items
+    .map((item) => {
+      const repeatCountLabel = item.count > 99 ? "99+" : item.count;
+      const badge =
+        item.count >= 2
+          ? '<span class="ew-count">' + repeatCountLabel + "</span>"
+          : "";
+      return (
+        '<button class="ew" type="button" data-start="' +
+        item.start +
+        '">' +
+        escapeHtml(item.word) +
+        badge +
+        "</button>"
+      );
+    })
+    .join("");
+}
+
+function scrollToMark(editor: HTMLTextAreaElement, mark: HTMLElement): boolean {
+  const editorRect = editor.getBoundingClientRect();
+  const markRect = mark.getBoundingClientRect();
+  const pad = 24;
+  if (
+    markRect.top >= editorRect.top + pad &&
+    markRect.bottom <= editorRect.bottom - pad
+  )
+    return false;
+  const targetY =
+    editorRect.top + Math.max(pad, Math.min(editorRect.height * 0.3, 160));
+  const maxScroll = editor.scrollHeight - editor.clientHeight;
+  editor.scrollTop = Math.max(
+    0,
+    Math.min(editor.scrollTop + (markRect.top - targetY), maxScroll),
+  );
+  return true;
+}
+
+function ancestorOf(node: HTMLElement, other: HTMLElement): HTMLElement {
+  for (
+    let current: HTMLElement | null = node;
+    current;
+    current = current.parentElement
+  )
+    if (current.contains(other)) return current;
+  return node;
+}
+
+function bindCopy(copy: HTMLButtonElement, badTokens: () => Token[]): void {
+  const copyIcon = copy.innerHTML;
+  const checkIcon =
+    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" ' +
+    'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+    'stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+  let copyTimer: ReturnType<typeof setTimeout> | null = null;
+  copy.addEventListener("click", async () => {
+    const words = buildErrorList(badTokens()).map((token) => token.word);
+    if (!words.length) return;
+    const copied = await attemptAsync(
+      () => copyText(words.join("\n")).then(() => true),
+      false,
+    );
+    if (!copied) return;
+    copy.classList.add("copied");
+    copy.innerHTML = checkIcon;
+    if (copyTimer) clearTimeout(copyTimer);
+    copyTimer = setTimeout(() => {
+      copy.classList.remove("copied");
+      copy.innerHTML = copyIcon;
+    }, 1100);
+  });
+}
+
 export function initErrorPanel(deps: ErrorPanelDeps): ErrorPanel {
   const { editor, backdrop, desktopMQ } = deps;
   const list = document.querySelector<HTMLElement>("#errorList");
@@ -66,23 +142,7 @@ export function initErrorPanel(deps: ErrorPanelDeps): ErrorPanel {
     setTitle("Нийт алдаатай үг: " + nf(tokens.length), animate);
     if (copy) copy.disabled = false;
     if (animate) reveal(list);
-    list.innerHTML = items
-      .map((item) => {
-        const repeatCountLabel = item.count > 99 ? "99+" : item.count;
-        const badge =
-          item.count >= 2
-            ? '<span class="ew-count">' + repeatCountLabel + "</span>"
-            : "";
-        return (
-          '<button class="ew" type="button" data-start="' +
-          item.start +
-          '">' +
-          escapeHtml(item.word) +
-          badge +
-          "</button>"
-        );
-      })
-      .join("");
+    list.innerHTML = errorItemsHtml(items);
   }
 
   function clear(calculating: boolean): void {
@@ -96,36 +156,10 @@ export function initErrorPanel(deps: ErrorPanelDeps): ErrorPanel {
 
   function scrollMarkIntoView(start: number): void {
     const mark = backdrop.markAt(start);
-    if (!mark) return;
-    const editorRect = editor.getBoundingClientRect();
-    const markRect = mark.getBoundingClientRect();
-    const pad = 24;
-    if (
-      markRect.top >= editorRect.top + pad &&
-      markRect.bottom <= editorRect.bottom - pad
-    )
-      return;
-    const targetY =
-      editorRect.top + Math.max(pad, Math.min(editorRect.height * 0.3, 160));
-    const maxScroll = editor.scrollHeight - editor.clientHeight;
-    const next = Math.max(
-      0,
-      Math.min(editor.scrollTop + (markRect.top - targetY), maxScroll),
-    );
-    editor.scrollTop = next;
-    deps.syncScroll();
+    if (mark && scrollToMark(editor, mark)) deps.syncScroll();
   }
 
   if (list) {
-    const ancestorOf = (node: HTMLElement, other: HTMLElement): HTMLElement => {
-      for (
-        let current: HTMLElement | null = node;
-        current;
-        current = current.parentElement
-      )
-        if (current.contains(other)) return current;
-      return node;
-    };
     const panel = title ? ancestorOf(list, title) : list;
 
     panel.addEventListener("click", (e) => {
@@ -157,30 +191,7 @@ export function initErrorPanel(deps: ErrorPanelDeps): ErrorPanel {
     });
   }
 
-  if (copy) {
-    const copyIcon = copy.innerHTML;
-    const checkIcon =
-      '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" ' +
-      'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
-      'stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
-    let copyTimer: ReturnType<typeof setTimeout> | null = null;
-    copy.addEventListener("click", async () => {
-      const words = buildErrorList(deps.badTokens()).map((token) => token.word);
-      if (!words.length) return;
-      const copied = await attemptAsync(
-        () => copyText(words.join("\n")).then(() => true),
-        false,
-      );
-      if (!copied) return;
-      copy.classList.add("copied");
-      copy.innerHTML = checkIcon;
-      if (copyTimer) clearTimeout(copyTimer);
-      copyTimer = setTimeout(() => {
-        copy.classList.remove("copied");
-        copy.innerHTML = copyIcon;
-      }, 1100);
-    });
-  }
+  if (copy) bindCopy(copy, deps.badTokens);
 
   return { render, clear };
 }

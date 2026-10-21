@@ -184,6 +184,92 @@ function anchoredTop(
   return Math.max(0, root.scrollTop + top - anchor.delta);
 }
 
+function newTrailer(): HTMLDivElement {
+  const trailer = document.createElement("div");
+  trailer.textContent = "​";
+  return trailer;
+}
+
+function syncChunkCount(
+  root: HTMLElement,
+  nodes: ChunkNode[],
+  trailer: HTMLElement,
+  count: number,
+): void {
+  while (nodes.length > count) nodes.pop()!.remove();
+  while (nodes.length < count) {
+    const div = document.createElement("div") as ChunkNode;
+    div._spans = [];
+    div._synKey = "";
+    root.insertBefore(div, trailer);
+    nodes.push(div);
+  }
+}
+
+function renderChunks(
+  nodes: readonly ChunkNode[],
+  text: string,
+  bounds: ReturnType<typeof splitChunks>,
+  syntax: TexSpan[],
+  blocks: boolean,
+): number {
+  let line = 0;
+  for (let i = 0; i < bounds.length; i++) {
+    const node = nodes[i]!;
+    node._line = line;
+    updateChunkText(node, text, bounds[i]!, syntax, blocks);
+    line += node._lines;
+  }
+  return line;
+}
+
+function visibleNodes(
+  root: HTMLElement,
+  nodes: readonly ChunkNode[],
+): ChunkNode[] {
+  const top = root.scrollTop - VIEW_BUFFER_PX;
+  const bottom = root.scrollTop + root.clientHeight + VIEW_BUFFER_PX;
+  const out: ChunkNode[] = [];
+  for (const node of nodes) {
+    if (node.offsetTop + node.offsetHeight < top) continue;
+    if (node.offsetTop > bottom) break;
+    out.push(node);
+  }
+  return out;
+}
+
+function nodesAtY(nodes: readonly ChunkNode[], y: number): ChunkNode[] {
+  const out: ChunkNode[] = [];
+  for (const node of nodes) {
+    const box = node.getBoundingClientRect();
+    if (box.bottom < y) continue;
+    if (box.top > y) break;
+    out.push(node);
+  }
+  return out;
+}
+
+function nodeAt(nodes: readonly ChunkNode[], pos: number): ChunkNode | null {
+  return (
+    nodes.find(
+      (node) => pos >= node._start && pos < node._start + node._src.length,
+    ) ?? null
+  );
+}
+
+function offsetAtYIn(
+  nodes: readonly ChunkNode[],
+  y: number,
+  blocks: boolean,
+): number | null {
+  const node = nodes.find((n) => n.getBoundingClientRect().bottom > y);
+  if (!node) return null;
+  const body = stripChunkNewline(node._src);
+  return (
+    node._start + Math.min(localOffsetAtY(node, body, y, blocks), body.length)
+  );
+}
+
 export function createBackdrop(root: HTMLElement): Backdrop {
   let trailer: HTMLDivElement = document.createElement("div");
   let nodes: ChunkNode[] = [];
@@ -202,59 +288,23 @@ export function createBackdrop(root: HTMLElement): Backdrop {
     nodes = [];
     activeLine = -1;
     activeEl = null;
-    trailer = document.createElement("div");
-    trailer.textContent = "​";
-    root.appendChild(trailer);
+    trailer = root.appendChild(newTrailer());
   }
 
   function setActiveLine(index: number): void {
     activeLine = index;
     if (!useBlocks) return;
-    if (activeEl) {
-      activeEl.removeAttribute("data-active");
-      activeEl = null;
-    }
+    activeEl?.removeAttribute("data-active");
     activeEl = lineBlockAt(nodes, index);
     activeEl?.setAttribute("data-active", "true");
-  }
-
-  function syncTrailer(text: string): void {
-    const need = text === "" || text.endsWith("\n");
-    trailer.style.display = need ? "" : "none";
-  }
-
-  function syncChunkCount(count: number): void {
-    while (nodes.length > count) nodes.pop()!.remove();
-    while (nodes.length < count) {
-      const div = document.createElement("div") as ChunkNode;
-      div._spans = [];
-      div._synKey = "";
-      root.insertBefore(div, trailer);
-      nodes.push(div);
-    }
   }
 
   const marksFor = (node: ChunkNode): void =>
     applyChunkMarks(node, lastMarks, useBlocks);
 
-  function applyVisibleMarks(): void {
-    const top = root.scrollTop - VIEW_BUFFER_PX;
-    const bottom = root.scrollTop + root.clientHeight + VIEW_BUFFER_PX;
-    for (const node of nodes) {
-      if (node.offsetTop + node.offsetHeight < top) continue;
-      if (node.offsetTop > bottom) break;
-      marksFor(node);
-    }
-  }
-
-  function nodeAtOffset(pos: number): ChunkNode | null {
-    for (const node of nodes) {
-      if (pos >= node._start && pos < node._start + node._src.length) {
-        return node;
-      }
-    }
-    return null;
-  }
+  const applyVisibleMarks = (): void =>
+    visibleNodes(root, nodes).forEach(marksFor);
+  const nodeAtOffset = (pos: number): ChunkNode | null => nodeAt(nodes, pos);
 
   reset();
 
@@ -275,16 +325,10 @@ export function createBackdrop(root: HTMLElement): Backdrop {
       lastText = text;
       syntax = highlighter ? highlighter(text) : [];
       const bounds = splitChunks(text);
-      syncChunkCount(bounds.length);
-      let line = 0;
-      for (let i = 0; i < bounds.length; i++) {
-        const node = nodes[i]!;
-        node._line = line;
-        updateChunkText(node, text, bounds[i]!, syntax, useBlocks);
-        line += node._lines;
-      }
+      syncChunkCount(root, nodes, trailer, bounds.length);
+      const line = renderChunks(nodes, text, bounds, syntax, useBlocks);
       lineTotal = Math.max(line, 1);
-      syncTrailer(text);
+      trailer.style.display = text === "" || text.endsWith("\n") ? "" : "none";
       activeEl = null;
       applyVisibleMarks();
       applyGutterWidth(line);
@@ -292,15 +336,10 @@ export function createBackdrop(root: HTMLElement): Backdrop {
     },
     lineCount: () => lineTotal,
     marksAtY(y) {
-      const found: HTMLElement[] = [];
-      for (const node of nodes) {
-        const box = node.getBoundingClientRect();
-        if (box.bottom < y) continue;
-        if (box.top > y) break;
+      return nodesAtY(nodes, y).flatMap((node) => {
         marksFor(node);
-        found.push(...node.querySelectorAll<HTMLElement>("mark[data-start]"));
-      }
-      return found;
+        return [...node.querySelectorAll<HTMLElement>("mark[data-start]")];
+      });
     },
     markAt(start) {
       const node = nodeAtOffset(start);
@@ -324,15 +363,7 @@ export function createBackdrop(root: HTMLElement): Backdrop {
       const node = nodes.find((n) => n !== spot.node && n.contains(spot.node));
       return node ? chunkOffsetAt(node, spot, useBlocks) : null;
     },
-    offsetAtY(y) {
-      const node = nodes.find((n) => n.getBoundingClientRect().bottom > y);
-      if (!node) return null;
-      const body = stripChunkNewline(node._src);
-      return (
-        node._start +
-        Math.min(localOffsetAtY(node, body, y, useBlocks), body.length)
-      );
-    },
+    offsetAtY: (y) => offsetAtYIn(nodes, y, useBlocks),
     captureTopAnchor() {
       topAnchor = topAnchorOf(root, nodes, useBlocks);
     },
