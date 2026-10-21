@@ -60,6 +60,81 @@ export interface DefineControlsDeps {
   readonly showErrorPopover: (token: Token) => void;
 }
 
+function englishReminder(
+  checker: SpellChecker,
+  englishEnabled: () => ReadonlySet<string>,
+  holdStatus: DefineControlsDeps["holdStatus"],
+): (word: string) => void {
+  let remindedAt = -Infinity;
+  return (word) => {
+    if (!LATIN_WORD.test(word)) return;
+    const enabled = englishEnabled();
+    const loaded = checker.loadedIds.some(
+      (id) => id.startsWith("en") && enabled.has(id),
+    );
+    if (loaded) return;
+    const now = performance.now();
+    if (now - remindedAt < ENGLISH_REMIND_MS) return;
+    remindedAt = now;
+    holdStatus(
+      "Англи үгийн үндсийг танихын тулд англи толийг асаана уу (" +
+        (/mac|iphone|ipad/i.test(navigator.platform) ? "⌘⇧L" : "Ctrl+Shift+L") +
+        ")",
+      6000,
+      false,
+    );
+  };
+}
+
+function trackLongPress(button: HTMLElement): () => boolean {
+  let pressTimer: ReturnType<typeof setTimeout> | undefined;
+  let pressArmed = false;
+  button.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "mouse") return;
+    pressArmed = false;
+    clearTimeout(pressTimer);
+    pressTimer = setTimeout(() => {
+      pressArmed = true;
+    }, LONG_PRESS_MS);
+  });
+  button.addEventListener("pointerup", () => clearTimeout(pressTimer));
+  for (const type of ["pointercancel", "pointerleave"])
+    button.addEventListener(type, (event) => {
+      clearTimeout(pressTimer);
+      if (type === "pointercancel" || (event as PointerEvent).buttons)
+        pressArmed = false;
+    });
+  button.addEventListener("contextmenu", (event) => event.preventDefault());
+  return () => {
+    const armed = pressArmed;
+    pressArmed = false;
+    return armed;
+  };
+}
+
+function wordAtPoint(
+  editor: HTMLTextAreaElement,
+  backdrop: Backdrop,
+  x: number,
+  y: number,
+  latin: boolean,
+): WordSpan | null {
+  editor.style.pointerEvents = "none";
+  backdrop.el.style.pointerEvents = "auto";
+  backdrop.el.style.userSelect = "text";
+  const offset = backdrop.offsetAtPoint(x, y);
+  editor.style.pointerEvents = "";
+  backdrop.el.style.pointerEvents = "";
+  backdrop.el.style.userSelect = "";
+  if (offset === null) return null;
+  const span = wordAt(editor.value, offset, latin);
+  const rect = span && backdrop.rangeRectAt(span.start, span.end);
+  if (!rect) return null;
+  if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom)
+    return null;
+  return span;
+}
+
 export function initDefineControls(deps: DefineControlsDeps): void {
   const { editor, backdrop, checker, defTip, defDock, pop, holdStatus } = deps;
 
@@ -69,25 +144,11 @@ export function initDefineControls(deps: DefineControlsDeps): void {
   };
   const latinLookup = (): boolean => latinDicts !== false;
 
-  let englishRemindedAt = -Infinity;
-  const remindEnglish = (word: string): void => {
-    if (!LATIN_WORD.test(word)) return;
-    const enabled = deps.englishEnabled();
-    const loaded = checker.loadedIds.some(
-      (id) => id.startsWith("en") && enabled.has(id),
-    );
-    if (loaded) return;
-    const now = performance.now();
-    if (now - englishRemindedAt < ENGLISH_REMIND_MS) return;
-    englishRemindedAt = now;
-    holdStatus(
-      "Англи үгийн үндсийг танихын тулд англи толийг асаана уу (" +
-        (/mac|iphone|ipad/i.test(navigator.platform) ? "⌘⇧L" : "Ctrl+Shift+L") +
-        ")",
-      6000,
-      false,
-    );
-  };
+  const remindEnglish = englishReminder(
+    checker,
+    deps.englishEnabled,
+    holdStatus,
+  );
 
   const showDefinition = (span: WordSpan, x?: number): void => {
     void defTip
@@ -113,29 +174,10 @@ export function initDefineControls(deps: DefineControlsDeps): void {
   const manageDicts = (): Promise<void> => dictManager.open();
 
   const defineBtn = document.querySelector<HTMLButtonElement>("#defineBtn");
-  let pressTimer: ReturnType<typeof setTimeout> | undefined;
-  let pressArmed = false;
-
-  defineBtn?.addEventListener("pointerdown", (event) => {
-    if (event.pointerType === "mouse") return;
-    pressArmed = false;
-    clearTimeout(pressTimer);
-    pressTimer = setTimeout(() => {
-      pressArmed = true;
-    }, LONG_PRESS_MS);
-  });
-  defineBtn?.addEventListener("pointerup", () => clearTimeout(pressTimer));
-  for (const type of ["pointercancel", "pointerleave"])
-    defineBtn?.addEventListener(type, (event) => {
-      clearTimeout(pressTimer);
-      if (type === "pointercancel" || (event as PointerEvent).buttons)
-        pressArmed = false;
-    });
-  defineBtn?.addEventListener("contextmenu", (event) => event.preventDefault());
+  const longPressed = defineBtn ? trackLongPress(defineBtn) : () => false;
 
   defineBtn?.addEventListener("click", async (event) => {
-    if (pressArmed || event.shiftKey || event.ctrlKey || event.metaKey) {
-      pressArmed = false;
+    if (longPressed() || event.shiftKey || event.ctrlKey || event.metaKey) {
       void manageDicts();
       return;
     }
@@ -185,30 +227,13 @@ export function initDefineControls(deps: DefineControlsDeps): void {
     showDefinition(span);
   });
 
-  const wordAtPoint = (x: number, y: number): WordSpan | null => {
-    editor.style.pointerEvents = "none";
-    backdrop.el.style.pointerEvents = "auto";
-    backdrop.el.style.userSelect = "text";
-    const offset = backdrop.offsetAtPoint(x, y);
-    editor.style.pointerEvents = "";
-    backdrop.el.style.pointerEvents = "";
-    backdrop.el.style.userSelect = "";
-    if (offset === null) return null;
-    const span = wordAt(editor.value, offset, latinLookup());
-    const rect = span && backdrop.rangeRectAt(span.start, span.end);
-    if (!rect) return null;
-    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom)
-      return null;
-    return span;
-  };
-
   let hoverPoint: { x: number; y: number } | null = null;
   let hoverSpan: WordSpan | null = null;
   let hoverFrame = 0;
 
   const defineAtPoint = (x: number, y: number): void => {
     if (!checker.define) return;
-    const span = wordAtPoint(x, y);
+    const span = wordAtPoint(editor, backdrop, x, y, latinLookup());
     if (!span) {
       hoverSpan = null;
       defTip.hideWordTip();

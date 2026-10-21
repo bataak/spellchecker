@@ -261,6 +261,135 @@ function thumb(l: Layout, x: Metrics, widest: number): SVGSVGElement {
   return svg;
 }
 
+interface Control {
+  readonly ctl: HTMLElement;
+  readonly btn: HTMLButtonElement;
+  readonly menu: HTMLElement;
+  readonly tools: HTMLElement;
+}
+
+function buildControl(wrap: HTMLElement): Control {
+  const ctl = document.createElement("div");
+  ctl.className = "measure-ctl";
+  ctl.hidden = true;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "measure-btn";
+  btn.setAttribute("aria-haspopup", "true");
+  btn.setAttribute("aria-expanded", "false");
+  btn.title = "Байрлал";
+  btn.append(glyph());
+  const menu = document.createElement("div");
+  menu.className = "measure-menu";
+  menu.setAttribute("role", "menu");
+  menu.hidden = true;
+  ctl.append(btn, menu);
+  const tools = document.createElement("div");
+  tools.className = "editor-tools";
+  for (const el of wrap.querySelectorAll<HTMLElement>(".decode-btn"))
+    tools.append(el);
+  tools.append(ctl);
+  wrap.append(tools);
+  btn.classList.add("is-shown");
+  setTimeout(() => {
+    btn.classList.remove("is-shown");
+  }, 5000);
+  return { ctl, btn, menu, tools };
+}
+
+function applyLayout(l: Layout): void {
+  const root = document.documentElement;
+  root.style.setProperty("--editor-measure", String(MEASURES[l.measure]));
+  if (l.measure === "a") delete root.dataset.measure;
+  else root.dataset.measure = l.measure;
+  if (l.panel) delete root.dataset.panel;
+  else root.dataset.panel = "off";
+  if (l.preview) root.dataset.preview = "on";
+  else delete root.dataset.preview;
+}
+
+function layoutRows(): Layout[][] {
+  const rows = new Map<string, Layout[]>();
+  for (const l of ALL_LAYOUTS) {
+    const k = rowKey(l);
+    const row = rows.get(k);
+    if (row) row.push(l);
+    else rows.set(k, [l]);
+  }
+  return [...rows.values()];
+}
+
+function layoutOption(
+  l: Layout,
+  active: Layout,
+  ok: boolean,
+  art: SVGSVGElement,
+  pick: (l: Layout) => void,
+): HTMLButtonElement {
+  const opt = document.createElement("button");
+  opt.type = "button";
+  opt.className = "measure-opt";
+  opt.dataset.layout = key(l);
+  opt.setAttribute("role", "menuitemradio");
+  opt.setAttribute("aria-checked", String(same(l, active)));
+  opt.setAttribute("aria-label", describeLayout(l));
+  if (same(l, DEFAULT_LAYOUT)) opt.dataset.default = "true";
+  opt.disabled = !ok;
+  opt.title = describeLayout(l);
+  opt.append(art);
+  if (ok) opt.addEventListener("click", () => pick(l));
+  return opt;
+}
+
+function paintMenu(
+  { btn, menu }: Control,
+  avail: readonly Layout[],
+  active: Layout,
+  metrics: Metrics,
+  pick: (l: Layout) => void,
+): void {
+  const widest = Math.max(
+    ...ALL_LAYOUTS.map((l) => contentWidth(l, metrics)),
+    1,
+  );
+  btn.setAttribute("aria-label", `Байрлал: ${describeLayout(active)}`);
+  btn.title = describeLayout(active);
+  menu.replaceChildren();
+  for (const row of layoutRows()) {
+    const line = document.createElement("div");
+    line.className = "measure-row";
+    for (const l of row)
+      line.append(
+        layoutOption(l, active, has(avail, l), thumb(l, metrics, widest), pick),
+      );
+    menu.append(line);
+  }
+}
+
+function planViewport(
+  wrap: HTMLElement,
+  metrics: Metrics,
+  choose: (fit: Layout[]) => LayoutChoice,
+  prev: Layout[],
+): { viewport: number; offered: Layout[] | null } {
+  const root = document.documentElement;
+  const full = root.clientWidth;
+  const room = projectRoom(wrap, metrics);
+  if (room <= 0) {
+    delete root.dataset.projectFloat;
+    return { viewport: full, offered: null };
+  }
+  const wide = choose(available(metrics, full, prev));
+  const plan = projectViewport(
+    full,
+    room,
+    pageWidth(wide.active, metrics, previewMeasure(wide.active, metrics, full)),
+  );
+  if (plan.float) root.dataset.projectFloat = "";
+  else delete root.dataset.projectFloat;
+  return { viewport: plan.viewport, offered: wide.avail };
+}
+
 export interface MeasureControl {
   refresh(): void;
   dockRoom(side: "left" | "right", active: boolean): boolean;
@@ -275,37 +404,8 @@ export function initMeasureControl(
   area: HTMLElement,
   onChange?: (l: Layout) => void,
 ): MeasureControl {
-  const ctl = document.createElement("div");
-  ctl.className = "measure-ctl";
-  ctl.hidden = true;
-
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "measure-btn";
-  btn.setAttribute("aria-haspopup", "true");
-  btn.setAttribute("aria-expanded", "false");
-  btn.title = "Байрлал";
-  btn.append(glyph());
-
-  const menu = document.createElement("div");
-  menu.className = "measure-menu";
-  menu.setAttribute("role", "menu");
-  menu.hidden = true;
-
-  ctl.append(btn, menu);
-
-  const tools = document.createElement("div");
-  tools.className = "editor-tools";
-  for (const el of wrap.querySelectorAll<HTMLElement>(".decode-btn")) {
-    tools.append(el);
-  }
-  tools.append(ctl);
-  wrap.append(tools);
-
-  btn.classList.add("is-shown");
-  setTimeout(() => {
-    btn.classList.remove("is-shown");
-  }, 5000);
+  const control = buildControl(wrap);
+  const { ctl, btn, menu, tools } = control;
 
   let texMode = false;
   let desired: Layout = load(texMode);
@@ -319,14 +419,7 @@ export function initMeasureControl(
   let viewportW = 0;
 
   const apply = (l: Layout): void => {
-    const root = document.documentElement;
-    root.style.setProperty("--editor-measure", String(MEASURES[l.measure]));
-    if (l.measure === "a") delete root.dataset.measure;
-    else root.dataset.measure = l.measure;
-    if (l.panel) delete root.dataset.panel;
-    else root.dataset.panel = "off";
-    if (l.preview) root.dataset.preview = "on";
-    else delete root.dataset.preview;
+    applyLayout(l);
     onChange?.(l);
   };
 
@@ -348,48 +441,6 @@ export function initMeasureControl(
     btn.focus();
   };
 
-  const paint = (avail: readonly Layout[], active: Layout): void => {
-    const rows = new Map<string, Layout[]>();
-    for (const l of ALL_LAYOUTS) {
-      const k = rowKey(l);
-      const row = rows.get(k);
-      if (row) row.push(l);
-      else rows.set(k, [l]);
-    }
-
-    const widest = Math.max(
-      ...ALL_LAYOUTS.map((l) => contentWidth(l, metrics)),
-      1,
-    );
-
-    btn.setAttribute("aria-label", `Байрлал: ${describeLayout(active)}`);
-    btn.title = describeLayout(active);
-
-    menu.replaceChildren();
-    for (const row of rows.values()) {
-      const line = document.createElement("div");
-      line.className = "measure-row";
-      for (const l of row) {
-        const opt = document.createElement("button");
-        opt.type = "button";
-        opt.className = "measure-opt";
-        opt.dataset.layout = key(l);
-        opt.setAttribute("role", "menuitemradio");
-        opt.setAttribute("aria-checked", String(same(l, active)));
-        opt.setAttribute("aria-label", describeLayout(l));
-        if (same(l, DEFAULT_LAYOUT)) opt.dataset.default = "true";
-
-        const ok = has(avail, l);
-        opt.disabled = !ok;
-        opt.title = describeLayout(l);
-        opt.append(thumb(l, metrics, widest));
-        if (ok) opt.addEventListener("click", () => pick(l));
-        line.append(opt);
-      }
-      menu.append(line);
-    }
-  };
-
   function refresh(): void {
     metrics = readMetrics(area, wrap);
     document.documentElement.style.setProperty(
@@ -406,26 +457,7 @@ export function initMeasureControl(
       chooseLayout(fit, desired, previewBlocked, previewMode);
 
     const root = document.documentElement;
-    const full = root.clientWidth;
-    const room = projectRoom(wrap, metrics);
-    let viewport = full;
-    let offered: Layout[] | null = null;
-    if (room > 0) {
-      const wide = choose(available(metrics, full, prev));
-      offered = wide.avail;
-      const plan = projectViewport(
-        full,
-        room,
-        pageWidth(
-          wide.active,
-          metrics,
-          previewMeasure(wide.active, metrics, full),
-        ),
-      );
-      viewport = plan.viewport;
-      if (plan.float) root.dataset.projectFloat = "";
-      else delete root.dataset.projectFloat;
-    } else delete root.dataset.projectFloat;
+    const { viewport, offered } = planViewport(wrap, metrics, choose, prev);
     const fit = available(metrics, viewport, prev);
     prev = fit;
     const { avail, active } = choose(fit);
@@ -447,7 +479,7 @@ export function initMeasureControl(
       return;
     }
 
-    paint(menuAvail, active);
+    paintMenu(control, menuAvail, active, metrics, pick);
   }
 
   btn.addEventListener("click", () => {

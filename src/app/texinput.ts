@@ -1,3 +1,4 @@
+import "../tex/texcomplete.css";
 import { initTexComplete } from "../tex/texcomplete.ts";
 import { initTexImageInput, insertPickedImage } from "../tex/teximages.ts";
 import { initTexQuotes } from "../tex/texquotes.ts";
