@@ -89,3 +89,39 @@ test("hostFor: зөвшөөрөгдөөгүй серверийг татгалз�
     /зөвхөн github.com, gitlab.com/,
   );
 });
+
+test("openRepo: хүчинтэй OAuth token-оор ачаалж, хугацаа дууссаныг хадгалахгүй", async () => {
+  resetStorage();
+  const repo = new FakeGitlab({ "main.tex": MAIN }, HOST);
+  serve(repo, "oauth");
+  const live = { access: "oauth", expires: Date.now() + 3_600_000 };
+  await openRepo(spec, live);
+  assert.deepEqual(savedToken(where), live);
+  resetStorage();
+  await assert.rejects(
+    openRepo(spec, { access: "oauth", expires: Date.now() - 1 }),
+    AuthError,
+  );
+  assert.equal(savedToken(where), null);
+});
+
+test("commitState: шинэчлэх боломжгүй болсон OAuth token-ийг мартаж AuthError өгнө", async () => {
+  resetStorage();
+  const repo = new FakeGitlab({ "main.tex": MAIN }, HOST);
+  serve(repo, "oauth");
+  const loaded = await openRepo(spec, {
+    access: "oauth",
+    expires: Date.now() + 120_000,
+  });
+  const s = newState(1, "git", loaded.name, null, loaded.files, loaded.dirs);
+  s.remote = loaded.remote;
+  s.texts.set("main.tex", MAIN.replace("Сайн", "Сайхан"));
+  const realNow = Date.now;
+  Date.now = () => realNow() + 3_600_000;
+  try {
+    await assert.rejects(commitState(s, "Засвар"), AuthError);
+  } finally {
+    Date.now = realNow;
+  }
+  assert.equal(savedToken(where), null);
+});
