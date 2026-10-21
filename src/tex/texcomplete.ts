@@ -1,5 +1,3 @@
-import "./texcomplete.css";
-import { onSwap, replaceRange } from "../editor/editortext.ts";
 import {
   completionContext,
   completions,
@@ -7,18 +5,7 @@ import {
   unchanged,
 } from "./texcompletion.ts";
 import type { Completion, CompletionContext } from "./texcompletion.ts";
-import {
-  caretPatch,
-  breakDisplay,
-  deleteBracket,
-  deleteDollar,
-  shiftStops,
-  snippetStops,
-  tabStop,
-  typeBracket,
-  typeDollar,
-} from "./texstops.ts";
-import type { PairEdit, TabStops } from "./texstops.ts";
+import { bindTabStops, type TexTabStops } from "./texpairs.ts";
 
 export interface TexCompleteDeps {
   readonly editor: HTMLTextAreaElement;
@@ -30,6 +17,112 @@ export interface TexCompleteDeps {
 const GAP = 4;
 const EDGE = 8;
 const LIST_ID = "texCompleteList";
+
+const CLOSING = new Set([
+  "ArrowLeft",
+  "ArrowRight",
+  "Home",
+  "End",
+  "PageUp",
+  "PageDown",
+]);
+
+function optionItem(
+  i: number,
+  command: boolean,
+  item: Completion,
+  selected: boolean,
+): HTMLLIElement {
+  const li = document.createElement("li");
+  li.id = LIST_ID + "-" + i;
+  li.setAttribute("role", "option");
+  li.setAttribute("aria-selected", selected ? "true" : "false");
+  const name = document.createElement("span");
+  name.className = "tc-name";
+  name.textContent = (command ? "\\" : "") + item.label;
+  li.appendChild(name);
+  const rest = item.snippet.slice(item.label.length).replace("#", "");
+  if (rest) {
+    const hint = document.createElement("span");
+    hint.className = "tc-rest";
+    hint.textContent = rest;
+    li.appendChild(hint);
+  }
+  return li;
+}
+
+function listPosition(
+  box: DOMRect,
+  rect: DOMRect,
+): { top: number; left: number } {
+  const view = window.visualViewport;
+  const viewTop = view ? view.offsetTop : 0;
+  const viewHeight = view ? view.height : window.innerHeight;
+  const viewWidth = view ? view.width : window.innerWidth;
+  let top = rect.bottom + GAP;
+  if (top + box.height > viewTop + viewHeight - EDGE)
+    top = Math.max(viewTop + EDGE, rect.top - GAP - box.height);
+  const left = Math.min(
+    Math.max(EDGE, rect.left),
+    Math.max(EDGE, viewWidth - box.width - EDGE),
+  );
+  return { top, left };
+}
+
+interface ListKeys {
+  keepTyped(): boolean;
+  accept(): void;
+  close(): void;
+  dismiss(): void;
+  move(step: number): void;
+  jump(e: KeyboardEvent): void;
+}
+
+function bindListKeys(
+  editor: HTMLTextAreaElement,
+  list: HTMLElement,
+  k: ListKeys,
+): void {
+  const choose = (e: KeyboardEvent): void => {
+    if (e.shiftKey) {
+      k.close();
+      return;
+    }
+    if (e.key === "Enter" && k.keepTyped()) return;
+    e.preventDefault();
+    e.stopPropagation();
+    k.accept();
+  };
+  const move = (e: KeyboardEvent, step: number): void => {
+    e.preventDefault();
+    k.move(step);
+  };
+  const handlers = new Map<string, (e: KeyboardEvent) => void>([
+    ["ArrowDown", (e) => move(e, 1)],
+    ["ArrowUp", (e) => move(e, -1)],
+    ["Enter", choose],
+    ["Tab", choose],
+    [
+      "Escape",
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        k.dismiss();
+      },
+    ],
+  ]);
+  editor.addEventListener(
+    "keydown",
+    (e) => {
+      if (e.isComposing) return;
+      if (list.hidden) k.jump(e);
+      else if (e.altKey || e.ctrlKey || e.metaKey || CLOSING.has(e.key))
+        k.close();
+      else handlers.get(e.key)?.(e);
+    },
+    true,
+  );
+}
 
 export function initTexComplete(deps: TexCompleteDeps): void {
   const { editor } = deps;
@@ -45,9 +138,7 @@ export function initTexComplete(deps: TexCompleteDeps): void {
   let items: Completion[] = [];
   let index = 0;
   let dismissedAt = -1;
-  let applying = false;
-  let stops: TabStops[] = [];
-  let seen = editor.value;
+  let tabs: TexTabStops | null = null;
 
   editor.setAttribute("aria-autocomplete", "list");
 
@@ -61,7 +152,7 @@ export function initTexComplete(deps: TexCompleteDeps): void {
   }
 
   function update(): void {
-    if (applying) return;
+    if (tabs?.applying()) return;
     if (!deps.active() || editor.selectionStart !== editor.selectionEnd) {
       close();
       return;
@@ -93,21 +184,7 @@ export function initTexComplete(deps: TexCompleteDeps): void {
   function paint(): void {
     list.textContent = "";
     items.forEach((item, i) => {
-      const li = document.createElement("li");
-      li.id = LIST_ID + "-" + i;
-      li.setAttribute("role", "option");
-      li.setAttribute("aria-selected", i === index ? "true" : "false");
-      const name = document.createElement("span");
-      name.className = "tc-name";
-      name.textContent = (context!.kind === "cmd" ? "\\" : "") + item.label;
-      li.appendChild(name);
-      const rest = item.snippet.slice(item.label.length).replace("#", "");
-      if (rest) {
-        const hint = document.createElement("span");
-        hint.className = "tc-rest";
-        hint.textContent = rest;
-        li.appendChild(hint);
-      }
+      const li = optionItem(i, context!.kind === "cmd", item, i === index);
       li.addEventListener("pointerdown", (e) => {
         e.preventDefault();
         index = i;
@@ -139,19 +216,7 @@ export function initTexComplete(deps: TexCompleteDeps): void {
       close();
       return;
     }
-    const view = window.visualViewport;
-    const viewTop = view ? view.offsetTop : 0;
-    const viewHeight = view ? view.height : window.innerHeight;
-    const viewWidth = view ? view.width : window.innerWidth;
-    const box = list.getBoundingClientRect();
-    let top = rect.bottom + GAP;
-    if (top + box.height > viewTop + viewHeight - EDGE) {
-      top = Math.max(viewTop + EDGE, rect.top - GAP - box.height);
-    }
-    const left = Math.min(
-      Math.max(EDGE, rect.left),
-      Math.max(EDGE, viewWidth - box.width - EDGE),
-    );
+    const { top, left } = listPosition(list.getBoundingClientRect(), rect);
     list.style.top = top + "px";
     list.style.left = left + "px";
   }
@@ -166,22 +231,7 @@ export function initTexComplete(deps: TexCompleteDeps): void {
     if (unchanged(context, item)) dismissedAt = context.from;
     close();
     editor.focus({ preventScroll: true });
-    applying = true;
-    let native: boolean;
-    try {
-      native = replaceRange(editor, edit.from, edit.to, edit.text);
-    } finally {
-      applying = false;
-    }
-    editor.setSelectionRange(edit.caret, edit.caret);
-    stops = shiftStops(stops, {
-      from: edit.from,
-      to: edit.to,
-      insert: edit.text,
-    });
-    const added = snippetStops(edit);
-    if (added) stops = [...stops, added];
-    seen = editor.value;
+    const native = tabs!.insert(edit);
     if (!native) editor.dispatchEvent(new Event("input", { bubbles: true }));
     if (image) {
       deps.onImage?.();
@@ -190,98 +240,7 @@ export function initTexComplete(deps: TexCompleteDeps): void {
     update();
   }
 
-  function track(): void {
-    if (applying) return;
-    const text = editor.value;
-    if (stops.length) {
-      const patch = caretPatch(seen, text, editor.selectionEnd);
-      if (patch) stops = shiftStops(stops, patch);
-    }
-    seen = text;
-  }
-
-  function jump(e: KeyboardEvent): void {
-    if (!stops.length) return;
-    if (e.key === "Escape") {
-      stops = [];
-      return;
-    }
-    if (e.key !== "Tab" || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey)
-      return;
-    if (
-      !deps.active() ||
-      editor.value !== seen ||
-      editor.selectionStart !== editor.selectionEnd
-    ) {
-      stops = [];
-      return;
-    }
-    const next = tabStop(stops, editor.value, editor.selectionStart);
-    stops = next.stack;
-    if (next.caret === null) return;
-    e.preventDefault();
-    e.stopPropagation();
-    editor.setSelectionRange(next.caret, next.caret);
-  }
-
-  function pair(e: InputEvent): void {
-    if (e.defaultPrevented || !deps.active() || e.isComposing) return;
-    if (editor.value !== seen) stops = [];
-    const text = editor.value;
-    const from = editor.selectionStart;
-    const to = editor.selectionEnd;
-    const plan = planPair(e, text, from, to);
-    if (!plan) return;
-    e.preventDefault();
-    close();
-    let native = true;
-    if (plan.patch) {
-      applying = true;
-      try {
-        native = replaceRange(
-          editor,
-          plan.patch.from,
-          plan.patch.to,
-          plan.patch.insert,
-        );
-      } finally {
-        applying = false;
-      }
-    }
-    stops = plan.stack;
-    editor.setSelectionRange(plan.caret, plan.caret);
-    seen = editor.value;
-    if (!native) editor.dispatchEvent(new Event("input", { bubbles: true }));
-  }
-
-  function planPair(
-    e: InputEvent,
-    text: string,
-    from: number,
-    to: number,
-  ): PairEdit | null {
-    switch (e.inputType) {
-      case "insertText":
-        if (e.data === "$") return typeDollar(stops, text, from, to);
-        if (e.data === "[") return typeBracket(stops, text, from, to);
-        return null;
-      case "deleteContentBackward":
-        if (from !== to) return null;
-        return (
-          deleteDollar(stops, text, from) ?? deleteBracket(stops, text, from)
-        );
-      case "insertLineBreak":
-      case "insertParagraph":
-        return breakDisplay(stops, text, from, to);
-    }
-    return null;
-  }
-
-  editor.addEventListener("beforeinput", pair);
-  onSwap(() => {
-    stops = [];
-  });
-  editor.addEventListener("input", track);
+  tabs = bindTabStops({ editor, active: deps.active, paired: close });
   editor.addEventListener("input", update);
 
   const keepTyped = (): boolean => {
@@ -292,57 +251,17 @@ export function initTexComplete(deps: TexCompleteDeps): void {
     return true;
   };
 
-  const choose = (e: KeyboardEvent): void => {
-    if (e.shiftKey) {
+  bindListKeys(editor, list, {
+    keepTyped,
+    accept,
+    close,
+    dismiss: () => {
+      dismissedAt = context ? context.from : -1;
       close();
-      return;
-    }
-    if (e.key === "Enter" && keepTyped()) return;
-    e.preventDefault();
-    e.stopPropagation();
-    accept();
-  };
-
-  const dismiss = (e: KeyboardEvent): void => {
-    e.preventDefault();
-    e.stopPropagation();
-    dismissedAt = context ? context.from : -1;
-    close();
-  };
-
-  const move = (e: KeyboardEvent, step: number): void => {
-    e.preventDefault();
-    select(index + step);
-  };
-
-  const KEYS = new Map<string, (e: KeyboardEvent) => void>([
-    ["ArrowDown", (e) => move(e, 1)],
-    ["ArrowUp", (e) => move(e, -1)],
-    ["Enter", choose],
-    ["Tab", choose],
-    ["Escape", dismiss],
-  ]);
-
-  const CLOSING = new Set([
-    "ArrowLeft",
-    "ArrowRight",
-    "Home",
-    "End",
-    "PageUp",
-    "PageDown",
-  ]);
-
-  editor.addEventListener(
-    "keydown",
-    (e) => {
-      if (e.isComposing) return;
-      if (list.hidden) jump(e);
-      else if (e.altKey || e.ctrlKey || e.metaKey || CLOSING.has(e.key))
-        close();
-      else KEYS.get(e.key)?.(e);
     },
-    true,
-  );
+    move: (step) => select(index + step),
+    jump: (e) => tabs!.jump(e),
+  });
 
   editor.addEventListener("beforeinput", (e) => {
     if (list.hidden) return;
