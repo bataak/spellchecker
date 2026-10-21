@@ -9,6 +9,8 @@ import {
   stampName,
   textMime,
   textName,
+  OPEN_LABEL,
+  OPEN_TYPES,
 } from "../src/files/filetypes.ts";
 
 const file = (name: string, type = "") => ({ name, type });
@@ -60,4 +62,12 @@ test("restoredName Word файлын нэрийг бичвэрийн нэр бо
     "тайлан.txt",
   );
   assert.equal(restoredName({ name: "a.md", kind: "text" }), "a.md");
+});
+
+test("OPEN_LABEL: жагсаасан өргөтгөл бүрийг файл сонгогч хүлээн авна", () => {
+  const accepted = new Set(
+    OPEN_TYPES.flatMap((type) => Object.values(type.accept).flat()),
+  );
+  for (const ext of OPEN_LABEL.split(", "))
+    assert.ok(accepted.has("." + ext), ext);
 });
