@@ -108,6 +108,14 @@ function paragraphLine(line: string): boolean {
   return line.trim() !== "" && !BLOCK_START.test(line);
 }
 
+const QUOTE = /^[ \t]{0,3}>[ \t]?/;
+
+function continuesParagraph(line: string, next: string): boolean {
+  if (QUOTE.test(line) && QUOTE.test(next))
+    return continuesParagraph(line.replace(QUOTE, ""), next.replace(QUOTE, ""));
+  return paragraphLine(line) && paragraphLine(next);
+}
+
 function inlineRanges(text: string, fenced: SkipRange[]): SkipRange[] {
   const ranges: SkipRange[] = [];
   let index = 0;
@@ -137,7 +145,7 @@ function inlineRanges(text: string, fenced: SkipRange[]): SkipRange[] {
 
       if (code === 10) {
         const next = lineAt(text, cursor + 1);
-        if (!paragraphLine(line) || !paragraphLine(next)) break;
+        if (!continuesParagraph(line, next)) break;
         line = next;
         cursor += 1;
         continue;
