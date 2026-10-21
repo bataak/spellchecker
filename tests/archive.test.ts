@@ -126,5 +126,5 @@ test("unpackedSize: zip-ийг задлахгүйгээр зарласан ни�
     "a.xml": strToU8("x".repeat(5000)),
     "b.bin": [new Uint8Array(3000), { level: 0 }],
   });
-  assert.equal(unpackedSize(zip), 8000);
+  assert.equal(await unpackedSize(zip), 8000);
 });

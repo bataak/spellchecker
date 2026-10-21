@@ -1,4 +1,4 @@
-import { unzipSync } from "fflate";
+import { fflate } from "../archive/fflate.ts";
 import {
   cleanPath,
   commonRoot,
@@ -50,14 +50,14 @@ export async function readZip(file: File): Promise<LoadedFiles> {
   const bytes = new Uint8Array(await file.arrayBuffer());
   let size: number;
   try {
-    size = unpackedSize(bytes);
+    size = await unpackedSize(bytes);
   } catch {
     throw new ProjectError("Zip файлыг задалж чадсангүй");
   }
   if (size > MAX_BYTES)
     throw new ProjectError("Төсөл хэт том байна (200 MB-аас ихгүй)");
   try {
-    entries = unzipSync(bytes);
+    entries = (await fflate()).unzipSync(bytes);
   } catch {
     throw new ProjectError("Zip файлыг задалж чадсангүй");
   }

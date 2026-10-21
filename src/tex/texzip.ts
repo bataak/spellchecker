@@ -1,4 +1,4 @@
-import { strToU8, zipSync } from "fflate";
+import { fflate } from "../archive/fflate.ts";
 import { texImageSources } from "./teximages.ts";
 export interface TexZip {
   readonly blob: Blob;
@@ -6,6 +6,7 @@ export interface TexZip {
 }
 
 export async function zipTexText(text: string, name: string): Promise<TexZip> {
+  const { strToU8, zipSync } = await fflate();
   const images = await texImageSources(text);
   const zip = zipSync({
     ...images.files,

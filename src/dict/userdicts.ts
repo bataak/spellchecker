@@ -1,5 +1,5 @@
 import { requestResult } from "../core/idb.ts";
-import { gunzipSync } from "fflate";
+import { gunzipped } from "../archive/fflate.ts";
 import { IFO_MAGIC, parseIfo, type StarDict } from "./stardict.ts";
 import { buildStarDict } from "./stardictload.ts";
 import {
@@ -128,12 +128,8 @@ export function groupDictFiles<T extends { name: string }>(
   return groups;
 }
 
-function unzip(bytes: Uint8Array): Uint8Array {
-  return bytes[0] === 0x1f && bytes[1] === 0x8b ? gunzipSync(bytes) : bytes;
-}
-
 async function readBytes(file: Blob): Promise<Uint8Array> {
-  return unzip(new Uint8Array(await file.arrayBuffer()));
+  return gunzipped(new Uint8Array(await file.arrayBuffer()));
 }
 
 function openDb(): Promise<IDBDatabase> {

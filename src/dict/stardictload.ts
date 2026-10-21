@@ -1,4 +1,4 @@
-import { gunzipSync, inflateSync } from "fflate";
+import { fflate, gunzipped } from "../archive/fflate.ts";
 import { encodeBase, safeBase, type DictListEntry } from "./dictindex.ts";
 import { blobReader, openDictBytes, type DictBytes } from "./dictbytes.ts";
 import {
@@ -15,9 +15,6 @@ import {
   parseIfo,
   type StarDict,
 } from "./stardict.ts";
-
-const inflateChunk = (chunk: Uint8Array, limit: number): Uint8Array =>
-  inflateSync(chunk, { out: new Uint8Array(limit) });
 
 export const RETRY_DELAYS = [400, 1500];
 
@@ -52,11 +49,8 @@ export async function fetchWith<T>(
   throw failure instanceof Error ? failure : new Error("татагдсангүй: " + url);
 }
 
-const unzip = (bytes: Uint8Array): Uint8Array =>
-  bytes[0] === 0x1f && bytes[1] === 0x8b ? gunzipSync(bytes) : bytes;
-
 const readBytes = async (res: Response): Promise<Uint8Array> =>
-  unzip(new Uint8Array(await res.arrayBuffer()));
+  gunzipped(new Uint8Array(await res.arrayBuffer()));
 
 const readBlob = (res: Response): Promise<Blob> => res.blob();
 
@@ -107,7 +101,12 @@ export async function buildStarDict(
   syn: Uint8Array | null,
   dict: Blob,
 ): Promise<StarDict> {
-  const bytes = await openDictBytes(blobReader(dict), dict.size, inflateChunk);
+  const { inflateSync } = await fflate();
+  const bytes = await openDictBytes(
+    blobReader(dict),
+    dict.size,
+    (chunk, limit) => inflateSync(chunk, { out: new Uint8Array(limit) }),
+  );
   return openStarDict(ifoText, idx, guardReads(bytes), syn);
 }
 
