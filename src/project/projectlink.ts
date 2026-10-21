@@ -121,29 +121,13 @@ function watchProject(deps: ProjectLinkDeps, binding: Binding): void {
   document.addEventListener("visibilitychange", refresh);
 }
 
-export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
+function projectPanelFor(
+  deps: ProjectLinkDeps,
+  binding: Binding,
+  opened: (fresh: boolean, prefer?: string) => void,
+): ProjectPanel {
   const { store, editor } = deps;
-  const binding = createBinding(deps);
-  const opened = createOpened(deps, binding);
-  const save = createSave(store, binding, deps.notify);
-  let zipSnap: ProjectSnapshot | null = null;
-
-  const enter = (): void => {
-    if (binding.entering() || binding.bound()) return;
-    const view = store.project();
-    if (!view?.active || view.pending) return;
-    binding.adopt(true);
-    if (!binding.bound()) binding.openFile(view.active);
-    panel.reveal();
-  };
-
-  const close = (): void => {
-    if (!confirmClose(store.project()?.unsaved)) return;
-    store.closeProject();
-    storeSlot(null);
-  };
-
-  const panel: ProjectPanel = initProjectPanel({
+  return initProjectPanel({
     store,
     workspace: deps.workspace,
     tools: deps.tools,
@@ -166,15 +150,79 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     onLayout: deps.layout,
     notify: deps.notify,
   });
+}
 
+function bindOpenButton(deps: ProjectLinkDeps, panel: ProjectPanel): void {
   const openButton = deps.openButton;
-  if (openButton)
-    openButton.title = "Файл (" + deps.fileTypes + ") эсвэл LaTeX төсөл нээх";
-  openButton?.addEventListener("click", () =>
+  if (!openButton) return;
+  openButton.title = "Файл (" + deps.fileTypes + ") эсвэл LaTeX төсөл нээх";
+  openButton.addEventListener("click", () =>
     panel.openMenu(openButton, [
       { label: deps.fileTypes, run: () => deps.fileButton?.click() },
     ]),
   );
+}
+
+function findOpenFile(
+  store: ProjectStore,
+  name: string,
+  text: string,
+): string | undefined {
+  const view = store.project();
+  if (!view || view.pending) return undefined;
+  return findSameFile(
+    view.files,
+    name,
+    (path) =>
+      store.projectText(path) === text || store.projectSavedText(path) === text,
+  );
+}
+
+async function restoreInto(
+  deps: ProjectLinkDeps,
+  binding: Binding,
+  panel: ProjectPanel,
+  fail: (error: unknown) => void,
+): Promise<void> {
+  try {
+    if (!(await deps.store.restoreProject())) {
+      deps.onProject(null);
+      return;
+    }
+  } catch (error) {
+    fail(error);
+    deps.onProject(null);
+    return;
+  }
+  binding.adopt(false);
+  absorbSlots(deps);
+  panel.sync();
+}
+
+export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
+  const { store, editor } = deps;
+  const binding = createBinding(deps);
+  const opened = createOpened(deps, binding);
+  const save = createSave(store, binding, deps.notify);
+  let zipSnap: ProjectSnapshot | null = null;
+
+  const enter = (): void => {
+    if (binding.entering() || binding.bound()) return;
+    const view = store.project();
+    if (!view?.active || view.pending) return;
+    binding.adopt(true);
+    if (!binding.bound()) binding.openFile(view.active);
+    panel.reveal();
+  };
+
+  const close = (): void => {
+    if (!confirmClose(store.project()?.unsaved)) return;
+    store.closeProject();
+    storeSlot(null);
+  };
+
+  const panel = projectPanelFor(deps, binding, opened);
+  bindOpenButton(deps, panel);
   watchProject(deps, binding);
 
   const fail = (error: unknown): void => {
@@ -222,21 +270,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
         fail(error);
       }
     },
-    async restore() {
-      try {
-        if (!(await store.restoreProject())) {
-          deps.onProject(null);
-          return;
-        }
-      } catch (error) {
-        fail(error);
-        deps.onProject(null);
-        return;
-      }
-      binding.adopt(false);
-      absorbSlots(deps);
-      panel.sync();
-    },
+    restore: () => restoreInto(deps, binding, panel, fail),
     sync: panel.sync,
     enter,
     close,
@@ -245,15 +279,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
       panel.show(false);
     },
     openExisting(name, text) {
-      const view = store.project();
-      if (!view || view.pending) return false;
-      const path = findSameFile(
-        view.files,
-        name,
-        (path) =>
-          store.projectText(path) === text ||
-          store.projectSavedText(path) === text,
-      );
+      const path = findOpenFile(store, name, text);
       if (path === undefined) return false;
       binding.openFile(path);
       panel.reveal();
