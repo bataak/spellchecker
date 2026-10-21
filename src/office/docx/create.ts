@@ -201,6 +201,119 @@ function headingBookmark(level: number, body: Body, inner: string): string {
   );
 }
 
+function listXml(
+  block: Extract<IrBlock, { kind: "list" }>,
+  body: Body,
+): string {
+  const render = (tree: ListTree<readonly IrRun[]>, level: number): string => {
+    body.nums.push({ ordered: tree.ordered, start: tree.start, level });
+    const numPr =
+      '<w:numPr><w:ilvl w:val="' +
+      String(level) +
+      '"/><w:numId w:val="' +
+      String(body.nums.length) +
+      '"/></w:numPr>';
+    return tree.entries
+      .map(
+        ({ item, sub }) =>
+          paraXml(styled(block.style, numPr), runsXml(item, body, false)) +
+          (sub ? render(sub, Math.min(level + 1, LIST_LEVELS - 1)) : ""),
+      )
+      .join("");
+  };
+  return render(listTree(block), 0);
+}
+
+const rule = (side: string, size: number): string =>
+  "<w:" +
+  side +
+  ' w:val="single" w:sz="' +
+  String(size) +
+  '" w:space="0" w:color="000000"/>';
+
+function cellXml(
+  block: Extract<IrBlock, { kind: "table" }>,
+  runs: readonly IrRun[],
+  width: number,
+  align: (typeof block.align)[number],
+  head: boolean,
+  body: Body,
+): string {
+  const fill = runs.some((run) => run.fill);
+  return (
+    '<w:tc><w:tcPr><w:tcW w:w="' +
+    String(width) +
+    '" w:type="dxa"/>' +
+    (head ? "<w:tcBorders>" + rule("bottom", 6) + "</w:tcBorders>" : "") +
+    (head ? '<w:vAlign w:val="center"/>' : "") +
+    "</w:tcPr>" +
+    paraXml(
+      styled(
+        head ? STYLE.tableHead : (block.cellStyle ?? STYLE.tableCell),
+        fill
+          ? '<w:tabs><w:tab w:val="right" w:leader="underscore" w:pos="' +
+              String(Math.max(0, width - 216)) +
+              '"/></w:tabs>'
+          : align
+            ? '<w:jc w:val="' + JC[align] + '"/>'
+            : "",
+      ),
+      runsXml(tabFills(runs), body, false),
+    ) +
+    "</w:tc>"
+  );
+}
+
+function tableXml(
+  block: Extract<IrBlock, { kind: "table" }>,
+  doc: DocIr,
+  body: Body,
+): string {
+  const header = block.header !== false;
+  const widths = columnWidths(
+    block.rows,
+    header,
+    doc.page.widthCm - doc.page.marginInnerCm - doc.page.marginOuterCm,
+    officeMetrics(
+      doc.styles[block.cellStyle ?? STYLE.tableCell]?.sizePt ?? doc.font.sizePt,
+    ),
+  ).map(twips);
+  const rows = block.rows
+    .map((row, rowIndex) => {
+      const head = header && rowIndex === 0;
+      const cells = widths
+        .map((width, i) =>
+          cellXml(block, row[i] ?? [], width, block.align[i], head, body),
+        )
+        .join("");
+      return (
+        "<w:tr>" +
+        (head ? "<w:trPr><w:tblHeader/></w:trPr>" : "") +
+        cells +
+        "</w:tr>"
+      );
+    })
+    .join("");
+  return (
+    '<w:tbl><w:tblPr><w:tblW w:w="' +
+    String(widths.reduce((sum, width) => sum + width, 0)) +
+    '" w:type="dxa"/><w:jc w:val="' +
+    JC[block.placement ?? "center"] +
+    '"/>' +
+    (header
+      ? "<w:tblBorders>" +
+        rule("top", 12) +
+        rule("bottom", 12) +
+        "</w:tblBorders>"
+      : "") +
+    '<w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="28" w:type="dxa"/><w:left w:w="57" w:type="dxa"/><w:bottom w:w="28" w:type="dxa"/><w:right w:w="57" w:type="dxa"/></w:tblCellMar><w:tblLook w:val="04A0"/></w:tblPr><w:tblGrid>' +
+    widths.map((width) => '<w:gridCol w:w="' + String(width) + '"/>').join("") +
+    "</w:tblGrid>" +
+    rows +
+    "</w:tbl>"
+  );
+}
+
 function blockXml(block: IrBlock, doc: DocIr, body: Body): string {
   switch (block.kind) {
     case "para": {
@@ -211,109 +324,10 @@ function blockXml(block: IrBlock, doc: DocIr, body: Body): string {
         headingBookmark(style?.outlineLevel ?? 0, body, inner),
       );
     }
-    case "list": {
-      const render = (
-        tree: ListTree<readonly IrRun[]>,
-        level: number,
-      ): string => {
-        body.nums.push({ ordered: tree.ordered, start: tree.start, level });
-        const numPr =
-          '<w:numPr><w:ilvl w:val="' +
-          String(level) +
-          '"/><w:numId w:val="' +
-          String(body.nums.length) +
-          '"/></w:numPr>';
-        return tree.entries
-          .map(
-            ({ item, sub }) =>
-              paraXml(styled(block.style, numPr), runsXml(item, body, false)) +
-              (sub ? render(sub, Math.min(level + 1, LIST_LEVELS - 1)) : ""),
-          )
-          .join("");
-      };
-      return render(listTree(block), 0);
-    }
-    case "table": {
-      const header = block.header !== false;
-      const widths = columnWidths(
-        block.rows,
-        header,
-        doc.page.widthCm - doc.page.marginInnerCm - doc.page.marginOuterCm,
-        officeMetrics(
-          doc.styles[block.cellStyle ?? STYLE.tableCell]?.sizePt ??
-            doc.font.sizePt,
-        ),
-      ).map(twips);
-      const rule = (side: string, size: number): string =>
-        "<w:" +
-        side +
-        ' w:val="single" w:sz="' +
-        String(size) +
-        '" w:space="0" w:color="000000"/>';
-      const rows = block.rows
-        .map((row, rowIndex) => {
-          const head = header && rowIndex === 0;
-          const cells = widths
-            .map((width, i) => {
-              const align = block.align[i];
-              const fill = (row[i] ?? []).some((run) => run.fill);
-              return (
-                '<w:tc><w:tcPr><w:tcW w:w="' +
-                String(width) +
-                '" w:type="dxa"/>' +
-                (head
-                  ? "<w:tcBorders>" + rule("bottom", 6) + "</w:tcBorders>"
-                  : "") +
-                (head ? '<w:vAlign w:val="center"/>' : "") +
-                "</w:tcPr>" +
-                paraXml(
-                  styled(
-                    head
-                      ? STYLE.tableHead
-                      : (block.cellStyle ?? STYLE.tableCell),
-                    fill
-                      ? '<w:tabs><w:tab w:val="right" w:leader="underscore" w:pos="' +
-                          String(Math.max(0, width - 216)) +
-                          '"/></w:tabs>'
-                      : align
-                        ? '<w:jc w:val="' + JC[align] + '"/>'
-                        : "",
-                  ),
-                  runsXml(tabFills(row[i] ?? []), body, false),
-                ) +
-                "</w:tc>"
-              );
-            })
-            .join("");
-          return (
-            "<w:tr>" +
-            (head ? "<w:trPr><w:tblHeader/></w:trPr>" : "") +
-            cells +
-            "</w:tr>"
-          );
-        })
-        .join("");
-      return (
-        '<w:tbl><w:tblPr><w:tblW w:w="' +
-        String(widths.reduce((sum, width) => sum + width, 0)) +
-        '" w:type="dxa"/><w:jc w:val="' +
-        JC[block.placement ?? "center"] +
-        '"/>' +
-        (header
-          ? "<w:tblBorders>" +
-            rule("top", 12) +
-            rule("bottom", 12) +
-            "</w:tblBorders>"
-          : "") +
-        '<w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="28" w:type="dxa"/><w:left w:w="57" w:type="dxa"/><w:bottom w:w="28" w:type="dxa"/><w:right w:w="57" w:type="dxa"/></w:tblCellMar><w:tblLook w:val="04A0"/></w:tblPr><w:tblGrid>' +
-        widths
-          .map((width) => '<w:gridCol w:w="' + String(width) + '"/>')
-          .join("") +
-        "</w:tblGrid>" +
-        rows +
-        "</w:tbl>"
-      );
-    }
+    case "list":
+      return listXml(block, body);
+    case "table":
+      return tableXml(block, doc, body);
     case "rule":
       return paraXml(
         '<w:pBdr><w:bottom w:val="single" w:sz="4" w:space="1" w:color="000000"/></w:pBdr>' +
