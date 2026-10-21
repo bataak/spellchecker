@@ -472,3 +472,10 @@ test("an escaped backslash before a backtick still opens inline code", () => {
   assert.ok(skipped(text, "кодынүг"));
   assert.ok(!skipped(text, "дуусав"));
 });
+
+test("a fence line with an info string does not close the block", () => {
+  const text = "```python\nэхнийүг\n```python\nдарааүг\n```\nгадна";
+  assert.ok(skipped(text, "эхнийүг"));
+  assert.ok(skipped(text, "дарааүг"));
+  assert.ok(!skipped(text, "гадна"));
+});
