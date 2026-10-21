@@ -91,7 +91,7 @@ test("getIgnored: хуулбарыг буцаана", () => {
   assert.deepEqual(getIgnored(), ["тест"]);
 });
 
-test("addIgnored: өөр табад хадгалсан үгийг дарж бичихгүй", () => {
+test("addIgnored: өөр табт хадгалсан үгийг дарж бичихгүй", () => {
   addIgnored("Хүрэлбаатар");
   rawSet(KEY, JSON.stringify(["Хүрэлбаатар", "Болд"]));
   addIgnored("Цэцэгмаа");

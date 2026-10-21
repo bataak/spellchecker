@@ -18,7 +18,7 @@ transpile хийдэг бол `tsc --noEmit` нь зөвхөн төрлийн ш
 ```sh
 npm ci             # шаардлагатай сангуудыг суулгах (эхний удаа)
 npm test           # төрлийн шалгалт + бичил шалгалт хийх
-npm run test:e2e   # хөтөч дээр апп-ыг бүхэлд нь шалгах (Playwright)
+npm run test:e2e   # хөтөч дээр апыг бүхэлд нь шалгах (Playwright)
 npm run typecheck  # зөвхөн төрлийн шалгалт (tsc --noEmit)
 npm run dev        # хөгжүүлэлтийн сервер (localhost)
 npm run preview    # production build хийж урьдчилан үзэх
