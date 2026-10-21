@@ -22,6 +22,13 @@ const CORS = {
 
 export const GITLAB_PROJECT = "group/sub/thesis";
 
+interface CommitAction {
+  action: string;
+  file_path: string;
+  content?: string;
+  last_commit_id?: string;
+}
+
 export class FakeGitlab {
   readonly blobs = new Map<string, Buffer>();
   readonly commits = new Map<string, Commit>();
@@ -155,69 +162,74 @@ export class FakeGitlab {
         url.searchParams.get("ref")!,
         Number(url.searchParams.get("page") ?? "1"),
       );
-    if (
-      (match = /^\/repository\/files\/(.+)$/.exec(path)) &&
-      method === "HEAD"
-    ) {
-      const last = this.lastCommitFor(
+    if ((match = /^\/repository\/files\/(.+)$/.exec(path)) && method === "HEAD")
+      return this.fileHead(
         url.searchParams.get("ref")!,
         decodeURIComponent(match[1]!),
       );
-      return last
-        ? {
-            status: 200,
-            headers: this.hideLastCommit
-              ? CORS
-              : { ...CORS, "x-gitlab-last-commit-id": last },
-            body: "",
-          }
-        : this.json(404, {});
-    }
     if ((match = /^\/repository\/blobs\/(\w+)\/raw$/.exec(path)))
       return { status: 200, headers: CORS, body: this.blobs.get(match[1]!)! };
-    if (path === "/repository/commits" && method === "POST") {
-      const input = JSON.parse(body ?? "{}") as {
-        branch: string;
-        commit_message: string;
-        actions: {
-          action: string;
-          file_path: string;
-          content?: string;
-          last_commit_id?: string;
-        }[];
-      };
-      this.beforeCommit?.();
-      this.beforeCommit = null;
-      const head = this.branches.get(input.branch)!;
-      const map = new Map(this.commits.get(head)!.files);
-      for (const action of input.actions) {
-        const exists = map.has(action.file_path);
-        if (action.action === "create" && exists)
-          return this.json(400, { message: "exists" });
-        if (action.action !== "create" && !exists)
-          return this.json(400, { message: "missing" });
-        if (
-          action.last_commit_id &&
-          this.lastCommitFor(head, action.file_path) !== action.last_commit_id
-        )
-          return this.json(400, { message: "changed since" });
-        if (action.action === "delete") map.delete(action.file_path);
-        else
-          map.set(
-            action.file_path,
-            this.putBlob(Buffer.from(action.content ?? "", "base64")),
-          );
-      }
-      const id = this.id();
-      this.commits.set(id, {
-        files: map,
-        parent: head,
-        message: input.commit_message,
-      });
-      this.branches.set(input.branch, id);
-      return this.json(201, { id });
-    }
+    if (path === "/repository/commits" && method === "POST")
+      return this.commit(body);
     return this.json(404, {});
+  }
+
+  private fileHead(ref: string, file: string): Reply {
+    const last = this.lastCommitFor(ref, file);
+    if (!last) return this.json(404, {});
+    return {
+      status: 200,
+      headers: this.hideLastCommit
+        ? CORS
+        : { ...CORS, "x-gitlab-last-commit-id": last },
+      body: "",
+    };
+  }
+
+  private applyAction(
+    head: string,
+    map: Map<string, string>,
+    action: CommitAction,
+  ): string | null {
+    const exists = map.has(action.file_path);
+    if (action.action === "create" && exists) return "exists";
+    if (action.action !== "create" && !exists) return "missing";
+    if (
+      action.last_commit_id &&
+      this.lastCommitFor(head, action.file_path) !== action.last_commit_id
+    )
+      return "changed since";
+    if (action.action === "delete") map.delete(action.file_path);
+    else
+      map.set(
+        action.file_path,
+        this.putBlob(Buffer.from(action.content ?? "", "base64")),
+      );
+    return null;
+  }
+
+  private commit(body: string | null): Reply {
+    const input = JSON.parse(body ?? "{}") as {
+      branch: string;
+      commit_message: string;
+      actions: CommitAction[];
+    };
+    this.beforeCommit?.();
+    this.beforeCommit = null;
+    const head = this.branches.get(input.branch)!;
+    const map = new Map(this.commits.get(head)!.files);
+    for (const action of input.actions) {
+      const failure = this.applyAction(head, map, action);
+      if (failure) return this.json(400, { message: failure });
+    }
+    const id = this.id();
+    this.commits.set(id, {
+      files: map,
+      parent: head,
+      message: input.commit_message,
+    });
+    this.branches.set(input.branch, id);
+    return this.json(201, { id });
   }
 
   readonly fetch = (url: string, init?: RequestInit): Promise<Response> => {
