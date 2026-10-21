@@ -48,7 +48,7 @@ export function resolveImages(root: HTMLElement): void {
           img,
           "md-image-remote",
           hostOf(src),
-          "Интернетийн зураг · ачаалах",
+          "Гаднын зураг · ачаалах",
         ),
       );
       continue;
