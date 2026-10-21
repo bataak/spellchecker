@@ -215,7 +215,7 @@ main {
   flex-direction: column;
 }
 
-h1 {
+.topbar > h1 {
   font-family: var(--serif);
   font-weight: 600;
   font-size: clamp(1.25rem, 3vw, 1.6rem);
@@ -966,6 +966,18 @@ a.tbtn {
 .preview-body h6 {
   margin: 1.1em 0 0.45em;
   line-height: 1.3;
+}
+
+.preview-body h1 {
+  font-size: 2em;
+}
+
+.preview-body h2 {
+  font-size: 1.5em;
+}
+
+.preview-body h3 {
+  font-size: 1.17em;
 }
 
 .preview-body p {
