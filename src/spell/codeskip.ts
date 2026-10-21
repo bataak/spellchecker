@@ -95,6 +95,19 @@ function escaped(text: string, index: number): boolean {
   return slashes % 2 === 1;
 }
 
+const BLOCK_START =
+  /^[ \t]{0,3}(?:#{1,6}(?:[ \t]|$)|>|[-*+][ \t]|\d+[.)][ \t]|\||`{3,}|~{3,}|:{3,})/;
+
+function lineAt(text: string, offset: number): string {
+  const start = text.lastIndexOf("\n", offset - 1) + 1;
+  const end = text.indexOf("\n", offset);
+  return text.slice(start, end < 0 ? text.length : end);
+}
+
+function paragraphLine(line: string): boolean {
+  return line.trim() !== "" && !BLOCK_START.test(line);
+}
+
 function inlineRanges(text: string, fenced: SkipRange[]): SkipRange[] {
   const ranges: SkipRange[] = [];
   let index = 0;
@@ -117,11 +130,18 @@ function inlineRanges(text: string, fenced: SkipRange[]): SkipRange[] {
 
     let cursor = openEnd;
     let closed = -1;
+    let line = lineAt(text, index);
 
     while (cursor < text.length) {
       const code = text.charCodeAt(cursor);
 
-      if (code === 10) break;
+      if (code === 10) {
+        const next = lineAt(text, cursor + 1);
+        if (!paragraphLine(line) || !paragraphLine(next)) break;
+        line = next;
+        cursor += 1;
+        continue;
+      }
 
       if (code === 96) {
         let runEnd = cursor;

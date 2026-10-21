@@ -252,13 +252,27 @@ test("does not treat decimal numbers as domains", () => {
   assert.deepEqual(skipRanges(text), []);
 });
 
-test("inline code never crosses a line break", () => {
-  const text = "Тэр ` тэмдэгт хэрэглэв.\nДараа нь ` дахин бичив.";
+test("inline code spans lines inside one paragraph, as in the preview", () => {
+  const text = "Тэр `тэмдэгт\nДараа` дахин бичив.";
   const ranges = skipRanges(text);
 
-  assert.deepEqual(ranges, []);
-  assert.ok(!inRanges(ranges, text.indexOf("тэмдэгт")));
+  assert.ok(inRanges(ranges, text.indexOf("тэмдэгт")));
+  assert.ok(inRanges(ranges, text.indexOf("Дараа")));
   assert.ok(!inRanges(ranges, text.indexOf("дахин")));
+});
+
+test("inline code stops where the preview starts a new block", () => {
+  for (const text of [
+    "# Гарчиг `код\nДараа` дахин",
+    "- нэг `код\n- хоёр` дахин",
+    "- нэг `код\n  үргэлжлэл` дахин",
+    "өмнө `код\n> ишлэл` дахин",
+    "| а `б |\n|---|\n| в` г |",
+    "өмнө `код\n```\nблок` дахин\n```",
+  ]) {
+    const after = text.indexOf("`") + 1;
+    assert.ok(!inRanges(codeRanges(text), after), text);
+  }
 });
 
 test("inline code still works within one line", () => {
