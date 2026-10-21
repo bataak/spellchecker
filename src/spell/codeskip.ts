@@ -4,6 +4,7 @@ export interface SkipRange {
 }
 
 const FENCE = /^[ \t]{0,3}(`{3,}|~{3,})/;
+const FENCE_CLOSE = /^[ \t]{0,3}(`{3,}|~{3,})[ \t]*$/;
 const HTML_BLOCK = /<(pre|code|kbd|samp|tt)\b[^>]*>[\s\S]*?<\/\1\s*>/gi;
 const NO_BLANK = String.raw`(?:(?!\n[ \t]*\n)[\s\S])*?`;
 const MATH_BLOCK = new RegExp(
@@ -64,7 +65,12 @@ function fencedRanges(text: string, starts: number[]): SkipRange[] {
       continue;
     }
 
-    if (match[1][0] === marker[0] && match[1].length >= marker.length) {
+    const close = FENCE_CLOSE.exec(source);
+    if (
+      close &&
+      close[1][0] === marker[0] &&
+      close[1].length >= marker.length
+    ) {
       ranges.push({ start: open, end: to });
       open = -1;
       marker = "";
@@ -82,6 +88,13 @@ function covered(ranges: SkipRange[], offset: number): boolean {
   return false;
 }
 
+function escaped(text: string, index: number): boolean {
+  let slashes = 0;
+  while (index - slashes > 0 && text.charCodeAt(index - slashes - 1) === 92)
+    slashes += 1;
+  return slashes % 2 === 1;
+}
+
 function inlineRanges(text: string, fenced: SkipRange[]): SkipRange[] {
   const ranges: SkipRange[] = [];
   let index = 0;
@@ -92,7 +105,7 @@ function inlineRanges(text: string, fenced: SkipRange[]): SkipRange[] {
       continue;
     }
 
-    if (covered(fenced, index)) {
+    if (covered(fenced, index) || escaped(text, index)) {
       index += 1;
       continue;
     }
@@ -178,7 +191,8 @@ const MD_ATTRS = /\]\((?:[^()]|\([^()]*\))*\)(\{[^{}\n]*\})/g;
 const MD_DEFINITION = /^[ \t]{0,3}\[[^\]]+\]:[ \t]*(\S+)/gm;
 const AUTOLINK = /<[^\s<>]*(?::\/\/|@)[^\s<>]*>/g;
 const TLD =
-  "com|org|net|io|dev|mn|edu|gov|info|app|ai|co|me|ru|uk|de|fr|jp|cn|kr|tv|xyz|tech|online|site|page|blog|cloud|sh|gg";
+  "com|org|net|io|dev|mn|edu|gov|info|app|ai|co|me|ru|uk|de|fr|jp|cn|kr|tv|xyz|tech|online|site|page|blog|cloud|sh|gg|" +
+  "shop|store|biz|us|ca|au|eu|nl|it|es|ch|se|kz|top|live|news|art|club|space|website|fun|life|world|link|today|studio|design|agency|digital";
 
 const DOMAIN = new RegExp(
   String.raw`\b(?:[A-Za-z0-9][A-Za-z0-9-]*\.)+(?:${TLD})\b(?:\/${URL_CHARS}*)?`,

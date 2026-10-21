@@ -645,3 +645,18 @@ test("жагсаалт — дэд жагсаалтын догол хэлбэрж
     '<ul data-line="0"><li>Хоол<ul><li>Цуйван</li><li>Бууз</li></ul></li><li>Ундаа<ul><li>Цай</li></ul></li></ul>',
   );
 });
+
+test("кодын блок — info string-тэй мөр блокийг хаахгүй", () => {
+  const blocks = parse("```python\nа\n```python\nб\n```\n\nдогол\n");
+  assert.deepEqual(
+    blocks.map((b) => b.type),
+    ["codeblock", "paragraph"],
+  );
+  assert.equal((blocks[0] as { value: string }).value, "а\n```python\nб");
+});
+
+test("кодын блок — урт fence-ийг богино fence хаахгүй", () => {
+  const blocks = parse("````\nа\n```\nб\n````\n");
+  assert.equal(blocks.length, 1);
+  assert.equal((blocks[0] as { value: string }).value, "а\n```\nб");
+});

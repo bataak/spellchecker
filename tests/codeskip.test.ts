@@ -230,6 +230,12 @@ test("does not treat file names as domains", () => {
     "style.css",
     "Node.js",
     "mn_MN.aff",
+    "main.ts",
+    "script.py",
+    "build.rs",
+    "archive.zip",
+    "clip.mov",
+    "run.pl",
   ]) {
     const text = "Файл нь " + name + " нэртэй.";
     assert.deepEqual(skipRanges(text), [], name);
@@ -458,5 +464,44 @@ test("www and bare domains keep balanced parentheses", () => {
     const ranges = skipRanges(text);
     assert.ok(inRanges(ranges, text.indexOf("алдаатй")), text);
     assert.ok(!inRanges(ranges, text.indexOf("ба")), text);
+  }
+});
+
+test("an escaped backtick does not open inline code", () => {
+  const text = "\\`алдаатй\\`\n`кодынүг`\nдараа";
+  assert.ok(!skipped(text, "алдаатй"));
+  assert.ok(skipped(text, "кодынүг"));
+});
+
+test("an escaped backslash before a backtick still opens inline code", () => {
+  const text = "Зам \\\\`кодынүг` дуусав.";
+  assert.ok(skipped(text, "кодынүг"));
+  assert.ok(!skipped(text, "дуусав"));
+});
+
+test("a fence line with an info string does not close the block", () => {
+  const text = "```python\nэхнийүг\n```python\nдарааүг\n```\nгадна";
+  assert.ok(skipped(text, "эхнийүг"));
+  assert.ok(skipped(text, "дарааүг"));
+  assert.ok(!skipped(text, "гадна"));
+});
+
+test("skips bare domains on common generic and country TLDs", () => {
+  for (const host of [
+    "example.shop",
+    "example.store",
+    "example.biz",
+    "example.us",
+    "example.eu",
+    "example.kz",
+    "example.top",
+    "example.live",
+    "example.news",
+    "example.world",
+  ]) {
+    const text = host + "/алдаатй дараа";
+    const ranges = skipRanges(text);
+    assert.ok(inRanges(ranges, text.indexOf("алдаатй")), host);
+    assert.ok(!inRanges(ranges, text.indexOf("дараа")), host);
   }
 });
