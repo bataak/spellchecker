@@ -253,3 +253,23 @@ test("утсан дээр toolbar-ыг төгсгөл рүү гүйлгэхэд 
   assert.ok(Math.abs(gap) <= 1, String(gap));
   await context.close();
 });
+
+test("«Файл нээх» товч цэсээ нээж хаана, Escape фокусыг товч руу буцаана", async () => {
+  const context = await app.context();
+  const page = await openPage(app, context);
+  const menu = page.locator(".project-menu");
+  await page.click("#openBtn");
+  assert.equal(await menu.isVisible(), true);
+  await page.click("#openBtn");
+  assert.equal(await menu.isVisible(), false);
+  await page.focus("#openBtn");
+  await page.keyboard.press("Enter");
+  assert.equal(await menu.isVisible(), true);
+  await page.keyboard.press("Escape");
+  assert.equal(await menu.isVisible(), false);
+  assert.equal(
+    await page.evaluate(() => document.activeElement?.id),
+    "openBtn",
+  );
+  await context.close();
+});
