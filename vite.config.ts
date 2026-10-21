@@ -62,6 +62,7 @@ export default defineConfig({
   build: {
     target: "es2020",
     rollupOptions: {
+      checks: { pluginTimings: false },
       onwarn(warning, warn) {
         if (warning.code === "INEFFECTIVE_DYNAMIC_IMPORT")
           throw new Error(warning.message);
