@@ -1,6 +1,6 @@
 import { onImagesChange, pickImage, putImage } from "../files/images.ts";
 import { downloadBlob } from "../files/download.ts";
-import type { SaveChain, SaveTrigger } from "../ui/savechain.ts";
+import type { SaveChain } from "../ui/savechain.ts";
 import { createPrinter } from "./exportprint.ts";
 import {
   FORMATS,
@@ -14,9 +14,10 @@ import {
   hasSections,
   type ExportFormat,
 } from "./exportformats.ts";
-import { escapeAttr } from "../core/htmlutil.ts";
 import { findTemplate } from "../doc/templates.ts";
 import type { TexProject } from "../project/projectbuild.ts";
+import { buildExportDialog, missingItems } from "./exportmarkup.ts";
+import { bindExportTriggers } from "./exporttriggers.ts";
 
 export interface ExportOptions {
   readonly editor: HTMLTextAreaElement;
@@ -43,8 +44,6 @@ export interface ExportControl {
   syncPrint: () => void;
   destroy: () => void;
 }
-
-const LONG_PRESS_MS = 550;
 
 function stamp(): string {
   const now = new Date();
@@ -85,10 +84,8 @@ export async function deliverFile(
   return true;
 }
 
-export function initExport(options: ExportOptions): ExportControl {
-  const { editor } = options;
-
-  const texFormats: ExportFormat[] = [
+function texFormatsFor(options: ExportOptions): ExportFormat[] {
+  const formats: ExportFormat[] = [
     {
       id: "tex-source",
       frames: [],
@@ -100,9 +97,9 @@ export function initExport(options: ExportOptions): ExportControl {
       build: (text) => text,
     },
   ];
-  const { texPdf } = options;
+  const { texPdf, texZip } = options;
   if (texPdf)
-    texFormats.push({
+    formats.push({
       id: "tex-pdf",
       frames: [],
       name: "PDF",
@@ -111,9 +108,8 @@ export function initExport(options: ExportOptions): ExportControl {
       slow: true,
       build: () => texPdf(),
     });
-  const { texZip } = options;
   if (texZip)
-    texFormats.push({
+    formats.push({
       id: "tex-zip",
       frames: [],
       name: "Архив",
@@ -123,120 +119,11 @@ export function initExport(options: ExportOptions): ExportControl {
       delivered: options.texZipped,
       build: (text, _template, { name }) => texZip(text, name ?? "main"),
     });
-  const formats = [...FORMATS, ...texFormats];
+  return formats;
+}
 
-  const overlay = document.createElement("div");
-  overlay.className = "export-backdrop";
-  overlay.hidden = true;
-  overlay.innerHTML =
-    '<div class="export-panel" role="dialog" aria-modal="true" ' +
-    'aria-label="Файл болгож хадгалах">' +
-    '<h2 class="export-title">Файл болгож хадгалах</h2>' +
-    '<label class="export-field">Нэр' +
-    '<input class="export-name" type="text" autocomplete="off" ' +
-    'autocapitalize="off" spellcheck="false" />' +
-    "</label>" +
-    '<div class="export-formats">' +
-    formats
-      .map(
-        (format, index) =>
-          '<button type="button" class="tbtn export-format' +
-          (index === 0 ? " is-on" : "") +
-          '" data-format="' +
-          escapeAttr(format.id) +
-          '">' +
-          escapeAttr(format.name) +
-          ' <span class="export-ext">.' +
-          escapeAttr(format.ext) +
-          "</span></button>",
-      )
-      .join("") +
-    "</div>" +
-    '<label class="export-toc" hidden>' +
-    '<input class="export-toc-input" type="checkbox" /> Гарчгийн жагсаалт үүсгэх' +
-    "</label>" +
-    '<div class="export-missing" hidden>' +
-    '<p class="export-missing-title">Олдоогүй зураг — файлд орохгүй:</p>' +
-    '<ul class="export-missing-list"></ul>' +
-    "</div>" +
-    '<label class="export-toc export-notes" hidden>' +
-    '<input class="export-notes-input" type="checkbox" /> Илтгэгчийн тэмдэглэлийг хоёр дахь дэлгэцэнд гаргах' +
-    "</label>" +
-    '<p class="export-error" role="alert" hidden></p>' +
-    '<div class="export-actions">' +
-    '<button type="button" class="tbtn export-cancel">Болих</button>' +
-    '<button type="button" class="tbtn export-confirm">Хадгалах</button>' +
-    "</div>" +
-    "</div>";
-
-  document.body.appendChild(overlay);
-
-  const nameInput = overlay.querySelector<HTMLInputElement>(".export-name")!;
-  const tocField = overlay.querySelector<HTMLElement>(".export-toc")!;
-  const tocInput =
-    overlay.querySelector<HTMLInputElement>(".export-toc-input")!;
-  const notesField = overlay.querySelector<HTMLElement>(".export-notes")!;
-  const missingField = overlay.querySelector<HTMLElement>(".export-missing")!;
-  const missingList = overlay.querySelector<HTMLElement>(
-    ".export-missing-list",
-  )!;
-  const notesInput = overlay.querySelector<HTMLInputElement>(
-    ".export-notes-input",
-  )!;
-  const errorNote = overlay.querySelector<HTMLElement>(".export-error")!;
-
-  let chosen = FORMATS[0]!;
-  let userPicked = false;
-  let restoreFocus: HTMLElement | null = null;
-
-  function baseFrom(): string {
-    const current = options.baseName();
-    if (current) return stripExt(current);
-    return stamp();
-  }
-
-  function available(): ExportFormat[] {
-    if (options.isTex?.()) return texFormats;
-    const frame = findTemplate(options.template())?.frame ?? "plain";
-    return FORMATS.filter((format) => format.frames.includes(frame));
-  }
-
-  function syncFormat(): void {
-    for (const button of overlay.querySelectorAll<HTMLElement>(
-      ".export-format",
-    ))
-      button.classList.toggle("is-on", button.dataset.format === chosen.id);
-
-    tocField.hidden =
-      !TOC_FORMATS.has(chosen.id) ||
-      !hasSections(editor.value, options.template());
-    notesField.hidden =
-      !NOTES_FORMATS.has(chosen.id) ||
-      !hasNotes(editor.value, options.template());
-    syncMissing();
-
-    nameInput.value = stripExt(nameInput.value) + "." + chosen.ext;
-  }
-
-  function syncMissing(): void {
-    const missing =
-      options.isTex?.() || !EMBED_FORMATS.has(chosen.id)
-        ? []
-        : missingImages(editor.value);
-    missingField.hidden = missing.length === 0;
-    missingList.innerHTML = missing
-      .map(
-        (src) =>
-          '<li><span class="export-missing-name">' +
-          escapeAttr(src) +
-          '</span><button type="button" class="tbtn export-pick" data-src="' +
-          escapeAttr(src) +
-          '">Сонгох</button></li>',
-      )
-      .join("");
-  }
-
-  missingList.addEventListener("click", (event) => {
+function bindMissingPick(list: HTMLElement): void {
+  list.addEventListener("click", (event) => {
     const button = (event.target as Element).closest<HTMLElement>(
       ".export-pick",
     );
@@ -246,6 +133,83 @@ export function initExport(options: ExportOptions): ExportControl {
       if (file) putImage(src, file);
     });
   });
+}
+
+const formatButtons = (overlay: HTMLElement) =>
+  overlay.querySelectorAll<HTMLElement>(".export-format");
+
+async function produce(
+  options: ExportOptions,
+  format: ExportFormat,
+  text: string,
+  name: string,
+  flags: { toc: boolean; notesScreen: boolean },
+): Promise<string | null> {
+  if (format.slow) options.onBusy?.(true, format.ext);
+  try {
+    const data = await format.build(text, options.template(), {
+      ...flags,
+      name: stripExt(name),
+    });
+    if (format.slow) options.onBusy?.(false);
+    if (await deliverFile(data, name, format.mime)) {
+      format.delivered?.();
+      options.onDone?.(name);
+    }
+  } catch (error) {
+    if (format.slow) options.onBusy?.(false);
+    console.error("export:", error);
+    if (error instanceof Error && error.name === "PdfError")
+      return error.message;
+    options.onBlocked?.();
+  }
+  return null;
+}
+
+export function initExport(options: ExportOptions): ExportControl {
+  const { editor } = options;
+  const texFormats = texFormatsFor(options);
+  const formats = [...FORMATS, ...texFormats];
+  const parts = buildExportDialog(formats);
+  const { overlay, nameInput, tocInput, notesInput, errorNote } = parts;
+
+  let chosen = FORMATS[0]!;
+  let userPicked = false;
+  let restoreFocus: HTMLElement | null = null;
+
+  const baseFrom = (): string => {
+    const current = options.baseName();
+    return current ? stripExt(current) : stamp();
+  };
+
+  function available(): ExportFormat[] {
+    if (options.isTex?.()) return texFormats;
+    const frame = findTemplate(options.template())?.frame ?? "plain";
+    return FORMATS.filter((format) => format.frames.includes(frame));
+  }
+
+  function syncMissing(): void {
+    const missing =
+      options.isTex?.() || !EMBED_FORMATS.has(chosen.id)
+        ? []
+        : missingImages(editor.value);
+    parts.missingField.hidden = missing.length === 0;
+    parts.missingList.innerHTML = missingItems(missing);
+  }
+
+  function syncFormat(): void {
+    for (const button of formatButtons(overlay))
+      button.classList.toggle("is-on", button.dataset.format === chosen.id);
+    const template = options.template();
+    parts.tocField.hidden =
+      !TOC_FORMATS.has(chosen.id) || !hasSections(editor.value, template);
+    parts.notesField.hidden =
+      !NOTES_FORMATS.has(chosen.id) || !hasNotes(editor.value, template);
+    syncMissing();
+    nameInput.value = stripExt(nameInput.value) + "." + chosen.ext;
+  }
+
+  bindMissingPick(parts.missingList);
   onImagesChange(() => {
     if (!overlay.hidden) syncMissing();
   });
@@ -263,12 +227,9 @@ export function initExport(options: ExportOptions): ExportControl {
     if (!userPicked || !offered.includes(chosen))
       chosen =
         offered.find((item) => item.preferred) ?? offered[0] ?? FORMATS[0]!;
-    for (const button of overlay.querySelectorAll<HTMLElement>(
-      ".export-format",
-    ))
-      button.hidden = !offered.some(
-        (item) => item.id === button.dataset.format,
-      );
+    const ids = new Set(offered.map((item) => item.id));
+    for (const button of formatButtons(overlay))
+      button.hidden = !ids.has(button.dataset.format ?? "");
     nameInput.value = baseFrom();
     syncFormat();
     overlay.hidden = false;
@@ -288,36 +249,18 @@ export function initExport(options: ExportOptions): ExportControl {
 
   async function run(): Promise<void> {
     const text = editor.value;
-    let name = nameInput.value.trim() || baseFrom();
-    name = withExt(name, chosen.ext);
-
+    const name = withExt(nameInput.value.trim() || baseFrom(), chosen.ext);
     close();
     const format = chosen;
     if (format.save) {
       await format.save(name);
       return;
     }
-    if (format.slow) options.onBusy?.(true, format.ext);
-    try {
-      const data = await format.build(text, options.template(), {
-        toc: tocInput.checked,
-        notesScreen: notesInput.checked,
-        name: stripExt(name),
-      });
-      if (format.slow) options.onBusy?.(false);
-      if (await deliverFile(data, name, format.mime)) {
-        format.delivered?.();
-        options.onDone?.(name);
-      }
-    } catch (error) {
-      if (format.slow) options.onBusy?.(false);
-      console.error("export:", error);
-      if (error instanceof Error && error.name === "PdfError") {
-        showError(format, name, error.message);
-        return;
-      }
-      options.onBlocked?.();
-    }
+    const failed = await produce(options, format, text, name, {
+      toc: tocInput.checked,
+      notesScreen: notesInput.checked,
+    });
+    if (failed !== null) showError(format, name, failed);
   }
 
   function showError(
@@ -339,15 +282,15 @@ export function initExport(options: ExportOptions): ExportControl {
     errorNote.hidden = false;
   }
 
-  const onOverlayClick = (event: Event): void => {
+  overlay.addEventListener("click", (event) => {
     const target = event.target as HTMLElement | null;
     if (target === overlay || target?.closest(".export-cancel")) {
       close();
       return;
     }
     const picked = target?.closest<HTMLElement>(".export-format");
+    const found = formats.find((item) => item.id === picked?.dataset.format);
     if (picked) {
-      const found = formats.find((item) => item.id === picked.dataset.format);
       if (found) {
         chosen = found;
         userPicked = true;
@@ -356,9 +299,8 @@ export function initExport(options: ExportOptions): ExportControl {
       return;
     }
     if (target?.closest(".export-confirm")) void run();
-  };
-
-  const onOverlayKey = (event: KeyboardEvent): void => {
+  });
+  overlay.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       event.preventDefault();
       close();
@@ -366,104 +308,21 @@ export function initExport(options: ExportOptions): ExportControl {
       event.preventDefault();
       void run();
     }
-  };
+  });
 
-  const printer = createPrinter(options);
-
-  const printButton = options.printButton;
-
-  function syncPrint(): void {
-    if (printButton) printButton.hidden = !printer.printable();
-  }
-
-  const onPrintClick = (): void => {
-    if (printer.printable()) printer.start();
-  };
-
-  const onKeyDown = (event: KeyboardEvent): void => {
-    if (
-      (event.ctrlKey || event.metaKey) &&
-      !event.altKey &&
-      !event.shiftKey &&
-      (event.code === "KeyP" || event.key.toLowerCase() === "p") &&
-      printer.printable()
-    ) {
-      event.preventDefault();
-      printer.start();
-      return;
-    }
-    if (!event.altKey || !(event.ctrlKey || event.metaKey)) return;
-    if (event.code !== "KeyS" && event.key.toLowerCase() !== "s") return;
-    event.preventDefault();
-    open();
-  };
-
-  let pressTimer: ReturnType<typeof setTimeout> | null = null;
-  let held = false;
-
-  const cancelPress = (): void => {
-    if (pressTimer) clearTimeout(pressTimer);
-    pressTimer = null;
-  };
-
-  const dropPress = (event: PointerEvent): void => {
-    cancelPress();
-    if (event.type === "pointercancel" || event.buttons) held = false;
-  };
-
-  const onPressStart = (event: PointerEvent): void => {
-    if (event.button !== 0) return;
-    held = false;
-    pressTimer = setTimeout(() => {
-      pressTimer = null;
-      held = true;
-      open();
-    }, LONG_PRESS_MS);
-  };
-
-  const interceptSave = ({ shift }: SaveTrigger): boolean => {
-    if (!held && !shift) return false;
-    if (!held) open();
-    held = false;
-    return true;
-  };
-
-  const onContextMenu = (event: Event): void => {
-    event.preventDefault();
-  };
-
-  overlay.addEventListener("click", onOverlayClick);
-  overlay.addEventListener("keydown", onOverlayKey);
-  document.addEventListener("keydown", onKeyDown);
-
-  printButton?.addEventListener("click", onPrintClick);
-  syncPrint();
-
-  const saveButton = options.saveButton;
-  if (saveButton) {
-    saveButton.addEventListener("pointerdown", onPressStart);
-    saveButton.addEventListener("pointerup", cancelPress);
-    saveButton.addEventListener("pointerleave", dropPress);
-    saveButton.addEventListener("pointercancel", dropPress);
-    saveButton.addEventListener("contextmenu", onContextMenu);
-  }
-  const releaseSave = options.saveChain?.intercept(interceptSave);
+  const triggers = bindExportTriggers({
+    open,
+    printer: createPrinter(options),
+    saveButton: options.saveButton,
+    printButton: options.printButton,
+    saveChain: options.saveChain,
+  });
 
   return {
     open,
-    syncPrint,
+    syncPrint: triggers.syncPrint,
     destroy(): void {
-      cancelPress();
-      printButton?.removeEventListener("click", onPrintClick);
-      document.removeEventListener("keydown", onKeyDown);
-      if (saveButton) {
-        saveButton.removeEventListener("pointerdown", onPressStart);
-        saveButton.removeEventListener("pointerup", cancelPress);
-        saveButton.removeEventListener("pointerleave", dropPress);
-        saveButton.removeEventListener("pointercancel", dropPress);
-        saveButton.removeEventListener("contextmenu", onContextMenu);
-      }
-      releaseSave?.();
+      triggers.destroy();
       overlay.remove();
     },
   };
