@@ -1,3 +1,4 @@
+import "./helpers/mock-storage.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, statSync } from "node:fs";
@@ -7,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { installDom } from "./helpers/dom.ts";
 
 const dom = installDom("");
+Object.defineProperty(document, "compatMode", { value: "CSS1Compat" });
 const g = globalThis as Record<string, unknown>;
 const media = () => ({
   matches: false,
