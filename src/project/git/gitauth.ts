@@ -294,20 +294,21 @@ export function gitlabLogin(
 export async function refreshed(
   host: string,
   token: OAuthToken,
-  config: AuthConfig = authConfig(),
+  config?: AuthConfig,
   fetcher: Fetch = (url, init) => fetch(url, init),
   now: () => number = Date.now,
 ): Promise<OAuthToken> {
   if (!token.expires || token.expires - 60000 > now()) return token;
   if (!token.refresh)
     throw new AuthError("Нэвтрэлтийн хугацаа дууссан — дахин нэвтэрнэ үү");
+  const { gitlabClient, redirect } = config ?? authConfig();
   return gitlabToken(
     host,
     {
-      client_id: config.gitlabClient,
+      client_id: gitlabClient,
       refresh_token: token.refresh,
       grant_type: "refresh_token",
-      redirect_uri: config.redirect,
+      redirect_uri: redirect,
       ...(token.verifier ? { code_verifier: token.verifier } : {}),
     },
     token.verifier ?? "",
