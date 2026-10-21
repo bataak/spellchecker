@@ -52,7 +52,7 @@ const setup = (dicts: StarDict[]) =>
     },
   });
 
-test("dictlookup үгийн толгой үгийг эхний олдсон тольноос авна", async () => {
+test("dictlookup үгийн толгой үгийг эхний олдсон толиноос авна", async () => {
   const lookup = setup([first, second]);
   const found = await lookup.headwords(["номыг", "үг", "алга"]);
   assert.equal(found?.["номыг"]?.toLowerCase(), "ном");
@@ -61,7 +61,7 @@ test("dictlookup үгийн толгой үгийг эхний олдсон то
   assert.equal(await setup([]).headwords(["ном"]), null);
 });
 
-test("dictlookup тайлбарыг бүх тольноос эх сурвалжтай нь цуглуулна", async () => {
+test("dictlookup тайлбарыг бүх толиноос эх сурвалжтай нь цуглуулна", async () => {
   const entries = await setup([first, second]).define("ном");
   assert.deepEqual(
     entries.map((entry) => entry.source),

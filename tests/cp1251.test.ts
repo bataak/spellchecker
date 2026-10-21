@@ -102,7 +102,7 @@ test("Юникод болон mojibake хоёулаа их холилдсон б
   );
 });
 
-test("үг доторх Юникод-mojibake холимогийг сэргээнэ", () => {
+test("үг доторх Юникод-mojibake холимгийг сэргээнэ", () => {
   const result = repairCyrillicDetailed("çààсны äàãóó мөрдөнө");
   assert.equal(result.text, "заасны дагуу мөрдөнө");
 });
@@ -148,7 +148,7 @@ test("цэвэр Unicode кирилл текстийг хөндөхгүй", () =
   assert.equal(repairCyrillic(clean), clean);
 });
 
-test("өргөлттэй латин хэлүүдийг хөндөхгүй", () => {
+test("өргөлттэй латин хэлнүүдийг хөндөхгүй", () => {
   const samples = [
     "À l'époque où les élèves préféraient étudier à l'étranger, très peu séjournaient.",
     "Über größere Straßen führt der Weg nach München, wo Käse täglich verkauft wird.",
@@ -220,7 +220,7 @@ test("hasMojibake нь гурваас богино гүйлтийг тоолох
   assert.equal(hasMojibake("\u00CC\u00EE x \u00ED\u00E3"), false);
 });
 
-test("hasMojibake нь cp1252 өндөр тэмдэгтийг таньна", () => {
+test("hasMojibake нь cp1252 өндөр тэмдэгтийг танина", () => {
   assert.equal(hasMojibake("\u201C\u00ED\u00E4\u00FD\u00F1"), true);
   assert.equal(hasMojibake("\u201CНацагдорж судлал\u201D"), false);
 });

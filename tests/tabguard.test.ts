@@ -7,13 +7,13 @@ import {
   initTabGuard,
 } from "../src/slots/tabguard.ts";
 
-test("ижил цонх өөр табад нээлттэй бол анхааруулна", () => {
+test("ижил цонх өөр табт нээлттэй бол анхааруулна", () => {
   const others = [{ id: "b", slot: "plain", project: null }];
   assert.equal(conflictOf({ slot: "plain", project: null }, others), SAME_SLOT);
   assert.equal(conflictOf({ slot: "plain2", project: null }, others), null);
 });
 
-test("өөр табад өөр төсөл нээлттэй бол анхааруулна", () => {
+test("өөр табт өөр төсөл нээлттэй бол анхааруулна", () => {
   const others = [{ id: "b", slot: "plain", project: "uid-2" }];
   assert.equal(
     conflictOf({ slot: "project", project: "uid-1" }, others),

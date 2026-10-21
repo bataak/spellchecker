@@ -15,7 +15,7 @@ import {
   restoreImages,
 } from "../src/files/images.ts";
 
-test("imagePath: хоосон зай, хаалтыг кодлоно", () => {
+test("imagePath: хоосон зай, хаалтыг кодолно", () => {
   assert.equal(imagePath("үнэмлэх (1).jpg"), "үнэмлэх%20%281%29.jpg");
 });
 

@@ -42,7 +42,7 @@ const open = async (repo: FakeRepo, dir = "") => {
   return { s, remote: loaded.remote };
 };
 
-test("parseRepo: GitHub-ийн нэр болон хаягийг задлана", () => {
+test("parseRepo: GitHub-ийн нэр болон хаягийг задална", () => {
   assert.deepEqual(parseRepo("github", "bataak/thesis"), {
     provider: "github",
     host: "https://github.com",
@@ -77,7 +77,7 @@ test("parseRepo: GitHub-ийн нэр болон хаягийг задлана",
   assert.throws(() => parseRepo("github", "a/b/c"), ProjectError);
 });
 
-test("parseRepo: GitLab-ийн дэд бүлэг, өөрийн сервер болон хаягийг задлана", () => {
+test("parseRepo: GitLab-ийн дэд бүлэг, өөрийн сервер болон хаягийг задална", () => {
   assert.deepEqual(parseRepo("gitlab", "group/sub/thesis"), {
     provider: "gitlab",
     host: "https://gitlab.com",
@@ -250,7 +250,7 @@ test("commitChanges: commit хийх зуур бичсэн засварыг ха
   assert.ok(s.dirty.has("a.tex"));
 });
 
-test("commitChanges: татсаны дараа commit бүтэлгүйтвэл дараагийн хадгалалт ажиллана", async () => {
+test("commitChanges: татсаны дараа commit бүтэлгүйдвэл дараагийн хадгалалт ажиллана", async () => {
   const repo = await FakeRepo.create({
     "main.tex": MAIN,
     "a.tex": "А",
@@ -278,7 +278,7 @@ test("commitChanges: татсаны дараа commit бүтэлгүйтвэл �
   assert.equal(repo.text("b.tex"), "Б бусдын");
 });
 
-test("createGitApi: token-тойгоор зөв хаяг руу хандаж, алдааг ойлгомжтой болгоно", async () => {
+test("createGitApi: token-тойгоор зөв хаяг уруу хандаж, алдааг ойлгомжтой болгоно", async () => {
   const calls: { url: string; init: RequestInit | undefined }[] = [];
   const api = createGitApi("tok", "o/r", (url, init) => {
     calls.push({ url, init });

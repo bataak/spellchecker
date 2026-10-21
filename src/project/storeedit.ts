@@ -99,7 +99,7 @@ export function createEditors(core: StoreCore) {
       throw new ProjectError("Хавтсыг өөр дотор нь зөөх боломжгүй");
     if (s.dirty.has(from) && !isEditablePath(target))
       throw new ProjectError(
-        "Хадгалаагүй өөрчлөлттэй файлыг засах боломжгүй төрөл рүү нэрлэхгүй",
+        "Хадгалаагүй өөрчлөлттэй файлыг засах боломжгүй төрөл уруу нэрлэхгүй",
       );
     const root = core.diskRoot();
     if (root) await moveOnDisk(s, root, from, target);

@@ -69,7 +69,7 @@ test("бүрэн бичсэн аргументгүй командад жагса
   assert.deepEqual(completions(ctx), []);
 });
 
-test("аргументтай команд курсорыг хаалтанд байрлуулна", () => {
+test("аргументтай команд курсорыг хаалтад байрлуулна", () => {
   assert.equal(apply("\\textb|", "textbf"), "\\textbf{|}");
   assert.equal(apply("$\\fr|$", "frac"), "$\\frac{|}{}$");
   assert.equal(apply("\\alp|", "alpha"), "\\alpha|");
@@ -101,7 +101,7 @@ test("\\end{ дотор зөвхөн нэрийг гүйцээнэ", () => {
   assert.equal(apply("\\end{ite|", "itemize"), "\\end{itemize}|");
 });
 
-test("\\begin командаас орчны жагсаалт руу шилжинэ", () => {
+test("\\begin командаас орчны жагсаалт уруу шилжинэ", () => {
   const first = apply("\\beg|", "begin");
   assert.equal(first, "\\begin{|}");
   const { text, caret } = at(first);

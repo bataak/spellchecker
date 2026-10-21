@@ -14,7 +14,7 @@ function count(html: string, pattern: RegExp): number {
   return html.match(pattern)?.length ?? 0;
 }
 
-test("deckPrintHtml: босоо A4 хуудас бүрт 2 слайд", () => {
+test("deckPrintHtml: босоо A4 хуудас бүрд 2 слайд", () => {
   const html = deck(
     "---\ntitle: Илтгэл\n---\n\n## Нэг\n\nА\n\n## Хоёр\n\nБ\n\n## Гурав\n\nВ\n\n## Дөрөв\n\nГ\n",
   );
@@ -49,7 +49,7 @@ test("deckPrintHtml: илтгэгчийн тэмдэглэл хэвлэгдэх�
   assert.doesNotMatch(html, /Нууц/);
 });
 
-test("deckPrintHtml: слайд апптай хамт ирсэн Arial-тай ижил өргөнтэй фонтыг эхэлж ашиглана", () => {
+test("deckPrintHtml: слайд аптай хамт ирсэн Arial-тай ижил өргөнтэй фонтыг эхэлж ашиглана", () => {
   const html = deck("# Слайд\n\nТекст.");
   assert.match(html, /body\{font-family:"Bichig Print Sans", Arial/);
   assert.ok(html.includes('url("fonts/bichig-print-sans-mn-400-v1.woff2")'));

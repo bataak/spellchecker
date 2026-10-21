@@ -307,7 +307,7 @@ test("том repo уншиж байхад явцыг харуулж, Болих 
   await context.close();
 });
 
-test("«Файл нээх» цэсний «LaTeX төсөл» хэсгээс .tex файлгүйгээр Git repo нээнэ", async () => {
+test("«Файл нээх» цэсийн «LaTeX төсөл» хэсгээс .tex файлгүйгээр Git repo нээнэ", async () => {
   const github = new FakeGithub({ "main.tex": MAIN, "ch.tex": "Нэг.\n" });
   const context = await app.context();
   await github.attach(context);
@@ -415,7 +415,7 @@ test("нэг мөрийг хоёр талаас өөрчилбөл зөрчли�
   await context.close();
 });
 
-test("татаж нэгтгэсний дараа commit бүтэлгүйтвэл засварлагч нэгтгэсэн бичвэрийг харуулж, дараагийн commit бусдын засварыг буцаахгүй", async () => {
+test("татаж нэгтгэсний дараа commit бүтэлгүйдвэл засварлагч нэгтгэсэн бичвэрийг харуулж, дараагийн commit бусдын засварыг буцаахгүй", async () => {
   const github = new FakeGithub({
     "main.tex": MAIN,
     "ch.tex": "Нэг.\nХоёр.\n",

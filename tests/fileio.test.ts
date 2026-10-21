@@ -27,7 +27,7 @@ test("fileio save: гар утасны PDF ба төслийн хадгалал�
   assert.equal(broken.label, "Боломжгүй");
 });
 
-test("fileio save: нээсэн файлын handle руу бичнэ", async (t) => {
+test("fileio save: нээсэн файлын handle уруу бичнэ", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
   const ok = await runSave({ fileName: "a.md", handle: "ok", text: "x" });
   assert.deepEqual(ok.log, [
@@ -53,7 +53,7 @@ test("fileio save: хоосон, нэргүй бичвэрийг хадгала�
   assert.equal(empty.label, "Хоосон байна");
 });
 
-test("fileio save: суурилуулсан апп дээр FS picker ашиглана", async (t) => {
+test("fileio save: суурилуулсан ап дээр FS picker ашиглана", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
   const picked = await runSave({ desktop: true, picker: "ok", text: "y" });
   assert.deepEqual(picked.log, [
