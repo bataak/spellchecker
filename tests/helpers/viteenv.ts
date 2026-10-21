@@ -1,3 +1,4 @@
-import { register } from "node:module";
+import { registerHooks } from "node:module";
+import { load, resolve } from "./viteenvhook.ts";
 
-register("./viteenvhook.ts", import.meta.url);
+registerHooks({ resolve, load });

@@ -1,4 +1,5 @@
-import { readFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
+import type { LoadHookSync, ResolveHookSync } from "node:module";
 
 const ENV =
   "(globalThis.__VITE_ENV__ ?? " +
@@ -9,14 +10,7 @@ const VIRTUAL: Readonly<Record<string, string>> = {
   "virtual:stardict-index": "export default [];",
 };
 
-type Resolved = { url: string; format?: string; shortCircuit?: boolean };
-type Loaded = { format: string; source?: string | Uint8Array };
-
-export async function resolve(
-  specifier: string,
-  context: { parentURL?: string },
-  nextResolve: (specifier: string, context: object) => Promise<Resolved>,
-): Promise<Resolved> {
+export const resolve: ResolveHookSync = (specifier, context, nextResolve) => {
   if (specifier in VIRTUAL)
     return { url: "vite-virtual:" + specifier, shortCircuit: true };
   const query = /\?raw$/.exec(specifier);
@@ -28,13 +22,9 @@ export async function resolve(
       shortCircuit: true,
     };
   return nextResolve(specifier, context);
-}
+};
 
-export async function load(
-  url: string,
-  context: object,
-  nextLoad: (url: string, context: object) => Promise<Loaded>,
-): Promise<Loaded & { shortCircuit?: boolean }> {
+export const load: LoadHookSync = (url, context, nextLoad) => {
   if (url.startsWith("vite-virtual:"))
     return {
       format: "module",
@@ -42,7 +32,7 @@ export async function load(
       shortCircuit: true,
     };
   if (url.endsWith("?raw")) {
-    const text = await readFile(new URL(url.slice(0, -4)), "utf8");
+    const text = readFileSync(new URL(url.slice(0, -4)), "utf8");
     return {
       format: "module",
       source: "export default " + JSON.stringify(text) + ";",
@@ -55,12 +45,12 @@ export async function load(
       source: "export default {};",
       shortCircuit: true,
     };
-  const result = await nextLoad(url, context);
-  if (!url.includes("/src/") || result.source === undefined) return result;
+  const result = nextLoad(url, context);
+  if (!url.includes("/src/") || result.source == null) return result;
   const source =
     typeof result.source === "string"
       ? result.source
-      : new TextDecoder().decode(result.source);
+      : new TextDecoder().decode(result.source as Uint8Array);
   if (!source.includes("import.meta.env")) return result;
   return { ...result, source: source.replaceAll("import.meta.env", ENV) };
-}
+};
