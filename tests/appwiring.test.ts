@@ -7,6 +7,7 @@ import { createOpenPolicy, type OpenSlots } from "../src/app/openpolicy.ts";
 import { createSignal } from "../src/app/signal.ts";
 import { watchTabs } from "../src/app/tabwatch.ts";
 import { createTexMode } from "../src/app/texmode.ts";
+import { createMarkupMode } from "../src/app/markupmode.ts";
 import { createEditorPort } from "../src/app/ports.ts";
 import { initStatus } from "../src/ui/status.ts";
 import { saveDraftFile } from "../src/core/storage.ts";
@@ -40,6 +41,33 @@ test("texMode: start хүртэл sync юу ч хийхгүй, зөвхөн өө
   mode.sync();
   mode.sync();
   assert.deepEqual(calls, ["paint:true", "paint:false", "changed"]);
+});
+
+test("markupMode: тэмдэглэгээг алгасах эсэх өөрчлөгдөхөд л дахин зурна", () => {
+  let mdFile = false;
+  const calls: string[] = [];
+  const mode = createMarkupMode({
+    isMarkdownFile: () => mdFile,
+    render: async () => {
+      calls.push("render");
+    },
+    entered: (on) => calls.push("entered:" + on),
+  });
+  mode.enter(false);
+  assert.equal(mode.skips(), false);
+  mode.enter(true);
+  mode.enter(true);
+  assert.equal(mode.skips(), true);
+  mdFile = true;
+  mode.enter(false);
+  assert.equal(mode.skips(), true);
+  assert.deepEqual(calls, [
+    "entered:false",
+    "render",
+    "entered:true",
+    "entered:true",
+    "entered:false",
+  ]);
 });
 
 test("restoreDraftFile: office файлыг сэргээж, бүтэлгүйтвэл текст болгоно", async () => {
