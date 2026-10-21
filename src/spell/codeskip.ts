@@ -4,6 +4,7 @@ export interface SkipRange {
 }
 
 const FENCE = /^[ \t]{0,3}(`{3,}|~{3,})/;
+const FENCE_CLOSE = /^[ \t]{0,3}(`{3,}|~{3,})[ \t]*$/;
 const HTML_BLOCK = /<(pre|code|kbd|samp|tt)\b[^>]*>[\s\S]*?<\/\1\s*>/gi;
 const NO_BLANK = String.raw`(?:(?!\n[ \t]*\n)[\s\S])*?`;
 const MATH_BLOCK = new RegExp(
@@ -64,7 +65,12 @@ function fencedRanges(text: string, starts: number[]): SkipRange[] {
       continue;
     }
 
-    if (match[1][0] === marker[0] && match[1].length >= marker.length) {
+    const close = FENCE_CLOSE.exec(source);
+    if (
+      close &&
+      close[1][0] === marker[0] &&
+      close[1].length >= marker.length
+    ) {
       ranges.push({ start: open, end: to });
       open = -1;
       marker = "";

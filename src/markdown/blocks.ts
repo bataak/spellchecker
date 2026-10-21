@@ -18,6 +18,14 @@ const BULLET_RE = /^(\s*)([-*+])\s+(.*)$/;
 const ORDERED_RE = /^(\s*)(\d+)[.)]\s+(.*)$/;
 const QUOTE_RE = /^\s*>\s?(.*)$/s;
 const FENCE_RE = /^\s*(`{3,}|~{3,})\s*(\S*)\s*$/;
+const FENCE_CLOSE_RE = /^\s*(`{3,}|~{3,})\s*$/;
+
+function closesFence(line: string, marker: string): boolean {
+  const close = FENCE_CLOSE_RE.exec(line);
+  return (
+    !!close && close[1]![0] === marker[0] && close[1]!.length >= marker.length
+  );
+}
 const MATH_RE = /^\s*(?:\$\$|\\\[|\\begin\{[A-Za-z]+\*?\})/;
 
 const MATH_ENVS = new Set(
@@ -209,7 +217,7 @@ function divEnd(lines: readonly string[], start: number): number {
     const code = FENCE_RE.exec(line);
     if (code) {
       if (!fence) fence = code[1]!;
-      else if (line.trim().startsWith(fence)) fence = "";
+      else if (closesFence(line, fence)) fence = "";
       continue;
     }
     if (fence) continue;
@@ -230,7 +238,7 @@ function divLines(lines: readonly string[]): Set<number> {
     const code = FENCE_RE.exec(line);
     if (code) {
       if (!fence) fence = code[1]!;
-      else if (line.trim().startsWith(fence)) fence = "";
+      else if (closesFence(line, fence)) fence = "";
       continue;
     }
     if (fence || drop.has(i)) continue;
@@ -340,7 +348,7 @@ function readFence(lines: readonly string[], start: number): Read | null {
   const indent = line.length - line.trimStart().length;
   const body: string[] = [];
   let i = start + 1;
-  while (i < lines.length && !lines[i]!.trim().startsWith(marker)) {
+  while (i < lines.length && !closesFence(lines[i]!, marker)) {
     const text = lines[i]!;
     const lead = text.length - text.trimStart().length;
     body.push(text.slice(Math.min(indent, lead)));
