@@ -519,3 +519,11 @@ test("skips bare domains on common generic and country TLDs", () => {
     assert.ok(!inRanges(ranges, text.indexOf("дараа")), host);
   }
 });
+
+test("inline code spans consecutive lines of one block quote", () => {
+  const text = "> өмнө `код\n> үргэлжлэл` дахин";
+  const ranges = codeRanges(text);
+  assert.ok(inRanges(ranges, text.indexOf("код")));
+  assert.ok(inRanges(ranges, text.indexOf("үргэлжлэл")));
+  assert.ok(!inRanges(ranges, text.indexOf("дахин")));
+});
