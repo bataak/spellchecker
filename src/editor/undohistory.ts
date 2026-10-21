@@ -260,35 +260,58 @@ export interface UndoControl {
 
 const SAVE_DELAY_MS = 1000;
 
+function selectionOf(editor: HTMLTextAreaElement): [number, number] {
+  return [editor.selectionStart, editor.selectionEnd];
+}
+
+function historyKey(event: KeyboardEvent): "undo" | "redo" | null {
+  const mod = event.ctrlKey || event.metaKey;
+  if (!mod || event.altKey || event.isComposing) return null;
+  const key = event.key.toLowerCase();
+  const isZ = key === "z" || event.code === "KeyZ";
+  const isY = key === "y" || event.code === "KeyY";
+  if (isZ && !event.shiftKey) return "undo";
+  if ((isZ && event.shiftKey) || (isY && !event.shiftKey)) return "redo";
+  return null;
+}
+
+function historyInput(event: InputEvent): "undo" | "redo" | null {
+  if (event.inputType === "historyUndo") return "undo";
+  if (event.inputType === "historyRedo") return "redo";
+  return null;
+}
+
+function createSaver() {
+  const memory = new Map<string, Stored>();
+  const timers = new Map<string, number>();
+  return {
+    memory,
+    save(entry: Stored): void {
+      memory.set(entry.slot, entry);
+      clearTimeout(timers.get(entry.slot));
+      timers.set(
+        entry.slot,
+        window.setTimeout(() => {
+          timers.delete(entry.slot);
+          void saveStored(entry);
+        }, SAVE_DELAY_MS),
+      );
+    },
+  };
+}
+
 export function initUndoHistory(deps: UndoDeps): UndoControl {
   const { editor } = deps;
   let history = emptyHistory();
   let slot = deps.slot();
   let value = editor.value;
-  let selection: [number, number] = [
-    editor.selectionStart,
-    editor.selectionEnd,
-  ];
-  const memory = new Map<string, Stored>();
-  const saveTimers = new Map<string, number>();
+  let selection = selectionOf(editor);
+  const saver = createSaver();
   let loadSeq = 0;
 
   const persist = (): void => {
-    const entry: Stored = {
-      slot,
-      history,
-      sum: checksum(value),
-      savedAt: Date.now(),
-    };
-    memory.set(slot, entry);
-    clearTimeout(saveTimers.get(slot));
-    saveTimers.set(
-      slot,
-      window.setTimeout(() => {
-        saveTimers.delete(entry.slot);
-        void saveStored(entry);
-      }, SAVE_DELAY_MS),
-    );
+    const sum = checksum(value);
+    saver.save({ slot, history, sum, savedAt: Date.now() });
   };
 
   const adopt = (
@@ -300,15 +323,19 @@ export function initUndoHistory(deps: UndoDeps): UndoControl {
     return true;
   };
 
-  const baseline = (): void => {
+  const restart = (): void => {
     slot = deps.slot();
     value = editor.value;
-    selection = [editor.selectionStart, editor.selectionEnd];
+    selection = selectionOf(editor);
     history = emptyHistory();
+  };
+
+  const baseline = (): void => {
+    restart();
     const seq = ++loadSeq;
     const expected = checksum(value);
-    if (memory.has(slot)) {
-      adopt(memory.get(slot), expected);
+    if (saver.memory.has(slot)) {
+      adopt(saver.memory.get(slot), expected);
       return;
     }
     void loadStored(slot).then((stored) => {
@@ -319,8 +346,7 @@ export function initUndoHistory(deps: UndoDeps): UndoControl {
   };
 
   const trackSelection = (): void => {
-    if (document.activeElement === editor)
-      selection = [editor.selectionStart, editor.selectionEnd];
+    if (document.activeElement === editor) selection = selectionOf(editor);
   };
 
   const apply = (result: Applied | null): void => {
@@ -336,34 +362,32 @@ export function initUndoHistory(deps: UndoDeps): UndoControl {
     persist();
   };
 
+  const step = (kind: "undo" | "redo"): void =>
+    apply((kind === "undo" ? undo : redo)(editor.value, history));
+
+  const recordEdit = (): void => {
+    const next = editor.value;
+    const after = selectionOf(editor);
+    history = record(history, value, next, selection, after, Date.now());
+    value = next;
+    selection = after;
+    persist();
+  };
+
   editor.addEventListener("beforeinput", (event) => {
-    if (event.inputType === "historyUndo") {
-      event.preventDefault();
-      apply(undo(editor.value, history));
-    } else if (event.inputType === "historyRedo") {
-      event.preventDefault();
-      apply(redo(editor.value, history));
-    } else {
-      trackSelection();
-    }
+    const kind = historyInput(event);
+    if (!kind) return trackSelection();
+    event.preventDefault();
+    step(kind);
   });
 
   editor.addEventListener(
     "keydown",
     (event) => {
-      const mod = event.ctrlKey || event.metaKey;
-      if (!mod || event.altKey || event.isComposing) return;
-      const key = event.key.toLowerCase();
-      const code = event.code;
-      const isZ = key === "z" || code === "KeyZ";
-      const isY = key === "y" || code === "KeyY";
-      if (isZ && !event.shiftKey) {
-        event.preventDefault();
-        apply(undo(editor.value, history));
-      } else if ((isZ && event.shiftKey) || (isY && !event.shiftKey)) {
-        event.preventDefault();
-        apply(redo(editor.value, history));
-      }
+      const kind = historyKey(event);
+      if (!kind) return;
+      event.preventDefault();
+      step(kind);
     },
     true,
   );
@@ -375,36 +399,14 @@ export function initUndoHistory(deps: UndoDeps): UndoControl {
       baseline();
       return;
     }
-    if (input.isComposing) return;
-    const next = editor.value;
-    const after: [number, number] = [
-      editor.selectionStart,
-      editor.selectionEnd,
-    ];
-    history = record(history, value, next, selection, after, Date.now());
-    value = next;
-    selection = after;
-    persist();
+    if (!input.isComposing) recordEdit();
   });
 
-  editor.addEventListener("compositionend", () => {
-    const next = editor.value;
-    const after: [number, number] = [
-      editor.selectionStart,
-      editor.selectionEnd,
-    ];
-    history = record(history, value, next, selection, after, Date.now());
-    value = next;
-    selection = after;
-    persist();
-  });
+  editor.addEventListener("compositionend", recordEdit);
 
   const reset = (): void => {
     loadSeq++;
-    slot = deps.slot();
-    value = editor.value;
-    selection = [editor.selectionStart, editor.selectionEnd];
-    history = emptyHistory();
+    restart();
     persist();
   };
 

@@ -41,9 +41,72 @@ function isPdfFile(file: File): boolean {
   return file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
 }
 
+async function readPdf(file: File, status: StatusPort): Promise<string | null> {
+  status.release();
+  status.set("PDF файлыг уншиж байна…");
+  let stallTimer: number | null = null;
+  const armStall = (): void => {
+    if (stallTimer) clearTimeout(stallTimer);
+    stallTimer = window.setTimeout(() => {
+      stallTimer = null;
+      status.set("Бичвэрийг бэлдэж байна…", false);
+    }, 5000);
+  };
+  try {
+    const mod = await import("../preview/pdftext.ts");
+    armStall();
+    return await mod.extractPdfText(file, (page, total) => {
+      armStall();
+      if (total > 1)
+        status.set("PDF уншиж байна — " + page + " / " + total, false);
+    });
+  } catch (e) {
+    status.hold(readFailureMessage(e, "PDF файлыг уншиж чадсангүй"));
+    return null;
+  } finally {
+    if (stallTimer) clearTimeout(stallTimer);
+  }
+}
+
+async function loadOffice(
+  file: File,
+  holdStatus: StatusPort["hold"],
+): Promise<OfficeMode | "unknown" | "failed"> {
+  let mod: typeof import("./mode.ts");
+  try {
+    mod = await import("./mode.ts");
+  } catch {
+    holdStatus("Баримт уншигчийг ачаалж чадсангүй");
+    return "failed";
+  }
+  if (mod.officeFormat(file) === null) return "unknown";
+  try {
+    return await mod.openOfficeMode(file);
+  } catch (e) {
+    holdStatus(readFailureMessage(e, "Файлыг уншиж чадсангүй"));
+    return "failed";
+  }
+}
+
+function skippedNote(out: {
+  applied: number;
+  skippedWords: readonly { word: string; reason: string }[];
+}): string {
+  const names = out.skippedWords
+    .map((item) => '"' + escapeHtml(item.word) + '" (' + item.reason + ")")
+    .join(", ");
+  return (
+    "Засагдсангүй: " +
+    names +
+    " — үлдсэн " +
+    out.applied +
+    " засвар хадгалагдлаа"
+  );
+}
+
 export function createOfficeSession(deps: OfficeSessionDeps): OfficeSession {
   const editor = deps.editor.el;
-  const { set: setStatus, hold: holdStatus } = deps.status;
+  const { hold: holdStatus } = deps.status;
   let mode: OfficeMode | null = null;
   let modeFile: File | null = null;
   let ops: Promise<void> = Promise.resolve();
@@ -67,31 +130,8 @@ export function createOfficeSession(deps: OfficeSessionDeps): OfficeSession {
   };
 
   const openPdf = async (file: File): Promise<boolean> => {
-    deps.status.release();
-    setStatus("PDF файлыг уншиж байна…");
-    let text: string;
-    let stallTimer: number | null = null;
-    const armStall = (): void => {
-      if (stallTimer) clearTimeout(stallTimer);
-      stallTimer = window.setTimeout(() => {
-        stallTimer = null;
-        setStatus("Бичвэрийг бэлдэж байна…", false);
-      }, 5000);
-    };
-    try {
-      const mod = await import("../preview/pdftext.ts");
-      armStall();
-      text = await mod.extractPdfText(file, (page, total) => {
-        armStall();
-        if (total > 1)
-          setStatus("PDF уншиж байна — " + page + " / " + total, false);
-      });
-    } catch (e) {
-      if (stallTimer) clearTimeout(stallTimer);
-      holdStatus(readFailureMessage(e, "PDF файлыг уншиж чадсангүй"));
-      return true;
-    }
-    if (stallTimer) clearTimeout(stallTimer);
+    const text = await readPdf(file, deps.status);
+    if (text === null) return true;
     holdStatus("Бичвэрийг бэлдэж байна…", PREPARE_HOLD_MS, false);
     await new Promise((resolve) =>
       requestAnimationFrame(() => requestAnimationFrame(() => resolve(null))),
@@ -108,24 +148,9 @@ export function createOfficeSession(deps: OfficeSessionDeps): OfficeSession {
     cancelled?: () => boolean,
   ): Promise<boolean> => {
     if (isPdfFile(file)) return openPdf(file);
-    let mod: typeof import("./mode.ts");
-    try {
-      mod = await import("./mode.ts");
-    } catch {
-      holdStatus("Баримт уншигчийг ачаалж чадсангүй");
-      return true;
-    }
-
-    if (mod.officeFormat(file) === null) return false;
-
-    let opened: OfficeMode;
-    try {
-      opened = await mod.openOfficeMode(file);
-    } catch (e) {
-      holdStatus(readFailureMessage(e, "Файлыг уншиж чадсангүй"));
-      return true;
-    }
-    if (cancelled?.()) return true;
+    const opened = await loadOffice(file, holdStatus);
+    if (opened === "unknown") return false;
+    if (opened === "failed" || cancelled?.()) return true;
     mode = opened;
     modeFile = file;
 
@@ -172,19 +197,7 @@ export function createOfficeSession(deps: OfficeSessionDeps): OfficeSession {
       if (out.delivered === "cancelled") return false;
       if (out.skipped > 0) {
         console.warn("docx: алгасагдсан засвар", out.skippedWords);
-        const names = out.skippedWords
-          .map(
-            (item) => '"' + escapeHtml(item.word) + '" (' + item.reason + ")",
-          )
-          .join(", ");
-        holdStatus(
-          "Засагдсангүй: " +
-            names +
-            " — үлдсэн " +
-            out.applied +
-            " засвар хадгалагдлаа",
-          12000,
-        );
+        holdStatus(skippedNote(out), 12000);
       }
       return true;
     },
