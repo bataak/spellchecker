@@ -163,7 +163,7 @@ export async function openOfficeMode(file: File): Promise<OfficeMode> {
     throw new FileReadError({ kind: "too-large", limitMb: SIZE_LIMIT_MB });
 
   const bytes = await readBytes(file);
-  if (unpackedSize(bytes) > UNPACKED_LIMIT)
+  if ((await unpackedSize(bytes)) > UNPACKED_LIMIT)
     throw new FileReadError({ kind: "unpacked-too-large" });
   const engine = ENGINES[format](bytes);
   const source = engine.text;
