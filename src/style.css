@@ -145,11 +145,11 @@ html {
   --layout-accent: var(--layout-accent-mn);
   --layout-accent-en: #5aa9e6;
   --layout-mark-mn: #e8a06a;
-  --layout-select-mn: var(--proof-soft);
+  --layout-select-mn: color-mix(in srgb, var(--proof) 40%, transparent);
   --layout-select-en: color-mix(
     in srgb,
-    var(--layout-accent-en) 15%,
-    var(--editor-bg)
+    var(--layout-accent-en) 35%,
+    transparent
   );
   --layout-select: var(--layout-select-mn);
   --layout-on: #17150f;
