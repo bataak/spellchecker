@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.116.2](https://github.com/bataak/spellchecker/compare/v1.116.1...v1.116.2) (2026-10-23)
+
+
+### Bug Fixes
+
+* **pwa:** recover from a stale precached index.html whose entry chunk is gone ([52c81db](https://github.com/bataak/spellchecker/commit/52c81db29840d8c5301bb9eacf0ff25b5b3a302f))
+* **theme:** brighter translucent dark-mode selection so Safari does not render it black ([1d70dbf](https://github.com/bataak/spellchecker/commit/1d70dbf2f90ff89067d12eb55dc026bbd8a0cc4d))
+
 ## [1.116.1](https://github.com/bataak/spellchecker/compare/v1.116.0...v1.116.1) (2026-10-21)
 
 
