@@ -46,3 +46,58 @@ function __showBody() {
 window.addEventListener("DOMContentLoaded", __showBody);
 window.addEventListener("load", __showBody);
 setTimeout(__showBody, 1500);
+
+(function () {
+  var KEY = "mn-spell:boot-rescue";
+  var sw = navigator.serviceWorker;
+  function stuck() {
+    return document.documentElement.classList.contains("booting");
+  }
+  function rescue() {
+    if (!sw || !sw.controller || !stuck()) return;
+    try {
+      if (sessionStorage.getItem(KEY)) return;
+      sessionStorage.setItem(KEY, "1");
+    } catch (e) {
+      return;
+    }
+    var regs = sw.getRegistrations().then(function (list) {
+      return Promise.all(
+        list.map(function (reg) {
+          return reg.unregister();
+        }),
+      );
+    });
+    var caches_ = self.caches
+      ? caches.keys().then(function (names) {
+          return Promise.all(
+            names
+              .filter(function (name) {
+                return name.indexOf("workbox-precache") === 0;
+              })
+              .map(function (name) {
+                return caches.delete(name);
+              }),
+          );
+        })
+      : null;
+    Promise.all([regs, caches_]).then(
+      function () {
+        location.reload();
+      },
+      function () {
+        location.reload();
+      },
+    );
+  }
+  window.addEventListener(
+    "error",
+    function (event) {
+      var el = event.target;
+      if (el && (el.type === "module" || el.rel === "modulepreload"))
+        rescue();
+    },
+    true,
+  );
+  setTimeout(rescue, 15000);
+})();
