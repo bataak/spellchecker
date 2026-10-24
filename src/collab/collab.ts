@@ -1,25 +1,30 @@
 import { KEYS, read, readJson, write, writeJson } from "../core/store.ts";
 import { noteError } from "../core/errorlog.ts";
 import { onSwap, swapOrigin } from "../editor/editortext.ts";
-import { copyText } from "../ui/clipboard.ts";
 import {
   linkHash,
   newLink,
+  newToken,
   parseLink,
   randomId,
-  type CollabLink,
+  type InviteLink,
 } from "./collabkey.ts";
 import {
+  isOwner,
   parseRooms,
   roomById,
   roomOfSlot,
+  withAccess,
   withRoom,
   withoutRoom,
+  type Access,
   type RoomEntry,
 } from "./collabrooms.ts";
 import type { Session, SessionStatus } from "./session.ts";
+import type { SignalState } from "./signal.ts";
 import type { CursorView } from "./cursors.ts";
-import { MAX_NAME, loadProfile, saveName } from "./profile.ts";
+import { loadProfile, saveName } from "./profile.ts";
+import { openDialog } from "./collabdialog.ts";
 
 export interface CollabDeps {
   readonly editor: HTMLTextAreaElement;
@@ -43,10 +48,16 @@ const DEVICE = /^[A-Za-z0-9_-]{16}$/;
 const IDLE_LABEL = "Хамтран засах";
 const FULL_MESSAGE =
   "Энэ бичвэрийг 8 хүн зэрэг засаж байгаа тул нэгдэх боломжгүй. Хэн нэгэн гарсны дараа дахин нээнэ үү.";
+const ENDED: Partial<Record<SignalState, string>> = {
+  denied:
+    "Урилга хүчингүй эсвэл өөр хүн ашигласан байна. Үүсгэгчээс өөрт тань зориулсан шинэ урилга авна уу.",
+  removed:
+    "Үүсгэгч таныг хамтын засвараас хассан. Бичвэр энэ төхөөрөмж дээр хадгалагдаж үлдэнэ.",
+};
 const TOO_LARGE_MESSAGE =
   "Бичвэр хэт том тул серверт хадгалагдсангүй. Шууд холбогдсон хүмүүстэй засвар үргэлжилнэ, харин дараа нэгдэх хүн сүүлийн хувилбарыг авахгүй.";
 
-export function shareUrl(link: CollabLink, base: string): string {
+export function shareUrl(link: InviteLink, base: string): string {
   return base.replace(/#.*$/, "") + linkHash(link);
 }
 
@@ -55,9 +66,9 @@ export function buttonLabel(
   status: SessionStatus | null,
 ): string {
   if (!shared) return IDLE_LABEL;
-  if (status?.signal === "full") return "Хамтран · дүүрсэн";
-  if (status?.peers) return "Хамтран · " + (status.peers + 1);
-  return status?.signal === "open" ? "Хамтран · 1" : "Хамтран · …";
+  if (status?.signal === "full") return "Хамтрагч · дүүрсэн";
+  if (status?.peers) return "Хамтрагч · " + (status.peers + 1);
+  return status?.signal === "open" ? "Хамтрагч · 1" : "Хамтрагч · …";
 }
 
 function deviceId(): string {
@@ -68,101 +79,6 @@ function deviceId(): string {
   return id;
 }
 
-function actionButton(label: string): HTMLButtonElement {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "tbtn";
-  button.textContent = label;
-  return button;
-}
-
-function nameField(rename: () => void): HTMLLabelElement {
-  const label = document.createElement("label");
-  label.className = "collab-name";
-  label.textContent = "Таны нэр";
-  const input = document.createElement("input");
-  input.maxLength = MAX_NAME;
-  input.value = loadProfile(deviceId()).name;
-  input.addEventListener("change", () => {
-    saveName(input.value);
-    rename();
-  });
-  label.appendChild(input);
-  return label;
-}
-
-function openDialog(url: string, stop: () => void, rename: () => void): void {
-  const dialog = document.createElement("dialog");
-  dialog.className = "suggest-overlay collab-overlay";
-  dialog.setAttribute("aria-labelledby", "collabTitle");
-  const card = document.createElement("div");
-  card.className = "suggest-card";
-  const title = document.createElement("h2");
-  title.id = "collabTitle";
-  title.className = "suggest-title";
-  title.textContent = "Хамтран засах";
-  const hint = document.createElement("p");
-  hint.className = "suggest-hint";
-  hint.textContent =
-    "Энэ холбоосыг нээсэн хүн уг бичвэрийг тантай зэрэг засна. Холбоос нууц түлхүүр агуулдаг тул зөвхөн итгэлтэй хүнтэйгээ хуваалцана уу. Сервер бичвэрийг уншиж чадахгүй.";
-  const field = document.createElement("input");
-  field.className = "collab-link";
-  field.readOnly = true;
-  field.value = url;
-  const note = document.createElement("p");
-  note.className = "suggest-note";
-  note.setAttribute("role", "status");
-  const actions = document.createElement("div");
-  actions.className = "suggest-actions";
-  const leave = actionButton("Зогсоох");
-  leave.classList.add("collab-stop");
-  const copy = actionButton("Хуулах");
-  copy.classList.add("suggest-send");
-  const close = actionButton("Хаах");
-  actions.append(leave, close, copy);
-  if (typeof navigator.share === "function") {
-    const share = actionButton("Илгээх");
-    share.addEventListener("click", () => {
-      navigator.share({ title: "Хамтын бичвэр", url }).catch(() => {});
-    });
-    actions.insertBefore(share, copy);
-  }
-  card.append(title, hint, field, nameField(rename), note, actions);
-  dialog.appendChild(card);
-  copy.addEventListener("click", () => {
-    copyText(url).then(
-      () => {
-        note.dataset.kind = "ok";
-        note.textContent = "Холбоосыг хууллаа";
-      },
-      () => {
-        field.select();
-        note.dataset.kind = "err";
-        note.textContent = "Хуулж чадсангүй, холбоосыг гараар хуулна уу";
-      },
-    );
-  });
-  leave.addEventListener("click", () => {
-    if (
-      !window.confirm(
-        "Хамтын засварыг зогсоох уу? Бичвэр энэ төхөөрөмж дээр хадгалагдаж үлдэнэ.",
-      )
-    )
-      return;
-    stop();
-    dialog.close();
-  });
-  close.addEventListener("click", () => dialog.close());
-  dialog.addEventListener("click", (event) => {
-    if (event.target === dialog) dialog.close();
-  });
-  dialog.addEventListener("close", () => dialog.remove());
-  document.body.appendChild(dialog);
-  dialog.showModal();
-  field.focus();
-  field.select();
-}
-
 interface Registry {
   open(entry: RoomEntry, seed: boolean): Promise<Session>;
   live(room: string): Session | null;
@@ -171,12 +87,20 @@ interface Registry {
   close(room: string): void;
 }
 
+interface RegistryHooks {
+  readonly changed: () => void;
+  readonly notify: (message: string) => void;
+  readonly access: (room: string) => Access | null;
+  readonly granted: (room: string, token: string) => void;
+  readonly ended: (room: string) => void;
+}
+
 function createRegistry(
   editor: HTMLTextAreaElement,
   view: CursorView,
-  changed: () => void,
-  notify: (message: string) => void,
+  hooks: RegistryHooks,
 ): Registry {
+  const { changed, notify } = hooks;
   const pending = new Map<string, Promise<Session>>();
   const ready = new Map<string, Session>();
   const statuses = new Map<string, SessionStatus>();
@@ -194,10 +118,18 @@ function createRegistry(
           view,
           profile: () => loadProfile(deviceId()),
           seed: seed ? () => editor.value : null,
+          access: () => hooks.access(entry.room) ?? entry.access,
+          onAccess: (token) => hooks.granted(entry.room, token),
           onStatus: (status) => {
             if (status.signal === "full" && !full.has(entry.room)) {
               full.add(entry.room);
               notify(FULL_MESSAGE);
+            }
+            const ended = ENDED[status.signal];
+            if (ended) {
+              notify(ended);
+              queueMicrotask(() => hooks.ended(entry.room));
+              return;
             }
             statuses.set(entry.room, status);
             changed();
@@ -233,7 +165,7 @@ function createRegistry(
 
 function joinRoom(
   rooms: readonly RoomEntry[],
-  link: CollabLink,
+  link: InviteLink,
   deps: CollabDeps,
 ): RoomEntry[] | null {
   const known = roomById(rooms, link.room);
@@ -245,7 +177,47 @@ function joinRoom(
     );
     return null;
   }
-  return withRoom(rest, { slot: deps.slot(), ...link });
+  return withRoom(rest, {
+    slot: deps.slot(),
+    room: link.room,
+    key: link.key,
+    access: { kind: "i", token: link.invite },
+  });
+}
+
+function paintButton(
+  button: HTMLButtonElement,
+  entry: RoomEntry | null,
+  registry: Registry,
+): void {
+  button.textContent = buttonLabel(
+    entry !== null,
+    entry ? registry.status(entry.room) : null,
+  );
+  button.setAttribute("aria-pressed", entry ? "true" : "false");
+}
+
+function ownedRoom(slot: string): RoomEntry {
+  return { slot, ...newLink(), access: { kind: "o", token: newToken() } };
+}
+
+function showDialog(
+  entry: RoomEntry,
+  registry: Registry,
+  stop: () => void,
+): void {
+  openDialog({
+    owner: isOwner(entry),
+    session: registry.open(entry, false),
+    inviteUrl: (invite) =>
+      shareUrl({ room: entry.room, key: entry.key, invite }, location.href),
+    name: loadProfile(deviceId()).name,
+    rename(name) {
+      saveName(name);
+      registry.rename();
+    },
+    stop,
+  });
 }
 
 export function initCollab(deps: CollabDeps): Collab {
@@ -259,16 +231,22 @@ export function initCollab(deps: CollabDeps): Collab {
 
   const store = (): boolean => writeJson(KEYS.collabRooms, rooms);
 
-  const paint = (): void => {
-    const entry = roomOfSlot(rooms, deps.slot());
-    button.textContent = buttonLabel(
-      entry !== null,
-      entry ? registry.status(entry.room) : null,
-    );
-    button.setAttribute("aria-pressed", entry ? "true" : "false");
-  };
+  const paint = (): void =>
+    paintButton(button, roomOfSlot(rooms, deps.slot()), registry);
 
-  const registry = createRegistry(editor, deps.view, paint, deps.notify);
+  const registry = createRegistry(editor, deps.view, {
+    changed: () => paint(),
+    notify: deps.notify,
+    access: (room) => roomById(rooms, room)?.access ?? null,
+    granted(room, token) {
+      rooms = withAccess(rooms, room, { kind: "m", token });
+      store();
+    },
+    ended(room) {
+      const entry = roomById(rooms, room);
+      if (entry) stop(entry);
+    },
+  });
 
   const detach = (): void => {
     if (active) registry.live(active)?.detach();
@@ -302,7 +280,10 @@ export function initCollab(deps: CollabDeps): Collab {
     paint();
   };
 
-  const join = (link: CollabLink): void => {
+  const takeHash = (): void => {
+    const link = parseLink(location.hash);
+    if (!link) return;
+    history.replaceState(null, "", location.pathname + location.search);
     const next = joinRoom(rooms, link, deps);
     if (!next) return;
     rooms = next;
@@ -310,29 +291,18 @@ export function initCollab(deps: CollabDeps): Collab {
     sync();
   };
 
-  const takeHash = (): void => {
-    const link = parseLink(location.hash);
-    if (!link) return;
-    history.replaceState(null, "", location.pathname + location.search);
-    join(link);
-  };
-
   const share = (): void => {
     let entry = roomOfSlot(rooms, deps.slot());
     if (!entry) {
       const reason = deps.blocked();
       if (reason) return deps.notify(reason);
-      entry = { slot: deps.slot(), ...newLink() };
+      entry = ownedRoom(deps.slot());
       rooms = withRoom(rooms, entry);
       store();
       sync(true);
     }
     const shown = entry;
-    openDialog(
-      shareUrl(shown, location.href),
-      () => stop(shown),
-      registry.rename,
-    );
+    showDialog(shown, registry, () => stop(shown));
   };
 
   onSwap(detach);

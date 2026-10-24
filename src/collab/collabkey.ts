@@ -3,7 +3,13 @@ export interface CollabLink {
   readonly key: string;
 }
 
-const LINK = /^#?collab=([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{43})$/;
+export interface InviteLink extends CollabLink {
+  readonly invite: string;
+}
+
+export const TOKEN = /^[A-Za-z0-9_-]{22}$/;
+const LINK =
+  /^#?collab=([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{43})\.([A-Za-z0-9_-]{22})$/;
 const IV_BYTES = 12;
 
 export function toBase64Url(bytes: Uint8Array): string {
@@ -30,13 +36,17 @@ export function newLink(): CollabLink {
   return { room: randomId(16), key: randomId(32) };
 }
 
-export function parseLink(hash: string): CollabLink | null {
-  const match = LINK.exec(hash);
-  return match ? { room: match[1]!, key: match[2]! } : null;
+export function newToken(): string {
+  return randomId(16);
 }
 
-export function linkHash(link: CollabLink): string {
-  return "#collab=" + link.room + "." + link.key;
+export function parseLink(hash: string): InviteLink | null {
+  const match = LINK.exec(hash);
+  return match ? { room: match[1]!, key: match[2]!, invite: match[3]! } : null;
+}
+
+export function linkHash(link: InviteLink): string {
+  return "#collab=" + link.room + "." + link.key + "." + link.invite;
 }
 
 export function importKey(key: string): Promise<CryptoKey> {
