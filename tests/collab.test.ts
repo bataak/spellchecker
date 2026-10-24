@@ -11,6 +11,7 @@ import {
   importKey,
   linkHash,
   newLink,
+  newToken,
   parseLink,
   seal,
   toBase64Url,
@@ -35,10 +36,13 @@ import {
   parseRooms,
   roomById,
   roomOfSlot,
+  isOwner,
+  withAccess,
   withRoom,
   withoutRoom,
 } from "../src/collab/collabrooms.ts";
 import { rebaseHistory, undo } from "../src/editor/undohistory.ts";
+import { createAdmin } from "../src/collab/admin.ts";
 
 test("Yjs delta-г засварын жагсаалт болгоно", () => {
   const changes = deltaChanges([
@@ -69,10 +73,12 @@ test("курсорын байрлалыг бусдын засвараар шил
 });
 
 test("хамтын холбоосыг задлах, үүсгэх", () => {
-  const link = newLink();
+  const link = { ...newLink(), invite: newToken() };
   assert.equal(link.room.length, 22);
   assert.equal(link.key.length, 43);
+  assert.equal(link.invite.length, 22);
   assert.deepEqual(parseLink(linkHash(link)), link);
+  assert.equal(parseLink("#collab=" + link.room + "." + link.key), null);
   assert.equal(parseLink("#collab=short.key"), null);
   assert.equal(parseLink(""), null);
   const bytes = new Uint8Array([0, 250, 251, 252, 253, 254, 255]);
@@ -134,6 +140,27 @@ test("сигналын мессежийг шалгаж задлана", () => {
     d: "x",
   });
   assert.equal(parseSignal('{"t":"from","from":"a"}'), null);
+  assert.deepEqual(parseSignal('{"t":"kick","id":"a"}'), {
+    t: "kick",
+    id: "a",
+  });
+  assert.deepEqual(parseSignal('{"t":"member","m":"x"}'), {
+    t: "member",
+    m: "x",
+  });
+  assert.deepEqual(parseSignal('{"t":"invited","i":"x"}'), {
+    t: "invited",
+    i: "x",
+  });
+  assert.deepEqual(
+    parseSignal(
+      '{"t":"members","list":[{"dev":"d","l":"x","on":true,"o":false},{"l":1},5]}',
+    ),
+    {
+      t: "members",
+      list: [{ dev: "d", label: "x", online: true, owner: false }],
+    },
+  );
   assert.equal(parseSignal("not json"), null);
 });
 
@@ -154,12 +181,15 @@ test("зөвхөн удирдагч эсвэл түүнд холбогдоогү
 
 test("өрөөний хаягийг ws протоколоор үүсгэнэ", () => {
   assert.equal(
-    roomUrl("https://collab.example.dev/", "R", "D", "P"),
-    "wss://collab.example.dev/room/R?d=D&p=P",
+    roomUrl("https://collab.example.dev/", "R", "D", "P", {
+      kind: "o",
+      token: "T",
+    }),
+    "wss://collab.example.dev/room/R?d=D&p=P&o=T",
   );
   assert.equal(
-    roomUrl("http://localhost:8787", "R", "D", "P"),
-    "ws://localhost:8787/room/R?d=D&p=P",
+    roomUrl("http://localhost:8787", "R", "D", "P", { kind: "i", token: "T" }),
+    "ws://localhost:8787/room/R?d=D&p=P&i=T",
   );
 });
 
@@ -236,20 +266,47 @@ test("буцаах түүхийг бусдын засвараар шилжүүл
 });
 
 test("хамтын өрөөнүүдийн жагсаалтыг шалгана", () => {
+  const owner = { kind: "o", token: "A".repeat(22) } as const;
+  const invite = { kind: "i", token: "B".repeat(22) } as const;
   const rooms = parseRooms([
-    { slot: "plain", room: "r1", key: "k1" },
-    { slot: "plain", room: "r2", key: "k2" },
-    { slot: "file-a", room: "r1", key: "k3" },
-    { slot: "file-b", room: "bad room", key: "k" },
+    { slot: "plain", room: "r1", key: "k1", access: owner },
+    { slot: "plain", room: "r2", key: "k2", access: owner },
+    { slot: "file-a", room: "r1", key: "k3", access: owner },
+    { slot: "file-b", room: "bad room", key: "k", access: owner },
+    { slot: "file-c", room: "r4", key: "k4" },
+    {
+      slot: "file-d",
+      room: "r5",
+      key: "k5",
+      access: { kind: "x", token: "A" },
+    },
     null,
   ]);
-  assert.deepEqual(rooms, [{ slot: "plain", room: "r1", key: "k1" }]);
-  const more = withRoom(rooms, { slot: "file-a", room: "r2", key: "k2" });
+  assert.deepEqual(rooms, [
+    { slot: "plain", room: "r1", key: "k1", access: owner },
+  ]);
+  assert.equal(isOwner(rooms[0]!), true);
+  const more = withRoom(rooms, {
+    slot: "file-a",
+    room: "r2",
+    key: "k2",
+    access: invite,
+  });
   assert.equal(roomOfSlot(more, "file-a")?.room, "r2");
+  assert.equal(isOwner(roomOfSlot(more, "file-a")!), false);
   assert.equal(roomById(more, "r1")?.slot, "plain");
   assert.equal(withoutRoom(more, "r1").length, 1);
+  const member = { kind: "m", token: "C".repeat(22) } as const;
+  assert.deepEqual(
+    roomById(withAccess(more, "r2", member), "r2")?.access,
+    member,
+  );
+  assert.deepEqual(
+    roomById(withAccess(more, "r2", member), "r1")?.access,
+    owner,
+  );
   assert.deepEqual(keepRooms(more, new Set(["file-a"])), [
-    { slot: "file-a", room: "r2", key: "k2" },
+    { slot: "file-a", room: "r2", key: "k2", access: invite },
   ]);
   assert.deepEqual(parseRooms("x"), []);
 });
@@ -265,14 +322,62 @@ test("тасралтгүй бичсэн ч 5 минут тутамд snapshot х
 
 test("товчны шошго төлөвийг харуулна", () => {
   assert.equal(buttonLabel(false, null), "Хамтран засах");
-  assert.equal(buttonLabel(true, null), "Хамтран · …");
-  assert.equal(buttonLabel(true, { signal: "open", peers: 0 }), "Хамтран · 1");
+  assert.equal(buttonLabel(true, null), "Хамтрагч · …");
+  assert.equal(buttonLabel(true, { signal: "open", peers: 0 }), "Хамтрагч · 1");
   assert.equal(
     buttonLabel(true, { signal: "closed", peers: 2 }),
-    "Хамтран · 3",
+    "Хамтрагч · 3",
   );
   assert.equal(
     buttonLabel(true, { signal: "full", peers: 0 }),
-    "Хамтран · дүүрсэн",
+    "Хамтрагч · дүүрсэн",
   );
+});
+
+test("урилгыг сервер баталсны дараа л буцаана", async () => {
+  const key = await importKey(newLink().key);
+  const sent: Record<string, unknown>[] = [];
+  let online = true;
+  const admin = createAdmin(key, (message) => {
+    sent.push(message);
+    return online;
+  });
+  const pending = admin.invite();
+  const token = sent[0]!.i as string;
+  assert.equal(sent[0]!.t, "invite");
+  assert.equal(admin.receive({ t: "invited", i: token }), true);
+  assert.equal(await pending, token);
+  online = false;
+  assert.equal(await admin.invite(), null);
+  assert.equal(await admin.members(), null);
+});
+
+test("хамтрагчдын нэрийг түлхүүрээр тайлж харуулна", async () => {
+  const key = await importKey(newLink().key);
+  const sent: Record<string, unknown>[] = [];
+  const admin = createAdmin(key, (message) => {
+    sent.push(message);
+    return true;
+  });
+  admin.label("Сараа");
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const label = sent[0]!.l as string;
+  assert.equal(sent[0]!.t, "label");
+  assert.ok(!label.includes("Сараа"));
+  const listed = admin.members();
+  admin.receive({
+    t: "members",
+    list: [
+      { dev: "a", label, online: true, owner: false },
+      { dev: "b", label: "эвдэрсэн", online: false, owner: true },
+    ],
+  });
+  assert.deepEqual(await listed, [
+    { dev: "a", name: "Сараа", online: true, owner: false },
+    { dev: "b", name: "", online: false, owner: true },
+  ]);
+  const removed = admin.remove("a");
+  assert.deepEqual(sent.at(-1), { t: "remove", dev: "a" });
+  admin.receive({ t: "members", list: [] });
+  assert.deepEqual(await removed, []);
 });

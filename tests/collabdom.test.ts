@@ -5,7 +5,12 @@ import { installDom } from "./helpers/dom.ts";
 import { bindText } from "../src/collab/textbind.ts";
 import { remoteChanges } from "../src/editor/editortext.ts";
 import { createAttacher } from "../src/collab/session.ts";
-import { FULL_CODE, openSignal } from "../src/collab/signal.ts";
+import {
+  DENIED_CODE,
+  FULL_CODE,
+  REMOVED_CODE,
+  openSignal,
+} from "../src/collab/signal.ts";
 import {
   createCursors,
   decodeCursor,
@@ -164,7 +169,7 @@ test("дүүрсэн өрөөнд дахин холбогдохыг оролдо
   (globalThis as Record<string, unknown>).WebSocket = FakeSocket;
   const states: string[] = [];
   const signal = openSignal({
-    url: "wss://x/room/r",
+    url: () => "wss://x/room/r",
     onEvent: () => {},
     onSnapshot: () => {},
     onState: (state) => states.push(state),
@@ -173,6 +178,80 @@ test("дүүрсэн өрөөнд дахин холбогдохыг оролдо
   await new Promise((resolve) => setTimeout(resolve, 1600));
   assert.equal(sockets.length, 1);
   assert.deepEqual(states, ["connecting", "full"]);
+  signal.close();
+  (globalThis as Record<string, unknown>).WebSocket = saved;
+});
+
+for (const [code, state] of [
+  [DENIED_CODE, "denied"],
+  [REMOVED_CODE, "removed"],
+] as const)
+  test("хандах эрхгүй бол (" + state + ") дахин холбогдохгүй", async () => {
+    const urls: string[] = [];
+    let access = "i=A";
+    class FakeSocket {
+      static OPEN = 1;
+      readyState = 0;
+      binaryType = "";
+      onopen: (() => void) | null = null;
+      onmessage: ((event: unknown) => void) | null = null;
+      onclose: ((event: { code: number }) => void) | null = null;
+      constructor(url: string) {
+        urls.push(url);
+        sockets.push(this);
+      }
+      send(): void {}
+      close(): void {}
+    }
+    const sockets: FakeSocket[] = [];
+    const saved = globalThis.WebSocket;
+    (globalThis as Record<string, unknown>).WebSocket = FakeSocket;
+    const states: string[] = [];
+    const signal = openSignal({
+      url: () => "wss://x/room/r?" + access,
+      onEvent: () => {},
+      onSnapshot: () => {},
+      onState: (next) => states.push(next),
+    });
+    access = "m=B";
+    sockets[0]!.onclose?.({ code });
+    await new Promise((resolve) => setTimeout(resolve, 1600));
+    assert.deepEqual(urls, ["wss://x/room/r?i=A"]);
+    assert.deepEqual(states, ["connecting", state]);
+    signal.close();
+    (globalThis as Record<string, unknown>).WebSocket = saved;
+  });
+
+test("тасарсны дараа шинэ эрхээр дахин холбогдоно", async () => {
+  const urls: string[] = [];
+  const sockets: { onclose: ((event: { code: number }) => void) | null }[] = [];
+  class FakeSocket {
+    static OPEN = 1;
+    readyState = 0;
+    binaryType = "";
+    onopen: (() => void) | null = null;
+    onmessage: ((event: unknown) => void) | null = null;
+    onclose: ((event: { code: number }) => void) | null = null;
+    constructor(url: string) {
+      urls.push(url);
+      sockets.push(this);
+    }
+    send(): void {}
+    close(): void {}
+  }
+  const saved = globalThis.WebSocket;
+  (globalThis as Record<string, unknown>).WebSocket = FakeSocket;
+  let access = "i=A";
+  const signal = openSignal({
+    url: () => "wss://x/room/r?" + access,
+    onEvent: () => {},
+    onSnapshot: () => {},
+    onState: () => {},
+  });
+  access = "m=B";
+  sockets[0]!.onclose?.({ code: 1006 });
+  await new Promise((resolve) => setTimeout(resolve, 1100));
+  assert.deepEqual(urls, ["wss://x/room/r?i=A", "wss://x/room/r?m=B"]);
   signal.close();
   (globalThis as Record<string, unknown>).WebSocket = saved;
 });

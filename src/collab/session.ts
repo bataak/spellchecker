@@ -12,8 +12,15 @@ import {
 } from "./collabkey.ts";
 import { dropDoc, loadDoc, saveDoc } from "./docstore.ts";
 import { createMesh, type Mesh, type SignalPayload } from "./mesh.ts";
-import { openSignal, type SignalEvent, type SignalState } from "./signal.ts";
-import { createSync } from "./sync.ts";
+import {
+  openSignal,
+  type Signal,
+  type SignalEvent,
+  type SignalState,
+} from "./signal.ts";
+import { createSync, type Sync } from "./sync.ts";
+import { createAdmin, type Admin, type Member } from "./admin.ts";
+import type { Access } from "./collabrooms.ts";
 import { bindText } from "./textbind.ts";
 import {
   createCursors,
@@ -39,12 +46,17 @@ export interface SessionDeps {
   readonly onNotice: (notice: SessionNotice) => void;
   readonly view: CursorView;
   readonly profile: () => Profile;
+  readonly access: () => Access;
+  readonly onAccess: (token: string) => void;
 }
 
 export interface Session {
   attach(): void;
   detach(): void;
   announce(): void;
+  invite(): Promise<string | null>;
+  members(): Promise<Member[] | null>;
+  remove(dev: string): Promise<Member[] | null>;
   stop(forget: boolean): Promise<void>;
 }
 
@@ -65,6 +77,7 @@ export function roomUrl(
   room: string,
   device: string,
   peer: string,
+  access: Access,
 ): string {
   return (
     endpoint.replace(/^http/, "ws").replace(/\/+$/, "") +
@@ -73,7 +86,11 @@ export function roomUrl(
     "?d=" +
     device +
     "&p=" +
-    peer
+    peer +
+    "&" +
+    access.kind +
+    "=" +
+    access.token
   );
 }
 
@@ -269,12 +286,15 @@ interface SignalRoute {
   readonly room: Set<string>;
   readonly mesh: Mesh;
   readonly uploader: Uploader;
+  readonly admin: Admin;
+  readonly onAccess: (token: string) => void;
 }
 
 async function routeSignal(
   event: SignalEvent,
-  { key, room, mesh, uploader }: SignalRoute,
+  { key, room, mesh, uploader, admin, onAccess }: SignalRoute,
 ): Promise<void> {
+  if (admin.receive(event)) return;
   if (event.t === "hi") {
     room.clear();
     const open = mesh.open();
@@ -288,7 +308,12 @@ async function routeSignal(
     room.delete(event.id);
     if (!mesh.open().includes(event.id)) mesh.drop(event.id);
     uploader.schedule();
-  } else {
+  } else if (event.t === "kick") {
+    room.delete(event.id);
+    mesh.drop(event.id);
+    uploader.schedule();
+  } else if (event.t === "member") onAccess(event.m);
+  else if (event.t === "from") {
     const plain = await unseal(key, fromBase64Url(event.d));
     const payload = plain && parsePayload(plain);
     if (payload) mesh.receive(event.from, payload);
@@ -343,6 +368,46 @@ function flushWhenHidden(saver: Saver, uploader: Uploader): () => void {
   return () => document.removeEventListener("visibilitychange", flush);
 }
 
+interface MeshWiring {
+  readonly self: string;
+  readonly room: ReadonlySet<string>;
+  readonly key: CryptoKey;
+  readonly cursors: Cursors;
+  readonly status: () => void;
+  readonly signal: () => Signal;
+  readonly sync: () => Sync;
+}
+
+function wireMesh(wiring: MeshWiring): Mesh {
+  const { key, cursors, status } = wiring;
+  return createMesh({
+    self: () => wiring.self,
+    present: (peer) => wiring.room.has(peer),
+    iceServers: ICE_SERVERS,
+    signal: (to, payload) =>
+      void sealSignal(key, payload)
+        .then((d) => wiring.signal().send(to, d))
+        .catch(noteError),
+    onOpen: (peer) => {
+      wiring.sync().joined(peer);
+      cursors.announce();
+      status();
+    },
+    onData: (peer, data) => {
+      try {
+        wiring.sync().receive(peer, data);
+      } catch (error) {
+        noteError(error);
+      }
+    },
+    onClose: (peer) => {
+      wiring.sync().left(peer);
+      cursors.drop(peer);
+      status();
+    },
+  });
+}
+
 export async function startSession(deps: SessionDeps): Promise<Session> {
   const { link } = deps;
   const key = await importKey(link.key);
@@ -379,31 +444,14 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
     if (origin !== SNAPSHOT) uploader.mark();
   });
 
-  const mesh = createMesh({
-    self: () => self,
-    present: (peer) => room.has(peer),
-    iceServers: ICE_SERVERS,
-    signal: (to, payload) =>
-      void sealSignal(key, payload)
-        .then((d) => signal.send(to, d))
-        .catch(noteError),
-    onOpen: (peer) => {
-      sync.joined(peer);
-      cursors.announce();
-      status();
-    },
-    onData: (peer, data) => {
-      try {
-        sync.receive(peer, data);
-      } catch (error) {
-        noteError(error);
-      }
-    },
-    onClose: (peer) => {
-      sync.left(peer);
-      cursors.drop(peer);
-      status();
-    },
+  const mesh = wireMesh({
+    self,
+    room,
+    key,
+    cursors,
+    status,
+    signal: () => signal,
+    sync: () => sync,
   });
 
   const sync = createSync({
@@ -414,11 +462,16 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
   });
 
   const signal = openSignal({
-    url: roomUrl(deps.endpoint, link.room, deps.device, self),
+    url: () =>
+      roomUrl(deps.endpoint, link.room, deps.device, self, deps.access()),
     onEvent: (event) => {
-      if (event.t === "hi" && !event.peers.length)
-        setTimeout(binding.settle, EMPTY_ROOM_SETTLE_MS);
-      void routeSignal(event, { key, room, mesh, uploader }).catch(noteError);
+      if (event.t === "hi") {
+        if (!event.peers.length)
+          setTimeout(binding.settle, EMPTY_ROOM_SETTLE_MS);
+        admin.label(deps.profile().name);
+      }
+      const route = { key, room, mesh, uploader, admin, onAccess };
+      void routeSignal(event, route).catch(noteError);
     },
     onSnapshot: (data) => void applySnapshot(doc, key, data).catch(noteError),
     onState: (state) => {
@@ -428,12 +481,20 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
     },
   });
 
+  const admin = createAdmin(key, (message) => signal.command(message));
+  const onAccess = deps.onAccess;
   const unwatch = flushWhenHidden(saver, uploader);
 
   return {
     attach: () => binding.attach(),
     detach: () => binding.detach(),
-    announce: () => cursors.announce(),
+    announce() {
+      cursors.announce();
+      admin.label(deps.profile().name);
+    },
+    invite: () => admin.invite(),
+    members: () => admin.members(),
+    remove: (dev) => admin.remove(dev),
     async stop(forget) {
       stopped = true;
       unwatch();
@@ -443,6 +504,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
       cursors.destroy();
       sync.close();
       mesh.close();
+      if (forget) signal.command({ t: "leave" });
       signal.close();
       if (forget) await dropDoc(link.room);
       else await saveDoc(link.room, Y.encodeStateAsUpdate(doc));
