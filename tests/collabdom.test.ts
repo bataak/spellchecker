@@ -21,6 +21,9 @@ import {
 } from "../src/collab/cursors.ts";
 import { profileFor } from "../src/collab/profile.ts";
 import { watchIdle } from "../src/collab/idle.ts";
+import { openDialog } from "../src/collab/collabdialog.ts";
+import type { Member } from "../src/collab/admin.ts";
+import type { Session } from "../src/collab/session.ts";
 
 const dom = installDom("<textarea id=a></textarea><textarea id=b></textarea>");
 test.after(() => dom.close());
@@ -441,4 +444,42 @@ test("унтах үед холболтыг хааж, сэрэхэд шууд д�
   assert.deepEqual(states, ["connecting", "closed", "connecting"]);
   signal.close();
   (globalThis as Record<string, unknown>).WebSocket = saved;
+});
+
+test("хамтрагч нэгдэхэд цонхны жагсаалт өөрөө шинэчлэгдэнэ", async () => {
+  const listeners = new Set<() => void>();
+  let roster: Member[] = [{ dev: "o", name: "Би", online: true, owner: true }];
+  const session = {
+    members: async () => roster,
+    watch(listener: () => void) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  } as unknown as Session;
+  openDialog({
+    owner: true,
+    session: Promise.resolve(session),
+    inviteUrl: (token) => "https://x/#" + token,
+    name: "Би",
+    tip: null,
+    rename: () => {},
+    stop: () => {},
+    end: async () => true,
+  });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const list = (): string =>
+    document.querySelector(".collab-members ul")!.textContent ?? "";
+  assert.match(list(), /Одоогоор хамтрагч алга/);
+  assert.equal(listeners.size, 1);
+  roster = [...roster, { dev: "a", name: "Сараа", online: true, owner: false }];
+  for (const listener of listeners) listener();
+  for (const listener of listeners) listener();
+  await new Promise((resolve) => setTimeout(resolve, 1600));
+  assert.match(list(), /Сараа/);
+  assert.equal(
+    document.querySelector(".collab-members-title")!.textContent,
+    "Хамтрагч",
+  );
+  document.querySelector<HTMLDialogElement>(".collab-overlay")!.close();
+  assert.equal(listeners.size, 0);
 });

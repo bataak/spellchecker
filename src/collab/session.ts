@@ -56,6 +56,7 @@ export interface Session {
   announce(): void;
   sleep(): void;
   resume(): void;
+  watch(listener: () => void): () => void;
   invite(): Promise<string | null>;
   members(): Promise<Member[] | null>;
   remove(dev: string, wipe: boolean): Promise<Member[] | null>;
@@ -71,6 +72,7 @@ const UPLOAD_IDLE_MS = 30_000;
 const UPLOAD_GAP_MS = 5 * 60_000;
 const MAX_UPLOAD = 1900 * 1024;
 const LOADED = { load: true };
+const MOVES: ReadonlySet<SignalEvent["t"]> = new Set(["join", "bye", "kick"]);
 const SNAPSHOT = { snapshot: true };
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -368,6 +370,19 @@ function createEditing(
   return { cursors, binding };
 }
 
+function sessionUploader(
+  deps: SessionDeps,
+  doc: Y.Doc,
+  key: CryptoKey,
+  allowed: () => boolean,
+  send: (data: Uint8Array) => boolean,
+): Uploader {
+  return createUploader(
+    { doc, key, allowed, send, tooLarge: () => deps.onNotice("too-large") },
+    deps.seed !== null,
+  );
+}
+
 function watchDoc(
   doc: Y.Doc,
   saver: Saver,
@@ -400,6 +415,23 @@ interface MeshWiring {
   readonly status: () => void;
   readonly signal: () => Signal;
   readonly sync: () => Sync;
+}
+
+type ConnectionControls = Pick<Session, "sleep" | "resume" | "watch">;
+
+function connectionControls(
+  signal: Signal,
+  uploader: Uploader,
+  watchers: Set<() => void>,
+): ConnectionControls {
+  return {
+    sleep: () => void uploader.run().finally(() => signal.sleep()),
+    resume: () => signal.resume(),
+    watch(listener) {
+      watchers.add(listener);
+      return () => watchers.delete(listener);
+    },
+  };
 }
 
 type AdminControls = Pick<Session, "invite" | "members" | "remove" | "end">;
@@ -460,22 +492,17 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
   let stopped = false;
   let shared = false;
   const owner = deps.access().kind === "o";
+  const watchers = new Set<() => void>();
   const status = (): void =>
     deps.onStatus({ signal: signalState, peers: mesh.open().length });
   const saver = createSaver(doc, link.room);
-  const uploader = createUploader(
-    {
-      doc,
-      key,
-      allowed: () =>
-        !stopped &&
-        shared &&
-        signalState === "open" &&
-        isUploader(self, room, mesh.open()),
-      send: (data) => signal.upload(data),
-      tooLarge: () => deps.onNotice("too-large"),
-    },
-    deps.seed !== null,
+  const canUpload = (): boolean =>
+    !stopped &&
+    shared &&
+    signalState === "open" &&
+    isUploader(self, room, mesh.open());
+  const uploader = sessionUploader(deps, doc, key, canUpload, (data) =>
+    signal.upload(data),
   );
 
   watchDoc(doc, saver, binding, uploader);
@@ -507,6 +534,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
           setTimeout(binding.settle, EMPTY_ROOM_SETTLE_MS);
         if (!owner) admin.label(deps.profile().name);
       }
+      if (MOVES.has(event.t)) for (const listener of watchers) listener();
       const route = { key, room, mesh, uploader, admin, onAccess };
       void routeSignal(event, route).catch(noteError);
     },
@@ -529,8 +557,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
       cursors.announce();
       if (!owner) admin.label(deps.profile().name);
     },
-    sleep: () => void uploader.run().finally(() => signal.sleep()),
-    resume: () => signal.resume(),
+    ...connectionControls(signal, uploader, watchers),
     ...adminControls(admin, () => {
       if (shared) return;
       shared = true;
