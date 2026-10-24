@@ -5,7 +5,8 @@ import { MAX_NAME } from "./profile.ts";
 
 export interface DialogDeps {
   readonly owner: boolean;
-  readonly session: Promise<Session>;
+  readonly session: () => Promise<Session>;
+  readonly started: boolean;
   readonly inviteUrl: (token: string) => string;
   readonly name: string;
   readonly tip: string | null;
@@ -29,7 +30,10 @@ function ask<T>(
   deps: DialogDeps,
   run: (live: Session) => Promise<T | null>,
 ): Promise<T | null> {
-  return deps.session.then(run).catch(() => null);
+  return deps
+    .session()
+    .then(run)
+    .catch(() => null);
 }
 
 function element<K extends keyof HTMLElementTagNameMap>(
@@ -94,7 +98,11 @@ function inviteRow(url: string, note: HTMLElement): HTMLLIElement {
   return row;
 }
 
-function inviteBox(deps: DialogDeps, note: HTMLElement): HTMLElement {
+function inviteBox(
+  deps: DialogDeps,
+  note: HTMLElement,
+  invited: () => void,
+): HTMLElement {
   const box = element("div", "collab-invite");
   const create = actionButton("Шинэ урилга үүсгэх");
   create.classList.add("suggest-send");
@@ -105,6 +113,7 @@ function inviteBox(deps: DialogDeps, note: HTMLElement): HTMLElement {
     void ask(deps, (live) => live.invite()).then((token) => {
       create.disabled = false;
       if (!token) return say(note, "err", OFFLINE);
+      invited();
       const row = inviteRow(deps.inviteUrl(token), note);
       list.appendChild(row);
       row.scrollIntoView({ block: "nearest" });
@@ -207,7 +216,8 @@ function memberList(
   const changed = (): void => {
     timer ??= setTimeout(refresh, REFRESH_MS);
   };
-  void deps.session
+  void deps
+    .session()
     .then((live) => {
       const unwatch = live.watch(changed);
       closing(() => {
@@ -285,19 +295,22 @@ export function openDialog(deps: DialogDeps): void {
   actions.append(leave, close);
   card.append(title, hint);
   if (deps.tip) card.append(element("p", "suggest-hint collab-tip", deps.tip));
-  if (deps.owner) card.append(inviteBox(deps, note));
-  card.append(nameField(deps));
   let others: number | null = null;
   const stops: (() => void)[] = [];
-  if (deps.owner)
-    card.append(
-      memberList(
-        deps,
-        note,
-        (count) => (others = count),
-        (stop) => (dialog.open ? stops.push(stop) : stop()),
-      ),
+  let members: HTMLElement | null = null;
+  const showMembers = (): void => {
+    leave.hidden = false;
+    if (members || !deps.owner) return;
+    members = memberList(
+      deps,
+      note,
+      (count) => (others = count),
+      (stop) => (dialog.open ? stops.push(stop) : stop()),
     );
+    card.insertBefore(members, note);
+  };
+  if (deps.owner) card.append(inviteBox(deps, note, showMembers));
+  card.append(nameField(deps));
   const toggle = (ending: boolean): void => {
     choice.hidden = !ending;
     actions.hidden = ending;
@@ -311,6 +324,8 @@ export function openDialog(deps: DialogDeps): void {
   );
   card.append(note, choice, actions);
   dialog.appendChild(card);
+  if (deps.started) showMembers();
+  else leave.hidden = true;
   leave.addEventListener("click", () => {
     if (deps.owner && others !== 0) return toggle(true);
     if (deps.owner) return endAlone(deps, note, () => dialog.close());

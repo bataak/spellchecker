@@ -458,7 +458,8 @@ test("хамтрагч нэгдэхэд цонхны жагсаалт өөрөө
   } as unknown as Session;
   openDialog({
     owner: true,
-    session: Promise.resolve(session),
+    session: () => Promise.resolve(session),
+    started: true,
     inviteUrl: (token) => "https://x/#" + token,
     name: "Би",
     tip: null,
@@ -482,4 +483,40 @@ test("хамтрагч нэгдэхэд цонхны жагсаалт өөрөө
   );
   document.querySelector<HTMLDialogElement>(".collab-overlay")!.close();
   assert.equal(listeners.size, 0);
+});
+
+test("урилга үүсгэх хүртэл сервер рүү хандахгүй", async () => {
+  let opened = 0;
+  const session = {
+    invite: async () => "T".repeat(22),
+    members: async () => [{ dev: "o", name: "Би", online: true, owner: true }],
+    watch: () => () => {},
+  } as unknown as Session;
+  openDialog({
+    owner: true,
+    started: false,
+    session: () => {
+      opened += 1;
+      return Promise.resolve(session);
+    },
+    inviteUrl: (token) => "https://x/#" + token,
+    name: "Би",
+    tip: null,
+    rename: () => {},
+    stop: () => {},
+    end: async () => true,
+  });
+  const dialog = document.querySelector<HTMLDialogElement>(".collab-overlay")!;
+  const stop = dialog.querySelector<HTMLButtonElement>(".collab-stop")!;
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(opened, 0);
+  assert.equal(stop.hidden, true);
+  assert.equal(dialog.querySelector(".collab-members"), null);
+  dialog.querySelector<HTMLButtonElement>(".collab-invite > .tbtn")!.click();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.ok(opened >= 1);
+  assert.equal(stop.hidden, false);
+  assert.ok(dialog.querySelector(".collab-members"));
+  assert.equal(dialog.querySelectorAll(".collab-invite-row").length, 1);
+  dialog.close();
 });

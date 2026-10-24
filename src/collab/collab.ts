@@ -234,10 +234,16 @@ function showDialog(
   entry: RoomEntry,
   registry: Registry,
   stop: () => void,
+  begin: (() => void) | null,
 ): void {
   openDialog({
     owner: isOwner(entry),
-    session: registry.open(entry, false),
+    started: begin === null,
+    session() {
+      begin?.();
+      begin = null;
+      return registry.open(entry, false);
+    },
     inviteUrl: (invite) =>
       shareUrl({ room: entry.room, key: entry.key, invite }, location.href),
     name: loadProfile(deviceId()).name,
@@ -254,6 +260,26 @@ function showDialog(
       return true;
     },
   });
+}
+
+function openShare(
+  rooms: readonly RoomEntry[],
+  deps: CollabDeps,
+  registry: Registry,
+  stop: (entry: RoomEntry) => void,
+  adopt: (draft: RoomEntry) => void,
+): void {
+  const entry = roomOfSlot(rooms, deps.slot());
+  if (entry) return showDialog(entry, registry, () => stop(entry), null);
+  const reason = deps.blocked();
+  if (reason) return deps.notify(reason);
+  const draft = ownedRoom(deps.slot());
+  showDialog(
+    draft,
+    registry,
+    () => stop(draft),
+    () => adopt(draft),
+  );
 }
 
 export function initCollab(deps: CollabDeps): Collab {
@@ -327,19 +353,12 @@ export function initCollab(deps: CollabDeps): Collab {
     sync();
   };
 
-  const share = (): void => {
-    let entry = roomOfSlot(rooms, deps.slot());
-    if (!entry) {
-      const reason = deps.blocked();
-      if (reason) return deps.notify(reason);
-      entry = ownedRoom(deps.slot());
-      rooms = withRoom(rooms, entry);
+  const share = (): void =>
+    openShare(rooms, deps, registry, stop, (draft) => {
+      rooms = withRoom(rooms, draft);
       store();
       sync(true);
-    }
-    const shown = entry;
-    showDialog(shown, registry, () => stop(shown));
-  };
+    });
 
   onSwap(detach);
   editor.addEventListener("input", (event) => {
