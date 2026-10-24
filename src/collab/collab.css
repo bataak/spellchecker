@@ -1,0 +1,270 @@
+.collab-overlay {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  color: var(--ink);
+  font-family: var(--sans);
+}
+
+.collab-overlay:not([open]) {
+  display: none;
+}
+
+.collab-overlay::backdrop {
+  background: transparent;
+}
+
+.collab-link {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--mono, monospace);
+  font-size: 0.8rem;
+}
+
+.collab-stop {
+  margin-inline-end: auto;
+  color: var(--proof);
+}
+
+#collabBtn[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.collab-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.collab-name input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.collab-cursors {
+  position: absolute;
+  inset: 1px;
+  z-index: 2;
+  overflow: hidden;
+  border-radius: 11px;
+  pointer-events: none;
+}
+
+.collab-cursors[hidden],
+.collab-peer[hidden] {
+  display: none;
+}
+
+.collab-caret,
+.collab-label,
+.collab-selection {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.collab-caret {
+  width: 2px;
+  margin-left: -1px;
+  background: var(--peer);
+}
+
+.collab-label {
+  margin-top: -1.25em;
+  padding: 0 5px;
+  border-radius: 4px 4px 4px 0;
+  background: var(--peer);
+  color: #fff;
+  font-family: var(--sans);
+  font-size: 0.7rem;
+  line-height: 1.25em;
+  white-space: nowrap;
+  opacity: 0.92;
+}
+
+.collab-label.is-below {
+  margin-top: 1.5em;
+  border-radius: 0 4px 4px 4px;
+}
+
+.collab-selection {
+  background: var(--peer);
+  opacity: 0.18;
+}
+
+.collab-invite {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.collab-invite > .tbtn {
+  justify-self: start;
+}
+
+.collab-invite-list {
+  display: grid;
+  gap: 6px;
+  max-height: 10.5rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.collab-invite-list:empty {
+  display: none;
+}
+
+.collab-invite-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.collab-invite-row .collab-link {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
+.collab-invite-row .tbtn {
+  flex: none;
+}
+
+.collab-invite-row.is-copied .collab-link {
+  opacity: 0.55;
+}
+
+.collab-members {
+  margin-top: 14px;
+}
+
+.collab-members-title {
+  margin: 0 0 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.collab-members ul {
+  display: grid;
+  gap: 4px;
+  max-height: 11rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.collab-members li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 2rem;
+  font-size: 0.9rem;
+}
+
+.collab-member-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.collab-members li::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--line);
+}
+
+.collab-members li.is-online::before {
+  background: var(--accent);
+}
+
+.collab-members li.collab-members-empty::before {
+  display: none;
+}
+
+.collab-members-empty {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.collab-members .collab-stop {
+  margin-inline-end: 0;
+}
+
+.collab-end[hidden],
+.collab-overlay .suggest-actions[hidden] {
+  display: none;
+}
+
+.collab-end .suggest-actions {
+  flex-wrap: wrap;
+}
+
+.collab-wipe {
+  border-color: var(--proof);
+  color: var(--proof);
+}
+
+.collab-members li:has(.collab-member-choice:not([hidden])) {
+  flex-wrap: wrap;
+}
+
+.collab-member-choice {
+  display: flex;
+  flex: 1 0 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 4px 0 6px;
+}
+
+.collab-member-choice p {
+  flex: 1 0 100%;
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.collab-member-choice[hidden],
+.collab-members .tbtn[hidden] {
+  display: none;
+}
+
+.collab-tip {
+  padding: 8px 10px;
+  border-radius: 7px;
+  background: var(--paper);
+  font-size: 0.82rem;
+}
+
+.collab-overlay .suggest-actions .tbtn[hidden] {
+  display: none;
+}

@@ -27,7 +27,8 @@
     "katex": "^0.18.9",
     "nspell": "^2.1.5",
     "pdfjs-dist": "5.4.624",
-    "svg2pdf.js": "^2.8.1"
+    "svg2pdf.js": "^2.8.1",
+    "yjs": "^13.6.33"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

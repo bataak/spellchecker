@@ -7,6 +7,7 @@ const DATABASES = [
   "bichig-undo",
   "bichig-tex",
   "bichig-images",
+  "bichig-collab",
 ];
 const USER_CACHES = ["tex-preview", "tex-packages"];
 
