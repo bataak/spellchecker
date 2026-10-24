@@ -61,49 +61,58 @@ function nameField(deps: DialogDeps): HTMLLabelElement {
   return label;
 }
 
-function inviteBox(deps: DialogDeps, note: HTMLElement): HTMLElement {
-  const box = element("div", "collab-invite");
-  const create = actionButton("Шинэ урилга үүсгэх");
-  create.classList.add("suggest-send");
+function inviteRow(url: string, note: HTMLElement): HTMLLIElement {
+  const row = element("li", "collab-invite-row");
   const field = element("input", "collab-link");
   field.readOnly = true;
-  field.hidden = true;
-  const row = element("div", "collab-invite-actions");
-  row.hidden = true;
+  field.value = url;
   const copy = actionButton("Хуулах");
-  row.appendChild(copy);
-  if (typeof navigator.share === "function") {
-    const share = actionButton("Илгээх");
-    share.addEventListener("click", () => {
-      navigator
-        .share({ title: "Хамтын бичвэр", url: field.value })
-        .catch(() => {});
-    });
-    row.appendChild(share);
-  }
-  create.addEventListener("click", () => {
-    create.disabled = true;
-    say(note, "", "Урилга үүсгэж байна…");
-    void ask(deps, (live) => live.invite()).then((token) => {
-      create.disabled = false;
-      if (!token) return say(note, "err", OFFLINE);
-      field.value = deps.inviteUrl(token);
-      field.hidden = false;
-      row.hidden = false;
-      field.select();
-      say(note, "ok", "Нэг хүнд зориулсан урилга бэлэн боллоо");
-    });
-  });
   copy.addEventListener("click", () => {
-    copyText(field.value).then(
-      () => say(note, "ok", "Урилгыг хууллаа"),
+    copyText(url).then(
+      () => {
+        copy.textContent = "Хуулсан";
+        row.classList.add("is-copied");
+        say(note, "ok", "Урилгыг хууллаа");
+      },
       () => {
         field.select();
         say(note, "err", "Хуулж чадсангүй, урилгыг гараар хуулна уу");
       },
     );
   });
-  box.append(create, field, row);
+  row.append(field, copy);
+  if (typeof navigator.share === "function") {
+    const share = actionButton("Илгээх");
+    share.addEventListener("click", () => {
+      navigator.share({ title: "Хамтын бичвэр", url }).catch(() => {});
+    });
+    row.appendChild(share);
+  }
+  return row;
+}
+
+function inviteBox(deps: DialogDeps, note: HTMLElement): HTMLElement {
+  const box = element("div", "collab-invite");
+  const create = actionButton("Шинэ урилга үүсгэх");
+  create.classList.add("suggest-send");
+  const list = element("ol", "collab-invite-list");
+  create.addEventListener("click", () => {
+    create.disabled = true;
+    say(note, "", "Урилга үүсгэж байна…");
+    void ask(deps, (live) => live.invite()).then((token) => {
+      create.disabled = false;
+      if (!token) return say(note, "err", OFFLINE);
+      const row = inviteRow(deps.inviteUrl(token), note);
+      list.appendChild(row);
+      row.scrollIntoView({ block: "nearest" });
+      say(
+        note,
+        "ok",
+        "Урилга бэлэн. Нэг урилгыг зөвхөн нэг хүнд илгээнэ үү. Дахин дарж өөр хүнд шинийг үүсгэнэ.",
+      );
+    });
+  });
+  box.append(create, list);
   return box;
 }
 

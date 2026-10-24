@@ -121,13 +121,38 @@
   justify-self: start;
 }
 
-.collab-invite-actions {
-  display: flex;
-  gap: 8px;
+.collab-invite-list {
+  display: grid;
+  gap: 6px;
+  max-height: 10.5rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
 }
 
-.collab-invite [hidden] {
+.collab-invite-list:empty {
   display: none;
+}
+
+.collab-invite-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.collab-invite-row .collab-link {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
+.collab-invite-row .tbtn {
+  flex: none;
+}
+
+.collab-invite-row.is-copied .collab-link {
+  opacity: 0.55;
 }
 
 .collab-members {
