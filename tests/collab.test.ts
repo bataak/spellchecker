@@ -321,13 +321,10 @@ test("тасралтгүй бичсэн ч 5 минут тутамд snapshot х
 });
 
 test("товчны шошго төлөвийг харуулна", () => {
-  assert.equal(buttonLabel(false, null), "Хамтран засах");
-  assert.equal(buttonLabel(true, null), "Хамтрагч · …");
-  assert.equal(buttonLabel(true, { signal: "open", peers: 0 }), "Хамтрагч · 1");
-  assert.equal(
-    buttonLabel(true, { signal: "closed", peers: 2 }),
-    "Хамтрагч · 3",
-  );
+  assert.equal(buttonLabel(false, null), "Хамтрах");
+  assert.equal(buttonLabel(true, null), "Хамтрах");
+  assert.equal(buttonLabel(true, { signal: "open", peers: 0 }), "Хамтрах");
+  assert.equal(buttonLabel(true, { signal: "closed", peers: 2 }), "Хамтрагч 3");
   assert.equal(
     buttonLabel(true, { signal: "full", peers: 0 }),
     "Хамтрагч · дүүрсэн",
