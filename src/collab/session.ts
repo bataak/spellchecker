@@ -72,7 +72,13 @@ const UPLOAD_IDLE_MS = 30_000;
 const UPLOAD_GAP_MS = 5 * 60_000;
 const MAX_UPLOAD = 1900 * 1024;
 const LOADED = { load: true };
-const MOVES: ReadonlySet<SignalEvent["t"]> = new Set(["join", "bye", "kick"]);
+const MOVES: ReadonlySet<SignalEvent["t"]> = new Set([
+  "hi",
+  "join",
+  "bye",
+  "kick",
+]);
+const READY_MS = 5000;
 const SNAPSHOT = { snapshot: true };
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -436,16 +442,49 @@ function connectionControls(
 
 type AdminControls = Pick<Session, "invite" | "members" | "remove" | "end">;
 
-function adminControls(admin: Admin, invited: () => void): AdminControls {
+interface Gate {
+  release(): void;
+  wait(): Promise<void>;
+}
+
+export function createGate(isOpen: () => boolean, ms = READY_MS): Gate {
+  const waiters = new Set<() => void>();
+  return {
+    release() {
+      for (const done of [...waiters]) done();
+    },
+    wait() {
+      if (isOpen()) return Promise.resolve();
+      return new Promise((resolve) => {
+        const done = (): void => {
+          clearTimeout(timer);
+          waiters.delete(done);
+          resolve();
+        };
+        const timer = setTimeout(done, ms);
+        waiters.add(done);
+      });
+    },
+  };
+}
+
+function adminControls(
+  admin: Admin,
+  gate: Gate,
+  invited: () => void,
+): AdminControls {
   return {
     invite: () =>
-      admin.invite().then((token) => {
-        if (token) invited();
-        return token;
-      }),
-    members: () => admin.members(),
-    remove: (dev, wipe) => admin.remove(dev, wipe),
-    end: (wipe) => admin.end(wipe),
+      gate
+        .wait()
+        .then(() => admin.invite())
+        .then((token) => {
+          if (token) invited();
+          return token;
+        }),
+    members: () => gate.wait().then(() => admin.members()),
+    remove: (dev, wipe) => gate.wait().then(() => admin.remove(dev, wipe)),
+    end: (wipe) => gate.wait().then(() => admin.end(wipe)),
   };
 }
 
@@ -541,12 +580,14 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
     onSnapshot: (data) => void applySnapshot(doc, key, data).catch(noteError),
     onState: (state) => {
       signalState = state;
-      if (state !== "open") room.clear();
+      if (state === "open") gate.release();
+      else room.clear();
       status();
     },
   });
 
   const admin = createAdmin(key, (message) => signal.command(message));
+  const gate = createGate(() => signalState === "open");
   const onAccess = deps.onAccess;
   const unwatch = flushWhenHidden(saver, uploader);
 
@@ -558,7 +599,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
       if (!owner) admin.label(deps.profile().name);
     },
     ...connectionControls(signal, uploader, watchers),
-    ...adminControls(admin, () => {
+    ...adminControls(admin, gate, () => {
       if (shared) return;
       shared = true;
       uploader.force();
