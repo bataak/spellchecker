@@ -60,7 +60,7 @@ const ENDED: Partial<Record<SignalState, string>> = {
   wiped: "Үүсгэгч хуваалцахаа зогсоож, бичвэрийг устгалаа.",
   purged: "Үүсгэгч таныг хамтын засвараас хасаж, бичвэрийг устгалаа.",
 };
-const IDLE_MS = 15 * 60_000;
+const IDLE_MS = 30 * 60_000;
 const HOME_SCREEN_MESSAGE =
   "iPhone, iPad дээр хамтын бичвэрийг удаан хадгалахын тулд Safari-гийн «Хуваалцах» цэснээс «Нүүр дэлгэцэнд нэмэх»-ийг сонгож аппыг суулгана уу. Эс бөгөөс 7 хоног нээгээгүй үед Safari бичвэрийг устгаж болно.";
 const WIPES: ReadonlySet<SignalState> = new Set(["wiped", "purged"]);
