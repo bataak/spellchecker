@@ -189,7 +189,12 @@ export class Room extends DurableObject {
     this.ctx.acceptWebSocket(server);
     server.serializeAttachment({ id, dev, owner: access.owner === true });
     if (access.member) this.send(server, { t: "member", m: access.member });
-    this.send(server, { t: "hi", id, peers: others.map((p) => p.id) });
+    this.send(server, {
+      t: "hi",
+      id,
+      peers: others.map((p) => p.id),
+      s: this.shared(),
+    });
     for (const row of this.ctx.storage.sql.exec("SELECT data FROM snap"))
       this.send(server, row.data);
     for (const peer of others) this.send(peer.ws, { t: "join", id });
@@ -315,8 +320,22 @@ export class Room extends DurableObject {
     ws.close(code, "final");
   }
 
+  shared() {
+    const sql = this.ctx.storage.sql;
+    return (
+      first(sql.exec("SELECT 1 AS x FROM invites LIMIT 1")) !== null ||
+      first(
+        sql.exec(
+          "SELECT 1 AS x FROM members WHERE dev != ? LIMIT 1",
+          this.meta("dev") ?? "",
+        ),
+      ) !== null
+    );
+  }
+
   store(dev, data) {
     if (data.byteLength === 0 || data.byteLength > MAX_SNAPSHOT) return;
+    if (!this.shared()) return;
     const sql = this.ctx.storage.sql;
     sql.exec(
       "INSERT INTO snap (dev, data, at) VALUES (?, ?, ?) ON CONFLICT (dev) DO UPDATE SET data = excluded.data, at = excluded.at",

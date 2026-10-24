@@ -132,7 +132,16 @@ test("сигналын мессежийг шалгаж задлана", () => {
     t: "hi",
     id: "a",
     peers: ["b"],
+    shared: false,
   });
+  assert.equal(
+    (
+      parseSignal('{"t":"hi","id":"a","peers":[],"s":true}') as {
+        shared: boolean;
+      }
+    ).shared,
+    true,
+  );
   assert.deepEqual(parseSignal('{"t":"bye","id":"a"}'), { t: "bye", id: "a" });
   assert.deepEqual(parseSignal('{"t":"from","from":"a","d":"x"}'), {
     t: "from",
