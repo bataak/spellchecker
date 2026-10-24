@@ -11,6 +11,7 @@ import {
   caretSpotAt,
   chunkOffsetAt,
   chunkRangeRect,
+  chunkRangeRects,
   localOffsetAtY,
   type ChunkNode,
 } from "./backdropgeom.ts";
@@ -43,6 +44,8 @@ export interface Backdrop {
   setActiveLine(index: number): void;
   refreshMarks(): void;
   rangeRectAt(start: number, end: number): DOMRect | null;
+  caretRect(offset: number): DOMRect | null;
+  rangeRects(start: number, end: number): DOMRect[];
   offsetAtPoint(x: number, y: number): number | null;
   offsetAtY(y: number): number | null;
   captureTopAnchor(): void;
@@ -270,6 +273,34 @@ function offsetAtYIn(
   );
 }
 
+function caretRectIn(
+  nodes: readonly ChunkNode[],
+  offset: number,
+  blocks: boolean,
+): DOMRect | null {
+  const node =
+    nodeAt(nodes, offset) ?? (offset > 0 ? nodeAt(nodes, offset - 1) : null);
+  if (!node) return null;
+  const body = stripChunkNewline(node._src);
+  const local = Math.min(Math.max(0, offset - node._start), body.length);
+  return caretRectAt(node, body, local, blocks);
+}
+
+function rangeRectsIn(
+  nodes: readonly ChunkNode[],
+  start: number,
+  end: number,
+  blocks: boolean,
+): DOMRect[] {
+  const out: DOMRect[] = [];
+  for (const node of nodes) {
+    if (node._start >= end) break;
+    if (node._start + node._src.length <= start) continue;
+    out.push(...chunkRangeRects(node, start, end, blocks));
+  }
+  return out;
+}
+
 export function createBackdrop(root: HTMLElement): Backdrop {
   let trailer: HTMLDivElement = document.createElement("div");
   let nodes: ChunkNode[] = [];
@@ -357,6 +388,8 @@ export function createBackdrop(root: HTMLElement): Backdrop {
       marksFor(node);
       return chunkRangeRect(node, start, end, useBlocks);
     },
+    caretRect: (offset) => caretRectIn(nodes, offset, useBlocks),
+    rangeRects: (start, end) => rangeRectsIn(nodes, start, end, useBlocks),
     offsetAtPoint(x, y) {
       const spot = caretSpotAt(x, y);
       if (!spot) return null;

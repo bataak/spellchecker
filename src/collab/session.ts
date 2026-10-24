@@ -15,6 +15,12 @@ import { createMesh, type Mesh, type SignalPayload } from "./mesh.ts";
 import { openSignal, type SignalEvent, type SignalState } from "./signal.ts";
 import { createSync } from "./sync.ts";
 import { bindText } from "./textbind.ts";
+import {
+  createCursors,
+  type CursorView,
+  type Cursors,
+  type Profile,
+} from "./cursors.ts";
 
 export interface SessionStatus {
   readonly signal: SignalState;
@@ -31,11 +37,14 @@ export interface SessionDeps {
   readonly seed: (() => string) | null;
   readonly onStatus: (status: SessionStatus) => void;
   readonly onNotice: (notice: SessionNotice) => void;
+  readonly view: CursorView;
+  readonly profile: () => Profile;
 }
 
 export interface Session {
   attach(): void;
   detach(): void;
+  announce(): void;
   stop(forget: boolean): Promise<void>;
 }
 
@@ -219,6 +228,7 @@ export function createAttacher(
   editor: HTMLTextAreaElement,
   text: Y.Text,
   fresh: boolean,
+  shown: (on: boolean) => void = () => {},
 ): Attacher {
   const binding = bindText(editor, text);
   let settled = !fresh;
@@ -228,6 +238,7 @@ export function createAttacher(
     if (fresh && text.length === 0 && editor.value)
       text.insert(0, editor.value);
     binding.attach();
+    shown(true);
   };
   function settle(): void {
     if (settled) return;
@@ -243,6 +254,7 @@ export function createAttacher(
     detach() {
       wanted = false;
       binding.detach();
+      shown(false);
     },
     settle,
     destroy() {
@@ -300,11 +312,44 @@ async function applySnapshot(
   if (plain) Y.applyUpdate(doc, inflateSync(plain), SNAPSHOT);
 }
 
+function createEditing(
+  deps: SessionDeps,
+  doc: Y.Doc,
+  fresh: boolean,
+  send: (body: Uint8Array) => void,
+): { cursors: Cursors; binding: Attacher } {
+  const text = doc.getText("t");
+  const cursors = createCursors({
+    doc,
+    text,
+    editor: deps.editor,
+    view: deps.view,
+    profile: deps.profile,
+    send,
+  });
+  const binding = createAttacher(deps.editor, text, fresh, (on) =>
+    cursors.setActive(on),
+  );
+  return { cursors, binding };
+}
+
+function flushWhenHidden(saver: Saver, uploader: Uploader): () => void {
+  const flush = (): void => {
+    if (document.visibilityState !== "hidden") return;
+    saver.now();
+    if (uploader.dirty()) void uploader.run();
+  };
+  document.addEventListener("visibilitychange", flush);
+  return () => document.removeEventListener("visibilitychange", flush);
+}
+
 export async function startSession(deps: SessionDeps): Promise<Session> {
   const { link } = deps;
   const key = await importKey(link.key);
   const { doc, fresh } = await openDoc(link.room, deps.seed);
-  const binding = createAttacher(deps.editor, doc.getText("t"), fresh);
+  const { cursors, binding } = createEditing(deps, doc, fresh, (body) =>
+    sync.cursor(body),
+  );
   const self = randomId(12);
   const room = new Set<string>();
   let signalState: SignalState = "connecting";
@@ -344,6 +389,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
         .catch(noteError),
     onOpen: (peer) => {
       sync.joined(peer);
+      cursors.announce();
       status();
     },
     onData: (peer, data) => {
@@ -355,6 +401,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
     },
     onClose: (peer) => {
       sync.left(peer);
+      cursors.drop(peer);
       status();
     },
   });
@@ -363,7 +410,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
     doc,
     open: () => mesh.open(),
     send: (peer, data) => mesh.send(peer, data),
-    onCursor: () => {},
+    onCursor: (peer, body) => cursors.receive(peer, body),
   });
 
   const signal = openSignal({
@@ -381,22 +428,19 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
     },
   });
 
-  const flush = (): void => {
-    if (document.visibilityState !== "hidden") return;
-    saver.now();
-    if (uploader.dirty()) void uploader.run();
-  };
-  document.addEventListener("visibilitychange", flush);
+  const unwatch = flushWhenHidden(saver, uploader);
 
   return {
     attach: () => binding.attach(),
     detach: () => binding.detach(),
+    announce: () => cursors.announce(),
     async stop(forget) {
       stopped = true;
-      document.removeEventListener("visibilitychange", flush);
+      unwatch();
       uploader.cancel();
       saver.cancel();
       binding.destroy();
+      cursors.destroy();
       sync.close();
       mesh.close();
       signal.close();

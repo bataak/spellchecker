@@ -38,3 +38,75 @@
   border-color: var(--accent);
   color: var(--accent);
 }
+
+.collab-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.collab-name input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.collab-cursors {
+  position: absolute;
+  inset: 1px;
+  z-index: 2;
+  overflow: hidden;
+  border-radius: 11px;
+  pointer-events: none;
+}
+
+.collab-cursors[hidden],
+.collab-peer[hidden] {
+  display: none;
+}
+
+.collab-caret,
+.collab-label,
+.collab-selection {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.collab-caret {
+  width: 2px;
+  margin-left: -1px;
+  background: var(--peer);
+}
+
+.collab-label {
+  margin-top: -1.25em;
+  padding: 0 5px;
+  border-radius: 4px 4px 4px 0;
+  background: var(--peer);
+  color: #fff;
+  font-family: var(--sans);
+  font-size: 0.7rem;
+  line-height: 1.25em;
+  white-space: nowrap;
+  opacity: 0.92;
+}
+
+.collab-label.is-below {
+  margin-top: 1.5em;
+  border-radius: 0 4px 4px 4px;
+}
+
+.collab-selection {
+  background: var(--peer);
+  opacity: 0.18;
+}
