@@ -521,6 +521,11 @@ initKeyboardToolbar(editorEl, els.backdrop);
 
 const collab = initCollab({
   editor: editorEl,
+  view: {
+    host: editorWrap,
+    caretRect: backdrop.caretRect,
+    rangeRects: backdrop.rangeRects,
+  },
   button: document.querySelector<HTMLButtonElement>("#collabBtn"),
   slot: () => mdBar.slot(),
   openSlot: (name) => mdBar.openFile(name),

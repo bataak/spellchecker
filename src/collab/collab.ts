@@ -18,9 +18,12 @@ import {
   type RoomEntry,
 } from "./collabrooms.ts";
 import type { Session, SessionStatus } from "./session.ts";
+import type { CursorView } from "./cursors.ts";
+import { MAX_NAME, loadProfile, saveName } from "./profile.ts";
 
 export interface CollabDeps {
   readonly editor: HTMLTextAreaElement;
+  readonly view: CursorView;
   readonly button: HTMLButtonElement | null;
   readonly slot: () => string;
   readonly openSlot: (name: string) => boolean;
@@ -73,7 +76,22 @@ function actionButton(label: string): HTMLButtonElement {
   return button;
 }
 
-function openDialog(url: string, stop: () => void): void {
+function nameField(rename: () => void): HTMLLabelElement {
+  const label = document.createElement("label");
+  label.className = "collab-name";
+  label.textContent = "Таны нэр";
+  const input = document.createElement("input");
+  input.maxLength = MAX_NAME;
+  input.value = loadProfile(deviceId()).name;
+  input.addEventListener("change", () => {
+    saveName(input.value);
+    rename();
+  });
+  label.appendChild(input);
+  return label;
+}
+
+function openDialog(url: string, stop: () => void, rename: () => void): void {
   const dialog = document.createElement("dialog");
   dialog.className = "suggest-overlay collab-overlay";
   dialog.setAttribute("aria-labelledby", "collabTitle");
@@ -109,7 +127,7 @@ function openDialog(url: string, stop: () => void): void {
     });
     actions.insertBefore(share, copy);
   }
-  card.append(title, hint, field, note, actions);
+  card.append(title, hint, field, nameField(rename), note, actions);
   dialog.appendChild(card);
   copy.addEventListener("click", () => {
     copyText(url).then(
@@ -148,12 +166,14 @@ function openDialog(url: string, stop: () => void): void {
 interface Registry {
   open(entry: RoomEntry, seed: boolean): Promise<Session>;
   live(room: string): Session | null;
+  rename(): void;
   status(room: string): SessionStatus | null;
   close(room: string): void;
 }
 
 function createRegistry(
   editor: HTMLTextAreaElement,
+  view: CursorView,
   changed: () => void,
   notify: (message: string) => void,
 ): Registry {
@@ -171,6 +191,8 @@ function createRegistry(
           endpoint: ENDPOINT,
           device: deviceId(),
           editor,
+          view,
+          profile: () => loadProfile(deviceId()),
           seed: seed ? () => editor.value : null,
           onStatus: (status) => {
             if (status.signal === "full" && !full.has(entry.room)) {
@@ -195,6 +217,9 @@ function createRegistry(
       return created;
     },
     live: (room) => ready.get(room) ?? null,
+    rename() {
+      for (const live of ready.values()) live.announce();
+    },
     status: (room) => statuses.get(room) ?? null,
     close(room) {
       const live = pending.get(room);
@@ -243,7 +268,7 @@ export function initCollab(deps: CollabDeps): Collab {
     button.setAttribute("aria-pressed", entry ? "true" : "false");
   };
 
-  const registry = createRegistry(editor, () => paint(), deps.notify);
+  const registry = createRegistry(editor, deps.view, paint, deps.notify);
 
   const detach = (): void => {
     if (active) registry.live(active)?.detach();
@@ -293,21 +318,21 @@ export function initCollab(deps: CollabDeps): Collab {
   };
 
   const share = (): void => {
-    const current = roomOfSlot(rooms, deps.slot());
-    if (current) {
-      openDialog(shareUrl(current, location.href), () => stop(current));
-      return;
+    let entry = roomOfSlot(rooms, deps.slot());
+    if (!entry) {
+      const reason = deps.blocked();
+      if (reason) return deps.notify(reason);
+      entry = { slot: deps.slot(), ...newLink() };
+      rooms = withRoom(rooms, entry);
+      store();
+      sync(true);
     }
-    const reason = deps.blocked();
-    if (reason) {
-      deps.notify(reason);
-      return;
-    }
-    const entry = { slot: deps.slot(), ...newLink() };
-    rooms = withRoom(rooms, entry);
-    store();
-    sync(true);
-    openDialog(shareUrl(entry, location.href), () => stop(entry));
+    const shown = entry;
+    openDialog(
+      shareUrl(shown, location.href),
+      () => stop(shown),
+      registry.rename,
+    );
   };
 
   onSwap(detach);

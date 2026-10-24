@@ -142,6 +142,25 @@ export function chunkRangeRect(
   return box.width > 0 ? box : null;
 }
 
+export function chunkRangeRects(
+  node: ChunkNode,
+  start: number,
+  end: number,
+  blocks: boolean,
+): DOMRect[] {
+  const body = stripChunkNewline(node._src);
+  const from = Math.max(0, start - node._start);
+  const to = Math.min(end - node._start, body.length);
+  if (to <= from) return [];
+  const head = locateInNode(node, body, from, blocks);
+  const tail = locateInNode(node, body, to, blocks);
+  if (!head || !tail) return [];
+  const range = document.createRange();
+  range.setStart(head.node, head.offset);
+  range.setEnd(tail.node, tail.offset);
+  return [...range.getClientRects()].filter((rect) => rect.width > 0.5);
+}
+
 export function chunkOffsetAt(
   node: ChunkNode,
   spot: { node: Node; offset: number },

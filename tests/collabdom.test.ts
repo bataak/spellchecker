@@ -6,6 +6,12 @@ import { bindText } from "../src/collab/textbind.ts";
 import { remoteChanges } from "../src/editor/editortext.ts";
 import { createAttacher } from "../src/collab/session.ts";
 import { FULL_CODE, openSignal } from "../src/collab/signal.ts";
+import {
+  createCursors,
+  decodeCursor,
+  encodeCursor,
+} from "../src/collab/cursors.ts";
+import { profileFor } from "../src/collab/profile.ts";
 
 const dom = installDom("<textarea id=a></textarea><textarea id=b></textarea>");
 test.after(() => dom.close());
@@ -169,4 +175,78 @@ test("дүүрсэн өрөөнд дахин холбогдохыг оролдо
   assert.deepEqual(states, ["connecting", "full"]);
   signal.close();
   (globalThis as Record<string, unknown>).WebSocket = saved;
+});
+
+test("курсорын мэдээллийг кодлоод задлахад байрлал хадгалагдана", () => {
+  const doc = new Y.Doc();
+  const text = doc.getText("t");
+  text.insert(0, "Сайн уу");
+  const at = Y.createRelativePositionFromTypeIndex(text, 4);
+  const body = encodeCursor({ name: "Бат", color: 3 }, at, at);
+  const state = decodeCursor(body)!;
+  assert.equal(state.name, "Бат");
+  assert.equal(state.color, 3);
+  text.insert(0, ">> ");
+  const moved = Y.createAbsolutePositionFromRelativePosition(state.head!, doc);
+  assert.equal(moved?.index, 7);
+  assert.equal(decodeCursor(new TextEncoder().encode("{}")), null);
+  assert.equal(decodeCursor(new TextEncoder().encode("x")), null);
+  const hidden = decodeCursor(
+    encodeCursor({ name: "Бат", color: 1 }, null, null),
+  );
+  assert.equal(hidden?.head, null);
+});
+
+test("бусдын курсорыг нэр, өнгөтэй нь зурна", async () => {
+  const { a, docA } = pair();
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const text = docA.getText("t");
+  text.insert(0, "abcdef");
+  a.value = "abcdef";
+  const view = {
+    host,
+    caretRect: (offset: number) => new DOMRect(offset * 10, 0, 0, 20),
+    rangeRects: (start: number, end: number) => [
+      new DOMRect(start * 10, 0, (end - start) * 10, 20),
+    ],
+  };
+  const sent: Uint8Array[] = [];
+  const cursors = createCursors({
+    doc: docA,
+    text,
+    editor: a,
+    view,
+    profile: () => ({ name: "Би", color: 0 }),
+    send: (body) => sent.push(body),
+  });
+  cursors.setActive(true);
+  assert.equal(sent.length, 1);
+  const anchor = Y.createRelativePositionFromTypeIndex(text, 1);
+  const head = Y.createRelativePositionFromTypeIndex(text, 3);
+  cursors.receive(
+    "peer",
+    encodeCursor({ name: "Сараа", color: 2 }, anchor, head),
+  );
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+  const label = host.querySelector<HTMLElement>(".collab-label")!;
+  assert.equal(label.textContent, "Сараа");
+  assert.match(
+    host.querySelector<HTMLElement>(".collab-caret")!.style.transform,
+    /translate\(30px/,
+  );
+  assert.equal(host.querySelectorAll(".collab-selection").length, 1);
+  cursors.drop("peer");
+  assert.equal(host.querySelector(".collab-label"), null);
+  cursors.destroy();
+  assert.equal(host.querySelector(".collab-cursors"), null);
+});
+
+test("нэр, өнгийг төхөөрөмжөөр тогтооно", () => {
+  const one = profileFor("deviceAAAAAAAAAA", null);
+  assert.deepEqual(profileFor("deviceAAAAAAAAAA", ""), one);
+  assert.ok(one.name.length > 0);
+  assert.ok(one.color >= 0 && one.color < 8);
+  assert.equal(profileFor("deviceAAAAAAAAAA", "  Бат  ").name, "Бат");
+  assert.equal(profileFor("d", "x".repeat(60)).name.length, 40);
 });

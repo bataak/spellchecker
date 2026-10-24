@@ -45,6 +45,7 @@ export const KEYS = {
   gitRepo: shared("git-repo"),
   collabDevice: shared("collab:device"),
   collabRooms: shared("collab:rooms"),
+  collabName: shared("collab:name"),
   defPin: shared("def-pin"),
   defDock: shared("def-dock"),
   hintSeen: shared("hintSeen:"),
