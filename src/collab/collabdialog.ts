@@ -21,6 +21,7 @@ const OWNER_HINT =
   PRIVACY;
 const MEMBER_HINT =
   "Та энэ бичвэрт уригдсан. Өөр хүн нэмэх бол үүсгэгчид хандана уу. " + PRIVACY;
+const REFRESH_MS = 1500;
 const OFFLINE =
   "Сервертэй холбогдоогүй байна. Түр хүлээгээд дахин оролдоно уу.";
 
@@ -158,6 +159,7 @@ function memberList(
   deps: DialogDeps,
   note: HTMLElement,
   counted: (others: number | null) => void,
+  closing: (stop: () => void) => void,
 ): HTMLElement {
   const box = element("div", "collab-members");
   const title = element("h3", "collab-members-title", "Хамтрагчид");
@@ -193,6 +195,27 @@ function memberList(
   }
   list.appendChild(element("li", "collab-members-empty", "Ачаалж байна…"));
   void ask(deps, (live) => live.members()).then(show);
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const refresh = (): void => {
+    timer = null;
+    if (list.querySelector(".collab-member-choice:not([hidden])"))
+      return void (timer = setTimeout(refresh, REFRESH_MS));
+    void ask(deps, (live) => live.members()).then((members) => {
+      if (members) show(members);
+    });
+  };
+  const changed = (): void => {
+    timer ??= setTimeout(refresh, REFRESH_MS);
+  };
+  void deps.session
+    .then((live) => {
+      const unwatch = live.watch(changed);
+      closing(() => {
+        unwatch();
+        if (timer) clearTimeout(timer);
+      });
+    })
+    .catch(() => {});
   return box;
 }
 
@@ -265,8 +288,16 @@ export function openDialog(deps: DialogDeps): void {
   if (deps.owner) card.append(inviteBox(deps, note));
   card.append(nameField(deps));
   let others: number | null = null;
+  const stops: (() => void)[] = [];
   if (deps.owner)
-    card.append(memberList(deps, note, (count) => (others = count)));
+    card.append(
+      memberList(
+        deps,
+        note,
+        (count) => (others = count),
+        (stop) => (dialog.open ? stops.push(stop) : stop()),
+      ),
+    );
   const toggle = (ending: boolean): void => {
     choice.hidden = !ending;
     actions.hidden = ending;
@@ -296,7 +327,10 @@ export function openDialog(deps: DialogDeps): void {
   dialog.addEventListener("click", (event) => {
     if (event.target === dialog) dialog.close();
   });
-  dialog.addEventListener("close", () => dialog.remove());
+  dialog.addEventListener("close", () => {
+    for (const stop of stops) stop();
+    dialog.remove();
+  });
   document.body.appendChild(dialog);
   dialog.showModal();
 }
