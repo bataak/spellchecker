@@ -386,21 +386,23 @@ test("хаалтын фрейм ирэхгүй ч final мессежээр эц�
 
 test("идэвхгүй болоход унтаж, хөдөлгөөн гармагц сэрнэ", async () => {
   const events: string[] = [];
+  const wait = (ms: number): Promise<void> =>
+    new Promise((resolve) => setTimeout(resolve, ms));
   const watch = watchIdle(
-    40,
+    300,
     () => events.push("idle"),
     () => events.push("active"),
   );
-  await new Promise((resolve) => setTimeout(resolve, 25));
+  await wait(150);
   window.dispatchEvent(new Event("keydown"));
-  await new Promise((resolve) => setTimeout(resolve, 25));
+  await wait(150);
   assert.deepEqual(events, []);
-  await new Promise((resolve) => setTimeout(resolve, 40));
+  await wait(300);
   assert.deepEqual(events, ["idle"]);
   window.dispatchEvent(new Event("pointerdown"));
   window.dispatchEvent(new Event("keydown"));
   assert.deepEqual(events, ["idle", "active"]);
-  await new Promise((resolve) => setTimeout(resolve, 70));
+  await wait(450);
   assert.deepEqual(events, ["idle", "active", "idle"]);
   watch.stop();
 });

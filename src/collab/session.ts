@@ -425,14 +425,23 @@ interface MeshWiring {
 
 type ConnectionControls = Pick<Session, "sleep" | "resume" | "watch">;
 
-function connectionControls(
+export function connectionControls(
   signal: Signal,
   uploader: Uploader,
   watchers: Set<() => void>,
 ): ConnectionControls {
+  let resting = false;
   return {
-    sleep: () => void uploader.run().finally(() => signal.sleep()),
-    resume: () => signal.resume(),
+    sleep() {
+      resting = true;
+      void uploader.run().finally(() => {
+        if (resting) signal.sleep();
+      });
+    },
+    resume() {
+      resting = false;
+      signal.resume();
+    },
     watch(listener) {
       watchers.add(listener);
       return () => watchers.delete(listener);
