@@ -20,6 +20,7 @@ import {
   encodeCursor,
 } from "../src/collab/cursors.ts";
 import { profileFor } from "../src/collab/profile.ts";
+import { watchIdle } from "../src/collab/idle.ts";
 
 const dom = installDom("<textarea id=a></textarea><textarea id=b></textarea>");
 test.after(() => dom.close());
@@ -376,6 +377,68 @@ test("хаалтын фрейм ирэхгүй ч final мессежээр эц�
   assert.equal(sockets.length, 1);
   assert.deepEqual(events, []);
   assert.equal(signal.command({ t: "x" }), false);
+  signal.close();
+  (globalThis as Record<string, unknown>).WebSocket = saved;
+});
+
+test("идэвхгүй болоход унтаж, хөдөлгөөн гармагц сэрнэ", async () => {
+  const events: string[] = [];
+  const watch = watchIdle(
+    40,
+    () => events.push("idle"),
+    () => events.push("active"),
+  );
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  window.dispatchEvent(new Event("keydown"));
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  assert.deepEqual(events, []);
+  await new Promise((resolve) => setTimeout(resolve, 40));
+  assert.deepEqual(events, ["idle"]);
+  window.dispatchEvent(new Event("pointerdown"));
+  window.dispatchEvent(new Event("keydown"));
+  assert.deepEqual(events, ["idle", "active"]);
+  await new Promise((resolve) => setTimeout(resolve, 70));
+  assert.deepEqual(events, ["idle", "active", "idle"]);
+  watch.stop();
+});
+
+test("унтах үед холболтыг хааж, сэрэхэд шууд дахин холбогдоно", async () => {
+  const sockets: { closed: boolean }[] = [];
+  class FakeSocket {
+    static OPEN = 1;
+    readyState = 1;
+    binaryType = "";
+    closed = false;
+    onopen: (() => void) | null = null;
+    onmessage: ((event: unknown) => void) | null = null;
+    onclose: ((event: { code: number }) => void) | null = null;
+    constructor() {
+      sockets.push(this);
+    }
+    send(): void {}
+    close(): void {
+      this.closed = true;
+    }
+  }
+  const saved = globalThis.WebSocket;
+  (globalThis as Record<string, unknown>).WebSocket = FakeSocket;
+  const states: string[] = [];
+  const signal = openSignal({
+    url: () => "wss://x/room/r",
+    onEvent: () => {},
+    onSnapshot: () => {},
+    onState: (state) => states.push(state),
+  });
+  signal.sleep();
+  assert.equal(sockets[0]!.closed, true);
+  assert.equal(signal.command({ t: "x" }), false);
+  document.dispatchEvent(new Event("visibilitychange"));
+  window.dispatchEvent(new Event("online"));
+  await new Promise((resolve) => setTimeout(resolve, 1600));
+  assert.equal(sockets.length, 1);
+  signal.resume();
+  assert.equal(sockets.length, 2);
+  assert.deepEqual(states, ["connecting", "closed", "connecting"]);
   signal.close();
   (globalThis as Record<string, unknown>).WebSocket = saved;
 });

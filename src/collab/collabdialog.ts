@@ -8,6 +8,7 @@ export interface DialogDeps {
   readonly session: Promise<Session>;
   readonly inviteUrl: (token: string) => string;
   readonly name: string;
+  readonly tip: string | null;
   readonly rename: (name: string) => void;
   readonly stop: () => void;
   readonly end: (wipe: boolean) => Promise<boolean>;
@@ -260,6 +261,7 @@ export function openDialog(deps: DialogDeps): void {
   const close = actionButton("Хаах");
   actions.append(leave, close);
   card.append(title, hint);
+  if (deps.tip) card.append(element("p", "suggest-hint collab-tip", deps.tip));
   if (deps.owner) card.append(inviteBox(deps, note));
   card.append(nameField(deps));
   let others: number | null = null;

@@ -257,3 +257,10 @@
 .collab-members .tbtn[hidden] {
   display: none;
 }
+
+.collab-tip {
+  padding: 8px 10px;
+  border-radius: 7px;
+  background: var(--paper);
+  font-size: 0.82rem;
+}

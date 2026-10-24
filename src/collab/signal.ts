@@ -43,6 +43,8 @@ export interface Signal {
   send(to: string, d: string): void;
   command(message: Record<string, unknown>): boolean;
   upload(data: Uint8Array): boolean;
+  sleep(): void;
+  resume(): void;
   close(): void;
 }
 
@@ -131,14 +133,38 @@ export function retryDelay(attempt: number, jitter: number): number {
   return Math.round(base * (0.5 + jitter / 2));
 }
 
+function senders(
+  live: () => WebSocket | null,
+): Pick<Signal, "send" | "command" | "upload"> {
+  return {
+    send(to, d) {
+      live()?.send(JSON.stringify({ t: "to", to, d }));
+    },
+    command(message) {
+      const ws = live();
+      ws?.send(JSON.stringify(message));
+      return ws !== null;
+    },
+    upload(data) {
+      const ws = live();
+      if (!ws) return false;
+      ws.send(data as Uint8Array<ArrayBuffer>);
+      return true;
+    },
+  };
+}
+
 export function openSignal(deps: SignalDeps): Signal {
   let socket: WebSocket | null = null;
   let attempt = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let closed = false;
+  let sleeping = false;
 
   const ready = (): boolean =>
-    navigator.onLine !== false && document.visibilityState === "visible";
+    !sleeping &&
+    navigator.onLine !== false &&
+    document.visibilityState === "visible";
 
   const schedule = (): void => {
     if (closed || timer) return;
@@ -163,7 +189,7 @@ export function openSignal(deps: SignalDeps): Signal {
   }
 
   function connect(): void {
-    if (closed || socket) return;
+    if (closed || sleeping || socket) return;
     deps.onState("connecting");
     const ws = new WebSocket(deps.url());
     ws.binaryType = "arraybuffer";
@@ -202,19 +228,23 @@ export function openSignal(deps: SignalDeps): Signal {
     socket?.readyState === WebSocket.OPEN ? socket : null;
 
   return {
-    send(to, d) {
-      live()?.send(JSON.stringify({ t: "to", to, d }));
+    ...senders(live),
+    sleep() {
+      if (closed || sleeping) return;
+      sleeping = true;
+      if (timer) clearTimeout(timer);
+      timer = null;
+      const ws = socket;
+      socket = null;
+      if (!ws) return;
+      ws.close();
+      deps.onState("closed");
     },
-    command(message) {
-      const ws = live();
-      ws?.send(JSON.stringify(message));
-      return ws !== null;
-    },
-    upload(data) {
-      const ws = live();
-      if (!ws) return false;
-      ws.send(data as Uint8Array<ArrayBuffer>);
-      return true;
+    resume() {
+      if (closed || !sleeping) return;
+      sleeping = false;
+      attempt = 0;
+      if (!socket && !timer) connect();
     },
     close() {
       closed = true;

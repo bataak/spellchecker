@@ -54,6 +54,8 @@ export interface Session {
   attach(): void;
   detach(): void;
   announce(): void;
+  sleep(): void;
+  resume(): void;
   invite(): Promise<string | null>;
   members(): Promise<Member[] | null>;
   remove(dev: string, wipe: boolean): Promise<Member[] | null>;
@@ -527,6 +529,8 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
       cursors.announce();
       if (!owner) admin.label(deps.profile().name);
     },
+    sleep: () => void uploader.run().finally(() => signal.sleep()),
+    resume: () => signal.resume(),
     ...adminControls(admin, () => {
       if (shared) return;
       shared = true;
