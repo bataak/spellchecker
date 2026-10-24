@@ -153,12 +153,17 @@ function memberRow(
   return item;
 }
 
-function memberList(deps: DialogDeps, note: HTMLElement): HTMLElement {
+function memberList(
+  deps: DialogDeps,
+  note: HTMLElement,
+  counted: (others: number | null) => void,
+): HTMLElement {
   const box = element("div", "collab-members");
   const title = element("h3", "collab-members-title", "Хамтрагчид");
   const list = element("ul", "");
   box.append(title, list);
   const show = (members: Member[] | null): void => {
+    counted(members ? members.filter((m) => !m.owner).length : null);
     if (!members) {
       list.replaceChildren(element("li", "collab-members-empty", OFFLINE));
       return;
@@ -201,7 +206,7 @@ function endChoice(
   const text = element(
     "p",
     "suggest-hint",
-    "Хуваалцахыг зогсооход хамтрагчид энэ бичвэрийг цааш засах боломжгүй болно. Тэдний төхөөрөмж дээрх хуулбарыг устгах уу?",
+    "Зогсооход хамтрагчид энэ бичвэрийг цааш засах боломжгүй болно. Тэдний төхөөрөмж дээрх хуулбарыг устгах уу?",
   );
   const row = element("div", "suggest-actions");
   const keep = actionButton("Хуулбарыг үлдээх");
@@ -225,6 +230,17 @@ function endChoice(
   return box;
 }
 
+function endAlone(deps: DialogDeps, note: HTMLElement, done: () => void): void {
+  if (
+    !window.confirm(
+      "Хамтын засварыг зогсоох уу? Бичвэр энэ төхөөрөмж дээр хадгалагдаж үлдэнэ.",
+    )
+  )
+    return;
+  say(note, "", "Зогсоож байна…");
+  void deps.end(false).then((ok) => (ok ? done() : say(note, "err", OFFLINE)));
+}
+
 export function openDialog(deps: DialogDeps): void {
   const dialog = element("dialog", "suggest-overlay collab-overlay");
   dialog.setAttribute("aria-labelledby", "collabTitle");
@@ -246,7 +262,9 @@ export function openDialog(deps: DialogDeps): void {
   card.append(title, hint);
   if (deps.owner) card.append(inviteBox(deps, note));
   card.append(nameField(deps));
-  if (deps.owner) card.append(memberList(deps, note));
+  let others: number | null = null;
+  if (deps.owner)
+    card.append(memberList(deps, note, (count) => (others = count)));
   const toggle = (ending: boolean): void => {
     choice.hidden = !ending;
     actions.hidden = ending;
@@ -261,7 +279,8 @@ export function openDialog(deps: DialogDeps): void {
   card.append(note, choice, actions);
   dialog.appendChild(card);
   leave.addEventListener("click", () => {
-    if (deps.owner) return toggle(true);
+    if (deps.owner && others !== 0) return toggle(true);
+    if (deps.owner) return endAlone(deps, note, () => dialog.close());
     if (
       !window.confirm(
         "Хамтын засварыг зогсоох уу? Дахин нэгдэхэд шинэ урилга хэрэгтэй. Бичвэр энэ төхөөрөмж дээр хадгалагдаж үлдэнэ.",

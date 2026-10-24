@@ -46,7 +46,7 @@ export interface Collab {
 const ENDPOINT = (import.meta.env.VITE_COLLAB_URL ?? "").replace(/\/+$/, "");
 const JOIN_NAME = "Хамтын бичвэр";
 const DEVICE = /^[A-Za-z0-9_-]{16}$/;
-const IDLE_LABEL = "Хамтран засах";
+const IDLE_LABEL = "Хамтрах";
 const FULL_MESSAGE =
   "Энэ бичвэрийг 8 хүн зэрэг засаж байгаа тул нэгдэх боломжгүй. Хэн нэгэн гарсны дараа дахин нээнэ үү.";
 const ENDED: Partial<Record<SignalState, string>> = {
@@ -73,8 +73,8 @@ export function buttonLabel(
 ): string {
   if (!shared) return IDLE_LABEL;
   if (status?.signal === "full") return "Хамтрагч · дүүрсэн";
-  if (status?.peers) return "Хамтрагч · " + (status.peers + 1);
-  return status?.signal === "open" ? "Хамтрагч · 1" : "Хамтрагч · …";
+  if (status?.peers) return "Хамтрагч " + (status.peers + 1);
+  return IDLE_LABEL;
 }
 
 function deviceId(): string {
