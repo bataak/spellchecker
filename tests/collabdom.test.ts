@@ -4,6 +4,8 @@ import * as Y from "yjs";
 import { installDom } from "./helpers/dom.ts";
 import { bindText } from "../src/collab/textbind.ts";
 import { remoteChanges } from "../src/editor/editortext.ts";
+import { createAttacher } from "../src/collab/session.ts";
+import { FULL_CODE, openSignal } from "../src/collab/signal.ts";
 
 const dom = installDom("<textarea id=a></textarea><textarea id=b></textarea>");
 test.after(() => dom.close());
@@ -113,4 +115,58 @@ test("салгасан үед засвар дамжихгүй, дахин хол
   assert.equal(b.value, "шинэ");
   bindA.destroy();
   bindB.destroy();
+});
+
+test("локал өгөгдөлгүй үед бичвэрийг устгахгүй, харин хуваалцана", () => {
+  const { a, docA } = pair();
+  a.value = "хадгалсан ноорог";
+  const fresh = createAttacher(a, docA.getText("t"), true);
+  fresh.attach();
+  assert.equal(docA.getText("t").toString(), "");
+  fresh.settle();
+  assert.equal(docA.getText("t").toString(), "хадгалсан ноорог");
+  assert.equal(a.value, "хадгалсан ноорог");
+  fresh.destroy();
+});
+
+test("хуучин баримттай үед ноорогоор дарж бичихгүй", () => {
+  const { a, docA } = pair();
+  a.value = "хуучин ноорог";
+  const known = createAttacher(a, docA.getText("t"), false);
+  known.attach();
+  assert.equal(docA.getText("t").toString(), "");
+  assert.equal(a.value, "");
+  known.destroy();
+});
+
+test("дүүрсэн өрөөнд дахин холбогдохыг оролдохгүй", async () => {
+  const sockets: FakeSocket[] = [];
+  class FakeSocket {
+    static OPEN = 1;
+    readyState = 0;
+    binaryType = "";
+    onopen: (() => void) | null = null;
+    onmessage: ((event: unknown) => void) | null = null;
+    onclose: ((event: { code: number }) => void) | null = null;
+    constructor() {
+      sockets.push(this);
+    }
+    send(): void {}
+    close(): void {}
+  }
+  const saved = globalThis.WebSocket;
+  (globalThis as Record<string, unknown>).WebSocket = FakeSocket;
+  const states: string[] = [];
+  const signal = openSignal({
+    url: "wss://x/room/r",
+    onEvent: () => {},
+    onSnapshot: () => {},
+    onState: (state) => states.push(state),
+  });
+  sockets[0]!.onclose?.({ code: FULL_CODE });
+  await new Promise((resolve) => setTimeout(resolve, 1600));
+  assert.equal(sockets.length, 1);
+  assert.deepEqual(states, ["connecting", "full"]);
+  signal.close();
+  (globalThis as Record<string, unknown>).WebSocket = saved;
 });
