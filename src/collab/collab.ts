@@ -34,6 +34,7 @@ export interface CollabDeps {
   readonly openSlot: (name: string) => boolean;
   readonly showSlot: (slot: string) => boolean;
   readonly blocked: () => string | null;
+  readonly wipe: (slot: string) => boolean;
   readonly notify: (message: string) => void;
 }
 
@@ -53,6 +54,9 @@ const ENDED: Partial<Record<SignalState, string>> = {
     "Урилга хүчингүй эсвэл өөр хүн ашигласан байна. Үүсгэгчээс өөрт тань зориулсан шинэ урилга авна уу.",
   removed:
     "Үүсгэгч таныг хамтын засвараас хассан. Бичвэр энэ төхөөрөмж дээр хадгалагдаж үлдэнэ.",
+  ended:
+    "Үүсгэгч хуваалцахаа зогсоолоо. Бичвэрийн хуулбар энэ төхөөрөмж дээр үлдлээ.",
+  wiped: "Үүсгэгч хуваалцахаа зогсоож, бичвэрийг устгалаа.",
 };
 const TOO_LARGE_MESSAGE =
   "Бичвэр хэт том тул серверт хадгалагдсангүй. Шууд холбогдсон хүмүүстэй засвар үргэлжилнэ, харин дараа нэгдэх хүн сүүлийн хувилбарыг авахгүй.";
@@ -92,7 +96,7 @@ interface RegistryHooks {
   readonly notify: (message: string) => void;
   readonly access: (room: string) => Access | null;
   readonly granted: (room: string, token: string) => void;
-  readonly ended: (room: string) => void;
+  readonly ended: (room: string, state: SignalState) => void;
 }
 
 function createRegistry(
@@ -128,7 +132,7 @@ function createRegistry(
             const ended = ENDED[status.signal];
             if (ended) {
               notify(ended);
-              queueMicrotask(() => hooks.ended(entry.room));
+              queueMicrotask(() => hooks.ended(entry.room, status.signal));
               return;
             }
             statuses.set(entry.room, status);
@@ -217,6 +221,12 @@ function showDialog(
       registry.rename();
     },
     stop,
+    async end(wipe) {
+      const live = await registry.open(entry, false).catch(() => null);
+      if (!live || !(await live.end(wipe))) return false;
+      stop();
+      return true;
+    },
   });
 }
 
@@ -242,9 +252,9 @@ export function initCollab(deps: CollabDeps): Collab {
       rooms = withAccess(rooms, room, { kind: "m", token });
       store();
     },
-    ended(room) {
+    ended: (room, state) => {
       const entry = roomById(rooms, room);
-      if (entry) stop(entry);
+      if (entry && !(state === "wiped" && deps.wipe(entry.slot))) stop(entry);
     },
   });
 

@@ -217,3 +217,17 @@
 .collab-members .collab-stop {
   margin-inline-end: 0;
 }
+
+.collab-end[hidden],
+.collab-overlay .suggest-actions[hidden] {
+  display: none;
+}
+
+.collab-end .suggest-actions {
+  flex-wrap: wrap;
+}
+
+.collab-wipe {
+  border-color: var(--proof);
+  color: var(--proof);
+}

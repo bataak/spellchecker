@@ -10,6 +10,7 @@ export interface DialogDeps {
   readonly name: string;
   readonly rename: (name: string) => void;
   readonly stop: () => void;
+  readonly end: (wipe: boolean) => Promise<boolean>;
 }
 
 const PRIVACY =
@@ -165,6 +166,41 @@ function memberList(deps: DialogDeps, note: HTMLElement): HTMLElement {
   return box;
 }
 
+function endChoice(
+  deps: DialogDeps,
+  note: HTMLElement,
+  done: () => void,
+  cancel: () => void,
+): HTMLElement {
+  const box = element("div", "collab-end");
+  box.hidden = true;
+  const text = element(
+    "p",
+    "suggest-hint",
+    "Хуваалцахыг зогсооход хамтрагчид энэ бичвэрийг цааш засах боломжгүй болно. Тэдний төхөөрөмж дээрх хуулбарыг яах вэ?",
+  );
+  const row = element("div", "suggest-actions");
+  const keep = actionButton("Хуулбарыг үлдээх");
+  const wipe = actionButton("Бүрмөсөн устгах");
+  wipe.classList.add("collab-wipe");
+  const back = actionButton("Болих");
+  row.append(back, keep, wipe);
+  const choose = (remove: boolean): void => {
+    keep.disabled = wipe.disabled = back.disabled = true;
+    say(note, "", "Зогсоож байна…");
+    void deps.end(remove).then((ok) => {
+      keep.disabled = wipe.disabled = back.disabled = false;
+      if (ok) return done();
+      say(note, "err", OFFLINE);
+    });
+  };
+  keep.addEventListener("click", () => choose(false));
+  wipe.addEventListener("click", () => choose(true));
+  back.addEventListener("click", cancel);
+  box.append(text, row);
+  return box;
+}
+
 export function openDialog(deps: DialogDeps): void {
   const dialog = element("dialog", "suggest-overlay collab-overlay");
   dialog.setAttribute("aria-labelledby", "collabTitle");
@@ -187,13 +223,27 @@ export function openDialog(deps: DialogDeps): void {
   if (deps.owner) card.append(inviteBox(deps, note));
   card.append(nameField(deps));
   if (deps.owner) card.append(memberList(deps, note));
-  card.append(note, actions);
+  const toggle = (ending: boolean): void => {
+    choice.hidden = !ending;
+    actions.hidden = ending;
+    say(note, "", "");
+  };
+  const choice = endChoice(
+    deps,
+    note,
+    () => dialog.close(),
+    () => toggle(false),
+  );
+  card.append(note, choice, actions);
   dialog.appendChild(card);
   leave.addEventListener("click", () => {
-    const warning = deps.owner
-      ? "Хамтын засварыг зогсоох уу? Та цааш урилга үүсгэх, хамтрагч хасах боломжгүй болно. Бичвэр энэ төхөөрөмж дээр хадгалагдаж үлдэнэ."
-      : "Хамтын засварыг зогсоох уу? Дахин нэгдэхэд шинэ урилга хэрэгтэй. Бичвэр энэ төхөөрөмж дээр хадгалагдаж үлдэнэ.";
-    if (!window.confirm(warning)) return;
+    if (deps.owner) return toggle(true);
+    if (
+      !window.confirm(
+        "Хамтын засварыг зогсоох уу? Дахин нэгдэхэд шинэ урилга хэрэгтэй. Бичвэр энэ төхөөрөмж дээр хадгалагдаж үлдэнэ.",
+      )
+    )
+      return;
     deps.stop();
     dialog.close();
   });

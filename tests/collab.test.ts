@@ -350,6 +350,21 @@ test("урилгыг сервер баталсны дараа л буцаана"
   online = false;
   assert.equal(await admin.invite(), null);
   assert.equal(await admin.members(), null);
+  assert.equal(await admin.end(true), false);
+});
+
+test("хуваалцахыг зогсоохыг сервер баталсны дараа л амжилттай гэж үзнэ", async () => {
+  const key = await importKey(newLink().key);
+  const sent: Record<string, unknown>[] = [];
+  const admin = createAdmin(key, (message) => {
+    sent.push(message);
+    return true;
+  });
+  const ending = admin.end(true);
+  assert.deepEqual(sent[0], { t: "close", wipe: true });
+  assert.deepEqual(parseSignal('{"t":"ended"}'), { t: "ended" });
+  assert.equal(admin.receive({ t: "ended" }), true);
+  assert.equal(await ending, true);
 });
 
 test("хамтрагчдын нэрийг түлхүүрээр тайлж харуулна", async () => {

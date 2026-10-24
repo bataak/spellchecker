@@ -18,6 +18,7 @@ export interface Admin {
   invite(): Promise<string | null>;
   members(): Promise<Member[] | null>;
   remove(dev: string): Promise<Member[] | null>;
+  end(wipe: boolean): Promise<boolean>;
   label(name: string): void;
   receive(event: SignalEvent): boolean;
 }
@@ -73,6 +74,7 @@ export function decodeRoster(
 export function createAdmin(key: CryptoKey, command: Command): Admin {
   const invites = new Map<string, (ok: boolean) => void>();
   const rosters = new Set<(list: RosterEntry[] | null) => void>();
+  const endings = new Set<(ok: boolean) => void>();
 
   const roster = (
     message: Record<string, unknown>,
@@ -96,6 +98,13 @@ export function createAdmin(key: CryptoKey, command: Command): Admin {
     },
     members: () => roster({ t: "members" }),
     remove: (dev) => roster({ t: "remove", dev }),
+    end(wipe) {
+      if (!command({ t: "close", wipe })) return Promise.resolve(false);
+      return reply<boolean>((done) => {
+        endings.add(done);
+        return () => endings.delete(done);
+      }, false);
+    },
     label(name) {
       void seal(key, encoder.encode(name)).then((sealed) =>
         command({ t: "label", l: toBase64Url(sealed) }),
@@ -104,6 +113,10 @@ export function createAdmin(key: CryptoKey, command: Command): Admin {
     receive(event) {
       if (event.t === "invited") {
         invites.get(event.i)?.(true);
+        return true;
+      }
+      if (event.t === "ended") {
+        for (const done of [...endings]) done(true);
         return true;
       }
       if (event.t === "members") {

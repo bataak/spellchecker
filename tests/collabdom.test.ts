@@ -7,8 +7,10 @@ import { remoteChanges } from "../src/editor/editortext.ts";
 import { createAttacher } from "../src/collab/session.ts";
 import {
   DENIED_CODE,
+  ENDED_CODE,
   FULL_CODE,
   REMOVED_CODE,
+  WIPED_CODE,
   openSignal,
 } from "../src/collab/signal.ts";
 import {
@@ -185,6 +187,8 @@ test("дүүрсэн өрөөнд дахин холбогдохыг оролдо
 for (const [code, state] of [
   [DENIED_CODE, "denied"],
   [REMOVED_CODE, "removed"],
+  [ENDED_CODE, "ended"],
+  [WIPED_CODE, "wiped"],
 ] as const)
   test("хандах эрхгүй бол (" + state + ") дахин холбогдохгүй", async () => {
     const urls: string[] = [];
