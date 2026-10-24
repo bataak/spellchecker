@@ -16,7 +16,8 @@ const PURGED = 4007;
 const FULL = 4009;
 const MAX_SIGNAL = 64 * 1024;
 const MAX_SNAPSHOT = 1900 * 1024;
-const ROOM_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const ROOM_TTL_MS = 90 * DAY_MS;
 
 function allowedOrigin(origin, env) {
   if (!origin) return null;
@@ -101,8 +102,11 @@ export class Room extends DurableObject {
     );
   }
 
-  touch() {
-    return this.ctx.storage.setAlarm(Date.now() + ROOM_TTL_MS);
+  async touch() {
+    const due = Date.now() + ROOM_TTL_MS;
+    const current = await this.ctx.storage.getAlarm();
+    if (current !== null && current > due - DAY_MS) return;
+    await this.ctx.storage.setAlarm(due);
   }
 
   async admit(params, dev) {
@@ -129,7 +133,6 @@ export class Room extends DurableObject {
           dev,
           now,
         );
-        await this.touch();
       }
       if (this.meta("dev") !== dev) return { code: DENIED };
       return { owner: true };
@@ -174,6 +177,7 @@ export class Room extends DurableObject {
       return new Response("client", { status: 400 });
     const access = await this.admit(params, dev);
     if (access.code) return refuse(access.code, "denied");
+    await this.touch();
     const others = [];
     for (const peer of this.peers()) {
       if (peer.id !== id) {

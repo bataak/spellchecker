@@ -25,6 +25,7 @@ import type { SignalState } from "./signal.ts";
 import type { CursorView } from "./cursors.ts";
 import { loadProfile, saveName } from "./profile.ts";
 import { openDialog } from "./collabdialog.ts";
+import { watchIdle } from "./idle.ts";
 
 export interface CollabDeps {
   readonly editor: HTMLTextAreaElement;
@@ -59,6 +60,9 @@ const ENDED: Partial<Record<SignalState, string>> = {
   wiped: "Үүсгэгч хуваалцахаа зогсоож, бичвэрийг устгалаа.",
   purged: "Үүсгэгч таныг хамтын засвараас хасаж, бичвэрийг устгалаа.",
 };
+const IDLE_MS = 15 * 60_000;
+const HOME_SCREEN_MESSAGE =
+  "iPhone, iPad дээр хамтын бичвэрийг удаан хадгалахын тулд Safari-гийн «Хуваалцах» цэснээс «Нүүр дэлгэцэнд нэмэх»-ийг сонгож аппыг суулгана уу. Эс бөгөөс 7 хоног нээгээгүй үед Safari бичвэрийг устгаж болно.";
 const WIPES: ReadonlySet<SignalState> = new Set(["wiped", "purged"]);
 const TOO_LARGE_MESSAGE =
   "Бичвэр хэт том тул серверт хадгалагдсангүй. Шууд холбогдсон хүмүүстэй засвар үргэлжилнэ, харин дараа нэгдэх хүн сүүлийн хувилбарыг авахгүй.";
@@ -77,6 +81,18 @@ export function buttonLabel(
   return IDLE_LABEL;
 }
 
+function needsHomeScreen(): boolean {
+  const nav = navigator as Navigator & { standalone?: boolean };
+  const ios =
+    /iPhone|iPad|iPod/.test(nav.userAgent) ||
+    (nav.platform === "MacIntel" && nav.maxTouchPoints > 1);
+  return (
+    ios &&
+    nav.standalone !== true &&
+    !window.matchMedia?.("(display-mode: standalone)").matches
+  );
+}
+
 function deviceId(): string {
   const stored = read(KEYS.collabDevice);
   if (stored && DEVICE.test(stored)) return stored;
@@ -88,7 +104,7 @@ function deviceId(): string {
 interface Registry {
   open(entry: RoomEntry, seed: boolean): Promise<Session>;
   live(room: string): Session | null;
-  rename(): void;
+  each(run: (session: Session) => void): void;
   status(room: string): SessionStatus | null;
   close(room: string): void;
 }
@@ -111,6 +127,14 @@ function createRegistry(
   const ready = new Map<string, Session>();
   const statuses = new Map<string, SessionStatus>();
   const full = new Set<string>();
+  const each = (run: (session: Session) => void): void => {
+    for (const live of ready.values()) run(live);
+  };
+  watchIdle(
+    IDLE_MS,
+    () => each((live) => live.sleep()),
+    () => each((live) => live.resume()),
+  );
   return {
     open(entry, seed) {
       const known = pending.get(entry.room);
@@ -155,9 +179,7 @@ function createRegistry(
       return created;
     },
     live: (room) => ready.get(room) ?? null,
-    rename() {
-      for (const live of ready.values()) live.announce();
-    },
+    each,
     status: (room) => statuses.get(room) ?? null,
     close(room) {
       const live = pending.get(room);
@@ -183,6 +205,7 @@ function joinRoom(
     );
     return null;
   }
+  if (needsHomeScreen()) deps.notify(HOME_SCREEN_MESSAGE);
   return withRoom(rest, {
     slot: deps.slot(),
     room: link.room,
@@ -218,9 +241,10 @@ function showDialog(
     inviteUrl: (invite) =>
       shareUrl({ room: entry.room, key: entry.key, invite }, location.href),
     name: loadProfile(deviceId()).name,
+    tip: needsHomeScreen() ? HOME_SCREEN_MESSAGE : null,
     rename(name) {
       saveName(name);
-      registry.rename();
+      registry.each((live) => live.announce());
     },
     stop,
     async end(wipe) {
