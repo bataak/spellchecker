@@ -28,6 +28,7 @@ import {
 import { parseSignal, retryDelay } from "../src/collab/signal.ts";
 import { createSync, relayTargets, type Sync } from "../src/collab/sync.ts";
 import {
+  connectionControls,
   createGate,
   isUploader,
   roomUrl,
@@ -424,4 +425,23 @@ test("сэрэх үед холболт тогтохыг хүлээгээд да�
   const started = Date.now();
   await gate.wait();
   assert.ok(Date.now() - started >= 190);
+});
+
+test("унтах явцад сэрвэл холболтыг хаахгүй", async () => {
+  const calls: string[] = [];
+  const signal = {
+    sleep: () => calls.push("sleep"),
+    resume: () => calls.push("resume"),
+  } as unknown as Parameters<typeof connectionControls>[0];
+  const uploader = {
+    run: () => new Promise<void>((resolve) => setTimeout(resolve, 30)),
+  } as unknown as Parameters<typeof connectionControls>[1];
+  const controls = connectionControls(signal, uploader, new Set());
+  controls.sleep();
+  controls.resume();
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  assert.deepEqual(calls, ["resume"]);
+  controls.sleep();
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  assert.deepEqual(calls, ["resume", "sleep"]);
 });
