@@ -541,6 +541,11 @@ const collab = initCollab({
       return "LaTeX төслийг хамтран засах боломж удахгүй нэмэгдэнэ.";
     return null;
   },
+  wipe: (slot) => {
+    if (!mdBar.fileSlots().some((file) => file.id === slot)) return false;
+    mdBar.closeFile(slot, true);
+    return true;
+  },
   notify: (message) => status.hold(message, 8000, false),
 });
 

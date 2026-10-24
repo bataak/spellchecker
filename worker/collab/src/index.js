@@ -10,6 +10,8 @@ const MAX_MEMBERS = 64;
 const MAX_LABEL = 600;
 const DENIED = 4003;
 const REMOVED = 4004;
+const ENDED = 4005;
+const WIPED = 4006;
 const FULL = 4009;
 const MAX_SIGNAL = 64 * 1024;
 const MAX_SNAPSHOT = 1900 * 1024;
@@ -108,6 +110,8 @@ export class Room extends DurableObject {
     const invite = params.get("i");
     const token = owner ?? member ?? invite;
     if (!token || !TOKEN.test(token)) return { code: DENIED };
+    const closed = Number(this.meta("closed"));
+    if (closed) return { code: closed };
     const hash = await digest(token);
     const sql = this.ctx.storage.sql;
     const now = Date.now();
@@ -209,6 +213,7 @@ export class Room extends DurableObject {
     if (input?.t === "invite") return this.invite(ws, input.i);
     if (input?.t === "members") return this.send(ws, this.roster());
     if (input?.t === "remove") return this.remove(ws, input.dev);
+    if (input?.t === "close") return this.end(ws, input.wipe === true);
   }
 
   label(meta, label) {
@@ -276,6 +281,23 @@ export class Room extends DurableObject {
         if (other.dev !== dev) this.send(other.ws, { t: "kick", id: peer.id });
     }
     this.send(ws, this.roster());
+  }
+
+  end(ws, wipe) {
+    const sql = this.ctx.storage.sql;
+    for (const table of ["snap", "invites", "members"])
+      sql.exec("DELETE FROM " + table);
+    sql.exec(
+      "INSERT OR REPLACE INTO meta (k, v) VALUES ('closed', ?)",
+      String(wipe ? WIPED : ENDED),
+    );
+    this.send(ws, { t: "ended" });
+    for (const peer of this.peers()) {
+      peer.ws.serializeAttachment(null);
+      if (peer.ws === ws) peer.ws.close(1000, "ended");
+      else peer.ws.close(wipe ? WIPED : ENDED, "ended");
+    }
+    return this.touch();
   }
 
   store(dev, data) {

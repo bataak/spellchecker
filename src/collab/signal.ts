@@ -6,6 +6,7 @@ export type SignalEvent =
   | { readonly t: "kick"; readonly id: string }
   | { readonly t: "member"; readonly m: string }
   | { readonly t: "invited"; readonly i: string }
+  | { readonly t: "ended" }
   | { readonly t: "members"; readonly list: RosterEntry[] };
 
 export interface RosterEntry {
@@ -16,7 +17,14 @@ export interface RosterEntry {
 }
 
 export type SignalState =
-  "connecting" | "open" | "closed" | "full" | "denied" | "removed";
+  | "connecting"
+  | "open"
+  | "closed"
+  | "full"
+  | "denied"
+  | "removed"
+  | "ended"
+  | "wiped";
 
 export interface SignalDeps {
   readonly url: () => string;
@@ -34,10 +42,14 @@ export interface Signal {
 
 export const DENIED_CODE = 4003;
 export const REMOVED_CODE = 4004;
+export const ENDED_CODE = 4005;
+export const WIPED_CODE = 4006;
 export const FULL_CODE = 4009;
 const FINAL: Record<number, SignalState> = {
   [DENIED_CODE]: "denied",
   [REMOVED_CODE]: "removed",
+  [ENDED_CODE]: "ended",
+  [WIPED_CODE]: "wiped",
   [FULL_CODE]: "full",
 };
 const MIN_RETRY_MS = 1000;
@@ -69,18 +81,26 @@ export function parseSignal(raw: string): SignalEvent | null {
     return null;
   }
   if (!value || typeof value !== "object") return null;
-  const v = value as Record<string, unknown>;
+  return parseEvent(value as Record<string, unknown>);
+}
+
+function parseAccessEvent(v: Record<string, unknown>): SignalEvent | null {
+  if (v.t === "member" && isText(v.m)) return { t: "member", m: v.m };
+  if (v.t === "invited" && isText(v.i)) return { t: "invited", i: v.i };
+  if (v.t === "ended") return { t: "ended" };
+  if (v.t === "members" && Array.isArray(v.list))
+    return { t: "members", list: parseRoster(v.list) };
+  return null;
+}
+
+function parseEvent(v: Record<string, unknown>): SignalEvent | null {
   if (v.t === "hi" && isText(v.id) && Array.isArray(v.peers))
     return { t: "hi", id: v.id, peers: v.peers.filter(isText) };
   if ((v.t === "join" || v.t === "bye" || v.t === "kick") && isText(v.id))
     return { t: v.t, id: v.id };
   if (v.t === "from" && isText(v.from) && isText(v.d))
     return { t: "from", from: v.from, d: v.d };
-  if (v.t === "member" && isText(v.m)) return { t: "member", m: v.m };
-  if (v.t === "invited" && isText(v.i)) return { t: "invited", i: v.i };
-  if (v.t === "members" && Array.isArray(v.list))
-    return { t: "members", list: parseRoster(v.list) };
-  return null;
+  return parseAccessEvent(v);
 }
 
 export function retryDelay(attempt: number, jitter: number): number {
