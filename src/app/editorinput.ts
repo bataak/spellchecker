@@ -3,6 +3,7 @@ import {
   composeDropped,
   composeTypedWord,
   pasteComposed,
+  remoteChanges,
   swapOrigin,
   type EditorText,
 } from "../editor/editortext.ts";
@@ -80,6 +81,21 @@ export function bindEditorInput(deps: EditorInputDeps): void {
     marks.follow();
     if (deps.editorText.programmatic()) return;
     if (!(e instanceof InputEvent)) return;
+    const remote = remoteChanges(e);
+    if (remote) {
+      for (let i = remote.length - 1; i >= 0; i--) {
+        const change = remote[i]!;
+        marks.shift(editor.value, {
+          start: change.from,
+          oldEnd: change.to,
+          newEnd: change.from + change.insert.length,
+        });
+      }
+      deps.textChanged(editor.value);
+      deps.saveSoon();
+      loop.recheckSoon();
+      return;
+    }
     deps.hidePopover();
     deps.textChanged(editor.value);
     deps.saveSoon();

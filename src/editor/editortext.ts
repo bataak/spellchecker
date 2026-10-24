@@ -2,6 +2,7 @@ import { attempt } from "../core/attempt.ts";
 import { isSeparatorInput } from "./input.ts";
 import { standardLetters } from "../spell/letters.ts";
 import type { TextEdit } from "./tokenshift.ts";
+import type { TextChange } from "./textdelta.ts";
 
 export interface EditorTextDeps {
   readonly editor: HTMLTextAreaElement;
@@ -36,6 +37,31 @@ export function onSwap(hook: (origin: SwapOrigin) => void): () => void {
 
 export function swapOrigin(event: Event): SwapOrigin | null {
   return swapEvents.get(event) ?? null;
+}
+
+const remoteEvents = new WeakMap<Event, readonly TextChange[]>();
+
+export function remoteChanges(event: Event): readonly TextChange[] | null {
+  return remoteEvents.get(event) ?? null;
+}
+
+export function applyRemote(
+  editor: HTMLTextAreaElement,
+  changes: readonly TextChange[],
+): void {
+  if (!changes.length) return;
+  const scroll = editor.scrollTop;
+  for (let i = changes.length - 1; i >= 0; i--) {
+    const change = changes[i]!;
+    editor.setRangeText(change.insert, change.from, change.to, "preserve");
+  }
+  editor.scrollTop = scroll;
+  const event = new InputEvent("input", {
+    bubbles: true,
+    inputType: "insertReplacementText",
+  });
+  remoteEvents.set(event, changes);
+  editor.dispatchEvent(event);
 }
 
 export function swapText(
