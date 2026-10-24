@@ -134,10 +134,6 @@
   .md-bar .md-btn[data-role="h4"] {
     display: none;
   }
-
-  .md-bar .md-template {
-    max-width: 9rem;
-  }
 }
 
 .md-select .md-template {
