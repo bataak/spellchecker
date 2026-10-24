@@ -264,3 +264,7 @@
   background: var(--paper);
   font-size: 0.82rem;
 }
+
+.collab-overlay .suggest-actions .tbtn[hidden] {
+  display: none;
+}
