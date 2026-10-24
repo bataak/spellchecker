@@ -130,7 +130,7 @@ function memberRow(
   const question = element(
     "p",
     "",
-    "Хасах уу? Түүний төхөөрөмж дээрх хуулбарыг яах вэ?",
+    "Түүний төхөөрөмж дээрх хуулбарыг устгах уу?",
   );
   const wipe = actionButton("Бүрмөсөн устгах");
   wipe.classList.add("collab-wipe");
@@ -164,6 +164,7 @@ function memberList(deps: DialogDeps, note: HTMLElement): HTMLElement {
       return;
     }
     const others = members.filter((m) => !m.owner);
+    title.textContent = others.length > 1 ? "Хамтрагчид" : "Хамтрагч";
     list.replaceChildren(...others.map((m) => memberRow(m, remove)));
     if (!others.length)
       list.appendChild(
