@@ -7,6 +7,7 @@ export interface SignalPayload {
 
 export interface MeshDeps {
   readonly self: () => string;
+  readonly present: (peer: string) => boolean;
   readonly iceServers: RTCIceServer[];
   readonly signal: (to: string, payload: SignalPayload) => void;
   readonly onOpen: (peer: string) => void;
@@ -81,9 +82,20 @@ async function localSdp(
   return pc.localDescription?.sdp ?? null;
 }
 
+function sendChunks(channel: RTCDataChannel, data: Uint8Array): boolean {
+  try {
+    for (const piece of chunk(data))
+      channel.send(piece as Uint8Array<ArrayBuffer>);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function createMesh(deps: MeshDeps): Mesh {
   const links = new Map<string, Link>();
   const retries = new Map<string, number>();
+  let closed = false;
 
   function drop(peer: string): void {
     const link = links.get(peer);
@@ -98,10 +110,10 @@ export function createMesh(deps: MeshDeps): Mesh {
     if (links.get(peer) !== link) return;
     drop(peer);
     const tries = retries.get(peer) ?? 0;
-    if (tries >= RETRIES || !shouldRecall(deps.self(), peer)) return;
+    if (closed || tries >= RETRIES || !shouldRecall(deps.self(), peer)) return;
     retries.set(peer, tries + 1);
     setTimeout(() => {
-      if (!links.has(peer)) call(peer);
+      if (!closed && !links.has(peer) && deps.present(peer)) call(peer);
     }, RETRY_MS);
   }
 
@@ -157,8 +169,7 @@ export function createMesh(deps: MeshDeps): Mesh {
   function send(peer: string, data: Uint8Array): void {
     const entry = links.get(peer);
     if (!entry?.open || entry.channel.readyState !== "open") return;
-    for (const piece of chunk(data))
-      entry.channel.send(piece as Uint8Array<ArrayBuffer>);
+    if (!sendChunks(entry.channel, data)) failed(peer, entry);
   }
 
   return {
@@ -181,6 +192,7 @@ export function createMesh(deps: MeshDeps): Mesh {
     open: () =>
       [...links].filter(([, entry]) => entry.open).map(([peer]) => peer),
     close() {
+      closed = true;
       for (const peer of [...links.keys()]) drop(peer);
       retries.clear();
     },

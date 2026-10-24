@@ -21,6 +21,8 @@ export interface SessionStatus {
   readonly peers: number;
 }
 
+export type SessionNotice = "too-large";
+
 export interface SessionDeps {
   readonly link: CollabLink;
   readonly endpoint: string;
@@ -28,6 +30,7 @@ export interface SessionDeps {
   readonly editor: HTMLTextAreaElement;
   readonly seed: (() => string) | null;
   readonly onStatus: (status: SessionStatus) => void;
+  readonly onNotice: (notice: SessionNotice) => void;
 }
 
 export interface Session {
@@ -37,7 +40,9 @@ export interface Session {
 }
 
 const ICE_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.cloudflare.com:3478" }];
-const SAVE_MS = 500;
+const SAVE_MS = 2000;
+const SETTLE_MS = 6000;
+const EMPTY_ROOM_SETTLE_MS = 1500;
 const UPLOAD_IDLE_MS = 30_000;
 const UPLOAD_GAP_MS = 5 * 60_000;
 const MAX_UPLOAD = 1900 * 1024;
@@ -73,6 +78,10 @@ export function isUploader(
   return leader === self || !open.includes(leader);
 }
 
+function isRemote(origin: unknown): boolean {
+  return !!origin && typeof origin === "object" && "peer" in origin;
+}
+
 function parsePayload(bytes: Uint8Array): SignalPayload | null {
   try {
     const value = JSON.parse(decoder.decode(bytes)) as Partial<SignalPayload>;
@@ -87,6 +96,15 @@ function parsePayload(bytes: Uint8Array): SignalPayload | null {
   return null;
 }
 
+export function uploadAt(
+  now: number,
+  dirtySince: number,
+  last: number,
+): number {
+  const due = Math.min(now + UPLOAD_IDLE_MS, dirtySince + UPLOAD_GAP_MS);
+  return last ? Math.max(due, last + UPLOAD_GAP_MS) : due;
+}
+
 interface Uploader {
   mark(): void;
   schedule(): void;
@@ -95,20 +113,30 @@ interface Uploader {
   cancel(): void;
 }
 
-function createUploader(
-  doc: Y.Doc,
-  key: CryptoKey,
-  allowed: () => boolean,
-  send: (data: Uint8Array) => boolean,
-  dirty: boolean,
-): Uploader {
+interface UploaderDeps {
+  readonly doc: Y.Doc;
+  readonly key: CryptoKey;
+  readonly allowed: () => boolean;
+  readonly send: (data: Uint8Array) => boolean;
+  readonly tooLarge: () => void;
+}
+
+function createUploader(deps: UploaderDeps, dirty: boolean): Uploader {
   let last = 0;
+  let dirtySince = dirty ? Date.now() : 0;
+  let warned = false;
   let timer: ReturnType<typeof setTimeout> | null = null;
   const run = async (): Promise<void> => {
     timer = null;
-    if (!dirty || !allowed()) return;
-    const sealed = await seal(key, deflateSync(Y.encodeStateAsUpdate(doc)));
-    if (sealed.byteLength > MAX_UPLOAD || !send(sealed)) return;
+    if (!dirty || !deps.allowed()) return;
+    const state = deflateSync(Y.encodeStateAsUpdate(deps.doc));
+    const sealed = await seal(deps.key, state);
+    if (sealed.byteLength > MAX_UPLOAD) {
+      if (!warned) deps.tooLarge();
+      warned = true;
+      return;
+    }
+    if (!deps.send(sealed)) return;
     dirty = false;
     last = Date.now();
   };
@@ -118,11 +146,12 @@ function createUploader(
   };
   const schedule = (): void => {
     cancel();
-    const wait = Math.max(UPLOAD_IDLE_MS, last + UPLOAD_GAP_MS - Date.now());
-    timer = setTimeout(() => void run(), wait);
+    const now = Date.now();
+    timer = setTimeout(() => void run(), uploadAt(now, dirtySince, last) - now);
   };
   return {
     mark() {
+      if (!dirty) dirtySince = Date.now();
       dirty = true;
       schedule();
     },
@@ -162,16 +191,65 @@ function createSaver(doc: Y.Doc, room: string): Saver {
   };
 }
 
+interface OpenedDoc {
+  readonly doc: Y.Doc;
+  readonly fresh: boolean;
+}
+
 async function openDoc(
   room: string,
   seed: (() => string) | null,
-): Promise<Y.Doc> {
+): Promise<OpenedDoc> {
   const doc = new Y.Doc();
   const stored = await loadDoc(room);
   if (stored) Y.applyUpdate(doc, stored, LOADED);
   const text = doc.getText("t");
   if (seed && text.length === 0) text.insert(0, seed());
-  return doc;
+  return { doc, fresh: !stored && !seed };
+}
+
+interface Attacher {
+  attach(): void;
+  detach(): void;
+  settle(): void;
+  destroy(): void;
+}
+
+export function createAttacher(
+  editor: HTMLTextAreaElement,
+  text: Y.Text,
+  fresh: boolean,
+): Attacher {
+  const binding = bindText(editor, text);
+  let settled = !fresh;
+  let wanted = false;
+  const timer = settled ? null : setTimeout(() => settle(), SETTLE_MS);
+  const attach = (): void => {
+    if (fresh && text.length === 0 && editor.value)
+      text.insert(0, editor.value);
+    binding.attach();
+  };
+  function settle(): void {
+    if (settled) return;
+    settled = true;
+    if (timer) clearTimeout(timer);
+    if (wanted) attach();
+  }
+  return {
+    attach() {
+      wanted = true;
+      if (settled) attach();
+    },
+    detach() {
+      wanted = false;
+      binding.detach();
+    },
+    settle,
+    destroy() {
+      if (timer) clearTimeout(timer);
+      binding.destroy();
+    },
+  };
 }
 
 interface SignalRoute {
@@ -197,6 +275,7 @@ async function routeSignal(
   else if (event.t === "bye") {
     room.delete(event.id);
     if (!mesh.open().includes(event.id)) mesh.drop(event.id);
+    uploader.schedule();
   } else {
     const plain = await unseal(key, fromBase64Url(event.d));
     const payload = plain && parsePayload(plain);
@@ -204,11 +283,28 @@ async function routeSignal(
   }
 }
 
+async function sealSignal(
+  key: CryptoKey,
+  payload: SignalPayload,
+): Promise<string> {
+  const sealed = await seal(key, encoder.encode(JSON.stringify(payload)));
+  return toBase64Url(sealed);
+}
+
+async function applySnapshot(
+  doc: Y.Doc,
+  key: CryptoKey,
+  data: Uint8Array,
+): Promise<void> {
+  const plain = await unseal(key, data);
+  if (plain) Y.applyUpdate(doc, inflateSync(plain), SNAPSHOT);
+}
+
 export async function startSession(deps: SessionDeps): Promise<Session> {
   const { link } = deps;
   const key = await importKey(link.key);
-  const doc = await openDoc(link.room, deps.seed);
-  const binding = bindText(deps.editor, doc.getText("t"));
+  const { doc, fresh } = await openDoc(link.room, deps.seed);
+  const binding = createAttacher(deps.editor, doc.getText("t"), fresh);
   const self = randomId(12);
   const room = new Set<string>();
   let signalState: SignalState = "connecting";
@@ -218,32 +314,34 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
     deps.onStatus({ signal: signalState, peers: mesh.open().length });
   const saver = createSaver(doc, link.room);
   const uploader = createUploader(
-    doc,
-    key,
-    () =>
-      !stopped && signalState === "open" && isUploader(self, room, mesh.open()),
-    (data) => signal.upload(data),
+    {
+      doc,
+      key,
+      allowed: () =>
+        !stopped &&
+        signalState === "open" &&
+        isUploader(self, room, mesh.open()),
+      send: (data) => signal.upload(data),
+      tooLarge: () => deps.onNotice("too-large"),
+    },
     deps.seed !== null,
   );
 
   doc.on("update", (_update: Uint8Array, origin: unknown) => {
     if (origin === LOADED) return;
     saver.soon();
+    if (origin === SNAPSHOT || isRemote(origin)) binding.settle();
     if (origin !== SNAPSHOT) uploader.mark();
   });
 
-  const sendSignal = async (
-    to: string,
-    payload: SignalPayload,
-  ): Promise<void> => {
-    const sealed = await seal(key, encoder.encode(JSON.stringify(payload)));
-    signal.send(to, toBase64Url(sealed));
-  };
-
   const mesh = createMesh({
     self: () => self,
+    present: (peer) => room.has(peer),
     iceServers: ICE_SERVERS,
-    signal: (to, payload) => void sendSignal(to, payload).catch(noteError),
+    signal: (to, payload) =>
+      void sealSignal(key, payload)
+        .then((d) => signal.send(to, d))
+        .catch(noteError),
     onOpen: (peer) => {
       sync.joined(peer);
       status();
@@ -268,16 +366,14 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
     onCursor: () => {},
   });
 
-  const onSnapshot = async (data: Uint8Array): Promise<void> => {
-    const plain = await unseal(key, data);
-    if (plain) Y.applyUpdate(doc, inflateSync(plain), SNAPSHOT);
-  };
-
   const signal = openSignal({
     url: roomUrl(deps.endpoint, link.room, deps.device, self),
-    onEvent: (event) =>
-      void routeSignal(event, { key, room, mesh, uploader }).catch(noteError),
-    onSnapshot: (data) => void onSnapshot(data).catch(noteError),
+    onEvent: (event) => {
+      if (event.t === "hi" && !event.peers.length)
+        setTimeout(binding.settle, EMPTY_ROOM_SETTLE_MS);
+      void routeSignal(event, { key, room, mesh, uploader }).catch(noteError);
+    },
+    onSnapshot: (data) => void applySnapshot(doc, key, data).catch(noteError),
     onState: (state) => {
       signalState = state;
       if (state !== "open") room.clear();

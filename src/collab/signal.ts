@@ -4,7 +4,7 @@ export type SignalEvent =
   | { readonly t: "bye"; readonly id: string }
   | { readonly t: "from"; readonly from: string; readonly d: string };
 
-export type SignalState = "connecting" | "open" | "closed";
+export type SignalState = "connecting" | "open" | "closed" | "full";
 
 export interface SignalDeps {
   readonly url: string;
@@ -19,6 +19,7 @@ export interface Signal {
   close(): void;
 }
 
+export const FULL_CODE = 4009;
 const MIN_RETRY_MS = 1000;
 const MAX_RETRY_MS = 60_000;
 
@@ -84,9 +85,14 @@ export function openSignal(deps: SignalDeps): Signal {
         if (parsed) deps.onEvent(parsed);
       } else deps.onSnapshot(new Uint8Array(event.data));
     };
-    ws.onclose = () => {
+    ws.onclose = (event: CloseEvent) => {
       if (socket !== ws) return;
       socket = null;
+      if (event.code === FULL_CODE) {
+        closed = true;
+        deps.onState("full");
+        return;
+      }
       deps.onState("closed");
       schedule();
     };

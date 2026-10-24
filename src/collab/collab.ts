@@ -31,13 +31,17 @@ export interface CollabDeps {
 
 export interface Collab {
   start(): void;
-  forget(slot: string): void;
+  forget(slot: string): boolean;
 }
 
 const ENDPOINT = (import.meta.env.VITE_COLLAB_URL ?? "").replace(/\/+$/, "");
 const JOIN_NAME = "Хамтын бичвэр";
 const DEVICE = /^[A-Za-z0-9_-]{16}$/;
 const IDLE_LABEL = "Хамтран засах";
+const FULL_MESSAGE =
+  "Энэ бичвэрийг 8 хүн зэрэг засаж байгаа тул нэгдэх боломжгүй. Хэн нэгэн гарсны дараа дахин нээнэ үү.";
+const TOO_LARGE_MESSAGE =
+  "Бичвэр хэт том тул серверт хадгалагдсангүй. Шууд холбогдсон хүмүүстэй засвар үргэлжилнэ, харин дараа нэгдэх хүн сүүлийн хувилбарыг авахгүй.";
 
 export function shareUrl(link: CollabLink, base: string): string {
   return base.replace(/#.*$/, "") + linkHash(link);
@@ -48,8 +52,9 @@ export function buttonLabel(
   status: SessionStatus | null,
 ): string {
   if (!shared) return IDLE_LABEL;
-  if (!status || status.signal !== "open") return "Хамтран ·  …";
-  return "Хамтран · " + (status.peers + 1);
+  if (status?.signal === "full") return "Хамтран · дүүрсэн";
+  if (status?.peers) return "Хамтран · " + (status.peers + 1);
+  return status?.signal === "open" ? "Хамтран · 1" : "Хамтран · …";
 }
 
 function deviceId(): string {
@@ -155,6 +160,7 @@ function createRegistry(
   const pending = new Map<string, Promise<Session>>();
   const ready = new Map<string, Session>();
   const statuses = new Map<string, SessionStatus>();
+  const full = new Set<string>();
   return {
     open(entry, seed) {
       const known = pending.get(entry.room);
@@ -167,9 +173,14 @@ function createRegistry(
           editor,
           seed: seed ? () => editor.value : null,
           onStatus: (status) => {
+            if (status.signal === "full" && !full.has(entry.room)) {
+              full.add(entry.room);
+              notify(FULL_MESSAGE);
+            }
             statuses.set(entry.room, status);
             changed();
           },
+          onNotice: () => notify(TOO_LARGE_MESSAGE),
         }),
       );
       pending.set(entry.room, created);
@@ -215,7 +226,7 @@ function joinRoom(
 export function initCollab(deps: CollabDeps): Collab {
   const { button, editor } = deps;
   if (!ENDPOINT || !button || typeof RTCPeerConnection === "undefined")
-    return { start: () => {}, forget: () => {} };
+    return { start: () => {}, forget: () => false };
 
   let rooms = parseRooms(readJson(KEYS.collabRooms));
   let active: string | null = null;
@@ -320,6 +331,7 @@ export function initCollab(deps: CollabDeps): Collab {
     forget(slot) {
       const entry = roomOfSlot(rooms, slot);
       if (entry) stop(entry);
+      return entry !== null;
     },
   };
 }

@@ -506,6 +506,8 @@ initToolbar({
     previewMode.cleared();
     projectLink.cleared();
     fileIO.forgetFile();
+    if (collab.forget(mdBar.slot()))
+      status.hold("Хамтын засвараас гарлаа. Бусдын бичвэр хэвээр үлдэнэ.");
   },
   afterClear: (cleared) => {
     mdBar.reset(cleared);

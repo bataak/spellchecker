@@ -26,7 +26,8 @@ import {
 } from "../src/collab/wire.ts";
 import { parseSignal, retryDelay } from "../src/collab/signal.ts";
 import { createSync, relayTargets, type Sync } from "../src/collab/sync.ts";
-import { isUploader, roomUrl } from "../src/collab/session.ts";
+import { isUploader, roomUrl, uploadAt } from "../src/collab/session.ts";
+import { buttonLabel } from "../src/collab/collab.ts";
 import { rebaseLocal } from "../src/collab/textbind.ts";
 import { shouldRecall } from "../src/collab/mesh.ts";
 import {
@@ -251,4 +252,27 @@ test("хамтын өрөөнүүдийн жагсаалтыг шалгана", 
     { slot: "file-a", room: "r2", key: "k2" },
   ]);
   assert.deepEqual(parseRooms("x"), []);
+});
+
+test("тасралтгүй бичсэн ч 5 минут тутамд snapshot хийнэ", () => {
+  const min = 60_000;
+  assert.equal(uploadAt(0, 0, 0), 30_000);
+  assert.equal(uploadAt(4 * min, 0, 0), 4.5 * min);
+  assert.equal(uploadAt(4.9 * min, 0, 0), 5 * min);
+  assert.equal(uploadAt(10 * min, 10 * min, 9 * min), 14 * min);
+  assert.equal(uploadAt(20 * min, 10 * min, 0), 15 * min);
+});
+
+test("товчны шошго төлөвийг харуулна", () => {
+  assert.equal(buttonLabel(false, null), "Хамтран засах");
+  assert.equal(buttonLabel(true, null), "Хамтран · …");
+  assert.equal(buttonLabel(true, { signal: "open", peers: 0 }), "Хамтран · 1");
+  assert.equal(
+    buttonLabel(true, { signal: "closed", peers: 2 }),
+    "Хамтран · 3",
+  );
+  assert.equal(
+    buttonLabel(true, { signal: "full", peers: 0 }),
+    "Хамтран · дүүрсэн",
+  );
 });

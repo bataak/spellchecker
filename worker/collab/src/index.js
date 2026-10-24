@@ -4,6 +4,7 @@ const ROOM_ID = /^[A-Za-z0-9_-]{22}$/;
 const CLIENT_ID = /^[A-Za-z0-9_-]{16}$/;
 const MAX_SLOTS = 8;
 const MAX_PEERS = 8;
+const FULL = 4009;
 const MAX_SIGNAL = 64 * 1024;
 const MAX_SNAPSHOT = 1900 * 1024;
 const SNAPSHOT_TTL_MS = 90 * 24 * 60 * 60 * 1000;
@@ -58,10 +59,13 @@ export class Room extends DurableObject {
       peer.ws.serializeAttachment(null);
       peer.ws.close(1000, "replaced");
     }
-    if (others.length >= MAX_PEERS)
-      return new Response("full", { status: 409 });
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
+    if (others.length >= MAX_PEERS) {
+      server.accept();
+      server.close(FULL, "full");
+      return new Response(null, { status: 101, webSocket: client });
+    }
     this.ctx.acceptWebSocket(server);
     server.serializeAttachment({ id, dev });
     this.send(server, { t: "hi", id, peers: others.map((p) => p.id) });
