@@ -1,6 +1,7 @@
 import { PROJECT_SLOT, isFileSlot } from "../slots/fileslots.ts";
 import { openDatabase } from "../core/idb.ts";
-import { swapOrigin } from "./editortext.ts";
+import { remoteChanges, swapOrigin } from "./editortext.ts";
+import { mapOffset, type TextChange } from "./textdelta.ts";
 import { minimalDiff } from "../mdbar/mdedit.ts";
 import { noteError } from "../core/errorlog.ts";
 
@@ -125,6 +126,20 @@ export function redo(text: string, history: History): Applied | null {
   };
 }
 
+export function rebaseHistory(
+  history: History,
+  changes: readonly TextChange[],
+): History {
+  const at = (pos: number): number => mapOffset(changes, pos);
+  const shift = (step: Step): Step => ({
+    ...step,
+    from: at(step.from),
+    before: [at(step.before[0]), at(step.before[1])],
+    after: [at(step.after[0]), at(step.after[1])],
+  });
+  return { undo: history.undo.map(shift), redo: history.redo.map(shift) };
+}
+
 export function checksum(text: string): string {
   let hash = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) {
@@ -237,6 +252,17 @@ export async function pruneHistories(scope: HistoryScope): Promise<number> {
   }
 }
 
+async function dropStored(slot: string): Promise<void> {
+  try {
+    const db = await openDb();
+    await done(
+      db.transaction(STORE, "readwrite").objectStore(STORE).delete(slot),
+    );
+  } catch (error) {
+    noteError(error);
+  }
+}
+
 async function saveStored(entry: Stored): Promise<void> {
   try {
     const db = await openDb();
@@ -256,6 +282,7 @@ export interface UndoDeps {
 export interface UndoControl {
   readonly baseline: () => void;
   readonly reset: () => void;
+  readonly forget: (slot: string) => Promise<void>;
 }
 
 const SAVE_DELAY_MS = 1000;
@@ -297,7 +324,37 @@ function createSaver() {
         }, SAVE_DELAY_MS),
       );
     },
+    forget(slot: string): Promise<void> {
+      clearTimeout(timers.get(slot));
+      timers.delete(slot);
+      memory.delete(slot);
+      return dropStored(slot);
+    },
   };
+}
+
+function bindHistoryKeys(
+  editor: HTMLTextAreaElement,
+  step: (kind: "undo" | "redo") => void,
+  trackSelection: () => void,
+): void {
+  editor.addEventListener("beforeinput", (event) => {
+    const kind = historyInput(event);
+    if (!kind) return trackSelection();
+    event.preventDefault();
+    step(kind);
+  });
+
+  editor.addEventListener(
+    "keydown",
+    (event) => {
+      const kind = historyKey(event);
+      if (!kind) return;
+      event.preventDefault();
+      step(kind);
+    },
+    true,
+  );
 }
 
 export function initUndoHistory(deps: UndoDeps): UndoControl {
@@ -374,27 +431,19 @@ export function initUndoHistory(deps: UndoDeps): UndoControl {
     persist();
   };
 
-  editor.addEventListener("beforeinput", (event) => {
-    const kind = historyInput(event);
-    if (!kind) return trackSelection();
-    event.preventDefault();
-    step(kind);
-  });
-
-  editor.addEventListener(
-    "keydown",
-    (event) => {
-      const kind = historyKey(event);
-      if (!kind) return;
-      event.preventDefault();
-      step(kind);
-    },
-    true,
-  );
+  bindHistoryKeys(editor, step, trackSelection);
 
   editor.addEventListener("input", (event) => {
     const input = event as InputEvent;
     if (input.inputType === "historyUndo") return;
+    const remote = remoteChanges(input);
+    if (remote) {
+      history = rebaseHistory(history, remote);
+      value = editor.value;
+      selection = selectionOf(editor);
+      persist();
+      return;
+    }
     if (swapOrigin(input) !== null) {
       baseline();
       return;
@@ -412,5 +461,5 @@ export function initUndoHistory(deps: UndoDeps): UndoControl {
 
   document.addEventListener("selectionchange", trackSelection);
   baseline();
-  return { baseline, reset };
+  return { baseline, reset, forget: saver.forget };
 }

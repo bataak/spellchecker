@@ -36,6 +36,7 @@ jobs:
           VITE_BASE: /
           VITE_TEX_PACKAGES_URL: ${{ vars.TEX_PACKAGES_URL }}
           VITE_GIT_AUTH_URL: ${{ vars.GIT_AUTH_URL }}
+          VITE_COLLAB_URL: ${{ vars.COLLAB_URL }}
           VITE_GITHUB_CLIENT_ID: ${{ vars.GH_CLIENT_ID }}
           VITE_GITLAB_CLIENT_ID: ${{ vars.GITLAB_CLIENT_ID }}
       - id: pages

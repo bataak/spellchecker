@@ -5,6 +5,7 @@ import "./mdbar/md-toolbar.css";
 import "./export/export.css";
 import "./define/deftip.css";
 import "./project/project.css";
+import "./collab/collab.css";
 import "./dict/dictmanager.css";
 import { MultiSpellChecker } from "./spell/spellchecker.ts";
 import { createSpellSession } from "./spell/spellsession.ts";
@@ -63,6 +64,8 @@ import { nextFrame, queryShell } from "./app/dom.ts";
 import { bindArming, bindEditorInput } from "./app/editorinput.ts";
 import { createMarkupMode } from "./app/markupmode.ts";
 import { createLastCaret } from "./app/lastcaret.ts";
+import { initCollab } from "./collab/collab.ts";
+import { PROJECT_SLOT } from "./slots/fileslots.ts";
 
 installErrorLog();
 
@@ -404,7 +407,10 @@ const mdBar = initMdToolbar({
   onExample: () => enterMdMode(!isTexFile()),
   projectDirty: () => project()?.unsaved ?? false,
   onCloseProject: () => projectLink.close(),
-  onCloseFile: (slot) => slots.forget(slot),
+  onCloseFile: (slot) => {
+    slots.forget(slot);
+    collab.forget(slot);
+  },
 });
 const nudgeHints = initAppHints({
   editor: editorEl,
@@ -500,6 +506,8 @@ initToolbar({
     previewMode.cleared();
     projectLink.cleared();
     fileIO.forgetFile();
+    if (collab.forget(mdBar.slot()))
+      status.hold("Хамтын засвараас гарлаа. Бусдын бичвэр хэвээр үлдэнэ.");
   },
   afterClear: (cleared) => {
     mdBar.reset(cleared);
@@ -510,6 +518,37 @@ initToolbar({
   lettersFixed: fixers.announceLetters,
 });
 initKeyboardToolbar(editorEl, els.backdrop);
+
+const collab = initCollab({
+  editor: editorEl,
+  view: {
+    host: editorWrap,
+    caretRect: backdrop.caretRect,
+    rangeRects: backdrop.rangeRects,
+  },
+  button: document.querySelector<HTMLButtonElement>("#collabBtn"),
+  slot: () => mdBar.slot(),
+  openSlot: (name) => mdBar.openFile(name),
+  showSlot: (slot) => {
+    if (!mdBar.fileSlots().some((file) => file.id === slot)) return false;
+    mdBar.showFile(slot);
+    return true;
+  },
+  blocked: () => {
+    if (officeActive())
+      return "Word, PowerPoint файлыг хамтран засах боломжгүй. Бичвэр болгон хуулж хуваалцана уу.";
+    if (mdBar.slot() === PROJECT_SLOT)
+      return "LaTeX төслийг хамтран засах боломж удахгүй нэмэгдэнэ.";
+    return null;
+  },
+  wipe: (slot) => {
+    if (!mdBar.fileSlots().some((file) => file.id === slot)) return false;
+    mdBar.closeFile(slot, true);
+    void undoCtl.forget(slot);
+    return true;
+  },
+  notify: (message) => status.hold(message, 8000, false),
+});
 
 const tabGuard = watchTabs({
   slot: () => mdBar.slot(),
@@ -557,6 +596,7 @@ void boot({
       opened: doc.open,
     }),
   restoreProject: () => projectLink.restore(),
+  restored: () => collab.start(),
   pruneUndo: () => void pruneUndo(mdBar.fileSlots(), project()),
   fontsLoaded: () => {
     backdrop.reset();
