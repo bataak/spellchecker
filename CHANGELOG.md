@@ -1,5 +1,48 @@
 # Changelog
 
+## [1.117.0](https://github.com/bataak/spellchecker/compare/v1.116.2...v1.117.0) (2026-10-24)
+
+
+### Features
+
+* **collab:** keep or wipe a removed collaborator's copy and drop its undo trail ([1a1f921](https://github.com/bataak/spellchecker/commit/1a1f921e64a26ae58ad7fdfa70795bf878a2d6f7))
+* **collab:** let the owner end sharing and keep or wipe collaborators' copies ([52dc405](https://github.com/bataak/spellchecker/commit/52dc4057e34ec75b8092d93d8ea3c6ac9f99e7b3))
+* **collab:** list several invites with inline copy buttons ([6223e0e](https://github.com/bataak/spellchecker/commit/6223e0e1aa5e7979ad60aa98bbe25ac866891bf8))
+* **collab:** more default animal names ([2cd000f](https://github.com/bataak/spellchecker/commit/2cd000f8abb995574ccebebf7b93bd86ea307aee))
+* **collab:** real-time co-editing of a text over WebRTC with encrypted links ([57f0f10](https://github.com/bataak/spellchecker/commit/57f0f10744a561f7b5e2f9f82fbd8b5f894f5b9c))
+* **collab:** refresh the collaborator list live while the dialog is open ([cb18fb9](https://github.com/bataak/spellchecker/commit/cb18fb9007bd701ae643758fe21e79eadf67d9e9))
+* **collab:** rename the button to Хамтрах and skip the copy question when alone ([704375e](https://github.com/bataak/spellchecker/commit/704375e57328ff2b5b876e1a1c66f408b962b4bd))
+* **collab:** show collaborators' cursors and selections ([9f26826](https://github.com/bataak/spellchecker/commit/9f2682624a3d4af6b45b8ee4c7ab9c73c7ace8a8))
+* **collab:** single-use per-person invites with owner-managed members ([88d30b9](https://github.com/bataak/spellchecker/commit/88d30b9417b9276bb993588757640c5eb3bcebcb))
+
+
+### Bug Fixes
+
+* **collab:** clarify invite privacy note ([655bb59](https://github.com/bataak/spellchecker/commit/655bb598a2e8f26977cfe61eb09b7aea9429748b))
+* **collab:** harden snapshots, room limits and shared clears ([5629786](https://github.com/bataak/spellchecker/commit/5629786147297b761fff7e75df7f7870bd6bd1e0))
+* **collab:** keep a session awake when activity returns during the sleep upload ([db55428](https://github.com/bataak/spellchecker/commit/db55428ad2f32d46969f69b04613af252a7c7d1c))
+* **collab:** let a fresh invite readmit a removed collaborator ([fc1d4b0](https://github.com/bataak/spellchecker/commit/fc1d4b0994b5bb6834e4b450726cbf787f3f2c08))
+* **collab:** list only collaborators, not the owner ([9380553](https://github.com/bataak/spellchecker/commit/93805538cd25e487ab3feeccaea63f3845efe2f3))
+* **collab:** mention the shared slot in the invite hint ([dd773eb](https://github.com/bataak/spellchecker/commit/dd773eb02d6b7fce2cf0dbbe2e3a967b55545c10))
+* **collab:** reword the end-sharing question ([7b44851](https://github.com/bataak/spellchecker/commit/7b44851dcb83631c9d06324cb12f58203caaefd4))
+* **collab:** reword the invitee hint ([92c9e00](https://github.com/bataak/spellchecker/commit/92c9e001e6cbf1886a7b53c63a62af2a3ca77254))
+* **collab:** reword the invitee stop confirmation ([928107a](https://github.com/bataak/spellchecker/commit/928107a0b02bd0f52524626bb250768c70ce1d75))
+* **collab:** reword the owner invite hint ([4fdfa78](https://github.com/bataak/spellchecker/commit/4fdfa784b9ca2571d6f18957c10659c0cd244711))
+* **collab:** show the stop button after a failed first invite and reword the solo stop confirmation ([753c269](https://github.com/bataak/spellchecker/commit/753c269e5a9aea5cd1bf21d772134c8fed9583f3))
+* **collab:** singular collaborator title and roomier removal choice ([874a9a0](https://github.com/bataak/spellchecker/commit/874a9a05ce0311dd1a7b29edda5bed0ff2db54e0))
+* **collab:** spell the invite hint as бүрд ([552e79a](https://github.com/bataak/spellchecker/commit/552e79a154b0dae7d5615178161d48dfd9251c3a))
+* **collab:** spell дамжихдаа in the invitee hint ([98c4bb5](https://github.com/bataak/spellchecker/commit/98c4bb52c614e20cc3eb23611e473c53a26f1956))
+* **collab:** wait for reconnection before owner commands and refresh the list after waking ([720f2a8](https://github.com/bataak/spellchecker/commit/720f2a8ebe1f49e8f59c5de67b524da27cee69e3))
+* **mdbar:** show full document title on phones ([be2450c](https://github.com/bataak/spellchecker/commit/be2450c52ad269076c6e8be0850511b91d323be3))
+
+
+### Performance Improvements
+
+* **collab:** create the room on the first invite instead of on opening the dialog ([bf4bd9f](https://github.com/bataak/spellchecker/commit/bf4bd9f03e8f2273bdbb59f95b6b4e4e002c1290))
+* **collab:** skip server snapshots until the room is shared ([b87c9dd](https://github.com/bataak/spellchecker/commit/b87c9dd2aa82493cce8c97c2d5b2d05ff790a776))
+* **collab:** sleep idle sessions after 30 minutes ([7562eb7](https://github.com/bataak/spellchecker/commit/7562eb757ad8e280a0cdb80a6a7c3abb87a4d4aa))
+* **collab:** sleep idle sessions, refresh room lifetime at most daily, suggest home screen on iOS ([6ff71c7](https://github.com/bataak/spellchecker/commit/6ff71c78885264a3e8547f49bcfde555caad18e0))
+
 ## [1.116.2](https://github.com/bataak/spellchecker/compare/v1.116.1...v1.116.2) (2026-10-23)
 
 
