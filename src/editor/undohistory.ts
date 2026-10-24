@@ -252,6 +252,17 @@ export async function pruneHistories(scope: HistoryScope): Promise<number> {
   }
 }
 
+async function dropStored(slot: string): Promise<void> {
+  try {
+    const db = await openDb();
+    await done(
+      db.transaction(STORE, "readwrite").objectStore(STORE).delete(slot),
+    );
+  } catch (error) {
+    noteError(error);
+  }
+}
+
 async function saveStored(entry: Stored): Promise<void> {
   try {
     const db = await openDb();
@@ -271,6 +282,7 @@ export interface UndoDeps {
 export interface UndoControl {
   readonly baseline: () => void;
   readonly reset: () => void;
+  readonly forget: (slot: string) => Promise<void>;
 }
 
 const SAVE_DELAY_MS = 1000;
@@ -311,6 +323,12 @@ function createSaver() {
           void saveStored(entry);
         }, SAVE_DELAY_MS),
       );
+    },
+    forget(slot: string): Promise<void> {
+      clearTimeout(timers.get(slot));
+      timers.delete(slot);
+      memory.delete(slot);
+      return dropStored(slot);
     },
   };
 }
@@ -443,5 +461,5 @@ export function initUndoHistory(deps: UndoDeps): UndoControl {
 
   document.addEventListener("selectionchange", trackSelection);
   baseline();
-  return { baseline, reset };
+  return { baseline, reset, forget: saver.forget };
 }

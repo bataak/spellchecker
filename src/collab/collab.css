@@ -231,3 +231,29 @@
   border-color: var(--proof);
   color: var(--proof);
 }
+
+.collab-members li:has(.collab-member-choice:not([hidden])) {
+  flex-wrap: wrap;
+}
+
+.collab-member-choice {
+  display: flex;
+  flex: 1 0 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 4px 0 6px;
+}
+
+.collab-member-choice p {
+  flex: 1 0 100%;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.collab-member-choice[hidden],
+.collab-members .tbtn[hidden] {
+  display: none;
+}

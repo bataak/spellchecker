@@ -24,7 +24,8 @@ export type SignalState =
   | "denied"
   | "removed"
   | "ended"
-  | "wiped";
+  | "wiped"
+  | "purged";
 
 export interface SignalDeps {
   readonly url: () => string;
@@ -44,12 +45,14 @@ export const DENIED_CODE = 4003;
 export const REMOVED_CODE = 4004;
 export const ENDED_CODE = 4005;
 export const WIPED_CODE = 4006;
+export const PURGED_CODE = 4007;
 export const FULL_CODE = 4009;
 const FINAL: Record<number, SignalState> = {
   [DENIED_CODE]: "denied",
   [REMOVED_CODE]: "removed",
   [ENDED_CODE]: "ended",
   [WIPED_CODE]: "wiped",
+  [PURGED_CODE]: "purged",
   [FULL_CODE]: "full",
 };
 const MIN_RETRY_MS = 1000;
@@ -103,6 +106,16 @@ function parseEvent(v: Record<string, unknown>): SignalEvent | null {
   return parseAccessEvent(v);
 }
 
+export function finalCode(raw: string): number | null {
+  if (!raw.startsWith('{"t":"final"')) return null;
+  try {
+    const value = JSON.parse(raw) as { code?: unknown };
+    return typeof value.code === "number" ? value.code : null;
+  } catch {
+    return null;
+  }
+}
+
 export function retryDelay(attempt: number, jitter: number): number {
   const base = Math.min(MAX_RETRY_MS, MIN_RETRY_MS * 2 ** attempt);
   return Math.round(base * (0.5 + jitter / 2));
@@ -129,6 +142,16 @@ export function openSignal(deps: SignalDeps): Signal {
     );
   };
 
+  function finish(ws: WebSocket, code: number): boolean {
+    const final = FINAL[code];
+    if (!final || socket !== ws) return false;
+    socket = null;
+    closed = true;
+    deps.onState(final);
+    ws.close();
+    return true;
+  }
+
   function connect(): void {
     if (closed || socket) return;
     deps.onState("connecting");
@@ -140,20 +163,16 @@ export function openSignal(deps: SignalDeps): Signal {
       deps.onState("open");
     };
     ws.onmessage = (event: MessageEvent<string | ArrayBuffer>) => {
-      if (isText(event.data)) {
-        const parsed = parseSignal(event.data);
-        if (parsed) deps.onEvent(parsed);
-      } else deps.onSnapshot(new Uint8Array(event.data));
+      if (!isText(event.data))
+        return deps.onSnapshot(new Uint8Array(event.data));
+      const code = finalCode(event.data);
+      if (code !== null) return void finish(ws, code);
+      const parsed = parseSignal(event.data);
+      if (parsed) deps.onEvent(parsed);
     };
     ws.onclose = (event: CloseEvent) => {
-      if (socket !== ws) return;
+      if (socket !== ws || finish(ws, event.code)) return;
       socket = null;
-      const final = FINAL[event.code];
-      if (final) {
-        closed = true;
-        deps.onState(final);
-        return;
-      }
       deps.onState("closed");
       schedule();
     };

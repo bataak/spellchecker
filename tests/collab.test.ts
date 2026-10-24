@@ -391,8 +391,8 @@ test("хамтрагчдын нэрийг түлхүүрээр тайлж хар
     { dev: "a", name: "Сараа", online: true, owner: false },
     { dev: "b", name: "", online: false, owner: true },
   ]);
-  const removed = admin.remove("a");
-  assert.deepEqual(sent.at(-1), { t: "remove", dev: "a" });
+  const removed = admin.remove("a", true);
+  assert.deepEqual(sent.at(-1), { t: "remove", dev: "a", wipe: true });
   admin.receive({ t: "members", list: [] });
   assert.deepEqual(await removed, []);
 });

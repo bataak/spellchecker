@@ -119,15 +119,37 @@ function inviteBox(deps: DialogDeps, note: HTMLElement): HTMLElement {
 
 function memberRow(
   member: Member,
-  remove: (member: Member) => void,
+  remove: (member: Member, wipe: boolean) => void,
 ): HTMLLIElement {
   const item = element("li", member.online ? "is-online" : "");
   const name = element("span", "collab-member-name", member.name || "Нэргүй");
-  item.appendChild(name);
   const drop = actionButton("Хасах");
   drop.classList.add("collab-stop");
-  drop.addEventListener("click", () => remove(member));
-  item.appendChild(drop);
+  const choice = element("div", "collab-member-choice");
+  choice.hidden = true;
+  const question = element(
+    "p",
+    "",
+    "Хасах уу? Түүний төхөөрөмж дээрх хуулбарыг яах вэ?",
+  );
+  const wipe = actionButton("Бүрмөсөн устгах");
+  wipe.classList.add("collab-wipe");
+  const keep = actionButton("Хуулбар үлдээх");
+  const back = actionButton("Болих");
+  choice.append(question, back, keep, wipe);
+  const toggle = (open: boolean): void => {
+    choice.hidden = !open;
+    drop.hidden = open;
+  };
+  const pick = (purge: boolean): void => {
+    wipe.disabled = keep.disabled = back.disabled = true;
+    remove(member, purge);
+  };
+  drop.addEventListener("click", () => toggle(true));
+  back.addEventListener("click", () => toggle(false));
+  wipe.addEventListener("click", () => pick(true));
+  keep.addEventListener("click", () => pick(false));
+  item.append(name, drop, choice);
   return item;
 }
 
@@ -148,17 +170,18 @@ function memberList(deps: DialogDeps, note: HTMLElement): HTMLElement {
         element("li", "collab-members-empty", "Одоогоор хамтрагч алга"),
       );
   };
-  function remove(member: Member): void {
-    const name = member.name || "Энэ хүн";
-    if (
-      !window.confirm(
-        name + "-г хасах уу? Тэр цааш энэ бичвэрийг засах боломжгүй болно.",
-      )
-    )
-      return;
-    void ask(deps, (live) => live.remove(member.dev)).then((members) => {
+  function remove(member: Member, wipe: boolean): void {
+    const name = member.name || "Хамтрагч";
+    void ask(deps, (live) => live.remove(member.dev, wipe)).then((members) => {
       show(members);
-      if (members) say(note, "ok", name + " хасагдлаа");
+      if (members)
+        say(
+          note,
+          "ok",
+          wipe
+            ? name + " хасагдаж, бичвэр нь устгагдлаа"
+            : name + " хасагдлаа, хуулбар нь түүнд үлдлээ",
+        );
     });
   }
   list.appendChild(element("li", "collab-members-empty", "Ачаалж байна…"));

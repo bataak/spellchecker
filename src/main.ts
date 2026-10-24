@@ -544,6 +544,7 @@ const collab = initCollab({
   wipe: (slot) => {
     if (!mdBar.fileSlots().some((file) => file.id === slot)) return false;
     mdBar.closeFile(slot, true);
+    void undoCtl.forget(slot);
     return true;
   },
   notify: (message) => status.hold(message, 8000, false),
