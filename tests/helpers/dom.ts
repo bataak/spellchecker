@@ -17,6 +17,7 @@ const GLOBALS = [
   "PointerEvent",
   "CustomEvent",
   "DOMRect",
+  "NodeFilter",
   "getComputedStyle",
   "navigator",
   "requestAnimationFrame",
