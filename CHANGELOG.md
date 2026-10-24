@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.116.3](https://github.com/bataak/spellchecker/compare/v1.116.2...v1.116.3) (2026-10-24)
+
+
+### Bug Fixes
+
+* **mdbar:** show full document title on phones ([be2450c](https://github.com/bataak/spellchecker/commit/be2450c52ad269076c6e8be0850511b91d323be3))
+
 ## [1.116.2](https://github.com/bataak/spellchecker/compare/v1.116.1...v1.116.2) (2026-10-23)
 
 
