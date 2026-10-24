@@ -12,6 +12,7 @@ const DENIED = 4003;
 const REMOVED = 4004;
 const ENDED = 4005;
 const WIPED = 4006;
+const PURGED = 4007;
 const FULL = 4009;
 const MAX_SIGNAL = 64 * 1024;
 const MAX_SNAPSHOT = 1900 * 1024;
@@ -136,14 +137,14 @@ export class Room extends DurableObject {
     const row = first(
       sql.exec("SELECT h, gone FROM members WHERE dev = ?", dev),
     );
-    if (row?.gone) return { code: REMOVED };
+    if (row?.gone) return { code: row.gone === 2 ? PURGED : REMOVED };
     if (member) return row && row.h === hash ? {} : { code: DENIED };
     const fresh = newToken();
     const freshHash = await digest(fresh);
     const used = first(sql.exec("SELECT dev FROM invites WHERE h = ?", hash));
     if (!used || (used.dev && used.dev !== dev)) return { code: DENIED };
     const gone = first(sql.exec("SELECT gone FROM members WHERE dev = ?", dev));
-    if (gone?.gone) return { code: REMOVED };
+    if (gone?.gone) return { code: gone.gone === 2 ? PURGED : REMOVED };
     if (!gone) {
       const count = first(
         sql.exec("SELECT COUNT(*) AS n FROM members WHERE gone = 0"),
@@ -212,7 +213,8 @@ export class Room extends DurableObject {
     if (!meta.owner) return;
     if (input?.t === "invite") return this.invite(ws, input.i);
     if (input?.t === "members") return this.send(ws, this.roster());
-    if (input?.t === "remove") return this.remove(ws, input.dev);
+    if (input?.t === "remove")
+      return this.remove(ws, input.dev, input.wipe === true);
     if (input?.t === "close") return this.end(ws, input.wipe === true);
   }
 
@@ -265,18 +267,18 @@ export class Room extends DurableObject {
     return { t: "members", list };
   }
 
-  remove(ws, dev) {
+  remove(ws, dev, wipe) {
     if (typeof dev !== "string" || dev === this.meta("dev")) return;
     this.ctx.storage.sql.exec(
-      "UPDATE members SET gone = 1, h = '', label = '' WHERE dev = ?",
+      "UPDATE members SET gone = ?, h = '', label = '' WHERE dev = ?",
+      wipe ? 2 : 1,
       dev,
     );
     this.ctx.storage.sql.exec("DELETE FROM snap WHERE dev = ?", dev);
     const peers = this.peers();
     for (const peer of peers) {
       if (peer.dev !== dev) continue;
-      peer.ws.serializeAttachment(null);
-      peer.ws.close(REMOVED, "removed");
+      this.evict(peer.ws, wipe ? PURGED : REMOVED);
       for (const other of peers)
         if (other.dev !== dev) this.send(other.ws, { t: "kick", id: peer.id });
     }
@@ -293,11 +295,19 @@ export class Room extends DurableObject {
     );
     this.send(ws, { t: "ended" });
     for (const peer of this.peers()) {
-      peer.ws.serializeAttachment(null);
-      if (peer.ws === ws) peer.ws.close(1000, "ended");
-      else peer.ws.close(wipe ? WIPED : ENDED, "ended");
+      if (peer.ws !== ws) this.evict(peer.ws, wipe ? WIPED : ENDED);
+      else {
+        peer.ws.serializeAttachment(null);
+        peer.ws.close(1000, "ended");
+      }
     }
     return this.touch();
+  }
+
+  evict(ws, code) {
+    this.send(ws, { t: "final", code });
+    ws.serializeAttachment(null);
+    ws.close(code, "final");
   }
 
   store(dev, data) {

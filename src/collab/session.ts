@@ -56,7 +56,7 @@ export interface Session {
   announce(): void;
   invite(): Promise<string | null>;
   members(): Promise<Member[] | null>;
-  remove(dev: string): Promise<Member[] | null>;
+  remove(dev: string, wipe: boolean): Promise<Member[] | null>;
   end(wipe: boolean): Promise<boolean>;
   stop(forget: boolean): Promise<void>;
 }
@@ -495,7 +495,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
     },
     invite: () => admin.invite(),
     members: () => admin.members(),
-    remove: (dev) => admin.remove(dev),
+    remove: (dev, wipe) => admin.remove(dev, wipe),
     end: (wipe) => admin.end(wipe),
     async stop(forget) {
       stopped = true;

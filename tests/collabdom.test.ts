@@ -9,6 +9,7 @@ import {
   DENIED_CODE,
   ENDED_CODE,
   FULL_CODE,
+  PURGED_CODE,
   REMOVED_CODE,
   WIPED_CODE,
   openSignal,
@@ -189,6 +190,7 @@ for (const [code, state] of [
   [REMOVED_CODE, "removed"],
   [ENDED_CODE, "ended"],
   [WIPED_CODE, "wiped"],
+  [PURGED_CODE, "purged"],
 ] as const)
   test("хандах эрхгүй бол (" + state + ") дахин холбогдохгүй", async () => {
     const urls: string[] = [];
@@ -332,4 +334,48 @@ test("нэр, өнгийг төхөөрөмжөөр тогтооно", () => {
   assert.ok(one.color >= 0 && one.color < 8);
   assert.equal(profileFor("deviceAAAAAAAAAA", "  Бат  ").name, "Бат");
   assert.equal(profileFor("d", "x".repeat(60)).name.length, 40);
+});
+
+test("хаалтын фрейм ирэхгүй ч final мессежээр эцсийн төлөвт шилжинэ", async () => {
+  const sockets: {
+    onmessage: ((event: { data: string }) => void) | null;
+    closed: boolean;
+  }[] = [];
+  class FakeSocket {
+    static OPEN = 1;
+    readyState = 1;
+    binaryType = "";
+    closed = false;
+    onopen: (() => void) | null = null;
+    onmessage: ((event: { data: string }) => void) | null = null;
+    onclose: ((event: { code: number }) => void) | null = null;
+    constructor() {
+      sockets.push(this);
+    }
+    send(): void {}
+    close(): void {
+      this.closed = true;
+    }
+  }
+  const saved = globalThis.WebSocket;
+  (globalThis as Record<string, unknown>).WebSocket = FakeSocket;
+  const states: string[] = [];
+  const events: unknown[] = [];
+  const signal = openSignal({
+    url: () => "wss://x/room/r",
+    onEvent: (event) => events.push(event),
+    onSnapshot: () => {},
+    onState: (state) => states.push(state),
+  });
+  sockets[0]!.onmessage?.({
+    data: JSON.stringify({ t: "final", code: PURGED_CODE }),
+  });
+  await new Promise((resolve) => setTimeout(resolve, 1600));
+  assert.deepEqual(states, ["connecting", "purged"]);
+  assert.equal(sockets[0]!.closed, true);
+  assert.equal(sockets.length, 1);
+  assert.deepEqual(events, []);
+  assert.equal(signal.command({ t: "x" }), false);
+  signal.close();
+  (globalThis as Record<string, unknown>).WebSocket = saved;
 });

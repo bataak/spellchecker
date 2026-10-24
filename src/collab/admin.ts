@@ -17,7 +17,7 @@ export interface Member {
 export interface Admin {
   invite(): Promise<string | null>;
   members(): Promise<Member[] | null>;
-  remove(dev: string): Promise<Member[] | null>;
+  remove(dev: string, wipe: boolean): Promise<Member[] | null>;
   end(wipe: boolean): Promise<boolean>;
   label(name: string): void;
   receive(event: SignalEvent): boolean;
@@ -97,7 +97,7 @@ export function createAdmin(key: CryptoKey, command: Command): Admin {
       return ok ? token : null;
     },
     members: () => roster({ t: "members" }),
-    remove: (dev) => roster({ t: "remove", dev }),
+    remove: (dev, wipe) => roster({ t: "remove", dev, wipe }),
     end(wipe) {
       if (!command({ t: "close", wipe })) return Promise.resolve(false);
       return reply<boolean>((done) => {

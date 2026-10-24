@@ -57,7 +57,9 @@ const ENDED: Partial<Record<SignalState, string>> = {
   ended:
     "Үүсгэгч хуваалцахаа зогсоолоо. Бичвэрийн хуулбар энэ төхөөрөмж дээр үлдлээ.",
   wiped: "Үүсгэгч хуваалцахаа зогсоож, бичвэрийг устгалаа.",
+  purged: "Үүсгэгч таныг хамтын засвараас хасаж, бичвэрийг устгалаа.",
 };
+const WIPES: ReadonlySet<SignalState> = new Set(["wiped", "purged"]);
 const TOO_LARGE_MESSAGE =
   "Бичвэр хэт том тул серверт хадгалагдсангүй. Шууд холбогдсон хүмүүстэй засвар үргэлжилнэ, харин дараа нэгдэх хүн сүүлийн хувилбарыг авахгүй.";
 
@@ -254,7 +256,7 @@ export function initCollab(deps: CollabDeps): Collab {
     },
     ended: (room, state) => {
       const entry = roomById(rooms, room);
-      if (entry && !(state === "wiped" && deps.wipe(entry.slot))) stop(entry);
+      if (entry && !(WIPES.has(state) && deps.wipe(entry.slot))) stop(entry);
     },
   });
 
