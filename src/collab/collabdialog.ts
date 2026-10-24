@@ -109,8 +109,8 @@ function inviteBox(
     say(note, "", "Урилга үүсгэж байна…");
     void ask(deps, (live) => live.invite()).then((token) => {
       create.disabled = false;
-      if (!token) return say(note, "err", OFFLINE);
       invited();
+      if (!token) return say(note, "err", OFFLINE);
       const row = inviteRow(deps.inviteUrl(token), note);
       list.appendChild(row);
       row.scrollIntoView({ block: "nearest" });
@@ -264,7 +264,7 @@ function endChoice(
 function endAlone(deps: DialogDeps, note: HTMLElement, done: () => void): void {
   if (
     !window.confirm(
-      "Хамтын засварыг зогсоох уу? Бичвэр энэ төхөөрөмж дээр хадгалагдаж үлдэнэ.",
+      "Хамтран засварлах ажиллагааг зогсоох уу? Бичвэр энэ төхөөрөмж дээр хадгалагдаж үлдэнэ.",
     )
   )
     return;

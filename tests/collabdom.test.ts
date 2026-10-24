@@ -522,3 +522,33 @@ test("урилга үүсгэх хүртэл сервер рүү хандахг�
   assert.equal(dialog.querySelectorAll(".collab-invite-row").length, 1);
   dialog.close();
 });
+
+test("урилга үүсгэж чадаагүй ч өрөө нээгдсэн бол зогсоох товч гарна", async () => {
+  const session = {
+    invite: async () => null,
+    members: async () => null,
+    watch: () => () => {},
+  } as unknown as Session;
+  openDialog({
+    owner: true,
+    started: false,
+    session: () => Promise.resolve(session),
+    inviteUrl: (token) => "https://x/#" + token,
+    name: "Би",
+    tip: null,
+    rename: () => {},
+    stop: () => {},
+    end: async () => true,
+  });
+  const dialog = document.querySelector<HTMLDialogElement>(".collab-overlay")!;
+  const stop = dialog.querySelector<HTMLButtonElement>(".collab-stop")!;
+  dialog.querySelector<HTMLButtonElement>(".collab-invite > .tbtn")!.click();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(stop.hidden, false);
+  assert.equal(dialog.querySelectorAll(".collab-invite-row").length, 0);
+  assert.match(
+    dialog.querySelector(".suggest-note")!.textContent!,
+    /Сервертэй холбогдоогүй/,
+  );
+  dialog.close();
+});
