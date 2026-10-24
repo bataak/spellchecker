@@ -1,5 +1,10 @@
 export type SignalEvent =
-  | { readonly t: "hi"; readonly id: string; readonly peers: string[] }
+  | {
+      readonly t: "hi";
+      readonly id: string;
+      readonly peers: string[];
+      readonly shared: boolean;
+    }
   | { readonly t: "join"; readonly id: string }
   | { readonly t: "bye"; readonly id: string }
   | { readonly t: "from"; readonly from: string; readonly d: string }
@@ -98,7 +103,12 @@ function parseAccessEvent(v: Record<string, unknown>): SignalEvent | null {
 
 function parseEvent(v: Record<string, unknown>): SignalEvent | null {
   if (v.t === "hi" && isText(v.id) && Array.isArray(v.peers))
-    return { t: "hi", id: v.id, peers: v.peers.filter(isText) };
+    return {
+      t: "hi",
+      id: v.id,
+      peers: v.peers.filter(isText),
+      shared: v.s === true,
+    };
   if ((v.t === "join" || v.t === "bye" || v.t === "kick") && isText(v.id))
     return { t: v.t, id: v.id };
   if (v.t === "from" && isText(v.from) && isText(v.d))

@@ -136,6 +136,7 @@ interface Uploader {
   mark(): void;
   schedule(): void;
   run(): Promise<void>;
+  force(): void;
   dirty(): boolean;
   cancel(): void;
 }
@@ -186,6 +187,12 @@ function createUploader(deps: UploaderDeps, dirty: boolean): Uploader {
       if (dirty) schedule();
     },
     run,
+    force() {
+      if (!dirty) dirtySince = Date.now();
+      dirty = true;
+      cancel();
+      void run();
+    },
     dirty: () => dirty,
     cancel,
   };
@@ -359,6 +366,20 @@ function createEditing(
   return { cursors, binding };
 }
 
+function watchDoc(
+  doc: Y.Doc,
+  saver: Saver,
+  binding: Attacher,
+  uploader: Uploader,
+): void {
+  doc.on("update", (_update: Uint8Array, origin: unknown) => {
+    if (origin === LOADED) return;
+    saver.soon();
+    if (origin === SNAPSHOT || isRemote(origin)) binding.settle();
+    if (origin !== SNAPSHOT) uploader.mark();
+  });
+}
+
 function flushWhenHidden(saver: Saver, uploader: Uploader): () => void {
   const flush = (): void => {
     if (document.visibilityState !== "hidden") return;
@@ -377,6 +398,21 @@ interface MeshWiring {
   readonly status: () => void;
   readonly signal: () => Signal;
   readonly sync: () => Sync;
+}
+
+type AdminControls = Pick<Session, "invite" | "members" | "remove" | "end">;
+
+function adminControls(admin: Admin, invited: () => void): AdminControls {
+  return {
+    invite: () =>
+      admin.invite().then((token) => {
+        if (token) invited();
+        return token;
+      }),
+    members: () => admin.members(),
+    remove: (dev, wipe) => admin.remove(dev, wipe),
+    end: (wipe) => admin.end(wipe),
+  };
 }
 
 function wireMesh(wiring: MeshWiring): Mesh {
@@ -420,7 +456,8 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
   const room = new Set<string>();
   let signalState: SignalState = "connecting";
   let stopped = false;
-
+  let shared = false;
+  const owner = deps.access().kind === "o";
   const status = (): void =>
     deps.onStatus({ signal: signalState, peers: mesh.open().length });
   const saver = createSaver(doc, link.room);
@@ -430,6 +467,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
       key,
       allowed: () =>
         !stopped &&
+        shared &&
         signalState === "open" &&
         isUploader(self, room, mesh.open()),
       send: (data) => signal.upload(data),
@@ -438,12 +476,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
     deps.seed !== null,
   );
 
-  doc.on("update", (_update: Uint8Array, origin: unknown) => {
-    if (origin === LOADED) return;
-    saver.soon();
-    if (origin === SNAPSHOT || isRemote(origin)) binding.settle();
-    if (origin !== SNAPSHOT) uploader.mark();
-  });
+  watchDoc(doc, saver, binding, uploader);
 
   const mesh = wireMesh({
     self,
@@ -467,9 +500,10 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
       roomUrl(deps.endpoint, link.room, deps.device, self, deps.access()),
     onEvent: (event) => {
       if (event.t === "hi") {
+        shared = event.shared;
         if (!event.peers.length)
           setTimeout(binding.settle, EMPTY_ROOM_SETTLE_MS);
-        admin.label(deps.profile().name);
+        if (!owner) admin.label(deps.profile().name);
       }
       const route = { key, room, mesh, uploader, admin, onAccess };
       void routeSignal(event, route).catch(noteError);
@@ -491,12 +525,13 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
     detach: () => binding.detach(),
     announce() {
       cursors.announce();
-      admin.label(deps.profile().name);
+      if (!owner) admin.label(deps.profile().name);
     },
-    invite: () => admin.invite(),
-    members: () => admin.members(),
-    remove: (dev, wipe) => admin.remove(dev, wipe),
-    end: (wipe) => admin.end(wipe),
+    ...adminControls(admin, () => {
+      if (shared) return;
+      shared = true;
+      uploader.force();
+    }),
     async stop(forget) {
       stopped = true;
       unwatch();
