@@ -134,18 +134,23 @@ export class Room extends DurableObject {
       if (this.meta("dev") !== dev) return { code: DENIED };
       return { owner: true };
     }
-    const row = first(
-      sql.exec("SELECT h, gone FROM members WHERE dev = ?", dev),
-    );
-    if (row?.gone) return { code: row.gone === 2 ? PURGED : REMOVED };
-    if (member) return row && row.h === hash ? {} : { code: DENIED };
+    if (member) {
+      const row = first(
+        sql.exec("SELECT h, gone FROM members WHERE dev = ?", dev),
+      );
+      if (row?.gone) return { code: row.gone === 2 ? PURGED : REMOVED };
+      return row && row.h === hash ? {} : { code: DENIED };
+    }
     const fresh = newToken();
     const freshHash = await digest(fresh);
     const used = first(sql.exec("SELECT dev FROM invites WHERE h = ?", hash));
     if (!used || (used.dev && used.dev !== dev)) return { code: DENIED };
-    const gone = first(sql.exec("SELECT gone FROM members WHERE dev = ?", dev));
-    if (gone?.gone) return { code: gone.gone === 2 ? PURGED : REMOVED };
-    if (!gone) {
+    const known = first(
+      sql.exec("SELECT gone FROM members WHERE dev = ?", dev),
+    );
+    if (known?.gone && used.dev)
+      return { code: known.gone === 2 ? PURGED : REMOVED };
+    if (!known || known.gone) {
       const count = first(
         sql.exec("SELECT COUNT(*) AS n FROM members WHERE gone = 0"),
       );
@@ -153,7 +158,7 @@ export class Room extends DurableObject {
     }
     sql.exec("UPDATE invites SET dev = ? WHERE h = ?", dev, hash);
     sql.exec(
-      "INSERT INTO members (dev, h, at) VALUES (?, ?, ?) ON CONFLICT (dev) DO UPDATE SET h = excluded.h",
+      "INSERT INTO members (dev, h, at) VALUES (?, ?, ?) ON CONFLICT (dev) DO UPDATE SET h = excluded.h, gone = 0, label = '', at = excluded.at",
       dev,
       freshHash,
       now,
