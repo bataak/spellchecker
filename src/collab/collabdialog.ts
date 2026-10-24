@@ -123,14 +123,10 @@ function memberRow(
   const item = element("li", member.online ? "is-online" : "");
   const name = element("span", "collab-member-name", member.name || "Нэргүй");
   item.appendChild(name);
-  if (member.owner)
-    item.appendChild(element("span", "collab-member-tag", "та"));
-  else {
-    const drop = actionButton("Хасах");
-    drop.classList.add("collab-stop");
-    drop.addEventListener("click", () => remove(member));
-    item.appendChild(drop);
-  }
+  const drop = actionButton("Хасах");
+  drop.classList.add("collab-stop");
+  drop.addEventListener("click", () => remove(member));
+  item.appendChild(drop);
   return item;
 }
 
@@ -144,10 +140,11 @@ function memberList(deps: DialogDeps, note: HTMLElement): HTMLElement {
       list.replaceChildren(element("li", "collab-members-empty", OFFLINE));
       return;
     }
-    list.replaceChildren(...members.map((m) => memberRow(m, remove)));
-    if (members.length < 2)
+    const others = members.filter((m) => !m.owner);
+    list.replaceChildren(...others.map((m) => memberRow(m, remove)));
+    if (!others.length)
       list.appendChild(
-        element("li", "collab-members-empty", "Одоогоор хэн ч нэгдээгүй"),
+        element("li", "collab-members-empty", "Одоогоор хамтрагч алга"),
       );
   };
   function remove(member: Member): void {

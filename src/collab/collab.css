@@ -214,11 +214,6 @@
   font-size: 0.82rem;
 }
 
-.collab-member-tag {
-  color: var(--muted);
-  font-size: 0.8rem;
-}
-
 .collab-members .collab-stop {
   margin-inline-end: 0;
 }
