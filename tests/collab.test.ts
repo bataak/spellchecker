@@ -27,7 +27,12 @@ import {
 } from "../src/collab/wire.ts";
 import { parseSignal, retryDelay } from "../src/collab/signal.ts";
 import { createSync, relayTargets, type Sync } from "../src/collab/sync.ts";
-import { isUploader, roomUrl, uploadAt } from "../src/collab/session.ts";
+import {
+  createGate,
+  isUploader,
+  roomUrl,
+  uploadAt,
+} from "../src/collab/session.ts";
 import { buttonLabel } from "../src/collab/collab.ts";
 import { rebaseLocal } from "../src/collab/textbind.ts";
 import { shouldRecall } from "../src/collab/mesh.ts";
@@ -401,4 +406,22 @@ test("хамтрагчдын нэрийг түлхүүрээр тайлж хар
   assert.deepEqual(sent.at(-1), { t: "remove", dev: "a", wipe: true });
   admin.receive({ t: "members", list: [] });
   assert.deepEqual(await removed, []);
+});
+
+test("сэрэх үед холболт тогтохыг хүлээгээд дараа нь илгээнэ", async () => {
+  let open = false;
+  const gate = createGate(() => open, 200);
+  let passed = false;
+  const waiting = gate.wait().then(() => (passed = true));
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(passed, false);
+  open = true;
+  gate.release();
+  await waiting;
+  assert.equal(passed, true);
+  await gate.wait();
+  open = false;
+  const started = Date.now();
+  await gate.wait();
+  assert.ok(Date.now() - started >= 190);
 });
