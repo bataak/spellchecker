@@ -1,0 +1,40 @@
+.collab-overlay {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  color: var(--ink);
+  font-family: var(--sans);
+}
+
+.collab-overlay:not([open]) {
+  display: none;
+}
+
+.collab-overlay::backdrop {
+  background: transparent;
+}
+
+.collab-link {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--mono, monospace);
+  font-size: 0.8rem;
+}
+
+.collab-stop {
+  margin-inline-end: auto;
+  color: var(--proof);
+}
+
+#collabBtn[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}

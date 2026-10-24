@@ -111,8 +111,10 @@ All MIT licensed; see the `LICENSE` file inside each package.
 | `is-buffer`                            | https://github.com/feross/is-buffer                             |
 | `jspdf`                                | https://github.com/parallax/jsPDF                               |
 | `katex`                                | https://github.com/KaTeX/KaTeX                                  |
+| `lib0`                                 | https://github.com/dmonad/lib0                                  |
 | `node-readable-to-web-readable-stream` | https://github.com/Borewit/node-readable-to-web-readable-stream |
 | `svg2pdf.js`                           | https://github.com/yWorks/svg2pdf.js                            |
+| `yjs`                                  | https://github.com/yjs/yjs                                      |
 
 `dompurify` (https://github.com/cure53/DOMPurify) is bundled with `jspdf` and
 is used under Apache-2.0 (dual licensed MPL-2.0 OR Apache-2.0).

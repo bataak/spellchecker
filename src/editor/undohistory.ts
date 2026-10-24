@@ -1,6 +1,7 @@
 import { PROJECT_SLOT, isFileSlot } from "../slots/fileslots.ts";
 import { openDatabase } from "../core/idb.ts";
-import { swapOrigin } from "./editortext.ts";
+import { remoteChanges, swapOrigin } from "./editortext.ts";
+import { mapOffset, type TextChange } from "./textdelta.ts";
 import { minimalDiff } from "../mdbar/mdedit.ts";
 import { noteError } from "../core/errorlog.ts";
 
@@ -123,6 +124,20 @@ export function redo(text: string, history: History): Applied | null {
       redo: history.redo.slice(0, -1),
     },
   };
+}
+
+export function rebaseHistory(
+  history: History,
+  changes: readonly TextChange[],
+): History {
+  const at = (pos: number): number => mapOffset(changes, pos);
+  const shift = (step: Step): Step => ({
+    ...step,
+    from: at(step.from),
+    before: [at(step.before[0]), at(step.before[1])],
+    after: [at(step.after[0]), at(step.after[1])],
+  });
+  return { undo: history.undo.map(shift), redo: history.redo.map(shift) };
 }
 
 export function checksum(text: string): string {
@@ -300,6 +315,30 @@ function createSaver() {
   };
 }
 
+function bindHistoryKeys(
+  editor: HTMLTextAreaElement,
+  step: (kind: "undo" | "redo") => void,
+  trackSelection: () => void,
+): void {
+  editor.addEventListener("beforeinput", (event) => {
+    const kind = historyInput(event);
+    if (!kind) return trackSelection();
+    event.preventDefault();
+    step(kind);
+  });
+
+  editor.addEventListener(
+    "keydown",
+    (event) => {
+      const kind = historyKey(event);
+      if (!kind) return;
+      event.preventDefault();
+      step(kind);
+    },
+    true,
+  );
+}
+
 export function initUndoHistory(deps: UndoDeps): UndoControl {
   const { editor } = deps;
   let history = emptyHistory();
@@ -374,27 +413,19 @@ export function initUndoHistory(deps: UndoDeps): UndoControl {
     persist();
   };
 
-  editor.addEventListener("beforeinput", (event) => {
-    const kind = historyInput(event);
-    if (!kind) return trackSelection();
-    event.preventDefault();
-    step(kind);
-  });
-
-  editor.addEventListener(
-    "keydown",
-    (event) => {
-      const kind = historyKey(event);
-      if (!kind) return;
-      event.preventDefault();
-      step(kind);
-    },
-    true,
-  );
+  bindHistoryKeys(editor, step, trackSelection);
 
   editor.addEventListener("input", (event) => {
     const input = event as InputEvent;
     if (input.inputType === "historyUndo") return;
+    const remote = remoteChanges(input);
+    if (remote) {
+      history = rebaseHistory(history, remote);
+      value = editor.value;
+      selection = selectionOf(editor);
+      persist();
+      return;
+    }
     if (swapOrigin(input) !== null) {
       baseline();
       return;
