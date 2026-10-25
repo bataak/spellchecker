@@ -34,6 +34,7 @@ interface Link {
   readonly caller: boolean;
   readonly relay: boolean;
   open: boolean;
+  timer: ReturnType<typeof setTimeout> | null;
 }
 
 interface LinkEvents {
@@ -110,12 +111,17 @@ function newLink(
     caller,
     relay,
     open: false,
+    timer: null,
   };
 }
 
 function watch(entry: Link, on: LinkEvents): void {
   const { pc, channel } = entry;
-  channel.onopen = on.open;
+  channel.onopen = () => {
+    if (entry.timer) clearTimeout(entry.timer);
+    entry.timer = null;
+    on.open();
+  };
   channel.onmessage = (event: MessageEvent<ArrayBuffer>) => {
     const data = entry.assembler.push(new Uint8Array(event.data));
     if (data) on.data(data);
@@ -124,7 +130,8 @@ function watch(entry: Link, on: LinkEvents): void {
   pc.onconnectionstatechange = () => {
     if (pc.connectionState === "failed") on.fail();
   };
-  setTimeout(() => {
+  entry.timer = setTimeout(() => {
+    entry.timer = null;
     if (!entry.open) on.fail();
   }, CONNECT_MS);
 }
@@ -174,6 +181,7 @@ export function createMesh(deps: MeshDeps): Mesh {
     const link = links.get(peer);
     if (!link) return;
     links.delete(peer);
+    if (link.timer) clearTimeout(link.timer);
     link.channel.close();
     link.pc.close();
     if (link.open) deps.onClose(peer);

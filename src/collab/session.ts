@@ -129,13 +129,13 @@ interface SignalRoute {
   readonly mesh: Mesh;
   readonly uploader: Uploader;
   readonly admin: Admin;
-  readonly onAccess: (token: string) => void;
+  readonly deps: Pick<SessionDeps, "onAccess">;
   readonly ice: IceKeeper;
 }
 
 async function routeSignal(
   event: SignalEvent,
-  { key, room, mesh, uploader, admin, onAccess, ice }: SignalRoute,
+  { key, room, mesh, uploader, admin, deps, ice }: SignalRoute,
 ): Promise<void> {
   if (admin.receive(event)) return;
   if (event.t === "hi" || event.t === "ice") ice.take(event);
@@ -156,7 +156,7 @@ async function routeSignal(
     room.delete(event.id);
     mesh.drop(event.id);
     uploader.schedule();
-  } else if (event.t === "member") onAccess(event.m);
+  } else if (event.t === "member") deps.onAccess(event.m);
   else if (event.t === "from") {
     const plain = await unseal(key, fromBase64Url(event.d));
     const payload = plain && parsePayload(plain);
@@ -383,6 +383,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
     url: () =>
       roomUrl(deps.endpoint, link.room, deps.device, self, deps.access()),
     onEvent: (event) => {
+      if (stopped) return;
       if (event.t === "hi") {
         shared = event.shared;
         if (!event.peers.length)
@@ -390,8 +391,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
         if (!owner) admin.label(deps.profile().name);
       }
       if (MOVES.has(event.t)) for (const listener of watchers) listener();
-      const onAccess = deps.onAccess;
-      const route = { key, room, mesh, uploader, admin, onAccess, ice };
+      const route = { key, room, mesh, uploader, admin, deps, ice };
       void routeSignal(event, route).catch(noteError);
     },
     onSnapshot: (data) => void applySnapshot(doc, key, data).catch(noteError),
