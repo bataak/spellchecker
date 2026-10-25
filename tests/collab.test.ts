@@ -37,7 +37,7 @@ import {
 } from "../src/collab/session.ts";
 import { buttonLabel } from "../src/collab/collab.ts";
 import { rebaseLocal } from "../src/collab/textbind.ts";
-import { shouldRecall } from "../src/collab/mesh.ts";
+import { directServers, shouldRecall } from "../src/collab/mesh.ts";
 import {
   keepRooms,
   parseRooms,
@@ -244,6 +244,31 @@ test("зөвхөн удирдагч эсвэл түүнд холбогдоогү
   assert.equal(isUploader("c", new Set(["b", "d"]), ["d"]), true);
   assert.equal(shouldRecall("c", "b"), true);
   assert.equal(shouldRecall("b", "c"), false);
+});
+
+test("эхний холболт TURN-гүй, зөвхөн STUN ашиглана", () => {
+  assert.deepEqual(
+    directServers([
+      {
+        urls: ["stun:stun.cloudflare.com:3478", "stun:stun.cloudflare.com:443"],
+      },
+      {
+        urls: [
+          "turn:turn.cloudflare.com:3478",
+          "turns:turn.cloudflare.com:443",
+        ],
+        username: "u",
+        credential: "c",
+      },
+      { urls: "stun:other:3478" },
+    ]),
+    [
+      {
+        urls: ["stun:stun.cloudflare.com:3478", "stun:stun.cloudflare.com:443"],
+      },
+      { urls: ["stun:other:3478"] },
+    ],
+  );
 });
 
 test("өрөөний хаягийг ws протоколоор үүсгэнэ", () => {
