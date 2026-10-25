@@ -10,7 +10,7 @@ import {
   joinParts,
   snapshotParts,
   splitSnapshot,
-} from "../src/collab/signal.ts";
+} from "../src/collab/signalwire.ts";
 
 let server: CollabServer;
 const connect = (room: string, dev: string, access: string) =>

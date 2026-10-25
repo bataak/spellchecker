@@ -10,12 +10,8 @@ import type { IceKeeper } from "./ice.ts";
 import type { Mesh, SignalPayload } from "./mesh.ts";
 import type { Uploader } from "./persistence.ts";
 import type { SessionContent, SessionLink } from "./sessiontypes.ts";
-import {
-  openSignal,
-  type Signal,
-  type SignalEvent,
-  type SignalState,
-} from "./signal.ts";
+import { openSignal, type Signal } from "./signal.ts";
+import type { SignalEvent, SignalState } from "./signalwire.ts";
 
 export const EMPTY_ROOM_SETTLE_MS = 1500;
 const MOVES: ReadonlySet<SignalEvent["t"]> = new Set([

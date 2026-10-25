@@ -28,7 +28,8 @@ import {
   decodeFrame,
   encodeFrame,
 } from "../src/collab/wire.ts";
-import { parseSignal, retryDelay } from "../src/collab/signal.ts";
+import { retryDelay } from "../src/collab/signal.ts";
+import { parseSignal } from "../src/collab/signalwire.ts";
 import { createIceKeeper, iceRefreshMs } from "../src/collab/ice.ts";
 import {
   createSync,

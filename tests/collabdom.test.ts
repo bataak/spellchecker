@@ -14,8 +14,8 @@ import {
   PURGED_CODE,
   REMOVED_CODE,
   WIPED_CODE,
-  openSignal,
-} from "../src/collab/signal.ts";
+} from "../src/collab/signalwire.ts";
+import { openSignal } from "../src/collab/signal.ts";
 import {
   createCursors,
   decodeCursor,

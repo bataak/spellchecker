@@ -15,11 +15,8 @@ import {
 import { createHash } from "node:crypto";
 import { newLink, newToken, randomId } from "../src/collab/collabkey.ts";
 import { roomUrl } from "../src/collab/session.ts";
-import {
-  SNAPSHOT_PART,
-  openSignal,
-  type SignalEvent,
-} from "../src/collab/signal.ts";
+import { openSignal } from "../src/collab/signal.ts";
+import { SNAPSHOT_PART, type SignalEvent } from "../src/collab/signalwire.ts";
 import type { Access } from "../src/collab/collabrooms.ts";
 
 const dom = installDom("<textarea id=a></textarea><textarea id=b></textarea>");

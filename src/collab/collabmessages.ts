@@ -1,5 +1,5 @@
 import type { SessionNotice } from "./sessiontypes.ts";
-import type { SignalState } from "./signal.ts";
+import type { SignalState } from "./signalwire.ts";
 
 export const JOIN_NAME = "Хамтын бичвэр";
 export const IDLE_LABEL = "Хамтрах";

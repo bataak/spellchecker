@@ -5,7 +5,7 @@ import type { CursorView } from "./cursors.ts";
 import type { UploadNotice } from "./persistence.ts";
 import type { Profile } from "./profile.ts";
 import type { ProjectHooks } from "./projectsession.ts";
-import type { SignalState } from "./signal.ts";
+import type { SignalState } from "./signalwire.ts";
 import type { Talk } from "./talk.ts";
 
 export interface SessionStatus {
