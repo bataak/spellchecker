@@ -550,5 +550,9 @@ test("урилга үүсгэж чадаагүй ч өрөө нээгдсэн б
     dialog.querySelector(".suggest-note")!.textContent!,
     /Сервертэй холбогдоогүй/,
   );
+  assert.equal(
+    dialog.textContent!.split("Сервертэй холбогдоогүй").length - 1,
+    1,
+  );
   dialog.close();
 });
