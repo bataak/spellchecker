@@ -4,6 +4,7 @@ import type { Signal } from "./signal.ts";
 const STUN: RTCIceServer[] = [{ urls: "stun:stun.cloudflare.com:3478" }];
 const MARGIN_S = 30 * 60;
 const MIN_MS = 60_000;
+const RETRY_MS = 5 * 60_000;
 
 export interface IceOffer {
   readonly ice: RTCIceServer[];
@@ -28,6 +29,10 @@ interface IceParts {
 export function createIceKeeper(parts: () => IceParts): IceKeeper {
   let servers = STUN;
   let timer: ReturnType<typeof setTimeout> | null = null;
+  const ask = (): void => {
+    parts().signal.command({ t: "ice" });
+    timer = setTimeout(ask, RETRY_MS);
+  };
   return {
     servers: () => servers,
     take({ ice, life }) {
@@ -35,10 +40,7 @@ export function createIceKeeper(parts: () => IceParts): IceKeeper {
       servers = ice;
       parts().mesh.refresh();
       if (timer) clearTimeout(timer);
-      timer = setTimeout(
-        () => parts().signal.command({ t: "ice" }),
-        iceRefreshMs(life),
-      );
+      timer = setTimeout(ask, iceRefreshMs(life));
     },
     stop() {
       if (timer) clearTimeout(timer);
