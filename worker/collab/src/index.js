@@ -18,6 +18,12 @@ const MAX_SIGNAL = 64 * 1024;
 const MAX_SNAPSHOT = 1900 * 1024;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ROOM_TTL_MS = 90 * DAY_MS;
+const TURN_TTL_S = 24 * 60 * 60;
+const TURN_REUSE_MS = 12 * 60 * 60 * 1000;
+const TURN_RETRY_MS = 5 * 60 * 1000;
+const TURN_WAIT_MS = 3000;
+const GB = 1e9;
+const TURN_LIMIT_GB = 500;
 
 function allowedOrigin(origin, env) {
   if (!origin) return null;
@@ -25,6 +31,81 @@ function allowedOrigin(origin, env) {
     .split(",")
     .map((item) => item.trim());
   return list.includes(origin) ? origin : null;
+}
+
+async function turnServers(env) {
+  if (!env.TURN_KEY_ID || !env.TURN_KEY_TOKEN) return [];
+  try {
+    const response = await fetch(
+      "https://rtc.live.cloudflare.com/v1/turn/keys/" +
+        env.TURN_KEY_ID +
+        "/credentials/generate-ice-servers",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + env.TURN_KEY_TOKEN,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ttl: TURN_TTL_S }),
+        signal: AbortSignal.timeout(TURN_WAIT_MS),
+      },
+    );
+    if (!response.ok) return [];
+    const body = await response.json();
+    return Array.isArray(body?.iceServers) ? body.iceServers : [];
+  } catch {
+    return [];
+  }
+}
+
+function cloudflare(env, path, init) {
+  return fetch("https://api.cloudflare.com/client/v4" + path, {
+    ...init,
+    headers: {
+      Authorization: "Bearer " + env.CF_API_TOKEN,
+      "Content-Type": "application/json",
+    },
+  });
+}
+
+async function turnEgress(env, now) {
+  const day = now.toISOString().slice(0, 10);
+  const response = await cloudflare(env, "/graphql", {
+    method: "POST",
+    body: JSON.stringify({
+      query:
+        "query($account: string!, $key: string!, $from: Date!, $to: Date!) { viewer { accounts(filter: { accountTag: $account }) { callsTurnUsageAdaptiveGroups(limit: 1, filter: { keyId: $key, date_geq: $from, date_leq: $to }) { sum { egressBytes } } } } }",
+      variables: {
+        account: env.CF_ACCOUNT_ID,
+        key: env.TURN_KEY_ID,
+        from: day.slice(0, 8) + "01",
+        to: day,
+      },
+    }),
+  });
+  if (!response.ok) throw new Error("graphql " + response.status);
+  const body = await response.json();
+  if (body.errors?.length) throw new Error("graphql " + body.errors[0].message);
+  const groups =
+    body.data?.viewer?.accounts?.[0]?.callsTurnUsageAdaptiveGroups ?? [];
+  return groups.reduce(
+    (total, group) => total + (group.sum?.egressBytes ?? 0),
+    0,
+  );
+}
+
+async function guardTurn(env, now = new Date()) {
+  if (!env.CF_ACCOUNT_ID || !env.CF_API_TOKEN || !env.TURN_KEY_ID) return;
+  const limit = Number(env.TURN_LIMIT_GB) || TURN_LIMIT_GB;
+  const used = await turnEgress(env, now);
+  const gb = (used / GB).toFixed(1) + " GB";
+  if (used < limit * GB) return console.log("turn usage", gb);
+  const response = await cloudflare(
+    env,
+    "/accounts/" + env.CF_ACCOUNT_ID + "/calls/turn_keys/" + env.TURN_KEY_ID,
+    { method: "DELETE" },
+  );
+  console.log("turn key deleted", gb, response.status);
 }
 
 async function digest(token) {
@@ -169,6 +250,17 @@ export class Room extends DurableObject {
     return { member: fresh };
   }
 
+  async ice() {
+    const now = Date.now();
+    if (this.turn && this.turn.until > now) return this.turn.list;
+    const list = await turnServers(this.env);
+    this.turn = {
+      list,
+      until: now + (list.length ? TURN_REUSE_MS : TURN_RETRY_MS),
+    };
+    return list;
+  }
+
   async fetch(request) {
     const params = new URL(request.url).searchParams;
     const dev = params.get("d") ?? "";
@@ -178,6 +270,7 @@ export class Room extends DurableObject {
     const access = await this.admit(params, dev);
     if (access.code) return refuse(access.code, "denied");
     await this.touch();
+    const ice = await this.ice();
     const others = [];
     for (const peer of this.peers()) {
       if (peer.id !== id) {
@@ -198,6 +291,7 @@ export class Room extends DurableObject {
       id,
       peers: others.map((p) => p.id),
       s: this.shared(),
+      ice,
     });
     for (const row of this.ctx.storage.sql.exec("SELECT data FROM snap"))
       this.send(server, row.data);
@@ -392,5 +486,8 @@ export default {
       return new Response("upgrade", { status: 426 });
     const room = env.ROOMS.get(env.ROOMS.idFromName(match[1]));
     return room.fetch(request);
+  },
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(guardTurn(env, new Date(event.scheduledTime)));
   },
 };

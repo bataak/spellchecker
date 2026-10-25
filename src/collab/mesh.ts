@@ -8,7 +8,7 @@ export interface SignalPayload {
 export interface MeshDeps {
   readonly self: () => string;
   readonly present: (peer: string) => boolean;
-  readonly iceServers: RTCIceServer[];
+  readonly iceServers: () => RTCIceServer[];
   readonly signal: (to: string, payload: SignalPayload) => void;
   readonly onOpen: (peer: string) => void;
   readonly onData: (peer: string, data: Uint8Array) => void;
@@ -119,7 +119,7 @@ export function createMesh(deps: MeshDeps): Mesh {
 
   function link(peer: string, caller: boolean): Link {
     drop(peer);
-    const entry = newLink(deps.iceServers, caller);
+    const entry = newLink(deps.iceServers(), caller);
     const { pc, channel } = entry;
     links.set(peer, entry);
     channel.onopen = () => {

@@ -139,6 +139,7 @@ test("сигналын мессежийг шалгаж задлана", () => {
     id: "a",
     peers: ["b"],
     shared: false,
+    ice: [],
   });
   assert.equal(
     (
@@ -147,6 +148,41 @@ test("сигналын мессежийг шалгаж задлана", () => {
       }
     ).shared,
     true,
+  );
+  assert.deepEqual(
+    (
+      parseSignal(
+        JSON.stringify({
+          t: "hi",
+          id: "a",
+          peers: [],
+          ice: [
+            { urls: ["stun:stun.cloudflare.com:3478"] },
+            {
+              urls: [
+                "turn:turn.cloudflare.com:3478?transport=udp",
+                "turn:turn.cloudflare.com:53?transport=udp",
+                "https://evil.example",
+              ],
+              username: "u",
+              credential: "c",
+            },
+            { urls: "turns:turn.cloudflare.com:443?transport=tcp" },
+            { urls: [] },
+            "x",
+          ],
+        }),
+      ) as { ice: RTCIceServer[] }
+    ).ice,
+    [
+      { urls: ["stun:stun.cloudflare.com:3478"] },
+      {
+        urls: ["turn:turn.cloudflare.com:3478?transport=udp"],
+        username: "u",
+        credential: "c",
+      },
+      { urls: ["turns:turn.cloudflare.com:443?transport=tcp"] },
+    ],
   );
   assert.deepEqual(parseSignal('{"t":"bye","id":"a"}'), { t: "bye", id: "a" });
   assert.deepEqual(parseSignal('{"t":"from","from":"a","d":"x"}'), {

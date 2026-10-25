@@ -418,6 +418,7 @@ interface MeshWiring {
   readonly room: ReadonlySet<string>;
   readonly key: CryptoKey;
   readonly cursors: Cursors;
+  readonly ice: () => RTCIceServer[];
   readonly status: () => void;
   readonly signal: () => Signal;
   readonly sync: () => Sync;
@@ -502,7 +503,7 @@ function wireMesh(wiring: MeshWiring): Mesh {
   return createMesh({
     self: () => wiring.self,
     present: (peer) => wiring.room.has(peer),
-    iceServers: ICE_SERVERS,
+    iceServers: wiring.ice,
     signal: (to, payload) =>
       void sealSignal(key, payload)
         .then((d) => wiring.signal().send(to, d))
@@ -539,6 +540,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
   let signalState: SignalState = "connecting";
   let stopped = false;
   let shared = false;
+  let ice = ICE_SERVERS;
   const owner = deps.access().kind === "o";
   const watchers = new Set<() => void>();
   const status = (): void =>
@@ -560,6 +562,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
     room,
     key,
     cursors,
+    ice: () => ice,
     status,
     signal: () => signal,
     sync: () => sync,
@@ -578,6 +581,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
     onEvent: (event) => {
       if (event.t === "hi") {
         shared = event.shared;
+        if (event.ice.length) ice = event.ice;
         if (!event.peers.length)
           setTimeout(binding.settle, EMPTY_ROOM_SETTLE_MS);
         if (!owner) admin.label(deps.profile().name);

@@ -4,6 +4,7 @@ export type SignalEvent =
       readonly id: string;
       readonly peers: string[];
       readonly shared: boolean;
+      readonly ice: RTCIceServer[];
     }
   | { readonly t: "join"; readonly id: string }
   | { readonly t: "bye"; readonly id: string }
@@ -83,6 +84,30 @@ function parseRoster(list: unknown[]): RosterEntry[] {
   return out;
 }
 
+const ICE_URL = /^(stun|turns?):[^\s]+$/;
+const DNS_PORT = /:53(\?|$)/;
+
+function parseIce(list: unknown): RTCIceServer[] {
+  if (!Array.isArray(list)) return [];
+  const out: RTCIceServer[] = [];
+  for (const item of list) {
+    if (!item || typeof item !== "object") continue;
+    const v = item as Record<string, unknown>;
+    const raw: unknown[] = Array.isArray(v.urls) ? v.urls : [v.urls];
+    const urls = raw.filter(
+      (url): url is string =>
+        isText(url) && ICE_URL.test(url) && !DNS_PORT.test(url),
+    );
+    if (!urls.length) continue;
+    out.push(
+      isText(v.username) && isText(v.credential)
+        ? { urls, username: v.username, credential: v.credential }
+        : { urls },
+    );
+  }
+  return out;
+}
+
 export function parseSignal(raw: string): SignalEvent | null {
   let value: unknown;
   try {
@@ -110,6 +135,7 @@ function parseEvent(v: Record<string, unknown>): SignalEvent | null {
       id: v.id,
       peers: v.peers.filter(isText),
       shared: v.s === true,
+      ice: parseIce(v.ice),
     };
   if ((v.t === "join" || v.t === "bye" || v.t === "kick") && isText(v.id))
     return { t: v.t, id: v.id };
