@@ -120,3 +120,8 @@ test("бүтэн бичсэн команд хэвээр үлдэнэ", () => {
   const ctx = completionContext(text, caret)!;
   assert.ok(!unchanged(ctx, completions(ctx)[0]!));
 });
+
+test("\\item-ийг гүйцээхэд ард нь зай авна", () => {
+  assert.equal(apply("\\ite|", "item"), "\\item |");
+  assert.equal(apply("\\item|", "item"), "\\item |");
+});

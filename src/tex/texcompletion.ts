@@ -40,7 +40,7 @@ const COMMANDS = [
   "textsc{#}",
   "textrm{#}",
   "textsf{#}",
-  "item",
+  "item ",
   "label{#}",
   "ref{#}",
   "eqref{#}",
@@ -247,7 +247,7 @@ const LIMIT = 8;
 
 function entry(snippet: string): Completion {
   const cut = snippet.search(/[{[(#]|\)$|\]$/);
-  const name = cut <= 0 ? snippet : snippet.slice(0, cut);
+  const name = cut <= 0 ? snippet.trimEnd() : snippet.slice(0, cut);
   const star = snippet.startsWith(name + "*") ? "*" : "";
   return { label: name + star, snippet };
 }
