@@ -1,99 +1,36 @@
-import { KEYS, read, readJson, write, writeJson } from "../core/store.ts";
-import { noteError } from "../core/errorlog.ts";
+import { KEYS, readJson, writeJson } from "../core/store.ts";
 import { createEmitter, type Emitter } from "../core/emitter.ts";
 import { onSwap, swapOrigin, type SwapOrigin } from "../editor/editortext.ts";
+import { parseLink } from "./collabkey.ts";
 import {
-  linkHash,
-  newLink,
-  newToken,
-  isProjectName,
-  parseLink,
-  randomId,
-  type InviteLink,
-} from "./collabkey.ts";
-import {
-  isOwner,
   parseRooms,
   roomById,
   roomOfSlot,
   withAccess,
   withRoom,
   withoutRoom,
-  type Access,
   type RoomEntry,
 } from "./collabrooms.ts";
-import type { Session, SessionNotice, SessionStatus } from "./session.ts";
-import type { ProjectHooks } from "./projectsession.ts";
-import type { Talk } from "./talk.ts";
+import { IDLE_LABEL, JOIN_NAME } from "./collabmessages.ts";
+import type { Collab, CollabDeps, TalkKind } from "./collabtypes.ts";
+import { createRegistry, ENDPOINT, type Registry } from "./registry.ts";
+import { arrived, joinRoom, openProjectRoom, resumeJoins } from "./roomjoin.ts";
+import { parseSlot, projectSlot, slotKey } from "./roomslot.ts";
+import type { SessionStatus } from "./session.ts";
+import { openShare } from "./sharedialog.ts";
 import type { SignalState } from "./signal.ts";
-import type { CursorView } from "./cursors.ts";
-import { loadProfile, saveName } from "./profile.ts";
-import { openDialog } from "./collabdialog.ts";
-import { watchIdle } from "./idle.ts";
-import {
-  invitedUid,
-  parseSlot,
-  projectSlot,
-  slotKey,
-  type RoomSlot,
-} from "./roomslot.ts";
+import type { Talk } from "./talk.ts";
 
-export interface CollabDeps {
-  readonly editor: HTMLTextAreaElement;
-  readonly view: CursorView;
-  readonly button: HTMLButtonElement | null;
-  readonly slot: () => RoomSlot;
-  readonly openSlot: (name: string) => boolean;
-  readonly shareName: () => string | null;
-  readonly showSlot: (slot: RoomSlot) => boolean;
-  readonly blocked: () => string | null;
-  readonly wipe: (slot: RoomSlot) => boolean;
-  readonly notify: (message: string) => void;
-  readonly project: CollabProject | null;
-}
+export type {
+  Collab,
+  CollabDeps,
+  CollabProject,
+  TalkKind,
+} from "./collabtypes.ts";
+export { arrived, resumeJoins } from "./roomjoin.ts";
+export { shareUrl } from "./sharedialog.ts";
 
-export interface CollabProject {
-  readonly uid: () => string | null;
-  readonly hooks: (uid: string, seed: boolean) => ProjectHooks;
-  readonly prepare: (name: string, uid: string) => boolean;
-}
-
-export type TalkKind = "file" | "project";
-
-export interface Collab {
-  start(): void;
-  forget(slot: RoomSlot): boolean;
-  projectChanged(): void;
-  talk(kind: TalkKind): Talk | null;
-  onTalk(listener: () => void): void;
-}
-
-const ENDPOINT = (import.meta.env.VITE_COLLAB_URL ?? "").replace(/\/+$/, "");
-const JOIN_NAME = "Хамтын бичвэр";
-const DEVICE = /^[A-Za-z0-9_-]{16}$/;
-const IDLE_LABEL = "Хамтрах";
-const FULL_MESSAGE =
-  "Энэ бичвэрийг 8 хүн зэрэг засаж байгаа тул нэгдэх боломжгүй. Хэн нэгэн гарсны дараа дахин нээнэ үү.";
-const ENDED: Partial<Record<SignalState, string>> = {
-  denied:
-    "Урилга хүчингүй эсвэл өөр хүн ашигласан байна. Үүсгэгчээс өөрт тань зориулсан шинэ урилга авна уу.",
-  removed:
-    "Үүсгэгч таныг хамтын засвараас хассан. Бичвэр энэ төхөөрөмж дээр хадгалагдаж үлдэнэ.",
-  ended:
-    "Үүсгэгч хуваалцахаа зогсоолоо. Бичвэрийн хуулбар энэ төхөөрөмж дээр үлдлээ.",
-  wiped: "Үүсгэгч хуваалцахаа зогсоож, бичвэрийг устгалаа.",
-  purged: "Үүсгэгч таныг хамтын засвараас хасаж, бичвэрийг устгалаа.",
-};
-const IDLE_MS = 30 * 60_000;
-const HOME_SCREEN_MESSAGE =
-  "iPhone, iPad дээр хамтын бичвэрийг удаан хадгалахын тулд Safari-гийн «Хуваалцах» цэснээс «Нүүр дэлгэцэнд нэмэх»-ийг сонгож аппыг суулгана уу. Эс бөгөөс 7 хоног нээгээгүй үед Safari бичвэрийг устгаж болно.";
 const WIPES: ReadonlySet<SignalState> = new Set(["wiped", "purged"]);
-const NOTICES: Record<SessionNotice, string> = {
-  "too-large":
-    "Бичвэр хэт том тул серверт хадгалагдсангүй. Шууд холбогдсон хүмүүстэй засвар үргэлжилнэ, харин дараа нэгдэх хүн сүүлийн хувилбарыг авахгүй.",
-  "near-limit":
-    "Хуваалцсан бичвэрийн засварын түүх серверийн 8 MB хязгаарт ойртож байна. Хязгаарт хүрвэл дараа нэгдэх хүн сүүлийн хувилбарыг авахгүй. Хуваалцахыг зогсоож дахин хуваалцвал түүх шинээр эхэлнэ.",
-};
 
 export function joinName(
   file: string | null,
@@ -104,10 +41,6 @@ export function joinName(
   return JOIN_NAME + (tex ? ".tex" : markdown ? ".md" : ".txt");
 }
 
-export function shareUrl(link: InviteLink, base: string): string {
-  return base.replace(/#.*$/, "") + linkHash(link);
-}
-
 export function buttonLabel(
   shared: boolean,
   status: SessionStatus | null,
@@ -116,161 +49,6 @@ export function buttonLabel(
   if (status?.signal === "full") return "Хамтрагч · дүүрсэн";
   if (status?.peers) return "Хамтрагч " + (status.peers + 1);
   return IDLE_LABEL;
-}
-
-function needsHomeScreen(): boolean {
-  const nav = navigator as Navigator & { standalone?: boolean };
-  const ios =
-    /iPhone|iPad|iPod/.test(nav.userAgent) ||
-    (nav.platform === "MacIntel" && nav.maxTouchPoints > 1);
-  return (
-    ios &&
-    nav.standalone !== true &&
-    !window.matchMedia?.("(display-mode: standalone)").matches
-  );
-}
-
-function deviceId(): string {
-  const stored = read(KEYS.collabDevice);
-  if (stored && DEVICE.test(stored)) return stored;
-  const id = randomId(12);
-  write(KEYS.collabDevice, id);
-  return id;
-}
-
-interface Registry {
-  open(entry: RoomEntry, seed: boolean): Promise<Session>;
-  live(room: string): Session | null;
-  each(run: (session: Session) => void): void;
-  status(room: string): SessionStatus | null;
-  close(room: string): void;
-}
-
-interface RegistryHooks {
-  readonly project: CollabProject | null;
-  readonly changed: () => void;
-  readonly notify: (message: string) => void;
-  readonly access: (room: string) => Access | null;
-  readonly granted: (room: string, token: string) => void;
-  readonly ended: (room: string, state: SignalState) => void;
-}
-
-function createRegistry(
-  editor: HTMLTextAreaElement,
-  view: CursorView,
-  hooks: RegistryHooks,
-): Registry {
-  const { changed, notify } = hooks;
-  const pending = new Map<string, Promise<Session>>();
-  const ready = new Map<string, Session>();
-  const statuses = new Map<string, SessionStatus>();
-  const full = new Set<string>();
-  const each = (run: (session: Session) => void): void => {
-    for (const live of ready.values()) run(live);
-  };
-  watchIdle(
-    IDLE_MS,
-    () => each((live) => live.sleep()),
-    () => each((live) => live.resume()),
-  );
-  return {
-    open(entry, seed) {
-      const known = pending.get(entry.room);
-      if (known) return known;
-      const target = parseSlot(entry.slot);
-      const project =
-        target.kind === "project"
-          ? hooks.project?.hooks(target.uid, seed)
-          : null;
-      const created = import("./session.ts").then(({ startSession }) =>
-        startSession({
-          link: entry,
-          endpoint: ENDPOINT,
-          device: deviceId(),
-          editor,
-          view,
-          profile: () => loadProfile(deviceId()),
-          seed: seed && target.kind === "file" ? () => editor.value : null,
-          project: project ?? null,
-          access: () => hooks.access(entry.room) ?? entry.access,
-          onAccess: (token) => hooks.granted(entry.room, token),
-          onStatus: (status) => {
-            if (status.signal === "full" && !full.has(entry.room)) {
-              full.add(entry.room);
-              notify(FULL_MESSAGE);
-            }
-            const ended = ENDED[status.signal];
-            if (ended) {
-              notify(ended);
-              queueMicrotask(() => hooks.ended(entry.room, status.signal));
-              return;
-            }
-            statuses.set(entry.room, status);
-            changed();
-          },
-          onNotice: (notice) => notify(NOTICES[notice]),
-        }),
-      );
-      pending.set(entry.room, created);
-      created.then(
-        (live) => {
-          ready.set(entry.room, live);
-          changed();
-        },
-        (error: unknown) => {
-          pending.delete(entry.room);
-          noteError(error);
-          notify("Хамтын засварыг эхлүүлж чадсангүй");
-        },
-      );
-      return created;
-    },
-    live: (room) => ready.get(room) ?? null,
-    each,
-    status: (room) => statuses.get(room) ?? null,
-    close(room) {
-      const live = pending.get(room);
-      pending.delete(room);
-      ready.delete(room);
-      statuses.delete(room);
-      void live?.then((session) => session.stop(true)).catch(noteError);
-    },
-  };
-}
-
-function joinRoom(
-  rooms: readonly RoomEntry[],
-  link: InviteLink,
-  deps: CollabDeps,
-): RoomEntry[] | null {
-  const known = roomById(rooms, link.room);
-  if (known && deps.showSlot(parseSlot(known.slot))) return [...rooms];
-  const rest = known ? withoutRoom(rooms, known.room) : rooms;
-  if (link.name && isProjectName(link.name)) {
-    const uid = invitedUid(link.room);
-    const joining = link.name.slice(0, -1);
-    if (!deps.project?.prepare(joining, uid)) return null;
-    return withRoom(rest, {
-      slot: slotKey(projectSlot(uid)),
-      room: link.room,
-      key: link.key,
-      access: { kind: "i", token: link.invite },
-      joining,
-    });
-  }
-  if (!deps.openSlot(link.name ?? JOIN_NAME)) {
-    deps.notify(
-      "Шинэ файлын талбар нээх боломжгүй. Нэг файлаа хаагаад дахин оролдоно уу.",
-    );
-    return null;
-  }
-  if (needsHomeScreen()) deps.notify(HOME_SCREEN_MESSAGE);
-  return withRoom(rest, {
-    slot: slotKey(deps.slot()),
-    room: link.room,
-    key: link.key,
-    access: { kind: "i", token: link.invite },
-  });
 }
 
 function paintButton(
@@ -285,68 +63,6 @@ function paintButton(
     entry ? registry.status(entry.room) : null,
   );
   button.setAttribute("aria-pressed", entry ? "true" : "false");
-}
-
-function ownedRoom(slot: string): RoomEntry {
-  return { slot, ...newLink(), access: { kind: "o", token: newToken() } };
-}
-
-function showDialog(
-  entry: RoomEntry,
-  registry: Registry,
-  stop: () => void,
-  begin: (() => void) | null,
-  name: string | null,
-): void {
-  openDialog({
-    owner: isOwner(entry),
-    started: begin === null,
-    session() {
-      begin?.();
-      begin = null;
-      return registry.open(entry, false);
-    },
-    inviteUrl: (invite) =>
-      shareUrl(
-        { room: entry.room, key: entry.key, invite, ...(name && { name }) },
-        location.href,
-      ),
-    name: loadProfile(deviceId()).name,
-    tip: needsHomeScreen() ? HOME_SCREEN_MESSAGE : null,
-    rename(name) {
-      saveName(name);
-      registry.each((live) => live.announce());
-    },
-    stop,
-    async end(wipe) {
-      const live = await registry.open(entry, false).catch(() => null);
-      if (!live || !(await live.end(wipe))) return false;
-      stop();
-      return true;
-    },
-  });
-}
-
-function openShare(
-  rooms: readonly RoomEntry[],
-  deps: CollabDeps,
-  registry: Registry,
-  stop: (entry: RoomEntry) => void,
-  adopt: (draft: RoomEntry) => void,
-): void {
-  const entry = roomOfSlot(rooms, deps.slot());
-  const name = deps.shareName();
-  if (entry) return showDialog(entry, registry, () => stop(entry), null, name);
-  const reason = deps.blocked();
-  if (reason) return deps.notify(reason);
-  const draft = ownedRoom(slotKey(deps.slot()));
-  showDialog(
-    draft,
-    registry,
-    () => stop(draft),
-    () => adopt(draft),
-    name,
-  );
 }
 
 const DISABLED: Collab = {
@@ -369,40 +85,6 @@ function talkOf(
       : roomOfSlot(rooms, deps.slot());
   if (!entry || parseSlot(entry.slot).kind !== kind) return null;
   return registry.live(entry.room)?.talk ?? null;
-}
-
-function openProjectRoom(
-  registry: Pick<Registry, "open">,
-  entry: RoomEntry | null,
-): void {
-  if (entry && parseSlot(entry.slot).kind === "project")
-    void registry.open(entry, false);
-}
-
-export function arrived(
-  rooms: readonly RoomEntry[],
-  uid: string | null,
-): RoomEntry[] | null {
-  const entry = uid ? roomOfSlot(rooms, projectSlot(uid)) : null;
-  if (!entry?.joining) return null;
-  const { joining: _done, ...rest } = entry;
-  return withRoom(rooms, rest);
-}
-
-export function resumeJoins(
-  rooms: readonly RoomEntry[],
-  deps: CollabDeps,
-  registry: Pick<Registry, "open">,
-  drop: (entry: RoomEntry) => void,
-): void {
-  for (const entry of rooms) {
-    const slot = parseSlot(entry.slot);
-    if (!entry.joining || slot.kind !== "project") continue;
-    if (deps.project?.uid() === slot.uid) continue;
-    if (deps.project?.prepare(entry.joining, slot.uid))
-      openProjectRoom(registry, entry);
-    else drop(entry);
-  }
 }
 
 interface Triggers {
