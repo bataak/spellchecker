@@ -69,6 +69,8 @@ const FINAL: Record<number, SignalState> = {
   [PURGED_CODE]: "purged",
   [FULL_CODE]: "full",
 };
+export const SNAPSHOT_PART = 1000 * 1024;
+const MAX_PARTS = 16;
 const MIN_RETRY_MS = 1000;
 const MAX_RETRY_MS = 60_000;
 
@@ -169,6 +171,58 @@ export function finalCode(raw: string): number | null {
   }
 }
 
+export function snapshotParts(raw: string): number | null {
+  if (!raw.startsWith('{"t":"snap"')) return null;
+  try {
+    const { n } = JSON.parse(raw) as { n?: unknown };
+    return Number.isInteger(n) &&
+      (n as number) > 1 &&
+      (n as number) <= MAX_PARTS
+      ? (n as number)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export function splitSnapshot(data: Uint8Array): Uint8Array[] {
+  const parts: Uint8Array[] = [];
+  for (let at = 0; at < data.byteLength; at += SNAPSHOT_PART)
+    parts.push(data.subarray(at, at + SNAPSHOT_PART));
+  return parts.length ? parts : [data];
+}
+
+export function joinParts(parts: readonly Uint8Array[]): Uint8Array {
+  const out = new Uint8Array(
+    parts.reduce((size, part) => size + part.byteLength, 0),
+  );
+  let at = 0;
+  for (const part of parts) {
+    out.set(part, at);
+    at += part.byteLength;
+  }
+  return out;
+}
+
+function gatherer(done: (data: Uint8Array) => void) {
+  let want = 0;
+  let parts: Uint8Array[] = [];
+  return {
+    expect(n: number): void {
+      want = n;
+      parts = [];
+    },
+    take(part: Uint8Array): void {
+      if (!want) return done(part);
+      parts.push(part);
+      if (parts.length < want) return;
+      want = 0;
+      done(joinParts(parts));
+      parts = [];
+    },
+  };
+}
+
 export function retryDelay(attempt: number, jitter: number): number {
   const base = Math.min(MAX_RETRY_MS, MIN_RETRY_MS * 2 ** attempt);
   return Math.round(base * (0.5 + jitter / 2));
@@ -189,7 +243,10 @@ function senders(
     upload(data) {
       const ws = live();
       if (!ws) return false;
-      ws.send(data as Uint8Array<ArrayBuffer>);
+      const parts = splitSnapshot(data);
+      if (parts.length > 1)
+        ws.send(JSON.stringify({ t: "snap", n: parts.length }));
+      for (const part of parts) ws.send(part as Uint8Array<ArrayBuffer>);
       return true;
     },
   };
@@ -235,13 +292,15 @@ export function openSignal(deps: SignalDeps): Signal {
     const ws = new WebSocket(deps.url());
     ws.binaryType = "arraybuffer";
     socket = ws;
+    const snapshot = gatherer(deps.onSnapshot);
     ws.onopen = () => {
       attempt = 0;
       deps.onState("open");
     };
     ws.onmessage = (event: MessageEvent<string | ArrayBuffer>) => {
-      if (!isText(event.data))
-        return deps.onSnapshot(new Uint8Array(event.data));
+      if (!isText(event.data)) return snapshot.take(new Uint8Array(event.data));
+      const parts = snapshotParts(event.data);
+      if (parts !== null) return snapshot.expect(parts);
       const code = finalCode(event.data);
       if (code !== null) return void finish(ws, code);
       const parsed = parseSignal(event.data);

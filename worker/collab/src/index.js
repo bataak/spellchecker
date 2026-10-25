@@ -15,7 +15,10 @@ const WIPED = 4006;
 const PURGED = 4007;
 const FULL = 4009;
 const MAX_SIGNAL = 64 * 1024;
-const MAX_SNAPSHOT = 1900 * 1024;
+const MAX_PART = 1900 * 1024;
+const MAX_PARTS = 16;
+const MAX_SNAPSHOT = 8 * 1024 * 1024;
+const ROOM_BYTES = 16 * 1024 * 1024;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ROOM_TTL_MS = 90 * DAY_MS;
 const TURN_TTL_S = 4 * 60 * 60;
@@ -147,6 +150,12 @@ export class Room extends DurableObject {
     sql.exec(
       "CREATE TABLE IF NOT EXISTS snap (dev TEXT PRIMARY KEY, data BLOB NOT NULL, at INTEGER NOT NULL)",
     );
+    for (const table of ["piece", "stage"])
+      sql.exec(
+        "CREATE TABLE IF NOT EXISTS " +
+          table +
+          " (dev TEXT NOT NULL, i INTEGER NOT NULL, data BLOB NOT NULL, PRIMARY KEY (dev, i))",
+      );
     sql.exec(
       "CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL)",
     );
@@ -314,8 +323,10 @@ export class Room extends DurableObject {
       ice: offer?.ice ?? [],
       life: offer?.life ?? 0,
     });
-    for (const row of this.ctx.storage.sql.exec("SELECT data FROM snap"))
-      this.send(server, row.data);
+    for (const parts of this.snapshots()) {
+      if (parts.length > 1) this.send(server, { t: "snap", n: parts.length });
+      for (const data of parts) this.send(server, data);
+    }
     for (const peer of others) {
       this.send(peer.ws, { t: "join", id });
       if (offer) this.send(peer.ws, offer);
@@ -326,7 +337,7 @@ export class Room extends DurableObject {
   async webSocketMessage(ws, message) {
     const meta = ws.deserializeAttachment();
     if (!meta) return;
-    if (typeof message !== "string") return this.store(meta.dev, message);
+    if (typeof message !== "string") return this.receive(ws, meta, message);
     if (message.length > MAX_SIGNAL) return;
     let input;
     try {
@@ -347,6 +358,7 @@ export class Room extends DurableObject {
     }
     if (input?.t === "label") return this.label(meta, input.l);
     if (input?.t === "leave") return this.quit(ws, meta);
+    if (input?.t === "snap") return this.expect(ws, meta, input.n);
     if (!meta.owner) return;
     if (input?.t === "invite") return this.invite(ws, input.i);
     if (input?.t === "members") return this.send(ws, this.roster());
@@ -411,7 +423,7 @@ export class Room extends DurableObject {
       wipe ? 2 : 1,
       dev,
     );
-    this.ctx.storage.sql.exec("DELETE FROM snap WHERE dev = ?", dev);
+    this.forget(dev);
     const peers = this.peers();
     for (const peer of peers) {
       if (peer.dev !== dev) continue;
@@ -424,7 +436,7 @@ export class Room extends DurableObject {
 
   end(ws, wipe) {
     const sql = this.ctx.storage.sql;
-    for (const table of ["snap", "invites", "members"])
+    for (const table of ["snap", "piece", "stage", "invites", "members"])
       sql.exec("DELETE FROM " + table);
     sql.exec(
       "INSERT OR REPLACE INTO meta (k, v) VALUES ('closed', ?)",
@@ -460,21 +472,114 @@ export class Room extends DurableObject {
     );
   }
 
-  store(dev, data) {
-    if (data.byteLength === 0 || data.byteLength > MAX_SNAPSHOT) return;
+  snapshots() {
+    const sql = this.ctx.storage.sql;
+    const out = [];
+    for (const row of [...sql.exec("SELECT dev, data FROM snap ORDER BY at")]) {
+      const parts = [row.data];
+      for (const piece of sql.exec(
+        "SELECT data FROM piece WHERE dev = ? ORDER BY i",
+        row.dev,
+      ))
+        parts.push(piece.data);
+      out.push(parts);
+    }
+    return out;
+  }
+
+  forget(dev, tables = ["snap", "piece", "stage"]) {
+    const sql = this.ctx.storage.sql;
+    for (const table of tables)
+      sql.exec("DELETE FROM " + table + " WHERE dev = ?", dev);
+  }
+
+  expect(ws, meta, n) {
+    this.ctx.storage.sql.exec("DELETE FROM stage WHERE dev = ?", meta.dev);
+    const up =
+      Number.isInteger(n) && n > 1 && n <= MAX_PARTS
+        ? { n, got: 0, size: 0, bad: false }
+        : null;
+    ws.serializeAttachment({ ...meta, up });
+  }
+
+  receive(ws, meta, data) {
+    const up = meta.up;
+    if (!up) return this.store(meta.dev, [data]);
+    const sql = this.ctx.storage.sql;
+    const size = up.size + data.byteLength;
+    const got = up.got + 1;
+    const fits =
+      !up.bad &&
+      data.byteLength > 0 &&
+      data.byteLength <= MAX_PART &&
+      size <= MAX_SNAPSHOT;
+    ws.serializeAttachment({
+      ...meta,
+      up: got < up.n ? { n: up.n, got, size, bad: !fits } : null,
+    });
+    if (!fits) {
+      if (!up.bad) sql.exec("DELETE FROM stage WHERE dev = ?", meta.dev);
+      return;
+    }
+    sql.exec(
+      "INSERT OR REPLACE INTO stage (dev, i, data) VALUES (?, ?, ?)",
+      meta.dev,
+      up.got,
+      data,
+    );
+    if (got < up.n) return;
+    const parts = [
+      ...sql.exec("SELECT data FROM stage WHERE dev = ? ORDER BY i", meta.dev),
+    ].map((row) => row.data);
+    sql.exec("DELETE FROM stage WHERE dev = ?", meta.dev);
+    if (parts.length === up.n) return this.store(meta.dev, parts);
+  }
+
+  store(dev, parts) {
+    if (
+      parts.some((data) => data.byteLength === 0 || data.byteLength > MAX_PART)
+    )
+      return;
     if (!this.shared()) return;
     const sql = this.ctx.storage.sql;
-    sql.exec(
-      "INSERT INTO snap (dev, data, at) VALUES (?, ?, ?) ON CONFLICT (dev) DO UPDATE SET data = excluded.data, at = excluded.at",
-      dev,
-      data,
-      Date.now(),
-    );
-    sql.exec(
-      "DELETE FROM snap WHERE dev NOT IN (SELECT dev FROM snap ORDER BY at DESC LIMIT ?)",
-      MAX_SLOTS,
-    );
+    this.ctx.storage.transactionSync(() => {
+      sql.exec(
+        "INSERT INTO snap (dev, data, at) VALUES (?, ?, ?) ON CONFLICT (dev) DO UPDATE SET data = excluded.data, at = excluded.at",
+        dev,
+        parts[0],
+        Date.now(),
+      );
+      sql.exec("DELETE FROM piece WHERE dev = ?", dev);
+      parts
+        .slice(1)
+        .forEach((data, at) =>
+          sql.exec(
+            "INSERT INTO piece (dev, i, data) VALUES (?, ?, ?)",
+            dev,
+            at + 1,
+            data,
+          ),
+        );
+      this.prune();
+    });
     return this.touch();
+  }
+
+  prune() {
+    let used = 0;
+    let kept = 0;
+    for (const row of [
+      ...this.ctx.storage.sql.exec(
+        "SELECT dev, length(data) + COALESCE((SELECT SUM(length(data)) FROM piece WHERE piece.dev = snap.dev), 0) AS size FROM snap ORDER BY at DESC",
+      ),
+    ]) {
+      if (kept > 0 && (kept >= MAX_SLOTS || used + row.size > ROOM_BYTES)) {
+        this.forget(row.dev, ["snap", "piece"]);
+        continue;
+      }
+      used += row.size;
+      kept++;
+    }
   }
 
   async webSocketClose(ws) {
@@ -489,6 +594,8 @@ export class Room extends DurableObject {
     const meta = ws.deserializeAttachment();
     ws.serializeAttachment(null);
     if (!meta) return;
+    if (meta.up)
+      this.ctx.storage.sql.exec("DELETE FROM stage WHERE dev = ?", meta.dev);
     for (const peer of this.peers())
       if (peer.ws !== ws) this.send(peer.ws, { t: "bye", id: meta.id });
   }
@@ -499,7 +606,14 @@ export class Room extends DurableObject {
       return;
     }
     const sql = this.ctx.storage.sql;
-    for (const table of ["snap", "meta", "invites", "members"])
+    for (const table of [
+      "snap",
+      "piece",
+      "stage",
+      "meta",
+      "invites",
+      "members",
+    ])
       sql.exec("DELETE FROM " + table);
   }
 }

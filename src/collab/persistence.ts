@@ -6,7 +6,7 @@ import { saveDoc } from "./docstore.ts";
 const SAVE_MS = 2000;
 const UPLOAD_IDLE_MS = 30_000;
 const UPLOAD_GAP_MS = 5 * 60_000;
-const MAX_UPLOAD = 1900 * 1024;
+const MAX_UPLOAD = 8 * 1024 * 1024;
 
 export function isUploader(
   self: string,

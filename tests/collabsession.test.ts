@@ -12,7 +12,14 @@ import {
   until,
   type Peer,
 } from "./helpers/collabpeer.ts";
-import { newLink, newToken } from "../src/collab/collabkey.ts";
+import { createHash } from "node:crypto";
+import { newLink, newToken, randomId } from "../src/collab/collabkey.ts";
+import { roomUrl } from "../src/collab/session.ts";
+import {
+  SNAPSHOT_PART,
+  openSignal,
+  type SignalEvent,
+} from "../src/collab/signal.ts";
 import type { Access } from "../src/collab/collabrooms.ts";
 
 const dom = installDom("<textarea id=a></textarea><textarea id=b></textarea>");
@@ -92,4 +99,44 @@ test("хоёр төхөөрөмж урилгаар нэгдэж, засвары�
   await guest.session.stop(false);
   assert.equal(await owner.session.end(false), true);
   await owner.session.stop(true);
+});
+
+test("signal том snapshot-ыг хэсэглэн илгээж, дараагийн холболтод бүтнээр нь хүлээн авна", async () => {
+  const link = newLink();
+  const device = randomId(12);
+  const access: Access = { kind: "o", token: newToken() };
+  const url = (): string =>
+    roomUrl(server.url, link.room, device, randomId(12), access);
+  const events: SignalEvent[] = [];
+  const seen = (type: SignalEvent["t"]) => () =>
+    events.some((event) => event.t === type);
+  const first = openSignal({
+    url,
+    onEvent: (event) => events.push(event),
+    onSnapshot: () => {},
+    onState: () => {},
+  });
+  await until(seen("hi"), "hi");
+  assert.equal(first.command({ t: "invite", i: newToken() }), true);
+  await until(seen("invited"), "invited");
+  const data = new Uint8Array(SNAPSHOT_PART * 2 + 500);
+  for (let at = 0; at < data.byteLength; at += 65536)
+    crypto.getRandomValues(data.subarray(at, at + 65536));
+  assert.equal(first.upload(data), true);
+  first.command({ t: "members" });
+  await until(seen("members"), "members");
+  first.close();
+
+  const got: Uint8Array[] = [];
+  const second = openSignal({
+    url,
+    onEvent: () => {},
+    onSnapshot: (snapshot) => got.push(snapshot),
+    onState: () => {},
+  });
+  await until(() => got.length > 0, "snapshot");
+  second.close();
+  const digest = (bytes: Uint8Array): string =>
+    createHash("sha256").update(bytes).digest("hex");
+  assert.deepEqual(got.map(digest), [digest(data)]);
 });
