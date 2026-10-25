@@ -12,12 +12,8 @@ import { createChat, type Chat } from "./chat.ts";
 import type { ChatDoc } from "./chatdoc.ts";
 import { registerAuthor } from "./changes.ts";
 import { createChangeTracker, type ChangeTracker } from "./changetracker.ts";
-import {
-  createCursors,
-  type CursorView,
-  type Cursors,
-  type Profile,
-} from "./cursors.ts";
+import { createCursors, type CursorView, type Cursors } from "./cursors.ts";
+import type { Profile } from "./profile.ts";
 
 export const LOADED = { load: true };
 const SETTLE_MS = 6000;

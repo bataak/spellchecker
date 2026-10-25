@@ -44,7 +44,8 @@ import { createAdmin, type Admin, type Member } from "./admin.ts";
 import type { Access } from "./collabrooms.ts";
 import { createIceKeeper, type IceKeeper } from "./ice.ts";
 import type { ProjectHooks } from "./projectsession.ts";
-import type { CursorView, Cursors, Profile } from "./cursors.ts";
+import type { CursorView, Cursors } from "./cursors.ts";
+import type { Profile } from "./profile.ts";
 
 export interface SessionStatus {
   readonly signal: SignalState;
