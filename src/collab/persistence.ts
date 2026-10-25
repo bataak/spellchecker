@@ -48,10 +48,12 @@ export function createUploader(deps: UploaderDeps, dirty: boolean): Uploader {
   let last = 0;
   let dirtySince = dirty ? Date.now() : 0;
   let warned = false;
+  let edits = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
   const run = async (): Promise<void> => {
     timer = null;
     if (!dirty || !deps.allowed()) return;
+    const seen = edits;
     const state = deflateSync(Y.encodeStateAsUpdate(deps.doc));
     const sealed = await seal(deps.key, state);
     if (sealed.byteLength > MAX_UPLOAD) {
@@ -60,8 +62,9 @@ export function createUploader(deps: UploaderDeps, dirty: boolean): Uploader {
       return;
     }
     if (!deps.send(sealed)) return;
-    dirty = false;
     last = Date.now();
+    if (edits !== seen) return;
+    dirty = false;
   };
   const cancel = (): void => {
     if (timer) clearTimeout(timer);
@@ -76,6 +79,7 @@ export function createUploader(deps: UploaderDeps, dirty: boolean): Uploader {
     mark() {
       if (!dirty) dirtySince = Date.now();
       dirty = true;
+      edits++;
       schedule();
     },
     schedule() {
@@ -85,6 +89,7 @@ export function createUploader(deps: UploaderDeps, dirty: boolean): Uploader {
     force() {
       if (!dirty) dirtySince = Date.now();
       dirty = true;
+      edits++;
       cancel();
       void run();
     },

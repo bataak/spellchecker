@@ -119,3 +119,33 @@ test("uploader шифрлэсэн snapshot илгээж, том бол нэг у
   assert.equal(sent.length, 1);
   uploader.cancel();
 });
+
+test("илгээх үеэр орсон засварыг дараагийн илгээлтэд үлдээнэ", async () => {
+  const key = await importKey(newLink().key);
+  const doc = new Y.Doc();
+  doc.getText("t").insert(0, "а");
+  const sent: Uint8Array[] = [];
+  const uploader = createUploader(
+    {
+      doc,
+      key,
+      allowed: () => true,
+      send: (data) => (sent.push(data), true),
+      tooLarge: () => {},
+    },
+    true,
+  );
+  const running = uploader.run();
+  doc.getText("t").insert(1, "б");
+  uploader.mark();
+  await running;
+  assert.equal(sent.length, 1);
+  assert.equal(uploader.dirty(), true);
+  await uploader.run();
+  assert.equal(sent.length, 2);
+  assert.equal(uploader.dirty(), false);
+  const copy = new Y.Doc();
+  Y.applyUpdate(copy, inflateSync((await unseal(key, sent[1]!))!));
+  assert.equal(copy.getText("t").toString(), "аб");
+  uploader.cancel();
+});
