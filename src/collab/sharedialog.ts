@@ -1,7 +1,7 @@
 import { linkHash, newLink, newToken, type InviteLink } from "./collabkey.ts";
 import { isOwner, roomOfSlot, type RoomEntry } from "./collabrooms.ts";
 import { HOME_SCREEN_MESSAGE } from "./collabmessages.ts";
-import type { CollabDeps } from "./collabtypes.ts";
+import type { CollabUi, SlotPort } from "./collabtypes.ts";
 import { openDialog } from "./collabdialog.ts";
 import { myProfile, needsHomeScreen } from "./device.ts";
 import { saveName } from "./profile.ts";
@@ -54,7 +54,8 @@ function showDialog(
 
 export function openShare(
   rooms: readonly RoomEntry[],
-  deps: CollabDeps,
+  deps: Pick<SlotPort, "slot" | "shareName" | "blocked"> &
+    Pick<CollabUi, "notify">,
   registry: Registry,
   stop: (entry: RoomEntry) => void,
   adopt: (draft: RoomEntry) => void,
