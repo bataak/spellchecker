@@ -10,7 +10,7 @@ import {
   unseal,
   type CollabLink,
 } from "./collabkey.ts";
-import { dropDoc, loadDoc, saveDoc } from "./docstore.ts";
+import { dropDoc, LOADED, openDoc, saveDoc } from "./docstore.ts";
 import { createMesh, type Mesh, type SignalPayload } from "./mesh.ts";
 import {
   openSignal,
@@ -23,6 +23,7 @@ import { createAdmin, type Admin, type Member } from "./admin.ts";
 import type { Access } from "./collabrooms.ts";
 import { bindText } from "./textbind.ts";
 import { createIceKeeper, type IceKeeper } from "./ice.ts";
+import { createProjectEditing, type ProjectHooks } from "./projectsession.ts";
 import {
   createCursors,
   type CursorView,
@@ -43,6 +44,7 @@ export interface SessionDeps {
   readonly device: string;
   readonly editor: HTMLTextAreaElement;
   readonly seed: (() => string) | null;
+  readonly project: ProjectHooks | null;
   readonly onStatus: (status: SessionStatus) => void;
   readonly onNotice: (notice: SessionNotice) => void;
   readonly view: CursorView;
@@ -71,7 +73,6 @@ const EMPTY_ROOM_SETTLE_MS = 1500;
 const UPLOAD_IDLE_MS = 30_000;
 const UPLOAD_GAP_MS = 5 * 60_000;
 const MAX_UPLOAD = 1900 * 1024;
-const LOADED = { load: true };
 const MOVES: ReadonlySet<SignalEvent["t"]> = new Set([
   "hi",
   "join",
@@ -235,23 +236,6 @@ function createSaver(doc: Y.Doc, room: string): Saver {
   };
 }
 
-interface OpenedDoc {
-  readonly doc: Y.Doc;
-  readonly fresh: boolean;
-}
-
-async function openDoc(
-  room: string,
-  seed: (() => string) | null,
-): Promise<OpenedDoc> {
-  const doc = new Y.Doc();
-  const stored = await loadDoc(room);
-  if (stored) Y.applyUpdate(doc, stored, LOADED);
-  const text = doc.getText("t");
-  if (seed && text.length === 0) text.insert(0, seed());
-  return { doc, fresh: !stored && !seed };
-}
-
 interface Attacher {
   attach(): void;
   detach(): void;
@@ -363,10 +347,12 @@ function createEditing(
   fresh: boolean,
   send: (body: Uint8Array) => void,
 ): { cursors: Cursors; binding: Attacher } {
+  if (deps.project)
+    return createProjectEditing(deps, doc, deps.project, fresh, send);
   const text = doc.getText("t");
   const cursors = createCursors({
     doc,
-    text,
+    text: () => text,
     editor: deps.editor,
     view: deps.view,
     profile: deps.profile,
@@ -387,7 +373,7 @@ function sessionUploader(
 ): Uploader {
   return createUploader(
     { doc, key, allowed, send, tooLarge: () => deps.onNotice("too-large") },
-    deps.seed !== null,
+    deps.seed !== null || !!deps.project?.seed,
   );
 }
 
@@ -533,7 +519,7 @@ function wireMesh(wiring: MeshWiring): Mesh {
 export async function startSession(deps: SessionDeps): Promise<Session> {
   const { link } = deps;
   const key = await importKey(link.key);
-  const { doc, fresh } = await openDoc(link.room, deps.seed);
+  const { doc, fresh } = await openDoc(link.room, deps.seed, deps.project);
   const { cursors, binding } = createEditing(deps, doc, fresh, (body) =>
     sync.cursor(body),
   );

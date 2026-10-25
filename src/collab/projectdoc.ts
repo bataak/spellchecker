@@ -1,5 +1,6 @@
 import * as Y from "yjs";
 import { randomId } from "./collabkey.ts";
+import { minimalDiff } from "../mdbar/mdedit.ts";
 import { movedPath, skippedPath, within } from "../tex/texproject.ts";
 
 export interface BlobRef {
@@ -123,6 +124,11 @@ export function removePath(doc: Y.Doc, path: string): void {
   });
 }
 
+export function dropDir(doc: Y.Doc, path: string): void {
+  for (const dir of [...dirs(doc).keys()])
+    if (within(dir, path)) dirs(doc).delete(dir);
+}
+
 export function movePath(doc: Y.Doc, from: string, to: string): void {
   doc.transact(() => {
     for (const entry of files(doc).values()) {
@@ -138,6 +144,25 @@ export function movePath(doc: Y.Doc, from: string, to: string): void {
     const main = meta(doc).get(MAIN);
     const moved = main ? movedPath(main, from, to) : null;
     if (moved !== null) setMain(doc, moved);
+  });
+}
+
+export function fileIds(doc: Y.Doc): Map<string, string> {
+  const ids = new Map<Entry, string>();
+  for (const [id, entry] of files(doc)) ids.set(entry, id);
+  const out = new Map<string, string>();
+  for (const [path, entry] of resolved(doc)) out.set(path, ids.get(entry)!);
+  return out;
+}
+
+export function writeText(doc: Y.Doc, path: string, next: string): void {
+  const text = textOf(doc, path);
+  if (!text) return;
+  const patch = minimalDiff(text.toString(), next);
+  if (!patch) return;
+  doc.transact(() => {
+    if (patch.to > patch.from) text.delete(patch.from, patch.to - patch.from);
+    if (patch.insert) text.insert(patch.from, patch.insert);
   });
 }
 

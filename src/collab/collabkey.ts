@@ -43,12 +43,31 @@ export function newToken(): string {
   return randomId(16);
 }
 
+const BAD_NAME = /[/\\:*?"<>|\u0000-\u001f]/;
+
 export function sharedName(name: string): boolean {
   return (
-    name.length <= MAX_NAME &&
-    SHARED_NAME.test(name) &&
-    !/[/\\:*?"<>|\u0000-\u001f]/.test(name)
+    name.length <= MAX_NAME && SHARED_NAME.test(name) && !BAD_NAME.test(name)
   );
+}
+
+export function projectName(name: string): string {
+  const base = name.replace(/[/\\:*?"<>|\u0000-\u001f]/g, " ").trim();
+  return (base.slice(0, MAX_NAME - 1).trim() || "LaTeX") + "/";
+}
+
+export function isProjectName(name: string): boolean {
+  const base = name.slice(0, -1);
+  return (
+    name.endsWith("/") &&
+    base.trim() !== "" &&
+    name.length <= MAX_NAME &&
+    !BAD_NAME.test(base)
+  );
+}
+
+function validName(name: string): boolean {
+  return sharedName(name) || isProjectName(name);
 }
 
 function readName(encoded: string | undefined): string | null {
@@ -57,7 +76,7 @@ function readName(encoded: string | undefined): string | null {
     const name = new TextDecoder("utf-8", { fatal: true }).decode(
       fromBase64Url(encoded),
     );
-    return sharedName(name) ? name : null;
+    return validName(name) ? name : null;
   } catch {
     return null;
   }
@@ -73,7 +92,7 @@ export function parseLink(hash: string): InviteLink | null {
 
 export function linkHash(link: InviteLink): string {
   const name =
-    link.name && sharedName(link.name)
+    link.name && validName(link.name)
       ? "." + toBase64Url(new TextEncoder().encode(link.name))
       : "";
   return "#collab=" + link.room + "." + link.key + "." + link.invite + name;

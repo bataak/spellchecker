@@ -29,7 +29,7 @@ export interface Cursors {
 
 export interface CursorDeps {
   readonly doc: Y.Doc;
-  readonly text: Y.Text;
+  readonly text: () => Y.Text | null;
   readonly editor: HTMLTextAreaElement;
   readonly view: CursorView;
   readonly profile: () => Profile;
@@ -87,9 +87,14 @@ export function decodeCursor(body: Uint8Array): CursorState | null {
   }
 }
 
-function absolute(doc: Y.Doc, rel: Y.RelativePosition | null): number | null {
-  if (!rel) return null;
-  return Y.createAbsolutePositionFromRelativePosition(rel, doc)?.index ?? null;
+function absolute(
+  doc: Y.Doc,
+  text: Y.Text | null,
+  rel: Y.RelativePosition | null,
+): number | null {
+  if (!rel || !text) return null;
+  const at = Y.createAbsolutePositionFromRelativePosition(rel, doc);
+  return at && at.type === text ? at.index : null;
 }
 
 interface Mark {
@@ -130,11 +135,12 @@ function paintMark(
   mark: Mark,
   state: CursorState,
   doc: Y.Doc,
+  text: Y.Text | null,
   view: CursorView,
   origin: DOMRect,
 ): void {
-  const head = absolute(doc, state.head);
-  const anchor = absolute(doc, state.anchor);
+  const head = absolute(doc, text, state.head);
+  const anchor = absolute(doc, text, state.anchor);
   const caret = head === null ? null : view.caretRect(head);
   mark.root.hidden = caret === null;
   if (!caret || head === null) return;
@@ -158,7 +164,7 @@ function paintMark(
 }
 
 export function createCursors(deps: CursorDeps): Cursors {
-  const { doc, text, editor, view } = deps;
+  const { doc, editor, view } = deps;
   const layer = document.createElement("div");
   layer.className = "collab-cursors";
   layer.hidden = true;
@@ -181,7 +187,7 @@ export function createCursors(deps: CursorDeps): Cursors {
         mark = newMark(layer);
         marks.set(peer, mark);
       }
-      paintMark(mark, state, doc, view, origin);
+      paintMark(mark, state, doc, deps.text(), view, origin);
     }
   };
   const renderSoon = (): void => {
@@ -189,7 +195,8 @@ export function createCursors(deps: CursorDeps): Cursors {
   };
 
   const encodeLocal = (): Uint8Array => {
-    if (!active) return encodeCursor(deps.profile(), null, null);
+    const text = deps.text();
+    if (!active || !text) return encodeCursor(deps.profile(), null, null);
     const at = (index: number): Y.RelativePosition =>
       Y.createRelativePositionFromTypeIndex(text, Math.min(index, text.length));
     const forward = editor.selectionDirection !== "backward";

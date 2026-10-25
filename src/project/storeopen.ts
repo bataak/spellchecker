@@ -40,7 +40,28 @@ async function chooseDirectory(
   }
 }
 
+function adoptState(core: StoreCore, next: State): void {
+  if (next.main === null)
+    throw new ProjectError(
+      "Төсөлд \\documentclass болон \\begin{document} бүхий үндсэн .tex файл олдсонгүй",
+    );
+  const before = core.state();
+  next.active = next.main ?? [...next.texts.keys()].find(isTexSource) ?? null;
+  next.twin =
+    before !== null &&
+    before.name === next.name &&
+    before.main !== null &&
+    next.main !== null &&
+    baseName(before.main) !== baseName(next.main);
+  core.replace(next);
+  void core.persist
+    .save(true)
+    .then(() => (next.kind === "dir" ? core.persist.dropFiles() : undefined));
+  core.notify();
+}
+
 export function createOpeners(core: StoreCore) {
+  const adopt = (next: State): void => adoptState(core, next);
   const fromLoaded = (kind: ProjectKind, loaded: LoadedFiles): State =>
     core.fresh(kind, loaded.name, null, loaded.files, loaded.dirs);
 
@@ -64,26 +85,6 @@ export function createOpeners(core: StoreCore) {
     core.changed(true);
     if (conflicts.length) core.conflict(conflicts);
     return true;
-  }
-
-  function adopt(next: State): void {
-    if (next.main === null)
-      throw new ProjectError(
-        "Төсөлд \\documentclass болон \\begin{document} бүхий үндсэн .tex файл олдсонгүй",
-      );
-    const before = core.state();
-    next.active = next.main ?? [...next.texts.keys()].find(isTexSource) ?? null;
-    next.twin =
-      before !== null &&
-      before.name === next.name &&
-      before.main !== null &&
-      next.main !== null &&
-      baseName(before.main) !== baseName(next.main);
-    core.replace(next);
-    void core.persist
-      .save(true)
-      .then(() => (next.kind === "dir" ? core.persist.dropFiles() : undefined));
-    core.notify();
   }
 
   async function openDirHandle(
@@ -145,5 +146,17 @@ export function createOpeners(core: StoreCore) {
     return true;
   }
 
-  return { refreshProject, openDirHandle, pickFolder, openZip, openGitRepo };
+  return {
+    refreshProject,
+    openDirHandle,
+    pickFolder,
+    openZip,
+    openShared(loaded: LoadedFiles, uid: string, main: string | null): void {
+      const next = fromLoaded("memory", loaded);
+      next.uid = uid;
+      if (main !== null && next.texts.has(main)) next.main = main;
+      adopt(next);
+    },
+    openGitRepo,
+  };
 }

@@ -9,10 +9,12 @@ import {
 import {
   fromBase64Url,
   importKey,
+  isProjectName,
   linkHash,
   newLink,
   newToken,
   parseLink,
+  projectName,
   seal,
   sharedName,
   toBase64Url,
@@ -96,6 +98,19 @@ test("зөвхөн txt, md, tex файлыг хуваалцана", () => {
   assert.equal(joinName(null, true, false), "Хамтын бичвэр.tex");
   assert.equal(joinName(null, false, true), "Хамтын бичвэр.md");
   assert.equal(joinName(null, false, false), "Хамтын бичвэр.txt");
+});
+
+test("төслийн нэрийг холбоост тэмдэглэнэ", () => {
+  assert.equal(projectName("Дипломын ажил"), "Дипломын ажил/");
+  assert.equal(projectName("a/b:c"), "a b c/");
+  assert.equal(projectName("  "), "LaTeX/");
+  assert.equal(projectName("х".repeat(200)).length, 120);
+  assert.equal(isProjectName("Дипломын ажил/"), true);
+  assert.equal(isProjectName("/"), false);
+  assert.equal(isProjectName("a/b/"), false);
+  assert.equal(isProjectName("paper.tex"), false);
+  const link = { ...newLink(), invite: newToken(), name: "Дипломын ажил/" };
+  assert.deepEqual(parseLink(linkHash(link)), link);
 });
 
 test("хамтын холбоосыг задлах, үүсгэх", () => {

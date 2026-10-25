@@ -5,6 +5,7 @@ import {
   linkHash,
   newLink,
   newToken,
+  isProjectName,
   parseLink,
   randomId,
   type InviteLink,
@@ -21,6 +22,7 @@ import {
   type RoomEntry,
 } from "./collabrooms.ts";
 import type { Session, SessionStatus } from "./session.ts";
+import type { ProjectHooks } from "./projectsession.ts";
 import type { SignalState } from "./signal.ts";
 import type { CursorView } from "./cursors.ts";
 import { loadProfile, saveName } from "./profile.ts";
@@ -38,11 +40,31 @@ export interface CollabDeps {
   readonly blocked: () => string | null;
   readonly wipe: (slot: string) => boolean;
   readonly notify: (message: string) => void;
+  readonly project: CollabProject | null;
+}
+
+export interface CollabProject {
+  readonly uid: () => string | null;
+  readonly hooks: (uid: string, seed: boolean) => ProjectHooks;
+  readonly prepare: (name: string, uid: string) => boolean;
 }
 
 export interface Collab {
   start(): void;
   forget(slot: string): boolean;
+  projectChanged(): void;
+}
+
+const PROJECT_PREFIX = "project:";
+
+export function projectSlot(uid: string): string {
+  return PROJECT_PREFIX + uid;
+}
+
+export function projectUid(slot: string): string | null {
+  return slot.startsWith(PROJECT_PREFIX)
+    ? slot.slice(PROJECT_PREFIX.length)
+    : null;
 }
 
 const ENDPOINT = (import.meta.env.VITE_COLLAB_URL ?? "").replace(/\/+$/, "");
@@ -120,6 +142,7 @@ interface Registry {
 }
 
 interface RegistryHooks {
+  readonly project: CollabProject | null;
   readonly changed: () => void;
   readonly notify: (message: string) => void;
   readonly access: (room: string) => Access | null;
@@ -149,6 +172,8 @@ function createRegistry(
     open(entry, seed) {
       const known = pending.get(entry.room);
       if (known) return known;
+      const uid = projectUid(entry.slot);
+      const project = uid !== null ? hooks.project?.hooks(uid, seed) : null;
       const created = import("./session.ts").then(({ startSession }) =>
         startSession({
           link: entry,
@@ -157,7 +182,8 @@ function createRegistry(
           editor,
           view,
           profile: () => loadProfile(deviceId()),
-          seed: seed ? () => editor.value : null,
+          seed: seed && uid === null ? () => editor.value : null,
+          project: project ?? null,
           access: () => hooks.access(entry.room) ?? entry.access,
           onAccess: (token) => hooks.granted(entry.room, token),
           onStatus: (status) => {
@@ -209,6 +235,16 @@ function joinRoom(
   const known = roomById(rooms, link.room);
   if (known && deps.showSlot(known.slot)) return [...rooms];
   const rest = known ? withoutRoom(rooms, known.room) : rooms;
+  if (link.name && isProjectName(link.name)) {
+    const uid = "c" + link.room;
+    if (!deps.project?.prepare(link.name.slice(0, -1), uid)) return null;
+    return withRoom(rest, {
+      slot: projectSlot(uid),
+      room: link.room,
+      key: link.key,
+      access: { kind: "i", token: link.invite },
+    });
+  }
   if (!deps.openSlot(link.name ?? JOIN_NAME)) {
     deps.notify(
       "Шинэ файлын талбар нээх боломжгүй. Нэг файлаа хаагаад дахин оролдоно уу.",
@@ -298,10 +334,29 @@ function openShare(
   );
 }
 
+const DISABLED: Collab = {
+  start: () => {},
+  forget: () => false,
+  projectChanged: () => {},
+};
+
+function openProjectRoom(registry: Registry, entry: RoomEntry | null): void {
+  if (entry && projectUid(entry.slot) !== null)
+    void registry.open(entry, false);
+}
+
+function projectRoom(
+  rooms: readonly RoomEntry[],
+  deps: CollabDeps,
+): RoomEntry | null {
+  const uid = deps.project?.uid();
+  return uid ? roomOfSlot(rooms, projectSlot(uid)) : null;
+}
+
 export function initCollab(deps: CollabDeps): Collab {
   const { button, editor } = deps;
   if (!ENDPOINT || !button || typeof RTCPeerConnection === "undefined")
-    return { start: () => {}, forget: () => false };
+    return DISABLED;
 
   let rooms = parseRooms(readJson(KEYS.collabRooms));
   let active: string | null = null;
@@ -313,6 +368,7 @@ export function initCollab(deps: CollabDeps): Collab {
     paintButton(button, roomOfSlot(rooms, deps.slot()), registry);
 
   const registry = createRegistry(editor, deps.view, {
+    project: deps.project,
     changed: () => paint(),
     notify: deps.notify,
     access: (room) => roomById(rooms, room)?.access ?? null,
@@ -332,6 +388,7 @@ export function initCollab(deps: CollabDeps): Collab {
   };
 
   const sync = (seed = false): void => {
+    openProjectRoom(registry, projectRoom(rooms, deps));
     const entry = roomOfSlot(rooms, deps.slot());
     if (!entry) {
       detach();
@@ -367,6 +424,7 @@ export function initCollab(deps: CollabDeps): Collab {
     rooms = next;
     store();
     sync();
+    openProjectRoom(registry, roomById(rooms, link.room));
   };
 
   const share = (): void =>
@@ -398,6 +456,9 @@ export function initCollab(deps: CollabDeps): Collab {
       const entry = roomOfSlot(rooms, slot);
       if (entry) stop(entry);
       return entry !== null;
+    },
+    projectChanged() {
+      if (started) sync();
     },
   };
 }
