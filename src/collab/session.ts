@@ -27,6 +27,7 @@ import {
   flushWhenHidden,
   isUploader,
   type Saver,
+  type UploadNotice,
   type Uploader,
 } from "./persistence.ts";
 import { createMesh, type Mesh, type SignalPayload } from "./mesh.ts";
@@ -49,7 +50,7 @@ export interface SessionStatus {
   readonly peers: number;
 }
 
-export type SessionNotice = "too-large";
+export type SessionNotice = UploadNotice;
 
 export interface SessionDeps {
   readonly link: CollabLink;
@@ -215,7 +216,7 @@ function sessionUploader(
   send: (data: Uint8Array) => boolean,
 ): Uploader {
   return createUploader(
-    { doc, key, allowed, send, tooLarge: () => deps.onNotice("too-large") },
+    { doc, key, allowed, send, notice: deps.onNotice },
     deps.seed !== null || !!deps.project?.seed,
   );
 }

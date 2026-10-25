@@ -81,14 +81,14 @@ test("uploader шифрлэсэн snapshot илгээж, том бол нэг у
   doc.getText("t").insert(0, "хуваалцах");
   const sent: Uint8Array[] = [];
   let allowed = false;
-  let warned = 0;
+  const notices: string[] = [];
   const uploader = createUploader(
     {
       doc,
       key,
       allowed: () => allowed,
       send: (data) => (sent.push(data), true),
-      tooLarge: () => warned++,
+      notice: (notice) => void notices.push(notice),
     },
     false,
   );
@@ -115,7 +115,7 @@ test("uploader шифрлэсэн snapshot илгээж, том бол нэг у
   uploader.force();
   await wait(50);
   await uploader.run();
-  assert.equal(warned, 1);
+  assert.deepEqual(notices, ["too-large"]);
   assert.equal(sent.length, 1);
   uploader.cancel();
 });
@@ -131,7 +131,7 @@ test("илгээх үеэр орсон засварыг дараагийн ил�
       key,
       allowed: () => true,
       send: (data) => (sent.push(data), true),
-      tooLarge: () => {},
+      notice: () => {},
     },
     true,
   );
@@ -148,4 +148,37 @@ test("илгээх үеэр орсон засварыг дараагийн ил�
   Y.applyUpdate(copy, inflateSync((await unseal(key, sent[1]!))!));
   assert.equal(copy.getText("t").toString(), "аб");
   uploader.cancel();
+});
+
+test("uploader хязгаарт ойртоход урьдчилан сануулж, илгээсээр байна", async () => {
+  const key = await importKey(newLink().key);
+  const digits = "0123456789abcdefghijklmnopqrstuvwxyz";
+  const parts: string[] = [];
+  const noise = new Uint8Array(65536);
+  for (let i = 0; i < 160; i++) {
+    crypto.getRandomValues(noise);
+    parts.push(Array.from(noise, (b) => digits[b % 36]).join(""));
+  }
+  const doc = new Y.Doc();
+  doc.getText("t").insert(0, parts.join(""));
+  const notices: string[] = [];
+  const sent: Uint8Array[] = [];
+  const uploader = createUploader(
+    {
+      doc,
+      key,
+      allowed: () => true,
+      send: (data) => (sent.push(data), true),
+      notice: (notice) => void notices.push(notice),
+    },
+    true,
+  );
+  uploader.schedule();
+  await uploader.run();
+  assert.deepEqual(notices, ["near-limit"]);
+  assert.equal(sent.length, 1);
+  uploader.mark();
+  await uploader.run();
+  assert.deepEqual(notices, ["near-limit"]);
+  assert.equal(sent.length, 2);
 });
