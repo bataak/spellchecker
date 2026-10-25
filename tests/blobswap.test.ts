@@ -36,7 +36,7 @@ function network(stores: Record<string, Map<string, Uint8Array>>): {
           );
         },
       },
-      have: (hash) => stores[id]!.get(hash) ?? null,
+      have: async (hash) => stores[id]!.get(hash) ?? null,
     });
     nodes.set(id, { id, swap, sent });
   }
@@ -125,7 +125,7 @@ test("a wanted blob waits for a peer to join", async () => {
       drain: async () => {},
       send: (to) => void sent.push(to),
     },
-    have: () => null,
+    have: async () => null,
   });
   void swap.want(hash, 64);
   assert.deepEqual(sent, []);

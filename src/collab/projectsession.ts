@@ -26,7 +26,7 @@ export interface ProjectHooks {
 }
 
 export interface ProjectAttacher extends Attacher {
-  have(hash: string): Uint8Array | null;
+  have(hash: string): Promise<Uint8Array | null>;
 }
 
 type Want = (hash: string, size: number) => Promise<Uint8Array>;
@@ -96,7 +96,7 @@ export function createProjectAttacher(
       bridge.stop();
       blobs?.stop();
     },
-    have: (hash) => blobs?.have(hash) ?? null,
+    have: (hash) => blobs?.have(hash) ?? Promise.resolve(null),
   };
 }
 

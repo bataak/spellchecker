@@ -50,13 +50,16 @@ const idle = (): Promise<void> =>
 test("local images are written into the shared doc", async () => {
   const doc = new Y.Doc();
   const png = new Uint8Array([1, 2, 3]);
-  const { port } = fakePort(new Map([["fig.png", png]]));
+  const { port, files } = fakePort(new Map([["fig.png", png]]));
   const bridge = createBlobBridge(doc, port, () => Promise.reject());
   await bridge.start();
   await bridge.pushLocal();
   const ref = projectOf(doc).blobs.get("fig.png");
   assert.deepEqual(ref, { hash: await blobHash(png), size: 3 });
-  assert.equal(bridge.have(ref!.hash), png);
+  assert.equal(await bridge.have(ref!.hash), png);
+  const copy = png.slice();
+  files.set("fig.png", copy);
+  assert.equal(await bridge.have(ref!.hash), copy);
   bridge.stop();
 });
 
@@ -149,7 +152,7 @@ test("without a local project nothing is touched", async () => {
   await bridge.start();
   await bridge.pushLocal();
   assert.deepEqual(fake.log, []);
-  assert.equal(bridge.have("a".repeat(64)), null);
+  assert.equal(await bridge.have("a".repeat(64)), null);
   bridge.stop();
 });
 
