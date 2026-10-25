@@ -147,6 +147,7 @@ function adminControls(
 function wireMesh(wiring: MeshWiring): Mesh {
   const { key, cursors, status } = wiring;
   return createMesh({
+    connect: (config) => new RTCPeerConnection(config),
     self: () => wiring.self,
     present: (peer) => wiring.room.has(peer),
     iceServers: wiring.ice,
