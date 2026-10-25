@@ -56,13 +56,21 @@ function safePath(path: unknown): path is string {
   );
 }
 
+export function sharedDir(path: string): boolean {
+  return safePath(path) && !skippedPath(path);
+}
+
+export function sharedMain(main: string | null): string | null {
+  return safePath(main) ? main : null;
+}
+
 export function sharedPath(path: string, main: string | null): boolean {
   return safePath(path) && !skippedPath(path) && path !== outputPdf(main);
 }
 
 function mainOf(doc: Y.Doc): string | null {
   const main: unknown = meta(doc).get(MAIN);
-  return safePath(main) ? main : null;
+  return typeof main === "string" ? sharedMain(main) : null;
 }
 
 function pathOf(entry: Entry): string {
@@ -136,8 +144,8 @@ export function seedProject(doc: Y.Doc, snap: ProjectSnapshot): void {
       if (sharedPath(path, snap.main)) addText(doc, path, text);
     for (const [path, ref] of snap.blobs)
       if (sharedPath(path, snap.main)) addBlob(doc, path, ref);
-    for (const dir of snap.dirs) if (!skippedPath(dir)) addDir(doc, dir);
-    setMain(doc, snap.main);
+    for (const dir of snap.dirs) if (sharedDir(dir)) addDir(doc, dir);
+    setMain(doc, sharedMain(snap.main));
   });
 }
 
