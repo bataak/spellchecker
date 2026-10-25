@@ -388,22 +388,16 @@ export function initCollab(deps: CollabDeps): Collab {
   };
 
   const sync = (seed = false): void => {
-    openProjectRoom(registry, projectRoom(rooms, deps));
     const entry = roomOfSlot(rooms, deps.slot());
-    if (!entry) {
+    if (!entry) detach();
+    else if (active !== entry.room || !registry.live(entry.room)) {
       detach();
-      paint();
-      return;
+      active = entry.room;
+      void registry.open(entry, seed).then((live) => {
+        if (active === entry.room && deps.slot() === entry.slot) live.attach();
+      });
     }
-    if (active === entry.room && registry.live(entry.room)) {
-      paint();
-      return;
-    }
-    detach();
-    active = entry.room;
-    void registry.open(entry, seed).then((live) => {
-      if (active === entry.room && deps.slot() === entry.slot) live.attach();
-    });
+    openProjectRoom(registry, projectRoom(rooms, deps));
     paint();
   };
 
@@ -434,7 +428,10 @@ export function initCollab(deps: CollabDeps): Collab {
       sync(true);
     });
 
-  onSwap(detach);
+  onSwap((origin) => {
+    const slot = active ? roomById(rooms, active)?.slot : undefined;
+    if (origin !== "project" || !slot || projectUid(slot) === null) detach();
+  });
   editor.addEventListener("input", (event) => {
     if (started && swapOrigin(event) !== null) sync();
   });
