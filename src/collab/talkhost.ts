@@ -23,6 +23,7 @@ export const TALK_LABELS: Record<TalkMode, string> = {
   chat: "Хэлэлцүүлэг",
   changes: "Өөрчлөлт",
 };
+const TRIGGER_LABEL = "Хэлэлцэх";
 
 interface Views {
   readonly talk: Talk;
@@ -212,7 +213,7 @@ function talkTrigger(anchor: HTMLElement | null): HTMLButtonElement {
   trigger.hidden = true;
   trigger.title = "Хамтрагчидтай хэлэлцэх, өөрчлөлтийг харах";
   trigger.innerHTML = icon(ICONS.chat, 14);
-  trigger.append(document.createTextNode(" " + TALK_LABELS.chat));
+  trigger.append(document.createTextNode(" " + TRIGGER_LABEL));
   trigger.setAttribute("aria-pressed", "false");
   anchor?.after(trigger);
   return trigger;

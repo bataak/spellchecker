@@ -341,6 +341,10 @@
   gap: 4px;
 }
 
+.talk-trigger .talk-badge {
+  position: static;
+}
+
 .talk-trigger[hidden] {
   display: none;
 }
