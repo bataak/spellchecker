@@ -34,10 +34,9 @@ import { createSync, relayTargets, type Sync } from "../src/collab/sync.ts";
 import {
   connectionControls,
   createGate,
-  isUploader,
   roomUrl,
-  uploadAt,
 } from "../src/collab/session.ts";
+import { isUploader, uploadAt } from "../src/collab/persistence.ts";
 import { buttonLabel, joinName } from "../src/collab/collab.ts";
 import {
   fileSlot,
