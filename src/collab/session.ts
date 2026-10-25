@@ -22,6 +22,7 @@ import { createSync, type Sync } from "./sync.ts";
 import { createAdmin, type Admin, type Member } from "./admin.ts";
 import type { Access } from "./collabrooms.ts";
 import { bindText } from "./textbind.ts";
+import { createIceKeeper, type IceKeeper } from "./ice.ts";
 import {
   createCursors,
   type CursorView,
@@ -64,7 +65,6 @@ export interface Session {
   stop(forget: boolean): Promise<void>;
 }
 
-const ICE_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.cloudflare.com:3478" }];
 const SAVE_MS = 2000;
 const SETTLE_MS = 6000;
 const EMPTY_ROOM_SETTLE_MS = 1500;
@@ -306,13 +306,15 @@ interface SignalRoute {
   readonly uploader: Uploader;
   readonly admin: Admin;
   readonly onAccess: (token: string) => void;
+  readonly ice: IceKeeper;
 }
 
 async function routeSignal(
   event: SignalEvent,
-  { key, room, mesh, uploader, admin, onAccess }: SignalRoute,
+  { key, room, mesh, uploader, admin, onAccess, ice }: SignalRoute,
 ): Promise<void> {
   if (admin.receive(event)) return;
+  if (event.t === "hi" || event.t === "ice") ice.take(event);
   if (event.t === "hi") {
     room.clear();
     const open = mesh.open();
@@ -540,7 +542,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
   let signalState: SignalState = "connecting";
   let stopped = false;
   let shared = false;
-  let ice = ICE_SERVERS;
+  const ice = createIceKeeper(() => ({ signal, mesh }));
   const owner = deps.access().kind === "o";
   const watchers = new Set<() => void>();
   const status = (): void =>
@@ -562,7 +564,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
     room,
     key,
     cursors,
-    ice: () => ice,
+    ice: () => ice.servers(),
     status,
     signal: () => signal,
     sync: () => sync,
@@ -581,13 +583,12 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
     onEvent: (event) => {
       if (event.t === "hi") {
         shared = event.shared;
-        if (event.ice.length) ice = event.ice;
         if (!event.peers.length)
           setTimeout(binding.settle, EMPTY_ROOM_SETTLE_MS);
         if (!owner) admin.label(deps.profile().name);
       }
       if (MOVES.has(event.t)) for (const listener of watchers) listener();
-      const route = { key, room, mesh, uploader, admin, onAccess };
+      const route = { key, room, mesh, uploader, admin, onAccess, ice };
       void routeSignal(event, route).catch(noteError);
     },
     onSnapshot: (data) => void applySnapshot(doc, key, data).catch(noteError),
@@ -619,6 +620,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
     }),
     async stop(forget) {
       stopped = true;
+      ice.stop();
       unwatch();
       uploader.cancel();
       saver.cancel();

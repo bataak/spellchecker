@@ -22,6 +22,7 @@ export interface Mesh {
   send(peer: string, data: Uint8Array): void;
   broadcast(data: Uint8Array, except?: string): void;
   open(): string[];
+  refresh(): void;
   close(): void;
 }
 
@@ -56,6 +57,22 @@ function gathered(pc: RTCPeerConnection): Promise<void> {
 
 export function shouldRecall(self: string, peer: string): boolean {
   return self > peer;
+}
+
+function reconfigure(links: Iterable<Link>, iceServers: RTCIceServer[]): void {
+  for (const { pc } of links) setServers(pc, iceServers);
+}
+
+function setServers(
+  pc: RTCPeerConnection,
+  iceServers: RTCIceServer[],
+): boolean {
+  try {
+    pc.setConfiguration({ iceServers });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function newLink(iceServers: RTCIceServer[], caller: boolean): Link {
@@ -191,6 +208,7 @@ export function createMesh(deps: MeshDeps): Mesh {
     },
     open: () =>
       [...links].filter(([, entry]) => entry.open).map(([peer]) => peer),
+    refresh: () => reconfigure(links.values(), deps.iceServers()),
     close() {
       closed = true;
       for (const peer of [...links.keys()]) drop(peer);

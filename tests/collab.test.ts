@@ -26,6 +26,7 @@ import {
   encodeFrame,
 } from "../src/collab/wire.ts";
 import { parseSignal, retryDelay } from "../src/collab/signal.ts";
+import { createIceKeeper, iceRefreshMs } from "../src/collab/ice.ts";
 import { createSync, relayTargets, type Sync } from "../src/collab/sync.ts";
 import {
   connectionControls,
@@ -140,6 +141,7 @@ test("сигналын мессежийг шалгаж задлана", () => {
     peers: ["b"],
     shared: false,
     ice: [],
+    life: 0,
   });
   assert.equal(
     (
@@ -183,6 +185,20 @@ test("сигналын мессежийг шалгаж задлана", () => {
       },
       { urls: ["turns:turn.cloudflare.com:443?transport=tcp"] },
     ],
+  );
+  assert.deepEqual(
+    parseSignal(
+      '{"t":"ice","ice":[{"urls":"turn:t:3478","username":"u","credential":"c"}],"life":7200}',
+    ),
+    {
+      t: "ice",
+      ice: [{ urls: ["turn:t:3478"], username: "u", credential: "c" }],
+      life: 7200,
+    },
+  );
+  assert.equal(
+    (parseSignal('{"t":"ice","ice":[],"life":-5}') as { life: number }).life,
+    0,
   );
   assert.deepEqual(parseSignal('{"t":"bye","id":"a"}'), { t: "bye", id: "a" });
   assert.deepEqual(parseSignal('{"t":"from","from":"a","d":"x"}'), {
@@ -443,6 +459,28 @@ test("хамтрагчдын нэрийг түлхүүрээр тайлж хар
   assert.deepEqual(sent.at(-1), { t: "remove", dev: "a", wipe: true });
   admin.receive({ t: "members", list: [] });
   assert.deepEqual(await removed, []);
+});
+
+test("TURN эрхийг хугацаа дуусахаас өмнө шинэчилнэ", async () => {
+  assert.equal(iceRefreshMs(7200), 5400_000);
+  assert.equal(iceRefreshMs(600), 60_000);
+  let requests = 0;
+  let applied = 0;
+  const keeper = createIceKeeper(() => ({
+    signal: { command: () => (requests++, true) },
+    mesh: { refresh: () => applied++ },
+  }));
+  const stun = keeper.servers();
+  keeper.take({ ice: [], life: 7200 });
+  keeper.take({ ice: [{ urls: ["turn:t"] }], life: 0 });
+  assert.equal(keeper.servers(), stun);
+  assert.equal(applied, 0);
+  const turn = [{ urls: ["turn:t"], username: "u", credential: "c" }];
+  keeper.take({ ice: turn, life: 7200 });
+  assert.equal(keeper.servers(), turn);
+  assert.equal(applied, 1);
+  keeper.stop();
+  assert.equal(requests, 0);
 });
 
 test("сэрэх үед холболт тогтохыг хүлээгээд дараа нь илгээнэ", async () => {

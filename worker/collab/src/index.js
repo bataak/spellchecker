@@ -18,8 +18,9 @@ const MAX_SIGNAL = 64 * 1024;
 const MAX_SNAPSHOT = 1900 * 1024;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ROOM_TTL_MS = 90 * DAY_MS;
-const TURN_TTL_S = 24 * 60 * 60;
-const TURN_REUSE_MS = 12 * 60 * 60 * 1000;
+const TURN_TTL_S = 4 * 60 * 60;
+const TURN_MIN_LIFE_MS = 2 * 60 * 60 * 1000;
+const TURN_DAILY = 2000;
 const TURN_RETRY_MS = 5 * 60 * 1000;
 const TURN_WAIT_MS = 3000;
 const GB = 1e9;
@@ -251,14 +252,33 @@ export class Room extends DurableObject {
   }
 
   async ice() {
+    if (this.peers().length < 2) return null;
     const now = Date.now();
-    if (this.turn && this.turn.until > now) return this.turn.list;
-    const list = await turnServers(this.env);
-    this.turn = {
-      list,
-      until: now + (list.length ? TURN_REUSE_MS : TURN_RETRY_MS),
+    this.turn ??= JSON.parse(this.meta("turn") ?? "null");
+    if (this.turn && this.turn.expires - now > TURN_MIN_LIFE_MS)
+      return this.offer(now);
+    if (this.retryAt > now || !this.env.TURN_KEY_TOKEN) return null;
+    const quota = this.env.QUOTA.get(this.env.QUOTA.idFromName("turn"));
+    const daily = Number(this.env.TURN_DAILY) || TURN_DAILY;
+    const list = (await quota.take(daily)) ? await turnServers(this.env) : [];
+    if (!list.length) {
+      this.retryAt = now + TURN_RETRY_MS;
+      return null;
+    }
+    this.turn = { list, expires: now + TURN_TTL_S * 1000 };
+    this.ctx.storage.sql.exec(
+      "INSERT OR REPLACE INTO meta (k, v) VALUES ('turn', ?)",
+      JSON.stringify(this.turn),
+    );
+    return this.offer(now);
+  }
+
+  offer(now) {
+    return {
+      t: "ice",
+      ice: this.turn.list,
+      life: Math.floor((this.turn.expires - now) / 1000),
     };
-    return list;
   }
 
   async fetch(request) {
@@ -270,7 +290,6 @@ export class Room extends DurableObject {
     const access = await this.admit(params, dev);
     if (access.code) return refuse(access.code, "denied");
     await this.touch();
-    const ice = await this.ice();
     const others = [];
     for (const peer of this.peers()) {
       if (peer.id !== id) {
@@ -285,17 +304,22 @@ export class Room extends DurableObject {
     const [client, server] = Object.values(pair);
     this.ctx.acceptWebSocket(server);
     server.serializeAttachment({ id, dev, owner: access.owner === true });
+    const offer = others.length ? await this.ice() : null;
     if (access.member) this.send(server, { t: "member", m: access.member });
     this.send(server, {
       t: "hi",
       id,
       peers: others.map((p) => p.id),
       s: this.shared(),
-      ice,
+      ice: offer?.ice ?? [],
+      life: offer?.life ?? 0,
     });
     for (const row of this.ctx.storage.sql.exec("SELECT data FROM snap"))
       this.send(server, row.data);
-    for (const peer of others) this.send(peer.ws, { t: "join", id });
+    for (const peer of others) {
+      this.send(peer.ws, { t: "join", id });
+      if (offer) this.send(peer.ws, offer);
+    }
     return new Response(null, { status: 101, webSocket: client });
   }
 
@@ -314,6 +338,11 @@ export class Room extends DurableObject {
       const target = this.peers().find((p) => p.id === input.to);
       if (target)
         this.send(target.ws, { t: "from", from: meta.id, d: input.d });
+      return;
+    }
+    if (input?.t === "ice") {
+      const offer = await this.ice();
+      if (offer) this.send(ws, offer);
       return;
     }
     if (input?.t === "label") return this.label(meta, input.l);
@@ -472,6 +501,28 @@ export class Room extends DurableObject {
     const sql = this.ctx.storage.sql;
     for (const table of ["snap", "meta", "invites", "members"])
       sql.exec("DELETE FROM " + table);
+  }
+}
+
+export class Quota extends DurableObject {
+  constructor(ctx, env) {
+    super(ctx, env);
+    ctx.storage.sql.exec(
+      "CREATE TABLE IF NOT EXISTS days (day TEXT PRIMARY KEY, n INTEGER NOT NULL)",
+    );
+  }
+
+  take(limit) {
+    const sql = this.ctx.storage.sql;
+    const day = new Date().toISOString().slice(0, 10);
+    const row = first(sql.exec("SELECT n FROM days WHERE day = ?", day));
+    if (row && row.n >= limit) return false;
+    sql.exec(
+      "INSERT INTO days (day, n) VALUES (?, 1) ON CONFLICT(day) DO UPDATE SET n = n + 1",
+      day,
+    );
+    sql.exec("DELETE FROM days WHERE day < ?", day);
+    return true;
   }
 }
 
