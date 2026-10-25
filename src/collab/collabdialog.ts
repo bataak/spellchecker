@@ -174,8 +174,8 @@ function memberList(
   const show = (members: Member[] | null): void => {
     counted(members ? members.filter((m) => !m.owner).length : null);
     if (!members) {
-      list.replaceChildren(element("li", "collab-members-empty", OFFLINE));
-      return;
+      list.replaceChildren();
+      return say(note, "err", OFFLINE);
     }
     const others = members.filter((m) => !m.owner);
     title.textContent = others.length > 1 ? "Хамтрагчид" : "Хамтрагч";
