@@ -33,6 +33,7 @@ export interface CollabDeps {
   readonly button: HTMLButtonElement | null;
   readonly slot: () => string;
   readonly openSlot: (name: string) => boolean;
+  readonly shareName: () => string | null;
   readonly showSlot: (slot: string) => boolean;
   readonly blocked: () => string | null;
   readonly wipe: (slot: string) => boolean;
@@ -66,6 +67,15 @@ const HOME_SCREEN_MESSAGE =
 const WIPES: ReadonlySet<SignalState> = new Set(["wiped", "purged"]);
 const TOO_LARGE_MESSAGE =
   "Бичвэр хэт том тул серверт хадгалагдсангүй. Шууд холбогдсон хүмүүстэй засвар үргэлжилнэ, харин дараа нэгдэх хүн сүүлийн хувилбарыг авахгүй.";
+
+export function joinName(
+  file: string | null,
+  tex: boolean,
+  markdown: boolean,
+): string {
+  if (file) return file;
+  return JOIN_NAME + (tex ? ".tex" : markdown ? ".md" : ".txt");
+}
 
 export function shareUrl(link: InviteLink, base: string): string {
   return base.replace(/#.*$/, "") + linkHash(link);
@@ -199,7 +209,7 @@ function joinRoom(
   const known = roomById(rooms, link.room);
   if (known && deps.showSlot(known.slot)) return [...rooms];
   const rest = known ? withoutRoom(rooms, known.room) : rooms;
-  if (!deps.openSlot(JOIN_NAME)) {
+  if (!deps.openSlot(link.name ?? JOIN_NAME)) {
     deps.notify(
       "Шинэ файлын талбар нээх боломжгүй. Нэг файлаа хаагаад дахин оролдоно уу.",
     );
@@ -235,6 +245,7 @@ function showDialog(
   registry: Registry,
   stop: () => void,
   begin: (() => void) | null,
+  name: string | null,
 ): void {
   openDialog({
     owner: isOwner(entry),
@@ -245,7 +256,10 @@ function showDialog(
       return registry.open(entry, false);
     },
     inviteUrl: (invite) =>
-      shareUrl({ room: entry.room, key: entry.key, invite }, location.href),
+      shareUrl(
+        { room: entry.room, key: entry.key, invite, ...(name && { name }) },
+        location.href,
+      ),
     name: loadProfile(deviceId()).name,
     tip: needsHomeScreen() ? HOME_SCREEN_MESSAGE : null,
     rename(name) {
@@ -270,7 +284,8 @@ function openShare(
   adopt: (draft: RoomEntry) => void,
 ): void {
   const entry = roomOfSlot(rooms, deps.slot());
-  if (entry) return showDialog(entry, registry, () => stop(entry), null);
+  const name = deps.shareName();
+  if (entry) return showDialog(entry, registry, () => stop(entry), null, name);
   const reason = deps.blocked();
   if (reason) return deps.notify(reason);
   const draft = ownedRoom(deps.slot());
@@ -279,6 +294,7 @@ function openShare(
     registry,
     () => stop(draft),
     () => adopt(draft),
+    name,
   );
 }
 

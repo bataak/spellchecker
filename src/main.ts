@@ -39,6 +39,7 @@ import { initAppUpdate } from "./app/appupdate.ts";
 import { initShortcuts } from "./ui/shortcuts.ts";
 import { createButtonCommands } from "./ui/commands.ts";
 import { installErrorLog } from "./core/errorlog.ts";
+import { saveDraftFile } from "./core/storage.ts";
 import { createEditorPort } from "./app/ports.ts";
 import { createDocStatus } from "./app/docstatus.ts";
 import { createCheckLoop } from "./app/checkloop.ts";
@@ -64,7 +65,8 @@ import { nextFrame, queryShell } from "./app/dom.ts";
 import { bindArming, bindEditorInput } from "./app/editorinput.ts";
 import { createMarkupMode } from "./app/markupmode.ts";
 import { createLastCaret } from "./app/lastcaret.ts";
-import { initCollab } from "./collab/collab.ts";
+import { initCollab, joinName } from "./collab/collab.ts";
+import { sharedName } from "./collab/collabkey.ts";
 import { PROJECT_SLOT } from "./slots/fileslots.ts";
 
 installErrorLog();
@@ -528,15 +530,22 @@ const collab = initCollab({
   },
   button: document.querySelector<HTMLButtonElement>("#collabBtn"),
   slot: () => mdBar.slot(),
-  openSlot: (name) => mdBar.openFile(name),
+  openSlot: (name) => {
+    if (!mdBar.openFile(name)) return false;
+    saveDraftFile({ name, kind: "text" }, mdBar.slot());
+    doc.open(name);
+    return true;
+  },
+  shareName: () => joinName(doc.fileName(), isTexFile(), doc.markdownActive()),
   showSlot: (slot) => {
     if (!mdBar.fileSlots().some((file) => file.id === slot)) return false;
     mdBar.showFile(slot);
     return true;
   },
   blocked: () => {
-    if (officeActive())
-      return "Word, PowerPoint файлыг хамтран засах боломжгүй. Бичвэр болгон хуулж хуваалцана уу.";
+    const file = doc.fileName();
+    if (officeActive() || (file !== null && !sharedName(file)))
+      return "Энэ төрлийн файлыг хамтран засах боломжгүй. Зөвхөн txt, md, tex файл болон LaTeX төслийг хуваалцана.";
     if (mdBar.slot() === PROJECT_SLOT)
       return "LaTeX төслийг хамтран засах боломж удахгүй нэмэгдэнэ.";
     return null;
