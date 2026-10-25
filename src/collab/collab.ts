@@ -1,6 +1,6 @@
 import { KEYS, read, readJson, write, writeJson } from "../core/store.ts";
 import { noteError } from "../core/errorlog.ts";
-import { onSwap, swapOrigin } from "../editor/editortext.ts";
+import { onSwap, swapOrigin, type SwapOrigin } from "../editor/editortext.ts";
 import {
   linkHash,
   newLink,
@@ -235,12 +235,14 @@ function joinRoom(
   const rest = known ? withoutRoom(rooms, known.room) : rooms;
   if (link.name && isProjectName(link.name)) {
     const uid = invitedUid(link.room);
-    if (!deps.project?.prepare(link.name.slice(0, -1), uid)) return null;
+    const joining = link.name.slice(0, -1);
+    if (!deps.project?.prepare(joining, uid)) return null;
     return withRoom(rest, {
       slot: slotKey(projectSlot(uid)),
       room: link.room,
       key: link.key,
       access: { kind: "i", token: link.invite },
+      joining,
     });
   }
   if (!deps.openSlot(link.name ?? JOIN_NAME)) {
@@ -338,9 +340,66 @@ const DISABLED: Collab = {
   projectChanged: () => {},
 };
 
-function openProjectRoom(registry: Registry, entry: RoomEntry | null): void {
+function openProjectRoom(
+  registry: Pick<Registry, "open">,
+  entry: RoomEntry | null,
+): void {
   if (entry && parseSlot(entry.slot).kind === "project")
     void registry.open(entry, false);
+}
+
+export function arrived(
+  rooms: readonly RoomEntry[],
+  uid: string | null,
+): RoomEntry[] | null {
+  const entry = uid ? roomOfSlot(rooms, projectSlot(uid)) : null;
+  if (!entry?.joining) return null;
+  const { joining: _done, ...rest } = entry;
+  return withRoom(rooms, rest);
+}
+
+export function resumeJoins(
+  rooms: readonly RoomEntry[],
+  deps: CollabDeps,
+  registry: Pick<Registry, "open">,
+  drop: (entry: RoomEntry) => void,
+): void {
+  for (const entry of rooms) {
+    const slot = parseSlot(entry.slot);
+    if (!entry.joining || slot.kind !== "project") continue;
+    if (deps.project?.uid() === slot.uid) continue;
+    if (deps.project?.prepare(entry.joining, slot.uid))
+      openProjectRoom(registry, entry);
+    else drop(entry);
+  }
+}
+
+interface Triggers {
+  swapped(origin: SwapOrigin): void;
+  edited(): void;
+  share(): void;
+  hash(): void;
+}
+
+function bindTriggers(
+  button: HTMLButtonElement,
+  editor: HTMLTextAreaElement,
+  on: Triggers,
+): void {
+  onSwap(on.swapped);
+  editor.addEventListener("input", (event) => {
+    if (swapOrigin(event) !== null) on.edited();
+  });
+  button.addEventListener("click", on.share);
+  window.addEventListener("hashchange", on.hash);
+}
+
+function inProjectRoom(
+  rooms: readonly RoomEntry[],
+  active: string | null,
+): boolean {
+  const slot = active ? roomById(rooms, active)?.slot : undefined;
+  return !!slot && parseSlot(slot).kind === "project";
 }
 
 function projectRoom(
@@ -360,7 +419,10 @@ export function initCollab(deps: CollabDeps): Collab {
   let active: string | null = null;
   let started = false;
 
-  const store = (): boolean => writeJson(KEYS.collabRooms, rooms);
+  const save = (next: RoomEntry[]): void => {
+    rooms = next;
+    writeJson(KEYS.collabRooms, rooms);
+  };
 
   const paint = (): void =>
     paintButton(button, roomOfSlot(rooms, deps.slot()), registry);
@@ -371,8 +433,7 @@ export function initCollab(deps: CollabDeps): Collab {
     notify: deps.notify,
     access: (room) => roomById(rooms, room)?.access ?? null,
     granted(room, token) {
-      rooms = withAccess(rooms, room, { kind: "m", token });
-      store();
+      save(withAccess(rooms, room, { kind: "m", token }));
     },
     ended: (room, state) => {
       const entry = roomById(rooms, room);
@@ -398,13 +459,14 @@ export function initCollab(deps: CollabDeps): Collab {
       });
     }
     openProjectRoom(registry, projectRoom(rooms, deps));
+    const next = arrived(rooms, deps.project?.uid() ?? null);
+    if (next) save(next);
     paint();
   };
 
   const stop = (entry: RoomEntry): void => {
     if (active === entry.room) detach();
-    rooms = withoutRoom(rooms, entry.room);
-    store();
+    save(withoutRoom(rooms, entry.room));
     registry.close(entry.room);
     paint();
   };
@@ -415,30 +477,27 @@ export function initCollab(deps: CollabDeps): Collab {
     history.replaceState(null, "", location.pathname + location.search);
     const next = joinRoom(rooms, link, deps);
     if (!next) return;
-    rooms = next;
-    store();
+    save(next);
     sync();
     openProjectRoom(registry, roomById(rooms, link.room));
   };
 
   const share = (): void =>
     openShare(rooms, deps, registry, stop, (draft) => {
-      rooms = withRoom(rooms, draft);
-      store();
+      save(withRoom(rooms, draft));
       sync(true);
     });
 
-  onSwap((origin) => {
-    const slot = active ? roomById(rooms, active)?.slot : undefined;
-    if (origin !== "project" || !slot || parseSlot(slot).kind !== "project")
-      detach();
-  });
-  editor.addEventListener("input", (event) => {
-    if (started && swapOrigin(event) !== null) sync();
-  });
-  button.addEventListener("click", share);
-  window.addEventListener("hashchange", () => {
-    if (started) takeHash();
+  const whenStarted = (run: () => void) => (): void => {
+    if (started) run();
+  };
+  bindTriggers(button, editor, {
+    swapped(origin) {
+      if (origin !== "project" || !inProjectRoom(rooms, active)) detach();
+    },
+    edited: whenStarted(() => sync()),
+    share,
+    hash: whenStarted(takeHash),
   });
   button.hidden = false;
   paint();
@@ -448,6 +507,7 @@ export function initCollab(deps: CollabDeps): Collab {
       if (started) return;
       started = true;
       sync();
+      resumeJoins(rooms, deps, registry, stop);
       takeHash();
     },
     forget(slot) {
@@ -455,8 +515,6 @@ export function initCollab(deps: CollabDeps): Collab {
       if (entry) stop(entry);
       return entry !== null;
     },
-    projectChanged() {
-      if (started) sync();
-    },
+    projectChanged: whenStarted(() => sync()),
   };
 }

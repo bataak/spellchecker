@@ -11,6 +11,7 @@ export interface Access {
 export interface RoomEntry extends CollabLink {
   readonly slot: string;
   readonly access: Access;
+  readonly joining?: string;
 }
 
 const ID = /^[A-Za-z0-9_-]+$/;
@@ -28,7 +29,10 @@ export function parseRooms(value: unknown): RoomEntry[] {
   const out: RoomEntry[] = [];
   for (const item of value) {
     if (!item || typeof item !== "object") continue;
-    const { slot, room, key, access } = item as Record<string, unknown>;
+    const { slot, room, key, access, joining } = item as Record<
+      string,
+      unknown
+    >;
     if (typeof slot !== "string" || slot === "") continue;
     if (typeof room !== "string" || !ID.test(room)) continue;
     if (typeof key !== "string" || !ID.test(key)) continue;
@@ -36,7 +40,8 @@ export function parseRooms(value: unknown): RoomEntry[] {
     if (!parsed) continue;
     if (out.some((entry) => entry.slot === slot || entry.room === room))
       continue;
-    out.push({ slot, room, key, access: parsed });
+    const entry = { slot, room, key, access: parsed };
+    out.push(typeof joining === "string" ? { ...entry, joining } : entry);
   }
   return out;
 }
