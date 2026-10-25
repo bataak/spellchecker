@@ -13,6 +13,7 @@ import {
   type BlobRef,
 } from "./projectdoc.ts";
 import { BRIDGE } from "./projectbridge.ts";
+import { SwapClosed } from "./blobswap.ts";
 
 export interface BlobPort {
   binaries(): ReadonlyMap<string, Uint8Array> | null;
@@ -98,6 +99,10 @@ function writeLocal(
   }, BRIDGE);
 }
 
+function unlessClosed(error: unknown): void {
+  if (!(error instanceof SwapClosed)) noteError(error);
+}
+
 function synced(
   doc: Y.Doc,
   now: ReadonlyMap<string, string>,
@@ -162,7 +167,7 @@ export function createBlobBridge(
     }
     want(ref.hash, ref.size).then(
       (bytes) => place(path, ref, bytes),
-      noteError,
+      unlessClosed,
     );
   };
 
