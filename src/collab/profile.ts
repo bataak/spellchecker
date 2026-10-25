@@ -1,5 +1,4 @@
 import { KEYS, read, write } from "../core/store.ts";
-import type { Profile } from "./cursors.ts";
 
 const NAMES = [
   "Чоно",
@@ -23,6 +22,11 @@ const NAMES = [
   "Бамбар",
   "Хярс",
 ];
+export interface Profile {
+  readonly name: string;
+  readonly color: number;
+}
+
 const COLORS = 8;
 export const MAX_NAME = 40;
 

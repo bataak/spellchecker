@@ -1,5 +1,6 @@
 import * as Y from "yjs";
-import { dropDoc, loadDoc, saveDoc } from "./docstore.ts";
+import { docKey, loadDoc, saveDoc } from "./docstore.ts";
+import { createSaver, whenHidden } from "./persistence.ts";
 import { MAX_CHAT_TEXT, MAX_MESSAGES, type MineStore } from "./chat.ts";
 
 export interface ChatDoc {
@@ -8,12 +9,8 @@ export interface ChatDoc {
   close(forget: boolean): Promise<void>;
 }
 
-const SAVE_MS = 2000;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
-
-export const chatKey = (room: string): string => "chat:" + room;
-export const mineKey = (room: string): string => "mine:" + room;
 
 function readMine(bytes: Uint8Array | null): Map<string, string> {
   if (!bytes) return new Map();
@@ -43,47 +40,33 @@ function mineStore(room: string, sent: Map<string, string>): MineStore {
         if (sent.size <= MAX_MESSAGES) break;
         sent.delete(old);
       }
-      void saveDoc(mineKey(room), encoder.encode(JSON.stringify([...sent])));
+      void saveDoc(
+        docKey.mine(room),
+        encoder.encode(JSON.stringify([...sent])),
+      );
     },
   };
-}
-
-export async function forgetChat(room: string): Promise<void> {
-  await dropDoc(chatKey(room));
-  await dropDoc(mineKey(room));
 }
 
 export async function openChatDoc(room: string): Promise<ChatDoc> {
   const doc = new Y.Doc();
   const [stored, sent] = await Promise.all([
-    loadDoc(chatKey(room)),
-    loadDoc(mineKey(room)),
+    loadDoc(docKey.chat(room)),
+    loadDoc(docKey.mine(room)),
   ]);
   if (stored) Y.applyUpdate(doc, stored);
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  const save = (): Promise<void> => {
-    if (timer) clearTimeout(timer);
-    timer = null;
-    return saveDoc(chatKey(room), Y.encodeStateAsUpdate(doc));
-  };
-  const soon = (): void => {
-    timer ??= setTimeout(() => void save(), SAVE_MS);
-  };
-  const hidden = (): void => {
-    if (document.visibilityState === "hidden" && timer) void save();
-  };
+  const saver = createSaver(doc, docKey.chat(room));
+  const soon = (): void => saver.soon();
   doc.on("update", soon);
-  document.addEventListener("visibilitychange", hidden);
+  const unwatch = whenHidden(() => void saver.now());
   return {
     doc,
     mine: mineStore(room, readMine(sent)),
     async close(forget) {
       doc.off("update", soon);
-      document.removeEventListener("visibilitychange", hidden);
-      if (forget) {
-        if (timer) clearTimeout(timer);
-        await forgetChat(room);
-      } else await save();
+      unwatch();
+      if (forget) saver.cancel();
+      else await saver.now();
       doc.destroy();
     },
   };

@@ -7,8 +7,8 @@ import {
 } from "./projectdoc.ts";
 import { createProjectBridge, type ProjectPort } from "./projectbridge.ts";
 import { createCursors, type CursorView, type Cursors } from "./cursors.ts";
-import type { Profile } from "./cursors.ts";
-import type { Attacher } from "./roomdoc.ts";
+import type { Profile } from "./profile.ts";
+import type { Attacher } from "./attacher.ts";
 import { createBlobBridge, type BlobPort } from "./projectblobs.ts";
 import {
   createBlobSwap,

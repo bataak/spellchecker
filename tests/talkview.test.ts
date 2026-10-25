@@ -2,18 +2,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as Y from "yjs";
 import { installDom } from "./helpers/dom.ts";
-import { createChat, type MineStore } from "../src/collab/chat.ts";
+import { memoryMine } from "./helpers/memorymine.ts";
+import { createChat } from "../src/collab/chat.ts";
 
-function memoryMine(): MineStore {
-  const sent = new Map<string, string>();
-  return {
-    has: (id, text) => sent.get(id) === text,
-    add: (id, text) => void sent.set(id, text),
-  };
-}
 import type { Change } from "../src/collab/changes.ts";
 import type { ChangeTracker } from "../src/collab/changetracker.ts";
-import type { Talk } from "../src/collab/roomdoc.ts";
+import type { Talk } from "../src/collab/talk.ts";
 import {
   changeTitle,
   changesCount,
@@ -247,4 +241,42 @@ test("төслийн самбарт товч нэмж, бусад бичвэрт
   notify();
   assert.equal(trigger.hidden, true);
   assert.ok(toggles.every((node) => node.hidden));
+});
+
+test("бичвэр солигдоход chat-ийн сонсогч давхардахгүй", () => {
+  const first = fakeTalk(false);
+  const second = fakeTalk(false);
+  let active = 0;
+  const counted = (talk: Talk): Talk => ({
+    ...talk,
+    chat: {
+      ...talk.chat,
+      onChange(listener) {
+        active++;
+        const off = talk.chat.onChange(listener);
+        return () => {
+          active--;
+          off();
+        };
+      },
+    },
+  });
+  const talks = [counted(first.talk), counted(second.talk)];
+  let current: Talk | null = talks[0]!;
+  let notify = (): void => {};
+  initTalk({
+    collab: {
+      talk: (kind) => (kind === "file" ? current : null),
+      onTalk: (listener) => void (notify = listener),
+    },
+    editor: document.querySelector<HTMLTextAreaElement>("#editor")!,
+    openPath: () => {},
+    anchor: null,
+  });
+  const base = active;
+  for (let round = 0; round < 5; round++) {
+    current = talks[round % 2]!;
+    notify();
+  }
+  assert.equal(active, base);
 });
