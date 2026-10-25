@@ -194,6 +194,7 @@ test("төслийн самбарт товч нэмж, бусад бичвэрт
   assert.equal(pair.hidden, true);
   const trigger = document.querySelector<HTMLButtonElement>(".talk-trigger")!;
   assert.equal(trigger.hidden, true);
+  assert.equal(trigger.textContent!.trim(), "Хэлэлцэх");
 
   talks.project = project.talk;
   talks.file = file.talk;
