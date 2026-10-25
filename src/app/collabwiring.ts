@@ -209,6 +209,8 @@ export function createCollabWiring(deps: CollabWiringDeps): Collab {
     editor: deps.editor,
     openPath: (path) => deps.project.openPath(path),
     anchor: document.querySelector("#collabBtn"),
+    workspace: document.querySelector(".workspace"),
+    editorWrap: document.querySelector(".editor-wrap"),
   });
   return collab;
 }

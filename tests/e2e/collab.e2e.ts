@@ -103,13 +103,13 @@ test("git төслийг хуваалцахад хамтрагчийн засв�
   await change.waitFor({ timeout: 15000 });
   assert.equal(await change.locator(".talk-change-path").innerText(), "ch.tex");
   assert.equal(await owner.locator(".project-tree").isVisible(), false);
-  await owner.click('.project-foot .talk-toggle[aria-label="Хэлэлцэх"]');
+  await owner.click('.project-foot .talk-toggle[aria-label="Хэлэлцүүлэг"]');
   await owner.locator(".project-talk .talk-input").fill("Шалгалаа");
   await owner.keyboard.press("Enter");
   await guest
-    .locator('.project-foot .talk-toggle[aria-label="Хэлэлцэх"] .talk-badge')
+    .locator('.project-foot .talk-toggle[aria-label="Хэлэлцүүлэг"] .talk-badge')
     .waitFor({ timeout: 15000 });
-  await owner.click('.project-foot .talk-toggle[aria-label="Хэлэлцэх"]');
+  await owner.click('.project-foot .talk-toggle[aria-label="Хэлэлцүүлэг"]');
   assert.equal(await owner.locator(".project-tree").isVisible(), true);
 
   await commit(owner);
