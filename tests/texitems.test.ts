@@ -50,3 +50,16 @@ test("itemEdit: сонгосон хэсгийг шинэ \\item-ээр соли�
     caret: text.length - 2 + 7,
   });
 });
+
+test("itemEdit: % тайлбар доторх жагсаалтын тэмдгийг тоохгүй", () => {
+  assert.equal(
+    apply("\\begin{itemize}\n  \\item a\n  % \\end{itemize}\n  \\item b|"),
+    "\\begin{itemize}\n  \\item a\n  % \\end{itemize}\n  \\item b\n  \\item |",
+  );
+  assert.equal(apply("% \\begin{enumerate}\nЭнгийн мөр|"), null);
+  assert.equal(
+    apply("\\begin{itemize}\n  % \\item тайлбар\n\\item 50\\% нь|"),
+    "\\begin{itemize}\n  % \\item тайлбар\n\\item 50\\% нь\n\\item |",
+  );
+  assert.equal(apply("\\\\% \\begin{itemize}\nмөр|"), null);
+});
