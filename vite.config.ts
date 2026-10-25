@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 import { readFileSync, readdirSync, rmSync } from "node:fs";
 import { execSync } from "node:child_process";
+import { resolve } from "node:path";
 import type { Plugin, ResolvedConfig } from "vite";
 import { stardictIndex } from "./vite-stardict.ts";
 import { attempt } from "./src/core/attempt.ts";
@@ -21,11 +22,17 @@ const svgPdfModule = (id: string): boolean =>
   /node_modules\/(?:jspdf|svg2pdf\.js|html2canvas|dompurify|canvg)\//.test(id);
 
 function packDict(): Plugin {
+  let outDir = "dist";
   return {
     name: "pack-dict",
     apply: "build",
+    configResolved(cfg: ResolvedConfig) {
+      outDir = resolve(cfg.root, cfg.build.outDir || "dist");
+    },
     writeBundle() {
-      execSync("sh pack-dict.sh", { stdio: "inherit" });
+      execSync("sh pack-dict.sh " + JSON.stringify(outDir), {
+        stdio: "inherit",
+      });
     },
   };
 }
