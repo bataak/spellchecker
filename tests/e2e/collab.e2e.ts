@@ -10,7 +10,7 @@ import {
   until,
   type App,
 } from "./harness.ts";
-import { startCollab, type CollabServer } from "./collabserver.ts";
+import { startCollab, type CollabServer } from "../helpers/collabserver.ts";
 import { FakeGithub } from "../helpers/fakegithub.ts";
 import { MAIN, commit, openMore, openPanel, rows } from "./gitsteps.ts";
 
