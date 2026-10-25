@@ -5,11 +5,14 @@ export interface CollabLink {
 
 export interface InviteLink extends CollabLink {
   readonly invite: string;
+  readonly name?: string;
 }
 
 export const TOKEN = /^[A-Za-z0-9_-]{22}$/;
 const LINK =
-  /^#?collab=([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{43})\.([A-Za-z0-9_-]{22})$/;
+  /^#?collab=([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{43})\.([A-Za-z0-9_-]{22})(?:\.([A-Za-z0-9_-]{1,400}))?$/;
+const SHARED_NAME = /\.(txt|text|md|markdown|mdown|tex|ltx)$/i;
+const MAX_NAME = 120;
 const IV_BYTES = 12;
 
 export function toBase64Url(bytes: Uint8Array): string {
@@ -40,13 +43,40 @@ export function newToken(): string {
   return randomId(16);
 }
 
+export function sharedName(name: string): boolean {
+  return (
+    name.length <= MAX_NAME &&
+    SHARED_NAME.test(name) &&
+    !/[/\\:*?"<>|\u0000-\u001f]/.test(name)
+  );
+}
+
+function readName(encoded: string | undefined): string | null {
+  if (!encoded) return null;
+  try {
+    const name = new TextDecoder("utf-8", { fatal: true }).decode(
+      fromBase64Url(encoded),
+    );
+    return sharedName(name) ? name : null;
+  } catch {
+    return null;
+  }
+}
+
 export function parseLink(hash: string): InviteLink | null {
   const match = LINK.exec(hash);
-  return match ? { room: match[1]!, key: match[2]!, invite: match[3]! } : null;
+  if (!match) return null;
+  const link = { room: match[1]!, key: match[2]!, invite: match[3]! };
+  const name = readName(match[4]);
+  return name ? { ...link, name } : link;
 }
 
 export function linkHash(link: InviteLink): string {
-  return "#collab=" + link.room + "." + link.key + "." + link.invite;
+  const name =
+    link.name && sharedName(link.name)
+      ? "." + toBase64Url(new TextEncoder().encode(link.name))
+      : "";
+  return "#collab=" + link.room + "." + link.key + "." + link.invite + name;
 }
 
 export function importKey(key: string): Promise<CryptoKey> {

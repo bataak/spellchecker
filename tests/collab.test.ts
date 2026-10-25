@@ -14,6 +14,7 @@ import {
   newToken,
   parseLink,
   seal,
+  sharedName,
   toBase64Url,
   unseal,
 } from "../src/collab/collabkey.ts";
@@ -35,7 +36,7 @@ import {
   roomUrl,
   uploadAt,
 } from "../src/collab/session.ts";
-import { buttonLabel } from "../src/collab/collab.ts";
+import { buttonLabel, joinName } from "../src/collab/collab.ts";
 import { rebaseLocal } from "../src/collab/textbind.ts";
 import { directServers, shouldRecall } from "../src/collab/mesh.ts";
 import {
@@ -79,6 +80,24 @@ test("курсорын байрлалыг бусдын засвараар шил
   assert.equal(mapOffset(changes, 10), 10);
 });
 
+test("зөвхөн txt, md, tex файлыг хуваалцана", () => {
+  for (const name of ["a.txt", "b.MD", "c.markdown", "d.tex", "e.ltx"])
+    assert.equal(sharedName(name), true, name);
+  for (const name of [
+    "a.pdf",
+    "b.docx",
+    "c.odt",
+    "d",
+    "e/f.md",
+    "x".repeat(200) + ".md",
+  ])
+    assert.equal(sharedName(name), false, name);
+  assert.equal(joinName("notes.md", false, true), "notes.md");
+  assert.equal(joinName(null, true, false), "Хамтын бичвэр.tex");
+  assert.equal(joinName(null, false, true), "Хамтын бичвэр.md");
+  assert.equal(joinName(null, false, false), "Хамтын бичвэр.txt");
+});
+
 test("хамтын холбоосыг задлах, үүсгэх", () => {
   const link = { ...newLink(), invite: newToken() };
   assert.equal(link.room.length, 22);
@@ -88,6 +107,15 @@ test("хамтын холбоосыг задлах, үүсгэх", () => {
   assert.equal(parseLink("#collab=" + link.room + "." + link.key), null);
   assert.equal(parseLink("#collab=short.key"), null);
   assert.equal(parseLink(""), null);
+  const named = { ...link, name: "Тайлан 2026.md" };
+  assert.deepEqual(parseLink(linkHash(named)), named);
+  const tex = { ...link, name: "paper.tex" };
+  assert.deepEqual(parseLink(linkHash(tex)), tex);
+  assert.deepEqual(parseLink(linkHash({ ...link, name: "a.pdf" })), link);
+  const forged = linkHash(link) + "." + toBase64Url(new Uint8Array([255]));
+  assert.deepEqual(parseLink(forged), link);
+  const slashed = toBase64Url(new TextEncoder().encode("../x.md"));
+  assert.deepEqual(parseLink(linkHash(link) + "." + slashed), link);
   const bytes = new Uint8Array([0, 250, 251, 252, 253, 254, 255]);
   assert.deepEqual(fromBase64Url(toBase64Url(bytes)), bytes);
 });
