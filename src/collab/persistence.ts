@@ -104,24 +104,22 @@ export function createUploader(deps: UploaderDeps, dirty: boolean): Uploader {
 
 export interface Saver {
   soon(): void;
-  now(): void;
+  now(): Promise<void>;
   cancel(): void;
 }
 
 export function createSaver(doc: Y.Doc, room: string): Saver {
   let timer: ReturnType<typeof setTimeout> | null = null;
-  const now = (): void => {
+  const now = (): Promise<void> => {
     if (timer) clearTimeout(timer);
     timer = null;
-    void saveDoc(room, Y.encodeStateAsUpdate(doc));
+    return saveDoc(room, Y.encodeStateAsUpdate(doc));
   };
   return {
     soon() {
-      timer ??= setTimeout(now, SAVE_MS);
+      timer ??= setTimeout(() => void now(), SAVE_MS);
     },
-    now() {
-      if (timer) now();
-    },
+    now: () => (timer ? now() : Promise.resolve()),
     cancel() {
       if (timer) clearTimeout(timer);
       timer = null;
@@ -129,12 +127,17 @@ export function createSaver(doc: Y.Doc, room: string): Saver {
   };
 }
 
-export function flushWhenHidden(saver: Saver, uploader: Uploader): () => void {
+export function whenHidden(run: () => void): () => void {
   const flush = (): void => {
-    if (document.visibilityState !== "hidden") return;
-    saver.now();
-    if (uploader.dirty()) void uploader.run();
+    if (document.visibilityState === "hidden") run();
   };
   document.addEventListener("visibilitychange", flush);
   return () => document.removeEventListener("visibilitychange", flush);
+}
+
+export function flushWhenHidden(saver: Saver, uploader: Uploader): () => void {
+  return whenHidden(() => {
+    void saver.now();
+    if (uploader.dirty()) void uploader.run();
+  });
 }

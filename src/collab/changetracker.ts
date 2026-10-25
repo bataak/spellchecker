@@ -1,6 +1,6 @@
 import type * as Y from "yjs";
 import { createEmitter } from "../core/emitter.ts";
-import { dropDoc, loadDoc, saveDoc } from "./docstore.ts";
+import { docKey, loadDoc, saveDoc } from "./docstore.ts";
 import {
   acceptKey,
   changesOf,
@@ -32,12 +32,6 @@ const QUIET_MS = 3000;
 const LONGEST_MS = 10_000;
 const NOTIFY_MS = 150;
 
-export const baseKey = (room: string): string => "base:" + room;
-
-export function forgetBaseline(room: string): Promise<void> {
-  return dropDoc(baseKey(room));
-}
-
 function hasContent(texts: ReadonlyMap<string | null, Y.Text>): boolean {
   for (const text of texts.values()) if (text.length) return true;
   return false;
@@ -64,7 +58,7 @@ export function createChangeTracker(deps: TrackerDeps): ChangeTracker {
 
   const keep = (next: Baseline): void => {
     base = next;
-    void saveDoc(baseKey(room), encodeBaseline(next));
+    void saveDoc(docKey.baseline(room), encodeBaseline(next));
     notify();
   };
 
@@ -89,7 +83,7 @@ export function createChangeTracker(deps: TrackerDeps): ChangeTracker {
   };
   doc.on("update", onUpdate);
 
-  void loadDoc(baseKey(room)).then((bytes) => {
+  void loadDoc(docKey.baseline(room)).then((bytes) => {
     if (destroyed || base) return;
     const stored = bytes && decodeBaseline(bytes);
     if (stored) {

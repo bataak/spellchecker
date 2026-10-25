@@ -53,3 +53,14 @@ export async function dropDoc(room: string): Promise<void> {
     noteError(error);
   }
 }
+
+export const docKey = {
+  baseline: (room: string): string => "base:" + room,
+  chat: (room: string): string => "chat:" + room,
+  mine: (room: string): string => "mine:" + room,
+} as const;
+
+export async function dropRoom(room: string): Promise<void> {
+  const keys = [room, ...Object.values(docKey).map((key) => key(room))];
+  await Promise.all(keys.map(dropDoc));
+}
