@@ -2,7 +2,7 @@
 set -e
 root="$(dirname "$0")"
 src="$root/public/dict"
-out="$root/dist/dict"
+out="${1:-$root/dist}/dict"
 
 mkdir -p "$out"
 rm -f "$out"/*.gz "$out/dict-manifest.json"
@@ -29,10 +29,10 @@ for id in mn_MN en_GB en_US; do
 
   entry="{\"id\":\"$id\",\"version\":\"$(json_escape "$ver")\",\"aff\":\"$aff_out\",\"dic\":\"$dic_out\"}"
   entries="$entries${entries:+,}$entry"
-  echo "Үүсгэв: dist/dict/$aff_out, dist/dict/$dic_out (v$ver)"
+  echo "Үүсгэв: $out/$aff_out, $out/$dic_out (v$ver)"
 done
  
 [ -z "$entries" ] && { echo "Толь олдсонгүй. public/dict/-д .aff/.dic байгаа эсэхээ шалга."; exit 1; }
 
 printf '{"dicts":[%s]}\n' "$entries" > "$out/dict-manifest.json"
-echo "Үүсгэв: dist/dict/dict-manifest.json"
+echo "Үүсгэв: $out/dict-manifest.json"
