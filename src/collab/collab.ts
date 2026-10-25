@@ -19,7 +19,7 @@ import { arrived, joinRoom, openProjectRoom, resumeJoins } from "./roomjoin.ts";
 import { parseSlot, projectSlot, slotKey } from "./roomslot.ts";
 import type { SessionStatus } from "./sessiontypes.ts";
 import { openShare } from "./sharedialog.ts";
-import type { SignalState } from "./signal.ts";
+import type { SignalState } from "./signalwire.ts";
 import type { Talk } from "./talk.ts";
 
 export type {

@@ -6,7 +6,7 @@ import {
   toBase64Url,
   unseal,
 } from "./collabkey.ts";
-import type { RosterEntry, SignalEvent } from "./signal.ts";
+import type { RosterEntry, SignalEvent } from "./signalwire.ts";
 
 export interface Member {
   readonly dev: string;
