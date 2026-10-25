@@ -9,6 +9,8 @@ import {
 } from "./texbundle.ts";
 import { KEYS, at } from "../core/store.ts";
 import { noteError } from "../core/errorlog.ts";
+import { auxSteps, runSteps, workerFiles } from "./texpasses.ts";
+import { decodeTexBytes } from "./texbytes.ts";
 
 export interface EngineReply {
   readonly result?: string;
@@ -27,20 +29,6 @@ export function replyPdf(reply: EngineReply): ArrayBuffer | null {
   return reply.status === ERRORS_IGNORED && !/^!/m.test(reply.log ?? "")
     ? reply.pdf
     : null;
-}
-
-function decodeTexBytes(text: string): string {
-  const bytes: number[] = [];
-  for (let i = 0; i < text.length; i += 1) {
-    const hex = /^\^\^([0-9a-f]{2})/.exec(text.slice(i, i + 4));
-    if (hex) {
-      bytes.push(Number.parseInt(hex[1]!, 16));
-      i += 3;
-    } else {
-      bytes.push(...new TextEncoder().encode(text[i]!));
-    }
-  }
-  return new TextDecoder().decode(new Uint8Array(bytes)).replace(/\uFFFD/g, "");
 }
 
 function errorPlace(log: string): string | null {
@@ -349,8 +337,14 @@ async function compileOn(
   });
   worker.postMessage({ cmd: "workdir", url: layout.workdir });
   worker.postMessage({ cmd: "setmainfile", url: layout.main });
+  const steps = auxSteps(tex);
+  const job = workerFiles(worker, layout);
   let pdf = await runOnce(worker);
-  for (let pass = 1; pass < passes; pass += 1) pdf = await runOnce(worker);
+  const total = passes + (steps.length ? 1 : 0);
+  for (let pass = 1; pass < total; pass += 1) {
+    await runSteps(steps, job);
+    pdf = await runOnce(worker);
+  }
   return pdf;
 }
 

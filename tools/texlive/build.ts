@@ -802,7 +802,9 @@ function patchEngine(js: string): string {
       'else if(cmd==="workdir"){self.workdir=data["url"]}' +
       'else if(cmd==="writetex"){FS.writeFile(TEXCACHEROOT+"/"+data["name"],data["src"])}' +
       'else if(cmd==="misses"){self.postMessage({cmd:"misses",names:[...self.texmisses]})}' +
-      'else if(cmd==="fonturl"){self.texfont_endpoint=data["url"]}',
+      'else if(cmd==="fonturl"){self.texfont_endpoint=data["url"]}' +
+      'else if(cmd==="readfile"){let src=null;try{src=FS.readFile(data["url"],{encoding:"utf8"})}catch(err){}' +
+      'self.postMessage({cmd:"readfile",url:data["url"],src:src})}',
   );
   replace(
     'console.error("Compilation failed, with status code "+status);self.postMessage({"result":"failed","status":status,"log":self.memlog,"cmd":"compile"})',
