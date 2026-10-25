@@ -39,15 +39,22 @@ export const MAX_CHAT_TEXT = 2000;
 export const MAX_CHAT_NAME = 40;
 const MAX_ID = 24;
 const MAX_COLOR = 64;
-const KEYS = 5;
+const MAX_ENTRY = 4096;
 const CHAT = "chat";
 const NO_NAME = "Нэргүй";
+
+function entrySize(value: object): number {
+  try {
+    return JSON.stringify(value).length;
+  } catch {
+    return Infinity;
+  }
+}
 
 function valid(value: unknown): value is Stored {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const v = value as Partial<Stored>;
   return (
-    Object.keys(v).length === KEYS &&
     typeof v.i === "string" &&
     v.i.length > 0 &&
     v.i.length <= MAX_ID &&
@@ -59,7 +66,8 @@ function valid(value: unknown): value is Stored {
     Number.isFinite(v.a) &&
     typeof v.t === "string" &&
     v.t.length > 0 &&
-    v.t.length <= MAX_CHAT_TEXT
+    v.t.length <= MAX_CHAT_TEXT &&
+    entrySize(value) <= MAX_ENTRY
   );
 }
 

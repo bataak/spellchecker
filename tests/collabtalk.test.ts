@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import * as Y from "yjs";
 import { installDom } from "./helpers/dom.ts";
 import {
+  acceptKey,
   changesOf,
   decodeBaseline,
   encodeBaseline,
@@ -89,12 +90,41 @@ test("өөрчлөлтийг зохиогчтой нь гаргаж, татга�
 
   b.getText("t").insert(0, "— ");
   const [first] = changesOf(a, texts, base);
-  const accepted = { ...base, accepted: new Set([first!.key]) };
+  const accepted = { ...base, accepted: new Set([acceptKey(first!)]) };
   assert.deepEqual(changesOf(a, texts, accepted), []);
   const copy = decodeBaseline(encodeBaseline(accepted))!;
-  assert.deepEqual([...copy.accepted], [first!.key]);
+  assert.deepEqual([...copy.accepted], [acceptKey(first!)]);
   assert.deepEqual(changesOf(a, texts, copy), []);
   assert.equal(decodeBaseline(new Uint8Array([1, 2])), null);
+});
+
+test("зөвшөөрсний дараах үргэлжлэл болон өөр хүний залгаа засварыг тусад нь гаргана", () => {
+  const [a, b] = pair();
+  registerAuthor(a, { name: "A", color: 1 });
+  registerAuthor(b, { name: "B", color: 2 });
+  a.getText("t").insert(0, "Сайн байна.");
+  const base = freshBaseline(a);
+  const texts = new Map([[null, a.getText("t")]]);
+  b.getText("t").insert(4, " abc");
+  const [first] = changesOf(a, texts, base);
+  const accepted = { ...base, accepted: new Set([acceptKey(first!)]) };
+  assert.deepEqual(changesOf(a, texts, accepted), []);
+  b.getText("t").insert(8, " шинэ");
+  assert.deepEqual(
+    changesOf(a, texts, accepted).map((change) => change.inserted),
+    [" abc шинэ"],
+  );
+  a.getText("t").insert(13, "!");
+  assert.deepEqual(
+    changesOf(a, texts, base).map((change) => [
+      change.inserted,
+      change.author?.name,
+    ]),
+    [
+      [" abc шинэ", "B"],
+      ["!", "A"],
+    ],
+  );
 });
 
 test("tracker анхны агуулга ирсний дараа суурь тогтоож, хадгалж, бүгдийг зөвшөөрнө", async () => {
@@ -188,6 +218,7 @@ test("chat хуурамч болон буруу оруулгыг арилгаж,
     { i: "y", n: "Ч", c: Number.NaN, a: 1, t: "өнгө" },
     { i: "z", n: "Ч", c: 1, a: 1, t: "т".repeat(3000) },
     { i: "w", n: "Ч", c: 1, a: 1, t: "илүү", x: "хог" },
+    { i: "q", n: "Ч", c: 1, a: 1, t: "т", x: "х".repeat(5000) },
     "<img src=x onerror=alert(1)>",
     new Uint8Array([0, 1, 2, 3, 4]),
     new Y.Map(),
@@ -205,11 +236,12 @@ test("chat хуурамч болон буруу оруулгыг арилгаж,
     [
       ["Жинхэнэ", true],
       ["Хуурамч", false],
+      ["илүү", false],
       ["<b>x</b>", false],
     ],
   );
-  assert.equal(mine.list()[2]!.name, "аТ");
-  assert.equal(raw.length, 4);
+  assert.equal(mine.list()[3]!.name, "аТ");
+  assert.equal(raw.length, 5);
   mine.destroy();
 });
 

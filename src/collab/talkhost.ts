@@ -103,6 +103,7 @@ function projectSide(editor: HTMLTextAreaElement): Side | null {
   head.after(side);
   let current: Views | null = null;
   let mode: TalkMode | null = null;
+  let offUnread = (): void => {};
 
   const show = (next: TalkMode | null): void => {
     mode = current ? next : null;
@@ -130,7 +131,8 @@ function projectSide(editor: HTMLTextAreaElement): Side | null {
     sync(views) {
       if (views !== current) {
         current = views;
-        current?.talk.chat.onChange(unread);
+        offUnread();
+        offUnread = views?.talk.chat.onChange(unread) ?? (() => {});
         show(views ? mode : null);
       }
       buttons.chat.hidden = buttons.changes.hidden = views === null;
@@ -181,6 +183,7 @@ function fileWindow(
 
   let current: Views | null = null;
   let mode: TalkMode = "chat";
+  let offUnread = (): void => {};
   const unread = (): void =>
     badge(
       trigger,
@@ -214,7 +217,8 @@ function fileWindow(
     sync(views) {
       if (views !== current) {
         current = views;
-        current?.talk.chat.onChange(unread);
+        offUnread();
+        offUnread = views?.talk.chat.onChange(unread) ?? (() => {});
         if (!views) win.hidden = true;
         render();
       }
