@@ -3,17 +3,23 @@ import type { ProjectHooks } from "./projectsession.ts";
 import type { RoomSlot } from "./roomslot.ts";
 import type { Talk } from "./talk.ts";
 
-export interface CollabDeps {
+export interface CollabUi {
   readonly editor: HTMLTextAreaElement;
   readonly view: CursorView;
   readonly button: HTMLButtonElement | null;
+  readonly notify: (message: string) => void;
+}
+
+export interface SlotPort {
   readonly slot: () => RoomSlot;
   readonly openSlot: (name: string) => boolean;
   readonly shareName: () => string | null;
   readonly showSlot: (slot: RoomSlot) => boolean;
   readonly blocked: () => string | null;
   readonly wipe: (slot: RoomSlot) => boolean;
-  readonly notify: (message: string) => void;
+}
+
+export interface CollabDeps extends CollabUi, SlotPort {
   readonly project: CollabProject | null;
 }
 

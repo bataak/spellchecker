@@ -15,20 +15,29 @@ export interface SessionStatus {
 
 export type SessionNotice = UploadNotice;
 
-export interface SessionDeps {
+export interface SessionLink {
   readonly link: CollabLink;
   readonly endpoint: string;
   readonly device: string;
-  readonly editor: HTMLTextAreaElement;
-  readonly seed: (() => string) | null;
-  readonly project: ProjectHooks | null;
-  readonly onStatus: (status: SessionStatus) => void;
-  readonly onNotice: (notice: SessionNotice) => void;
-  readonly view: CursorView;
-  readonly profile: () => Profile;
   readonly access: () => Access;
   readonly onAccess: (token: string) => void;
 }
+
+export interface SessionContent {
+  readonly editor: HTMLTextAreaElement;
+  readonly view: CursorView;
+  readonly seed: (() => string) | null;
+  readonly project: ProjectHooks | null;
+  readonly profile: () => Profile;
+}
+
+export interface SessionEvents {
+  readonly onStatus: (status: SessionStatus) => void;
+  readonly onNotice: (notice: SessionNotice) => void;
+}
+
+export interface SessionDeps
+  extends SessionLink, SessionContent, SessionEvents {}
 
 export interface Session {
   readonly talk: Talk;

@@ -62,7 +62,7 @@ async function keepOrDrop(
 }
 
 function sessionUploader(
-  deps: SessionDeps,
+  deps: Pick<SessionDeps, "onNotice" | "seed" | "project">,
   doc: Y.Doc,
   key: CryptoKey,
   gate: Pick<UploaderDeps, "allowed" | "send">,

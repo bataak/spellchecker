@@ -9,7 +9,7 @@ import type { Access } from "./collabrooms.ts";
 import type { IceKeeper } from "./ice.ts";
 import type { Mesh, SignalPayload } from "./mesh.ts";
 import type { Uploader } from "./persistence.ts";
-import type { SessionDeps } from "./sessiontypes.ts";
+import type { SessionContent, SessionLink } from "./sessiontypes.ts";
 import {
   openSignal,
   type Signal,
@@ -71,7 +71,7 @@ interface SignalRoute {
   readonly mesh: Mesh;
   readonly uploader: Uploader;
   readonly admin: Admin;
-  readonly deps: Pick<SessionDeps, "onAccess">;
+  readonly deps: Pick<SessionLink, "onAccess">;
   readonly ice: IceKeeper;
 }
 
@@ -161,7 +161,8 @@ export interface SessionState {
 }
 
 interface EventHandling extends Omit<SignalRoute, "mesh" | "deps"> {
-  readonly deps: Pick<SessionDeps, "onAccess" | "profile">;
+  readonly deps: Pick<SessionLink, "onAccess"> &
+    Pick<SessionContent, "profile">;
   readonly mesh: () => Mesh;
   readonly state: SessionState;
   readonly binding: Attacher;
@@ -170,10 +171,7 @@ interface EventHandling extends Omit<SignalRoute, "mesh" | "deps"> {
 }
 
 interface SignalWiring extends EventHandling {
-  readonly deps: Pick<
-    SessionDeps,
-    "onAccess" | "profile" | "endpoint" | "link" | "device" | "access"
-  >;
+  readonly deps: SessionLink & Pick<SessionContent, "profile">;
   readonly doc: Y.Doc;
   readonly gate: Gate;
   readonly status: () => void;

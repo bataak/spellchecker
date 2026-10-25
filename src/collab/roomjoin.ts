@@ -7,7 +7,7 @@ import {
   type RoomEntry,
 } from "./collabrooms.ts";
 import { HOME_SCREEN_MESSAGE, JOIN_NAME, NO_SLOT } from "./collabmessages.ts";
-import type { CollabDeps } from "./collabtypes.ts";
+import type { CollabDeps, SlotPort } from "./collabtypes.ts";
 import { needsHomeScreen } from "./device.ts";
 import type { Registry } from "./registry.ts";
 import { invitedUid, parseSlot, projectSlot, slotKey } from "./roomslot.ts";
@@ -15,7 +15,8 @@ import { invitedUid, parseSlot, projectSlot, slotKey } from "./roomslot.ts";
 export function joinRoom(
   rooms: readonly RoomEntry[],
   link: InviteLink,
-  deps: CollabDeps,
+  deps: Pick<SlotPort, "slot" | "showSlot" | "openSlot"> &
+    Pick<CollabDeps, "notify" | "project">,
 ): RoomEntry[] | null {
   const known = roomById(rooms, link.room);
   if (known && deps.showSlot(parseSlot(known.slot))) return [...rooms];
@@ -65,7 +66,7 @@ export function arrived(
 
 export function resumeJoins(
   rooms: readonly RoomEntry[],
-  deps: CollabDeps,
+  deps: Pick<CollabDeps, "project">,
   registry: Pick<Registry, "open">,
   drop: (entry: RoomEntry) => void,
 ): void {
