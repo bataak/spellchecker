@@ -1,16 +1,12 @@
 import * as Y from "yjs";
 import { fromBase64Url, toBase64Url } from "./collabkey.ts";
 import { CURSOR_COLORS } from "./peercolors.ts";
+import type { Profile } from "./profile.ts";
 
 export interface CursorView {
   readonly host: HTMLElement;
   readonly caretRect: (offset: number) => DOMRect | null;
   readonly rangeRects: (start: number, end: number) => DOMRect[];
-}
-
-export interface Profile {
-  readonly name: string;
-  readonly color: number;
 }
 
 export interface CursorState {

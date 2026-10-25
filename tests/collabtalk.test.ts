@@ -19,10 +19,10 @@ import {
 import { loadDoc } from "../src/collab/docstore.ts";
 import {
   createChat,
-  MAX_CHAT_NAME,
   MAX_MESSAGES,
   type MineStore,
 } from "../src/collab/chat.ts";
+import { MAX_NAME } from "../src/collab/profile.ts";
 import { chatKey, mineKey, openChatDoc } from "../src/collab/chatdoc.ts";
 
 function memoryMine(): MineStore {
@@ -214,7 +214,7 @@ test("chat хуурамч болон буруу оруулгыг арилгаж,
   const raw = b.getArray("chat");
   raw.push([
     { i: real!.id, n: "Би", c: 2, a: 1, t: "Хуурамч" },
-    { i: "x", n: "й".repeat(MAX_CHAT_NAME + 1), c: 1, a: 1, t: "урт нэр" },
+    { i: "x", n: "й".repeat(MAX_NAME + 1), c: 1, a: 1, t: "урт нэр" },
     { i: "y", n: "Ч", c: Number.NaN, a: 1, t: "өнгө" },
     { i: "z", n: "Ч", c: 1, a: 1, t: "т".repeat(3000) },
     { i: "w", n: "Ч", c: 1, a: 1, t: "илүү", x: "хог" },

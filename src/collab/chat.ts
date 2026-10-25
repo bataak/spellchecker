@@ -1,7 +1,7 @@
 import type * as Y from "yjs";
 import { createEmitter } from "../core/emitter.ts";
 import { randomId } from "./collabkey.ts";
-import type { Profile } from "./cursors.ts";
+import { MAX_NAME, type Profile } from "./profile.ts";
 import { cleanName, cleanText } from "./safetext.ts";
 
 export interface ChatMessage {
@@ -37,7 +37,6 @@ interface Stored {
 
 export const MAX_MESSAGES = 300;
 export const MAX_CHAT_TEXT = 2000;
-export const MAX_CHAT_NAME = 40;
 const MAX_ID = 24;
 const MAX_COLOR = 64;
 const MAX_ENTRY = 4096;
@@ -60,7 +59,7 @@ function valid(value: unknown): value is Stored {
     v.i.length > 0 &&
     v.i.length <= MAX_ID &&
     typeof v.n === "string" &&
-    v.n.length <= MAX_CHAT_NAME &&
+    v.n.length <= MAX_NAME &&
     Number.isInteger(v.c) &&
     v.c! >= 0 &&
     v.c! < MAX_COLOR &&
@@ -107,7 +106,7 @@ export function createChat(
       if (!text) continue;
       out.push({
         id: value.i,
-        name: cleanName(value.n, MAX_CHAT_NAME) || NO_NAME,
+        name: cleanName(value.n, MAX_NAME) || NO_NAME,
         color: value.c,
         at: value.a,
         text,
@@ -138,7 +137,7 @@ export function createChat(
       const { name, color } = profile();
       const stored: Stored = {
         i: randomId(9),
-        n: cleanName(name, MAX_CHAT_NAME),
+        n: cleanName(name, MAX_NAME),
         c: Number.isInteger(color) ? Math.abs(color) % MAX_COLOR : 0,
         a: Date.now(),
         t: body,
