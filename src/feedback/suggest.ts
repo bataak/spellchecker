@@ -1,5 +1,5 @@
 import { getSubmitted, addSubmitted } from "./submitted.ts";
-import { postSuggestion, sendBlock, sendFailure } from "./suggestsend.ts";
+import { postSuggestion, SENT, sendBlock, sendFailure } from "./suggestsend.ts";
 import type { Token } from "../spell/textcheck.ts";
 import { createTurnstileWidget, loadTurnstile } from "./turnstile.ts";
 import {
@@ -288,7 +288,7 @@ export function initSuggest(deps: SuggestDeps): void {
     });
     if (status === 201) {
       addSubmitted([...words]);
-      note("Илгээгдлээ, баярлалаа!", "ok");
+      note(SENT, "ok");
       list!.set([]);
       noteInput.value = "";
       setTimeout(closeForm, 1400);

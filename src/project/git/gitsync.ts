@@ -6,7 +6,7 @@ import {
   skippedPath,
 } from "../../tex/texproject.ts";
 import { MAX_BYTES, budget } from "../projectdisk.ts";
-import { Cancelled, ProjectError } from "../projecterror.ts";
+import { Cancelled, PROJECT_TOO_LARGE, ProjectError } from "../projecterror.ts";
 import { readText } from "../projectstate.ts";
 import {
   inBatches,
@@ -141,8 +141,7 @@ export async function loadRepo(
     async (path) => {
       const blob = await api.blob(files[path]!.sha);
       total += blob.length;
-      if (total > MAX_BYTES)
-        throw new ProjectError("Төсөл хэт том байна (200 MB-аас ихгүй)");
+      if (total > MAX_BYTES) throw new ProjectError(PROJECT_TOO_LARGE);
       return blob;
     },
     watch,

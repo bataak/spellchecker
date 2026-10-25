@@ -2,6 +2,11 @@ import { escapeAttr } from "../core/htmlutil.ts";
 
 export const ISSUES_URL =
   "https://github.com/bataak/dict-mn/issues?q=is%3Aissue%20label%3Auser-submitted";
+export const COPY_FAILED = "Хуулж чадсангүй — дахин оролдоно уу";
+
+export function copiedNote(count: number): string {
+  return count + " үг санах ойд хуулагдлаа";
+}
 
 export const FORM_TITLE = "Шинэ буюу алдаатай үг мэдэгдэх";
 const SUBMITTED_TITLE = "Мэдэгдсэн үгс";

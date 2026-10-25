@@ -4,7 +4,7 @@ import * as Y from "yjs";
 import { installDom } from "./helpers/dom.ts";
 import { bindText } from "../src/collab/textbind.ts";
 import { remoteChanges } from "../src/editor/editortext.ts";
-import { createAttacher } from "../src/collab/session.ts";
+import { createAttacher } from "../src/collab/roomdoc.ts";
 import { createProjectEditing } from "../src/collab/projectsession.ts";
 import { seedProject } from "../src/collab/projectdoc.ts";
 import {

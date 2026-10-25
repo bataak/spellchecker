@@ -34,15 +34,20 @@ import { createSync, relayTargets, type Sync } from "../src/collab/sync.ts";
 import {
   connectionControls,
   createGate,
-  isUploader,
   roomUrl,
-  uploadAt,
 } from "../src/collab/session.ts";
+import { isUploader, uploadAt } from "../src/collab/persistence.ts";
 import { buttonLabel, joinName } from "../src/collab/collab.ts";
+import {
+  fileSlot,
+  invitedUid,
+  parseSlot,
+  projectSlot,
+  slotKey,
+} from "../src/collab/roomslot.ts";
 import { rebaseLocal } from "../src/collab/textbind.ts";
 import { directServers, shouldRecall } from "../src/collab/mesh.ts";
 import {
-  keepRooms,
   parseRooms,
   roomById,
   roomOfSlot,
@@ -98,6 +103,14 @@ test("зөвхөн txt, md, tex файлыг хуваалцана", () => {
   assert.equal(joinName(null, true, false), "Хамтын бичвэр.tex");
   assert.equal(joinName(null, false, true), "Хамтын бичвэр.md");
   assert.equal(joinName(null, false, false), "Хамтын бичвэр.txt");
+});
+
+test("өрөөний слотыг түлхүүр болгож буцааж задална", () => {
+  for (const slot of [fileSlot("file-a"), projectSlot("u1"), fileSlot("")])
+    assert.deepEqual(parseSlot(slotKey(slot)), slot);
+  assert.equal(slotKey(projectSlot("u1")), "project:u1");
+  assert.equal(slotKey(fileSlot("file-a")), "file-a");
+  assert.equal(invitedUid("room"), "croom");
 });
 
 test("төслийн нэрийг холбоост тэмдэглэнэ", () => {
@@ -427,8 +440,9 @@ test("хамтын өрөөнүүдийн жагсаалтыг шалгана", 
     key: "k2",
     access: invite,
   });
-  assert.equal(roomOfSlot(more, "file-a")?.room, "r2");
-  assert.equal(isOwner(roomOfSlot(more, "file-a")!), false);
+  assert.equal(roomOfSlot(more, fileSlot("file-a"))?.room, "r2");
+  assert.equal(isOwner(roomOfSlot(more, fileSlot("file-a"))!), false);
+  assert.equal(roomOfSlot(more, projectSlot("file-a")), null);
   assert.equal(roomById(more, "r1")?.slot, "plain");
   assert.equal(withoutRoom(more, "r1").length, 1);
   const member = { kind: "m", token: "C".repeat(22) } as const;
@@ -440,9 +454,6 @@ test("хамтын өрөөнүүдийн жагсаалтыг шалгана", 
     roomById(withAccess(more, "r2", member), "r1")?.access,
     owner,
   );
-  assert.deepEqual(keepRooms(more, new Set(["file-a"])), [
-    { slot: "file-a", room: "r2", key: "k2", access: invite },
-  ]);
   assert.deepEqual(parseRooms("x"), []);
 });
 

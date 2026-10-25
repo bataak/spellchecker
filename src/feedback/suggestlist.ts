@@ -14,7 +14,7 @@ import {
   splitParts,
   type WordNote,
 } from "./suggestwords.ts";
-import { wordChips } from "./suggestmarkup.ts";
+import { COPY_FAILED, copiedNote, wordChips } from "./suggestmarkup.ts";
 
 export interface WordListDeps {
   readonly overlay: HTMLElement;
@@ -135,9 +135,9 @@ export function createWordList(d: WordListDeps): WordList {
       }
       try {
         await copyText(list.join("\n"));
-        note(list.length + " үг санах ойд хуулагдлаа", "ok");
+        note(copiedNote(list.length), "ok");
       } catch {
-        note("Хуулж чадсангүй — дахин оролдоно уу", "err");
+        note(COPY_FAILED, "err");
       }
     },
   };
