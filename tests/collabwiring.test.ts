@@ -14,12 +14,14 @@ const MAIN =
   "\\documentclass{article}\n\\begin{document}\nА\n\\end{document}\n";
 const encode = (text: string): Uint8Array => new TextEncoder().encode(text);
 
-function setup() {
+function setup(fails = 0) {
   const store = createProjectStore();
   const opened: LoadedFiles[] = [];
+  let left = fails;
   const project = {
     path: () => null,
     openShared(loaded: LoadedFiles, uid: string, main: string | null) {
+      if (left-- > 0) return false;
       opened.push(loaded);
       store.openShared(loaded, uid, main);
       return true;
@@ -78,4 +80,22 @@ test("урилгаар бэлдсэн uid-д л шинэ төсөл үүсгэн
   assert.equal(collab.hooks("croom", false).create(snap), true);
   assert.equal(opened[0]?.name, "Хамтын");
   assert.equal(store.projectFiles()?.uid, "croom");
+});
+
+test("төсөл нээж чадаагүй бол дараагийн оролдлогоор дахин нээнэ, хоёр урилгыг тусад нь санана", () => {
+  const { store, opened, collab } = setup(1);
+  const snap = {
+    texts: new Map([["main.tex", MAIN]]),
+    blobs: new Map(),
+    dirs: new Set<string>(),
+    main: "main.tex",
+  };
+  assert.equal(collab.prepare("Нэг", "cone"), true);
+  assert.equal(collab.prepare("Хоёр", "ctwo"), true);
+  assert.equal(collab.hooks("cone", false).create(snap), false);
+  assert.equal(collab.hooks("cone", false).create(snap), true);
+  assert.equal(opened[0]?.name, "Нэг");
+  assert.equal(collab.hooks("ctwo", false).create(snap), true);
+  assert.equal(opened[1]?.name, "Хоёр");
+  assert.equal(store.projectFiles()?.uid, "ctwo");
 });
