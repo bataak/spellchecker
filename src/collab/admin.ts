@@ -1,3 +1,4 @@
+import { createEmitter } from "../core/emitter.ts";
 import {
   fromBase64Url,
   newToken,
@@ -73,17 +74,16 @@ export function decodeRoster(
 
 export function createAdmin(key: CryptoKey, command: Command): Admin {
   const invites = new Map<string, (ok: boolean) => void>();
-  const rosters = new Set<(list: RosterEntry[] | null) => void>();
-  const endings = new Set<(ok: boolean) => void>();
+  const rosters = createEmitter<RosterEntry[] | null>();
+  const endings = createEmitter<boolean>();
 
   const roster = (
     message: Record<string, unknown>,
   ): Promise<Member[] | null> => {
     if (!command(message)) return Promise.resolve(null);
-    return reply<RosterEntry[] | null>((done) => {
-      rosters.add(done);
-      return () => rosters.delete(done);
-    }, null).then((list) => (list ? decodeRoster(key, list) : null));
+    return reply<RosterEntry[] | null>(rosters.on, null).then((list) =>
+      list ? decodeRoster(key, list) : null,
+    );
   };
 
   return {
@@ -100,10 +100,7 @@ export function createAdmin(key: CryptoKey, command: Command): Admin {
     remove: (dev, wipe) => roster({ t: "remove", dev, wipe }),
     end(wipe) {
       if (!command({ t: "close", wipe })) return Promise.resolve(false);
-      return reply<boolean>((done) => {
-        endings.add(done);
-        return () => endings.delete(done);
-      }, false);
+      return reply<boolean>(endings.on, false);
     },
     label(name) {
       void seal(key, encoder.encode(name)).then((sealed) =>
@@ -116,11 +113,11 @@ export function createAdmin(key: CryptoKey, command: Command): Admin {
         return true;
       }
       if (event.t === "ended") {
-        for (const done of [...endings]) done(true);
+        endings.emit(true);
         return true;
       }
       if (event.t === "members") {
-        for (const done of [...rosters]) done(event.list);
+        rosters.emit(event.list);
         return true;
       }
       return false;
