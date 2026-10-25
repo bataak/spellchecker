@@ -26,6 +26,13 @@ export interface ProjectView {
   readonly provider: Provider | null;
 }
 
+export interface ProjectFiles {
+  readonly uid: string;
+  readonly texts: ReadonlyMap<string, string>;
+  readonly dirs: ReadonlySet<string>;
+  readonly main: string | null;
+}
+
 export { ProjectError } from "./projecterror.ts";
 export type { ProjectBuild } from "./projectbuild.ts";
 export type { ProjectSnapshot } from "./projectedit.ts";
@@ -83,6 +90,12 @@ function createReaders(core: StoreCore) {
     },
     projectBinary: (path: string): Uint8Array | null =>
       core.state()?.binaries.get(path) ?? null,
+    projectFiles: (): ProjectFiles | null => {
+      const s = core.state();
+      return s && !s.pending
+        ? { uid: s.uid, texts: s.texts, dirs: s.dirs, main: s.main }
+        : null;
+    },
     projectText: (path: string): string | null =>
       core.state()?.texts.get(path) ?? null,
     projectSavedText: (path: string): string | null =>

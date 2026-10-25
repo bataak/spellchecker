@@ -303,7 +303,7 @@ test("бусдын курсорыг нэр, өнгөтэй нь зурна", asy
   const sent: Uint8Array[] = [];
   const cursors = createCursors({
     doc: docA,
-    text,
+    text: () => text,
     editor: a,
     view,
     profile: () => ({ name: "Би", color: 0 }),

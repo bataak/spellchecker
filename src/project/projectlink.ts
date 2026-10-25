@@ -19,6 +19,7 @@ import {
   texMaster,
 } from "../tex/texproject.ts";
 import type { PreviewSource } from "../preview/preview.ts";
+import type { LoadedFiles } from "./projectsources.ts";
 import type { TexProject } from "./projectbuild.ts";
 import { onSwap, swapOrigin } from "../editor/editortext.ts";
 import { createBinding, storeSlot, type Binding } from "./linkbind.ts";
@@ -79,6 +80,12 @@ export interface ProjectLink {
   readonly zipped: () => void;
   readonly openZip: (file: File) => Promise<void>;
   readonly openDir: (handle: FileSystemDirectoryHandle) => Promise<void>;
+  readonly openShared: (
+    loaded: LoadedFiles,
+    uid: string,
+    main: string | null,
+  ) => boolean;
+  readonly drop: () => void;
   readonly restore: () => Promise<void>;
   readonly sync: () => void;
   readonly fileOpened: (name: string) => void;
@@ -199,6 +206,31 @@ async function restoreInto(
   panel.sync();
 }
 
+function sharedOpeners(
+  store: ProjectStore,
+  panel: ProjectPanel,
+  opened: (fresh: boolean) => void,
+  fail: (error: unknown) => void,
+): Pick<ProjectLink, "openShared" | "drop"> {
+  return {
+    openShared(loaded, uid, main) {
+      try {
+        store.openShared(loaded, uid, main);
+      } catch (error) {
+        fail(error);
+        return false;
+      }
+      panel.show(true);
+      opened(true);
+      return true;
+    },
+    drop() {
+      store.closeProject();
+      storeSlot(null);
+    },
+  };
+}
+
 export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
   const { store, editor } = deps;
   const binding = createBinding(deps);
@@ -270,6 +302,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
         fail(error);
       }
     },
+    ...sharedOpeners(store, panel, opened, fail),
     restore: () => restoreInto(deps, binding, panel, fail),
     sync: panel.sync,
     enter,
