@@ -427,23 +427,24 @@ initTexInput({
 });
 const projectLink = createProjectWiring({
   store: projectStore,
-  editor: editorEl,
-  workspace,
-  editorWrap,
-  mdBar,
-  fileIO,
-  doc,
-  docStatus,
-  docMode,
-  texMode,
-  isTex: isTexFile,
-  undo: () => undoCtl,
-  draft,
-  preview: previewCtl,
-  measure: measureCtl,
-  status,
-  enterMdMode,
-  render,
+  view: {
+    editor: editorEl,
+    workspace,
+    editorWrap,
+    measure: measureCtl,
+    preview: previewCtl,
+    status,
+  },
+  mode: {
+    doc,
+    docStatus,
+    docMode,
+    texMode,
+    isTex: isTexFile,
+    enterMdMode,
+    render,
+  },
+  files: { mdBar, fileIO, draft, undo: () => undoCtl },
 });
 layoutChanged.on(() => projectLink.sync());
 const kbLayout = initKeyboardLayout({ editor: editorEl, status: els.status });
