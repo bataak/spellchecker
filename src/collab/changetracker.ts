@@ -1,5 +1,6 @@
 import type * as Y from "yjs";
-import { dropDoc, loadDoc, saveDoc } from "./docstore.ts";
+import { createEmitter } from "../core/emitter.ts";
+import { docKey, loadDoc, saveDoc } from "./docstore.ts";
 import {
   acceptKey,
   changesOf,
@@ -31,12 +32,6 @@ const QUIET_MS = 3000;
 const LONGEST_MS = 10_000;
 const NOTIFY_MS = 150;
 
-export const baseKey = (room: string): string => "base:" + room;
-
-export function forgetBaseline(room: string): Promise<void> {
-  return dropDoc(baseKey(room));
-}
-
 function hasContent(texts: ReadonlyMap<string | null, Y.Text>): boolean {
   for (const text of texts.values()) if (text.length) return true;
   return false;
@@ -44,7 +39,7 @@ function hasContent(texts: ReadonlyMap<string | null, Y.Text>): boolean {
 
 export function createChangeTracker(deps: TrackerDeps): ChangeTracker {
   const { doc, room } = deps;
-  const listeners = new Set<() => void>();
+  const changed = createEmitter();
   let base: Baseline | null = null;
   let cached: Change[] | null = null;
   let settleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -57,13 +52,13 @@ export function createChangeTracker(deps: TrackerDeps): ChangeTracker {
     if (notifyTimer) return;
     notifyTimer = setTimeout(() => {
       notifyTimer = null;
-      for (const listener of listeners) listener();
+      changed.emit();
     }, NOTIFY_MS);
   };
 
   const keep = (next: Baseline): void => {
     base = next;
-    void saveDoc(baseKey(room), encodeBaseline(next));
+    void saveDoc(docKey.baseline(room), encodeBaseline(next));
     notify();
   };
 
@@ -88,7 +83,7 @@ export function createChangeTracker(deps: TrackerDeps): ChangeTracker {
   };
   doc.on("update", onUpdate);
 
-  void loadDoc(baseKey(room)).then((bytes) => {
+  void loadDoc(docKey.baseline(room)).then((bytes) => {
     if (destroyed || base) return;
     const stored = bytes && decodeBaseline(bytes);
     if (stored) {
@@ -127,16 +122,13 @@ export function createChangeTracker(deps: TrackerDeps): ChangeTracker {
       const text = textAt(change.path);
       if (fresh && text) rejectChange(text, fresh);
     },
-    onChange(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
+    onChange: changed.on,
     destroy() {
       destroyed = true;
       doc.off("update", onUpdate);
       if (settleTimer) clearTimeout(settleTimer);
       if (notifyTimer) clearTimeout(notifyTimer);
-      listeners.clear();
+      changed.clear();
     },
   };
 }

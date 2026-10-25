@@ -3,6 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as Y from "yjs";
 import { installDom } from "./helpers/dom.ts";
+import { memoryMine } from "./helpers/memorymine.ts";
 import {
   acceptKey,
   changesOf,
@@ -12,26 +13,11 @@ import {
   registerAuthor,
   rejectChange,
 } from "../src/collab/changes.ts";
-import {
-  createChangeTracker,
-  forgetBaseline,
-} from "../src/collab/changetracker.ts";
-import { loadDoc } from "../src/collab/docstore.ts";
-import {
-  createChat,
-  MAX_CHAT_NAME,
-  MAX_MESSAGES,
-  type MineStore,
-} from "../src/collab/chat.ts";
-import { chatKey, mineKey, openChatDoc } from "../src/collab/chatdoc.ts";
-
-function memoryMine(): MineStore {
-  const sent = new Map<string, string>();
-  return {
-    has: (id, text) => sent.get(id) === text,
-    add: (id, text) => void sent.set(id, text),
-  };
-}
+import { createChangeTracker } from "../src/collab/changetracker.ts";
+import { docKey, dropRoom, loadDoc } from "../src/collab/docstore.ts";
+import { createChat, MAX_MESSAGES } from "../src/collab/chat.ts";
+import { MAX_NAME } from "../src/collab/profile.ts";
+import { openChatDoc } from "../src/collab/chatdoc.ts";
 
 const dom = installDom("");
 test.after(() => dom.close());
@@ -173,7 +159,7 @@ test("tracker анхны агуулга ирсний дараа суурь то�
     ["Б"],
   );
   again.destroy();
-  await forgetBaseline("talk-room");
+  await dropRoom("talk-room");
   assert.equal(await loadDoc("base:talk-room"), null);
 });
 
@@ -214,7 +200,7 @@ test("chat хуурамч болон буруу оруулгыг арилгаж,
   const raw = b.getArray("chat");
   raw.push([
     { i: real!.id, n: "Би", c: 2, a: 1, t: "Хуурамч" },
-    { i: "x", n: "й".repeat(MAX_CHAT_NAME + 1), c: 1, a: 1, t: "урт нэр" },
+    { i: "x", n: "й".repeat(MAX_NAME + 1), c: 1, a: 1, t: "урт нэр" },
     { i: "y", n: "Ч", c: Number.NaN, a: 1, t: "өнгө" },
     { i: "z", n: "Ч", c: 1, a: 1, t: "т".repeat(3000) },
     { i: "w", n: "Ч", c: 1, a: 1, t: "илүү", x: "хог" },
@@ -266,6 +252,7 @@ test("chat баримт тусдаа хадгалагдаж, өөрийн мес
   );
   reopened.destroy();
   await again.close(true);
-  assert.equal(await loadDoc(chatKey("talk-chat")), null);
-  assert.equal(await loadDoc(mineKey("talk-chat")), null);
+  await dropRoom("talk-chat");
+  assert.equal(await loadDoc(docKey.chat("talk-chat")), null);
+  assert.equal(await loadDoc(docKey.mine("talk-chat")), null);
 });

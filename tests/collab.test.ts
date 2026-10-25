@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as Y from "yjs";
+import { createEmitter } from "../src/core/emitter.ts";
 import {
   applyChanges,
   deltaChanges,
@@ -39,6 +40,7 @@ import {
 import {
   connectionControls,
   createGate,
+  lateLinks,
   roomUrl,
 } from "../src/collab/session.ts";
 import { isUploader, uploadAt } from "../src/collab/persistence.ts";
@@ -619,7 +621,7 @@ test("унтах явцад сэрвэл холболтыг хаахгүй", asy
   const uploader = {
     run: () => new Promise<void>((resolve) => setTimeout(resolve, 30)),
   } as unknown as Parameters<typeof connectionControls>[1];
-  const controls = connectionControls(signal, uploader, new Set());
+  const controls = connectionControls(signal, uploader, createEmitter());
   controls.sleep();
   controls.resume();
   await new Promise((resolve) => setTimeout(resolve, 60));
@@ -627,4 +629,14 @@ test("унтах явцад сэрвэл холболтыг хаахгүй", asy
   controls.sleep();
   await new Promise((resolve) => setTimeout(resolve, 60));
   assert.deepEqual(calls, ["resume", "sleep"]);
+});
+
+test("session-ий холбоос бэлэн болохоос өмнө ашиглавал тодорхой алдаа өгнө", () => {
+  const links = lateLinks();
+  assert.equal(links.peek(), null);
+  assert.throws(() => links.get(), /not ready/);
+  const ready = {} as Parameters<typeof links.set>[0];
+  links.set(ready);
+  assert.equal(links.get(), ready);
+  assert.equal(links.peek(), ready);
 });
