@@ -424,6 +424,7 @@
 
 .talk-msg-name,
 .talk-change-who {
+  unicode-bidi: isolate;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -437,6 +438,8 @@
 
 .talk-msg-text {
   margin: 2px 0 0 14px;
+  unicode-bidi: isolate;
+  overflow: hidden;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -520,6 +523,7 @@
 }
 
 .talk-change-path {
+  unicode-bidi: isolate;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -567,8 +571,15 @@
 
 .talk-change-text {
   margin: 0;
+  unicode-bidi: isolate;
+  overflow: hidden;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.talk-change-text ins,
+.talk-change-text del {
+  unicode-bidi: isolate;
 }
 
 .talk-change-text ins {

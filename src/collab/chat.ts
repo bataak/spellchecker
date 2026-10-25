@@ -1,6 +1,7 @@
 import type * as Y from "yjs";
 import { randomId } from "./collabkey.ts";
 import type { Profile } from "./cursors.ts";
+import { cleanName, cleanText } from "./safetext.ts";
 
 export interface ChatMessage {
   readonly id: string;
@@ -40,6 +41,7 @@ const MAX_ID = 24;
 const MAX_COLOR = 64;
 const KEYS = 5;
 const CHAT = "chat";
+const NO_NAME = "Нэргүй";
 
 function valid(value: unknown): value is Stored {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
@@ -92,12 +94,14 @@ export function createChat(
     const out: ChatMessage[] = [];
     for (const value of array.toArray()) {
       if (!valid(value)) continue;
+      const text = cleanText(value.t).trim();
+      if (!text) continue;
       out.push({
         id: value.i,
-        name: value.n,
+        name: cleanName(value.n, MAX_CHAT_NAME) || NO_NAME,
         color: value.c,
         at: value.a,
-        text: value.t,
+        text,
         mine: mine.has(value.i, value.t),
       });
     }
@@ -120,12 +124,12 @@ export function createChat(
   return {
     list,
     send(text) {
-      const body = text.trim().slice(0, MAX_CHAT_TEXT);
+      const body = cleanText(text).trim().slice(0, MAX_CHAT_TEXT);
       if (!body) return false;
       const { name, color } = profile();
       const stored: Stored = {
         i: randomId(9),
-        n: name.slice(0, MAX_CHAT_NAME),
+        n: cleanName(name, MAX_CHAT_NAME),
         c: Number.isInteger(color) ? Math.abs(color) % MAX_COLOR : 0,
         a: Date.now(),
         t: body,
