@@ -7,6 +7,7 @@ import {
   removeIgnored,
   clearIgnored,
   getIgnored,
+  createIgnoreList,
 } from "../src/spell/ignore.ts";
 
 const KEY = "mn-spell:ignored";
@@ -183,4 +184,17 @@ test("addIgnored: зураасны ард тийн ялгалын нөхцөл �
 test("addIgnored: -ийнхны, -ийнхэн зэрэг хэлбэрээс үндсийг авна", () => {
   assert.equal(addIgnored("МУИС-ийнхны"), true);
   assert.deepEqual(getIgnored(), ["МУИС"]);
+});
+
+test("тусдаа жагсаалтууд хадгалалтаа хуваалцаж, сонсогчдоо тусад нь хадгална", () => {
+  const first = createIgnoreList();
+  const second = createIgnoreList();
+  first.clear();
+  assert.equal(first.add("Biden"), true);
+  assert.equal(second.isIgnored("Biden"), true);
+  assert.deepEqual(second.list(), ["Biden"]);
+  second.onChange(() => {});
+  assert.equal(second.remove("Biden"), true);
+  assert.equal(first.isIgnored("Biden"), true);
+  assert.equal(first.remove("Biden"), false);
 });
