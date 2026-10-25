@@ -189,15 +189,27 @@ test("chat хуурамч болон буруу оруулгыг арилгаж,
     { i: "z", n: "Ч", c: 1, a: 1, t: "т".repeat(3000) },
     { i: "w", n: "Ч", c: 1, a: 1, t: "илүү", x: "хог" },
     "<img src=x onerror=alert(1)>",
+    new Uint8Array([0, 1, 2, 3, 4]),
+    new Y.Map(),
+    { i: "v", n: "Ч", c: 1, a: 1, t: String.fromCharCode(0x200b, 0, 7) },
+    {
+      i: "u",
+      n: String.fromCharCode(0x202e) + "аТ",
+      c: 1,
+      a: 2,
+      t: "<b>x</b>",
+    },
   ]);
   assert.deepEqual(
     mine.list().map((message) => [message.text, message.mine]),
     [
       ["Жинхэнэ", true],
       ["Хуурамч", false],
+      ["<b>x</b>", false],
     ],
   );
-  assert.equal(raw.length, 2);
+  assert.equal(mine.list()[2]!.name, "аТ");
+  assert.equal(raw.length, 4);
   mine.destroy();
 });
 

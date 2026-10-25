@@ -3,6 +3,7 @@ import { MAX_CHAT_TEXT } from "./chat.ts";
 import type { Change } from "./changes.ts";
 import type { ChangeTracker } from "./changetracker.ts";
 import { CURSOR_COLORS } from "./peercolors.ts";
+import { revealText } from "./safetext.ts";
 
 export interface TalkView {
   readonly el: HTMLElement;
@@ -124,15 +125,16 @@ export function chatView(chat: Chat): TalkView {
 }
 
 export function clip(text: string): string {
-  return text.length > MAX_PIECE ? text.slice(0, MAX_PIECE) + "…" : text;
+  const shown = revealText(text);
+  return shown.length > MAX_PIECE ? shown.slice(0, MAX_PIECE) + "…" : shown;
 }
 
 function changeBody(change: Change): HTMLElement {
   const body = element("p", "talk-change-text");
-  body.append(document.createTextNode("…" + change.before));
+  body.append(document.createTextNode("…" + revealText(change.before)));
   if (change.removed) body.append(element("del", "", clip(change.removed)));
   if (change.inserted) body.append(element("ins", "", clip(change.inserted)));
-  body.append(document.createTextNode(change.after + "…"));
+  body.append(document.createTextNode(revealText(change.after) + "…"));
   return body;
 }
 
@@ -157,7 +159,7 @@ function changeRow(change: Change, actions: ChangeActions): HTMLLIElement {
     element("span", "talk-change-who", changeTitle(change)),
   );
   if (change.path)
-    head.append(element("span", "talk-change-path", change.path));
+    head.append(element("span", "talk-change-path", revealText(change.path)));
   const show = button("talk-change-show", "");
   show.append(changeBody(change));
   show.title = "Байрлал руу очих";
