@@ -224,3 +224,17 @@ test("зогсоосны дараа синк хийхгүй", async () => {
   await settle();
   assert.equal(guest.texts.get("main.tex"), "\\documentclass{article}");
 });
+
+test("нуугдмал тэмдэгттэй хавтас, үндсэн файл засвар бүрт дахин бичигдэхгүй", () => {
+  const owner = device({ "a.tex": "А" }, "ma\u200Bin.tex");
+  owner.dirs.add("fi\u202Eg");
+  owner.bridge.start();
+  let updates = 0;
+  owner.doc.on("update", () => updates++);
+  owner.bridge.pushLocal();
+  owner.bridge.pushLocal();
+  assert.equal(updates, 0);
+  const snap = projectOf(owner.doc);
+  assert.deepEqual([...snap.dirs], []);
+  assert.equal(snap.main, null);
+});

@@ -1,6 +1,5 @@
 import type * as Y from "yjs";
 import { noteError } from "../core/errorlog.ts";
-import { skippedPath } from "../tex/texproject.ts";
 import {
   addDir,
   addText,
@@ -10,6 +9,8 @@ import {
   projectOf,
   removePath,
   setMain,
+  sharedDir,
+  sharedMain,
   sharedPath,
   writeText,
 } from "./projectdoc.ts";
@@ -50,8 +51,8 @@ function sharedOf(local: LocalProject): LocalProject {
   const texts = new Map<string, string>();
   for (const [path, text] of local.texts)
     if (sharedPath(path, local.main)) texts.set(path, text);
-  const dirs = new Set([...local.dirs].filter((dir) => !skippedPath(dir)));
-  return { texts, dirs, main: local.main };
+  const dirs = new Set([...local.dirs].filter(sharedDir));
+  return { texts, dirs, main: sharedMain(local.main) };
 }
 
 function knownOf(doc: Y.Doc): Known {
