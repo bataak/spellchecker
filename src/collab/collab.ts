@@ -16,7 +16,7 @@ import type { Collab, CollabDeps, TalkKind } from "./collabtypes.ts";
 import { createRegistry, ENDPOINT, type Registry } from "./registry.ts";
 import { arrived, joinRoom, openProjectRoom, resumeJoins } from "./roomjoin.ts";
 import { parseSlot, projectSlot, slotKey } from "./roomslot.ts";
-import type { SessionStatus } from "./session.ts";
+import type { SessionStatus } from "./sessiontypes.ts";
 import { openShare } from "./sharedialog.ts";
 import type { SignalState } from "./signal.ts";
 import type { Talk } from "./talk.ts";

@@ -40,6 +40,7 @@ import {
 import {
   connectionControls,
   createGate,
+  lateLinks,
   roomUrl,
 } from "../src/collab/session.ts";
 import { isUploader, uploadAt } from "../src/collab/persistence.ts";
@@ -628,4 +629,14 @@ test("унтах явцад сэрвэл холболтыг хаахгүй", asy
   controls.sleep();
   await new Promise((resolve) => setTimeout(resolve, 60));
   assert.deepEqual(calls, ["resume", "sleep"]);
+});
+
+test("session-ий холбоос бэлэн болохоос өмнө ашиглавал тодорхой алдаа өгнө", () => {
+  const links = lateLinks();
+  assert.equal(links.peek(), null);
+  assert.throws(() => links.get(), /not ready/);
+  const ready = {} as Parameters<typeof links.set>[0];
+  links.set(ready);
+  assert.equal(links.get(), ready);
+  assert.equal(links.peek(), ready);
 });
