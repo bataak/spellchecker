@@ -24,7 +24,15 @@ function freePort(): Promise<number> {
   });
 }
 
-function options(port: number, origins: string) {
+export interface CollabOptions {
+  readonly turn?: (request: Request) => Promise<Response>;
+  readonly daily?: number;
+}
+
+function options(port: number, origins: string, extra: CollabOptions) {
+  const turn = extra.turn
+    ? { TURN_KEY_ID: "key", TURN_KEY_TOKEN: "token" }
+    : {};
   return {
     modules: true,
     scriptPath: SCRIPT,
@@ -35,17 +43,24 @@ function options(port: number, origins: string) {
       ROOMS: { className: "Room", useSQLite: true },
       QUOTA: { className: "Quota", useSQLite: true },
     },
-    bindings: { ALLOWED_ORIGINS: origins },
+    bindings: {
+      ALLOWED_ORIGINS: origins,
+      TURN_DAILY: String(extra.daily ?? 2000),
+      ...turn,
+    },
+    ...(extra.turn && { outboundService: extra.turn }),
   };
 }
 
-export async function startCollab(): Promise<CollabServer> {
+export async function startCollab(
+  extra: CollabOptions = {},
+): Promise<CollabServer> {
   const port = await freePort();
-  const mf = new Miniflare(options(port, ""));
+  const mf = new Miniflare(options(port, "", extra));
   const url = (await mf.ready).origin;
   return {
     url,
-    allow: (origin) => mf.setOptions(options(port, origin)),
+    allow: (origin) => mf.setOptions(options(port, origin, extra)),
     close: () => mf.dispose(),
   };
 }
