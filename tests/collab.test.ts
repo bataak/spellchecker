@@ -577,7 +577,7 @@ test("хамтрагчдын нэрийг түлхүүрээр тайлж хар
 });
 
 test("TURN эрхийг хугацаа дуусахаас өмнө шинэчилнэ", async () => {
-  assert.equal(iceRefreshMs(7200), 5400_000);
+  assert.equal(iceRefreshMs(3600), 2400_000);
   assert.equal(iceRefreshMs(600), 60_000);
   let requests = 0;
   let applied = 0;
