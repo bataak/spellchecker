@@ -28,7 +28,7 @@ import { createBackdrop } from "./editor/backdrop.ts";
 import { createMarkLayer } from "./editor/marklayer.ts";
 import { initMarkTap } from "./editor/marktap.ts";
 import { initKeyboardLayout } from "./editor/kblayout.ts";
-import { initUndoHistory, pruneUndo } from "./editor/undohistory.ts";
+import { initUndoHistory } from "./editor/undohistory.ts";
 import { rotateEmptyTips } from "./ui/emptytips.ts";
 import { createOfficeSession } from "./office/session.ts";
 import { createDictStatus } from "./dict/dictstatus.ts";
@@ -49,8 +49,6 @@ import { createSignal } from "./app/signal.ts";
 import { createEmptyState } from "./app/emptystate.ts";
 import { createTexMode } from "./app/texmode.ts";
 import { initAppExport } from "./app/appexport.ts";
-import { boot } from "./app/boot.ts";
-import { restoreDraftFile } from "./app/draftfile.ts";
 import { createPopovers } from "./app/popovers.ts";
 import { createFixers } from "./app/fixers.ts";
 import { createFileWiring } from "./app/filewiring.ts";
@@ -58,8 +56,7 @@ import { createProjectWiring } from "./app/projectwiring.ts";
 import { createPreviewPane } from "./app/previewpane.ts";
 import { watchTabs } from "./app/tabwatch.ts";
 import { initTexInput } from "./app/texinput.ts";
-import { initAppReport } from "./app/appreport.ts";
-import { initDictionaries } from "./app/dictionaries.ts";
+import { startApp } from "./app/startup.ts";
 import { nextFrame, queryShell } from "./app/dom.ts";
 import { bindArming, bindEditorInput } from "./app/editorinput.ts";
 import { createMarkupMode } from "./app/markupmode.ts";
@@ -544,54 +541,28 @@ const tabGuard = watchTabs({
   warn: (message) => status.hold(message, 8000, false),
 });
 
-initAppReport({
+const dictionaries = startApp({
   entryUrl: import.meta.url,
   editor: editorEl,
-  checker,
-  dicts,
-  officeActive,
-  markdownActive: doc.markdownActive,
-  fileName: doc.fileName,
-  layout: () => measureCtl.layout(),
-  errorWords: () => marks.tokens().map((token) => token.word),
-});
-
-const dictionaries = initDictionaries({
+  backdropEl: els.backdrop,
+  statusEl: els.status,
+  backdrop,
   checker,
   dicts,
   docStatus,
   status,
   appUpdate,
-  recheckAll: loop.recheckAll,
-  editor: editorEl,
-  statusEl: els.status,
-  badTokens: () => marks.tokens(),
-  render,
-});
-
-void boot({
-  editor: editorEl,
-  backdrop: els.backdrop,
+  loop,
+  marks,
   draft,
-  baseline: () => undoCtl.baseline(),
-  restoreFile: () =>
-    restoreDraftFile({
-      slot: () => mdBar.slot(),
-      restoreOffice: office.restore,
-      restoreText: fileIO.restoreFile,
-      targetName: fileIO.targetName,
-      opened: doc.open,
-    }),
-  restoreProject: () => projectLink.restore(),
-  restored: () => collab.start(),
-  pruneUndo: () => void pruneUndo(mdBar.fileSlots(), project()),
-  fontsLoaded: () => {
-    backdrop.reset();
-    void render();
-  },
-  render,
+  undo: () => undoCtl,
+  mdBar,
+  office,
+  fileIO,
+  doc,
+  project: projectLink,
+  store: projectStore,
+  collab,
+  measure: measureCtl,
   nudge: nudgeHints,
-  appUpdate,
-  dictLife: dictionaries.life,
-  status: (message) => status.set(message),
 });
