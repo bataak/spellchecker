@@ -199,9 +199,10 @@ function watchDoc(
   saver: Saver,
   binding: Attacher,
   uploader: Uploader,
+  live: () => boolean,
 ): void {
   doc.on("update", (_update: Uint8Array, origin: unknown) => {
-    if (origin === LOADED) return;
+    if (origin === LOADED || !live()) return;
     saver.soon();
     if (origin === SNAPSHOT || isRemote(origin)) binding.settle();
     if (origin !== SNAPSHOT) uploader.mark();
@@ -358,7 +359,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
     signal.upload(data),
   );
 
-  watchDoc(doc, saver, binding, uploader);
+  watchDoc(doc, saver, binding, uploader, () => !stopped);
 
   const mesh = wireMesh({
     self,
