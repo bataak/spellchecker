@@ -24,7 +24,7 @@ const TURN_DAILY = 2000;
 const TURN_RETRY_MS = 5 * 60 * 1000;
 const TURN_WAIT_MS = 3000;
 const GB = 1e9;
-const TURN_LIMIT_GB = 500;
+const TURN_LIMIT_GB = 490;
 
 function allowedOrigin(origin, env) {
   if (!origin) return null;
@@ -252,7 +252,7 @@ export class Room extends DurableObject {
   }
 
   async ice() {
-    if (this.peers().length < 2) return null;
+    if (new Set(this.peers().map((p) => p.dev)).size < 2) return null;
     const now = Date.now();
     this.turn ??= JSON.parse(this.meta("turn") ?? "null");
     if (this.turn && this.turn.expires - now > TURN_MIN_LIFE_MS)

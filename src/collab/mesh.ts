@@ -31,13 +31,22 @@ interface Link {
   readonly channel: RTCDataChannel;
   readonly assembler: Assembler;
   readonly caller: boolean;
+  readonly relay: boolean;
   open: boolean;
+}
+
+interface LinkEvents {
+  open(): void;
+  data(data: Uint8Array): void;
+  fail(): void;
 }
 
 const GATHER_MS = 3000;
 const MAX_MESSAGE = 8 * 1024 * 1024;
 const RETRIES = 3;
 const RETRY_MS = 2000;
+const CONNECT_MS = 10_000;
+const RELAY_CANDIDATE = " typ relay";
 
 function gathered(pc: RTCPeerConnection): Promise<void> {
   if (pc.iceGatheringState === "complete") return Promise.resolve();
@@ -59,8 +68,15 @@ export function shouldRecall(self: string, peer: string): boolean {
   return self > peer;
 }
 
+export function directServers(servers: RTCIceServer[]): RTCIceServer[] {
+  return servers.flatMap((server) => {
+    const urls = [server.urls].flat().filter((url) => url.startsWith("stun:"));
+    return urls.length ? [{ urls }] : [];
+  });
+}
+
 function reconfigure(links: Iterable<Link>, iceServers: RTCIceServer[]): void {
-  for (const { pc } of links) setServers(pc, iceServers);
+  for (const { pc, relay } of links) if (relay) setServers(pc, iceServers);
 }
 
 function setServers(
@@ -75,8 +91,14 @@ function setServers(
   }
 }
 
-function newLink(iceServers: RTCIceServer[], caller: boolean): Link {
-  const pc = new RTCPeerConnection({ iceServers });
+function newLink(
+  iceServers: RTCIceServer[],
+  caller: boolean,
+  relay: boolean,
+): Link {
+  const pc = new RTCPeerConnection({
+    iceServers: relay ? iceServers : directServers(iceServers),
+  });
   const channel = pc.createDataChannel("y", { negotiated: true, id: 0 });
   channel.binaryType = "arraybuffer";
   return {
@@ -84,8 +106,25 @@ function newLink(iceServers: RTCIceServer[], caller: boolean): Link {
     channel,
     assembler: createAssembler(MAX_MESSAGE),
     caller,
+    relay,
     open: false,
   };
+}
+
+function watch(entry: Link, on: LinkEvents): void {
+  const { pc, channel } = entry;
+  channel.onopen = on.open;
+  channel.onmessage = (event: MessageEvent<ArrayBuffer>) => {
+    const data = entry.assembler.push(new Uint8Array(event.data));
+    if (data) on.data(data);
+  };
+  channel.onclose = on.fail;
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState === "failed") on.fail();
+  };
+  setTimeout(() => {
+    if (!entry.open) on.fail();
+  }, CONNECT_MS);
 }
 
 async function localSdp(
@@ -134,25 +173,20 @@ export function createMesh(deps: MeshDeps): Mesh {
     }, RETRY_MS);
   }
 
-  function link(peer: string, caller: boolean): Link {
+  function link(peer: string, caller: boolean, relay: boolean): Link {
     drop(peer);
-    const entry = newLink(deps.iceServers(), caller);
-    const { pc, channel } = entry;
+    const entry = newLink(deps.iceServers(), caller, relay);
     links.set(peer, entry);
-    channel.onopen = () => {
-      if (links.get(peer) !== entry) return;
-      entry.open = true;
-      retries.delete(peer);
-      deps.onOpen(peer);
-    };
-    channel.onmessage = (event: MessageEvent<ArrayBuffer>) => {
-      const data = entry.assembler.push(new Uint8Array(event.data));
-      if (data) deps.onData(peer, data);
-    };
-    channel.onclose = () => failed(peer, entry);
-    pc.onconnectionstatechange = () => {
-      if (pc.connectionState === "failed") failed(peer, entry);
-    };
+    watch(entry, {
+      open() {
+        if (links.get(peer) !== entry) return;
+        entry.open = true;
+        retries.delete(peer);
+        deps.onOpen(peer);
+      },
+      data: (data) => deps.onData(peer, data),
+      fail: () => failed(peer, entry),
+    });
     return entry;
   }
 
@@ -166,13 +200,13 @@ export function createMesh(deps: MeshDeps): Mesh {
   }
 
   function call(peer: string): void {
-    const entry = link(peer, true);
+    const entry = link(peer, true, (retries.get(peer) ?? 0) > 0);
     describe(peer, entry, "offer").catch(() => failed(peer, entry));
   }
 
   async function answer(peer: string, payload: SignalPayload): Promise<void> {
     if (payload.type === "offer") {
-      const entry = link(peer, false);
+      const entry = link(peer, false, payload.sdp.includes(RELAY_CANDIDATE));
       await entry.pc.setRemoteDescription(payload);
       await describe(peer, entry, "answer");
       return;
