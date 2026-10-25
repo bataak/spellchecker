@@ -11,15 +11,16 @@ export interface TalkHostDeps {
   readonly editor: HTMLTextAreaElement;
   readonly openPath: (path: string) => void;
   readonly anchor: HTMLElement | null;
+  readonly workspace: HTMLElement | null;
+  readonly editorWrap: HTMLElement | null;
 }
 
 const ICONS: Record<TalkMode, string> = {
   chat: '<path d="M2.5 3h11v7.5h-6.5l-3 2.5v-2.5h-1.5z"/><path d="M5 6h6M5 8h4"/>',
-  changes:
-    '<path d="M2.5 4h6M2.5 7.5h4.5M2.5 11h3"/><path d="M9.5 12.8l.6-2.4 3.4-3.4 1.8 1.8-3.4 3.4z"/>',
+  changes: '<path d="M8 1.8v7.4M4.3 5.5h7.4M4.3 13h7.4"/>',
 };
 export const TALK_LABELS: Record<TalkMode, string> = {
-  chat: "Хэлэлцэх",
+  chat: "Хэлэлцүүлэг",
   changes: "Өөрчлөлт",
 };
 
@@ -118,8 +119,10 @@ function projectSide(editor: HTMLTextAreaElement): Side | null {
   if (!panel || !foot || !head) return null;
   const archive = foot.querySelector(".project-foot-btn");
   const buttons = { changes: talkButton("changes"), chat: talkButton("chat") };
-  foot.insertBefore(buttons.changes, archive);
-  foot.insertBefore(buttons.chat, archive);
+  const pair = document.createElement("span");
+  pair.className = "talk-pair";
+  pair.append(buttons.changes, buttons.chat);
+  foot.insertBefore(pair, archive);
   const side = document.createElement("section");
   side.className = "project-talk";
   side.hidden = true;
@@ -153,7 +156,7 @@ function projectSide(editor: HTMLTextAreaElement): Side | null {
   return {
     sync(views) {
       if (held.swap(views)) show(views ? mode : null);
-      buttons.chat.hidden = buttons.changes.hidden = views === null;
+      pair.hidden = views === null;
       unread();
     },
   };
@@ -166,14 +169,18 @@ interface Shell {
   readonly body: HTMLElement;
 }
 
-function windowShell(): Shell {
+type Placement = Pick<TalkHostDeps, "workspace" | "editorWrap">;
+
+function windowShell({ workspace, editorWrap }: Placement): Shell {
   const win = document.createElement("aside");
   win.className = "talk-window";
   win.hidden = true;
-  win.setAttribute("aria-label", "Хэлэлцэх ба өөрчлөлт");
+  win.setAttribute("aria-label", "Хэлэлцүүлэг ба өөрчлөлт");
   const head = document.createElement("div");
   head.className = "talk-window-head";
-  head.setAttribute("role", "tablist");
+  const list = document.createElement("div");
+  list.className = "talk-tabs";
+  list.setAttribute("role", "tablist");
   const tabs = {
     chat: document.createElement("button"),
     changes: document.createElement("button"),
@@ -187,11 +194,14 @@ function windowShell(): Shell {
   const close = headButton("Хаах", '<path d="M4 4l8 8M12 4l-8 8"/>');
   const gap = document.createElement("span");
   gap.className = "project-foot-gap";
-  head.append(tabs.chat, tabs.changes, gap, close);
+  list.append(tabs.chat, tabs.changes);
+  head.append(list, gap, close);
   const body = document.createElement("div");
   body.className = "talk-window-body";
+  body.setAttribute("role", "tabpanel");
   win.append(head, body);
-  document.body.append(win);
+  if (workspace) workspace.insertBefore(win, editorWrap);
+  else document.body.append(win);
   return { win, tabs, close, body };
 }
 
@@ -200,7 +210,7 @@ function talkTrigger(anchor: HTMLElement | null): HTMLButtonElement {
   trigger.type = "button";
   trigger.className = "tbtn talk-trigger";
   trigger.hidden = true;
-  trigger.title = "Хамтрагчидтай ярилцах, өөрчлөлтийг харах";
+  trigger.title = "Хамтрагчидтай хэлэлцэх, өөрчлөлтийг харах";
   trigger.innerHTML = icon(ICONS.chat, 14);
   trigger.append(document.createTextNode(" " + TALK_LABELS.chat));
   trigger.setAttribute("aria-pressed", "false");
@@ -208,12 +218,9 @@ function talkTrigger(anchor: HTMLElement | null): HTMLButtonElement {
   return trigger;
 }
 
-function fileWindow(
-  anchor: HTMLElement | null,
-  editor: HTMLTextAreaElement,
-): Side {
-  const { win, tabs, close, body } = windowShell();
-  const trigger = talkTrigger(anchor);
+function fileWindow(deps: TalkHostDeps): Side {
+  const { win, tabs, close, body } = windowShell(deps);
+  const trigger = talkTrigger(deps.anchor);
   let mode: TalkMode = "chat";
   const unread = (): void =>
     badge(trigger, unreadOf(held, !win.hidden && mode === "chat"));
@@ -226,10 +233,11 @@ function fileWindow(
     }
     if (current) body.replaceChildren(current.views[mode].el);
     trigger.setAttribute("aria-pressed", String(!win.hidden));
+    document.documentElement.toggleAttribute("data-talk", !win.hidden);
     unread();
   };
   const open = (on: boolean): void => {
-    if (!on) refocus(win, editor);
+    if (!on) refocus(win, deps.editor);
     win.hidden = !on || !held.current();
     render();
   };
@@ -258,7 +266,7 @@ function fileWindow(
 export function initTalk(deps: TalkHostDeps): void {
   const sides: Record<TalkKind, Side | null> = {
     project: projectSide(deps.editor),
-    file: fileWindow(deps.anchor, deps.editor),
+    file: fileWindow(deps),
   };
   const built = new Map<Talk, Views>();
   const sync = (): void => {
