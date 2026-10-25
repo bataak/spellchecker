@@ -9,6 +9,12 @@ import { createProjectBridge, type ProjectPort } from "./projectbridge.ts";
 import { createCursors, type CursorView, type Cursors } from "./cursors.ts";
 import type { Profile } from "./cursors.ts";
 import type { Attacher } from "./roomdoc.ts";
+import { createBlobBridge, type BlobPort } from "./projectblobs.ts";
+import {
+  createBlobSwap,
+  type BlobSwap,
+  type BlobTransport,
+} from "./blobswap.ts";
 
 export interface ProjectHooks {
   readonly port: ProjectPort;
@@ -16,7 +22,16 @@ export interface ProjectHooks {
   readonly seed: (() => Promise<ProjectSnapshot | null>) | null;
   readonly create: (snap: ProjectSnapshot) => boolean;
   readonly changed: (listener: () => void) => () => void;
+  readonly blobs?: BlobPort;
 }
+
+export interface ProjectAttacher extends Attacher {
+  have(hash: string): Uint8Array | null;
+}
+
+type Want = (hash: string, size: number) => Promise<Uint8Array>;
+
+const noBlobs: Want = () => Promise.reject(new Error("blob"));
 
 interface EditingDeps {
   readonly editor: HTMLTextAreaElement;
@@ -42,8 +57,10 @@ export function createProjectAttacher(
   hooks: ProjectHooks,
   cursors: Cursors,
   fresh: boolean,
-): Attacher {
+  want: Want = noBlobs,
+): ProjectAttacher {
   const bridge = createProjectBridge(doc, hooks.port);
+  const blobs = hooks.blobs ? createBlobBridge(doc, hooks.blobs, want) : null;
   let settled = false;
   let unwatch: (() => void) | null = null;
   const timer = fresh ? setTimeout(() => settle(), SETTLE_MS) : null;
@@ -53,7 +70,11 @@ export function createProjectAttacher(
       if (!snap.texts.size || !hooks.create(snap)) return;
     }
     bridge.start();
-    unwatch ??= hooks.changed(() => bridge.pushLocal());
+    void blobs?.start();
+    unwatch ??= hooks.changed(() => {
+      bridge.pushLocal();
+      void blobs?.pushLocal();
+    });
   }
   function settle(): void {
     if (settled) return;
@@ -73,7 +94,9 @@ export function createProjectAttacher(
       if (timer) clearTimeout(timer);
       unwatch?.();
       bridge.stop();
+      blobs?.stop();
     },
+    have: (hash) => blobs?.have(hash) ?? null,
   };
 }
 
@@ -83,7 +106,8 @@ export function createProjectEditing(
   hooks: ProjectHooks,
   fresh: boolean,
   send: (body: Uint8Array) => void,
-): { cursors: Cursors; binding: Attacher } {
+  transport: BlobTransport,
+): { cursors: Cursors; binding: Attacher; swap: BlobSwap } {
   const cursors = createCursors({
     doc,
     text: () => {
@@ -95,6 +119,12 @@ export function createProjectEditing(
     profile: deps.profile,
     send,
   });
-  const binding = createProjectAttacher(doc, hooks, cursors, fresh);
-  return { cursors, binding };
+  const swap: BlobSwap = createBlobSwap({
+    transport,
+    have: (hash) => binding.have(hash),
+  });
+  const binding = createProjectAttacher(doc, hooks, cursors, fresh, (h, s) =>
+    swap.want(h, s),
+  );
+  return { cursors, binding, swap };
 }

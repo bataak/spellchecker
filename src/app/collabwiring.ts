@@ -13,6 +13,7 @@ import {
 } from "../collab/collab.ts";
 import { projectName, sharedName } from "../collab/collabkey.ts";
 import { snapshotOf } from "../collab/projectdoc.ts";
+import type { BlobPort } from "../collab/projectblobs.ts";
 import { fileSlot, projectSlot, type RoomSlot } from "../collab/roomslot.ts";
 import { confirmReplace } from "../project/linkfiles.ts";
 import { saveDraftFile } from "../core/storage.ts";
@@ -68,16 +69,31 @@ function projectPort(store: ProjectStore, uid: string): ProjectHooks["port"] {
   };
 }
 
+function blobPort(store: ProjectStore, uid: string): BlobPort {
+  const files = () => {
+    const current = store.projectFiles();
+    return current?.uid === uid ? current : null;
+  };
+  const has = (path: string): boolean => !!files() && store.projectHas(path);
+  return {
+    binaries: () => files()?.binaries ?? null,
+    main: () => files()?.main ?? null,
+    put: async (path, bytes) => {
+      if (files()) await store.addFile(path, bytes);
+    },
+    move: async (from, to) => {
+      if (has(from) && !has(to)) await store.renamePath(from, to);
+    },
+    remove: async (path) => {
+      if (has(path)) await store.removePath(path);
+    },
+  };
+}
+
 async function seedOf(store: ProjectStore, uid: string) {
   const files = store.projectFiles();
-  const view = store.project();
-  if (!files || !view || files.uid !== uid) return null;
-  const binaries = new Map<string, Uint8Array>();
-  for (const path of view.files) {
-    const bytes = files.texts.has(path) ? null : store.projectBinary(path);
-    if (bytes) binaries.set(path, bytes);
-  }
-  return snapshotOf(files.texts, binaries, files.dirs, files.main);
+  if (!files || files.uid !== uid) return null;
+  return snapshotOf(files.texts, files.binaries, files.dirs, files.main);
 }
 
 export function createProjectCollab(
@@ -115,6 +131,7 @@ export function createProjectCollab(
         );
       },
       changed: (listener) => store.onProjectChange(listener),
+      blobs: blobPort(store, uid),
     }),
   };
 }

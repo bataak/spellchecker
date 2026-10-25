@@ -20,6 +20,7 @@ export interface Mesh {
   receive(peer: string, payload: SignalPayload): void;
   drop(peer: string): void;
   send(peer: string, data: Uint8Array): void;
+  drain(peer: string): Promise<void>;
   broadcast(data: Uint8Array, except?: string): void;
   open(): string[];
   refresh(): void;
@@ -47,6 +48,7 @@ const RETRIES = 3;
 const RETRY_MS = 2000;
 const CONNECT_MS = 10_000;
 const RELAY_CANDIDATE = " typ relay";
+const DRAIN_BYTES = 1024 * 1024;
 
 function gathered(pc: RTCPeerConnection): Promise<void> {
   if (pc.iceGatheringState === "complete") return Promise.resolve();
@@ -148,6 +150,21 @@ function sendChunks(channel: RTCDataChannel, data: Uint8Array): boolean {
   }
 }
 
+function drainChannel(channel: RTCDataChannel | undefined): Promise<void> {
+  if (!channel || channel.bufferedAmount <= DRAIN_BYTES)
+    return Promise.resolve();
+  channel.bufferedAmountLowThreshold = DRAIN_BYTES;
+  return new Promise((resolve) => {
+    const done = (): void => {
+      channel.removeEventListener("bufferedamountlow", done);
+      channel.removeEventListener("close", done);
+      resolve();
+    };
+    channel.addEventListener("bufferedamountlow", done);
+    channel.addEventListener("close", done);
+  });
+}
+
 export function createMesh(deps: MeshDeps): Mesh {
   const links = new Map<string, Link>();
   const retries = new Map<string, number>();
@@ -236,6 +253,7 @@ export function createMesh(deps: MeshDeps): Mesh {
       drop(peer);
     },
     send,
+    drain: (peer) => drainChannel(links.get(peer)?.channel),
     broadcast(data, except) {
       for (const [peer, entry] of links)
         if (peer !== except && entry.open) send(peer, data);
