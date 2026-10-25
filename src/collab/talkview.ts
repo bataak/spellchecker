@@ -13,7 +13,7 @@ export interface TalkView {
 
 const MAX_SHOWN = 200;
 const MAX_PIECE = 600;
-const CHAT_EMPTY = "Одоогоор мессеж алга. Хамтрагчидтайгаа энд ярилцана уу.";
+const CHAT_EMPTY = "Одоогоор таны хамтрагчдаас нэг ч зурвас алга.";
 const CHANGES_WAIT = "Өөрчлөлтийг хянаж эхэлж байна…";
 const CHANGES_EMPTY = "Сүүлд зөвшөөрснөөс хойш өөрчлөлт алга.";
 
@@ -80,11 +80,9 @@ export function chatView(chat: Chat): TalkView {
   const input = element("textarea", "talk-input");
   input.rows = 2;
   input.maxLength = MAX_CHAT_TEXT;
-  input.placeholder = "Мессеж бичих…";
-  input.setAttribute("aria-label", "Мессеж");
-  const send = button("talk-send", "Илгээх");
-  send.type = "submit";
-  form.append(input, send);
+  input.placeholder = "Зурвас илгээх...";
+  input.setAttribute("aria-label", "Зурвас");
+  form.append(input);
   el.append(list, empty, form);
   let visible = false;
 
@@ -176,7 +174,7 @@ function changeRow(change: Change, actions: ChangeActions): HTMLLIElement {
 }
 
 export function changesCount(count: number): string {
-  return count === 0 ? "Өөрчлөлт алга" : count + " өөрчлөлт";
+  return count === 0 ? "Өөрчлөлтгүй" : count + " өөрчлөлт";
 }
 
 export function changesView(
@@ -186,7 +184,7 @@ export function changesView(
   const el = element("div", "talk-changes");
   const bar = element("div", "talk-changes-bar");
   const count = element("span", "talk-changes-count");
-  const acceptAll = button("talk-send", "Бүгдийг зөвшөөрөх");
+  const acceptAll = button("talk-accept-all", "Бүгдийг зөвшөөр");
   acceptAll.addEventListener("click", () => tracker.acceptAll());
   bar.append(count, acceptAll);
   const list = element("ol", "talk-change-list");
