@@ -65,6 +65,7 @@ import { bindArming, bindEditorInput } from "./app/editorinput.ts";
 import { createMarkupMode } from "./app/markupmode.ts";
 import { createLastCaret } from "./app/lastcaret.ts";
 import { createCollabWiring } from "./app/collabwiring.ts";
+import { fileSlot } from "./collab/roomslot.ts";
 
 installErrorLog();
 
@@ -408,7 +409,7 @@ const mdBar = initMdToolbar({
   onCloseProject: () => projectLink.close(),
   onCloseFile: (slot) => {
     slots.forget(slot);
-    collab.forget(slot);
+    collab.forget(fileSlot(slot));
   },
 });
 const nudgeHints = initAppHints({
@@ -505,7 +506,7 @@ initToolbar({
     previewMode.cleared();
     projectLink.cleared();
     fileIO.forgetFile();
-    if (collab.forget(mdBar.slot()))
+    if (collab.forget(fileSlot(mdBar.slot())))
       status.hold("Хамтын засвараас гарлаа. Бусдын бичвэр хэвээр үлдэнэ.");
   },
   afterClear: (cleared) => {

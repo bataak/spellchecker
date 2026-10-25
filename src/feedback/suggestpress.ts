@@ -1,4 +1,4 @@
-import { ISSUES_URL } from "./suggestmarkup.ts";
+import { COPY_FAILED, copiedNote, ISSUES_URL } from "./suggestmarkup.ts";
 
 const LONG_PRESS_MS = 550;
 const VERIFY_MS = 400;
@@ -37,7 +37,7 @@ export function attachHoldToCopy(el: HTMLElement, d: HoldCopyDeps): void {
         armTimer = null;
         if (!d.enabled()) return;
         const count = d.count();
-        if (count) d.note(count + " үг санах ойд хуулагдлаа", "ok");
+        if (count) d.note(copiedNote(count), "ok");
         else d.note("Хуулах үг алга");
       }, LONG_PRESS_MS);
     },
@@ -52,8 +52,7 @@ export function attachHoldToCopy(el: HTMLElement, d: HoldCopyDeps): void {
         clearVerify();
         verifyTimer = setTimeout(() => {
           verifyTimer = null;
-          if (d.enabled() && d.count())
-            d.note("Хуулж чадсангүй — дахин оролдоно уу", "err");
+          if (d.enabled() && d.count()) d.note(COPY_FAILED, "err");
         }, VERIFY_MS);
       }
     }

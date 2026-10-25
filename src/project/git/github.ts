@@ -1,4 +1,4 @@
-import { ProjectError } from "../projecterror.ts";
+import { ProjectError, REPO_TOO_LARGE } from "../projecterror.ts";
 import {
   RACE,
   fromBase64,
@@ -98,8 +98,7 @@ export function createGitApi(
       const data = await get<{ tree: TreeEntry[]; truncated: boolean }>(
         "/git/trees/" + sha + "?recursive=1",
       );
-      if (data.truncated)
-        throw new ProjectError("Repo хэт том тул бүрэн уншиж чадсангүй");
+      if (data.truncated) throw new ProjectError(REPO_TOO_LARGE);
       return data.tree;
     },
     async blob(sha) {

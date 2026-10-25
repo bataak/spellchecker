@@ -8,13 +8,12 @@ import type { ProjectHooks } from "../collab/projectsession.ts";
 import {
   initCollab,
   joinName,
-  projectSlot,
-  projectUid,
   type Collab,
   type CollabProject,
 } from "../collab/collab.ts";
 import { projectName, sharedName } from "../collab/collabkey.ts";
 import { snapshotOf } from "../collab/projectdoc.ts";
+import { fileSlot, projectSlot, type RoomSlot } from "../collab/roomslot.ts";
 import { confirmReplace } from "../project/linkfiles.ts";
 import { saveDraftFile } from "../core/storage.ts";
 import { PROJECT_SLOT } from "../slots/fileslots.ts";
@@ -126,10 +125,12 @@ function inProject(deps: CollabWiringDeps): boolean {
 
 export function createCollabWiring(deps: CollabWiringDeps): Collab {
   const { mdBar, doc, store } = deps;
-  const slot = (): string => {
+  const slot = (): RoomSlot => {
     const uid = inProject(deps) ? sharedUid(deps) : null;
-    return uid ? projectSlot(uid) : mdBar.slot();
+    return uid ? projectSlot(uid) : fileSlot(mdBar.slot());
   };
+  const hasFile = (id: string): boolean =>
+    mdBar.fileSlots().some((file) => file.id === id);
   const collab = initCollab({
     editor: deps.editor,
     view: deps.view,
@@ -147,14 +148,13 @@ export function createCollabWiring(deps: CollabWiringDeps): Collab {
       return joinName(doc.fileName(), deps.isTex(), doc.markdownActive());
     },
     showSlot: (target) => {
-      const uid = projectUid(target);
-      if (uid !== null) {
-        if (sharedUid(deps) !== uid) return false;
+      if (target.kind === "project") {
+        if (sharedUid(deps) !== target.uid) return false;
         mdBar.enterProject();
         return true;
       }
-      if (!mdBar.fileSlots().some((file) => file.id === target)) return false;
-      mdBar.showFile(target);
+      if (!hasFile(target.id)) return false;
+      mdBar.showFile(target.id);
       return true;
     },
     blocked: () => {
@@ -165,15 +165,14 @@ export function createCollabWiring(deps: CollabWiringDeps): Collab {
       return null;
     },
     wipe: (target) => {
-      const uid = projectUid(target);
-      if (uid !== null) {
-        if (sharedUid(deps) !== uid) return false;
+      if (target.kind === "project") {
+        if (sharedUid(deps) !== target.uid) return false;
         deps.project.drop();
         return true;
       }
-      if (!mdBar.fileSlots().some((file) => file.id === target)) return false;
-      mdBar.closeFile(target, true);
-      void deps.undo().forget(target);
+      if (!hasFile(target.id)) return false;
+      mdBar.closeFile(target.id, true);
+      void deps.undo().forget(target.id);
       return true;
     },
     notify: deps.notify,

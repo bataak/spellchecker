@@ -1,4 +1,6 @@
 export const MAX_WORDS = 50;
+export const OFFLINE = "Сүлжээгүй байна — холбогдсоны дараа дахин оролдоно уу";
+export const SENT = "Илгээгдлээ, баярлалаа!";
 
 const ENDPOINT = "https://api.bichig.dev/suggest";
 
@@ -16,7 +18,7 @@ export function sendBlock(
   if (count === 0) return "Дор хаяж нэг үг оруулна уу";
   if (count > MAX_WORDS)
     return "Илгээх үгийн тоо хамгийн ихдээ " + MAX_WORDS + " байх ёстой.";
-  if (!online) return "Сүлжээгүй байна — холбогдсоны дараа дахин оролдоно уу";
+  if (!online) return OFFLINE;
   if (!token)
     return "Баталгаажуулалт дуусаагүй — хэсэг хүлээгээд дахин дарна уу";
   return null;
