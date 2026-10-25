@@ -5,6 +5,8 @@ import { installDom } from "./helpers/dom.ts";
 import { bindText } from "../src/collab/textbind.ts";
 import { remoteChanges } from "../src/editor/editortext.ts";
 import { createAttacher } from "../src/collab/session.ts";
+import { createProjectEditing } from "../src/collab/projectsession.ts";
+import { seedProject } from "../src/collab/projectdoc.ts";
 import {
   DENIED_CODE,
   ENDED_CODE,
@@ -555,4 +557,56 @@ test("урилга үүсгэж чадаагүй ч өрөө нээгдсэн б
     1,
   );
   dialog.close();
+});
+
+test("төслийн курсор идэвхтэй файлын бичвэрийг дагана", () => {
+  const doc = new Y.Doc();
+  seedProject(doc, {
+    texts: new Map([["main.tex", "abc"]]),
+    blobs: new Map(),
+    dirs: new Set(),
+    main: "main.tex",
+  });
+  const editor = document.createElement("textarea");
+  editor.value = "abc";
+  const host = document.createElement("div");
+  document.body.append(host, editor);
+  let active: string | null = "main.tex";
+  const sent: Uint8Array[] = [];
+  const { cursors, binding } = createProjectEditing(
+    {
+      editor,
+      view: {
+        host,
+        caretRect: () => new DOMRect(0, 0, 0, 20),
+        rangeRects: () => [],
+      },
+      profile: () => ({ name: "Би", color: 0 }),
+    },
+    doc,
+    {
+      port: {
+        local: () => null,
+        setText: () => {},
+        add: async () => {},
+        addDir: async () => {},
+        move: async () => {},
+        remove: async () => {},
+        setMain: () => {},
+      },
+      active: () => active,
+      seed: null,
+      create: () => false,
+      changed: () => () => {},
+    },
+    true,
+    (body) => sent.push(body),
+  );
+  binding.attach();
+  assert.equal(sent.length, 1);
+  active = null;
+  binding.detach();
+  assert.equal(sent.length, 2);
+  binding.destroy();
+  cursors.destroy();
 });
