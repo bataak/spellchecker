@@ -1,3 +1,4 @@
+import { slotKey, type RoomSlot } from "./roomslot.ts";
 import { TOKEN, type CollabLink } from "./collabkey.ts";
 
 export type AccessKind = "o" | "m" | "i";
@@ -46,9 +47,10 @@ export function isOwner(entry: RoomEntry): boolean {
 
 export function roomOfSlot(
   rooms: readonly RoomEntry[],
-  slot: string,
+  slot: RoomSlot,
 ): RoomEntry | null {
-  return rooms.find((entry) => entry.slot === slot) ?? null;
+  const key = slotKey(slot);
+  return rooms.find((entry) => entry.slot === key) ?? null;
 }
 
 export function roomById(
@@ -85,11 +87,4 @@ export function withoutRoom(
   room: string,
 ): RoomEntry[] {
   return rooms.filter((entry) => entry.room !== room);
-}
-
-export function keepRooms(
-  rooms: readonly RoomEntry[],
-  slots: ReadonlySet<string>,
-): RoomEntry[] {
-  return rooms.filter((entry) => slots.has(entry.slot));
 }
