@@ -21,6 +21,7 @@ const NAMES = [
   "Гавар",
   "Гүрвэл",
   "Бамбар",
+  "Хярс",
 ];
 const COLORS = 8;
 export const MAX_NAME = 40;
