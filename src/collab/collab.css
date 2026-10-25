@@ -456,6 +456,14 @@
   font-size: 0.85rem;
 }
 
+.talk-chat {
+  font-size: 1rem;
+}
+
+.talk-chat .talk-msg-head {
+  font-size: 0.82rem;
+}
+
 .talk-messages,
 .talk-change-list {
   flex: 1 1 auto;
