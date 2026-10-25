@@ -1,4 +1,4 @@
-import { ProjectError } from "../projecterror.ts";
+import { ProjectError, REPO_TOO_LARGE } from "../projecterror.ts";
 import {
   RACE,
   inBatches,
@@ -53,8 +53,7 @@ async function listTree(
   let page: string | null = "1";
   for (let count = 0; page; count++) {
     signal?.throwIfAborted();
-    if (count >= MAX_PAGES)
-      throw new ProjectError("Repo хэт том тул бүрэн уншиж чадсангүй");
+    if (count >= MAX_PAGES) throw new ProjectError(REPO_TOO_LARGE);
     const response = await call(
       "/repository/tree?recursive=true&per_page=" +
         PAGE +

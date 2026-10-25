@@ -8,7 +8,7 @@ import {
 } from "../tex/texproject.ts";
 import { unpackedSize } from "../archive/archive.ts";
 import { MAX_BYTES, budget } from "./projectdisk.ts";
-import { ProjectError } from "./projecterror.ts";
+import { PROJECT_TOO_LARGE, ProjectError } from "./projecterror.ts";
 
 export interface LoadedFiles {
   readonly name: string;
@@ -54,8 +54,7 @@ export async function readZip(file: File): Promise<LoadedFiles> {
   } catch {
     throw new ProjectError("Zip файлыг задалж чадсангүй");
   }
-  if (size > MAX_BYTES)
-    throw new ProjectError("Төсөл хэт том байна (200 MB-аас ихгүй)");
+  if (size > MAX_BYTES) throw new ProjectError(PROJECT_TOO_LARGE);
   try {
     entries = (await fflate()).unzipSync(bytes);
   } catch {
