@@ -1,6 +1,7 @@
 import * as Y from "yjs";
 import { randomId } from "./collabkey.ts";
 import { minimalDiff } from "../mdbar/mdedit.ts";
+import { unsafeName } from "./safetext.ts";
 import { movedPath, skippedPath, within } from "../tex/texproject.ts";
 
 export interface BlobRef {
@@ -27,6 +28,8 @@ const TEXT = "text";
 const HASH = "hash";
 const SIZE = "size";
 const MAIN = "main";
+const MAX_PATH = 1024;
+const ODD_PARTS = new Set(["", ".", ".."]);
 
 function files(doc: Y.Doc): Y.Map<Entry> {
   return doc.getMap<Entry>(FILES);
@@ -44,13 +47,27 @@ export function outputPdf(main: string | null): string | null {
   return main ? main.replace(/\.(tex|ltx)$/i, "") + ".pdf" : null;
 }
 
+function safePath(path: unknown): path is string {
+  return (
+    typeof path === "string" &&
+    path.length <= MAX_PATH &&
+    !unsafeName(path) &&
+    !path.split("/").some((part) => ODD_PARTS.has(part))
+  );
+}
+
 export function sharedPath(path: string, main: string | null): boolean {
-  return !skippedPath(path) && path !== outputPdf(main);
+  return safePath(path) && !skippedPath(path) && path !== outputPdf(main);
+}
+
+function mainOf(doc: Y.Doc): string | null {
+  const main: unknown = meta(doc).get(MAIN);
+  return safePath(main) ? main : null;
 }
 
 function pathOf(entry: Entry): string {
   const path = entry.get(PATH);
-  return typeof path === "string" ? path : "";
+  return safePath(path) ? path : "";
 }
 
 function numbered(path: string, n: number): string {
@@ -130,7 +147,7 @@ export function removePath(doc: Y.Doc, path: string): void {
       if (within(pathOf(entry), path)) files(doc).delete(id);
     for (const dir of [...dirs(doc).keys()])
       if (within(dir, path)) dirs(doc).delete(dir);
-    const main = meta(doc).get(MAIN);
+    const main = mainOf(doc);
     if (main && within(main, path)) setMain(doc, null);
   });
 }
@@ -152,7 +169,7 @@ export function movePath(doc: Y.Doc, from: string, to: string): void {
       dirs(doc).delete(dir);
       dirs(doc).set(next, true);
     }
-    const main = meta(doc).get(MAIN);
+    const main = mainOf(doc);
     const moved = main ? movedPath(main, from, to) : null;
     if (moved !== null) setMain(doc, moved);
   });
@@ -241,8 +258,8 @@ export function projectOf(doc: Y.Doc): ProjectSnapshot {
   return {
     texts,
     blobs,
-    dirs: new Set(dirs(doc).keys()),
-    main: meta(doc).get(MAIN) ?? null,
+    dirs: new Set([...dirs(doc).keys()].filter(safePath)),
+    main: mainOf(doc),
   };
 }
 

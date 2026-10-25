@@ -13,6 +13,7 @@ import {
 } from "./collabrooms.ts";
 import { IDLE_LABEL, JOIN_NAME } from "./collabmessages.ts";
 import type { Collab, CollabDeps, TalkKind } from "./collabtypes.ts";
+import { cleanName } from "./safetext.ts";
 import { createRegistry, ENDPOINT, type Registry } from "./registry.ts";
 import { arrived, joinRoom, openProjectRoom, resumeJoins } from "./roomjoin.ts";
 import { parseSlot, projectSlot, slotKey } from "./roomslot.ts";
@@ -37,7 +38,7 @@ export function joinName(
   tex: boolean,
   markdown: boolean,
 ): string {
-  if (file) return file;
+  if (file) return cleanName(file, file.length);
   return JOIN_NAME + (tex ? ".tex" : markdown ? ".md" : ".txt");
 }
 

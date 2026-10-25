@@ -1,3 +1,5 @@
+import { cleanName, unsafeName } from "./safetext.ts";
+
 export interface CollabLink {
   readonly room: string;
   readonly key: string;
@@ -52,8 +54,8 @@ export function sharedName(name: string): boolean {
 }
 
 export function projectName(name: string): string {
-  const base = name.replace(/[/\\:*?"<>|\u0000-\u001f]/g, " ").trim();
-  return (base.slice(0, MAX_NAME - 1).trim() || "LaTeX") + "/";
+  const base = cleanName(name.replace(/[/\\:*?"<>|]/g, " "), MAX_NAME - 1);
+  return (base || "LaTeX") + "/";
 }
 
 export function isProjectName(name: string): boolean {
@@ -67,7 +69,7 @@ export function isProjectName(name: string): boolean {
 }
 
 function validName(name: string): boolean {
-  return sharedName(name) || isProjectName(name);
+  return (sharedName(name) || isProjectName(name)) && !unsafeName(name);
 }
 
 function readName(encoded: string | undefined): string | null {

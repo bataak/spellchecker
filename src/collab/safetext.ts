@@ -10,6 +10,9 @@ const MARKS = /(\p{M}{3})\p{M}+/gu;
 const BLANK_LINES = /\n{3,}/g;
 const SPACES = /\s+/g;
 const BROKEN = "\uFFFD";
+const UNSAFE_NAME = new RegExp(
+  [BIDI, HIDDEN, CONTROL_NAME, LONE].map((rule) => rule.source).join("|"),
+);
 
 function common(text: string): string {
   return text
@@ -32,7 +35,13 @@ export function cleanName(name: string, max: number): string {
     .replace(CONTROL_NAME, " ")
     .replace(SPACES, " ")
     .trim()
-    .slice(0, max);
+    .slice(0, max)
+    .replace(LONE, "")
+    .trimEnd();
+}
+
+export function unsafeName(name: string): boolean {
+  return UNSAFE_NAME.test(name);
 }
 
 export function revealText(text: string): string {
