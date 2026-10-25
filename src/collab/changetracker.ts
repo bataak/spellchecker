@@ -1,6 +1,7 @@
 import type * as Y from "yjs";
 import { dropDoc, loadDoc, saveDoc } from "./docstore.ts";
 import {
+  acceptKey,
   changesOf,
   decodeBaseline,
   encodeBaseline,
@@ -111,7 +112,7 @@ export function createChangeTracker(deps: TrackerDeps): ChangeTracker {
       if (!base) return;
       keep({
         snapshot: base.snapshot,
-        accepted: new Set([...base.accepted, change.key]),
+        accepted: new Set([...base.accepted, acceptKey(change)]),
       });
     },
     acceptAll() {

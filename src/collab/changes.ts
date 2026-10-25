@@ -77,6 +77,13 @@ function draftsOf(ops: readonly DeltaOp[]): Draft[] {
       at += piece.length;
       continue;
     }
+    if (
+      open &&
+      change.type === "added" &&
+      open.client !== null &&
+      open.client !== change.client
+    )
+      open = null;
     if (!open) {
       open = {
         key: change.key,
@@ -111,7 +118,10 @@ export function changesOf(
     })) as DeltaOp[];
     const value = text.toString();
     for (const draft of draftsOf(ops)) {
-      if (draft.inserted === draft.removed || base.accepted.has(draft.key))
+      if (
+        draft.inserted === draft.removed ||
+        base.accepted.has(acceptKey(draft))
+      )
         continue;
       const end = draft.from + draft.inserted.length;
       out.push({
@@ -127,6 +137,14 @@ export function changesOf(
     }
   }
   return out;
+}
+
+export function acceptKey(
+  change: Pick<Change, "key" | "inserted" | "removed">,
+): string {
+  return (
+    change.key + "|" + change.inserted.length + "|" + change.removed.length
+  );
 }
 
 export function rejectChange(text: Y.Text, change: Change): void {
