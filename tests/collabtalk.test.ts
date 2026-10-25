@@ -2,6 +2,7 @@ import "fake-indexeddb/auto";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as Y from "yjs";
+import { installDom } from "./helpers/dom.ts";
 import {
   changesOf,
   decodeBaseline,
@@ -15,7 +16,24 @@ import {
   forgetBaseline,
 } from "../src/collab/changetracker.ts";
 import { loadDoc } from "../src/collab/docstore.ts";
-import { createChat, MAX_MESSAGES } from "../src/collab/chat.ts";
+import {
+  createChat,
+  MAX_CHAT_NAME,
+  MAX_MESSAGES,
+  type MineStore,
+} from "../src/collab/chat.ts";
+import { chatKey, mineKey, openChatDoc } from "../src/collab/chatdoc.ts";
+
+function memoryMine(): MineStore {
+  const sent = new Map<string, string>();
+  return {
+    has: (id, text) => sent.get(id) === text,
+    add: (id, text) => void sent.set(id, text),
+  };
+}
+
+const dom = installDom("");
+test.after(() => dom.close());
 
 function pair(): [Y.Doc, Y.Doc] {
   const a = new Y.Doc({ gc: false });
@@ -131,8 +149,8 @@ test("tracker анхны агуулга ирсний дараа суурь то�
 
 test("chat мессежийг дамжуулж, уншаагүйг тоолж, дээд хэмжээг барина", () => {
   const [a, b] = pair();
-  const mine = createChat(a, "dev-a", () => ({ name: "Би", color: 2 }));
-  const theirs = createChat(b, "dev-b", () => ({ name: "Чи", color: 5 }));
+  const mine = createChat(a, memoryMine(), () => ({ name: "Би", color: 2 }));
+  const theirs = createChat(b, memoryMine(), () => ({ name: "Чи", color: 5 }));
   let heard = 0;
   const off = mine.onChange(() => heard++);
   assert.equal(mine.send("   "), false);
@@ -156,4 +174,54 @@ test("chat мессежийг дамжуулж, уншаагүйг тоолж, �
   off();
   mine.destroy();
   theirs.destroy();
+});
+
+test("chat хуурамч болон буруу оруулгыг арилгаж, өөрийнхийг хуурахыг зөвшөөрөхгүй", () => {
+  const [a, b] = pair();
+  const mine = createChat(a, memoryMine(), () => ({ name: "Би", color: 2 }));
+  mine.send("Жинхэнэ");
+  const [real] = mine.list();
+  const raw = b.getArray("chat");
+  raw.push([
+    { i: real!.id, n: "Би", c: 2, a: 1, t: "Хуурамч" },
+    { i: "x", n: "й".repeat(MAX_CHAT_NAME + 1), c: 1, a: 1, t: "урт нэр" },
+    { i: "y", n: "Ч", c: Number.NaN, a: 1, t: "өнгө" },
+    { i: "z", n: "Ч", c: 1, a: 1, t: "т".repeat(3000) },
+    { i: "w", n: "Ч", c: 1, a: 1, t: "илүү", x: "хог" },
+    "<img src=x onerror=alert(1)>",
+  ]);
+  assert.deepEqual(
+    mine.list().map((message) => [message.text, message.mine]),
+    [
+      ["Жинхэнэ", true],
+      ["Хуурамч", false],
+    ],
+  );
+  assert.equal(raw.length, 2);
+  mine.destroy();
+});
+
+test("chat баримт тусдаа хадгалагдаж, өөрийн мессежийг санаж, мартахад арилна", async () => {
+  const first = await openChatDoc("talk-chat");
+  assert.equal(first.doc.gc, true);
+  const chat = createChat(first.doc, first.mine, () => ({
+    name: "Би",
+    color: 1,
+  }));
+  chat.send("Сайн уу");
+  chat.destroy();
+  await first.close(false);
+  const again = await openChatDoc("talk-chat");
+  const reopened = createChat(again.doc, again.mine, () => ({
+    name: "Би",
+    color: 1,
+  }));
+  assert.deepEqual(
+    reopened.list().map((message) => [message.text, message.mine]),
+    [["Сайн уу", true]],
+  );
+  reopened.destroy();
+  await again.close(true);
+  assert.equal(await loadDoc(chatKey("talk-chat")), null);
+  assert.equal(await loadDoc(mineKey("talk-chat")), null);
 });

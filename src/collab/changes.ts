@@ -1,4 +1,5 @@
 import * as Y from "yjs";
+import { MAX_CHAT_NAME } from "./chat.ts";
 import type { Profile } from "./cursors.ts";
 
 export interface ChangeAuthor {
@@ -50,8 +51,8 @@ function authorOf(doc: Y.Doc, client: number): ChangeAuthor | null {
   const entry = doc.getMap<unknown>(AUTHORS).get(String(client));
   if (!entry || typeof entry !== "object") return null;
   const { n, c } = entry as { n?: unknown; c?: unknown };
-  return typeof n === "string" && typeof c === "number"
-    ? { name: n, color: c }
+  return typeof n === "string" && Number.isInteger(c) && (c as number) >= 0
+    ? { name: n.slice(0, MAX_CHAT_NAME), color: c as number }
     : null;
 }
 

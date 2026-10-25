@@ -11,6 +11,7 @@ export interface TalkView {
 }
 
 const MAX_SHOWN = 200;
+const MAX_PIECE = 600;
 const CHAT_EMPTY = "Одоогоор мессеж алга. Хамтрагчидтайгаа энд ярилцана уу.";
 const CHANGES_WAIT = "Өөрчлөлтийг хянаж эхэлж байна…";
 const CHANGES_EMPTY = "Сүүлд зөвшөөрснөөс хойш өөрчлөлт алга.";
@@ -122,11 +123,15 @@ export function chatView(chat: Chat): TalkView {
   };
 }
 
+export function clip(text: string): string {
+  return text.length > MAX_PIECE ? text.slice(0, MAX_PIECE) + "…" : text;
+}
+
 function changeBody(change: Change): HTMLElement {
   const body = element("p", "talk-change-text");
   body.append(document.createTextNode("…" + change.before));
-  if (change.removed) body.append(element("del", "", change.removed));
-  if (change.inserted) body.append(element("ins", "", change.inserted));
+  if (change.removed) body.append(element("del", "", clip(change.removed)));
+  if (change.inserted) body.append(element("ins", "", clip(change.inserted)));
   body.append(document.createTextNode(change.after + "…"));
   return body;
 }

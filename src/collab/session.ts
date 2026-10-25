@@ -16,9 +16,11 @@ import {
   LOADED,
   openDoc,
   type Attacher,
+  type Editing,
   type Talk,
 } from "./roomdoc.ts";
 import { forgetBaseline } from "./changetracker.ts";
+import { openChatDoc, type ChatDoc } from "./chatdoc.ts";
 import {
   createSaver,
   createUploader,
@@ -187,10 +189,11 @@ function closeSignal(signal: Signal, leave: boolean): void {
 
 async function keepOrDrop(
   room: string,
-  doc: Y.Doc,
+  docs: { readonly doc: Y.Doc; readonly chat: ChatDoc },
   forget: boolean,
 ): Promise<void> {
-  if (!forget) return saveDoc(room, Y.encodeStateAsUpdate(doc));
+  await docs.chat.close(forget);
+  if (!forget) return saveDoc(room, Y.encodeStateAsUpdate(docs.doc));
   await forgetBaseline(room);
   await dropDoc(room);
 }
@@ -355,13 +358,33 @@ function meshTransport(mesh: () => Mesh): BlobTransport {
   };
 }
 
+function wireSync(
+  docs: { readonly doc: Y.Doc; readonly chat: ChatDoc },
+  peers: BlobTransport,
+  editing: Editing,
+): Sync {
+  const { cursors, swap } = editing;
+  return createSync({
+    doc: docs.doc,
+    chat: docs.chat.doc,
+    open: peers.open,
+    send: peers.send,
+    onCursor: (peer, body) => cursors.receive(peer, body),
+    onBlob: (peer, kind, body) => swap?.receive(peer, kind, body),
+    onJoined: (peer) => swap?.joined(peer),
+  });
+}
+
 export async function startSession(deps: SessionDeps): Promise<Session> {
   const { link } = deps;
   const key = await importKey(link.key);
   const { doc, fresh } = await openDoc(link.room, deps.seed, deps.project);
+  const chat = await openChatDoc(link.room);
   const peers = meshTransport(() => mesh);
-  const editing = createEditing(deps, doc, fresh, peers, (b) => sync.cursor(b));
-  const { cursors, binding, swap } = editing;
+  const editing = createEditing(deps, { doc, chat }, fresh, peers, (b) =>
+    sync.cursor(b),
+  );
+  const { cursors, binding } = editing;
   const self = randomId(12);
   const room = new Set<string>();
   let signalState: SignalState = "connecting";
@@ -395,13 +418,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
     sync: () => sync,
   });
 
-  const sync = createSync({
-    doc,
-    ...peers,
-    onCursor: (peer, body) => cursors.receive(peer, body),
-    onBlob: (peer, kind, body) => swap?.receive(peer, kind, body),
-    onJoined: (peer) => swap?.joined(peer),
-  });
+  const sync = wireSync({ doc, chat }, peers, editing);
 
   const signal = openSignal({
     url: () =>
@@ -456,7 +473,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
       sync.close();
       mesh.close();
       closeSignal(signal, forget);
-      await keepOrDrop(link.room, doc, forget);
+      await keepOrDrop(link.room, { doc, chat }, forget);
       doc.destroy();
     },
   };
