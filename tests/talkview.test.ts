@@ -242,3 +242,41 @@ test("төслийн самбарт товч нэмж, бусад бичвэрт
   assert.equal(trigger.hidden, true);
   assert.ok(toggles.every((node) => node.hidden));
 });
+
+test("бичвэр солигдоход chat-ийн сонсогч давхардахгүй", () => {
+  const first = fakeTalk(false);
+  const second = fakeTalk(false);
+  let active = 0;
+  const counted = (talk: Talk): Talk => ({
+    ...talk,
+    chat: {
+      ...talk.chat,
+      onChange(listener) {
+        active++;
+        const off = talk.chat.onChange(listener);
+        return () => {
+          active--;
+          off();
+        };
+      },
+    },
+  });
+  const talks = [counted(first.talk), counted(second.talk)];
+  let current: Talk | null = talks[0]!;
+  let notify = (): void => {};
+  initTalk({
+    collab: {
+      talk: (kind) => (kind === "file" ? current : null),
+      onTalk: (listener) => void (notify = listener),
+    },
+    editor: document.querySelector<HTMLTextAreaElement>("#editor")!,
+    openPath: () => {},
+    anchor: null,
+  });
+  const base = active;
+  for (let round = 0; round < 5; round++) {
+    current = talks[round % 2]!;
+    notify();
+  }
+  assert.equal(active, base);
+});

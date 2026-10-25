@@ -73,6 +73,32 @@ interface Side {
   sync(views: Views | null): void;
 }
 
+const MODES = ["chat", "changes"] as const;
+
+interface Holder {
+  current(): Views | null;
+  swap(views: Views | null): boolean;
+}
+
+function holder(unread: () => void): Holder {
+  let current: Views | null = null;
+  let off = (): void => {};
+  return {
+    current: () => current,
+    swap(views) {
+      if (views === current) return false;
+      current = views;
+      off();
+      off = views?.talk.chat.onChange(unread) ?? (() => {});
+      return true;
+    },
+  };
+}
+
+function unreadOf(held: Holder, reading: boolean): number {
+  return reading ? 0 : (held.current()?.talk.chat.unread() ?? 0);
+}
+
 function talkButton(mode: TalkMode): HTMLButtonElement {
   const node = headButton(TALK_LABELS[mode], ICONS[mode]);
   node.classList.add("talk-toggle");
@@ -101,16 +127,18 @@ function projectSide(editor: HTMLTextAreaElement): Side | null {
   title.className = "project-talk-title";
   side.append(title);
   head.after(side);
-  let current: Views | null = null;
   let mode: TalkMode | null = null;
-  let offUnread = (): void => {};
+  const unread = (): void =>
+    badge(buttons.chat, unreadOf(held, mode === "chat"));
+  const held = holder(unread);
 
   const show = (next: TalkMode | null): void => {
+    const current = held.current();
     mode = current ? next : null;
     if (mode === null) refocus(side, editor);
     panel.classList.toggle("is-talk", mode !== null);
     side.hidden = mode === null;
-    for (const key of ["chat", "changes"] as const) {
+    for (const key of MODES) {
       buttons[key].setAttribute("aria-pressed", String(mode === key));
       current?.views[key].shown(mode === key);
     }
@@ -118,33 +146,27 @@ function projectSide(editor: HTMLTextAreaElement): Side | null {
     title.textContent = TALK_LABELS[mode];
     side.replaceChildren(title, current.views[mode].el);
   };
-  for (const key of ["chat", "changes"] as const)
+  for (const key of MODES)
     buttons[key].addEventListener("click", () =>
       show(mode === key ? null : key),
     );
-  const unread = (): void =>
-    badge(
-      buttons.chat,
-      mode === "chat" ? 0 : (current?.talk.chat.unread() ?? 0),
-    );
   return {
     sync(views) {
-      if (views !== current) {
-        current = views;
-        offUnread();
-        offUnread = views?.talk.chat.onChange(unread) ?? (() => {});
-        show(views ? mode : null);
-      }
+      if (held.swap(views)) show(views ? mode : null);
       buttons.chat.hidden = buttons.changes.hidden = views === null;
       unread();
     },
   };
 }
 
-function fileWindow(
-  anchor: HTMLElement | null,
-  editor: HTMLTextAreaElement,
-): Side {
+interface Shell {
+  readonly win: HTMLElement;
+  readonly tabs: Record<TalkMode, HTMLButtonElement>;
+  readonly close: HTMLButtonElement;
+  readonly body: HTMLElement;
+}
+
+function windowShell(): Shell {
   const win = document.createElement("aside");
   win.className = "talk-window";
   win.hidden = true;
@@ -156,7 +178,7 @@ function fileWindow(
     chat: document.createElement("button"),
     changes: document.createElement("button"),
   };
-  for (const key of ["chat", "changes"] as const) {
+  for (const key of MODES) {
     tabs[key].type = "button";
     tabs[key].className = "talk-tab";
     tabs[key].setAttribute("role", "tab");
@@ -170,7 +192,10 @@ function fileWindow(
   body.className = "talk-window-body";
   win.append(head, body);
   document.body.append(win);
+  return { win, tabs, close, body };
+}
 
+function talkTrigger(anchor: HTMLElement | null): HTMLButtonElement {
   const trigger = document.createElement("button");
   trigger.type = "button";
   trigger.className = "tbtn talk-trigger";
@@ -180,17 +205,22 @@ function fileWindow(
   trigger.append(document.createTextNode(" " + TALK_LABELS.chat));
   trigger.setAttribute("aria-pressed", "false");
   anchor?.after(trigger);
+  return trigger;
+}
 
-  let current: Views | null = null;
+function fileWindow(
+  anchor: HTMLElement | null,
+  editor: HTMLTextAreaElement,
+): Side {
+  const { win, tabs, close, body } = windowShell();
+  const trigger = talkTrigger(anchor);
   let mode: TalkMode = "chat";
-  let offUnread = (): void => {};
   const unread = (): void =>
-    badge(
-      trigger,
-      !win.hidden && mode === "chat" ? 0 : (current?.talk.chat.unread() ?? 0),
-    );
+    badge(trigger, unreadOf(held, !win.hidden && mode === "chat"));
+  const held = holder(unread);
   const render = (): void => {
-    for (const key of ["chat", "changes"] as const) {
+    const current = held.current();
+    for (const key of MODES) {
       tabs[key].setAttribute("aria-selected", String(mode === key));
       current?.views[key].shown(!win.hidden && mode === key);
     }
@@ -200,10 +230,10 @@ function fileWindow(
   };
   const open = (on: boolean): void => {
     if (!on) refocus(win, editor);
-    win.hidden = !on || !current;
+    win.hidden = !on || !held.current();
     render();
   };
-  for (const key of ["chat", "changes"] as const)
+  for (const key of MODES)
     tabs[key].addEventListener("click", () => {
       mode = key;
       render();
@@ -215,10 +245,7 @@ function fileWindow(
   });
   return {
     sync(views) {
-      if (views !== current) {
-        current = views;
-        offUnread();
-        offUnread = views?.talk.chat.onChange(unread) ?? (() => {});
+      if (held.swap(views)) {
         if (!views) win.hidden = true;
         render();
       }
