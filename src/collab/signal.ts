@@ -5,6 +5,12 @@ export type SignalEvent =
       readonly peers: string[];
       readonly shared: boolean;
       readonly ice: RTCIceServer[];
+      readonly life: number;
+    }
+  | {
+      readonly t: "ice";
+      readonly ice: RTCIceServer[];
+      readonly life: number;
     }
   | { readonly t: "join"; readonly id: string }
   | { readonly t: "bye"; readonly id: string }
@@ -108,6 +114,12 @@ function parseIce(list: unknown): RTCIceServer[] {
   return out;
 }
 
+function lifeOf(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? value
+    : 0;
+}
+
 export function parseSignal(raw: string): SignalEvent | null {
   let value: unknown;
   try {
@@ -136,7 +148,10 @@ function parseEvent(v: Record<string, unknown>): SignalEvent | null {
       peers: v.peers.filter(isText),
       shared: v.s === true,
       ice: parseIce(v.ice),
+      life: lifeOf(v.life),
     };
+  if (v.t === "ice")
+    return { t: "ice", ice: parseIce(v.ice), life: lifeOf(v.life) };
   if ((v.t === "join" || v.t === "bye" || v.t === "kick") && isText(v.id))
     return { t: v.t, id: v.id };
   if (v.t === "from" && isText(v.from) && isText(v.d))

@@ -14,6 +14,14 @@ ALLOWED_ORIGINS = "https://aldaa.bichig.dev,https://soril.bichig.dev,https://sor
 name = "ROOMS"
 class_name = "Room"
 
+[[durable_objects.bindings]]
+name = "QUOTA"
+class_name = "Quota"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Room"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["Quota"]
