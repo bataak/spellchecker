@@ -6,6 +6,7 @@ import {
   addDir,
   addText,
   blobHash,
+  blobsOf,
   movePath,
   outputPdf,
   projectOf,
@@ -156,4 +157,20 @@ test("хоёртын файлыг SHA-256-аар тодорхойлж snapshot �
   assert.equal(snap.blobs.get("a.png")?.hash.length, 64);
   assert.equal(snap.blobs.has("main.pdf"), false);
   assert.deepEqual([...snap.dirs], ["fig"]);
+});
+
+test("projectOf хадгалсан текстийг дотоод ба алсын засвараар шинэчилнэ", () => {
+  const [a, b] = pair();
+  addText(a, "main.tex", "А");
+  addBlob(a, "fig.png", { hash: "h", size: 3 });
+  assert.equal(projectOf(b).texts.get("main.tex"), "А");
+  textOf(a, "main.tex")!.insert(1, "Б");
+  assert.equal(projectOf(b).texts.get("main.tex"), "АБ");
+  assert.equal(projectOf(a).texts.get("main.tex"), "АБ");
+  textOf(b, "main.tex")!.delete(0, 1);
+  assert.equal(projectOf(a).texts.get("main.tex"), "Б");
+  removePath(a, "main.tex");
+  addText(a, "main.tex", "шинэ");
+  assert.equal(projectOf(b).texts.get("main.tex"), "шинэ");
+  assert.deepEqual([...blobsOf(b)], [["fig.png", { hash: "h", size: 3 }]]);
 });

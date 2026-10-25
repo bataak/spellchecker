@@ -6,7 +6,7 @@ import {
   fileIds,
   MAX_BLOB,
   movePath,
-  projectOf,
+  blobsOf,
   removePath,
   setBlob,
   sharedPath,
@@ -78,7 +78,7 @@ function writeLocal(
   sizeOf: (path: string) => number,
 ): void {
   const added = [...now.keys()].filter((path) => !local.has(path));
-  const docBlobs = projectOf(doc).blobs;
+  const docBlobs = blobsOf(doc);
   doc.transact(() => {
     for (const [path, hash] of local) {
       if (now.has(path)) {
@@ -107,7 +107,7 @@ function synced(
   doc: Y.Doc,
   now: ReadonlyMap<string, string>,
 ): Map<string, string> {
-  const docBlobs = projectOf(doc).blobs;
+  const docBlobs = blobsOf(doc);
   return new Map(
     [...now].filter(([path, hash]) => docBlobs.get(path)?.hash === hash),
   );
@@ -118,7 +118,7 @@ function withMissing(
   local: ReadonlyMap<string, string>,
   now: ReadonlyMap<string, string>,
 ): Map<string, string> {
-  const docBlobs = projectOf(doc).blobs;
+  const docBlobs = blobsOf(doc);
   const out = new Map(local);
   for (const [path, hash] of now) if (!docBlobs.has(path)) out.set(path, hash);
   return out;
@@ -142,7 +142,7 @@ export function createBlobBridge(
   };
 
   const remember = (): void => {
-    seen = projectOf(doc).blobs;
+    seen = blobsOf(doc);
     ids = blobIds(doc, seen);
   };
 
@@ -151,7 +151,7 @@ export function createBlobBridge(
 
   const place = (path: string, ref: BlobRef, bytes: Uint8Array) =>
     run(async () => {
-      if (projectOf(doc).blobs.get(path)?.hash !== ref.hash) return;
+      if (blobsOf(doc).get(path)?.hash !== ref.hash) return;
       if (local.get(path) === ref.hash) return;
       hashes.set(bytes, ref.hash);
       await port.put(path, bytes);

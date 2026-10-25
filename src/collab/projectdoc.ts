@@ -182,16 +182,52 @@ export function textOf(doc: Y.Doc, path: string): Y.Text | null {
   return text instanceof Y.Text ? text : null;
 }
 
+const textCaches = new WeakMap<Y.Doc, WeakMap<Y.Text, string>>();
+
+function stringOf(doc: Y.Doc, text: Y.Text): string {
+  let cache = textCaches.get(doc);
+  if (!cache) {
+    const fresh = new WeakMap<Y.Text, string>();
+    files(doc).observeDeep((events) => {
+      for (const event of events)
+        if (event.target instanceof Y.Text) fresh.delete(event.target);
+    });
+    textCaches.set(doc, fresh);
+    cache = fresh;
+  }
+  let value = cache.get(text);
+  if (value === undefined) {
+    value = text.toString();
+    cache.set(text, value);
+  }
+  return value;
+}
+
+function blobOf(entry: Entry): BlobRef | null {
+  const hash = entry.get(HASH);
+  const size = entry.get(SIZE);
+  return typeof hash === "string" && typeof size === "number"
+    ? { hash, size }
+    : null;
+}
+
+export function blobsOf(doc: Y.Doc): Map<string, BlobRef> {
+  const blobs = new Map<string, BlobRef>();
+  for (const [path, entry] of resolved(doc)) {
+    const ref = entry.get(TEXT) instanceof Y.Text ? null : blobOf(entry);
+    if (ref) blobs.set(path, ref);
+  }
+  return blobs;
+}
+
 export function projectOf(doc: Y.Doc): ProjectSnapshot {
   const texts = new Map<string, string>();
   const blobs = new Map<string, BlobRef>();
   for (const [path, entry] of resolved(doc)) {
     const text = entry.get(TEXT);
-    const hash = entry.get(HASH);
-    const size = entry.get(SIZE);
-    if (text instanceof Y.Text) texts.set(path, text.toString());
-    else if (typeof hash === "string" && typeof size === "number")
-      blobs.set(path, { hash, size });
+    const ref = blobOf(entry);
+    if (text instanceof Y.Text) texts.set(path, stringOf(doc, text));
+    else if (ref) blobs.set(path, ref);
   }
   return {
     texts,
