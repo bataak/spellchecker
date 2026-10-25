@@ -2,7 +2,7 @@ import type { Mesh } from "./mesh.ts";
 import type { Signal } from "./signal.ts";
 
 const STUN: RTCIceServer[] = [{ urls: "stun:stun.cloudflare.com:3478" }];
-const MARGIN_S = 30 * 60;
+const MARGIN_S = 20 * 60;
 const MIN_MS = 60_000;
 const RETRY_MS = 5 * 60_000;
 
