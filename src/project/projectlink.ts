@@ -22,7 +22,12 @@ import type { PreviewSource } from "../preview/preview.ts";
 import type { LoadedFiles } from "./projectsources.ts";
 import type { TexProject } from "./projectbuild.ts";
 import { onSwap, swapOrigin } from "../editor/editortext.ts";
-import { createBinding, storeSlot, type Binding } from "./linkbind.ts";
+import {
+  createBinding,
+  storeSlot,
+  type BindDeps,
+  type Binding,
+} from "./linkbind.ts";
 import { absorbSlots, createOpened, createViewer } from "./linkopen.ts";
 import { createSave } from "./linksave.ts";
 
@@ -46,24 +51,22 @@ export interface OpenFilePort {
   readonly bind: (name: string | null) => void;
 }
 
-export interface ProjectLinkDeps {
-  readonly store: ProjectStore;
-  readonly editor: HTMLTextAreaElement;
+export interface PanelHost {
   readonly workspace: HTMLElement;
   readonly tools: () => HTMLElement | null;
   readonly openButton: HTMLElement | null;
   readonly fileButton: HTMLElement | null;
   readonly fileTypes: string;
-  readonly slots: SlotPort;
-  readonly file: OpenFilePort;
   readonly texActive: () => boolean;
-  readonly onBound: (bound: boolean) => void;
-  readonly afterSwitch: () => void;
+  readonly layout: () => void;
+  readonly show: (source: PreviewSource | null) => void;
+}
+
+export interface ProjectLinkDeps extends BindDeps {
+  readonly host: PanelHost;
   readonly onChange: () => void;
   readonly onProject: (name: string | null) => void;
-  readonly layout: () => void;
   readonly notify: (message: string) => void;
-  readonly show: (source: PreviewSource | null) => void;
 }
 
 export interface ProjectLink {
@@ -133,18 +136,18 @@ function projectPanelFor(
   binding: Binding,
   opened: (fresh: boolean, prefer?: string) => void,
 ): ProjectPanel {
-  const { store, editor } = deps;
+  const { store, editor, host } = deps;
   return initProjectPanel({
     store,
-    workspace: deps.workspace,
-    tools: deps.tools,
-    texActive: () => binding.bound() || deps.texActive(),
+    workspace: host.workspace,
+    tools: host.tools,
+    texActive: () => binding.bound() || host.texActive(),
     away: () =>
       store.hasProject() && !deps.slots.inProject()
         ? deps.slots.current()
         : null,
     openFile: binding.openFile,
-    view: createViewer(store, deps.show),
+    view: createViewer(store, host.show),
     beforeOpen: () => confirmReplace(store.project()?.unsaved),
     onOpened: opened,
     openedFile: () => {
@@ -154,18 +157,18 @@ function projectPanelFor(
         : null;
     },
     onClosed: () => storeSlot(null),
-    onLayout: deps.layout,
+    onLayout: host.layout,
     notify: deps.notify,
   });
 }
 
-function bindOpenButton(deps: ProjectLinkDeps, panel: ProjectPanel): void {
-  const openButton = deps.openButton;
+function bindOpenButton(host: PanelHost, panel: ProjectPanel): void {
+  const openButton = host.openButton;
   if (!openButton) return;
-  openButton.title = "Файл (" + deps.fileTypes + ") эсвэл LaTeX төсөл нээх";
+  openButton.title = "Файл (" + host.fileTypes + ") эсвэл LaTeX төсөл нээх";
   openButton.addEventListener("click", () =>
     panel.openMenu(openButton, [
-      { label: deps.fileTypes, run: () => deps.fileButton?.click() },
+      { label: host.fileTypes, run: () => host.fileButton?.click() },
     ]),
   );
 }
@@ -254,7 +257,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
   };
 
   const panel = projectPanelFor(deps, binding, opened);
-  bindOpenButton(deps, panel);
+  bindOpenButton(deps.host, panel);
   watchProject(deps, binding);
 
   const fail = (error: unknown): void => {

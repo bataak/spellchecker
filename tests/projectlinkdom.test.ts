@@ -30,11 +30,16 @@ async function setup() {
   const link = initProjectLink({
     store,
     editor,
-    workspace: document.querySelector<HTMLElement>(".workspace")!,
-    tools: () => document.querySelector<HTMLElement>(".editor-tools"),
-    openButton: null,
-    fileButton: null,
-    fileTypes: "",
+    host: {
+      workspace: document.querySelector<HTMLElement>(".workspace")!,
+      tools: () => document.querySelector<HTMLElement>(".editor-tools"),
+      openButton: null,
+      fileButton: null,
+      fileTypes: "",
+      texActive: () => true,
+      layout: () => {},
+      show: () => {},
+    },
     slots: {
       current: () => slot,
       inProject: () => slot === "project",
@@ -53,14 +58,11 @@ async function setup() {
         events.push("file:" + name);
       },
     },
-    texActive: () => true,
     onBound: (on) => events.push("bound:" + on),
     afterSwitch: () => {},
     onChange: () => {},
     onProject: (name) => events.push("project:" + name),
-    layout: () => {},
     notify: (message) => events.push("notify:" + message),
-    show: () => {},
   });
   const root = new FakeDir("төсөл");
   root.put("main.tex", MAIN);
