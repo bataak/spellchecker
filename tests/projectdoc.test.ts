@@ -77,6 +77,34 @@ test("үүсгэсэн файл, гаралтын PDF-ийг хуваалцах�
   assert.equal(sharedPath("refs.bib", "main.tex"), true);
 });
 
+test("хамтрагчийн хуурамч зам, үндсэн файлыг хүлээж авахгүй", () => {
+  for (const path of [
+    "../x.tex",
+    "/abs.tex",
+    "a//b.tex",
+    "./a.tex",
+    "a\u202Egpj.tex",
+    "a\u200B.tex",
+    "x".repeat(1100),
+  ])
+    assert.equal(sharedPath(path, null), false, path);
+  const doc = new Y.Doc();
+  addText(doc, "main.tex", "a");
+  addText(doc, "../evil.tex", "b");
+  addText(doc, "sp\u2066oof.tex", "c");
+  addDir(doc, "fig");
+  addDir(doc, "..");
+  doc.getMap("meta").set("main", 7);
+  const project = projectOf(doc);
+  assert.deepEqual([...project.texts.keys()], ["main.tex"]);
+  assert.deepEqual([...project.dirs], ["fig"]);
+  assert.equal(project.main, null);
+  removePath(doc, "fig");
+  movePath(doc, "main.tex", "body.tex");
+  setMain(doc, "body.tex");
+  assert.equal(projectOf(doc).main, "body.tex");
+});
+
 test("хоёр хүний засвар нэг файлд нэгтгэгдэнэ", () => {
   const [a, b, merge] = forked();
   addText(a, "main.tex", "AC");

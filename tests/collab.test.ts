@@ -101,6 +101,7 @@ test("зөвхөн txt, md, tex файлыг хуваалцана", () => {
   ])
     assert.equal(sharedName(name), false, name);
   assert.equal(joinName("notes.md", false, true), "notes.md");
+  assert.equal(joinName("no\u200Btes.md", false, true), "notes.md");
   assert.equal(joinName(null, true, false), "Хамтын бичвэр.tex");
   assert.equal(joinName(null, false, true), "Хамтын бичвэр.md");
   assert.equal(joinName(null, false, false), "Хамтын бичвэр.txt");
@@ -123,8 +124,16 @@ test("төслийн нэрийг холбоост тэмдэглэнэ", () => 
   assert.equal(isProjectName("/"), false);
   assert.equal(isProjectName("a/b/"), false);
   assert.equal(isProjectName("paper.tex"), false);
+  assert.equal(projectName("a\u202Eb\u200Bc"), "abc/");
   const link = { ...newLink(), invite: newToken(), name: "Дипломын ажил/" };
   assert.deepEqual(parseLink(linkHash(link)), link);
+  for (const name of ["a\u202Etxt.md", "a\u200B/"]) {
+    const spoof = { ...newLink(), invite: newToken(), name };
+    const hash =
+      linkHash({ ...spoof, name: "x.md" }).replace(/\.[^.]+$/, ".") +
+      Buffer.from(name).toString("base64url");
+    assert.equal(parseLink(hash)?.name, undefined, name);
+  }
 });
 
 test("хамтын холбоосыг задлах, үүсгэх", () => {

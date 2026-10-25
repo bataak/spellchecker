@@ -1,6 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cleanName, cleanText, revealText } from "../src/collab/safetext.ts";
+import {
+  cleanName,
+  cleanText,
+  revealText,
+  unsafeName,
+} from "../src/collab/safetext.ts";
 
 const esc = (code: number): string => String.fromCharCode(code);
 
@@ -35,4 +40,17 @@ test("өөрчлөлтөд үл харагдах тэмдэгтийг тодоо
   assert.equal(revealText("а" + esc(0x200b) + "б"), "а" + mark + "б");
   assert.equal(revealText(esc(0x202e) + esc(0) + "\n"), mark + mark + "\n");
   assert.equal(revealText(esc(0xdc00)), mark);
+});
+
+test("файлын нэрэнд нуугдмал тэмдэгт байгаа эсэхийг илрүүлнэ", () => {
+  for (const name of ["Хамтын бичвэр.txt", "a\u0301.md", "\u{1F600}.tex"])
+    assert.equal(unsafeName(name), false, name);
+  for (const name of [
+    "a\u202E.txt",
+    "a\u200B.md",
+    "a\u0085.tex",
+    "a\uD800.txt",
+  ])
+    assert.equal(unsafeName(name), true, name);
+  assert.equal(cleanName("ab\u{1F600}", 3), "ab");
 });
