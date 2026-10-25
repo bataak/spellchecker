@@ -103,6 +103,11 @@ export interface Editing {
   destroy(): void;
 }
 
+export interface RoomDocs {
+  readonly doc: Y.Doc;
+  readonly chat: ChatDoc;
+}
+
 export interface Talk {
   readonly chat: Chat;
   readonly changes: ChangeTracker;
@@ -146,7 +151,7 @@ function withDestroy(
 
 export function createEditing(
   deps: EditingDeps,
-  docs: { readonly doc: Y.Doc; readonly chat: ChatDoc },
+  docs: RoomDocs,
   fresh: boolean,
   transport: BlobTransport,
   send: (body: Uint8Array) => void,

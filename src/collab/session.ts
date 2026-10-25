@@ -11,17 +11,17 @@ import {
   unseal,
   type CollabLink,
 } from "./collabkey.ts";
-import { dropDoc, saveDoc } from "./docstore.ts";
+import { dropRoom, saveDoc } from "./docstore.ts";
 import {
   createEditing,
   LOADED,
   openDoc,
   type Attacher,
   type Editing,
+  type RoomDocs,
   type Talk,
 } from "./roomdoc.ts";
-import { forgetBaseline } from "./changetracker.ts";
-import { openChatDoc, type ChatDoc } from "./chatdoc.ts";
+import { openChatDoc } from "./chatdoc.ts";
 import {
   createSaver,
   createUploader,
@@ -192,13 +192,12 @@ function closeSignal(signal: Signal, leave: boolean): void {
 
 async function keepOrDrop(
   room: string,
-  docs: { readonly doc: Y.Doc; readonly chat: ChatDoc },
+  docs: RoomDocs,
   forget: boolean,
 ): Promise<void> {
   await docs.chat.close(forget);
-  if (!forget) return saveDoc(room, Y.encodeStateAsUpdate(docs.doc));
-  await forgetBaseline(room);
-  await dropDoc(room);
+  if (forget) await dropRoom(room);
+  else await saveDoc(room, Y.encodeStateAsUpdate(docs.doc));
 }
 
 async function applySnapshot(
@@ -359,7 +358,7 @@ function meshTransport(mesh: () => Mesh): BlobTransport {
 }
 
 function wireSync(
-  docs: { readonly doc: Y.Doc; readonly chat: ChatDoc },
+  docs: RoomDocs,
   peers: BlobTransport,
   editing: Editing,
 ): Sync {
