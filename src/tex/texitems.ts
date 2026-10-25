@@ -3,12 +3,21 @@ import { replaceRange } from "../editor/editortext.ts";
 const LIST = /\\(begin|end)\{(itemize|enumerate|description)\}/g;
 const ITEM = /^([ \t]*)\\item\b/;
 const INDENT = "  ";
+const COMMENT = /(^|[^\\])((?:\\\\)*)%.*$/gm;
 
 export interface ItemEdit {
   readonly from: number;
   readonly to: number;
   readonly insert: string;
   readonly caret: number;
+}
+
+function withoutComments(text: string): string {
+  return text.replace(
+    COMMENT,
+    (match, lead: string, slashes: string) =>
+      lead + slashes + " ".repeat(match.length - lead.length - slashes.length),
+  );
 }
 
 function listStart(before: string): number | null {
@@ -49,9 +58,10 @@ export function itemEdit(
   from: number,
   to: number,
 ): ItemEdit | null {
-  const start = listStart(text.slice(0, from));
+  const before = withoutComments(text.slice(0, from));
+  const start = listStart(before);
   if (start === null) return null;
-  const insert = "\n" + itemIndent(text, start, from) + "\\item ";
+  const insert = "\n" + itemIndent(before, start, from) + "\\item ";
   return { from, to, insert, caret: from + insert.length };
 }
 
