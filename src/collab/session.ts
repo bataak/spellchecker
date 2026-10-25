@@ -16,11 +16,11 @@ import {
   createEditing,
   LOADED,
   openDoc,
-  type Attacher,
   type Editing,
   type RoomDocs,
-  type Talk,
 } from "./roomdoc.ts";
+import type { Attacher } from "./attacher.ts";
+import type { Talk } from "./talk.ts";
 import { openChatDoc } from "./chatdoc.ts";
 import {
   createSaver,

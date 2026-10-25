@@ -7,7 +7,7 @@ import { createChat } from "../src/collab/chat.ts";
 
 import type { Change } from "../src/collab/changes.ts";
 import type { ChangeTracker } from "../src/collab/changetracker.ts";
-import type { Talk } from "../src/collab/roomdoc.ts";
+import type { Talk } from "../src/collab/talk.ts";
 import {
   changeTitle,
   changesCount,

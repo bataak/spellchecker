@@ -1,7 +1,7 @@
 import { headButton, icon } from "../project/panelicons.ts";
 import type { Collab, TalkKind } from "./collab.ts";
 import type { Change } from "./changes.ts";
-import type { Talk } from "./roomdoc.ts";
+import type { Talk } from "./talk.ts";
 import { changesView, chatView, type TalkView } from "./talkview.ts";
 
 export type TalkMode = "chat" | "changes";
