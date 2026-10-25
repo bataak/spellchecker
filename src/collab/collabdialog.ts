@@ -1,6 +1,6 @@
 import { copyText } from "../ui/clipboard.ts";
 import type { Member } from "./admin.ts";
-import type { Session } from "./session.ts";
+import type { Session } from "./sessiontypes.ts";
 import { MAX_NAME } from "./profile.ts";
 
 export interface DialogDeps {

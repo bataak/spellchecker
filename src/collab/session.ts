@@ -1,16 +1,7 @@
 import * as Y from "yjs";
-import { inflateSync } from "fflate";
 import { noteError } from "../core/errorlog.ts";
 import { createEmitter, type Emitter } from "../core/emitter.ts";
-import {
-  fromBase64Url,
-  importKey,
-  randomId,
-  seal,
-  toBase64Url,
-  unseal,
-  type CollabLink,
-} from "./collabkey.ts";
+import { importKey, randomId } from "./collabkey.ts";
 import { dropRoom, saveDoc } from "./docstore.ts";
 import {
   createEditing,
@@ -20,7 +11,6 @@ import {
   type RoomDocs,
 } from "./roomdoc.ts";
 import type { Attacher } from "./attacher.ts";
-import type { Talk } from "./talk.ts";
 import { openChatDoc } from "./chatdoc.ts";
 import {
   createSaver,
@@ -28,166 +18,37 @@ import {
   flushWhenHidden,
   isUploader,
   type Saver,
-  type UploadNotice,
   type Uploader,
+  type UploaderDeps,
 } from "./persistence.ts";
-import { createMesh, type Mesh, type SignalPayload } from "./mesh.ts";
-import {
-  openSignal,
-  type Signal,
-  type SignalEvent,
-  type SignalState,
-} from "./signal.ts";
+import { createMesh, type Mesh } from "./mesh.ts";
+import type { Signal } from "./signal.ts";
 import { createSync, type Sync } from "./sync.ts";
 import type { BlobTransport } from "./blobswap.ts";
-import { createAdmin, type Admin, type Member } from "./admin.ts";
-import type { Access } from "./collabrooms.ts";
-import { createIceKeeper, type IceKeeper } from "./ice.ts";
-import type { ProjectHooks } from "./projectsession.ts";
-import type { CursorView, Cursors } from "./cursors.ts";
-import type { Profile } from "./profile.ts";
+import { createAdmin, type Admin } from "./admin.ts";
+import { createIceKeeper } from "./ice.ts";
+import type { Cursors } from "./cursors.ts";
+import {
+  closeSignal,
+  connectSignal,
+  createGate,
+  sealSignal,
+  SNAPSHOT,
+  type Gate,
+  type SessionState,
+} from "./sessionsignal.ts";
+import type { Session, SessionDeps } from "./sessiontypes.ts";
 
-export interface SessionStatus {
-  readonly signal: SignalState;
-  readonly peers: number;
-}
-
-export type SessionNotice = UploadNotice;
-
-export interface SessionDeps {
-  readonly link: CollabLink;
-  readonly endpoint: string;
-  readonly device: string;
-  readonly editor: HTMLTextAreaElement;
-  readonly seed: (() => string) | null;
-  readonly project: ProjectHooks | null;
-  readonly onStatus: (status: SessionStatus) => void;
-  readonly onNotice: (notice: SessionNotice) => void;
-  readonly view: CursorView;
-  readonly profile: () => Profile;
-  readonly access: () => Access;
-  readonly onAccess: (token: string) => void;
-}
-
-export interface Session {
-  readonly talk: Talk;
-  attach(): void;
-  detach(): void;
-  announce(): void;
-  sleep(): void;
-  resume(): void;
-  watch(listener: () => void): () => void;
-  invite(): Promise<string | null>;
-  members(): Promise<Member[] | null>;
-  remove(dev: string, wipe: boolean): Promise<Member[] | null>;
-  end(wipe: boolean): Promise<boolean>;
-  stop(forget: boolean): Promise<void>;
-}
-
-const EMPTY_ROOM_SETTLE_MS = 1500;
-const MOVES: ReadonlySet<SignalEvent["t"]> = new Set([
-  "hi",
-  "join",
-  "bye",
-  "kick",
-]);
-const READY_MS = 5000;
-const SNAPSHOT = { snapshot: true };
-const encoder = new TextEncoder();
-const decoder = new TextDecoder();
-
-export function roomUrl(
-  endpoint: string,
-  room: string,
-  device: string,
-  peer: string,
-  access: Access,
-): string {
-  return (
-    endpoint.replace(/^http/, "ws").replace(/\/+$/, "") +
-    "/room/" +
-    room +
-    "?d=" +
-    device +
-    "&p=" +
-    peer +
-    "&" +
-    access.kind +
-    "=" +
-    access.token
-  );
-}
+export type {
+  Session,
+  SessionDeps,
+  SessionNotice,
+  SessionStatus,
+} from "./sessiontypes.ts";
+export { createGate, roomUrl } from "./sessionsignal.ts";
 
 function isRemote(origin: unknown): boolean {
   return !!origin && typeof origin === "object" && "peer" in origin;
-}
-
-function parsePayload(bytes: Uint8Array): SignalPayload | null {
-  try {
-    const value = JSON.parse(decoder.decode(bytes)) as Partial<SignalPayload>;
-    if (
-      (value.type === "offer" || value.type === "answer") &&
-      typeof value.sdp === "string"
-    )
-      return { type: value.type, sdp: value.sdp };
-  } catch {
-    return null;
-  }
-  return null;
-}
-
-interface SignalRoute {
-  readonly key: CryptoKey;
-  readonly room: Set<string>;
-  readonly mesh: Mesh;
-  readonly uploader: Uploader;
-  readonly admin: Admin;
-  readonly deps: Pick<SessionDeps, "onAccess">;
-  readonly ice: IceKeeper;
-}
-
-async function routeSignal(
-  event: SignalEvent,
-  { key, room, mesh, uploader, admin, deps, ice }: SignalRoute,
-): Promise<void> {
-  if (admin.receive(event)) return;
-  if (event.t === "hi" || event.t === "ice") ice.take(event);
-  if (event.t === "hi") {
-    room.clear();
-    const open = mesh.open();
-    for (const peer of event.peers) {
-      room.add(peer);
-      if (!open.includes(peer)) mesh.call(peer);
-    }
-    uploader.schedule();
-  } else if (event.t === "join") room.add(event.id);
-  else if (event.t === "bye") {
-    room.delete(event.id);
-    if (!mesh.open().includes(event.id)) mesh.drop(event.id);
-    uploader.schedule();
-  } else if (event.t === "kick") {
-    room.delete(event.id);
-    mesh.drop(event.id);
-    uploader.schedule();
-  } else if (event.t === "member") deps.onAccess(event.m);
-  else if (event.t === "from") {
-    const plain = await unseal(key, fromBase64Url(event.d));
-    const payload = plain && parsePayload(plain);
-    if (payload) mesh.receive(event.from, payload);
-  }
-}
-
-async function sealSignal(
-  key: CryptoKey,
-  payload: SignalPayload,
-): Promise<string> {
-  const sealed = await seal(key, encoder.encode(JSON.stringify(payload)));
-  return toBase64Url(sealed);
-}
-
-function closeSignal(signal: Signal, leave: boolean): void {
-  if (leave) signal.command({ t: "leave" });
-  signal.close();
 }
 
 async function keepOrDrop(
@@ -200,24 +61,14 @@ async function keepOrDrop(
   else await saveDoc(room, Y.encodeStateAsUpdate(docs.doc));
 }
 
-async function applySnapshot(
-  doc: Y.Doc,
-  key: CryptoKey,
-  data: Uint8Array,
-): Promise<void> {
-  const plain = await unseal(key, data);
-  if (plain) Y.applyUpdate(doc, inflateSync(plain), SNAPSHOT);
-}
-
 function sessionUploader(
   deps: SessionDeps,
   doc: Y.Doc,
   key: CryptoKey,
-  allowed: () => boolean,
-  send: (data: Uint8Array) => boolean,
+  gate: Pick<UploaderDeps, "allowed" | "send">,
 ): Uploader {
   return createUploader(
-    { doc, key, allowed, send, notice: deps.onNotice },
+    { doc, key, ...gate, notice: deps.onNotice },
     deps.seed !== null || !!deps.project?.seed,
   );
 }
@@ -272,32 +123,6 @@ export function connectionControls(
 }
 
 type AdminControls = Pick<Session, "invite" | "members" | "remove" | "end">;
-
-interface Gate {
-  release(): void;
-  wait(): Promise<void>;
-}
-
-export function createGate(isOpen: () => boolean, ms = READY_MS): Gate {
-  const waiters = new Set<() => void>();
-  return {
-    release() {
-      for (const done of [...waiters]) done();
-    },
-    wait() {
-      if (isOpen()) return Promise.resolve();
-      return new Promise((resolve) => {
-        const done = (): void => {
-          clearTimeout(timer);
-          waiters.delete(done);
-          resolve();
-        };
-        const timer = setTimeout(done, ms);
-        waiters.add(done);
-      });
-    },
-  };
-}
 
 function adminControls(
   admin: Admin,
@@ -374,37 +199,73 @@ function wireSync(
   });
 }
 
+interface Links {
+  readonly mesh: Mesh;
+  readonly sync: Sync;
+  readonly signal: Signal;
+}
+
+interface LateLinks {
+  get(): Links;
+  peek(): Links | null;
+  set(links: Links): void;
+}
+
+export function lateLinks(): LateLinks {
+  let links: Links | null = null;
+  return {
+    get() {
+      if (!links) throw new Error("session links are not ready");
+      return links;
+    },
+    peek: () => links,
+    set(next) {
+      links = next;
+    },
+  };
+}
+
 export async function startSession(deps: SessionDeps): Promise<Session> {
   const { link } = deps;
   const key = await importKey(link.key);
   const { doc, fresh } = await openDoc(link.room, deps.seed, deps.project);
   const chat = await openChatDoc(link.room);
-  const peers = meshTransport(() => mesh);
+  const links = lateLinks();
+  const state: SessionState = {
+    signal: "connecting",
+    stopped: false,
+    shared: false,
+  };
+  const peers = meshTransport(() => links.get().mesh);
   const editing = createEditing(deps, { doc, chat }, fresh, peers, (b) =>
-    sync.cursor(b),
+    links.get().sync.cursor(b),
   );
   const { cursors, binding } = editing;
   const self = randomId(12);
   const room = new Set<string>();
-  let signalState: SignalState = "connecting";
-  let stopped = false;
-  let shared = false;
-  const ice = createIceKeeper(() => ({ signal, mesh }));
+  const ice = createIceKeeper(links.get);
   const owner = deps.access().kind === "o";
   const moves = createEmitter();
   const status = (): void =>
-    deps.onStatus({ signal: signalState, peers: mesh.open().length });
+    deps.onStatus({
+      signal: state.signal,
+      peers: links.peek()?.mesh.open().length ?? 0,
+    });
   const saver = createSaver(doc, link.room);
-  const canUpload = (): boolean =>
-    !stopped &&
-    shared &&
-    signalState === "open" &&
-    isUploader(self, room, mesh.open());
-  const uploader = sessionUploader(deps, doc, key, canUpload, (data) =>
-    signal.upload(data),
+  const uploader = sessionUploader(deps, doc, key, {
+    allowed: () =>
+      !state.stopped &&
+      state.shared &&
+      state.signal === "open" &&
+      isUploader(self, room, peers.open()),
+    send: (data) => links.get().signal.upload(data),
+  });
+  const admin = createAdmin(key, (message) =>
+    links.get().signal.command(message),
   );
+  const gate = createGate(() => state.signal === "open");
 
-  watchDoc(doc, saver, binding, uploader, () => !stopped);
+  watchDoc(doc, saver, binding, uploader, () => !state.stopped);
 
   const mesh = wireMesh({
     self,
@@ -413,38 +274,16 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
     cursors,
     ice: () => ice.servers(),
     status,
-    signal: () => signal,
-    sync: () => sync,
+    signal: () => links.get().signal,
+    sync: () => links.get().sync,
   });
-
   const sync = wireSync({ doc, chat }, peers, editing);
-
-  const signal = openSignal({
-    url: () =>
-      roomUrl(deps.endpoint, link.room, deps.device, self, deps.access()),
-    onEvent: (event) => {
-      if (stopped) return;
-      if (event.t === "hi") {
-        shared = event.shared;
-        if (!event.peers.length)
-          setTimeout(binding.settle, EMPTY_ROOM_SETTLE_MS);
-        if (!owner) admin.label(deps.profile().name);
-      }
-      if (MOVES.has(event.t)) moves.emit();
-      const route = { key, room, mesh, uploader, admin, deps, ice };
-      void routeSignal(event, route).catch(noteError);
-    },
-    onSnapshot: (data) => void applySnapshot(doc, key, data).catch(noteError),
-    onState: (state) => {
-      signalState = state;
-      if (state === "open") gate.release();
-      else room.clear();
-      status();
-    },
+  const signal = connectSignal({
+    ...{ key, room, uploader, admin, deps, ice, state, binding, owner },
+    ...{ moves, doc, gate, status, self },
+    mesh: () => links.get().mesh,
   });
-
-  const admin = createAdmin(key, (message) => signal.command(message));
-  const gate = createGate(() => signalState === "open");
+  links.set({ mesh, sync, signal });
   const unwatch = flushWhenHidden(saver, uploader);
 
   return {
@@ -458,12 +297,12 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
     },
     ...connectionControls(signal, uploader, moves),
     ...adminControls(admin, gate, () => {
-      if (shared) return;
-      shared = true;
+      if (state.shared) return;
+      state.shared = true;
       uploader.force();
     }),
     async stop(forget) {
-      stopped = true;
+      state.stopped = true;
       ice.stop();
       unwatch();
       uploader.cancel();

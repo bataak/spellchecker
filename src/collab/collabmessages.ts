@@ -1,4 +1,4 @@
-import type { SessionNotice } from "./session.ts";
+import type { SessionNotice } from "./sessiontypes.ts";
 import type { SignalState } from "./signal.ts";
 
 export const JOIN_NAME = "Хамтын бичвэр";

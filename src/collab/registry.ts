@@ -11,7 +11,7 @@ import type { CursorView } from "./cursors.ts";
 import { deviceId, myProfile } from "./device.ts";
 import { watchIdle } from "./idle.ts";
 import { parseSlot } from "./roomslot.ts";
-import type { Session, SessionStatus } from "./session.ts";
+import type { Session, SessionStatus } from "./sessiontypes.ts";
 import type { SignalState } from "./signal.ts";
 
 export const ENDPOINT = (import.meta.env.VITE_COLLAB_URL ?? "").replace(
