@@ -4,6 +4,9 @@ export class AuthError extends ProjectError {}
 
 export class Cancelled extends ProjectError {}
 
+export const PROJECT_TOO_LARGE = "Төсөл хэт том байна (200 MB-аас ихгүй)";
+export const REPO_TOO_LARGE = "Repo хэт том тул бүрэн уншиж чадсангүй";
+
 export function failureMessage(
   error: unknown,
   fallback: string,

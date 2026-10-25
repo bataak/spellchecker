@@ -5,7 +5,7 @@ import {
   movedPath,
   skippedPath,
 } from "../tex/texproject.ts";
-import { ProjectError } from "./projecterror.ts";
+import { PROJECT_TOO_LARGE, ProjectError } from "./projecterror.ts";
 
 const MAX_FILES = 3000;
 export const MAX_BYTES = 200 * 1024 * 1024;
@@ -25,8 +25,7 @@ export function budget(): { take: (size: number) => void } {
         throw new ProjectError(
           "Төсөлд хэт олон файл байна (" + MAX_FILES + "-аас ихгүй)",
         );
-      if (bytes > MAX_BYTES)
-        throw new ProjectError("Төсөл хэт том байна (200 MB-аас ихгүй)");
+      if (bytes > MAX_BYTES) throw new ProjectError(PROJECT_TOO_LARGE);
     },
   };
 }

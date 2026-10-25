@@ -6,6 +6,7 @@ import {
   NOTES_TITLE,
   SURVEY_QUESTIONS,
 } from "./survey-def.ts";
+import { OFFLINE, SENT, sendFailure } from "./suggestsend.ts";
 
 const ENDPOINT = "https://api.bichig.dev/survey";
 
@@ -131,12 +132,9 @@ async function postSurvey(answers: Answers, notes: string): Promise<string> {
         ua: detectUa(),
       }),
     });
-    if (response.status === 201) return "";
-    if (response.status === 429)
-      return "Цагийн хязгаарт хүрлээ — дараа дахин оролдоно уу";
-    return "Илгээхэд алдаа гарлаа — дахин оролдоно уу";
+    return response.status === 201 ? "" : sendFailure(response.status);
   } catch {
-    return "Сүлжээний алдаа — дахин оролдоно уу";
+    return sendFailure(null);
   }
 }
 
@@ -178,7 +176,7 @@ export function createSurveyForm(onDone: () => void): SurveyForm {
       return;
     }
     if (!navigator.onLine) {
-      note("Сүлжээгүй байна — холбогдсоны дараа дахин оролдоно уу", "err");
+      note(OFFLINE, "err");
       return;
     }
     busy = true;
@@ -189,7 +187,7 @@ export function createSurveyForm(onDone: () => void): SurveyForm {
     else {
       sent = true;
       onDone();
-      note("Илгээгдлээ, баярлалаа!", "ok");
+      note(SENT, "ok");
       setTimeout(close, 1400);
     }
     busy = false;
