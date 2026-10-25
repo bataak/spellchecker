@@ -293,6 +293,22 @@
   color: var(--muted);
 }
 
+.project-foot:has(> .talk-pair) {
+  position: relative;
+}
+
+.talk-pair {
+  position: absolute;
+  inset-inline-start: 50%;
+  display: inline-flex;
+  gap: 2px;
+  transform: translateX(-50%);
+}
+
+.talk-pair[hidden] {
+  display: none;
+}
+
 .talk-toggle {
   position: relative;
 }
@@ -358,28 +374,70 @@
 
 .talk-window-head {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 2px;
-  padding: 6px 8px;
+  min-height: 41px;
+  padding: 0 8px 0 6px;
   border-bottom: 1px solid var(--line);
 }
 
+.talk-window-head > .project-act {
+  align-self: center;
+}
+
+.talk-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+}
+
 .talk-tab {
-  height: 28px;
+  margin-bottom: -1px;
   padding: 0 10px;
-  border: 1px solid transparent;
-  border-radius: 7px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
   background: none;
   color: var(--muted);
   font: inherit;
-  font-size: 0.85rem;
+  font-size: 0.84rem;
+  font-weight: 600;
   cursor: pointer;
 }
 
-.talk-tab[aria-selected="true"] {
-  border-color: var(--line);
+.talk-tab:hover {
   color: var(--ink);
-  font-weight: 600;
+}
+
+.talk-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.talk-tab[aria-selected="true"] {
+  border-bottom-color: var(--accent);
+  color: var(--ink);
+}
+
+@media (min-width: 1024px) {
+  :root[data-talk] {
+    --talk-col: calc(var(--panel-w) + var(--panel-gap));
+    --gutter-pull: 0px;
+  }
+
+  .workspace > .talk-window {
+    position: relative;
+    z-index: auto;
+    inset: auto;
+    flex: 0 0 var(--panel-w);
+    width: auto;
+    min-width: var(--panel-w);
+    box-shadow: none;
+  }
+
+  .workspace > .talk-window[hidden] {
+    display: none;
+  }
 }
 
 .talk-window-body {
@@ -487,7 +545,7 @@
   resize: vertical;
 }
 
-.talk-send {
+.talk-accept-all {
   flex: 0 0 auto;
   height: 30px;
   padding: 0 10px;
@@ -500,7 +558,7 @@
   cursor: pointer;
 }
 
-.talk-send:disabled {
+.talk-accept-all:disabled {
   opacity: 0.5;
   cursor: default;
 }

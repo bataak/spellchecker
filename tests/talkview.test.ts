@@ -23,7 +23,8 @@ const dom = installDom(
   '<aside class="project-panel"><div class="project-head"></div>' +
     '<div class="project-tree"></div><div class="project-foot">' +
     '<button class="project-foot-btn">Архивлах</button></div></aside>' +
-    '<textarea id="editor"></textarea><button id="collabBtn"></button>',
+    '<div class="workspace"><div class="editor-wrap">' +
+    '<textarea id="editor"></textarea></div></div><button id="collabBtn"></button>',
 );
 (globalThis as Record<string, unknown>).requestAnimationFrame = (
   run: () => void,
@@ -80,7 +81,7 @@ test("цаг, тоо, өөрчлөлтийн гарчгийг монголоор
   const at = new Date(2026, 9, 25, 9, 5).getTime();
   assert.equal(clockOf(at, at), "09:05");
   assert.equal(clockOf(at, at + 2 * 86_400_000), "10/25 09:05");
-  assert.equal(changesCount(0), "Өөрчлөлт алга");
+  assert.equal(changesCount(0), "Өөрчлөлтгүй");
   assert.equal(clip("аб"), "аб");
   assert.equal(clip("а".repeat(700)).length, 601);
   assert.equal(changesCount(3), "3 өөрчлөлт");
@@ -154,7 +155,7 @@ test("өөрчлөлтийн харагдац жагсааж, зөвшөөрч, 
   rows[0]!.querySelector<HTMLElement>(".talk-change-show")!.click();
   rows[0]!.querySelectorAll<HTMLElement>(".talk-change-act")[0]!.click();
   rows[1]!.querySelector<HTMLElement>(".talk-change-act.is-reject")!.click();
-  view.el.querySelector<HTMLElement>(".talk-send")!.click();
+  view.el.querySelector<HTMLElement>(".talk-accept-all")!.click();
   assert.deepEqual(revealed, ["k1"]);
   assert.deepEqual(calls, ["accept k1", "reject k2", "all"]);
   view.destroy();
@@ -176,23 +177,28 @@ test("төслийн самбарт товч нэмж, бусад бичвэрт
     editor,
     openPath: (path) => void opened.push(path),
     anchor: document.querySelector("#collabBtn"),
+    workspace: document.querySelector(".workspace"),
+    editorWrap: document.querySelector(".editor-wrap"),
   });
   const foot = document.querySelector(".project-foot")!;
-  const toggles = [...foot.querySelectorAll<HTMLButtonElement>(".talk-toggle")];
+  const pair = foot.querySelector<HTMLElement>(".talk-pair")!;
+  const toggles = [...pair.querySelectorAll<HTMLButtonElement>(".talk-toggle")];
   assert.deepEqual(
-    [...foot.children].map(
-      (node) => node.getAttribute("aria-label") ?? node.textContent,
-    ),
-    ["Өөрчлөлт", "Хэлэлцэх", "Архивлах"],
+    toggles.map((node) => node.getAttribute("aria-label")),
+    ["Өөрчлөлт", "Хэлэлцүүлэг"],
   );
-  assert.ok(toggles.every((node) => node.hidden));
+  assert.deepEqual(
+    [...foot.children].map((node) => node.className),
+    ["talk-pair", "project-foot-btn"],
+  );
+  assert.equal(pair.hidden, true);
   const trigger = document.querySelector<HTMLButtonElement>(".talk-trigger")!;
   assert.equal(trigger.hidden, true);
 
   talks.project = project.talk;
   talks.file = file.talk;
   notify();
-  assert.ok(toggles.every((node) => !node.hidden));
+  assert.equal(pair.hidden, false);
   const panel = document.querySelector(".project-panel")!;
   toggles[0]!.click();
   assert.ok(panel.classList.contains("is-talk"));
@@ -211,7 +217,7 @@ test("төслийн самбарт товч нэмж, бусад бичвэрт
   toggles[1]!.click();
   assert.equal(
     document.querySelector(".project-talk-title")!.textContent,
-    "Хэлэлцэх",
+    "Хэлэлцүүлэг",
   );
   toggles[1]!.click();
   assert.equal(panel.classList.contains("is-talk"), false);
@@ -223,6 +229,13 @@ test("төслийн самбарт товч нэмж, бусад бичвэрт
   trigger.click();
   const win = document.querySelector<HTMLElement>(".talk-window")!;
   assert.equal(win.hidden, false);
+  assert.equal(win.nextElementSibling?.className, "editor-wrap");
+  assert.ok(document.documentElement.hasAttribute("data-talk"));
+  assert.equal(
+    win.querySelector(".talk-input")!.getAttribute("placeholder"),
+    "Зурвас илгээх...",
+  );
+  assert.equal(win.querySelector(".talk-form button"), null);
   assert.equal(trigger.querySelector(".talk-badge"), null);
   const tabs = win.querySelectorAll<HTMLButtonElement>(".talk-tab");
   tabs[1]!.click();
@@ -232,6 +245,7 @@ test("төслийн самбарт товч нэмж, бусад бичвэрт
   assert.equal(editor.selectionStart, 5);
   win.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
   assert.equal(win.hidden, true);
+  assert.equal(document.documentElement.hasAttribute("data-talk"), false);
   trigger.click();
   win.querySelector<HTMLElement>(".project-act")!.click();
   assert.equal(win.hidden, true);
@@ -240,7 +254,7 @@ test("төслийн самбарт товч нэмж, бусад бичвэрт
   talks.project = null;
   notify();
   assert.equal(trigger.hidden, true);
-  assert.ok(toggles.every((node) => node.hidden));
+  assert.equal(pair.hidden, true);
 });
 
 test("бичвэр солигдоход chat-ийн сонсогч давхардахгүй", () => {
@@ -272,6 +286,8 @@ test("бичвэр солигдоход chat-ийн сонсогч давхар�
     editor: document.querySelector<HTMLTextAreaElement>("#editor")!,
     openPath: () => {},
     anchor: null,
+    workspace: null,
+    editorWrap: null,
   });
   const base = active;
   for (let round = 0; round < 5; round++) {
