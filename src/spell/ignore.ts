@@ -79,6 +79,7 @@ export function createIgnoreList(): IgnoreList {
   let ignored: string[] = [];
   let lookup = new Map<string, CasePattern>();
   let loaded = false;
+  let watching = false;
   const listeners = new Set<() => void>();
 
   const rebuild = (): void => {
@@ -90,6 +91,7 @@ export function createIgnoreList(): IgnoreList {
     ignored = storedWords();
     loaded = true;
     rebuild();
+    watchStorage();
   };
   const ensure = (): void => {
     if (!loaded) load();
@@ -121,14 +123,15 @@ export function createIgnoreList(): IgnoreList {
     ignored.push(part);
     return commit();
   };
-  const watchStorage = (): void => {
-    if (typeof window === "undefined") return;
+  function watchStorage(): void {
+    if (watching || typeof window === "undefined") return;
+    watching = true;
     window.addEventListener("storage", (event) => {
       if (event.key !== KEYS.ignored.name && event.key !== null) return;
       load();
       for (const listener of listeners) listener();
     });
-  };
+  }
 
   return {
     isIgnored(word) {
@@ -161,7 +164,7 @@ export function createIgnoreList(): IgnoreList {
       return ignored.slice();
     },
     onChange(listener) {
-      if (!listeners.size) watchStorage();
+      watchStorage();
       listeners.add(listener);
     },
   };

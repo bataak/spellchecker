@@ -198,3 +198,19 @@ test("тусдаа жагсаалтууд хадгалалтаа хуваалц�
   assert.equal(first.isIgnored("Biden"), true);
   assert.equal(first.remove("Biden"), false);
 });
+
+test("сонсогчгүй жагсаалт ч өөр табын өөрчлөлтийг уншина", () => {
+  const target = globalThis as { window?: unknown };
+  const saved = target.window;
+  const window = new EventTarget();
+  target.window = window;
+  try {
+    const list = createIgnoreList();
+    assert.equal(list.isIgnored("Biden"), false);
+    rawSet(KEY, JSON.stringify(["Biden"]));
+    window.dispatchEvent(Object.assign(new Event("storage"), { key: KEY }));
+    assert.equal(list.isIgnored("Biden"), true);
+  } finally {
+    target.window = saved;
+  }
+});
