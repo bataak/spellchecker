@@ -18,6 +18,7 @@ import { fileSlot, projectSlot, type RoomSlot } from "../collab/roomslot.ts";
 import { confirmReplace } from "../project/linkfiles.ts";
 import { saveDraftFile } from "../core/storage.ts";
 import { PROJECT_SLOT } from "../slots/fileslots.ts";
+import { initTalk } from "../collab/talkhost.ts";
 
 export interface CollabWiringDeps {
   readonly editor: HTMLTextAreaElement;
@@ -202,6 +203,12 @@ export function createCollabWiring(deps: CollabWiringDeps): Collab {
     if (uid === shown) return;
     shown = uid;
     collab.projectChanged();
+  });
+  initTalk({
+    collab,
+    editor: deps.editor,
+    openPath: (path) => deps.project.openPath(path),
+    anchor: document.querySelector("#collabBtn"),
   });
   return collab;
 }

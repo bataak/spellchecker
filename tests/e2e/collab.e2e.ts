@@ -96,6 +96,22 @@ test("git төслийг хуваалцахад хамтрагчийн засв�
     20000,
   );
 
+  await owner.click('.project-foot .talk-toggle[aria-label="Өөрчлөлт"]');
+  const change = owner.locator(".project-talk .talk-change", {
+    hasText: "Хамтрагчийн мөр.",
+  });
+  await change.waitFor({ timeout: 15000 });
+  assert.equal(await change.locator(".talk-change-path").innerText(), "ch.tex");
+  assert.equal(await owner.locator(".project-tree").isVisible(), false);
+  await owner.click('.project-foot .talk-toggle[aria-label="Хэлэлцэх"]');
+  await owner.locator(".project-talk .talk-input").fill("Шалгалаа");
+  await owner.keyboard.press("Enter");
+  await guest
+    .locator('.project-foot .talk-toggle[aria-label="Хэлэлцэх"] .talk-badge')
+    .waitFor({ timeout: 15000 });
+  await owner.click('.project-foot .talk-toggle[aria-label="Хэлэлцэх"]');
+  assert.equal(await owner.locator(".project-tree").isVisible(), true);
+
   await commit(owner);
   await until(
     () => Promise.resolve(github.text("thesis/ch.tex") ?? ""),

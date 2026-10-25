@@ -93,6 +93,7 @@ export interface ProjectLink {
   readonly sync: () => void;
   readonly fileOpened: (name: string) => void;
   readonly openExisting: (name: string, text: string) => boolean;
+  readonly openPath: (path: string) => void;
   readonly cleared: () => void;
 }
 
@@ -314,6 +315,7 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
       binding.unbind(true);
       panel.show(false);
     },
+    openPath: (path) => binding.openFile(path),
     openExisting(name, text) {
       const path = findOpenFile(store, name, text);
       if (path === undefined) return false;
