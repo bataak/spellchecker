@@ -260,17 +260,25 @@ export class Room extends DurableObject {
     return { member: fresh };
   }
 
+  cachedIce(now) {
+    this.turn ??= JSON.parse(this.meta("turn") ?? "null");
+    return this.turn && this.turn.expires - now > TURN_MIN_LIFE_MS
+      ? this.offer(now)
+      : null;
+  }
+
   async ice() {
     if (new Set(this.peers().map((p) => p.dev)).size < 2) return null;
     const now = Date.now();
-    this.turn ??= JSON.parse(this.meta("turn") ?? "null");
-    if (this.turn && this.turn.expires - now > TURN_MIN_LIFE_MS)
-      return this.offer(now);
+    const cached = this.cachedIce(now);
+    if (cached) return cached;
     if (this.retryAt > now || !this.env.TURN_KEY_TOKEN) return null;
     const quota = this.env.QUOTA.get(this.env.QUOTA.idFromName("turn"));
     const daily = Number(this.env.TURN_DAILY) || TURN_DAILY;
-    const list = (await quota.take(daily)) ? await turnServers(this.env) : [];
+    const taken = await quota.take(daily);
+    const list = taken ? await turnServers(this.env) : [];
     if (!list.length) {
+      if (taken) await quota.give();
       this.retryAt = now + TURN_RETRY_MS;
       return null;
     }
@@ -313,7 +321,7 @@ export class Room extends DurableObject {
     const [client, server] = Object.values(pair);
     this.ctx.acceptWebSocket(server);
     server.serializeAttachment({ id, dev, owner: access.owner === true });
-    const offer = others.length ? await this.ice() : null;
+    const offer = others.length ? this.cachedIce(Date.now()) : null;
     if (access.member) this.send(server, { t: "member", m: access.member });
     this.send(server, {
       t: "hi",
@@ -331,7 +339,17 @@ export class Room extends DurableObject {
       this.send(peer.ws, { t: "join", id });
       if (offer) this.send(peer.ws, offer);
     }
+    if (others.length && !offer) this.ctx.waitUntil(this.shareIce());
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  async shareIce() {
+    try {
+      const offer = await this.ice();
+      if (offer) for (const peer of this.peers()) this.send(peer.ws, offer);
+    } catch {
+      return;
+    }
   }
 
   async webSocketMessage(ws, message) {
@@ -637,6 +655,14 @@ export class Quota extends DurableObject {
     );
     sql.exec("DELETE FROM days WHERE day < ?", day);
     return true;
+  }
+
+  give() {
+    const day = new Date().toISOString().slice(0, 10);
+    this.ctx.storage.sql.exec(
+      "UPDATE days SET n = n - 1 WHERE day = ? AND n > 0",
+      day,
+    );
   }
 }
 

@@ -1,9 +1,9 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import NodeSocket from "ws";
 import { startCollab, type CollabServer } from "./helpers/collabserver.ts";
 import { ORIGIN } from "./helpers/collabpeer.ts";
+import { connect as open, event, type Client } from "./helpers/collabclient.ts";
 import { newToken, randomId } from "../src/collab/collabkey.ts";
 import {
   SNAPSHOT_PART,
@@ -13,71 +13,13 @@ import {
 } from "../src/collab/signal.ts";
 
 let server: CollabServer;
+const connect = (room: string, dev: string, access: string) =>
+  open(server.url, room, dev, access);
 before(async () => {
   server = await startCollab();
   await server.allow(ORIGIN);
 });
 after(() => server.close());
-
-type Message = string | Uint8Array;
-
-interface Client {
-  readonly id: string;
-  send(data: string | Uint8Array): void;
-  next(): Promise<Message>;
-  close(): void;
-}
-
-async function connect(
-  room: string,
-  dev: string,
-  access: string,
-): Promise<Client> {
-  const id = randomId(12);
-  const url =
-    server.url.replace(/^http/, "ws") +
-    "/room/" +
-    room +
-    "?d=" +
-    dev +
-    "&p=" +
-    id +
-    "&" +
-    access;
-  const ws = new NodeSocket(url, { headers: { Origin: ORIGIN } });
-  const inbox: Message[] = [];
-  const waiting: ((message: Message) => void)[] = [];
-  ws.on("message", (data: Buffer, binary: boolean) => {
-    const message = binary ? new Uint8Array(data) : data.toString();
-    const wake = waiting.shift();
-    if (wake) wake(message);
-    else inbox.push(message);
-  });
-  await new Promise((resolve, reject) => {
-    ws.once("error", reject);
-    ws.once("open", resolve);
-  });
-  ws.on("error", () => {});
-  const client: Client = {
-    id,
-    send: (data) => ws.send(data),
-    next: () =>
-      inbox.length
-        ? Promise.resolve(inbox.shift()!)
-        : new Promise((wake) => waiting.push(wake)),
-    close: () => ws.terminate(),
-  };
-  await event(client, "hi");
-  return client;
-}
-
-async function event(client: Client, type: string): Promise<unknown> {
-  for (;;) {
-    const message = await client.next();
-    if (typeof message === "string" && JSON.parse(message).t === type)
-      return JSON.parse(message);
-  }
-}
 
 const digest = (list: readonly Uint8Array[]): string[] =>
   list.map((data) => createHash("sha256").update(data).digest("hex"));
