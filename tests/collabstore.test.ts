@@ -109,7 +109,7 @@ test("uploader шифрлэсэн snapshot илгээж, том бол нэг у
   uploader.cancel();
   const noise = crypto.getRandomValues(new Uint8Array(65536));
   let big = "";
-  for (let i = 0; i < 40; i++)
+  for (let i = 0; i < 160; i++)
     big += Array.from(noise, (b) => b.toString(36)).join("");
   doc.getText("t").insert(0, big);
   uploader.force();
