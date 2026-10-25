@@ -1,6 +1,7 @@
 import "../tex/texcomplete.css";
 import { initTexComplete } from "../tex/texcomplete.ts";
 import { initTexImageInput, insertPickedImage } from "../tex/teximages.ts";
+import { initTexItems } from "../tex/texitems.ts";
 import { initTexQuotes } from "../tex/texquotes.ts";
 
 export interface TexInputDeps {
@@ -19,4 +20,5 @@ export function initTexInput(deps: TexInputDeps): void {
   });
   initTexImageInput({ editor, active });
   initTexQuotes({ editor, active });
+  initTexItems({ editor, active });
 }

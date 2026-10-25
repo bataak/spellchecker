@@ -21,7 +21,7 @@ import {
   unseal,
 } from "../src/collab/collabkey.ts";
 import {
-  LINKS,
+  BLOB_NONE,
   SYNC_UPDATE,
   chunk,
   createAssembler,
@@ -186,7 +186,7 @@ test("frame-ийн төрлийг шалгана", () => {
   const frame = decodeFrame(encodeFrame(SYNC_UPDATE, new Uint8Array([9])));
   assert.equal(frame?.kind, SYNC_UPDATE);
   assert.deepEqual(frame?.body, new Uint8Array([9]));
-  assert.equal(decodeFrame(new Uint8Array([LINKS + 1, 0])), null);
+  assert.equal(decodeFrame(new Uint8Array([BLOB_NONE + 1, 0])), null);
   assert.equal(decodeFrame(new Uint8Array()), null);
 });
 

@@ -2,9 +2,18 @@ export const SYNC_REQUEST = 0;
 export const SYNC_UPDATE = 1;
 export const CURSOR = 2;
 export const LINKS = 3;
+export const BLOB_WANT = 4;
+export const BLOB_PART = 5;
+export const BLOB_NONE = 6;
+
+export type BlobKind = typeof BLOB_WANT | typeof BLOB_PART | typeof BLOB_NONE;
 
 export type FrameKind =
-  typeof SYNC_REQUEST | typeof SYNC_UPDATE | typeof CURSOR | typeof LINKS;
+  | typeof SYNC_REQUEST
+  | typeof SYNC_UPDATE
+  | typeof CURSOR
+  | typeof LINKS
+  | BlobKind;
 
 export interface Frame {
   readonly kind: FrameKind;
@@ -25,7 +34,7 @@ export function encodeFrame(kind: FrameKind, body: Uint8Array): Uint8Array {
 
 export function decodeFrame(data: Uint8Array): Frame | null {
   const kind = data[0];
-  if (kind === undefined || kind > LINKS) return null;
+  if (kind === undefined || kind > BLOB_NONE) return null;
   return { kind: kind as FrameKind, body: data.subarray(1) };
 }
 

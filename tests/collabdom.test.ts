@@ -601,6 +601,7 @@ test("төслийн курсор идэвхтэй файлын бичвэрий
     },
     true,
     (body) => sent.push(body),
+    { send: () => {}, open: () => [], drain: async () => {} },
   );
   binding.attach();
   assert.equal(sent.length, 1);
