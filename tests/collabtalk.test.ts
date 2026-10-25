@@ -3,6 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as Y from "yjs";
 import { installDom } from "./helpers/dom.ts";
+import { memoryMine } from "./helpers/memorymine.ts";
 import {
   acceptKey,
   changesOf,
@@ -14,21 +15,9 @@ import {
 } from "../src/collab/changes.ts";
 import { createChangeTracker } from "../src/collab/changetracker.ts";
 import { docKey, dropRoom, loadDoc } from "../src/collab/docstore.ts";
-import {
-  createChat,
-  MAX_MESSAGES,
-  type MineStore,
-} from "../src/collab/chat.ts";
+import { createChat, MAX_MESSAGES } from "../src/collab/chat.ts";
 import { MAX_NAME } from "../src/collab/profile.ts";
 import { openChatDoc } from "../src/collab/chatdoc.ts";
-
-function memoryMine(): MineStore {
-  const sent = new Map<string, string>();
-  return {
-    has: (id, text) => sent.get(id) === text,
-    add: (id, text) => void sent.set(id, text),
-  };
-}
 
 const dom = installDom("");
 test.after(() => dom.close());
