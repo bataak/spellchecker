@@ -41,11 +41,16 @@ export function createProjectWiring(deps: ProjectWiringDeps): ProjectLink {
   return initProjectLink({
     store: deps.store,
     editor: deps.editor,
-    workspace: deps.workspace,
-    tools: () => deps.editorWrap.querySelector<HTMLElement>(".editor-tools"),
-    openButton: document.querySelector<HTMLElement>("#openBtn"),
-    fileButton: document.querySelector<HTMLElement>("#pickBtn"),
-    fileTypes: OPEN_LABEL,
+    host: {
+      workspace: deps.workspace,
+      tools: () => deps.editorWrap.querySelector<HTMLElement>(".editor-tools"),
+      openButton: document.querySelector<HTMLElement>("#openBtn"),
+      fileButton: document.querySelector<HTMLElement>("#pickBtn"),
+      fileTypes: OPEN_LABEL,
+      texActive: deps.isTex,
+      layout: () => deps.measure.refresh(),
+      show: (source) => preview.setSource(source),
+    },
     slots: {
       current: () => mdBar.slot(),
       inProject: () => mdBar.template() === PROJECT_SLOT,
@@ -63,7 +68,6 @@ export function createProjectWiring(deps: ProjectWiringDeps): ProjectLink {
         deps.docStatus.restore();
       },
     },
-    texActive: deps.isTex,
     onBound: deps.docMode.setProjectBound,
     afterSwitch: () => {
       deps.undo().baseline();
@@ -80,8 +84,6 @@ export function createProjectWiring(deps: ProjectWiringDeps): ProjectLink {
       texMode.sync();
       preview.update();
     },
-    layout: () => deps.measure.refresh(),
     notify: (message) => deps.status.hold(message, 6000, false),
-    show: (source) => preview.setSource(source),
   });
 }
