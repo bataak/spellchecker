@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as Y from "yjs";
+import { createEmitter } from "../src/core/emitter.ts";
 import {
   applyChanges,
   deltaChanges,
@@ -619,7 +620,7 @@ test("унтах явцад сэрвэл холболтыг хаахгүй", asy
   const uploader = {
     run: () => new Promise<void>((resolve) => setTimeout(resolve, 30)),
   } as unknown as Parameters<typeof connectionControls>[1];
-  const controls = connectionControls(signal, uploader, new Set());
+  const controls = connectionControls(signal, uploader, createEmitter());
   controls.sleep();
   controls.resume();
   await new Promise((resolve) => setTimeout(resolve, 60));

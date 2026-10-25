@@ -1,4 +1,5 @@
 import type * as Y from "yjs";
+import { createEmitter } from "../core/emitter.ts";
 import { dropDoc, loadDoc, saveDoc } from "./docstore.ts";
 import {
   acceptKey,
@@ -44,7 +45,7 @@ function hasContent(texts: ReadonlyMap<string | null, Y.Text>): boolean {
 
 export function createChangeTracker(deps: TrackerDeps): ChangeTracker {
   const { doc, room } = deps;
-  const listeners = new Set<() => void>();
+  const changed = createEmitter();
   let base: Baseline | null = null;
   let cached: Change[] | null = null;
   let settleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -57,7 +58,7 @@ export function createChangeTracker(deps: TrackerDeps): ChangeTracker {
     if (notifyTimer) return;
     notifyTimer = setTimeout(() => {
       notifyTimer = null;
-      for (const listener of listeners) listener();
+      changed.emit();
     }, NOTIFY_MS);
   };
 
@@ -127,16 +128,13 @@ export function createChangeTracker(deps: TrackerDeps): ChangeTracker {
       const text = textAt(change.path);
       if (fresh && text) rejectChange(text, fresh);
     },
-    onChange(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
+    onChange: changed.on,
     destroy() {
       destroyed = true;
       doc.off("update", onUpdate);
       if (settleTimer) clearTimeout(settleTimer);
       if (notifyTimer) clearTimeout(notifyTimer);
-      listeners.clear();
+      changed.clear();
     },
   };
 }
