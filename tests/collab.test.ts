@@ -21,8 +21,8 @@ import {
   unseal,
 } from "../src/collab/collabkey.ts";
 import {
-  BLOB_NONE,
   SYNC_UPDATE,
+  CHAT_UPDATE,
   chunk,
   createAssembler,
   decodeFrame,
@@ -30,7 +30,12 @@ import {
 } from "../src/collab/wire.ts";
 import { parseSignal, retryDelay } from "../src/collab/signal.ts";
 import { createIceKeeper, iceRefreshMs } from "../src/collab/ice.ts";
-import { createSync, relayTargets, type Sync } from "../src/collab/sync.ts";
+import {
+  createSync,
+  MAX_CHAT_UPDATE,
+  relayTargets,
+  type Sync,
+} from "../src/collab/sync.ts";
 import {
   connectionControls,
   createGate,
@@ -186,7 +191,11 @@ test("frame-ийн төрлийг шалгана", () => {
   const frame = decodeFrame(encodeFrame(SYNC_UPDATE, new Uint8Array([9])));
   assert.equal(frame?.kind, SYNC_UPDATE);
   assert.deepEqual(frame?.body, new Uint8Array([9]));
-  assert.equal(decodeFrame(new Uint8Array([BLOB_NONE + 1, 0])), null);
+  assert.equal(decodeFrame(new Uint8Array([CHAT_UPDATE + 1, 0])), null);
+  assert.equal(
+    decodeFrame(new Uint8Array([CHAT_UPDATE, 0]))?.kind,
+    CHAT_UPDATE,
+  );
   assert.equal(decodeFrame(new Uint8Array()), null);
 });
 
@@ -346,12 +355,13 @@ test("засварыг зөвхөн шууд холбогдоогүй хүмүү
   assert.deepEqual(relayTargets(["a", "b"], "a", undefined), ["b"]);
 });
 
-function wire(docs: Y.Doc[]): Sync[] {
+function wire(docs: Y.Doc[], chats: Y.Doc[] = []): Sync[] {
   const ids = docs.map((_, i) => String(i));
   const syncs: Sync[] = [];
   docs.forEach((doc, i) => {
     syncs[i] = createSync({
       doc,
+      chat: chats[i],
       open: () => ids.filter((id) => id !== ids[i]),
       send: (peer, data) =>
         queueMicrotask(() => syncs[Number(peer)]!.receive(ids[i]!, data)),
@@ -378,6 +388,26 @@ test("хоёр баримт нэгэн зэрэг засахад ижил үр �
   await settle();
   assert.equal(a.getText("t").toString(), b.getText("t").toString());
   assert.equal(a.getText("t").toString(), "Сайн байна уу!");
+  for (const sync of syncs) sync.close();
+});
+
+test("chat баримтыг тусад нь дамжуулж, хэт том шинэчлэлтийг хаяна", async () => {
+  const docs = [new Y.Doc(), new Y.Doc()];
+  const chats = [new Y.Doc(), new Y.Doc()];
+  chats[0]!.getArray("chat").push(["эхний"]);
+  const syncs = wire(docs, chats);
+  syncs[1]!.joined("0");
+  syncs[0]!.joined("1");
+  await settle();
+  assert.deepEqual(chats[1]!.getArray("chat").toArray(), ["эхний"]);
+  chats[1]!.getArray("chat").push(["хариу"]);
+  await settle();
+  assert.deepEqual(chats[0]!.getArray("chat").toArray(), ["эхний", "хариу"]);
+  assert.equal(docs[1]!.getArray("chat").length, 0);
+  const big = new Y.Doc();
+  big.getText("x").insert(0, "а".repeat(MAX_CHAT_UPDATE));
+  syncs[0]!.receive("1", encodeFrame(CHAT_UPDATE, Y.encodeStateAsUpdate(big)));
+  assert.equal(chats[0]!.getText("x").length, 0);
   for (const sync of syncs) sync.close();
 });
 

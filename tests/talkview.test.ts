@@ -2,7 +2,15 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as Y from "yjs";
 import { installDom } from "./helpers/dom.ts";
-import { createChat } from "../src/collab/chat.ts";
+import { createChat, type MineStore } from "../src/collab/chat.ts";
+
+function memoryMine(): MineStore {
+  const sent = new Map<string, string>();
+  return {
+    has: (id, text) => sent.get(id) === text,
+    add: (id, text) => void sent.set(id, text),
+  };
+}
 import type { Change } from "../src/collab/changes.ts";
 import type { ChangeTracker } from "../src/collab/changetracker.ts";
 import type { Talk } from "../src/collab/roomdoc.ts";
@@ -11,6 +19,7 @@ import {
   changesCount,
   changesView,
   chatView,
+  clip,
   clockOf,
 } from "../src/collab/talkview.ts";
 import { initTalk } from "../src/collab/talkhost.ts";
@@ -62,7 +71,7 @@ function fakeTracker(list: Change[]) {
 
 function fakeTalk(project: boolean, list: Change[] = [change()]) {
   const doc = new Y.Doc();
-  const chat = createChat(doc, "me", () => ({ name: "Би", color: 1 }));
+  const chat = createChat(doc, memoryMine(), () => ({ name: "Би", color: 1 }));
   const changes = fakeTracker(list);
   const talk: Talk = {
     chat,
@@ -78,6 +87,8 @@ test("цаг, тоо, өөрчлөлтийн гарчгийг монголоор
   assert.equal(clockOf(at, at), "09:05");
   assert.equal(clockOf(at, at + 2 * 86_400_000), "10/25 09:05");
   assert.equal(changesCount(0), "Өөрчлөлт алга");
+  assert.equal(clip("аб"), "аб");
+  assert.equal(clip("а".repeat(700)).length, 601);
   assert.equal(changesCount(3), "3 өөрчлөлт");
   assert.equal(changeTitle(change()), "Зочин нэмсэн");
   assert.equal(changeTitle(change({ removed: "x" })), "Зочин сольсон");
@@ -94,8 +105,8 @@ test("цаг, тоо, өөрчлөлтийн гарчгийг монголоор
 
 test("chat харагдац мессеж илгээж, Enter-ээр илгээж, уншсан гэж тэмдэглэнэ", () => {
   const doc = new Y.Doc();
-  const chat = createChat(doc, "me", () => ({ name: "Би", color: 1 }));
-  const other = createChat(doc, "you", () => ({ name: "Чи", color: 2 }));
+  const chat = createChat(doc, memoryMine(), () => ({ name: "Би", color: 1 }));
+  const other = createChat(doc, memoryMine(), () => ({ name: "Чи", color: 2 }));
   const view = chatView(chat);
   document.body.append(view.el);
   const empty = view.el.querySelector<HTMLElement>(".talk-empty")!;
@@ -211,7 +222,9 @@ test("төслийн самбарт товч нэмж, бусад бичвэрт
   toggles[1]!.click();
   assert.equal(panel.classList.contains("is-talk"), false);
 
-  createChat(file.doc, "you", () => ({ name: "Чи", color: 2 })).send("Сайн");
+  createChat(file.doc, memoryMine(), () => ({ name: "Чи", color: 2 })).send(
+    "Сайн",
+  );
   assert.equal(trigger.querySelector(".talk-badge")!.textContent, "1");
   trigger.click();
   const win = document.querySelector<HTMLElement>(".talk-window")!;

@@ -9,6 +9,7 @@ import {
 } from "./projectsession.ts";
 import { textsOf } from "./projectdoc.ts";
 import { createChat, type Chat } from "./chat.ts";
+import type { ChatDoc } from "./chatdoc.ts";
 import { registerAuthor } from "./changes.ts";
 import { createChangeTracker, type ChangeTracker } from "./changetracker.ts";
 import {
@@ -92,7 +93,6 @@ export function createAttacher(
 
 export interface EditingDeps {
   readonly link: { readonly room: string };
-  readonly device: string;
   readonly editor: HTMLTextAreaElement;
   readonly view: CursorView;
   readonly profile: () => Profile;
@@ -114,12 +114,12 @@ export interface Talk {
   announce(): void;
 }
 
-function createTalk(deps: EditingDeps, doc: Y.Doc): Talk {
+function createTalk(deps: EditingDeps, doc: Y.Doc, chat: ChatDoc): Talk {
   const project = deps.project !== null;
   const announce = (): void => registerAuthor(doc, deps.profile());
   announce();
   return {
-    chat: createChat(doc, deps.device, deps.profile),
+    chat: createChat(chat.doc, chat.mine, deps.profile),
     changes: createChangeTracker({
       doc,
       room: deps.link.room,
@@ -150,12 +150,13 @@ function withDestroy(
 
 export function createEditing(
   deps: EditingDeps,
-  doc: Y.Doc,
+  docs: { readonly doc: Y.Doc; readonly chat: ChatDoc },
   fresh: boolean,
   transport: BlobTransport,
   send: (body: Uint8Array) => void,
 ): Editing {
-  const talk = createTalk(deps, doc);
+  const { doc } = docs;
+  const talk = createTalk(deps, doc, docs.chat);
   if (deps.project)
     return withDestroy(
       createProjectEditing(deps, doc, deps.project, fresh, send, transport),
