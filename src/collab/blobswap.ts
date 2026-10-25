@@ -15,7 +15,7 @@ export interface BlobTransport {
 
 export interface BlobSwapDeps {
   readonly transport: BlobTransport;
-  readonly have: (hash: string) => Uint8Array | null;
+  readonly have: (hash: string) => Promise<Uint8Array | null>;
 }
 
 export interface BlobSwap {
@@ -129,8 +129,9 @@ export function createBlobSwap(deps: BlobSwapDeps): BlobSwap {
     transport.send(peer, hashFrame(BLOB_WANT, entry.hash));
   };
 
-  const serve = (peer: string, hash: string): void => {
-    const bytes = HASH.test(hash) ? deps.have(hash) : null;
+  const serve = async (peer: string, hash: string): Promise<void> => {
+    const bytes = HASH.test(hash) ? await deps.have(hash) : null;
+    if (closed) return;
     if (!bytes) return transport.send(peer, hashFrame(BLOB_NONE, hash));
     const queued = (sending.get(peer) ?? Promise.resolve())
       .then(() => streamBlob(transport, peer, hash, bytes, () => closed))
@@ -191,7 +192,7 @@ export function createBlobSwap(deps: BlobSwapDeps): BlobSwap {
     receive(peer, kind, body) {
       if (kind === BLOB_PART) return take(peer, body);
       const hash = decoder.decode(body);
-      if (kind === BLOB_WANT) return serve(peer, hash);
+      if (kind === BLOB_WANT) return void serve(peer, hash).catch(() => {});
       const entry = wanted.get(hash);
       if (entry?.peer === peer) ask(entry);
     },

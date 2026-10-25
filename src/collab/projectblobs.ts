@@ -25,7 +25,7 @@ export interface BlobPort {
 export interface BlobBridge {
   start(): Promise<void>;
   pushLocal(): Promise<void>;
-  have(hash: string): Uint8Array | null;
+  have(hash: string): Promise<Uint8Array | null>;
   stop(): void;
 }
 
@@ -60,9 +60,13 @@ async function localHashes(
   return out;
 }
 
-function haveIn(port: BlobPort, hash: string): Uint8Array | null {
+async function haveIn(
+  port: BlobPort,
+  hash: string,
+): Promise<Uint8Array | null> {
   for (const bytes of port.binaries()?.values() ?? [])
-    if (hashes.get(bytes) === hash) return bytes;
+    if (bytes.byteLength <= MAX_BLOB && (await hashOf(bytes)) === hash)
+      return bytes;
   return null;
 }
 
@@ -150,9 +154,8 @@ export function createBlobBridge(
     });
 
   const fetch = async (path: string, ref: BlobRef): Promise<void> => {
-    const ready = haveIn(port, ref.hash);
+    const ready = await haveIn(port, ref.hash);
     if (ready) {
-      hashes.set(ready, ref.hash);
       await port.put(path, ready);
       local.set(path, ref.hash);
       return;

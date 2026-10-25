@@ -1,14 +1,9 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
-import type { Page } from "playwright";
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import {
   editor,
   errors,
   status,
-  openFile,
   openPage,
   projectFile,
   reload,
@@ -17,6 +12,7 @@ import {
   type App,
 } from "./harness.ts";
 import { FakeGithub } from "../helpers/fakegithub.ts";
+import { MAIN, commit, openMore, openPanel, rows } from "./gitsteps.ts";
 import { FakeGitlab, GITLAB_PROJECT } from "../helpers/fakegitlab.ts";
 
 let app: App;
@@ -26,41 +22,6 @@ before(async () => {
 after(async () => {
   await app.close();
 });
-
-const MAIN =
-  "\\documentclass{article}\n\\begin{document}\n\\input{ch}\n\\end{document}\n";
-
-const rows = (page: Page): Promise<string[]> =>
-  page.evaluate(() =>
-    [...document.querySelectorAll<HTMLElement>(".project-row")].map(
-      (row) => row.dataset.path ?? "",
-    ),
-  );
-
-const openPanel = async (page: Page): Promise<void> => {
-  const local = join(mkdtempSync(join(tmpdir(), "git-e2e-")), "local.tex");
-  writeFileSync(local, MAIN);
-  await openFile(page, local);
-  await page.evaluate(() => {
-    const panel = document.querySelector<HTMLElement>(".project-panel");
-    if (!panel || panel.hidden)
-      document.querySelector<HTMLElement>(".project-toggle")?.click();
-  });
-  await page.locator(".project-open", { hasText: "Git repo нээх" }).click();
-};
-
-const openMore = async (page: Page): Promise<void> => {
-  if ((await page.getAttribute(".git-more", "open")) === null)
-    await page.click(".git-more > summary");
-};
-
-const commit = async (page: Page, message?: string): Promise<void> => {
-  await page.keyboard.press("Control+s");
-  const area = page.locator(".git-panel textarea");
-  await area.waitFor({ timeout: 10000 });
-  if (message !== undefined) await area.fill(message);
-  await page.click(".git-panel .export-confirm");
-};
 
 test("GitHub-аас төсөл нээж, засаад commit хийж, дахин ачаалсны дараа ч үргэлжлүүлнэ", async () => {
   const github = new FakeGithub({
