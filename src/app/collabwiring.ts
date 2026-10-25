@@ -34,7 +34,7 @@ export interface CollabWiringDeps {
 const BLOCKED =
   "Энэ төрлийн файлыг хамтран засах боломжгүй. Зөвхөн txt, md, tex файл болон LaTeX төслийг хуваалцана.";
 
-function sharedUid(deps: CollabWiringDeps): string | null {
+function sharedUid(deps: Pick<CollabWiringDeps, "store">): string | null {
   const view = deps.store.project();
   return view && !view.pending ? view.uid : null;
 }
@@ -80,7 +80,9 @@ async function seedOf(store: ProjectStore, uid: string) {
   return snapshotOf(files.texts, binaries, files.dirs, files.main);
 }
 
-function createProjectCollab(deps: CollabWiringDeps): CollabProject {
+export function createProjectCollab(
+  deps: Pick<CollabWiringDeps, "store" | "project">,
+): CollabProject {
   const { store } = deps;
   let joining: { uid: string; name: string } | null = null;
   return {

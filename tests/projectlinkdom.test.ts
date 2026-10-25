@@ -116,3 +116,21 @@ test("projectLink: дискэн дээрх зөрчлийг мэдэгдэнэ",
   assert.ok(notice, events.join(" | "));
   assert.equal(editor.value, "миний засвар");
 });
+
+test("projectLink: хуваалцсан төслийг нээж, буцааж хаана", async () => {
+  const { link, store } = await setup();
+  const encode = (text: string): Uint8Array => new TextEncoder().encode(text);
+  const ok = link.openShared(
+    { name: "Хамтын", files: [["main.tex", encode(MAIN)]], dirs: new Set() },
+    "croom",
+    "main.tex",
+  );
+  assert.equal(ok, true);
+  assert.equal(store.project()?.uid, "croom");
+  assert.equal(
+    link.openShared({ name: "Буруу", files: [], dirs: new Set() }, "x", null),
+    false,
+  );
+  link.drop();
+  assert.equal(store.project(), null);
+});
