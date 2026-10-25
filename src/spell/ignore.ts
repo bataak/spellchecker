@@ -35,9 +35,6 @@ export function canIgnore(word: string): boolean {
   return parts.length > 0 && !parts.some(isMixedScript);
 }
 
-let ignored: string[] = [];
-let lookup = new Map<string, CasePattern>();
-
 function caseOf(word: string): CasePattern {
   let upper = 0,
     lower = 0,
@@ -56,16 +53,18 @@ function caseOf(word: string): CasePattern {
   return "lower";
 }
 
-function rebuild() {
-  lookup = new Map();
-  for (const word of ignored) {
-    lookup.set(word.normalize("NFC").toLowerCase(), caseOf(word));
-  }
+export interface IgnoreList {
+  isIgnored(word: string): boolean;
+  add(word: string): boolean;
+  remove(word: string): boolean;
+  clear(): boolean;
+  list(): string[];
+  onChange(listener: () => void): void;
 }
 
-function load() {
+function storedWords(): string[] {
   const parsed = readJson(KEYS.ignored);
-  ignored = Array.isArray(parsed)
+  return Array.isArray(parsed)
     ? [
         ...new Set(
           parsed
@@ -74,87 +73,106 @@ function load() {
         ),
       ]
     : [];
-  rebuild();
 }
 
-function persist() {
-  writeJson(KEYS.ignored, ignored);
-}
+export function createIgnoreList(): IgnoreList {
+  let ignored: string[] = [];
+  let lookup = new Map<string, CasePattern>();
+  let loaded = false;
+  const listeners = new Set<() => void>();
 
-export function isIgnored(word: string): boolean {
-  if (matches(word)) return true;
-  if (!/[-.\u2010\u2011]/.test(word)) return false;
-  const parts = ignoreParts(word);
-  return parts.length > 0 && parts.every(matches);
-}
-
-function matches(word: string): boolean {
-  const stored = lookup.get(word.normalize("NFC").toLowerCase());
-  if (stored === undefined) return false;
-  if (stored === "lower") return true;
-  const wordCase = caseOf(word);
-  if (stored === "capital")
-    return wordCase === "capital" || wordCase === "upper";
-  return wordCase === "upper";
-}
-
-export function addIgnored(word: string): boolean {
-  if (!canIgnore(word)) return false;
-  let added = false;
-  for (const part of ignoreParts(word)) added = addPart(part) || added;
-  return added;
-}
-
-function addPart(trimmedWord: string): boolean {
-  load();
-  const key = trimmedWord.toLowerCase();
-  const existing = lookup.get(key);
-  if (existing !== undefined) {
-    if (REACH[existing] >= REACH[caseOf(trimmedWord)]) return false;
-    ignored = ignored.filter(
-      (stored) => stored.normalize("NFC").toLowerCase() !== key,
-    );
-  }
-  ignored.push(trimmedWord);
-  rebuild();
-  persist();
-  return true;
-}
-
-export function removeIgnored(word: string): boolean {
-  load();
-  const before = ignored.length;
-  ignored = ignored.filter((stored) => stored !== word);
-  if (ignored.length === before) return false;
-  rebuild();
-  persist();
-  return true;
-}
-
-export function clearIgnored(): boolean {
-  load();
-  if (!ignored.length) return false;
-  ignored = [];
-  rebuild();
-  persist();
-  return true;
-}
-
-export function getIgnored(): string[] {
-  return ignored.slice();
-}
-
-const listeners = new Set<() => void>();
-
-export function onIgnoredChange(listener: () => void): void {
-  listeners.add(listener);
-}
-
-load();
-if (typeof window !== "undefined") {
-  window.addEventListener("storage", (event) => {
-    if (event.key !== KEYS.ignored.name && event.key !== null) return;
+  const rebuild = (): void => {
+    lookup = new Map();
+    for (const word of ignored)
+      lookup.set(word.normalize("NFC").toLowerCase(), caseOf(word));
+  };
+  const load = (): void => {
+    ignored = storedWords();
+    loaded = true;
+    rebuild();
+  };
+  const ensure = (): void => {
+    if (!loaded) load();
+  };
+  const commit = (): true => {
+    rebuild();
+    writeJson(KEYS.ignored, ignored);
+    return true;
+  };
+  const matches = (word: string): boolean => {
+    const stored = lookup.get(word.normalize("NFC").toLowerCase());
+    if (stored === undefined) return false;
+    if (stored === "lower") return true;
+    const wordCase = caseOf(word);
+    if (stored === "capital")
+      return wordCase === "capital" || wordCase === "upper";
+    return wordCase === "upper";
+  };
+  const addPart = (part: string): boolean => {
     load();
-    for (const listener of listeners) listener();
-  });
+    const key = part.toLowerCase();
+    const existing = lookup.get(key);
+    if (existing !== undefined) {
+      if (REACH[existing] >= REACH[caseOf(part)]) return false;
+      ignored = ignored.filter(
+        (stored) => stored.normalize("NFC").toLowerCase() !== key,
+      );
+    }
+    ignored.push(part);
+    return commit();
+  };
+  const watchStorage = (): void => {
+    if (typeof window === "undefined") return;
+    window.addEventListener("storage", (event) => {
+      if (event.key !== KEYS.ignored.name && event.key !== null) return;
+      load();
+      for (const listener of listeners) listener();
+    });
+  };
+
+  return {
+    isIgnored(word) {
+      ensure();
+      if (matches(word)) return true;
+      if (!/[-.\u2010\u2011]/.test(word)) return false;
+      const parts = ignoreParts(word);
+      return parts.length > 0 && parts.every(matches);
+    },
+    add(word) {
+      if (!canIgnore(word)) return false;
+      let added = false;
+      for (const part of ignoreParts(word)) added = addPart(part) || added;
+      return added;
+    },
+    remove(word) {
+      load();
+      const before = ignored.length;
+      ignored = ignored.filter((stored) => stored !== word);
+      return ignored.length !== before && commit();
+    },
+    clear() {
+      load();
+      if (!ignored.length) return false;
+      ignored = [];
+      return commit();
+    },
+    list() {
+      ensure();
+      return ignored.slice();
+    },
+    onChange(listener) {
+      if (!listeners.size) watchStorage();
+      listeners.add(listener);
+    },
+  };
 }
+
+const shared = createIgnoreList();
+
+export const isIgnored = (word: string): boolean => shared.isIgnored(word);
+export const addIgnored = (word: string): boolean => shared.add(word);
+export const removeIgnored = (word: string): boolean => shared.remove(word);
+export const clearIgnored = (): boolean => shared.clear();
+export const getIgnored = (): string[] => shared.list();
+export const onIgnoredChange = (listener: () => void): void =>
+  shared.onChange(listener);

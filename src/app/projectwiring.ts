@@ -15,40 +15,55 @@ import { OPEN_LABEL } from "../files/filetypes.ts";
 import type { DocStatus } from "./docstatus.ts";
 import type { TexMode } from "./texmode.ts";
 
-export interface ProjectWiringDeps {
-  readonly store: ProjectStore;
+export interface ProjectWiringView {
   readonly editor: HTMLTextAreaElement;
   readonly workspace: HTMLElement;
   readonly editorWrap: HTMLElement;
-  readonly mdBar: MdToolbar;
-  readonly fileIO: FileIOControl;
+  readonly measure: MeasureControl;
+  readonly preview: Preview;
+  readonly status: StatusControl;
+}
+
+export interface ProjectWiringMode {
   readonly doc: DocumentSession;
   readonly docStatus: DocStatus;
   readonly docMode: DocMode;
   readonly texMode: TexMode;
   readonly isTex: () => boolean;
-  readonly undo: () => UndoControl;
-  readonly draft: DraftText;
-  readonly preview: Preview;
-  readonly measure: MeasureControl;
-  readonly status: StatusControl;
   readonly enterMdMode: (on: boolean) => void;
   readonly render: () => Promise<void>;
 }
 
+export interface ProjectWiringFiles {
+  readonly mdBar: MdToolbar;
+  readonly fileIO: FileIOControl;
+  readonly draft: DraftText;
+  readonly undo: () => UndoControl;
+}
+
+export interface ProjectWiringDeps {
+  readonly store: ProjectStore;
+  readonly view: ProjectWiringView;
+  readonly mode: ProjectWiringMode;
+  readonly files: ProjectWiringFiles;
+}
+
 export function createProjectWiring(deps: ProjectWiringDeps): ProjectLink {
-  const { mdBar, doc, texMode, preview } = deps;
+  const { view, mode, files } = deps;
+  const { mdBar, fileIO } = files;
+  const { doc, texMode } = mode;
+  const { preview } = view;
   return initProjectLink({
     store: deps.store,
-    editor: deps.editor,
+    editor: view.editor,
     host: {
-      workspace: deps.workspace,
-      tools: () => deps.editorWrap.querySelector<HTMLElement>(".editor-tools"),
+      workspace: view.workspace,
+      tools: () => view.editorWrap.querySelector<HTMLElement>(".editor-tools"),
       openButton: document.querySelector<HTMLElement>("#openBtn"),
       fileButton: document.querySelector<HTMLElement>("#pickBtn"),
       fileTypes: OPEN_LABEL,
-      texActive: deps.isTex,
-      layout: () => deps.measure.refresh(),
+      texActive: mode.isTex,
+      layout: () => view.measure.refresh(),
       show: (source) => preview.setSource(source),
     },
     slots: {
@@ -60,21 +75,21 @@ export function createProjectWiring(deps: ProjectWiringDeps): ProjectLink {
     },
     file: {
       name: doc.name,
-      handle: () => deps.fileIO.targetHandle(),
+      handle: () => fileIO.targetHandle(),
       bind: (name) => {
-        deps.fileIO.putFile(name ? { handle: null, name } : null);
+        fileIO.putFile(name ? { handle: null, name } : null);
         saveDraftFile(name ? { name, kind: "text" } : null, mdBar.slot());
         doc.setName(name);
-        deps.docStatus.restore();
+        mode.docStatus.restore();
       },
     },
-    onBound: deps.docMode.setProjectBound,
+    onBound: mode.docMode.setProjectBound,
     afterSwitch: () => {
-      deps.undo().baseline();
+      files.undo().baseline();
       texMode.sync();
-      deps.enterMdMode(doc.markdownActive());
-      void deps.render();
-      deps.draft.save();
+      mode.enterMdMode(doc.markdownActive());
+      void mode.render();
+      files.draft.save();
     },
     onProject: (name) => {
       mdBar.setProject(name);
@@ -84,6 +99,6 @@ export function createProjectWiring(deps: ProjectWiringDeps): ProjectLink {
       texMode.sync();
       preview.update();
     },
-    notify: (message) => deps.status.hold(message, 6000, false),
+    notify: (message) => view.status.hold(message, 6000, false),
   });
 }

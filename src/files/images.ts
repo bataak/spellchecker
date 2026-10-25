@@ -15,97 +15,20 @@ interface Stored {
 const REMOTE = /^(?:https?:|data:|blob:)/i;
 const NETWORK = /^https?:/i;
 
-const store = new Map<string, Stored>();
-const listeners = new Set<() => void>();
-const prepared = new Map<string, Promise<PreparedImage | null>>();
-let owned: string[] = [];
-const allowedRemote = new Set<string>();
-
-function dropPrepared(): void {
-  for (const url of owned) URL.revokeObjectURL(url);
-  owned = [];
-  prepared.clear();
-}
-
-function notify(): void {
-  for (const listener of listeners) listener();
-}
-
 export function isRemoteImage(src: string): boolean {
   return REMOTE.test(src);
 }
 
-export function isBlockedRemote(src: string): boolean {
-  return NETWORK.test(src) && !allowedRemote.has(src);
+interface PrepareContext {
+  readonly blob: (src: string) => Blob | null;
+  readonly url: (src: string) => string | null;
+  readonly own: (blob: Blob) => string;
 }
 
-export function allowRemoteImages(srcs: Iterable<string>): void {
-  for (const src of srcs) allowedRemote.add(src);
-  notify();
-}
-
-export function imageUrl(src: string): string | null {
-  if (isBlockedRemote(src)) return null;
-  if (isRemoteImage(src)) return src;
-  return store.get(src)?.url ?? null;
-}
-
-export function imageBlob(src: string): Blob | null {
-  return store.get(src)?.blob ?? null;
-}
-
-let persist: ((src: string, blob: Blob) => void) | null = null;
-
-export function persistImages(save: (src: string, blob: Blob) => void): void {
-  persist = save;
-}
-
-function keep(src: string, blob: Blob): void {
-  const old = store.get(src);
-  if (old) URL.revokeObjectURL(old.url);
-  store.set(src, { blob, url: URL.createObjectURL(blob) });
-}
-
-export function putImage(src: string, blob: Blob): void {
-  dropPrepared();
-  keep(src, blob);
-  persist?.(src, blob);
-  notify();
-}
-
-export function restoreImages(images: Iterable<[string, Blob]>): void {
-  let any = false;
-  for (const [src, blob] of images) {
-    if (store.has(src)) continue;
-    keep(src, blob);
-    any = true;
-  }
-  if (!any) return;
-  dropPrepared();
-  notify();
-}
-
-export function clearImages(): void {
-  if (!store.size && !prepared.size) return;
-  for (const { url } of store.values()) URL.revokeObjectURL(url);
-  store.clear();
-  dropPrepared();
-  notify();
-}
-
-export function onImagesChange(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-function own(blob: Blob): string {
-  const url = URL.createObjectURL(blob);
-  owned.push(url);
-  return url;
-}
-
-async function sourceBlob(src: string): Promise<Blob | null> {
-  const stored = imageBlob(src);
+async function sourceBlob(
+  src: string,
+  stored: Blob | null,
+): Promise<Blob | null> {
   if (stored) return stored;
   if (!isRemoteImage(src)) return null;
   try {
@@ -116,8 +39,11 @@ async function sourceBlob(src: string): Promise<Blob | null> {
   }
 }
 
-async function prepareOne(image: IrImage): Promise<PreparedImage | null> {
-  const blob = await sourceBlob(image.src);
+async function prepareOne(
+  image: IrImage,
+  source: PrepareContext,
+): Promise<PreparedImage | null> {
+  const blob = await sourceBlob(image.src, source.blob(image.src));
   if (!blob)
     return isRemoteImage(image.src)
       ? { url: image.src, blob: null, widthPx: 0, heightPx: 0 }
@@ -135,7 +61,7 @@ async function prepareOne(image: IrImage): Promise<PreparedImage | null> {
   if (!rotate) {
     bitmap.close();
     return {
-      url: imageUrl(image.src) ?? own(blob),
+      url: source.url(image.src) ?? source.own(blob),
       blob,
       widthPx,
       heightPx,
@@ -158,30 +84,7 @@ async function prepareOne(image: IrImage): Promise<PreparedImage | null> {
     canvas.toBlob(resolve, type, 0.92),
   );
   if (!turnedBlob) return null;
-  return { url: own(turnedBlob), blob: turnedBlob, widthPx, heightPx };
-}
-
-export function prepareImage(image: IrImage): Promise<PreparedImage | null> {
-  const key = imageKey(image);
-  let ready = prepared.get(key);
-  if (!ready) {
-    ready = prepareOne(image);
-    prepared.set(key, ready);
-  }
-  return ready;
-}
-
-export async function prepareImages(
-  images: readonly IrImage[],
-): Promise<ImageSet> {
-  const out = new Map<string, PreparedImage>();
-  await Promise.all(
-    images.map(async (image) => {
-      const ready = await prepareImage(image);
-      if (ready) out.set(imageKey(image), ready);
-    }),
-  );
-  return out;
+  return { url: source.own(turnedBlob), blob: turnedBlob, widthPx, heightPx };
 }
 
 async function encodable(
@@ -209,6 +112,176 @@ async function encodable(
   return out ? { blob: out, ext } : null;
 }
 
+export function imagePath(name: string): string {
+  return name.replace(/[\s()<>%]/g, (ch) =>
+    ch === "(" ? "%28" : ch === ")" ? "%29" : encodeURIComponent(ch),
+  );
+}
+
+function sameImage(a: Blob, b: Blob): boolean {
+  if (a === b) return true;
+  if (a.size !== b.size || a.type !== b.type) return false;
+  if (!(a instanceof File && b instanceof File)) return true;
+  return a.lastModified === b.lastModified;
+}
+
+export function pickImage(): Promise<File | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.addEventListener("change", () => resolve(input.files?.[0] ?? null));
+    input.addEventListener("cancel", () => resolve(null));
+    input.click();
+  });
+}
+
+export interface ImageStore {
+  isBlockedRemote(src: string): boolean;
+  allowRemote(srcs: Iterable<string>): void;
+  url(src: string): string | null;
+  blob(src: string): Blob | null;
+  persistTo(save: (src: string, blob: Blob) => void): void;
+  put(src: string, blob: Blob): void;
+  restore(images: Iterable<[string, Blob]>): void;
+  clear(): void;
+  onChange(listener: () => void): () => void;
+  prepare(image: IrImage): Promise<PreparedImage | null>;
+  freePath(name: string, blob: Blob): string;
+}
+
+export function createImageStore(): ImageStore {
+  const store = new Map<string, Stored>();
+  const listeners = new Set<() => void>();
+  const prepared = new Map<string, Promise<PreparedImage | null>>();
+  const allowed = new Set<string>();
+  let owned: string[] = [];
+  let persist: ((src: string, blob: Blob) => void) | null = null;
+
+  const notify = (): void => listeners.forEach((listener) => listener());
+  const dropPrepared = (): void => {
+    for (const url of owned) URL.revokeObjectURL(url);
+    owned = [];
+    prepared.clear();
+  };
+  const keep = (src: string, blob: Blob): void => {
+    const old = store.get(src);
+    if (old) URL.revokeObjectURL(old.url);
+    store.set(src, { blob, url: URL.createObjectURL(blob) });
+  };
+  const isBlockedRemote = (src: string): boolean =>
+    NETWORK.test(src) && !allowed.has(src);
+  const url = (src: string): string | null => {
+    if (isBlockedRemote(src)) return null;
+    if (isRemoteImage(src)) return src;
+    return store.get(src)?.url ?? null;
+  };
+  const context: PrepareContext = {
+    blob: (src) => store.get(src)?.blob ?? null,
+    url,
+    own(blob) {
+      const made = URL.createObjectURL(blob);
+      owned.push(made);
+      return made;
+    },
+  };
+
+  return {
+    isBlockedRemote,
+    allowRemote(srcs) {
+      for (const src of srcs) allowed.add(src);
+      notify();
+    },
+    url,
+    blob: context.blob,
+    persistTo(save) {
+      persist = save;
+    },
+    put(src, blob) {
+      dropPrepared();
+      keep(src, blob);
+      persist?.(src, blob);
+      notify();
+    },
+    restore(images) {
+      let any = false;
+      for (const [src, blob] of images) {
+        if (store.has(src)) continue;
+        keep(src, blob);
+        any = true;
+      }
+      if (!any) return;
+      dropPrepared();
+      notify();
+    },
+    clear() {
+      if (!store.size && !prepared.size) return;
+      for (const { url: made } of store.values()) URL.revokeObjectURL(made);
+      store.clear();
+      dropPrepared();
+      notify();
+    },
+    onChange(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    prepare(image) {
+      const key = imageKey(image);
+      let ready = prepared.get(key);
+      if (!ready) {
+        ready = prepareOne(image, context);
+        prepared.set(key, ready);
+      }
+      return ready;
+    },
+    freePath(name, blob) {
+      const dot = name.lastIndexOf(".");
+      const stem = dot > 0 ? name.slice(0, dot) : name;
+      const ext = dot > 0 ? name.slice(dot) : "";
+      for (let n = 1; ; n++) {
+        const src = imagePath(n === 1 ? name : stem + "-" + n + ext);
+        const taken = store.get(src);
+        if (!taken || sameImage(taken.blob, blob)) return src;
+      }
+    },
+  };
+}
+
+const shared = createImageStore();
+
+export const isBlockedRemote = (src: string): boolean =>
+  shared.isBlockedRemote(src);
+export const allowRemoteImages = (srcs: Iterable<string>): void =>
+  shared.allowRemote(srcs);
+export const imageUrl = (src: string): string | null => shared.url(src);
+export const imageBlob = (src: string): Blob | null => shared.blob(src);
+export const persistImages = (save: (src: string, blob: Blob) => void): void =>
+  shared.persistTo(save);
+export const putImage = (src: string, blob: Blob): void =>
+  shared.put(src, blob);
+export const restoreImages = (images: Iterable<[string, Blob]>): void =>
+  shared.restore(images);
+export const clearImages = (): void => shared.clear();
+export const onImagesChange = (listener: () => void): (() => void) =>
+  shared.onChange(listener);
+export const prepareImage = (image: IrImage): Promise<PreparedImage | null> =>
+  shared.prepare(image);
+export const freeImagePath = (name: string, blob: Blob): string =>
+  shared.freePath(name, blob);
+
+export async function prepareImages(
+  images: readonly IrImage[],
+): Promise<ImageSet> {
+  const out = new Map<string, PreparedImage>();
+  await Promise.all(
+    images.map(async (image) => {
+      const ready = await prepareImage(image);
+      if (ready) out.set(imageKey(image), ready);
+    }),
+  );
+  return out;
+}
+
 export async function imageFiles(
   images: readonly IrImage[],
 ): Promise<ImageFiles> {
@@ -228,39 +301,4 @@ export async function imageFiles(
     }),
   );
   return out;
-}
-
-export function imagePath(name: string): string {
-  return name.replace(/[\s()<>%]/g, (ch) =>
-    ch === "(" ? "%28" : ch === ")" ? "%29" : encodeURIComponent(ch),
-  );
-}
-
-function sameImage(a: Blob, b: Blob): boolean {
-  if (a === b) return true;
-  if (a.size !== b.size || a.type !== b.type) return false;
-  if (!(a instanceof File && b instanceof File)) return true;
-  return a.lastModified === b.lastModified;
-}
-
-export function freeImagePath(name: string, blob: Blob): string {
-  const dot = name.lastIndexOf(".");
-  const stem = dot > 0 ? name.slice(0, dot) : name;
-  const ext = dot > 0 ? name.slice(dot) : "";
-  for (let n = 1; ; n++) {
-    const src = imagePath(n === 1 ? name : stem + "-" + n + ext);
-    const taken = store.get(src);
-    if (!taken || sameImage(taken.blob, blob)) return src;
-  }
-}
-
-export function pickImage(): Promise<File | null> {
-  return new Promise((resolve) => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-    input.addEventListener("change", () => resolve(input.files?.[0] ?? null));
-    input.addEventListener("cancel", () => resolve(null));
-    input.click();
-  });
 }
