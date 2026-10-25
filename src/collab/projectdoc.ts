@@ -211,6 +211,15 @@ function blobOf(entry: Entry): BlobRef | null {
     : null;
 }
 
+export function textsOf(doc: Y.Doc): Map<string, Y.Text> {
+  const out = new Map<string, Y.Text>();
+  for (const [path, entry] of resolved(doc)) {
+    const text = entry.get(TEXT);
+    if (text instanceof Y.Text) out.set(path, text);
+  }
+  return out;
+}
+
 export function blobsOf(doc: Y.Doc): Map<string, BlobRef> {
   const blobs = new Map<string, BlobRef>();
   for (const [path, entry] of resolved(doc)) {

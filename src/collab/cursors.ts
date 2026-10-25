@@ -1,5 +1,6 @@
 import * as Y from "yjs";
 import { fromBase64Url, toBase64Url } from "./collabkey.ts";
+import { CURSOR_COLORS } from "./peercolors.ts";
 
 export interface CursorView {
   readonly host: HTMLElement;
@@ -36,16 +37,6 @@ export interface CursorDeps {
   readonly send: (body: Uint8Array) => void;
 }
 
-export const CURSOR_COLORS = [
-  "#e8590c",
-  "#1c7ed6",
-  "#2f9e44",
-  "#ae3ec9",
-  "#c92a2a",
-  "#0c8599",
-  "#e67700",
-  "#5f3dc4",
-];
 const SEND_MS = 100;
 const LABEL_ROOM = 18;
 const MAX_NAME = 40;

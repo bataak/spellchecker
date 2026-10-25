@@ -23,6 +23,7 @@ import {
 } from "./collabrooms.ts";
 import type { Session, SessionStatus } from "./session.ts";
 import type { ProjectHooks } from "./projectsession.ts";
+import type { Talk } from "./roomdoc.ts";
 import type { SignalState } from "./signal.ts";
 import type { CursorView } from "./cursors.ts";
 import { loadProfile, saveName } from "./profile.ts";
@@ -56,10 +57,14 @@ export interface CollabProject {
   readonly prepare: (name: string, uid: string) => boolean;
 }
 
+export type TalkKind = "file" | "project";
+
 export interface Collab {
   start(): void;
   forget(slot: RoomSlot): boolean;
   projectChanged(): void;
+  talk(kind: TalkKind): Talk | null;
+  onTalk(listener: () => void): void;
 }
 
 const ENDPOINT = (import.meta.env.VITE_COLLAB_URL ?? "").replace(/\/+$/, "");
@@ -203,7 +208,10 @@ function createRegistry(
       );
       pending.set(entry.room, created);
       created.then(
-        (live) => ready.set(entry.room, live),
+        (live) => {
+          ready.set(entry.room, live);
+          changed();
+        },
         (error: unknown) => {
           pending.delete(entry.room);
           noteError(error);
@@ -264,7 +272,9 @@ function paintButton(
   button: HTMLButtonElement,
   entry: RoomEntry | null,
   registry: Registry,
+  listeners: ReadonlySet<() => void>,
 ): void {
+  for (const listener of listeners) listener();
   button.textContent = buttonLabel(
     entry !== null,
     entry ? registry.status(entry.room) : null,
@@ -338,7 +348,23 @@ const DISABLED: Collab = {
   start: () => {},
   forget: () => false,
   projectChanged: () => {},
+  talk: () => null,
+  onTalk: () => {},
 };
+
+function talkOf(
+  kind: TalkKind,
+  rooms: readonly RoomEntry[],
+  deps: CollabDeps,
+  registry: Pick<Registry, "live">,
+): Talk | null {
+  const entry =
+    kind === "project"
+      ? projectRoom(rooms, deps)
+      : roomOfSlot(rooms, deps.slot());
+  if (!entry || parseSlot(entry.slot).kind !== kind) return null;
+  return registry.live(entry.room)?.talk ?? null;
+}
 
 function openProjectRoom(
   registry: Pick<Registry, "open">,
@@ -424,8 +450,9 @@ export function initCollab(deps: CollabDeps): Collab {
     writeJson(KEYS.collabRooms, rooms);
   };
 
+  const talkers = new Set<() => void>();
   const paint = (): void =>
-    paintButton(button, roomOfSlot(rooms, deps.slot()), registry);
+    paintButton(button, roomOfSlot(rooms, deps.slot()), registry, talkers);
 
   const registry = createRegistry(editor, deps.view, {
     project: deps.project,
@@ -516,5 +543,7 @@ export function initCollab(deps: CollabDeps): Collab {
       return entry !== null;
     },
     projectChanged: whenStarted(() => sync()),
+    talk: (kind) => talkOf(kind, rooms, deps, registry),
+    onTalk: (listener) => void talkers.add(listener),
   };
 }

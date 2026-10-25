@@ -7,6 +7,10 @@ import {
   seedProjectDoc,
   type ProjectHooks,
 } from "./projectsession.ts";
+import { textsOf } from "./projectdoc.ts";
+import { createChat, type Chat } from "./chat.ts";
+import { registerAuthor } from "./changes.ts";
+import { createChangeTracker, type ChangeTracker } from "./changetracker.ts";
 import {
   createCursors,
   type CursorView,
@@ -27,7 +31,7 @@ export async function openDoc(
   seed: (() => string) | null,
   project: ProjectHooks | null,
 ): Promise<OpenedDoc> {
-  const doc = new Y.Doc();
+  const doc = new Y.Doc({ gc: false });
   const stored = await loadDoc(room);
   if (stored) Y.applyUpdate(doc, stored, LOADED);
   if (project) {
@@ -87,6 +91,8 @@ export function createAttacher(
 }
 
 export interface EditingDeps {
+  readonly link: { readonly room: string };
+  readonly device: string;
   readonly editor: HTMLTextAreaElement;
   readonly view: CursorView;
   readonly profile: () => Profile;
@@ -97,16 +103,47 @@ export interface Editing {
   readonly cursors: Cursors;
   readonly binding: Attacher;
   readonly swap: BlobSwap | null;
+  readonly talk: Talk;
   destroy(): void;
 }
 
-function withDestroy(parts: Omit<Editing, "destroy">): Editing {
+export interface Talk {
+  readonly chat: Chat;
+  readonly changes: ChangeTracker;
+  readonly project: boolean;
+  announce(): void;
+}
+
+function createTalk(deps: EditingDeps, doc: Y.Doc): Talk {
+  const project = deps.project !== null;
+  const announce = (): void => registerAuthor(doc, deps.profile());
+  announce();
+  return {
+    chat: createChat(doc, deps.device, deps.profile),
+    changes: createChangeTracker({
+      doc,
+      room: deps.link.room,
+      texts: () =>
+        project ? textsOf(doc) : new Map([[null, doc.getText("t")]]),
+    }),
+    project,
+    announce,
+  };
+}
+
+function withDestroy(
+  parts: Omit<Editing, "destroy" | "talk">,
+  talk: Talk,
+): Editing {
   return {
     ...parts,
+    talk,
     destroy() {
       parts.binding.destroy();
       parts.swap?.close();
       parts.cursors.destroy();
+      talk.chat.destroy();
+      talk.changes.destroy();
     },
   };
 }
@@ -118,9 +155,11 @@ export function createEditing(
   transport: BlobTransport,
   send: (body: Uint8Array) => void,
 ): Editing {
+  const talk = createTalk(deps, doc);
   if (deps.project)
     return withDestroy(
       createProjectEditing(deps, doc, deps.project, fresh, send, transport),
+      talk,
     );
   const text = doc.getText("t");
   const cursors = createCursors({
@@ -134,5 +173,5 @@ export function createEditing(
   const binding = createAttacher(deps.editor, text, fresh, (on) =>
     cursors.setActive(on),
   );
-  return withDestroy({ cursors, binding, swap: null });
+  return withDestroy({ cursors, binding, swap: null }, talk);
 }

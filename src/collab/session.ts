@@ -11,7 +11,14 @@ import {
   type CollabLink,
 } from "./collabkey.ts";
 import { dropDoc, saveDoc } from "./docstore.ts";
-import { createEditing, LOADED, openDoc, type Attacher } from "./roomdoc.ts";
+import {
+  createEditing,
+  LOADED,
+  openDoc,
+  type Attacher,
+  type Talk,
+} from "./roomdoc.ts";
+import { forgetBaseline } from "./changetracker.ts";
 import {
   createSaver,
   createUploader,
@@ -58,6 +65,7 @@ export interface SessionDeps {
 }
 
 export interface Session {
+  readonly talk: Talk;
   attach(): void;
   detach(): void;
   announce(): void;
@@ -170,6 +178,21 @@ async function sealSignal(
 ): Promise<string> {
   const sealed = await seal(key, encoder.encode(JSON.stringify(payload)));
   return toBase64Url(sealed);
+}
+
+function closeSignal(signal: Signal, leave: boolean): void {
+  if (leave) signal.command({ t: "leave" });
+  signal.close();
+}
+
+async function keepOrDrop(
+  room: string,
+  doc: Y.Doc,
+  forget: boolean,
+): Promise<void> {
+  if (!forget) return saveDoc(room, Y.encodeStateAsUpdate(doc));
+  await forgetBaseline(room);
+  await dropDoc(room);
 }
 
 async function applySnapshot(
@@ -409,10 +432,12 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
   const unwatch = flushWhenHidden(saver, uploader);
 
   return {
+    talk: editing.talk,
     attach: () => binding.attach(),
     detach: () => binding.detach(),
     announce() {
       cursors.announce();
+      editing.talk.announce();
       if (!owner) admin.label(deps.profile().name);
     },
     ...connectionControls(signal, uploader, watchers),
@@ -430,10 +455,8 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
       editing.destroy();
       sync.close();
       mesh.close();
-      if (forget) signal.command({ t: "leave" });
-      signal.close();
-      if (forget) await dropDoc(link.room);
-      else await saveDoc(link.room, Y.encodeStateAsUpdate(doc));
+      closeSignal(signal, forget);
+      await keepOrDrop(link.room, doc, forget);
       doc.destroy();
     },
   };
