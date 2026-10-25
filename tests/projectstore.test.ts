@@ -201,3 +201,27 @@ test("засвар дискэн дээрхтэй ижил болсон бол з
   await refreshProject();
   assert.deepEqual(seen, []);
 });
+
+test("хуваалцсан төслийг өгсөн uid ба үндсэн файлтай нээнэ", () => {
+  const store = createProjectStore();
+  assert.equal(store.projectFiles(), null);
+  const encode = (text: string): Uint8Array => new TextEncoder().encode(text);
+  store.openShared(
+    {
+      name: "Хамтын",
+      files: [
+        ["main.tex", encode(MAIN)],
+        ["other.tex", encode(MAIN)],
+      ],
+      dirs: new Set(["fig"]),
+    },
+    "croom",
+    "other.tex",
+  );
+  const files = store.projectFiles();
+  assert.equal(files?.uid, "croom");
+  assert.equal(files?.main, "other.tex");
+  assert.equal(files?.texts.get("main.tex"), MAIN);
+  assert.ok(files?.dirs.has("fig"));
+  assert.equal(store.project()?.kind, "memory");
+});
