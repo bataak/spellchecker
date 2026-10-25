@@ -1,5 +1,5 @@
 import * as Y from "yjs";
-import { deflateSync, inflateSync } from "fflate";
+import { inflateSync } from "fflate";
 import { noteError } from "../core/errorlog.ts";
 import {
   fromBase64Url,
@@ -10,7 +10,16 @@ import {
   unseal,
   type CollabLink,
 } from "./collabkey.ts";
-import { dropDoc, LOADED, openDoc, saveDoc } from "./docstore.ts";
+import { dropDoc, saveDoc } from "./docstore.ts";
+import { createEditing, LOADED, openDoc, type Attacher } from "./roomdoc.ts";
+import {
+  createSaver,
+  createUploader,
+  flushWhenHidden,
+  isUploader,
+  type Saver,
+  type Uploader,
+} from "./persistence.ts";
 import { createMesh, type Mesh, type SignalPayload } from "./mesh.ts";
 import {
   openSignal,
@@ -21,15 +30,9 @@ import {
 import { createSync, type Sync } from "./sync.ts";
 import { createAdmin, type Admin, type Member } from "./admin.ts";
 import type { Access } from "./collabrooms.ts";
-import { bindText } from "./textbind.ts";
 import { createIceKeeper, type IceKeeper } from "./ice.ts";
-import { createProjectEditing, type ProjectHooks } from "./projectsession.ts";
-import {
-  createCursors,
-  type CursorView,
-  type Cursors,
-  type Profile,
-} from "./cursors.ts";
+import type { ProjectHooks } from "./projectsession.ts";
+import type { CursorView, Cursors, Profile } from "./cursors.ts";
 
 export interface SessionStatus {
   readonly signal: SignalState;
@@ -67,12 +70,7 @@ export interface Session {
   stop(forget: boolean): Promise<void>;
 }
 
-const SAVE_MS = 2000;
-const SETTLE_MS = 6000;
 const EMPTY_ROOM_SETTLE_MS = 1500;
-const UPLOAD_IDLE_MS = 30_000;
-const UPLOAD_GAP_MS = 5 * 60_000;
-const MAX_UPLOAD = 1900 * 1024;
 const MOVES: ReadonlySet<SignalEvent["t"]> = new Set([
   "hi",
   "join",
@@ -106,16 +104,6 @@ export function roomUrl(
   );
 }
 
-export function isUploader(
-  self: string,
-  room: ReadonlySet<string>,
-  open: readonly string[],
-): boolean {
-  let leader = self;
-  for (const peer of room) if (peer < leader) leader = peer;
-  return leader === self || !open.includes(leader);
-}
-
 function isRemote(origin: unknown): boolean {
   return !!origin && typeof origin === "object" && "peer" in origin;
 }
@@ -132,155 +120,6 @@ function parsePayload(bytes: Uint8Array): SignalPayload | null {
     return null;
   }
   return null;
-}
-
-export function uploadAt(
-  now: number,
-  dirtySince: number,
-  last: number,
-): number {
-  const due = Math.min(now + UPLOAD_IDLE_MS, dirtySince + UPLOAD_GAP_MS);
-  return last ? Math.max(due, last + UPLOAD_GAP_MS) : due;
-}
-
-interface Uploader {
-  mark(): void;
-  schedule(): void;
-  run(): Promise<void>;
-  force(): void;
-  dirty(): boolean;
-  cancel(): void;
-}
-
-interface UploaderDeps {
-  readonly doc: Y.Doc;
-  readonly key: CryptoKey;
-  readonly allowed: () => boolean;
-  readonly send: (data: Uint8Array) => boolean;
-  readonly tooLarge: () => void;
-}
-
-function createUploader(deps: UploaderDeps, dirty: boolean): Uploader {
-  let last = 0;
-  let dirtySince = dirty ? Date.now() : 0;
-  let warned = false;
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  const run = async (): Promise<void> => {
-    timer = null;
-    if (!dirty || !deps.allowed()) return;
-    const state = deflateSync(Y.encodeStateAsUpdate(deps.doc));
-    const sealed = await seal(deps.key, state);
-    if (sealed.byteLength > MAX_UPLOAD) {
-      if (!warned) deps.tooLarge();
-      warned = true;
-      return;
-    }
-    if (!deps.send(sealed)) return;
-    dirty = false;
-    last = Date.now();
-  };
-  const cancel = (): void => {
-    if (timer) clearTimeout(timer);
-    timer = null;
-  };
-  const schedule = (): void => {
-    cancel();
-    const now = Date.now();
-    timer = setTimeout(() => void run(), uploadAt(now, dirtySince, last) - now);
-  };
-  return {
-    mark() {
-      if (!dirty) dirtySince = Date.now();
-      dirty = true;
-      schedule();
-    },
-    schedule() {
-      if (dirty) schedule();
-    },
-    run,
-    force() {
-      if (!dirty) dirtySince = Date.now();
-      dirty = true;
-      cancel();
-      void run();
-    },
-    dirty: () => dirty,
-    cancel,
-  };
-}
-
-interface Saver {
-  soon(): void;
-  now(): void;
-  cancel(): void;
-}
-
-function createSaver(doc: Y.Doc, room: string): Saver {
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  const now = (): void => {
-    if (timer) clearTimeout(timer);
-    timer = null;
-    void saveDoc(room, Y.encodeStateAsUpdate(doc));
-  };
-  return {
-    soon() {
-      timer ??= setTimeout(now, SAVE_MS);
-    },
-    now() {
-      if (timer) now();
-    },
-    cancel() {
-      if (timer) clearTimeout(timer);
-      timer = null;
-    },
-  };
-}
-
-interface Attacher {
-  attach(): void;
-  detach(): void;
-  settle(): void;
-  destroy(): void;
-}
-
-export function createAttacher(
-  editor: HTMLTextAreaElement,
-  text: Y.Text,
-  fresh: boolean,
-  shown: (on: boolean) => void = () => {},
-): Attacher {
-  const binding = bindText(editor, text);
-  let settled = !fresh;
-  let wanted = false;
-  const timer = settled ? null : setTimeout(() => settle(), SETTLE_MS);
-  const attach = (): void => {
-    if (fresh && text.length === 0 && editor.value)
-      text.insert(0, editor.value);
-    binding.attach();
-    shown(true);
-  };
-  function settle(): void {
-    if (settled) return;
-    settled = true;
-    if (timer) clearTimeout(timer);
-    if (wanted) attach();
-  }
-  return {
-    attach() {
-      wanted = true;
-      if (settled) attach();
-    },
-    detach() {
-      wanted = false;
-      binding.detach();
-      shown(false);
-    },
-    settle,
-    destroy() {
-      if (timer) clearTimeout(timer);
-      binding.destroy();
-    },
-  };
 }
 
 interface SignalRoute {
@@ -341,29 +180,6 @@ async function applySnapshot(
   if (plain) Y.applyUpdate(doc, inflateSync(plain), SNAPSHOT);
 }
 
-function createEditing(
-  deps: SessionDeps,
-  doc: Y.Doc,
-  fresh: boolean,
-  send: (body: Uint8Array) => void,
-): { cursors: Cursors; binding: Attacher } {
-  if (deps.project)
-    return createProjectEditing(deps, doc, deps.project, fresh, send);
-  const text = doc.getText("t");
-  const cursors = createCursors({
-    doc,
-    text: () => text,
-    editor: deps.editor,
-    view: deps.view,
-    profile: deps.profile,
-    send,
-  });
-  const binding = createAttacher(deps.editor, text, fresh, (on) =>
-    cursors.setActive(on),
-  );
-  return { cursors, binding };
-}
-
 function sessionUploader(
   deps: SessionDeps,
   doc: Y.Doc,
@@ -389,16 +205,6 @@ function watchDoc(
     if (origin === SNAPSHOT || isRemote(origin)) binding.settle();
     if (origin !== SNAPSHOT) uploader.mark();
   });
-}
-
-function flushWhenHidden(saver: Saver, uploader: Uploader): () => void {
-  const flush = (): void => {
-    if (document.visibilityState !== "hidden") return;
-    saver.now();
-    if (uploader.dirty()) void uploader.run();
-  };
-  document.addEventListener("visibilitychange", flush);
-  return () => document.removeEventListener("visibilitychange", flush);
 }
 
 interface MeshWiring {

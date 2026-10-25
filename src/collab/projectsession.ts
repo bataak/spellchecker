@@ -8,6 +8,7 @@ import {
 import { createProjectBridge, type ProjectPort } from "./projectbridge.ts";
 import { createCursors, type CursorView, type Cursors } from "./cursors.ts";
 import type { Profile } from "./cursors.ts";
+import type { Attacher } from "./roomdoc.ts";
 
 export interface ProjectHooks {
   readonly port: ProjectPort;
@@ -15,13 +16,6 @@ export interface ProjectHooks {
   readonly seed: (() => Promise<ProjectSnapshot | null>) | null;
   readonly create: (snap: ProjectSnapshot) => boolean;
   readonly changed: (listener: () => void) => () => void;
-}
-
-export interface ProjectAttacher {
-  attach(): void;
-  detach(): void;
-  settle(): void;
-  destroy(): void;
 }
 
 interface EditingDeps {
@@ -48,7 +42,7 @@ export function createProjectAttacher(
   hooks: ProjectHooks,
   cursors: Cursors,
   fresh: boolean,
-): ProjectAttacher {
+): Attacher {
   const bridge = createProjectBridge(doc, hooks.port);
   let settled = false;
   let unwatch: (() => void) | null = null;
@@ -89,7 +83,7 @@ export function createProjectEditing(
   hooks: ProjectHooks,
   fresh: boolean,
   send: (body: Uint8Array) => void,
-): { cursors: Cursors; binding: ProjectAttacher } {
+): { cursors: Cursors; binding: Attacher } {
   const cursors = createCursors({
     doc,
     text: () => {
