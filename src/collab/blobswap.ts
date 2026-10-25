@@ -25,11 +25,18 @@ export interface BlobSwap {
   close(): void;
 }
 
+export class SwapClosed extends Error {
+  constructor() {
+    super("blob swap closed");
+  }
+}
+
 interface Wanted {
   readonly hash: string;
   readonly size: number;
   readonly asked: Set<string>;
   readonly done: (bytes: Uint8Array) => void;
+  readonly fail: (error: Error) => void;
   readonly promise: Promise<Uint8Array>;
   parts: (Uint8Array | undefined)[];
   peer: string | null;
@@ -84,6 +91,26 @@ function joined(parts: readonly (Uint8Array | undefined)[]): Uint8Array {
   return out;
 }
 
+function newWanted(hash: string, size: number): Wanted {
+  let done: (bytes: Uint8Array) => void = () => {};
+  let fail: (error: Error) => void = () => {};
+  const promise = new Promise<Uint8Array>((resolve, reject) => {
+    done = resolve;
+    fail = reject;
+  });
+  return {
+    hash,
+    size,
+    asked: new Set(),
+    done,
+    fail,
+    promise,
+    parts: [],
+    peer: null,
+    timer: null,
+  };
+}
+
 function hashFrame(kind: BlobKind, hash: string): Uint8Array {
   return encodeFrame(kind, encoder.encode(hash));
 }
@@ -133,9 +160,12 @@ export function createBlobSwap(deps: BlobSwapDeps): BlobSwap {
     const bytes = HASH.test(hash) ? await deps.have(hash) : null;
     if (closed) return;
     if (!bytes) return transport.send(peer, hashFrame(BLOB_NONE, hash));
-    const queued = (sending.get(peer) ?? Promise.resolve())
+    const queued: Promise<void> = (sending.get(peer) ?? Promise.resolve())
       .then(() => streamBlob(transport, peer, hash, bytes, () => closed))
-      .catch(() => {});
+      .catch(() => {})
+      .then(() => {
+        if (sending.get(peer) === queued) sending.delete(peer);
+      });
     sending.set(peer, queued);
   };
 
@@ -171,23 +201,13 @@ export function createBlobSwap(deps: BlobSwapDeps): BlobSwap {
     want(hash, size) {
       const known = wanted.get(hash);
       if (known) return known.promise;
+      if (closed) return Promise.reject(new SwapClosed());
       if (!HASH.test(hash) || size > MAX_BLOB)
         return Promise.reject(new Error("blob"));
-      let done: (bytes: Uint8Array) => void = () => {};
-      const promise = new Promise<Uint8Array>((resolve) => (done = resolve));
-      const entry: Wanted = {
-        hash,
-        size,
-        asked: new Set(),
-        done,
-        promise,
-        parts: [],
-        peer: null,
-        timer: null,
-      };
+      const entry = newWanted(hash, size);
       wanted.set(hash, entry);
       ask(entry);
-      return promise;
+      return entry.promise;
     },
     receive(peer, kind, body) {
       if (kind === BLOB_PART) return take(peer, body);
@@ -201,9 +221,12 @@ export function createBlobSwap(deps: BlobSwapDeps): BlobSwap {
     },
     close() {
       closed = true;
-      for (const entry of wanted.values())
+      for (const entry of wanted.values()) {
         if (entry.timer) clearTimeout(entry.timer);
+        entry.fail(new SwapClosed());
+      }
       wanted.clear();
+      sending.clear();
     },
   };
 }

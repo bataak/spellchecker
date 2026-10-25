@@ -5,6 +5,7 @@ import {
   PART_BYTES,
   parsePart,
   partFrame,
+  SwapClosed,
   type BlobSwap,
 } from "../src/collab/blobswap.ts";
 import { decodeFrame, type BlobKind } from "../src/collab/wire.ts";
@@ -127,12 +128,14 @@ test("a wanted blob waits for a peer to join", async () => {
     },
     have: async () => null,
   });
-  void swap.want(hash, 64);
+  const pending = swap.want(hash, 64);
   assert.deepEqual(sent, []);
   open.push("x");
   swap.joined("x");
   assert.deepEqual(sent, ["x"]);
   swap.close();
+  await assert.rejects(pending, SwapClosed);
+  await assert.rejects(swap.want(hash, 64), SwapClosed);
 });
 
 test("bad hashes and oversized blobs are rejected", async () => {
