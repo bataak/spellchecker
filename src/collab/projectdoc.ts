@@ -17,6 +17,8 @@ export interface ProjectSnapshot {
 
 type Entry = Y.Map<unknown>;
 
+export const MAX_BLOB = 20 * 1024 * 1024;
+
 const FILES = "files";
 const DIRS = "dirs";
 const META = "meta";
@@ -88,6 +90,15 @@ export function addText(doc: Y.Doc, path: string, text: string): void {
 
 export function addBlob(doc: Y.Doc, path: string, ref: BlobRef): void {
   addEntry(doc, path, (entry) => {
+    entry.set(HASH, ref.hash);
+    entry.set(SIZE, ref.size);
+  });
+}
+
+export function setBlob(doc: Y.Doc, path: string, ref: BlobRef): void {
+  const entry = resolved(doc).get(path);
+  if (!entry || entry.get(TEXT) instanceof Y.Text) return;
+  doc.transact(() => {
     entry.set(HASH, ref.hash);
     entry.set(SIZE, ref.size);
   });
@@ -208,7 +219,7 @@ export async function snapshotOf(
 ): Promise<ProjectSnapshot> {
   const blobs = new Map<string, BlobRef>();
   for (const [path, bytes] of binaries)
-    if (sharedPath(path, main))
+    if (sharedPath(path, main) && bytes.length <= MAX_BLOB)
       blobs.set(path, { hash: await blobHash(bytes), size: bytes.length });
   return { texts, blobs, dirs: new Set(dirs), main };
 }

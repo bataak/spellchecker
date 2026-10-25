@@ -28,6 +28,7 @@ import {
   type SignalState,
 } from "./signal.ts";
 import { createSync, type Sync } from "./sync.ts";
+import type { BlobTransport } from "./blobswap.ts";
 import { createAdmin, type Admin, type Member } from "./admin.ts";
 import type { Access } from "./collabrooms.ts";
 import { createIceKeeper, type IceKeeper } from "./ice.ts";
@@ -322,13 +323,21 @@ function wireMesh(wiring: MeshWiring): Mesh {
   });
 }
 
+function meshTransport(mesh: () => Mesh): BlobTransport {
+  return {
+    send: (peer, data) => mesh().send(peer, data),
+    open: () => mesh().open(),
+    drain: (peer) => mesh().drain(peer),
+  };
+}
+
 export async function startSession(deps: SessionDeps): Promise<Session> {
   const { link } = deps;
   const key = await importKey(link.key);
   const { doc, fresh } = await openDoc(link.room, deps.seed, deps.project);
-  const { cursors, binding } = createEditing(deps, doc, fresh, (body) =>
-    sync.cursor(body),
-  );
+  const peers = meshTransport(() => mesh);
+  const editing = createEditing(deps, doc, fresh, peers, (b) => sync.cursor(b));
+  const { cursors, binding, swap } = editing;
   const self = randomId(12);
   const room = new Set<string>();
   let signalState: SignalState = "connecting";
@@ -364,9 +373,10 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
 
   const sync = createSync({
     doc,
-    open: () => mesh.open(),
-    send: (peer, data) => mesh.send(peer, data),
+    ...peers,
     onCursor: (peer, body) => cursors.receive(peer, body),
+    onBlob: (peer, kind, body) => swap?.receive(peer, kind, body),
+    onJoined: (peer) => swap?.joined(peer),
   });
 
   const signal = openSignal({
@@ -380,6 +390,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
         if (!owner) admin.label(deps.profile().name);
       }
       if (MOVES.has(event.t)) for (const listener of watchers) listener();
+      const onAccess = deps.onAccess;
       const route = { key, room, mesh, uploader, admin, onAccess, ice };
       void routeSignal(event, route).catch(noteError);
     },
@@ -394,7 +405,6 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
 
   const admin = createAdmin(key, (message) => signal.command(message));
   const gate = createGate(() => signalState === "open");
-  const onAccess = deps.onAccess;
   const unwatch = flushWhenHidden(saver, uploader);
 
   return {
@@ -416,8 +426,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
       unwatch();
       uploader.cancel();
       saver.cancel();
-      binding.destroy();
-      cursors.destroy();
+      editing.destroy();
       sync.close();
       mesh.close();
       if (forget) signal.command({ t: "leave" });

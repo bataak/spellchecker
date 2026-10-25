@@ -1,11 +1,13 @@
 import * as Y from "yjs";
 import {
+  BLOB_WANT,
   CURSOR,
   LINKS,
   SYNC_REQUEST,
   SYNC_UPDATE,
   decodeFrame,
   encodeFrame,
+  type BlobKind,
 } from "./wire.ts";
 
 export interface SyncDeps {
@@ -13,6 +15,8 @@ export interface SyncDeps {
   readonly open: () => string[];
   readonly send: (peer: string, data: Uint8Array) => void;
   readonly onCursor: (peer: string, body: Uint8Array) => void;
+  readonly onBlob?: (peer: string, kind: BlobKind, body: Uint8Array) => void;
+  readonly onJoined?: (peer: string) => void;
 }
 
 export interface Sync {
@@ -98,6 +102,7 @@ export function createSync(deps: SyncDeps): Sync {
     joined(peer) {
       deps.send(peer, encodeFrame(SYNC_REQUEST, Y.encodeStateVector(doc)));
       announceLinks();
+      deps.onJoined?.(peer);
     },
     left(peer) {
       peerLinks.delete(peer);
@@ -116,6 +121,8 @@ export function createSync(deps: SyncDeps): Sync {
       else if (frame.kind === LINKS)
         peerLinks.set(peer, parseLinks(frame.body));
       else if (frame.kind === CURSOR) deps.onCursor(peer, frame.body);
+      else if (frame.kind >= BLOB_WANT)
+        deps.onBlob?.(peer, frame.kind as BlobKind, frame.body);
     },
     linksChanged: announceLinks,
     cursor(body) {

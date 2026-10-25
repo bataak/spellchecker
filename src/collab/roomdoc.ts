@@ -1,5 +1,6 @@
 import * as Y from "yjs";
 import { loadDoc } from "./docstore.ts";
+import type { BlobSwap, BlobTransport } from "./blobswap.ts";
 import { bindText } from "./textbind.ts";
 import {
   createProjectEditing,
@@ -92,14 +93,35 @@ export interface EditingDeps {
   readonly project: ProjectHooks | null;
 }
 
+export interface Editing {
+  readonly cursors: Cursors;
+  readonly binding: Attacher;
+  readonly swap: BlobSwap | null;
+  destroy(): void;
+}
+
+function withDestroy(parts: Omit<Editing, "destroy">): Editing {
+  return {
+    ...parts,
+    destroy() {
+      parts.binding.destroy();
+      parts.swap?.close();
+      parts.cursors.destroy();
+    },
+  };
+}
+
 export function createEditing(
   deps: EditingDeps,
   doc: Y.Doc,
   fresh: boolean,
+  transport: BlobTransport,
   send: (body: Uint8Array) => void,
-): { cursors: Cursors; binding: Attacher } {
+): Editing {
   if (deps.project)
-    return createProjectEditing(deps, doc, deps.project, fresh, send);
+    return withDestroy(
+      createProjectEditing(deps, doc, deps.project, fresh, send, transport),
+    );
   const text = doc.getText("t");
   const cursors = createCursors({
     doc,
@@ -112,5 +134,5 @@ export function createEditing(
   const binding = createAttacher(deps.editor, text, fresh, (on) =>
     cursors.setActive(on),
   );
-  return { cursors, binding };
+  return withDestroy({ cursors, binding, swap: null });
 }
