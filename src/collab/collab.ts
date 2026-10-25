@@ -24,7 +24,7 @@ import {
 } from "./collabrooms.ts";
 import type { Session, SessionNotice, SessionStatus } from "./session.ts";
 import type { ProjectHooks } from "./projectsession.ts";
-import type { Talk } from "./roomdoc.ts";
+import type { Talk } from "./talk.ts";
 import type { SignalState } from "./signal.ts";
 import type { CursorView } from "./cursors.ts";
 import { loadProfile, saveName } from "./profile.ts";
