@@ -5,7 +5,10 @@ export interface SignalPayload {
   readonly sdp: string;
 }
 
+export type PeerFactory = (config: RTCConfiguration) => RTCPeerConnection;
+
 export interface MeshDeps {
+  readonly connect: PeerFactory;
   readonly self: () => string;
   readonly present: (peer: string) => boolean;
   readonly iceServers: () => RTCIceServer[];
@@ -95,11 +98,12 @@ function setServers(
 }
 
 function newLink(
+  connect: PeerFactory,
   iceServers: RTCIceServer[],
   caller: boolean,
   relay: boolean,
 ): Link {
-  const pc = new RTCPeerConnection({
+  const pc = connect({
     iceServers: relay ? iceServers : directServers(iceServers),
   });
   const channel = pc.createDataChannel("y", { negotiated: true, id: 0 });
@@ -200,7 +204,7 @@ export function createMesh(deps: MeshDeps): Mesh {
 
   function link(peer: string, caller: boolean, relay: boolean): Link {
     drop(peer);
-    const entry = newLink(deps.iceServers(), caller, relay);
+    const entry = newLink(deps.connect, deps.iceServers(), caller, relay);
     links.set(peer, entry);
     watch(entry, {
       open() {
