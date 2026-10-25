@@ -100,12 +100,12 @@ export function createProjectCollab(
   deps: Pick<CollabWiringDeps, "store" | "project">,
 ): CollabProject {
   const { store } = deps;
-  let joining: { uid: string; name: string } | null = null;
+  const joining = new Map<string, string>();
   return {
     uid: () => sharedUid(deps),
     prepare(name, uid) {
       if (!confirmReplace(store.project()?.unsaved)) return false;
-      joining = { uid, name };
+      joining.set(uid, name);
       return true;
     },
     hooks: (uid, seed) => ({
@@ -117,18 +117,19 @@ export function createProjectCollab(
       seed: seed ? () => seedOf(store, uid) : null,
       create(snap) {
         if (sharedUid(deps) === uid) return true;
-        if (joining?.uid !== uid) return false;
+        const name = joining.get(uid);
+        if (name === undefined) return false;
         const encoder = new TextEncoder();
         const files: [string, Uint8Array][] = [...snap.texts].map(
           ([path, text]) => [path, encoder.encode(text)],
         );
-        const name = joining.name;
-        joining = null;
-        return deps.project.openShared(
+        const opened = deps.project.openShared(
           { name, files, dirs: new Set(snap.dirs) },
           uid,
           snap.main,
         );
+        if (opened) joining.delete(uid);
+        return opened;
       },
       changed: (listener) => store.onProjectChange(listener),
       blobs: blobPort(store, uid),
