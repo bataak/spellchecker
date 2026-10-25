@@ -1,0 +1,189 @@
+import * as Y from "yjs";
+import { randomId } from "./collabkey.ts";
+import { movedPath, skippedPath, within } from "../tex/texproject.ts";
+
+export interface BlobRef {
+  readonly hash: string;
+  readonly size: number;
+}
+
+export interface ProjectSnapshot {
+  readonly texts: ReadonlyMap<string, string>;
+  readonly blobs: ReadonlyMap<string, BlobRef>;
+  readonly dirs: ReadonlySet<string>;
+  readonly main: string | null;
+}
+
+type Entry = Y.Map<unknown>;
+
+const FILES = "files";
+const DIRS = "dirs";
+const META = "meta";
+const PATH = "path";
+const TEXT = "text";
+const HASH = "hash";
+const SIZE = "size";
+const MAIN = "main";
+
+function files(doc: Y.Doc): Y.Map<Entry> {
+  return doc.getMap<Entry>(FILES);
+}
+
+function dirs(doc: Y.Doc): Y.Map<boolean> {
+  return doc.getMap<boolean>(DIRS);
+}
+
+function meta(doc: Y.Doc): Y.Map<string> {
+  return doc.getMap<string>(META);
+}
+
+export function outputPdf(main: string | null): string | null {
+  return main ? main.replace(/\.(tex|ltx)$/i, "") + ".pdf" : null;
+}
+
+export function sharedPath(path: string, main: string | null): boolean {
+  return !skippedPath(path) && path !== outputPdf(main);
+}
+
+function pathOf(entry: Entry): string {
+  const path = entry.get(PATH);
+  return typeof path === "string" ? path : "";
+}
+
+function numbered(path: string, n: number): string {
+  const slash = path.lastIndexOf("/");
+  const dot = path.lastIndexOf(".");
+  const cut = dot > slash + 1 ? dot : path.length;
+  return path.slice(0, cut) + " (" + n + ")" + path.slice(cut);
+}
+
+function resolved(doc: Y.Doc): Map<string, Entry> {
+  const out = new Map<string, Entry>();
+  const sorted = [...files(doc)].sort(([a], [b]) => (a < b ? -1 : 1));
+  for (const [, entry] of sorted) {
+    const path = pathOf(entry);
+    if (!path) continue;
+    let free = path;
+    for (let n = 2; out.has(free); n++) free = numbered(path, n);
+    out.set(free, entry);
+  }
+  return out;
+}
+
+function addEntry(
+  doc: Y.Doc,
+  path: string,
+  fill: (entry: Entry) => void,
+): void {
+  const entry = new Y.Map<unknown>();
+  entry.set(PATH, path);
+  fill(entry);
+  files(doc).set(randomId(9), entry);
+}
+
+export function addText(doc: Y.Doc, path: string, text: string): void {
+  addEntry(doc, path, (entry) => entry.set(TEXT, new Y.Text(text)));
+}
+
+export function addBlob(doc: Y.Doc, path: string, ref: BlobRef): void {
+  addEntry(doc, path, (entry) => {
+    entry.set(HASH, ref.hash);
+    entry.set(SIZE, ref.size);
+  });
+}
+
+export function addDir(doc: Y.Doc, path: string): void {
+  dirs(doc).set(path, true);
+}
+
+export function setMain(doc: Y.Doc, path: string | null): void {
+  if (path) meta(doc).set(MAIN, path);
+  else meta(doc).delete(MAIN);
+}
+
+export function seedProject(doc: Y.Doc, snap: ProjectSnapshot): void {
+  doc.transact(() => {
+    for (const [path, text] of snap.texts)
+      if (sharedPath(path, snap.main)) addText(doc, path, text);
+    for (const [path, ref] of snap.blobs)
+      if (sharedPath(path, snap.main)) addBlob(doc, path, ref);
+    for (const dir of snap.dirs) if (!skippedPath(dir)) addDir(doc, dir);
+    setMain(doc, snap.main);
+  });
+}
+
+export function removePath(doc: Y.Doc, path: string): void {
+  doc.transact(() => {
+    for (const [id, entry] of [...files(doc)])
+      if (within(pathOf(entry), path)) files(doc).delete(id);
+    for (const dir of [...dirs(doc).keys()])
+      if (within(dir, path)) dirs(doc).delete(dir);
+    const main = meta(doc).get(MAIN);
+    if (main && within(main, path)) setMain(doc, null);
+  });
+}
+
+export function movePath(doc: Y.Doc, from: string, to: string): void {
+  doc.transact(() => {
+    for (const entry of files(doc).values()) {
+      const next = movedPath(pathOf(entry), from, to);
+      if (next !== null) entry.set(PATH, next);
+    }
+    for (const dir of [...dirs(doc).keys()]) {
+      const next = movedPath(dir, from, to);
+      if (next === null) continue;
+      dirs(doc).delete(dir);
+      dirs(doc).set(next, true);
+    }
+    const main = meta(doc).get(MAIN);
+    const moved = main ? movedPath(main, from, to) : null;
+    if (moved !== null) setMain(doc, moved);
+  });
+}
+
+export function textOf(doc: Y.Doc, path: string): Y.Text | null {
+  const text = resolved(doc).get(path)?.get(TEXT);
+  return text instanceof Y.Text ? text : null;
+}
+
+export function projectOf(doc: Y.Doc): ProjectSnapshot {
+  const texts = new Map<string, string>();
+  const blobs = new Map<string, BlobRef>();
+  for (const [path, entry] of resolved(doc)) {
+    const text = entry.get(TEXT);
+    const hash = entry.get(HASH);
+    const size = entry.get(SIZE);
+    if (text instanceof Y.Text) texts.set(path, text.toString());
+    else if (typeof hash === "string" && typeof size === "number")
+      blobs.set(path, { hash, size });
+  }
+  return {
+    texts,
+    blobs,
+    dirs: new Set(dirs(doc).keys()),
+    main: meta(doc).get(MAIN) ?? null,
+  };
+}
+
+export async function blobHash(bytes: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    bytes as Uint8Array<ArrayBuffer>,
+  );
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+export async function snapshotOf(
+  texts: ReadonlyMap<string, string>,
+  binaries: ReadonlyMap<string, Uint8Array>,
+  dirs: Iterable<string>,
+  main: string | null,
+): Promise<ProjectSnapshot> {
+  const blobs = new Map<string, BlobRef>();
+  for (const [path, bytes] of binaries)
+    if (sharedPath(path, main))
+      blobs.set(path, { hash: await blobHash(bytes), size: bytes.length });
+  return { texts, blobs, dirs: new Set(dirs), main };
+}
