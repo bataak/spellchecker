@@ -21,7 +21,7 @@ import {
   type Access,
   type RoomEntry,
 } from "./collabrooms.ts";
-import type { Session, SessionStatus } from "./session.ts";
+import type { Session, SessionNotice, SessionStatus } from "./session.ts";
 import type { ProjectHooks } from "./projectsession.ts";
 import type { Talk } from "./roomdoc.ts";
 import type { SignalState } from "./signal.ts";
@@ -87,8 +87,12 @@ const IDLE_MS = 30 * 60_000;
 const HOME_SCREEN_MESSAGE =
   "iPhone, iPad дээр хамтын бичвэрийг удаан хадгалахын тулд Safari-гийн «Хуваалцах» цэснээс «Нүүр дэлгэцэнд нэмэх»-ийг сонгож аппыг суулгана уу. Эс бөгөөс 7 хоног нээгээгүй үед Safari бичвэрийг устгаж болно.";
 const WIPES: ReadonlySet<SignalState> = new Set(["wiped", "purged"]);
-const TOO_LARGE_MESSAGE =
-  "Бичвэр хэт том тул серверт хадгалагдсангүй. Шууд холбогдсон хүмүүстэй засвар үргэлжилнэ, харин дараа нэгдэх хүн сүүлийн хувилбарыг авахгүй.";
+const NOTICES: Record<SessionNotice, string> = {
+  "too-large":
+    "Бичвэр хэт том тул серверт хадгалагдсангүй. Шууд холбогдсон хүмүүстэй засвар үргэлжилнэ, харин дараа нэгдэх хүн сүүлийн хувилбарыг авахгүй.",
+  "near-limit":
+    "Хуваалцсан бичвэрийн засварын түүх серверийн 8 MB хязгаарт ойртож байна. Хязгаарт хүрвэл дараа нэгдэх хүн сүүлийн хувилбарыг авахгүй. Хуваалцахыг зогсоож дахин хуваалцвал түүх шинээр эхэлнэ.",
+};
 
 export function joinName(
   file: string | null,
@@ -203,7 +207,7 @@ function createRegistry(
             statuses.set(entry.room, status);
             changed();
           },
-          onNotice: () => notify(TOO_LARGE_MESSAGE),
+          onNotice: (notice) => notify(NOTICES[notice]),
         }),
       );
       pending.set(entry.room, created);

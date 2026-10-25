@@ -7,6 +7,9 @@ const SAVE_MS = 2000;
 const UPLOAD_IDLE_MS = 30_000;
 const UPLOAD_GAP_MS = 5 * 60_000;
 const MAX_UPLOAD = 8 * 1024 * 1024;
+const NEAR_UPLOAD = 6 * 1024 * 1024;
+
+export type UploadNotice = "too-large" | "near-limit";
 
 export function isUploader(
   self: string,
@@ -41,34 +44,35 @@ export interface UploaderDeps {
   readonly key: CryptoKey;
   readonly allowed: () => boolean;
   readonly send: (data: Uint8Array) => boolean;
-  readonly tooLarge: () => void;
+  readonly notice: (notice: UploadNotice) => void;
 }
 
 export function createUploader(deps: UploaderDeps, dirty: boolean): Uploader {
   let last = 0;
   let dirtySince = dirty ? Date.now() : 0;
-  let warned = false;
+  const warned = new Set<UploadNotice>();
   let edits = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
-  const run = async (): Promise<void> => {
+  const cancel = (): void => {
+    if (timer) clearTimeout(timer);
     timer = null;
+  };
+  const warn = (notice: UploadNotice): void => {
+    if (!warned.has(notice)) deps.notice(notice);
+    warned.add(notice);
+  };
+  const run = async (): Promise<void> => {
+    cancel();
     if (!dirty || !deps.allowed()) return;
     const seen = edits;
     const state = deflateSync(Y.encodeStateAsUpdate(deps.doc));
     const sealed = await seal(deps.key, state);
-    if (sealed.byteLength > MAX_UPLOAD) {
-      if (!warned) deps.tooLarge();
-      warned = true;
-      return;
-    }
+    if (sealed.byteLength > MAX_UPLOAD) return warn("too-large");
+    if (sealed.byteLength > NEAR_UPLOAD) warn("near-limit");
     if (!deps.send(sealed)) return;
     last = Date.now();
     if (edits !== seen) return;
     dirty = false;
-  };
-  const cancel = (): void => {
-    if (timer) clearTimeout(timer);
-    timer = null;
   };
   const schedule = (): void => {
     cancel();
