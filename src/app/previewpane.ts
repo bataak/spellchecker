@@ -5,14 +5,14 @@ import { initPreview, type Preview } from "../preview/preview.ts";
 import type { PreviewDeps } from "../preview/preview.ts";
 import { createPdfSave, type PdfSaveControl } from "./pdfsave.ts";
 import type { PdfSaveDeps } from "./pdfsave.ts";
-import type { Signal } from "./signal.ts";
+import type { Emitter } from "../core/emitter.ts";
 
 export interface PreviewPaneDeps
   extends Omit<PreviewDeps, "pdfName">, Omit<PdfSaveDeps, "preview"> {
   readonly workspace: HTMLElement;
   readonly sideBySide: () => boolean;
   readonly visibleOffset: () => number;
-  readonly layoutChanged: Signal<Layout>;
+  readonly layoutChanged: Emitter<Layout>;
   readonly measure: MeasureControl;
 }
 

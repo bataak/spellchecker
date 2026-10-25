@@ -1,5 +1,6 @@
 import { KEYS, read, readJson, write, writeJson } from "../core/store.ts";
 import { noteError } from "../core/errorlog.ts";
+import { createEmitter, type Emitter } from "../core/emitter.ts";
 import { onSwap, swapOrigin, type SwapOrigin } from "../editor/editortext.ts";
 import {
   linkHash,
@@ -276,9 +277,9 @@ function paintButton(
   button: HTMLButtonElement,
   entry: RoomEntry | null,
   registry: Registry,
-  listeners: ReadonlySet<() => void>,
+  talks: Emitter,
 ): void {
-  for (const listener of listeners) listener();
+  talks.emit();
   button.textContent = buttonLabel(
     entry !== null,
     entry ? registry.status(entry.room) : null,
@@ -454,9 +455,9 @@ export function initCollab(deps: CollabDeps): Collab {
     writeJson(KEYS.collabRooms, rooms);
   };
 
-  const talkers = new Set<() => void>();
+  const talks = createEmitter();
   const paint = (): void =>
-    paintButton(button, roomOfSlot(rooms, deps.slot()), registry, talkers);
+    paintButton(button, roomOfSlot(rooms, deps.slot()), registry, talks);
 
   const registry = createRegistry(editor, deps.view, {
     project: deps.project,
@@ -548,6 +549,6 @@ export function initCollab(deps: CollabDeps): Collab {
     },
     projectChanged: whenStarted(() => sync()),
     talk: (kind) => talkOf(kind, rooms, deps, registry),
-    onTalk: (listener) => void talkers.add(listener),
+    onTalk: (listener) => void talks.on(listener),
   };
 }

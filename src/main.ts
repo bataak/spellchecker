@@ -45,7 +45,7 @@ import { createCheckLoop } from "./app/checkloop.ts";
 import { bindLineBlocks, createEditorView } from "./app/editorview.ts";
 import { initAppHints } from "./app/apphints.ts";
 import { warmTex } from "./app/texwarm.ts";
-import { createSignal } from "./app/signal.ts";
+import { createEmitter } from "./core/emitter.ts";
 import { createEmptyState } from "./app/emptystate.ts";
 import { createTexMode } from "./app/texmode.ts";
 import { initAppExport } from "./app/appexport.ts";
@@ -74,7 +74,7 @@ document.body.classList.add("ready");
 const els = queryShell();
 const { editor: editorEl, workspace, editorWrap } = els;
 const { desktopMQ, narrowMQ, touchMQ } = els;
-const layoutChanged = createSignal<Layout>();
+const layoutChanged = createEmitter<Layout>();
 
 const backdrop = createBackdrop(els.backdrop);
 bindLineBlocks(backdrop, narrowMQ, () => void loop.render());

@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 
 import { restoreDraftFile } from "../src/app/draftfile.ts";
 import { createOpenPolicy, type OpenSlots } from "../src/app/openpolicy.ts";
-import { createSignal } from "../src/app/signal.ts";
+import { createEmitter } from "../src/core/emitter.ts";
 import { watchTabs } from "../src/app/tabwatch.ts";
 import { createTexMode } from "../src/app/texmode.ts";
 import { createMarkupMode } from "../src/app/markupmode.ts";
@@ -15,7 +15,7 @@ import { saveDraftFile } from "../src/core/storage.ts";
 const globals = globalThis as unknown as Record<string, unknown>;
 
 test("signal: бүртгэсэн дарааллаар бүх сонсогчид хүрнэ", () => {
-  const signal = createSignal<number>();
+  const signal = createEmitter<number>();
   const seen: string[] = [];
   signal.on((v) => seen.push("a" + v));
   signal.on((v) => seen.push("b" + v));

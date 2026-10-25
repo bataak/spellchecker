@@ -1,4 +1,5 @@
 import type * as Y from "yjs";
+import { createEmitter } from "../core/emitter.ts";
 import { randomId } from "./collabkey.ts";
 import type { Profile } from "./cursors.ts";
 import { cleanName, cleanText } from "./safetext.ts";
@@ -94,7 +95,7 @@ export function createChat(
   profile: () => Profile,
 ): Chat {
   const array = doc.getArray<unknown>(CHAT);
-  const listeners = new Set<() => void>();
+  const changed = createEmitter();
   let cached: ChatMessage[] | null = null;
 
   const list = (): ChatMessage[] => {
@@ -124,7 +125,7 @@ export function createChat(
   const observer = (event: Y.YArrayEvent<unknown>): void => {
     cached = null;
     if (!event.transaction.local) prune(array);
-    for (const listener of listeners) listener();
+    changed.emit();
   };
   array.observe(observer);
   prune(array);
@@ -155,13 +156,10 @@ export function createChat(
       list().filter((message) => !message.mine && !seenIds.has(message.id))
         .length,
     seen: markSeen,
-    onChange(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
+    onChange: changed.on,
     destroy() {
       array.unobserve(observer);
-      listeners.clear();
+      changed.clear();
     },
   };
 }

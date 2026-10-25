@@ -1,6 +1,7 @@
 import * as Y from "yjs";
 import { inflateSync } from "fflate";
 import { noteError } from "../core/errorlog.ts";
+import { createEmitter, type Emitter } from "../core/emitter.ts";
 import {
   fromBase64Url,
   importKey,
@@ -252,7 +253,7 @@ type ConnectionControls = Pick<Session, "sleep" | "resume" | "watch">;
 export function connectionControls(
   signal: Signal,
   uploader: Uploader,
-  watchers: Set<() => void>,
+  moves: Emitter,
 ): ConnectionControls {
   let resting = false;
   return {
@@ -266,10 +267,7 @@ export function connectionControls(
       resting = false;
       signal.resume();
     },
-    watch(listener) {
-      watchers.add(listener);
-      return () => watchers.delete(listener);
-    },
+    watch: moves.on,
   };
 }
 
@@ -393,7 +391,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
   let shared = false;
   const ice = createIceKeeper(() => ({ signal, mesh }));
   const owner = deps.access().kind === "o";
-  const watchers = new Set<() => void>();
+  const moves = createEmitter();
   const status = (): void =>
     deps.onStatus({ signal: signalState, peers: mesh.open().length });
   const saver = createSaver(doc, link.room);
@@ -432,7 +430,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
           setTimeout(binding.settle, EMPTY_ROOM_SETTLE_MS);
         if (!owner) admin.label(deps.profile().name);
       }
-      if (MOVES.has(event.t)) for (const listener of watchers) listener();
+      if (MOVES.has(event.t)) moves.emit();
       const route = { key, room, mesh, uploader, admin, deps, ice };
       void routeSignal(event, route).catch(noteError);
     },
@@ -458,7 +456,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
       editing.talk.announce();
       if (!owner) admin.label(deps.profile().name);
     },
-    ...connectionControls(signal, uploader, watchers),
+    ...connectionControls(signal, uploader, moves),
     ...adminControls(admin, gate, () => {
       if (shared) return;
       shared = true;
