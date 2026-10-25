@@ -262,6 +262,9 @@ test("watchTabs: ижил төсөл дахин мэдэгдэхэд sync илг
   uid = null;
   fire();
   fire();
+  const end = Date.now() + 3000;
+  while (updates.length < 3 && Date.now() < end)
+    await new Promise((resolve) => setTimeout(resolve, 20));
   await new Promise((resolve) => setTimeout(resolve, 50));
   guard.close();
   peer.close();
