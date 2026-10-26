@@ -1,3 +1,4 @@
+import { noteError } from "../core/errorlog.ts";
 import {
   dirName,
   expandMacros,
@@ -51,7 +52,8 @@ async function toPng(bytes: Uint8Array): Promise<Uint8Array | null> {
       canvas.toBlob(resolve, "image/png"),
     );
     return png ? new Uint8Array(await png.arrayBuffer()) : null;
-  } catch {
+  } catch (error) {
+    noteError(error);
     return null;
   }
 }

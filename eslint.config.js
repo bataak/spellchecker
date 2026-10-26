@@ -36,6 +36,7 @@ export default tseslint.config(
         { checksVoidReturn: { arguments: false, attributes: false } },
       ],
       "@typescript-eslint/prefer-promise-reject-errors": "error",
+      "max-lines": ["warn", { max: 550, skipBlankLines: true }],
     },
   },
   {

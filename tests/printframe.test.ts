@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { installDom } from "./helpers/dom.ts";
 
 const dom = installDom("");
-const { printPage } = await import("../src/office/print.ts");
+const { printPage } = await import("../src/export/printframe.ts");
 
 test.after(() => dom.close());
 

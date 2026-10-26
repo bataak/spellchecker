@@ -58,6 +58,7 @@ function openChosenRepo(
     } catch (error) {
       throw new ProjectError(
         failureMessage(error, "Repo-г нээж чадсангүй") ?? "Цуцаллаа",
+        { cause: error },
       );
     }
   };

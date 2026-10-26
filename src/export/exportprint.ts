@@ -33,7 +33,7 @@ export function createPrinter(deps: PrintDeps): Printer {
     try {
       const [{ compileTex }, { printPdf }] = await Promise.all([
         import("../tex/texpdf.ts"),
-        import("../office/print.ts"),
+        import("./printframe.ts"),
       ]);
       await printPdf(
         await compileTex(deps.editor.value, deps.texProject?.() ?? null),
@@ -47,20 +47,30 @@ export function createPrinter(deps: PrintDeps): Printer {
     if (deps.isTex?.()) return printTex();
     const template = findTemplate(deps.template())!;
     if (template.frame === "slides") {
-      const [{ deckDoc, deckImages }, { printDeck }] = await Promise.all([
-        import("../office/deck.ts"),
-        import("../office/deckprint.ts"),
-      ]);
+      const [{ deckDoc, deckImages }, { deckPrintHtml }, office, frame] =
+        await Promise.all([
+          import("../office/deck.ts"),
+          import("../office/deckprint.ts"),
+          import("../office/print.ts"),
+          import("./printframe.ts"),
+        ]);
       const deck = deckDoc(splitSlides(parse(deps.editor.value)));
-      await printDeck(deck, await prepareImages(deckImages(deck)));
+      const images = await prepareImages(deckImages(deck));
+      await frame.printPage(
+        deckPrintHtml(deck, images, office.printFontBase()),
+      );
       return;
     }
-    const [{ applyTemplate }, { printDoc }] = await Promise.all([
+    const [{ applyTemplate }, office, frame] = await Promise.all([
       import("../office/apply.ts"),
       import("../office/print.ts"),
+      import("./printframe.ts"),
     ]);
     const doc = applyTemplate(parse(deps.editor.value), template);
-    await printDoc(doc, await prepareImages(docImages(doc)));
+    const images = await prepareImages(docImages(doc));
+    await frame.printPage(
+      office.printHtml(doc, office.printFontBase(), images),
+    );
   }
 
   function printable(): boolean {

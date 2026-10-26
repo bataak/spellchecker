@@ -1,5 +1,6 @@
 import { type Block, type Inline, type ListTree, listTree } from "./ast.ts";
-import { MATH_CLOSE, RULE_RE, parse } from "./blocks.ts";
+import { RULE_RE, parse } from "./blocks.ts";
+import { MATH_CLOSE } from "./mathblock.ts";
 import { imageAttrs, parseInline } from "./inline.ts";
 import { mathSource } from "./texlogo.ts";
 

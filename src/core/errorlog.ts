@@ -61,6 +61,20 @@ export function recordOnce(ring: ErrorRing, error: SafeError): void {
   ring.record(error);
 }
 
+export const MAX_CAUSES = 3;
+
+export function causeChain(error: unknown): unknown[] {
+  const chain: unknown[] = [];
+  let current = error;
+  while (chain.length <= MAX_CAUSES && !chain.includes(current)) {
+    chain.push(current);
+    if (!(current instanceof Error) || current.cause === undefined) break;
+    current = current.cause;
+  }
+  return chain;
+}
+
 export function noteError(error: unknown): void {
-  recordOnce(globalRing, toSafeError(error));
+  for (const link of causeChain(error))
+    recordOnce(globalRing, toSafeError(link));
 }

@@ -136,9 +136,10 @@ export async function request(
   let response: Response;
   try {
     response = await fetcher(url, init);
-  } catch {
+  } catch (cause) {
     throw new ProjectError(
       PROVIDER_NAME[provider] + "-тай холбогдож чадсангүй",
+      { cause },
     );
   }
   if (!response.ok && !allow.includes(response.status))
