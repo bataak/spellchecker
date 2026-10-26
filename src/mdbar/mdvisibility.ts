@@ -11,6 +11,7 @@ export interface VisibilityDeps {
   readonly mount: HTMLElement | null;
   readonly buttons: ButtonState;
   readonly menu: { contains(el: Element): boolean; isOpen(): boolean };
+  readonly tools?: { sync(): void };
   readonly active: () => boolean;
   readonly beforeSync: () => void;
   readonly afterSync: () => void;
@@ -44,6 +45,7 @@ export function createBarVisibility(d: VisibilityDeps): BarVisibility {
     const on = d.active();
     const show = (ready && focused()) || d.menu.isOpen();
     d.beforeSync();
+    d.tools?.sync();
     d.picker.classList.toggle("is-plain", !on);
     editor.parentElement?.classList.toggle("is-markdown", on);
     if (group.hidden !== !on) {

@@ -1,4 +1,5 @@
 import { PROJECT_SLOT } from "./fileslots.ts";
+import { onViewportChange, placeBelow } from "../ui/placebelow.ts";
 
 export interface SlotDropdownDeps {
   readonly select: HTMLButtonElement;
@@ -29,18 +30,6 @@ function slotMenu(): HTMLDivElement {
   return menu;
 }
 
-function placeBelow(menu: HTMLElement, select: HTMLElement): void {
-  const rect = select.getBoundingClientRect();
-  const view = window.visualViewport;
-  const bottom = view ? view.offsetTop + view.height : window.innerHeight;
-  const right = document.documentElement.clientWidth;
-  menu.style.top = rect.bottom + 4 + "px";
-  menu.style.maxHeight = Math.max(120, bottom - rect.bottom - 12) + "px";
-  menu.style.minWidth = rect.width + "px";
-  menu.style.left =
-    Math.max(8, Math.min(rect.left, right - menu.offsetWidth - 8)) + "px";
-}
-
 function navIndex(key: string, at: number, count: number): number {
   if (key === "ArrowDown") return (at + 1) % count;
   if (key === "ArrowUp") return (at - 1 + count) % count;
@@ -60,13 +49,6 @@ function checkItems(
     if (on) label = item.textContent ?? "";
   }
   return label;
-}
-
-function onViewportChange(listener: (event: Event) => void, on: boolean): void {
-  const method = on ? "addEventListener" : "removeEventListener";
-  window[method]("resize", listener);
-  window[method]("scroll", listener, true);
-  window.visualViewport?.[method]("resize", listener);
 }
 
 export function createSlotDropdown(deps: SlotDropdownDeps): SlotDropdown {

@@ -157,3 +157,38 @@ test("\\ref дотор шошгыг, өөр файлын командыг сан
     await editor(page),
   );
 });
+
+test("LaTeX мөрөөр сонголтыг тодруулж, тэмдэг ба орчин оруулна", async () => {
+  const page = await openPage(app, await app.context());
+  await openFile(page, app.files.project);
+  await projectFile(page, "main.tex");
+  await typeAtEnd(page, "\nсайн");
+  await page.keyboard.press("Shift+ArrowLeft");
+  await page.keyboard.press("Shift+ArrowLeft");
+  await page.click('.tex-btn[data-tool="bold"]');
+  assert.ok(
+    (await editor(page)).endsWith("са\\textbf{йн}"),
+    await editor(page),
+  );
+  await page.keyboard.press("Tab");
+  await page.keyboard.type(" $");
+  await page.click('.tex-btn[data-tool="symbols"]');
+  await page.click('.tex-pop .tex-cell[data-command="alpha"]');
+  assert.ok((await editor(page)).endsWith("$\\alpha$"), await editor(page));
+  await page.keyboard.press("Tab");
+  await page.keyboard.type("\n\\begin{quote}\nx\n");
+  await page.keyboard.press("Escape");
+  await page.click('.tex-btn[data-tool="env"]');
+  await page.click('.tex-pop .tex-item >> text="Нээлттэй орчныг хаах"');
+  assert.ok(
+    (await editor(page)).endsWith("$\\alpha$\n\\begin{quote}\nx\n\\end{quote}"),
+    await editor(page),
+  );
+  await page.click('.tex-btn[data-tool="env"]');
+  await page.click('.tex-pop .tex-item >> text="Голлуулах"');
+  await page.keyboard.type("y");
+  assert.ok(
+    (await editor(page)).endsWith("\\begin{center}\n  y\n\\end{center}"),
+    await editor(page),
+  );
+});

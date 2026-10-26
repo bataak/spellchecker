@@ -22,6 +22,7 @@ g.MutationObserver = win.MutationObserver;
 
 const { initMdToolbar } = await import("../src/mdbar/mdtoolbar.ts");
 const { enterInsert } = await import("../src/mdbar/mdedit.ts");
+const { createTexBar } = await import("../src/tex/texbar.ts");
 
 test.after(() => dom.close());
 
@@ -96,4 +97,29 @@ test("mdToolbar: тод товч сонгосон хэсгийг ороож, Ent
   assert.equal(event.defaultPrevented, true);
   assert.equal(editor.value, "нэг\n\n");
   bar.destroy();
+});
+
+test("addTools: LaTeX товчнуудыг мөрөнд нэмж, идэвхгүй үед цэсийг хаана", () => {
+  const editor = document.querySelector<HTMLTextAreaElement>("#ed")!;
+  const host = document.querySelector<HTMLElement>("header.topbar")!;
+  let tex = true;
+  const md = initMdToolbar({
+    editor,
+    mount: host,
+    isMdFile: () => false,
+    isTexFile: () => tex,
+  });
+  const tools = createTexBar({ editor, active: () => tex, insert: () => {} });
+  md.addTools(tools);
+  assert.equal(host.querySelector(".md-group + .tex-group"), tools.group);
+  assert.equal(tools.group.hidden, false);
+  tools.group.querySelector<HTMLElement>('[data-tool="text"]')!.click();
+  assert.equal(tools.isOpen(), true);
+  tex = false;
+  md.refresh();
+  assert.equal(tools.group.hidden, true);
+  assert.equal(tools.isOpen(), false);
+  md.destroy();
+  assert.equal(host.querySelector(".tex-group"), null);
+  assert.equal(document.querySelector(".tex-pop"), null);
 });

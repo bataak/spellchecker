@@ -6,7 +6,7 @@ export interface TopbarFit {
 export function initTopbarFit(
   mount: HTMLElement | null,
   bar: HTMLElement,
-  group: HTMLElement,
+  hasTools: () => boolean,
 ): TopbarFit {
   const wideQuery = window.matchMedia("(min-width: 701px)");
 
@@ -34,7 +34,7 @@ export function initTopbarFit(
     const contentLeft =
       host.getBoundingClientRect().left +
       (Number.parseFloat(cs.paddingLeft) || 0);
-    const pulled = group.hidden ? null : toolbarStart();
+    const pulled = hasTools() ? toolbarStart() : null;
     const room =
       host.clientWidth -
       (Number.parseFloat(cs.paddingLeft) || 0) -

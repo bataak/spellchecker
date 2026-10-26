@@ -423,6 +423,7 @@ initTexInput({
   rectAt: backdrop.rangeRectAt,
   project: () => (projectLink.bound() ? projectStore.projectFiles() : null),
   path: () => projectLink.path(),
+  toolbar: mdBar,
 });
 const projectLink = createProjectWiring({
   store: projectStore,
