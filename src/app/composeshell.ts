@@ -5,6 +5,7 @@ import { createCollabWiring } from "./collabwiring.ts";
 import { watchTabs } from "./tabwatch.ts";
 import { startApp } from "./startup.ts";
 import { fileSlot } from "../collab/roomslot.ts";
+import { keepLayoutOnReload } from "../ui/layoutsnapshot.ts";
 
 export function composeShell(app: App): void {
   const { els, status, doc, mdBar, projectLink, fileIO } = app;
@@ -57,6 +58,7 @@ export function composeShell(app: App): void {
     },
     openDictMenu: () => app.dictionaries.openMenu(),
   });
+  keepLayoutOnReload();
 }
 
 export function composeSession(app: App): void {
