@@ -5,11 +5,28 @@ export interface JobFiles {
   write(ext: string, src: string): void;
 }
 
-export interface AuxStep {
+interface PassRule {
   readonly wanted: (body: string) => boolean;
   readonly passes: number;
+}
+
+export interface AuxStep extends PassRule {
   readonly run: (files: JobFiles) => Promise<void>;
 }
+
+export interface PassPlan {
+  readonly passes: number;
+  readonly steps: readonly AuxStep[];
+}
+
+const CROSS_REF =
+  /\\(?:tableofcontents|listof(?:figures|tables)|ref|eqref|pageref|autoref|cref|Cref|cite|label)\b/;
+const BIBLIOGRAPHY = /\\(?:bibliography|addbibresource)\s*\{/;
+
+const RULES: readonly PassRule[] = [
+  { wanted: (body) => CROSS_REF.test(body), passes: 1 },
+  { wanted: (body) => BIBLIOGRAPHY.test(body), passes: 2 },
+];
 
 const indexStep: AuxStep = {
   wanted: (body) => /\\makeindex\b/.test(body),
@@ -24,13 +41,14 @@ const indexStep: AuxStep = {
 
 const STEPS: readonly AuxStep[] = [indexStep];
 
-export function auxSteps(sources: Iterable<string>): AuxStep[] {
+export function planPasses(sources: Iterable<string>): PassPlan {
   const bodies = [...sources].map(uncommented);
-  return STEPS.filter((step) => bodies.some((body) => step.wanted(body)));
-}
-
-export function extraPasses(steps: readonly AuxStep[]): number {
-  return Math.max(0, ...steps.map((step) => step.passes));
+  const matching = <Rule extends PassRule>(rules: readonly Rule[]): Rule[] =>
+    rules.filter((rule) => bodies.some((body) => rule.wanted(body)));
+  const settle = Math.max(0, ...matching(RULES).map((rule) => rule.passes));
+  const steps = matching(STEPS);
+  const generated = steps.reduce((sum, step) => sum + step.passes, 0);
+  return { passes: 1 + settle + generated, steps };
 }
 
 export async function runSteps(

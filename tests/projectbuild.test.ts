@@ -61,7 +61,6 @@ test("buildProject: ажлын хавтас, үндсэн файл, хавтас
     "paper/data",
     "paper/data/deep",
   ]);
-  assert.ok(build.passes >= 2);
   assert.deepEqual(build.missing, []);
 });
 

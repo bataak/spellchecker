@@ -1,5 +1,4 @@
 import {
-  compilePasses,
   dirName,
   expandMacros,
   graphicRefs,
@@ -30,7 +29,6 @@ export interface ProjectBuild {
   readonly mainText: string;
   readonly files: Record<string, Uint8Array | string>;
   readonly dirs: readonly string[];
-  readonly passes: number;
   readonly missing: readonly string[];
 }
 
@@ -203,7 +201,6 @@ export async function buildProject(
     dirs: [...b.dirs].sort(
       (left, right) => left.split("/").length - right.split("/").length,
     ),
-    passes: compilePasses(s.texts.values()),
     missing: b.missing,
   };
 }
