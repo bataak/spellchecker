@@ -13,6 +13,7 @@ import { TEX_TOOLS } from "../src/tex/texmenudata.ts";
 
 const OUT = new URL("../src/tex/texglyphs.svg", import.meta.url);
 const ORIGIN = 72;
+const FIXED_STROKE = ' vector-effect="non-scaling-stroke"';
 
 const PREAMBLE = String.raw`\documentclass[multi=g,border=0pt]{standalone}
 \usepackage{amsmath,amssymb}
@@ -60,7 +61,7 @@ function viewBox(svg: string): number[] {
     .map(Number);
 }
 
-function shapes(svg: string, dx: number, dy: number): string {
+function shapes(svg: string, dx: number, dy: number, extra = ""): string {
   const paths = new Map(
     [...svg.matchAll(/<path[^>]*>/g)].map(([tag]) => [
       attr(tag, "id"),
@@ -73,9 +74,9 @@ function shapes(svg: string, dx: number, dy: number): string {
       const x = num(Number(attr(tag, "x")) + dx);
       const y = num(Number(attr(tag, "y")) + dy);
       if (kind === "rect")
-        return `<rect x="${x}" y="${y}" width="${attr(tag, "width")}" height="${attr(tag, "height")}"/>`;
+        return `<rect${extra} x="${x}" y="${y}" width="${attr(tag, "width")}" height="${attr(tag, "height")}"/>`;
       const d = paths.get(attr(tag, "xlink:href").slice(1));
-      return `<path transform="translate(${x} ${y})" d="${d}"/>`;
+      return `<path${extra} transform="translate(${x} ${y})" d="${d}"/>`;
     })
     .join("");
 }
@@ -96,7 +97,7 @@ function fitted(ink: string, frame: GlyphFrame): string {
   const dx = (frame.width - width * scale) / 2 - x * scale;
   const dy = (frame.height - height * scale) / 2 - y * scale;
   const move = `translate(${num(dx)} ${num(dy)}) scale(${num(scale)})`;
-  return `<g transform="${move}">${shapes(ink, 0, 0)}</g>`;
+  return `<g transform="${move}">${shapes(ink, 0, 0, FIXED_STROKE)}</g>`;
 }
 
 function symbolOf(job: Job, page: string, ink: string): string {

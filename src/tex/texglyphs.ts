@@ -18,7 +18,7 @@ export const PALETTE_GLYPH: GlyphFrame = {
 
 export const TOOL_GLYPH: GlyphFrame = {
   prefix: "t",
-  width: 28,
+  width: 20,
   height: 14,
   fit: true,
 };

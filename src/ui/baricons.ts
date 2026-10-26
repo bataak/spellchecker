@@ -43,65 +43,57 @@ export const ICON = {
   system:
     '<path d="M5.5 2.5c-1.6 0-1.6 1.2-1.6 2.7S3.8 8 2.3 8c1.5 0 1.6 1.3 1.6 2.8s0 2.7 1.6 2.7"/>' +
     '<path d="M8 5.3h6M8 10.7h6"/>',
+  fraction:
+    '<rect x="5" y="1.8" width="6" height="4.6" rx="1"/>' +
+    '<path d="M2.5 8h11"/>' +
+    '<rect x="5" y="9.6" width="6" height="4.6" rx="1"/>',
+  enter:
+    '<path d="M13.5 3v4.8a2.2 2.2 0 0 1-2.2 2.2H3"/>' +
+    '<path d="M6.2 6.8L3 10l3.2 3.2"/>',
 } as const;
 
-const SHAPES = "path, circle, rect, text";
-const DIGIT_HEIGHT = 0.72;
+export type IconName = keyof typeof ICON;
 
-function shapeBox(
-  shape: SVGGraphicsElement,
-  style: CSSStyleDeclaration,
-): DOMRect {
-  const box = shape.getBBox();
-  const baseline = (shape as SVGTextElement).y?.baseVal[0]?.value;
-  if (baseline === undefined) return box;
-  const size = Number.parseFloat(style.fontSize) * DIGIT_HEIGHT;
-  return new DOMRect(box.x, baseline - size, box.width, size);
-}
+const INK: Record<IconName, string> = {
+  left: "0.8 2.3 14.4 11.4",
+  center: "0.8 2.3 14.4 11.4",
+  right: "0.8 2.3 14.4 11.4",
+  signature: "0.8 3 15.7 11.7",
+  bullet: "1.9 2.9 12.3 10.2",
+  ordered: "0.6 1.7 13.6 12",
+  quote: "3.5 3.9 12.1 8.1",
+  table: "2.3 2.3 11.4 11.4",
+  pagebreak: "0.8 0.8 14.4 14.4",
+  image: "0.8 1.8 14.4 12.4",
+  link: "1.2 1.5 13.6 13",
+  environment: "0.8 1.8 14.4 12.4",
+  matrix: "2.1 1.8 11.7 12.4",
+  system: "1.6 1.8 13.1 12.4",
+  fraction: "1.8 1.1 12.4 13.8",
+  enter: "2.3 2.3 11.9 11.6",
+};
 
-function inkBox(probe: SVGSVGElement): DOMRect | null {
-  let left = Infinity;
-  let top = Infinity;
-  let right = -Infinity;
-  let bottom = -Infinity;
-  for (const shape of probe.querySelectorAll<SVGGraphicsElement>(SHAPES)) {
-    const style = getComputedStyle(shape);
-    const box = shapeBox(shape, style);
-    const pad =
-      style.stroke === "none" ? 0 : Number.parseFloat(style.strokeWidth) / 2;
-    left = Math.min(left, box.x - pad);
-    top = Math.min(top, box.y - pad);
-    right = Math.max(right, box.x + box.width + pad);
-    bottom = Math.max(bottom, box.y + box.height + pad);
-  }
-  return right > left && bottom > top
-    ? new DOMRect(left, top, right - left, bottom - top)
-    : null;
-}
+const STROKE =
+  'fill="none" stroke="currentColor" stroke-width="1.4" ' +
+  'stroke-linecap="round" stroke-linejoin="round"';
 
-export function fitIcon(icon: SVGSVGElement): void {
-  if (typeof icon.getBBox !== "function") return;
-  const probe = icon.cloneNode(true) as SVGSVGElement;
-  probe.style.cssText = "position:absolute;visibility:hidden";
-  document.body.append(probe);
-  const box = inkBox(probe);
-  probe.remove();
-  if (!box) return;
-  icon.setAttribute(
-    "viewBox",
-    [box.x, box.y, box.width, box.height]
-      .map((value) => Math.round(value * 100) / 100)
-      .join(" "),
+export function inkSvg(name: IconName): string {
+  return (
+    '<svg class="ink-icon" viewBox="' +
+    INK[name] +
+    '" aria-hidden="true" ' +
+    STROKE +
+    ">" +
+    ICON[name] +
+    "</svg>"
   );
-  icon.removeAttribute("width");
-  icon.removeAttribute("height");
 }
 
 export function svg(body: string): string {
   return (
     '<svg viewBox="-0.8 -0.8 17.6 17.6" width="20" height="20" aria-hidden="true" ' +
-    'fill="none" stroke="currentColor" stroke-width="1.4" ' +
-    'stroke-linecap="round" stroke-linejoin="round">' +
+    STROKE +
+    ">" +
     body +
     "</svg>"
   );
