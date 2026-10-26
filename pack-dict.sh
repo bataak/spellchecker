@@ -21,8 +21,9 @@ for id in mn_MN en_GB en_US; do
   slug=$(printf '%s' "$ver" | sed 's/[^A-Za-z0-9._-]/-/g; s/-\{2,\}/-/g; s/^-//; s/-$//')
   [ -z "$slug" ] && slug="0"
 
-  aff_out="$id.$slug.aff.gz"
-  dic_out="$id.$slug.dic.gz"
+  sum=$(cat "$src/$id.aff" "$src/$id.dic" | sha256sum | cut -c1-10)
+  aff_out="$id.$slug.$sum.aff.gz"
+  dic_out="$id.$slug.$sum.dic.gz"
   gzip -9 -c "$src/$id.aff" > "$out/$aff_out"
   gzip -9 -c "$src/$id.dic" > "$out/$dic_out"
   rm -f "$out/$id.aff" "$out/$id.dic"
