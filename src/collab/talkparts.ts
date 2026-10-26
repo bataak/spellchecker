@@ -1,9 +1,11 @@
 import { headButton } from "../project/panelicons.ts";
 import type { Change } from "./changes.ts";
+import type { CommentThread } from "./comments.ts";
+import { commentsView, type CommentsView } from "./commentview.ts";
 import type { Talk } from "./talk.ts";
 import { changesView, chatView, type TalkView } from "./talkview.ts";
 
-export type TalkMode = "chat" | "changes";
+export type TalkMode = "chat" | "changes" | "comments";
 
 export interface RevealDeps {
   readonly editor: HTMLTextAreaElement;
@@ -13,36 +15,48 @@ export interface RevealDeps {
 export const ICONS: Record<TalkMode, string> = {
   chat: '<path d="M2.5 3h11v7.5h-6.5l-3 2.5v-2.5h-1.5z"/><path d="M5 6h6M5 8h4"/>',
   changes: '<path d="M8 1.8v7.4M4.3 5.5h7.4M4.3 13h7.4"/>',
+  comments:
+    '<path d="M2.5 13.5h11"/><path d="M4 10.5l6.5-6.5 2 2-6.5 6.5H4z"/>',
 };
 export const TALK_LABELS: Record<TalkMode, string> = {
   chat: "Хэлэлцүүлэг",
   changes: "Өөрчлөлт",
+  comments: "Шүүмж",
 };
 
 export interface Views {
   readonly talk: Talk;
-  readonly views: Record<TalkMode, TalkView>;
+  readonly views: Record<"chat" | "changes", TalkView> & {
+    readonly comments: CommentsView;
+  };
   destroy(): void;
 }
 
-function selectChange(editor: HTMLTextAreaElement, change: Change): void {
-  const to = Math.min(
-    editor.value.length,
-    change.from + change.inserted.length,
-  );
+function selectRange(
+  editor: HTMLTextAreaElement,
+  from: number,
+  end: number,
+): void {
+  const to = Math.min(editor.value.length, end);
   editor.focus();
-  editor.setSelectionRange(Math.min(change.from, to), to);
+  editor.setSelectionRange(Math.min(from, to), to);
 }
 
 export function buildViews(talk: Talk, deps: RevealDeps): Views {
-  const reveal = (change: Change): void => {
-    if (change.path === null) return selectChange(deps.editor, change);
-    deps.openPath(change.path);
-    requestAnimationFrame(() => selectChange(deps.editor, change));
+  const reveal = (path: string | null, from: number, to: number): void => {
+    if (path === null) return selectRange(deps.editor, from, to);
+    deps.openPath(path);
+    requestAnimationFrame(() => selectRange(deps.editor, from, to));
   };
   const views = {
     chat: chatView(talk.chat),
-    changes: changesView(talk.changes, reveal),
+    changes: changesView(talk.changes, (change: Change) =>
+      reveal(change.path, change.from, change.from + change.inserted.length),
+    ),
+    comments: commentsView(talk.comments, (thread: CommentThread) => {
+      if (thread.from !== null && thread.to !== null)
+        reveal(thread.path, thread.from, thread.to);
+    }),
   };
   return {
     talk,
@@ -50,6 +64,7 @@ export function buildViews(talk: Talk, deps: RevealDeps): Views {
     destroy() {
       views.chat.destroy();
       views.changes.destroy();
+      views.comments.destroy();
     },
   };
 }
@@ -67,9 +82,10 @@ export function badge(target: HTMLElement, count: number): void {
 
 export interface Side {
   sync(views: Views | null): void;
+  open(mode: TalkMode): void;
 }
 
-export const MODES = ["chat", "changes"] as const;
+export const MODES = ["chat", "changes", "comments"] as const;
 
 export interface Holder {
   current(): Views | null;

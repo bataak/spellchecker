@@ -16,10 +16,14 @@ export function projectSide(editor: HTMLTextAreaElement): Side | null {
   const head = panel?.querySelector<HTMLElement>(".project-head");
   if (!panel || !foot || !head) return null;
   const archive = foot.querySelector(".project-foot-btn");
-  const buttons = { changes: talkButton("changes"), chat: talkButton("chat") };
+  const buttons = {
+    changes: talkButton("changes"),
+    chat: talkButton("chat"),
+    comments: talkButton("comments"),
+  };
   const pair = document.createElement("span");
   pair.className = "talk-pair";
-  pair.append(buttons.changes, buttons.chat);
+  pair.append(buttons.changes, buttons.chat, buttons.comments);
   foot.insertBefore(pair, archive);
   const side = document.createElement("section");
   side.className = "project-talk";
@@ -57,5 +61,6 @@ export function projectSide(editor: HTMLTextAreaElement): Side | null {
       pair.hidden = views === null;
       unread();
     },
+    open: show,
   };
 }
