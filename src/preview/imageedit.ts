@@ -1,4 +1,5 @@
-import { applyEdit, imageSizeAt, setImageSize } from "../mdbar/mdedit.ts";
+import { applyEdit } from "../mdbar/mdedit.ts";
+import { imageSizeAt, setImageSize } from "../mdbar/mdinsert.ts";
 import type { ImageSize } from "../markdown.ts";
 
 const CORNERS = ["nw", "ne", "sw", "se"] as const;

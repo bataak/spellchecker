@@ -8,16 +8,18 @@ import {
   toggleList,
   toggleWrap,
   enterInsert,
-  imageSizeAt,
-  insertImage,
-  setImageSize,
-  insertPageBreak,
-  insertTable,
   toggleQuote,
-  wrapLink,
   caretInTable,
 } from "../src/mdbar/mdedit.ts";
 import { minimalDiff } from "../src/core/textdiff.ts";
+import {
+  imageSizeAt,
+  insertImage,
+  insertPageBreak,
+  insertTable,
+  setImageSize,
+  wrapLink,
+} from "../src/mdbar/mdinsert.ts";
 import {
   alignAt,
   insertSignature,
