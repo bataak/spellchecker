@@ -32,9 +32,12 @@ export function initScrollHint(bar: HTMLElement): ScrollHint {
 
   function sync(): void {
     const max = bar.scrollWidth - bar.clientWidth;
+    const style = getComputedStyle(bar);
+    const padEnd = Number.parseFloat(style.paddingRight) || 0;
+    const padStart = Number.parseFloat(style.paddingLeft) || 0;
     const room = !bar.hidden && max > SLACK;
-    const before = room && bar.scrollLeft > SLACK;
-    const after = room && bar.scrollLeft < max - SLACK;
+    const before = room && bar.scrollLeft > padStart + SLACK;
+    const after = room && bar.scrollLeft < max - padEnd - SLACK;
     bar.classList.toggle("scroll-fade-start", before);
     bar.classList.toggle("scroll-fade-end", after);
     start.hidden = !before;
