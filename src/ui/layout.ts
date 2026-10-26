@@ -23,6 +23,12 @@ export const DEFAULT_LAYOUT: Readonly<Layout> = {
   preview: false,
 };
 
+export const INITIAL_LAYOUT: Readonly<Layout> = {
+  measure: "b",
+  panel: true,
+  preview: false,
+};
+
 const ROW_ORDER: readonly Pick<Layout, "panel" | "preview">[] = [
   { panel: true, preview: false },
   { panel: false, preview: false },
@@ -169,6 +175,7 @@ export function isMeasure(v: unknown): v is Measure {
 }
 
 export function parseLayout(v: unknown): Layout {
+  if (v === null || v === undefined) return { ...INITIAL_LAYOUT };
   if (typeof v !== "string" || v.length !== 3) return { ...DEFAULT_LAYOUT };
   const [m, p, r] = v;
   if (!isMeasure(m)) return { ...DEFAULT_LAYOUT };
