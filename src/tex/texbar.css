@@ -3,6 +3,7 @@
 }
 
 .md-bar .tex-group {
+  --tex-ink: 14px;
   gap: 2px;
 }
 
@@ -20,28 +21,31 @@
 .tex-group .tex-btn {
   position: relative;
   font-family: var(--tex-glyph);
-  font-size: 1.05rem;
 }
 
-.tex-group .tex-btn[data-tool="bold"] {
+.md-bar .tex-group .tex-btn {
+  font-size: calc(var(--tex-ink) * 1.2);
+}
+
+.md-bar .tex-group .tex-btn[data-tool="bold"] {
   font-family: var(--sans);
+  font-size: calc(var(--tex-ink) * 1.4);
   font-weight: 700;
 }
 
-.tex-group .tex-btn[data-tool="italic"] {
+.md-bar .tex-group .tex-btn[data-tool="italic"] {
+  font-size: calc(var(--tex-ink) * 1.53);
   font-style: italic;
 }
 
-.tex-group .tex-btn[data-tool="font"] {
+.md-bar .tex-group .tex-btn[data-tool="font"] {
   font-family: var(--sans);
-  font-size: 0.85rem;
+  font-size: calc(var(--tex-ink) * 1.36);
   font-weight: 600;
 }
 
-.tex-group .tex-btn[data-tool="inline"] {
-  font-size: 0.85rem;
-  letter-spacing: -0.04em;
-  white-space: nowrap;
+.md-bar .tex-group .tex-btn[data-tool="close"] {
+  font-size: calc(var(--tex-ink) * 1.4);
 }
 
 .tex-glyph {
@@ -51,8 +55,8 @@
 }
 
 .md-bar .tex-group .tex-btn > .tex-glyph {
-  width: 36px;
-  height: 25.2px;
+  width: calc(var(--tex-ink) * 2);
+  height: var(--tex-ink);
   flex: none;
 }
 
@@ -62,10 +66,11 @@
   margin-inline: -0.25rem;
 }
 
-.md-bar .tex-group .tex-btn > svg {
+.md-bar .tex-group .tex-btn > svg:not(.tex-glyph) {
   display: block;
-  width: 20px;
-  height: 20px;
+  width: auto;
+  max-width: 24px;
+  height: var(--tex-ink);
 }
 
 .tex-group > [data-gap] {

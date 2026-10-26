@@ -369,7 +369,10 @@ export const TEX_TOOLS: readonly BarTool[] = [
     icon: svg(ICON.environment),
   }),
   action("close", "⤶", "Нээлттэй орчныг хаах", { kind: "close" }),
-  action("ref", "↪", "Шошгоор заах (\\ref)", cmd("ref{#}"), { gap: true }),
+  action("ref", "↪", "Шошгоор заах (\\ref)", cmd("ref{#}"), {
+    tex: "\\hookrightarrow",
+    gap: true,
+  }),
   action("cite", "❝", "Ишлэх (\\cite)", cmd("cite{#}"), {
     icon: svg(ICON.quote),
   }),

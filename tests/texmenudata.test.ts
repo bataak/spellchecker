@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { TEX_TOOLS } from "../src/tex/texmenudata.ts";
 import { menuEdit } from "../src/tex/texmenuedit.ts";
-import { glyphId, symbolTex } from "../src/tex/texglyphs.ts";
+import { TOOL_GLYPH, glyphId, symbolTex } from "../src/tex/texglyphs.ts";
 
 test("цэсний товч бүр өвөрмөц нэртэй, тайлбартай", () => {
   const ids = TEX_TOOLS.map((tool) => tool.id);
@@ -36,20 +36,20 @@ test("LaTeX-ээр зурсан тэмдэг бүр sprite-д байна", () =>
     new URL("../src/tex/texglyphs.svg", import.meta.url),
     "utf8",
   );
-  const sources = TEX_TOOLS.flatMap((tool) => [
-    ...(tool.tex ? [tool.tex] : []),
+  const ids = TEX_TOOLS.flatMap((tool) => [
+    ...(tool.tex ? [glyphId(tool.tex, TOOL_GLYPH)] : []),
     ...(tool.kind === "palette"
       ? tool.tabs.flatMap((tab) =>
-          tab.symbols.map((symbol) => symbolTex(symbol.command)),
+          tab.symbols.map((symbol) => glyphId(symbolTex(symbol.command))),
         )
       : []),
   ]);
-  for (const tex of sources)
-    assert.ok(sprite.includes(`id="${glyphId(tex)}"`), tex);
+  for (const id of ids) assert.ok(sprite.includes(`id="${id}"`), id);
 });
 
 test("glyphId нь LaTeX эхийг давхцалгүй id болгоно", () => {
   assert.equal(glyphId("\\alpha"), "g-5calpha");
+  assert.equal(glyphId("\\alpha", TOOL_GLYPH), "t-5calpha");
   assert.notEqual(glyphId("\\{"), glyphId("\\}"));
   assert.equal(symbolTex("sqrt{#}"), "\\sqrt{\\phantom{x}}");
 });

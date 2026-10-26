@@ -45,6 +45,58 @@ export const ICON = {
     '<path d="M8 5.3h6M8 10.7h6"/>',
 } as const;
 
+const SHAPES = "path, circle, rect, text";
+const DIGIT_HEIGHT = 0.72;
+
+function shapeBox(
+  shape: SVGGraphicsElement,
+  style: CSSStyleDeclaration,
+): DOMRect {
+  const box = shape.getBBox();
+  const baseline = (shape as SVGTextElement).y?.baseVal[0]?.value;
+  if (baseline === undefined) return box;
+  const size = Number.parseFloat(style.fontSize) * DIGIT_HEIGHT;
+  return new DOMRect(box.x, baseline - size, box.width, size);
+}
+
+function inkBox(probe: SVGSVGElement): DOMRect | null {
+  let left = Infinity;
+  let top = Infinity;
+  let right = -Infinity;
+  let bottom = -Infinity;
+  for (const shape of probe.querySelectorAll<SVGGraphicsElement>(SHAPES)) {
+    const style = getComputedStyle(shape);
+    const box = shapeBox(shape, style);
+    const pad =
+      style.stroke === "none" ? 0 : Number.parseFloat(style.strokeWidth) / 2;
+    left = Math.min(left, box.x - pad);
+    top = Math.min(top, box.y - pad);
+    right = Math.max(right, box.x + box.width + pad);
+    bottom = Math.max(bottom, box.y + box.height + pad);
+  }
+  return right > left && bottom > top
+    ? new DOMRect(left, top, right - left, bottom - top)
+    : null;
+}
+
+export function fitIcon(icon: SVGSVGElement): void {
+  if (typeof icon.getBBox !== "function") return;
+  const probe = icon.cloneNode(true) as SVGSVGElement;
+  probe.style.cssText = "position:absolute;visibility:hidden";
+  document.body.append(probe);
+  const box = inkBox(probe);
+  probe.remove();
+  if (!box) return;
+  icon.setAttribute(
+    "viewBox",
+    [box.x, box.y, box.width, box.height]
+      .map((value) => Math.round(value * 100) / 100)
+      .join(" "),
+  );
+  icon.removeAttribute("width");
+  icon.removeAttribute("height");
+}
+
 export function svg(body: string): string {
   return (
     '<svg viewBox="-0.8 -0.8 17.6 17.6" width="20" height="20" aria-hidden="true" ' +
