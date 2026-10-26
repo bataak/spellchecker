@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CURSOR_COLORS } from "../src/collab/peercolors.ts";
+import { CURSOR_COLORS, CURSOR_HUES } from "../src/collab/peercolors.ts";
 
 const channels = (hex: string): number[] =>
   [1, 3, 5].map((i) => {
@@ -51,4 +51,10 @@ test("хамтрагчийн өнгө хоорондоо тод ялгагдан
       );
     }
   assert.ok(least >= 25, String(least));
+});
+
+test("хамтрагчийн өнгө эсрэг хосуудаас бүрдэнэ", () => {
+  assert.equal(CURSOR_HUES.length, CURSOR_COLORS.length);
+  for (let i = 0; i < CURSOR_HUES.length; i += 2)
+    assert.equal((CURSOR_HUES[i]! + 180) % 360, CURSOR_HUES[i + 1]);
 });
