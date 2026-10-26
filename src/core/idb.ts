@@ -11,7 +11,6 @@ export function requestResult<T>(request: IDBRequest<T>): Promise<T> {
 export function transactionDone(tx: IDBTransaction): Promise<void> {
   return new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(failure(tx.error));
     tx.onabort = () => reject(failure(tx.error));
   });
 }
