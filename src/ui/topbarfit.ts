@@ -1,3 +1,5 @@
+import { initScrollHint } from "./scrollhint.ts";
+
 export interface TopbarFit {
   sync(): void;
   destroy(): void;
@@ -9,6 +11,7 @@ export function initTopbarFit(
   hasTools: () => boolean,
 ): TopbarFit {
   const wideQuery = window.matchMedia("(min-width: 701px)");
+  const hint = initScrollHint(bar);
 
   function toolbarStart(): number | null {
     if (document.documentElement.dataset.toolbar !== "wide") return null;
@@ -17,7 +20,7 @@ export function initTopbarFit(
     for (const el of toolbar.children) {
       const item = el as HTMLElement;
       if (item.hidden || item.offsetParent === null) continue;
-      return item.getBoundingClientRect().left;
+      return item.getBoundingClientRect().left + toolbar.scrollLeft;
     }
     return null;
   }
@@ -87,8 +90,12 @@ export function initTopbarFit(
   });
 
   return {
-    sync: syncWide,
+    sync() {
+      syncWide();
+      hint.sync();
+    },
     destroy() {
+      hint.destroy();
       window.removeEventListener("resize", queueWide);
       subtitleWatch.disconnect();
       toolbarWatch.disconnect();

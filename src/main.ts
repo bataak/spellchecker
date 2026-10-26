@@ -2,6 +2,7 @@ import { confirmWipe } from "./ui/wipe.ts";
 import "./style.css";
 import "./editor/gutter.css";
 import "./mdbar/md-toolbar.css";
+import "./ui/scrollhint.css";
 import "./export/export.css";
 import "./define/deftip.css";
 import "./project/project.css";
