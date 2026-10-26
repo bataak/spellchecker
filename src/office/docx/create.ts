@@ -36,6 +36,8 @@ import {
   type NumDef,
 } from "./styles.ts";
 
+import { NS_R, coreXml, footerXml, paraXml, settingsXml } from "./parts.ts";
+
 export interface DocxOptions {
   readonly toc?: boolean;
   readonly images?: ImageFiles;
@@ -45,8 +47,6 @@ const encoder = new TextEncoder();
 
 const EMU_CM = 360000;
 
-const NS_R =
-  'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
 const NS_WP =
   'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"';
 const DRAWING = "http://schemas.openxmlformats.org/drawingml/2006/main";
@@ -180,10 +180,6 @@ function runsXml(
     } else out += text;
   });
   return out;
-}
-
-function paraXml(pPr: string, inner: string): string {
-  return "<w:p>" + (pPr ? "<w:pPr>" + pPr + "</w:pPr>" : "") + inner + "</w:p>";
 }
 
 function styled(style: string, extra = ""): string {
@@ -416,54 +412,6 @@ function documentXml(doc: DocIr, options: DocxOptions, body: Body): string {
   );
 }
 
-function footerXml(): string {
-  return (
-    XML_HEAD +
-    "<w:ftr " +
-    NS_W +
-    " " +
-    NS_R +
-    ">" +
-    paraXml(
-      '<w:pStyle w:val="Footer"/>',
-      '<w:fldSimple w:instr=" PAGE "><w:r><w:t>1</w:t></w:r></w:fldSimple>',
-    ) +
-    "</w:ftr>"
-  );
-}
-
-function settingsXml(doc: DocIr, options: DocxOptions): string {
-  return (
-    XML_HEAD +
-    "<w:settings " +
-    NS_W +
-    ">" +
-    (doc.page.mirrored ? "<w:mirrorMargins/>" : "") +
-    '<w:defaultTabStop w:val="709"/>' +
-    '<w:characterSpacingControl w:val="doNotCompress"/>' +
-    (options.toc ? '<w:updateFields w:val="true"/>' : "") +
-    '<w:compat><w:compatSetting w:name="compatibilityMode" ' +
-    'w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat>' +
-    "</w:settings>"
-  );
-}
-
-function coreXml(doc: DocIr): string {
-  const now = new Date().toISOString().replace(/\.\d+Z$/, "Z");
-  return (
-    XML_HEAD +
-    '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" ' +
-    'xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" ' +
-    'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">' +
-    (doc.title ? "<dc:title>" + xmlAttr(doc.title) + "</dc:title>" : "") +
-    "<dc:language>mn-MN</dc:language>" +
-    '<dcterms:created xsi:type="dcterms:W3CDTF">' +
-    now +
-    "</dcterms:created>" +
-    "</cp:coreProperties>"
-  );
-}
-
 export function buildDocx(
   doc: DocIr,
   options: DocxOptions = {},
@@ -537,7 +485,7 @@ export function buildDocx(
       ...body.links,
     ]),
     "word/styles.xml": stylesXml(doc),
-    "word/settings.xml": settingsXml(doc, options),
+    "word/settings.xml": settingsXml(doc, options.toc ?? false),
     "word/numbering.xml": numberingXml(body.nums),
     "docProps/core.xml": coreXml(doc),
   };
