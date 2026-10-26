@@ -275,9 +275,7 @@ const list = (
 ): BarTool => ({ kind: "list", id, glyph, title, sections, ...extra });
 
 export const TEX_TOOLS: readonly BarTool[] = [
-  list("structure", "§", "Бүлэг, баримтын бүтэц", STRUCTURE_SECTIONS, {
-    tex: "\\S",
-  }),
+  list("structure", "§", "Бүлэг, баримтын бүтэц", STRUCTURE_SECTIONS),
   action("bold", "B", "Тод (\\textbf)", cmd("textbf{#}"), { gap: true }),
   action("italic", "I", "Налуу (\\textit)", cmd("textit{#}")),
   list("font", "Aa", "Үсгийн хэлбэр, хэмжээ", FONT_SECTIONS),
