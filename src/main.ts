@@ -10,34 +10,11 @@ import "./spellui/dictmanager.css";
 import { installErrorLog } from "./core/errorlog.ts";
 import { createLate } from "./core/late.ts";
 import type { AppParts } from "./app/appparts.ts";
-import {
-  composeDocument,
-  composeEditor,
-  composeModes,
-} from "./app/composeeditor.ts";
-import { composeChecks, composeEditing } from "./app/composechecks.ts";
-import {
-  composePanes,
-  composeProject,
-  composeToolbar,
-} from "./app/composefiles.ts";
-import { composeSession, composeShell } from "./app/composeshell.ts";
+import { composeApp } from "./app/compose.ts";
 
 installErrorLog();
 
 const app = createLate<AppParts>();
 app.provide({ entryUrl: import.meta.url });
 
-for (const compose of [
-  composeEditor,
-  composeDocument,
-  composeModes,
-  composeChecks,
-  composeEditing,
-  composePanes,
-  composeToolbar,
-  composeProject,
-  composeShell,
-  composeSession,
-])
-  compose(app);
+composeApp(app);

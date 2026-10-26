@@ -12,7 +12,7 @@ export function createLate<T extends object>(): Late<T> {
   return new Proxy({} as Late<T>, {
     get(_, key) {
       if (key === "provide") return provide;
-      if (typeof key === "symbol") return undefined;
+      if (typeof key === "symbol" || key === "then") return undefined;
       if (!(key in parts)) throw new Error(key + " is used before it is wired");
       return parts[key as keyof T];
     },
