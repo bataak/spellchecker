@@ -30,10 +30,14 @@ test("нарийн дэлгэцэд доод цэс төгсгөл хүртэл 
   await end.waitFor({ state: "visible" });
   await end.click();
   await page.waitForTimeout(1200);
-  const left = await page.evaluate(
-    () => document.querySelector<HTMLElement>(".toolbar")!.scrollLeft,
-  );
-  assert.ok(left >= max - 1, left + " < " + max);
+  const gap = await page.evaluate(() => {
+    const bar = document.querySelector<HTMLElement>(".toolbar")!;
+    const open = document.querySelector<HTMLElement>("#openBtn")!;
+    return (
+      open.getBoundingClientRect().right - bar.getBoundingClientRect().right
+    );
+  });
+  assert.ok(gap <= 1, String(gap));
   assert.equal(await end.isVisible(), false);
   assert.deepEqual(errors(page), []);
 });
