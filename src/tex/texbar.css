@@ -42,8 +42,8 @@
 
 .md-bar .tex-group .tex-btn[data-tool="font"] {
   font-family: var(--sans);
-  font-size: calc(var(--tex-text) * 1.3);
-  font-weight: 600;
+  font-size: calc(var(--tex-text) * 1.4);
+  font-weight: 700;
 }
 
 .tex-glyph {
@@ -70,7 +70,7 @@
 }
 
 .md-bar .tex-group .tex-btn[data-tool="inline"] > .tex-glyph {
-  height: calc(var(--tex-letter) * 0.7);
+  height: calc(var(--tex-letter) * 0.84);
 }
 
 .tex-cell > .tex-glyph {
