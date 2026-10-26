@@ -117,13 +117,13 @@ export function fileWindow(deps: WindowDeps): Side {
   const render = (): void => {
     const current = held.current();
     const shown = shownMode(current, mode);
+    const view = current?.views[shown];
+    if (view) body.replaceChildren(view.el);
     for (const key of MODES) {
       tabs[key].hidden = !current?.views[key];
       tabs[key].setAttribute("aria-selected", String(shown === key));
       current?.views[key]?.shown(!win.hidden && shown === key);
     }
-    const view = current?.views[shown];
-    if (view) body.replaceChildren(view.el);
     trigger.setAttribute("aria-pressed", String(!win.hidden));
     document.documentElement.toggleAttribute("data-talk", !win.hidden);
     unread();
