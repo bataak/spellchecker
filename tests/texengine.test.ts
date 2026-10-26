@@ -68,8 +68,9 @@ g.fetch = async () => ({
       .buffer,
 });
 
-const { cancelCompile, compilePdf, compileRunningFor, PdfError } =
+const { cancelCompile, compilePdf, compileRunningFor } =
   await import("../src/tex/texpdf.ts");
+const { PdfError } = await import("../src/tex/texerrors.ts");
 
 const tick = (ms = 1) => new Promise((resolve) => setTimeout(resolve, ms));
 
