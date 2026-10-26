@@ -85,6 +85,17 @@ test("хамтын бичвэрт хэлэлцэж, хамтрагчийн өө�
     20000,
   );
   await owner.locator(".talk-empty", { hasText: "өөрчлөлт алга" }).waitFor();
+  await owner
+    .locator(".talk-changes-bar button", { hasText: "Татгалзсаныг харуулах" })
+    .click();
+  await owner
+    .locator(".talk-rejected-list button", { hasText: "Сэргээх" })
+    .click();
+  await until(
+    () => editor(guest),
+    (text) => text.endsWith(" Нэмэлт."),
+    20000,
+  );
   assert.deepEqual(errors(owner), []);
   assert.deepEqual(errors(guest), []);
 });

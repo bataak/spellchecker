@@ -1,7 +1,6 @@
 import type { Chat, ChatMessage } from "./chat.ts";
 import { MAX_CHAT_TEXT } from "./chat.ts";
 import type { Change } from "./changes.ts";
-import type { ChangeTracker } from "./changetracker.ts";
 import { CURSOR_COLORS } from "./peercolors.ts";
 import { revealText } from "./safetext.ts";
 import { element } from "../ui/dom.ts";
@@ -12,11 +11,8 @@ export interface TalkView {
   destroy(): void;
 }
 
-const MAX_SHOWN = 200;
 const MAX_PIECE = 600;
 const CHAT_EMPTY = "Одоогоор таны хамтрагчдаас нэг ч зурвас алга.";
-const CHANGES_WAIT = "Өөрчлөлтийг хянаж эхэлж байна…";
-const CHANGES_EMPTY = "Сүүлд зөвшөөрснөөс хойш өөрчлөлт алга.";
 
 export function button(className: string, text: string, title?: string) {
   const node = element("button", className, text);
@@ -117,7 +113,9 @@ export function clip(text: string): string {
   return shown.length > MAX_PIECE ? shown.slice(0, MAX_PIECE) + "…" : shown;
 }
 
-function changeBody(change: Change): HTMLElement {
+type ChangeText = Pick<Change, "before" | "removed" | "inserted" | "after">;
+
+export function changeBody(change: ChangeText): HTMLElement {
   const body = element("p", "talk-change-text");
   body.append(document.createTextNode("…" + revealText(change.before)));
   if (change.removed) body.append(element("del", "", clip(change.removed)));
@@ -132,84 +130,13 @@ export function ownName(name: string, mine: boolean | undefined): string {
   return mine ? name + YOU : name;
 }
 
-export function changeTitle(change: Change): string {
+export function changeTitle(
+  change: Pick<Change, "author" | "inserted" | "removed">,
+): string {
   const author = change.author;
   const who = author ? ownName(author.name, author.mine) : null;
   if (change.inserted && change.removed)
     return who ? who + " сольсон" : "Солигдсон";
   if (change.inserted) return who ? who + " нэмсэн" : "Нэмэгдсэн";
   return "Устгагдсан";
-}
-
-interface ChangeActions {
-  readonly reveal: (change: Change) => void;
-  readonly tracker: ChangeTracker;
-}
-
-function changeRow(change: Change, actions: ChangeActions): HTMLLIElement {
-  const row = element("li", "talk-change");
-  const head = element("div", "talk-change-head");
-  head.append(
-    dot(change.author?.color ?? null),
-    element("span", "talk-change-who", changeTitle(change)),
-  );
-  if (change.path)
-    head.append(element("span", "talk-change-path", revealText(change.path)));
-  const show = button("talk-change-show", "");
-  show.append(changeBody(change));
-  show.title = "Байрлал руу очих";
-  show.addEventListener("click", () => actions.reveal(change));
-  const accept = button("talk-change-act", "✓", "Зөвшөөрөх");
-  accept.addEventListener("click", () => actions.tracker.accept(change));
-  const reject = button("talk-change-act is-reject", "✕", "Татгалзаж буцаах");
-  reject.addEventListener("click", () => actions.tracker.reject(change));
-  const tools = element("div", "talk-change-tools");
-  tools.append(accept, reject);
-  head.append(tools);
-  row.append(head, show);
-  return row;
-}
-
-export function changesCount(count: number): string {
-  return count === 0 ? "Өөрчлөлтгүй" : count + " өөрчлөлт";
-}
-
-export function changesView(
-  tracker: ChangeTracker,
-  reveal: (change: Change) => void,
-): TalkView {
-  const el = element("div", "talk-changes");
-  const bar = element("div", "talk-changes-bar");
-  const count = element("span", "talk-changes-count");
-  const acceptAll = button("talk-accept-all", "Бүгдийг зөвшөөр");
-  acceptAll.addEventListener("click", () => tracker.acceptAll());
-  bar.append(count, acceptAll);
-  const list = element("ol", "talk-change-list");
-  const empty = element("p", "talk-empty");
-  el.append(bar, list, empty);
-  let visible = false;
-  const actions = { tracker, reveal };
-
-  const render = (): void => {
-    if (!visible) return;
-    const changes = tracker.list();
-    count.textContent = changesCount(changes.length);
-    acceptAll.disabled = changes.length === 0;
-    list.replaceChildren(
-      ...changes
-        .slice(0, MAX_SHOWN)
-        .map((change) => changeRow(change, actions)),
-    );
-    empty.hidden = changes.length > 0;
-    empty.textContent = tracker.ready() ? CHANGES_EMPTY : CHANGES_WAIT;
-  };
-  const off = tracker.onChange(render);
-  return {
-    el,
-    shown(on) {
-      visible = on;
-      render();
-    },
-    destroy: off,
-  };
 }
