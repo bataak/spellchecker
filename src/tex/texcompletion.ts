@@ -27,6 +27,8 @@ export interface Expansion {
 }
 
 const LIMIT = 8;
+const LIST_ENVS = new Set(["itemize", "enumerate", "description"]);
+const ITEM = "\\item ";
 
 function entry(snippet: string): Completion {
   const cut = snippet.search(/[{[(<#]|\)$|\]$/);
@@ -225,7 +227,8 @@ export function expand(
   const indent = lineIndent(text, context.from);
   const mark = extra.indexOf("#");
   const head = name + "}" + (mark < 0 ? extra : extra.replace("#", ""));
-  const inner = "\n" + indent + "  ";
+  const lead = LIST_ENVS.has(name) ? ITEM : "";
+  const inner = "\n" + indent + "  " + lead;
   const inserted = head + inner + "\n" + indent + "\\end{" + name + "}";
   const caretAt =
     mark < 0

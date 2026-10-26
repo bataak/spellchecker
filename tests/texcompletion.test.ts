@@ -79,11 +79,15 @@ test("аргументтай команд курсорыг хаалтад бай
 test("орчныг \\end-тэй хамт нээнэ", () => {
   assert.equal(
     apply("\\begin{ite|", "itemize"),
-    "\\begin{itemize}\n  |\n\\end{itemize}",
+    "\\begin{itemize}\n  \\item |\n\\end{itemize}",
   );
   assert.equal(
     apply("  \\begin{enu|}", "enumerate"),
-    "  \\begin{enumerate}\n    |\n  \\end{enumerate}",
+    "  \\begin{enumerate}\n    \\item |\n  \\end{enumerate}",
+  );
+  assert.equal(
+    apply("\\begin{cen|", "center"),
+    "\\begin{center}\n  |\n\\end{center}",
   );
 });
 

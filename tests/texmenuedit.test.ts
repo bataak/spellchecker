@@ -66,6 +66,17 @@ test("menuEdit орчныг мөрийн догол мөрөөр нээж, со�
   );
 });
 
+test("menuEdit сонголт доторх # тэмдгийг хэвээр үлдээнэ", () => {
+  assert.equal(
+    run("[x = 1  # тайлбар]", env("verbatim")),
+    "\\begin{verbatim}\n  x = 1  # тайлбар|\n\\end{verbatim}",
+  );
+  assert.equal(
+    run("[#1]", env("minipage{#}")),
+    "\\begin{minipage}{|}\n  #1\n\\end{minipage}",
+  );
+});
+
 test("menuEdit хамгийн дотор нээлттэй орчныг хаана", () => {
   const close: Insert = { kind: "close" };
   assert.equal(
