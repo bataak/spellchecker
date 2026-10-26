@@ -1,4 +1,4 @@
-import type { App } from "./appparts.ts";
+import type { Scope } from "./appparts.ts";
 import { createPreviewPane } from "./previewpane.ts";
 import { initAppUpdate } from "./appupdate.ts";
 import { createFileWiring } from "./filewiring.ts";
@@ -11,7 +11,28 @@ import { initImageStore } from "../files/imagestore.ts";
 import { initUndoHistory } from "../editor/undohistory.ts";
 import { fileSlot } from "../collab/roomslot.ts";
 
-export function composePanes(app: App): void {
+type PanesReads =
+  | "doc"
+  | "editor"
+  | "els"
+  | "entryUrl"
+  | "isLatexText"
+  | "isTexFile"
+  | "layoutChanged"
+  | "mdBar"
+  | "measureCtl"
+  | "office"
+  | "officeActive"
+  | "previewCtl"
+  | "projectLink"
+  | "projectStore"
+  | "status"
+  | "undoCtl"
+  | "view";
+type PanesGives =
+  "appUpdate" | "fileIO" | "paneCtl" | "previewCtl" | "saveChain" | "slots";
+
+export function composePanes(app: Scope<PanesReads, PanesGives>): void {
   const { els, view, status, editor, doc } = app;
   const pane = createPreviewPane({
     wrap: els.editorWrap,
@@ -61,7 +82,23 @@ export function composePanes(app: App): void {
   app.provide({ appUpdate, saveChain, fileIO, slots });
 }
 
-function templateChanged(app: App, id: string, from: string): void {
+type TemplateReads =
+  | "doc"
+  | "docMode"
+  | "enterMdMode"
+  | "fixers"
+  | "mdBar"
+  | "previewMode"
+  | "projectLink"
+  | "slots"
+  | "tabGuard"
+  | "texMode";
+
+function templateChanged(
+  app: Scope<TemplateReads>,
+  id: string,
+  from: string,
+): void {
   app.previewMode.templateChanged();
   app.docMode.setTemplate(id);
   app.fixers.clean.sync();
@@ -72,7 +109,25 @@ function templateChanged(app: App, id: string, from: string): void {
   app.tabGuard.sync();
 }
 
-export function composeToolbar(app: App): void {
+type ToolbarReads =
+  | "backdrop"
+  | "collab"
+  | "doc"
+  | "docMode"
+  | "els"
+  | "enterMdMode"
+  | "fixers"
+  | "isTexFile"
+  | "marks"
+  | "projectLink"
+  | "projectStore"
+  | "slots"
+  | "status"
+  | "texMode"
+  | TemplateReads;
+type ToolbarGives = "mdBar" | "nudgeHints";
+
+export function composeToolbar(app: Scope<ToolbarReads, ToolbarGives>): void {
   const { els, status, doc, slots } = app;
   const mdBar = initMdToolbar({
     editor: els.editor,
@@ -116,7 +171,27 @@ export function composeToolbar(app: App): void {
   });
 }
 
-export function composeProject(app: App): void {
+type ProjectReads =
+  | "doc"
+  | "docMode"
+  | "docStatus"
+  | "draft"
+  | "els"
+  | "enterMdMode"
+  | "fileIO"
+  | "isTexFile"
+  | "layoutChanged"
+  | "loop"
+  | "mdBar"
+  | "measureCtl"
+  | "previewCtl"
+  | "projectStore"
+  | "status"
+  | "texMode"
+  | "undoCtl";
+type ProjectGives = "kbLayout" | "projectLink" | "undoCtl";
+
+export function composeProject(app: Scope<ProjectReads, ProjectGives>): void {
   const { els, status, doc } = app;
   const projectLink = createProjectWiring({
     store: app.projectStore,

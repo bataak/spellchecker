@@ -1,4 +1,4 @@
-import type { App } from "./appparts.ts";
+import type { Scope } from "./appparts.ts";
 import { createEmptyTips } from "../ui/emptytips.ts";
 import { createEmptyState } from "./emptystate.ts";
 import { initSurvey } from "../feedback/survey.ts";
@@ -8,7 +8,25 @@ import { createEditorWiring } from "./editorwiring.ts";
 import { initAppearance } from "../ui/appearance.ts";
 import { initMeasureControl } from "../ui/measure.ts";
 
-export function composeChecks(app: App): void {
+type ChecksReads =
+  | "controls"
+  | "defTip"
+  | "docStatus"
+  | "draft"
+  | "editorText"
+  | "els"
+  | "errorPanel"
+  | "fixFlow"
+  | "marks"
+  | "pop"
+  | "previewCtl"
+  | "previewMode"
+  | "spell"
+  | "texMode"
+  | "view";
+type ChecksGives = "emptyTips" | "loop" | "syncEmptyState";
+
+export function composeChecks(app: Scope<ChecksReads, ChecksGives>): void {
   const { els, view, marks, texMode } = app;
   const emptyTips = createEmptyTips(app.controls.emptyTips);
   const syncEmptyState = createEmptyState({
@@ -48,7 +66,41 @@ export function composeChecks(app: App): void {
   app.provide({ emptyTips, syncEmptyState, loop });
 }
 
-export function composeEditing(app: App): void {
+type EditingReads =
+  | "backdrop"
+  | "checker"
+  | "controls"
+  | "dicts"
+  | "docMode"
+  | "editor"
+  | "els"
+  | "fixFlow"
+  | "isTexFile"
+  | "kbLayout"
+  | "lastCaret"
+  | "layoutChanged"
+  | "loop"
+  | "marks"
+  | "mdBar"
+  | "measureCtl"
+  | "office"
+  | "previewCtl"
+  | "spell"
+  | "status"
+  | "syncEmptyState"
+  | "view";
+type EditingGives =
+  | "defDock"
+  | "defTip"
+  | "draft"
+  | "editorText"
+  | "errorPanel"
+  | "fixFlow"
+  | "fixers"
+  | "measureCtl"
+  | "pop";
+
+export function composeEditing(app: Scope<EditingReads, EditingGives>): void {
   const { els, view, marks, status, lastCaret, loop } = app;
   const popovers = createPopovers({
     editor: els.editor,
