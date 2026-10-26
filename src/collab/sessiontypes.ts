@@ -41,6 +41,7 @@ export interface SessionDeps
 
 export interface Session {
   readonly talk: Talk;
+  profile(): Profile;
   attach(): void;
   detach(): void;
   announce(): void;

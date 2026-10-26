@@ -36,7 +36,7 @@ function showDialog(
         { room: entry.room, key: entry.key, invite, ...(name && { name }) },
         location.href,
       ),
-    name: myProfile().name,
+    name: registry.live(entry.room)?.profile().name ?? myProfile().name,
     tip: needsHomeScreen() ? HOME_SCREEN_MESSAGE : null,
     rename(name) {
       saveName(name);
