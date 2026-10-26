@@ -142,9 +142,20 @@ function measureScrollbar(): number {
   return scrollbarWidth;
 }
 
-let savedMetrics = "";
+function createMetricsWriter(): (saved: string) => void {
+  let last = "";
+  return (saved) => {
+    if (saved === last) return;
+    last = saved;
+    writeJson(KEYS.metrics, JSON.parse(saved));
+  };
+}
 
-function readMetrics(area: HTMLElement, wrap: HTMLElement): Metrics {
+function readMetrics(
+  area: HTMLElement,
+  wrap: HTMLElement,
+  persist: (saved: string) => void,
+): Metrics {
   const root = getComputedStyle(document.documentElement);
   const areaCs = getComputedStyle(area);
   const scale = px(root, "--editor-scale", DEFAULT_METRICS.scale);
@@ -158,10 +169,7 @@ function readMetrics(area: HTMLElement, wrap: HTMLElement): Metrics {
       per: Number(normalizePer(raw, scale).toFixed(3)),
       monoFit: Number.isFinite(fit) ? fit : undefined,
     });
-    if (saved !== savedMetrics) {
-      savedMetrics = saved;
-      writeJson(KEYS.metrics, JSON.parse(saved));
-    }
+    persist(saved);
   }
   return {
     per:
@@ -271,6 +279,7 @@ export function initMeasureControl(
   const control = buildControl(wrap);
   const { ctl, btn, menu, tools } = control;
   const toolbar = createToolbarFit();
+  const persistMetrics = createMetricsWriter();
 
   let texMode = false;
   let desired: Layout = load(texMode);
@@ -307,7 +316,7 @@ export function initMeasureControl(
   };
 
   function refresh(): void {
-    metrics = readMetrics(area, wrap);
+    metrics = readMetrics(area, wrap, persistMetrics);
     setRootMetrics(metrics);
 
     const choose = (fit: Layout[]): LayoutChoice =>

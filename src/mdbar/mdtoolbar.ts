@@ -6,20 +6,18 @@ import { createSlotDropdown } from "../slots/slotdropdown.ts";
 import { buildPicker } from "../slots/slotmenu.ts";
 import {
   chosenExample,
-  dropDraft,
   loadCaret,
   loadTemplateId,
   migrateLegacyDrafts,
   migrateSlotDrafts,
-  onDraftError,
   pickerValue,
-  readDraft,
   saveCaret,
-  saveDraft,
   saveExampleChoice,
   saveTemplateId,
   smallDraft,
   type Caret,
+  createDraftStore,
+  type DraftStore,
 } from "../slots/slotstore.ts";
 import { createSlotList } from "../slots/slotlist.ts";
 import { initTopbarFit } from "../ui/topbarfit.ts";
@@ -90,6 +88,7 @@ interface SlotState {
 }
 
 interface ChooseDeps {
+  readonly store: DraftStore;
   readonly drafts: ReturnType<typeof createDraftSwitch>;
   readonly labels: ReturnType<typeof createSlotPicker>;
   readonly options: MdToolbarOptions;
@@ -99,8 +98,8 @@ interface ChooseDeps {
 const regularSlot = (id: string): boolean =>
   !isFileSlot(id) && id !== PROJECT_SLOT;
 
-function dropLegacy(state: SlotState): void {
-  for (const legacy of state.legacy) dropDraft(legacy);
+function dropLegacy(state: SlotState, store: DraftStore): void {
+  for (const legacy of state.legacy) store.drop(legacy);
   state.legacy = [];
 }
 
@@ -117,7 +116,7 @@ function chooseIn(
   )
     return;
   c.drafts.leave(from, state.legacy.map(smallDraft));
-  dropLegacy(state);
+  dropLegacy(state, c.store);
   state.id = id;
   if (regularSlot(id)) state.last = id;
   saveTemplateId(id);
@@ -141,10 +140,13 @@ function isActive(options: MdToolbarOptions, state: SlotState): boolean {
   return options.fileName?.() ? options.isMdFile() : !isPlain(state.id);
 }
 
-function draftWriters(drafts: ReturnType<typeof createDraftSwitch>) {
+function draftWriters(
+  drafts: ReturnType<typeof createDraftSwitch>,
+  store: DraftStore,
+) {
   return {
     writeDraft(key: string, text: string): void {
-      if (key !== drafts.loadingKey()) saveDraft(key, text);
+      if (key !== drafts.loadingKey()) store.save(key, text);
     },
     writeCaret(key: string, caret: Caret): void {
       if (key !== drafts.loadingKey()) saveCaret(key, caret);
@@ -196,6 +198,13 @@ function watchSlots(
   return () => window.removeEventListener("storage", onStorage);
 }
 
+function openDraftStore(state: SlotState, onError?: () => void): DraftStore {
+  const store = createDraftStore(onError);
+  state.legacy = migrateLegacyDrafts(state.id, store);
+  migrateSlotDrafts(store);
+  return store;
+}
+
 export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   const { editor } = options;
 
@@ -223,9 +232,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   const tools = createToolHost(group, () => syncVisible());
   const topbar = initTopbarFit(mount, bar, tools.anyShown);
 
-  onDraftError(options.onDraftError ?? null);
-  state.legacy = migrateLegacyDrafts(state.id);
-  migrateSlotDrafts();
+  const store = openDraftStore(state, options.onDraftError);
   rebuildMenu();
 
   const shown = (): boolean => !bar.hidden && !group.hidden;
@@ -249,6 +256,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
 
   const drafts = createDraftSwitch({
     editor,
+    store,
     currentKey: () => pickerValue(state.id),
     onExample: options.onExample,
   });
@@ -256,13 +264,14 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   const chooseTemplate = (id: string, example?: string): void =>
     chooseIn(
       state,
-      { drafts, labels, options, sync: syncVisible },
+      { store, drafts, labels, options, sync: syncVisible },
       id,
       example,
     );
 
   const files = createFileSlotOps({
     editor,
+    store,
     slots,
     templateId: () => state.id,
     lastTemplate: () => state.last,
@@ -282,12 +291,12 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     refresh: syncVisible,
     template: () => state.id,
     slot: () => pickerValue(state.id),
-    draft: readDraft,
+    draft: store.read,
     caret: loadCaret,
-    ...draftWriters(drafts),
+    ...draftWriters(drafts, store),
     reset(close: boolean): void {
-      dropDraft(pickerValue(state.id));
-      dropLegacy(state);
+      store.drop(pickerValue(state.id));
+      dropLegacy(state, store);
       visibility.hold();
       if (close && isFileSlot(state.id)) closeFile(state.id, true);
     },
