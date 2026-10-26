@@ -856,6 +856,12 @@
   opacity: 0.75;
 }
 
+.talk-change.is-rejected .talk-change-text ins,
+.talk-change.is-rejected .talk-change-text del {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
 .talk-change.is-rejected .talk-change-tools .talk-accept-all {
   height: 24px;
   padding: 0 8px;
