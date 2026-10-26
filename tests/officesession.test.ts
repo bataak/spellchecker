@@ -27,7 +27,6 @@ function setup() {
   const area = document.querySelector<HTMLTextAreaElement>("#ed")!;
   area.value = "";
   area.readOnly = false;
-  document.body.classList.remove("docx-mode");
   const calls: string[] = [];
   const session = createOfficeSession({
     editor: {
@@ -51,7 +50,7 @@ function setup() {
       ),
     baseline: () => calls.push("baseline"),
     syncFixButtons: () => calls.push("fix"),
-    onModeChange: () => calls.push("mode"),
+    onModeChange: (active) => calls.push("mode:" + active),
   });
   return { area, calls, session };
 }
@@ -64,14 +63,13 @@ test("officeSession: docx-ийг уншаад засвар хийх боломж
   assert.equal(session.file(), file);
   assert.equal(area.readOnly, true);
   assert.match(area.value, /Монгол улс/);
-  assert.ok(document.body.classList.contains("docx-mode"));
-  for (const step of ["baseline", "source:office:a.docx", "mode", "fix"])
+  for (const step of ["baseline", "source:office:a.docx", "mode:true", "fix"])
     assert.ok(calls.includes(step), step);
   session.close();
   await session.settled();
   assert.equal(session.active(), null);
   assert.equal(area.readOnly, false);
-  assert.equal(document.body.classList.contains("docx-mode"), false);
+  assert.equal(calls.at(-1), "mode:false");
 });
 
 test("officeSession: хадгалсан засвартай нээж, сэргээж чадахгүй бол мэдэгдэнэ", async () => {

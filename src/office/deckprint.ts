@@ -8,7 +8,7 @@ import {
 } from "./decklayout.ts";
 import { imageKey } from "./docir.ts";
 import type { Align, ImageSet, IrRun } from "./docir.ts";
-import { fontFaces, printFontBase, printPage } from "./print.ts";
+import { fontFaces } from "./print.ts";
 import { escapeAttr } from "../core/htmlutil.ts";
 import { cm } from "./units.ts";
 
@@ -368,8 +368,4 @@ export function deckPrintHtml(
     pages.join("") +
     "</body></html>"
   );
-}
-
-export function printDeck(doc: DeckDoc, images?: ImageSet): Promise<void> {
-  return printPage(deckPrintHtml(doc, images, printFontBase()));
 }
