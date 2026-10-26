@@ -18,6 +18,7 @@ import {
 import {
   changesCount,
   changesView,
+  interleave,
   rejectedLabel,
 } from "../src/collab/changesview.ts";
 import { initTalk } from "../src/collab/talkhost.ts";
@@ -79,6 +80,7 @@ function fakeTracker(list: Change[]) {
       return "r-" + item.key;
     },
     rejected: () => [],
+    placeOf: () => 2,
     restore: (id) => {
       calls.push("restore " + id);
       return true;
@@ -391,13 +393,42 @@ test("татгалзсаны дараа мэдэгдлээр буцааж, жа�
     ...view.el.querySelectorAll<HTMLButtonElement>(".talk-changes-bar button"),
   ].find((node) => node.textContent!.startsWith("Татгалзсаныг"))!;
   assert.equal(toggle.textContent, rejectedLabel(1, false));
-  const gone = view.el.querySelector<HTMLElement>(".talk-rejected-list")!;
-  assert.equal(gone.hidden, true);
+  assert.equal(view.el.querySelector(".talk-change.is-rejected"), null);
   toggle.click();
-  assert.equal(gone.hidden, false);
-  assert.match(gone.textContent!, /Зочин нэмсэн/);
-  gone.querySelector<HTMLButtonElement>("button")!.click();
+  assert.equal(toggle.textContent, rejectedLabel(1, true));
+  const rows = [...view.el.querySelectorAll(".talk-change-list > li")];
+  assert.deepEqual(
+    rows.map((row) => row.classList.contains("is-rejected")),
+    [true, false],
+  );
+  assert.match(rows[0]!.textContent!, /Зочин нэмсэн/);
+  rows[0]!.querySelector<HTMLButtonElement>("button")!.click();
   assert.equal(calls.at(-1), "restore r1");
+  assert.equal(rejectedLabel(1, true), "Татгалзсаныг нуух (1)");
   view.destroy();
   view.el.remove();
+});
+
+test("татгалзсан өөрчлөлтийг бичвэр дэх байрлалаар нь бусдын дунд эрэмбэлнэ", () => {
+  const record = (id: string, path: string | null) => ({
+    id,
+    at: 1,
+    path,
+    inserted: "a",
+    removed: "",
+    author: null,
+    before: "",
+    after: "",
+    start: "",
+    end: "",
+  });
+  const places: Record<string, number | null> = { r1: 7, r2: 0, r3: null };
+  const order = interleave(
+    [change({ key: "c1", from: 3 }), change({ key: "c2", from: 9 })],
+    [record("r1", null), record("r2", "b.tex"), record("r3", null)],
+    (id) => places[id] ?? null,
+  ).map((entry) =>
+    entry.kind === "change" ? entry.change.key : entry.record.id,
+  );
+  assert.deepEqual(order, ["c1", "r1", "c2", "r3", "r2"]);
 });

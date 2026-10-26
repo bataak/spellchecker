@@ -14,6 +14,7 @@ import {
   decodeRejected,
   encodeRejected,
   MAX_REJECTED,
+  placeOf,
   rejectAnchored,
   restoreRejected,
   type RejectedChange,
@@ -28,6 +29,7 @@ export interface ChangeTracker {
   acceptAll(): () => void;
   reject(change: Change): string | null;
   rejected(): readonly RejectedChange[];
+  placeOf(id: string): number | null;
   restore(id: string): boolean;
   onChange(listener: () => void): () => void;
   destroy(): void;
@@ -188,6 +190,11 @@ export function createChangeTracker(deps: TrackerDeps): ChangeTracker {
       return record.id;
     },
     rejected: shelf.list,
+    placeOf(id) {
+      const record = shelf.list().find((item) => item.id === id);
+      const text = record && textAt(record.path);
+      return record && text ? placeOf(text, record) : null;
+    },
     restore(id) {
       const record = shelf.list().find((item) => item.id === id);
       const text = record && textAt(record.path);

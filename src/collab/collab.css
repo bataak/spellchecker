@@ -585,15 +585,23 @@
 
 .talk-changes-bar {
   display: flex;
+  flex: none;
   align-items: center;
   gap: 8px;
   padding: 6px 10px;
   border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .talk-changes-count {
-  flex: 1 1 auto;
+  flex: 1 0 auto;
   color: var(--muted);
+  white-space: nowrap;
+}
+
+.talk-changes-bar .talk-accept-all {
+  white-space: nowrap;
 }
 
 .talk-change {
@@ -842,10 +850,6 @@
 
 .snackbar-action:hover {
   background: rgb(255 255 255 / 8%);
-}
-
-.talk-rejected-list[hidden] {
-  display: none;
 }
 
 .talk-change.is-rejected {
