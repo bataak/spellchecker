@@ -62,7 +62,7 @@ function fitMono(ctx: CanvasRenderingContext2D, cs: CSSStyleDeclaration): void {
 }
 
 function fontsLoaded(el: HTMLElement): boolean {
-  const fonts = (document as Document & { fonts?: FontFaceSet }).fonts;
+  const fonts: FontFaceSet | undefined = document.fonts;
   if (!fonts) return true;
   const cs = getComputedStyle(el);
   const root = getComputedStyle(document.documentElement);
@@ -266,7 +266,7 @@ function setRootMetrics(metrics: Metrics): void {
 }
 
 function watchFonts(refresh: () => void): void {
-  const fonts = (document as Document & { fonts?: FontFaceSet }).fonts;
+  const fonts: FontFaceSet | undefined = document.fonts;
   void fonts?.ready.then(refresh);
   void fonts?.load('16px "Bichig Mono"').then(refresh);
 }

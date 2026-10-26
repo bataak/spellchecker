@@ -11,6 +11,7 @@ import {
   type Layout,
   type Metrics,
 } from "./layout.ts";
+import { eventNode } from "./dom.ts";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -175,7 +176,7 @@ export function bindMenu(control: Control, close: () => void): () => void {
     } else close();
   });
   const onDocPointer = (e: Event): void => {
-    if (!menu.hidden && !ctl.contains(e.target as Node)) close();
+    if (!menu.hidden && !ctl.contains(eventNode(e))) close();
   };
   const onKey = (e: KeyboardEvent): void => {
     if (e.key === "Escape" && !menu.hidden) {

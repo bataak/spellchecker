@@ -9,6 +9,7 @@ import {
 } from "./deficons.ts";
 import { emptyNote, type DefDock } from "./defdock.ts";
 import { KEYS, read, remove, write } from "../core/store.ts";
+import { closestTarget } from "../ui/dom.ts";
 
 export interface PauseToggle {
   button(className: string): HTMLButtonElement;
@@ -154,7 +155,7 @@ export function createTipWindow(deps: TipWindowDeps): TipWindow {
     dragBar = bar;
     bar.addEventListener("pointerdown", (e) => {
       if (e.button !== 0 || e.pointerType === "touch") return;
-      if ((e.target as Element).closest(".def-tip-btn")) return;
+      if (closestTarget(e, ".def-tip-btn")) return;
       e.preventDefault();
       setPinned(true);
       const rect = el.getBoundingClientRect();

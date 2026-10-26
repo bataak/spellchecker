@@ -8,6 +8,14 @@ export function requestResult<T>(request: IDBRequest<T>): Promise<T> {
   });
 }
 
+export function transactionDone(tx: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(failure(tx.error));
+    tx.onabort = () => reject(failure(tx.error));
+  });
+}
+
 export function openDatabase(
   name: string,
   create: (db: IDBDatabase) => void,
@@ -18,11 +26,4 @@ export function openDatabase(
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(failure(request.error));
   });
-}
-
-export function transactionFailure(
-  tx: IDBTransaction,
-  request?: IDBRequest,
-): Error {
-  return failure(tx.error ?? request?.error ?? null);
 }

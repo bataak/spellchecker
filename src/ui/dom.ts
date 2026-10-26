@@ -16,3 +16,18 @@ export function listStep(key: string, at: number, count: number): number {
   if (key === "End") return count - 1;
   return -1;
 }
+
+export function eventElement(event: Event): Element | null {
+  return event.target instanceof Element ? event.target : null;
+}
+
+export function eventNode(event: Event): Node | null {
+  return event.target instanceof Node ? event.target : null;
+}
+
+export function closestTarget<T extends Element = HTMLElement>(
+  event: Event,
+  selector: string,
+): T | null {
+  return eventElement(event)?.closest<T>(selector) ?? null;
+}

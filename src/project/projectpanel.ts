@@ -11,6 +11,7 @@ import { createTreeState, initTreeControl } from "./treecontrol.ts";
 import { wireActions } from "./panelactions.ts";
 import { renderChrome, renderTree, syncFoot } from "./panelrender.ts";
 import { createPanelShow } from "./panelshow.ts";
+import { eventNode } from "../ui/dom.ts";
 
 export interface ProjectPanelDeps {
   readonly store: ProjectStore;
@@ -138,7 +139,7 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
   });
 
   document.addEventListener("pointerdown", (event) => {
-    const target = event.target as Node;
+    const target = eventNode(event);
     if (
       !menu.el.hidden &&
       !menu.el.contains(target) &&
