@@ -9,7 +9,7 @@ import {
 } from "./texbundle.ts";
 import { KEYS, at } from "../core/store.ts";
 import { noteError } from "../core/errorlog.ts";
-import { auxSteps, extraPasses, runSteps } from "./texpasses.ts";
+import { planPasses, runSteps } from "./texpasses.ts";
 import { workerFiles } from "./texjobfiles.ts";
 import { queryWorker } from "./workerquery.ts";
 import { decodeTexBytes } from "./texbytes.ts";
@@ -324,7 +324,6 @@ type SourceFiles = Readonly<Record<string, Uint8Array | string>>;
 async function compileOn(
   worker: Worker,
   tex: string,
-  passes: number,
   files: SourceFiles,
   layout: CompileLayout,
 ): Promise<Uint8Array<ArrayBuffer>> {
@@ -342,19 +341,15 @@ async function compileOn(
   const texts = Object.values(files).filter(
     (src): src is string => typeof src === "string",
   );
-  const steps = auxSteps([tex, ...texts]);
+  const plan = planPasses([tex, ...texts]);
   const job = workerFiles(worker, layout);
   let pdf = await runOnce(worker);
-  const total = passes + extraPasses(steps);
-  for (let pass = 1; pass < total; pass += 1) {
-    await runSteps(steps, job);
+  for (let pass = 1; pass < plan.passes; pass += 1) {
+    await runSteps(plan.steps, job);
     pdf = await runOnce(worker);
   }
   return pdf;
 }
-
-const CROSS_REF =
-  /\\(?:tableofcontents|listof(?:figures|tables)|ref|eqref|pageref|autoref|cite)\b/;
 
 export interface TexDocument {
   readonly pdf: Uint8Array<ArrayBuffer>;
@@ -377,14 +372,14 @@ async function compileProjectDocument(
   };
   try {
     return {
-      pdf: await compilePdf(tex, build.passes, build.files, layout),
+      pdf: await compilePdf(tex, build.files, layout),
       missing: build.missing,
     };
   } catch (error) {
     const fallback = missingFont(error) ? withParatype(tex) : null;
     if (fallback === null) throw error;
     return {
-      pdf: await compilePdf(fallback, build.passes, build.files, layout),
+      pdf: await compilePdf(fallback, build.files, layout),
       missing: build.missing,
     };
   }
@@ -403,17 +398,16 @@ export async function compileTexDocument(
     ]);
   const images = await texImageFiles(text);
   const tex = toPdfLatex(previewTex(images.rewrite(text)));
-  const passes = CROSS_REF.test(text) ? 2 : 1;
   try {
     return {
-      pdf: await compilePdf(tex, passes, images.files),
+      pdf: await compilePdf(tex, images.files),
       missing: images.missing,
     };
   } catch (error) {
     const fallback = missingFont(error) ? withParatype(tex) : null;
     if (fallback === null) throw error;
     return {
-      pdf: await compilePdf(fallback, passes, images.files),
+      pdf: await compilePdf(fallback, images.files),
       missing: images.missing,
     };
   }
@@ -507,7 +501,6 @@ async function addPackages(worker: Worker, log: string): Promise<boolean> {
 
 async function compileWithPackages(
   tex: string,
-  passes: number,
   files: SourceFiles,
   layout: CompileLayout,
 ): Promise<Uint8Array<ArrayBuffer>> {
@@ -519,7 +512,7 @@ async function compileWithPackages(
       });
       const worker = await engine;
       try {
-        return await compileOn(worker, tex, passes, files, layout);
+        return await compileOn(worker, tex, files, layout);
       } catch (error) {
         if (
           !(error instanceof PdfError) ||
@@ -537,11 +530,10 @@ async function compileWithPackages(
 
 export function compilePdf(
   tex: string,
-  passes = 1,
   files: SourceFiles = {},
   layout: CompileLayout = SINGLE,
 ): Promise<Uint8Array<ArrayBuffer>> {
-  const job = queue.then(() => compileWithPackages(tex, passes, files, layout));
+  const job = queue.then(() => compileWithPackages(tex, files, layout));
   queue = job.catch(() => undefined);
   return job;
 }

@@ -91,7 +91,7 @@ test("texEngine: ачаалсан хөдөлгүүрт багцыг бичиж �
     "compilelatex",
   ]);
   replies.push(ok(2), ok(3));
-  const second = await compilePdf("x", 2);
+  const second = await compilePdf("\\ref{x}");
   assert.deepEqual([...second], [37, 80, 68, 70, 3]);
   assert.equal(workers.length, 1);
   assert.equal(compileCount(worker), 3);
@@ -158,8 +158,7 @@ test("texEngine: \\makeindex байвал индекс үүсгээд дахин
   );
   outputs.set("thesis.idx", "\\indexentry{a}{3}\n");
   await compilePdf(
-    "\\makeindex",
-    2,
+    "\\makeindex\\ref{a}",
     {},
     {
       workdir: "book",
@@ -179,11 +178,11 @@ test("texEngine: оруулсан файл дахь \\makeindex-ийг ч илр
   outputs.set("main.idx", "\\indexentry{b}{4}\n");
   written.delete("main.ind");
   const before = compileCount(worker);
-  await compilePdf("\\input{pre}", 1, { "pre.tex": "\\makeindex\n" });
+  await compilePdf("\\input{pre}", { "pre.tex": "\\makeindex\n" });
   assert.equal(compileCount(worker), before + 2);
   assert.match(written.get("main.ind")!, /\\item b, 4/);
   written.delete("main.ind");
-  await compilePdf("% \\makeindex\n", 1, {
+  await compilePdf("% \\makeindex\n", {
     "pre.tex": "%\\makeindex",
     "logo.png": new Uint8Array([1]),
   });

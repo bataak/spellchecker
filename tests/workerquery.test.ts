@@ -2,7 +2,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { queryWorker, WorkerTimeout } from "../src/tex/workerquery.ts";
 import { workerFiles } from "../src/tex/texjobfiles.ts";
-import { auxSteps, extraPasses } from "../src/tex/texpasses.ts";
 import { recentErrors } from "../src/core/errorlog.ts";
 
 type Reply = Record<string, unknown>;
@@ -70,9 +69,4 @@ test("workerFiles хариугүй үед null буцааж, алдааг тэм
   t.mock.timers.tick(2000);
   assert.equal(await read, null);
   assert.equal(recentErrors().at(-1)?.name, "WorkerTimeout");
-});
-
-test("extraPasses алхмуудын хамгийн их нэмэлт давталтыг өгнө", () => {
-  assert.equal(extraPasses([]), 0);
-  assert.equal(extraPasses(auxSteps(["\\makeindex"])), 1);
 });
