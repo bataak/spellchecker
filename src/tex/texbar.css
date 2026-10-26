@@ -5,6 +5,7 @@
 .md-bar .tex-group {
   --tex-ink: 14px;
   --tex-letter: 12px;
+  --tex-text: 10px;
   gap: 2px;
 }
 
@@ -30,18 +31,18 @@
 
 .md-bar .tex-group .tex-btn[data-tool="bold"] {
   font-family: var(--sans);
-  font-size: calc(var(--tex-letter) * 1.4);
+  font-size: calc(var(--tex-text) * 1.4);
   font-weight: 700;
 }
 
 .md-bar .tex-group .tex-btn[data-tool="italic"] {
-  font-size: calc(var(--tex-letter) * 1.53);
+  font-size: calc(var(--tex-text) * 1.53);
   font-style: italic;
 }
 
 .md-bar .tex-group .tex-btn[data-tool="font"] {
   font-family: var(--sans);
-  font-size: calc(var(--tex-letter) * 1.3);
+  font-size: calc(var(--tex-text) * 1.3);
   font-weight: 600;
 }
 
@@ -61,7 +62,7 @@
 }
 
 .md-bar .tex-group .tex-btn[data-tool="inline"] > .tex-glyph {
-  height: calc(var(--tex-letter) * 0.75);
+  height: calc(var(--tex-letter) * 0.62);
 }
 
 .tex-cell > .tex-glyph {
@@ -75,6 +76,10 @@
   width: auto;
   max-width: 24px;
   height: var(--tex-ink);
+}
+
+.md-bar .tex-group .tex-btn[data-tool="cite"] > .ink-icon {
+  height: var(--tex-text);
 }
 
 .tex-group > [data-gap] {
