@@ -129,6 +129,17 @@ interface MemberLook {
   removed(dev: string): void;
 }
 
+function memberLook(editing: Editing): MemberLook {
+  return {
+    paint: (list) =>
+      list?.map((member) => ({
+        ...member,
+        color: editing.colorOf(member.dev),
+      })) ?? null,
+    removed: (dev) => editing.forgetColor(dev),
+  };
+}
+
 function adminControls(
   admin: Admin,
   gate: Gate,
@@ -306,12 +317,13 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
 
   return {
     talk: editing.talk,
+    profile: editing.profile,
     attach: () => binding.attach(),
     detach: () => binding.detach(),
     announce() {
       cursors.announce();
       editing.talk.announce();
-      if (!owner) admin.label(deps.profile().name);
+      if (!owner) admin.label(editing.profile().name);
     },
     ...connectionControls(signal, uploader, moves),
     ...adminControls(
@@ -322,14 +334,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
         state.shared = true;
         uploader.force();
       },
-      {
-        paint: (list) =>
-          list?.map((member) => ({
-            ...member,
-            color: editing.colorOf(member.dev),
-          })) ?? null,
-        removed: (dev) => editing.forgetColor(dev),
-      },
+      memberLook(editing),
     ),
     async stop(forget) {
       state.stopped = true;
