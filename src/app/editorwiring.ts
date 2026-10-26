@@ -12,7 +12,7 @@ import { reveal, type StatusControl } from "../ui/status.ts";
 import type { CheckLoop } from "./checkloop.ts";
 import { bindArming, bindEditorInput } from "./editorinput.ts";
 import type { EditorView } from "./editorview.ts";
-import { createFixers, type Fixers } from "./fixers.ts";
+import { createFixers, type FixButtons, type Fixers } from "./fixers.ts";
 import type { LastCaret } from "./lastcaret.ts";
 import type { Popovers } from "./popovers.ts";
 
@@ -23,6 +23,7 @@ export interface EditorWiringView {
   readonly view: EditorView;
   readonly marks: MarkLayer;
   readonly status: StatusControl;
+  readonly fixButtons: FixButtons;
 }
 
 export interface EditorWiringFlow {
@@ -50,7 +51,7 @@ export interface EditorWiring {
 }
 
 export function createEditorWiring(deps: EditorWiringDeps): EditorWiring {
-  const { editor, port, backdrop, view, marks, status } = deps.view;
+  const { editor, port, backdrop, view, marks, status, fixButtons } = deps.view;
   const { spell, loop, office, popovers, lastCaret } = deps.flow;
   const { pop, suggestPopover } = popovers;
 
@@ -89,6 +90,7 @@ export function createEditorWiring(deps: EditorWiringDeps): EditorWiring {
     editor: port,
     invalidate: () => spell.clear(),
     skipClean: deps.flow.skipClean,
+    buttons: fixButtons,
   });
 
   const draft = initDraftText({

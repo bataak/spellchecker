@@ -32,6 +32,10 @@ export function queryControls() {
     document.querySelector<HTMLElement>("#" + id);
   return {
     save: byId("saveBtn"),
+    fixButtons: {
+      decode: document.querySelector<HTMLButtonElement>("#decodeBtn"),
+      clean: document.querySelector<HTMLButtonElement>("#cleanBtn"),
+    },
     clear: byId("clearBtn"),
     emptyTips: { info: byId("emptyNoteInfo"), action: byId("emptyNoteAction") },
     appearance: {

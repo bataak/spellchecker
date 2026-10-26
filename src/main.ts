@@ -262,7 +262,15 @@ const popovers = createPopovers({
 const { defDock, defTip, pop, errorPanel } = popovers;
 
 const { editorText, fixFlow, fixers, draft } = createEditorWiring({
-  view: { editor: editorEl, port: editor, backdrop, view, marks, status },
+  view: {
+    editor: editorEl,
+    port: editor,
+    backdrop,
+    view,
+    marks,
+    status,
+    fixButtons: controls.fixButtons,
+  },
   flow: {
     spell,
     loop,
