@@ -58,6 +58,7 @@ export const KEYS = {
   texRecent: shared("tex-recent"),
   wipe: session("mn-spell:wipe"),
   hasText: session("mn-spell:has-text"),
+  layoutSnapshot: session("mn-spell:layout-snapshot"),
   staleReload: session("staleReload:"),
 } as const;
 
