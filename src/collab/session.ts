@@ -25,7 +25,7 @@ import { createMesh, type Mesh } from "./mesh.ts";
 import type { Signal } from "./signal.ts";
 import { createSync, type Sync } from "./sync.ts";
 import type { BlobTransport } from "./blobswap.ts";
-import { createAdmin, type Admin } from "./admin.ts";
+import { createAdmin, type Admin, type Member } from "./admin.ts";
 import { createIceKeeper } from "./ice.ts";
 import type { Cursors } from "./cursors.ts";
 import {
@@ -124,10 +124,13 @@ export function connectionControls(
 
 type AdminControls = Pick<Session, "invite" | "members" | "remove" | "end">;
 
+type Paint = (members: Member[] | null) => Member[] | null;
+
 function adminControls(
   admin: Admin,
   gate: Gate,
   invited: () => void,
+  paint: Paint,
 ): AdminControls {
   return {
     invite: () =>
@@ -138,8 +141,16 @@ function adminControls(
           if (token) invited();
           return token;
         }),
-    members: () => gate.wait().then(() => admin.members()),
-    remove: (dev, wipe) => gate.wait().then(() => admin.remove(dev, wipe)),
+    members: () =>
+      gate
+        .wait()
+        .then(() => admin.members())
+        .then(paint),
+    remove: (dev, wipe) =>
+      gate
+        .wait()
+        .then(() => admin.remove(dev, wipe))
+        .then(paint),
     end: (wipe) => gate.wait().then(() => admin.end(wipe)),
   };
 }
@@ -297,11 +308,20 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
       if (!owner) admin.label(deps.profile().name);
     },
     ...connectionControls(signal, uploader, moves),
-    ...adminControls(admin, gate, () => {
-      if (state.shared) return;
-      state.shared = true;
-      uploader.force();
-    }),
+    ...adminControls(
+      admin,
+      gate,
+      () => {
+        if (state.shared) return;
+        state.shared = true;
+        uploader.force();
+      },
+      (list) =>
+        list?.map((member) => ({
+          ...member,
+          color: editing.colorOf(member.dev),
+        })) ?? null,
+    ),
     async stop(forget) {
       state.stopped = true;
       ice.stop();
