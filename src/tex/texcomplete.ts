@@ -4,7 +4,11 @@ import {
   expand,
   unchanged,
 } from "./texcompletion.ts";
-import type { Completion, CompletionContext } from "./texcompletion.ts";
+import type {
+  Completion,
+  CompletionContext,
+  Expansion,
+} from "./texcompletion.ts";
 import { bindTabStops, type TexTabStops } from "./texpairs.ts";
 import { NO_SYMBOLS, type TexSymbols } from "./texsymbols.ts";
 
@@ -181,7 +185,30 @@ function createListView(
   };
 }
 
-export function initTexComplete(deps: TexCompleteDeps): void {
+export interface SnippetInserter {
+  insert(edit: Expansion): void;
+}
+
+function insertSnippet(
+  editor: HTMLTextAreaElement,
+  tabs: TexTabStops,
+  edit: Expansion,
+): void {
+  editor.focus({ preventScroll: true });
+  if (!tabs.insert(edit))
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function suggest(
+  deps: TexCompleteDeps,
+  next: CompletionContext | null,
+  dismissed: boolean,
+): Completion[] {
+  if (!next || dismissed) return [];
+  return completions(next, deps.symbols?.() ?? NO_SYMBOLS);
+}
+
+export function initTexComplete(deps: TexCompleteDeps): SnippetInserter {
   const { editor } = deps;
   const view = createListView(editor, deps.rectAt, (i) => {
     index = i;
@@ -212,10 +239,7 @@ export function initTexComplete(deps: TexCompleteDeps): void {
     const caret = editor.selectionStart;
     const next = completionContext(editor.value, caret);
     if (next?.from !== dismissedAt) dismissedAt = -1;
-    const found =
-      next && dismissedAt < 0
-        ? completions(next, deps.symbols?.() ?? NO_SYMBOLS)
-        : [];
+    const found = suggest(deps, next, dismissedAt >= 0);
     if (!next || !found.length) {
       close();
       return;
@@ -240,9 +264,7 @@ export function initTexComplete(deps: TexCompleteDeps): void {
     const image = context.kind === "cmd" && item.label === "includegraphics";
     if (unchanged(context, item)) dismissedAt = context.from;
     close();
-    editor.focus({ preventScroll: true });
-    const native = tabs!.insert(edit);
-    if (!native) editor.dispatchEvent(new Event("input", { bubbles: true }));
+    insertSnippet(editor, tabs!, edit);
     if (image) {
       deps.onImage?.();
       return;
@@ -291,4 +313,5 @@ export function initTexComplete(deps: TexCompleteDeps): void {
     if (!list.hidden) place(editor.selectionStart);
   });
   window.addEventListener("resize", close);
+  return { insert: (edit) => insertSnippet(editor, tabs!, edit) };
 }
