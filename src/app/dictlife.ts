@@ -1,5 +1,5 @@
 import type { AppUpdate } from "./appupdate.ts";
-import { createRefreshGate, type DictStatus } from "../dict/dictstatus.ts";
+import { createRefreshGate, type DictStatus } from "../spellui/dictstatus.ts";
 import { escapeHtml } from "../core/htmlutil.ts";
 import { runOfflineIndicator } from "../core/offline.ts";
 import type { StatusPort } from "../core/ports.ts";

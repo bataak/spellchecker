@@ -12,7 +12,7 @@ import {
   singularCandidates,
   parseAnalysis,
   type Analysis,
-} from "../src/spell/verbform.ts";
+} from "../src/lang/verbform.ts";
 
 const unknown = (...stems: string[]): Analysis[] =>
   stems.map((stem) => ({ stem, verb: null }));

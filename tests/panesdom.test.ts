@@ -9,7 +9,7 @@ const PAGE =
   '<button id="copyErrorsBtn">copy</button></aside>';
 const dom = installDom(PAGE);
 const { initPaneToggle } = await import("../src/ui/panetoggle.ts");
-const { initErrorPanel } = await import("../src/ui/errorpanel.ts");
+const { initErrorPanel } = await import("../src/spellui/errorpanel.ts");
 type Backdrop = import("../src/editor/backdrop.ts").Backdrop;
 type Token = import("../src/spell/textcheck.ts").Token;
 

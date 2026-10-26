@@ -7,13 +7,13 @@ import "./export/export.css";
 import "./define/deftip.css";
 import "./project/project.css";
 import "./collab/collab.css";
-import "./dict/dictmanager.css";
+import "./spellui/dictmanager.css";
 import { MultiSpellChecker } from "./spell/spellchecker.ts";
 import { createSpellSession } from "./spell/spellsession.ts";
 import { createFixFlow } from "./spell/fixflow.ts";
 import type { SpellChecker } from "./spell/spellchecker.ts";
 import { initImageStore } from "./files/imagestore.ts";
-import { initToolbar } from "./ui/toolbar.ts";
+import { initToolbar } from "./app/toolbar.ts";
 import { initKeyboardToolbar } from "./editor/kbtoolbar.ts";
 import { initSurvey } from "./feedback/survey.ts";
 import { initAppearance } from "./ui/appearance.ts";
@@ -32,7 +32,7 @@ import { initKeyboardLayout } from "./editor/kblayout.ts";
 import { initUndoHistory } from "./editor/undohistory.ts";
 import { rotateEmptyTips } from "./ui/emptytips.ts";
 import { createOfficeSession } from "./office/session.ts";
-import { createDictStatus } from "./dict/dictstatus.ts";
+import { createDictStatus } from "./spellui/dictstatus.ts";
 import { initStatus, reveal } from "./ui/status.ts";
 import { initEditorText } from "./editor/editortext.ts";
 import { initDraftText } from "./editor/drafttext.ts";
@@ -46,6 +46,7 @@ import { createCheckLoop } from "./app/checkloop.ts";
 import { bindLineBlocks, createEditorView } from "./app/editorview.ts";
 import { initAppHints } from "./app/apphints.ts";
 import { warmTex } from "./app/texwarm.ts";
+import { texSpans } from "./tex/texhighlight.ts";
 import { createEmitter } from "./core/emitter.ts";
 import { createEmptyState } from "./app/emptystate.ts";
 import { createTexMode } from "./app/texmode.ts";
@@ -187,6 +188,7 @@ const marks = createMarkLayer({
   editor: editorEl,
   backdrop,
   syncScroll: view.syncScroll,
+  texHighlighter: texSpans,
 });
 
 function applyTexPaint(on: boolean): void {

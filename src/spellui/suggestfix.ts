@@ -1,4 +1,4 @@
-import type { Popover } from "./popover.ts";
+import type { Popover } from "../ui/popover.ts";
 import {
   MANUAL_FIX_MAX,
   MANUAL_FIX_WORDS,

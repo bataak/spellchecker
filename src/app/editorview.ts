@@ -1,4 +1,4 @@
-import { initTableWrap } from "../editor/tablewrap.ts";
+import { initTableWrap } from "../mdbar/tablewrap.ts";
 import type { Backdrop } from "../editor/backdrop.ts";
 import type { MarkLayer } from "../editor/marklayer.ts";
 import type { Token } from "../spell/textcheck.ts";

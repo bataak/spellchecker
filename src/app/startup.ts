@@ -1,5 +1,5 @@
 import type { SpellChecker } from "../spell/spellchecker.ts";
-import type { DictStatus } from "../dict/dictstatus.ts";
+import type { DictStatus } from "../spellui/dictstatus.ts";
 import type { Backdrop } from "../editor/backdrop.ts";
 import type { MarkLayer } from "../editor/marklayer.ts";
 import type { DraftText } from "../editor/drafttext.ts";

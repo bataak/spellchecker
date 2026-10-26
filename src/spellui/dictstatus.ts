@@ -1,6 +1,6 @@
 import { escapeHtml } from "../core/htmlutil.ts";
 import { DICTIONARIES } from "../spell/spellchecker.ts";
-import { activeIds, loadEnabledEnglish, visibleIds } from "./dictmenu.ts";
+import { activeIds, loadEnabledEnglish, visibleIds } from "../dict/dictmenu.ts";
 
 type Failed = { id: string; error: string }[] | null;
 

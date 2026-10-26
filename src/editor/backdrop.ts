@@ -5,7 +5,11 @@ import {
   stripChunkNewline,
 } from "./backdrophtml.ts";
 import type { Token } from "../spell/textcheck.ts";
-import { spansInRange, type TexSpan } from "../tex/texhighlight.ts";
+import {
+  spansInRange,
+  type Highlighter,
+  type SyntaxSpan,
+} from "./syntaxspans.ts";
 import {
   caretRectAt,
   caretSpotAt,
@@ -35,7 +39,7 @@ export interface Backdrop {
   readonly el: HTMLElement;
   reset(): void;
   setLineBlocks(on: boolean): void;
-  setHighlighter(fn: ((text: string) => TexSpan[]) | null): void;
+  setHighlighter(fn: Highlighter | null): void;
   text(): string;
   render(text: string, marks: Token[]): void;
   lineCount(): number;
@@ -82,7 +86,7 @@ function marksInRange(marks: Token[], start: number, end: number): Token[] {
   return out;
 }
 
-function spanKey(spans: TexSpan[], start: number, end: number): string {
+function spanKey(spans: SyntaxSpan[], start: number, end: number): string {
   let key = "";
   for (const span of spans) {
     key +=
@@ -110,7 +114,7 @@ function updateChunkText(
   node: ChunkNode,
   text: string,
   bound: ChunkBound,
-  syntax: TexSpan[],
+  syntax: SyntaxSpan[],
   blocks: boolean,
 ): void {
   const raw = text.slice(bound.start, bound.end);
@@ -213,7 +217,7 @@ function renderChunks(
   nodes: readonly ChunkNode[],
   text: string,
   bounds: ReturnType<typeof splitChunks>,
-  syntax: TexSpan[],
+  syntax: SyntaxSpan[],
   blocks: boolean,
 ): number {
   let line = 0;
@@ -309,8 +313,8 @@ export function createBackdrop(root: HTMLElement): Backdrop {
   let activeEl: HTMLElement | null = null;
   let useBlocks = true;
   let lineTotal = 1;
-  let highlighter: ((text: string) => TexSpan[]) | null = null;
-  let syntax: TexSpan[] = [];
+  let highlighter: Highlighter | null = null;
+  let syntax: SyntaxSpan[] = [];
   let lastText = "";
   let topAnchor: TopAnchor | null = null;
 

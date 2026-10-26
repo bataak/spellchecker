@@ -40,6 +40,7 @@ test("marklayer: засварын дараа алдааны байрлалыг �
     editor,
     backdrop: backdrop as never,
     syncScroll: () => scrolls++,
+    texHighlighter: () => [],
   });
   layer.show("аа бб вв", [tok("аа", 0), tok("бб", 3), tok("вв", 6)]);
   layer.shift("аа ббX вв", { start: 5, oldEnd: 5, newEnd: 6 });
