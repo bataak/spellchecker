@@ -2,14 +2,14 @@ import type { Backdrop } from "../editor/backdrop.ts";
 import { initDefDock, type DefDock } from "../define/defdock.ts";
 import { initDefineControls } from "../define/definecontrols.ts";
 import { initDefTip, type DefTip } from "../define/deftip.ts";
-import { initErrorPanel, type ErrorPanel } from "../ui/errorpanel.ts";
+import { initErrorPanel, type ErrorPanel } from "../spellui/errorpanel.ts";
 import { initPopover, type Popover } from "../ui/popover.ts";
 import type { SpellChecker } from "../spell/spellchecker.ts";
 import type { Token } from "../spell/textcheck.ts";
 import {
   initSuggestPopover,
   type SuggestPopover,
-} from "../ui/suggestpopover.ts";
+} from "../spellui/suggestpopover.ts";
 import { requireEl } from "./dom.ts";
 import type { Caret } from "./editorinput.ts";
 

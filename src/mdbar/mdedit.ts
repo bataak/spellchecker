@@ -2,6 +2,7 @@ import { codeRanges, fencedCode, inRanges } from "../spell/codeskip.ts";
 import { replaceRange } from "../editor/editortext.ts";
 import { imageAttrs, parseImageAttrs } from "../markdown.ts";
 import type { ImageSize } from "../markdown.ts";
+import { minimalDiff } from "../core/textdiff.ts";
 
 export interface Edit {
   readonly text: string;
@@ -391,34 +392,6 @@ export function enterInsert(text: string, caret: number): "\n" | "\n\n" {
   if (inMath(text, caret)) return "\n";
 
   return "\n\n";
-}
-
-export interface Patch {
-  readonly from: number;
-  readonly to: number;
-  readonly insert: string;
-}
-
-export function minimalDiff(before: string, after: string): Patch | null {
-  if (before === after) return null;
-
-  const max = Math.min(before.length, after.length);
-  let a = 0;
-  while (a < max && before.charCodeAt(a) === after.charCodeAt(a)) a += 1;
-
-  let b = 0;
-  while (
-    b < max - a &&
-    before.charCodeAt(before.length - 1 - b) ===
-      after.charCodeAt(after.length - 1 - b)
-  )
-    b += 1;
-
-  return {
-    from: a,
-    to: before.length - b,
-    insert: after.slice(a, after.length - b),
-  };
 }
 
 export function toggleQuote(text: string, start: number, end: number): Edit {

@@ -1,9 +1,9 @@
+import type { SyntaxSpan } from "../editor/syntaxspans.ts";
+
 export type TexKind =
   "cmd" | "env" | "comment" | "math" | "delim" | "brace" | "verb";
 
-export interface TexSpan {
-  start: number;
-  end: number;
+export interface TexSpan extends SyntaxSpan {
   kind: TexKind;
 }
 
@@ -183,23 +183,4 @@ export function texSpans(text: string): TexSpan[] {
     index++;
   }
   return scan.out;
-}
-
-export function spansInRange(
-  spans: readonly TexSpan[],
-  start: number,
-  end: number,
-): TexSpan[] {
-  let lo = 0;
-  let hi = spans.length;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (spans[mid]!.end <= start) lo = mid + 1;
-    else hi = mid;
-  }
-  const out: TexSpan[] = [];
-  for (let i = lo; i < spans.length && spans[i]!.start < end; i++) {
-    out.push(spans[i]!);
-  }
-  return out;
 }

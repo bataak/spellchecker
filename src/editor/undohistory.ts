@@ -2,7 +2,7 @@ import { PROJECT_SLOT, isFileSlot } from "../slots/fileslots.ts";
 import { openDatabase } from "../core/idb.ts";
 import { remoteChanges, swapOrigin } from "./editortext.ts";
 import { mapOffset, type TextChange } from "./textdelta.ts";
-import { minimalDiff } from "../mdbar/mdedit.ts";
+import { minimalDiff } from "../core/textdiff.ts";
 import { noteError } from "../core/errorlog.ts";
 
 export interface Step {

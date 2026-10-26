@@ -1,5 +1,5 @@
 import type * as Y from "yjs";
-import { minimalDiff } from "../mdbar/mdedit.ts";
+import { minimalDiff } from "../core/textdiff.ts";
 import { applyRemote, remoteChanges } from "../editor/editortext.ts";
 import {
   applyChanges,

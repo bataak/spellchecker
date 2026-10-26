@@ -1,7 +1,7 @@
 import type { Backdrop } from "../editor/backdrop.ts";
-import { copyText } from "./clipboard.ts";
+import { copyText } from "../ui/clipboard.ts";
 import { escapeHtml } from "../core/htmlutil.ts";
-import { nf, reveal } from "./status.ts";
+import { nf, reveal } from "../ui/status.ts";
 import { buildErrorList, nextOccurrence } from "../spell/textcheck.ts";
 import type { Token } from "../spell/textcheck.ts";
 import { attemptAsync } from "../core/attempt.ts";

@@ -13,11 +13,11 @@ import {
   setImageSize,
   insertPageBreak,
   insertTable,
-  minimalDiff,
   toggleQuote,
   wrapLink,
   caretInTable,
 } from "../src/mdbar/mdedit.ts";
+import { minimalDiff } from "../src/core/textdiff.ts";
 import {
   alignAt,
   insertSignature,

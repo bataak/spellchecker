@@ -1,7 +1,7 @@
 import type { Backdrop } from "../editor/backdrop.ts";
 import type { DefDock } from "./defdock.ts";
 import type { DefTip } from "./deftip.ts";
-import { createDictManager } from "../dict/dictmanager.ts";
+import { createDictManager } from "../spellui/dictmanager.ts";
 import { isTouch } from "../editor/input.ts";
 import type { Popover } from "../ui/popover.ts";
 import { isLookupKey, wordAt, type WordSpan } from "../spell/lookup.ts";

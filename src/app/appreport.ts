@@ -1,4 +1,4 @@
-import type { DictStatus } from "../dict/dictstatus.ts";
+import type { DictStatus } from "../spellui/dictstatus.ts";
 import type { Layout } from "../ui/layout.ts";
 import { initReportButton } from "../feedback/reportbtn.ts";
 import { getIgnored } from "../spell/ignore.ts";

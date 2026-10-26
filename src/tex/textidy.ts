@@ -1,5 +1,6 @@
 import { ALIGN_ENV, alignRows } from "./texalign.ts";
-import { spansInRange, texSpans } from "./texhighlight.ts";
+import { spansInRange } from "../editor/syntaxspans.ts";
+import { texSpans } from "./texhighlight.ts";
 
 const INDENT = "  ";
 const LEAD = /^[ \t]+/;

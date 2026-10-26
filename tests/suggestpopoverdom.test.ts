@@ -10,7 +10,7 @@ const dom = installDom(
 const win = dom.window as unknown as Record<string, unknown>;
 win.matchMedia = () => ({ matches: false });
 
-const { initSuggestPopover } = await import("../src/ui/suggestpopover.ts");
+const { initSuggestPopover } = await import("../src/spellui/suggestpopover.ts");
 
 test.after(() => dom.close());
 
