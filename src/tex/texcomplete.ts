@@ -6,12 +6,14 @@ import {
 } from "./texcompletion.ts";
 import type { Completion, CompletionContext } from "./texcompletion.ts";
 import { bindTabStops, type TexTabStops } from "./texpairs.ts";
+import { NO_SYMBOLS, type TexSymbols } from "./texsymbols.ts";
 
 export interface TexCompleteDeps {
   readonly editor: HTMLTextAreaElement;
   readonly active: () => boolean;
   readonly rectAt: (start: number, end: number) => DOMRect | null;
   readonly onImage?: () => void;
+  readonly symbols?: () => TexSymbols;
 }
 
 const GAP = 4;
@@ -210,7 +212,10 @@ export function initTexComplete(deps: TexCompleteDeps): void {
     const caret = editor.selectionStart;
     const next = completionContext(editor.value, caret);
     if (next?.from !== dismissedAt) dismissedAt = -1;
-    const found = next && dismissedAt < 0 ? completions(next) : [];
+    const found =
+      next && dismissedAt < 0
+        ? completions(next, deps.symbols?.() ?? NO_SYMBOLS)
+        : [];
     if (!next || !found.length) {
       close();
       return;

@@ -137,3 +137,23 @@ test("хоосон $$ болон \\[ дээр Enter томьёог тусдаа 
     JSON.stringify(await editor(page)),
   );
 });
+
+test("\\ref дотор шошгыг, өөр файлын командыг санал болгоно", async () => {
+  const page = await openPage(app, await app.context());
+  await openFile(page, app.files.project);
+  await projectFile(page, "main.tex");
+  await typeAtEnd(page, "\n\\label{sec:intro} \\ref{sec");
+  await page.waitForSelector(".tex-complete:not([hidden])");
+  assert.equal(
+    await page.textContent(".tex-complete li .tc-name"),
+    "sec:intro",
+  );
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("} \\hel");
+  await page.waitForSelector(".tex-complete:not([hidden])");
+  assert.equal(await page.textContent(".tex-complete li .tc-name"), "\\hello");
+  assert.ok(
+    (await editor(page)).endsWith("\\ref{sec:intro} \\hel"),
+    await editor(page),
+  );
+});
