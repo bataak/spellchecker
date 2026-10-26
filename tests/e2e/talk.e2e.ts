@@ -120,7 +120,13 @@ test("сонгосон хэсэгт шүүмж бичиж, хамтрагч ха
   await owner
     .locator(".talk-compose-quote", { hasText: "цаг агаар" })
     .waitFor();
-  await owner.locator(".talk-compose .talk-input").fill("Тодруулах уу?");
+  assert.equal(
+    await owner.evaluate(() =>
+      document.activeElement?.matches(".talk-compose .talk-input"),
+    ),
+    true,
+  );
+  await owner.keyboard.type("Тодруулах уу?");
   await owner.keyboard.press("Enter");
   await owner.locator(".talk-thread", { hasText: "Тодруулах уу?" }).waitFor();
   await owner.locator(".collab-comment-mark").first().waitFor();
@@ -257,7 +263,7 @@ test("багтахгүй үед шүүмжийн цонх хөвж, бичвэр
     ),
     true,
   );
-  await page.locator(".talk-compose .talk-input").fill("Тодруулга");
+  await page.keyboard.type("Тодруулга");
   await page.keyboard.press("Enter");
   await page.locator(".talk-thread", { hasText: "Тодруулга" }).waitFor();
   const box = (await page.locator("#editor").boundingBox())!;
