@@ -1,17 +1,19 @@
+import { uncommented } from "./texproject.ts";
+
 export interface JobFiles {
   read(name: string): Promise<string | null>;
   write(name: string, src: string): void;
 }
 
 export interface AuxStep {
-  readonly wanted: (tex: string) => boolean;
+  readonly wanted: (body: string) => boolean;
   readonly run: (files: JobFiles) => Promise<void>;
 }
 
 const READ_TIMEOUT_MS = 2000;
 
 const indexStep: AuxStep = {
-  wanted: (tex) => /\\makeindex\b/.test(tex),
+  wanted: (body) => /\\makeindex\b/.test(body),
   async run(files) {
     const idx = await files.read(".idx");
     if (idx === null) return;
@@ -22,8 +24,9 @@ const indexStep: AuxStep = {
 
 const STEPS: readonly AuxStep[] = [indexStep];
 
-export function auxSteps(tex: string): AuxStep[] {
-  return STEPS.filter((step) => step.wanted(tex));
+export function auxSteps(sources: Iterable<string>): AuxStep[] {
+  const bodies = [...sources].map(uncommented);
+  return STEPS.filter((step) => bodies.some((body) => step.wanted(body)));
 }
 
 export async function runSteps(

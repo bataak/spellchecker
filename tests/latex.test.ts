@@ -301,6 +301,15 @@ test("previewTex хэсгийг бүтэн баримт болгоно", () => {
   assert.match(out, /\\end\{document\}\n$/);
 });
 
+test("previewTex \\makeindex-ийг преамбулд үлдээнэ", () => {
+  const out = previewTex(
+    "\\usepackage{makeidx}\n\\makeindex\nӨвөл\\index{өвөл}\n\\printindex",
+  );
+  const begin = out.indexOf("\\begin{document}");
+  assert.ok(out.indexOf("\\makeindex") < begin);
+  assert.ok(out.indexOf("\\printindex") > begin);
+});
+
 test("previewTex бүтэн баримтыг өөрчлөхгүй", () => {
   const doc =
     "\\documentclass{article}\n\\usepackage[T1]{fontenc}\n\\begin{document}\nА\n\\end{document}\n";
