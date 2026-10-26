@@ -1,3 +1,4 @@
+import { initScrollHint } from "./scrollhint.ts";
 import {
   ALL_LAYOUTS,
   DEFAULT_LAYOUT,
@@ -115,14 +116,25 @@ function toolbarNeed(bar: HTMLElement): number {
   return w + Math.max(count - 1, 0) * gap;
 }
 
-function syncToolbar(): void {
-  const bar = document.querySelector<HTMLElement>(".toolbar");
+function syncToolbar(bar: HTMLElement | null): void {
   const host = bar?.parentElement;
   if (!bar || !host) return;
   const room = host.getBoundingClientRect().width;
   const wide = toolbarNeed(bar) > room + 0.5;
   if (wide) document.documentElement.dataset.toolbar = "wide";
   else delete document.documentElement.dataset.toolbar;
+}
+
+function createToolbarFit(): { sync(): void; destroy(): void } {
+  const bar = document.querySelector<HTMLElement>(".toolbar");
+  const hint = bar ? initScrollHint(bar) : null;
+  return {
+    sync() {
+      syncToolbar(bar);
+      hint?.sync();
+    },
+    destroy: () => hint?.destroy(),
+  };
 }
 
 let scrollbarWidth: number | null = null;
@@ -444,6 +456,7 @@ export function initMeasureControl(
 ): MeasureControl {
   const control = buildControl(wrap);
   const { ctl, btn, menu, tools } = control;
+  const toolbar = createToolbarFit();
 
   let texMode = false;
   let desired: Layout = load(texMode);
@@ -499,7 +512,7 @@ export function initMeasureControl(
     );
     apply(active);
 
-    syncToolbar();
+    toolbar.sync();
 
     const menuAvail = offered ?? avail;
     ctl.hidden = !showsControl(menuAvail);
@@ -542,10 +555,9 @@ export function initMeasureControl(
     },
     destroy() {
       ro.disconnect();
+      toolbar.destroy();
       unbindMenu();
-      for (const el of tools.querySelectorAll<HTMLElement>(".decode-btn")) {
-        wrap.append(el);
-      }
+      wrap.append(...tools.querySelectorAll<HTMLElement>(".decode-btn"));
       tools.remove();
     },
   };

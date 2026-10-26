@@ -3,6 +3,9 @@
 }
 
 .md-bar .tex-group {
+  --tex-ink: 14px;
+  --tex-letter: 12px;
+  --tex-text: 11px;
   gap: 2px;
 }
 
@@ -20,28 +23,27 @@
 .tex-group .tex-btn {
   position: relative;
   font-family: var(--tex-glyph);
+}
+
+.md-bar .tex-group .tex-btn {
   font-size: 1.05rem;
 }
 
-.tex-group .tex-btn[data-tool="bold"] {
+.md-bar .tex-group .tex-btn[data-tool="bold"] {
   font-family: var(--sans);
+  font-size: calc(var(--tex-text) * 1.4);
   font-weight: 700;
 }
 
-.tex-group .tex-btn[data-tool="italic"] {
+.md-bar .tex-group .tex-btn[data-tool="italic"] {
+  font-size: calc(var(--tex-text) * 1.53);
   font-style: italic;
 }
 
-.tex-group .tex-btn[data-tool="font"] {
+.md-bar .tex-group .tex-btn[data-tool="font"] {
   font-family: var(--sans);
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.tex-group .tex-btn[data-tool="inline"] {
-  font-size: 0.85rem;
-  letter-spacing: -0.04em;
-  white-space: nowrap;
+  font-size: calc(var(--tex-text) * 1.4);
+  font-weight: 700;
 }
 
 .tex-glyph {
@@ -51,9 +53,24 @@
 }
 
 .md-bar .tex-group .tex-btn > .tex-glyph {
-  width: 36px;
-  height: 25.2px;
+  width: calc(var(--tex-letter) * 20 / 14);
+  height: var(--tex-letter);
   flex: none;
+  stroke: currentColor;
+  stroke-width: 0.6px;
+  stroke-linejoin: round;
+}
+
+.md-bar
+  .tex-group
+  .tex-btn:is([data-tool="sqrt"], [data-tool="integral"])
+  > .tex-glyph {
+  width: calc(var(--tex-ink) * 20 / 14);
+  height: var(--tex-ink);
+}
+
+.md-bar .tex-group .tex-btn[data-tool="inline"] > .tex-glyph {
+  height: calc(var(--tex-letter) * 0.84);
 }
 
 .tex-cell > .tex-glyph {
@@ -62,10 +79,15 @@
   margin-inline: -0.25rem;
 }
 
-.md-bar .tex-group .tex-btn > svg {
+.md-bar .tex-group .tex-btn > .ink-icon {
   display: block;
-  width: 20px;
-  height: 20px;
+  width: auto;
+  max-width: 24px;
+  height: var(--tex-ink);
+}
+
+.md-bar .tex-group .tex-btn[data-tool="cite"] > .ink-icon {
+  height: 10px;
 }
 
 .tex-group > [data-gap] {
