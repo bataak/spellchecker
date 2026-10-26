@@ -1,5 +1,5 @@
 import type { DeckLine, DeckPart, DeckTable } from "./deck.ts";
-import type { IrImage, IrRun } from "./docir.ts";
+import { runsText, type IrImage } from "./docir.ts";
 import { ARIAL_BOLD, ARIAL_REGULAR } from "./arial.ts";
 import { columnWidths, glyphWidth, type TextMetrics } from "./table.ts";
 
@@ -82,10 +82,6 @@ function tableMetrics(pt: number): TextMetrics {
   };
 }
 
-function textOf(runs: readonly IrRun[]): string {
-  return runs.map((run) => run.text).join("");
-}
-
 function wrapped(
   text: string,
   widthCm: number,
@@ -115,7 +111,9 @@ function textHeight(
     BOX_PAD_CM +
     lines.reduce((sum, line) => {
       const room = widthCm - (line.kind === "para" ? 0 : LIST_INDENT_CM);
-      return sum + wrapped(textOf(line.runs), room, pt) * lineCm + PARA_GAP_CM;
+      return (
+        sum + wrapped(runsText(line.runs), room, pt) * lineCm + PARA_GAP_CM
+      );
     }, 0)
   );
 }
@@ -143,7 +141,7 @@ function tableLayout(
         1,
         ...row.map((cell, i) =>
           wrapped(
-            textOf(cell),
+            runsText(cell),
             (widths[i] ?? widthCm) - 2 * CELL_PAD_X_CM,
             pt,
             (table.header && r === 0) || cell.some((run) => run.bold),

@@ -1,5 +1,6 @@
 import { zipSync } from "fflate";
 import type { Zippable } from "fflate";
+import { mapDeck } from "../deck.ts";
 import type { DeckDoc, DeckLine, DeckPart, DeckTable } from "../deck.ts";
 import {
   TABLE_PT,
@@ -440,18 +441,14 @@ function contentSlide(
 }
 
 function deckSlides(doc: DeckDoc, media: Media): BuiltSlide[] {
-  const built: BuiltSlide[] = [];
-  if (doc.title !== null) built.push(coverSlide(doc, doc.title));
-  for (const slide of doc.slides)
-    built.push(
-      slide.section
-        ? sectionSlide(slide.title ?? [])
-        : {
-            ...contentSlide(slide.title, slide.parts, media),
-            notes: slide.notes,
-          },
-    );
-  return built;
+  return mapDeck<BuiltSlide>(doc, {
+    cover: (title) => coverSlide(doc, title),
+    section: (slide) => sectionSlide(slide.title ?? []),
+    content: (slide) => ({
+      ...contentSlide(slide.title, slide.parts, media),
+      notes: slide.notes,
+    }),
+  });
 }
 
 function packageParts(

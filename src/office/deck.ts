@@ -176,6 +176,20 @@ function lines(blocks: readonly Block[]): DeckLine[] {
   return out;
 }
 
+export interface DeckVisitor<T> {
+  cover(title: readonly IrRun[]): T;
+  section(slide: DeckSlide): T;
+  content(slide: DeckSlide): T;
+}
+
+export function mapDeck<T>(doc: DeckDoc, visit: DeckVisitor<T>): T[] {
+  const out: T[] = [];
+  if (doc.title !== null) out.push(visit.cover(doc.title));
+  for (const slide of doc.slides)
+    out.push(slide.section ? visit.section(slide) : visit.content(slide));
+  return out;
+}
+
 export function deckImages(doc: DeckDoc): IrImage[] {
   return doc.slides.flatMap((slide) =>
     slide.parts.flatMap((part) => (part.kind === "image" ? part.images : [])),
