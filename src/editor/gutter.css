@@ -128,10 +128,14 @@ main:has(.editor-wrap.has-gutter) > .topbar {
     min-width: 2ch;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: pre;
   }
 
-  .topbar .subtitle .doc-keep,
+  .topbar .subtitle .doc-keep {
+    flex: 0 0 auto;
+    white-space: pre;
+  }
+
   .topbar .subtitle .doc-rest {
     flex: 0 0 auto;
     white-space: nowrap;
