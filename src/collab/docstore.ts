@@ -58,6 +58,7 @@ export const docKey = {
   baseline: (room: string): string => "base:" + room,
   chat: (room: string): string => "chat:" + room,
   mine: (room: string): string => "mine:" + room,
+  rejected: (room: string): string => "rejected:" + room,
 } as const;
 
 export async function dropRoom(room: string): Promise<void> {

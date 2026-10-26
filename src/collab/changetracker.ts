@@ -7,17 +7,28 @@ import {
   decodeBaseline,
   encodeBaseline,
   freshBaseline,
-  rejectChange,
   type Baseline,
   type Change,
 } from "./changes.ts";
+import {
+  decodeRejected,
+  encodeRejected,
+  MAX_REJECTED,
+  rejectAnchored,
+  restoreRejected,
+  type RejectedChange,
+} from "./rejects.ts";
+
+export type { RejectedChange } from "./rejects.ts";
 
 export interface ChangeTracker {
   list(): readonly Change[];
   ready(): boolean;
-  accept(change: Change): void;
-  acceptAll(): void;
-  reject(change: Change): void;
+  accept(change: Change): () => void;
+  acceptAll(): () => void;
+  reject(change: Change): string | null;
+  rejected(): readonly RejectedChange[];
+  restore(id: string): boolean;
   onChange(listener: () => void): () => void;
   destroy(): void;
 }
@@ -35,6 +46,63 @@ const NOTIFY_MS = 150;
 function hasContent(texts: ReadonlyMap<string | null, Y.Text>): boolean {
   for (const text of texts.values()) if (text.length) return true;
   return false;
+}
+
+interface RejectedShelf {
+  list(): readonly RejectedChange[];
+  add(record: RejectedChange): void;
+  remove(id: string): void;
+}
+
+function rejectedShelf(room: string, changed: () => void): RejectedShelf {
+  let rejected: RejectedChange[] = [];
+  const keep = (next: RejectedChange[]): void => {
+    rejected = next.slice(0, MAX_REJECTED);
+    void saveDoc(docKey.rejected(room), encodeRejected(rejected));
+    changed();
+  };
+  void loadDoc(docKey.rejected(room)).then((bytes) => {
+    rejected = [...rejected, ...decodeRejected(bytes)].slice(0, MAX_REJECTED);
+    changed();
+  });
+  return {
+    list: () => rejected,
+    add: (record) => keep([record, ...rejected]),
+    remove: (id) => keep(rejected.filter((item) => item.id !== id)),
+  };
+}
+
+type Keep = (next: Baseline) => void;
+
+function acceptOne(
+  current: () => Baseline | null,
+  keep: Keep,
+  change: Change,
+): () => void {
+  const base = current();
+  if (!base) return () => {};
+  const key = acceptKey(change);
+  keep({ snapshot: base.snapshot, accepted: new Set([...base.accepted, key]) });
+  return () => {
+    const now = current();
+    if (!now?.accepted.has(key)) return;
+    const accepted = new Set(now.accepted);
+    accepted.delete(key);
+    keep({ snapshot: now.snapshot, accepted });
+  };
+}
+
+function acceptEvery(
+  current: () => Baseline | null,
+  keep: Keep,
+  doc: Y.Doc,
+): () => void {
+  const before = current();
+  const after = freshBaseline(doc);
+  keep(after);
+  return () => {
+    if (before && current() === after) keep(before);
+  };
 }
 
 export function createChangeTracker(deps: TrackerDeps): ChangeTracker {
@@ -93,6 +161,8 @@ export function createChangeTracker(deps: TrackerDeps): ChangeTracker {
     else settleLater();
   });
 
+  const shelf = rejectedShelf(room, () => !destroyed && notify());
+
   const textAt = (path: string | null): Y.Text | null =>
     deps.texts().get(path) ?? null;
 
@@ -103,24 +173,27 @@ export function createChangeTracker(deps: TrackerDeps): ChangeTracker {
       return cached;
     },
     ready: () => base !== null,
-    accept(change) {
-      if (!base) return;
-      keep({
-        snapshot: base.snapshot,
-        accepted: new Set([...base.accepted, acceptKey(change)]),
-      });
-    },
-    acceptAll() {
-      keep(freshBaseline(doc));
-    },
+    accept: (change) => acceptOne(() => base, keep, change),
+    acceptAll: () => acceptEvery(() => base, keep, doc),
     reject(change) {
-      if (!base) return;
+      if (!base) return null;
       cached = null;
       const fresh = changesOf(doc, deps.texts(), base).find(
         (candidate) => candidate.key === change.key,
       );
       const text = textAt(change.path);
-      if (fresh && text) rejectChange(text, fresh);
+      if (!fresh || !text) return null;
+      const record = rejectAnchored(text, fresh);
+      shelf.add(record);
+      return record.id;
+    },
+    rejected: shelf.list,
+    restore(id) {
+      const record = shelf.list().find((item) => item.id === id);
+      const text = record && textAt(record.path);
+      if (!record || !text || !restoreRejected(text, record)) return false;
+      shelf.remove(id);
+      return true;
     },
     onChange: changed.on,
     destroy() {
