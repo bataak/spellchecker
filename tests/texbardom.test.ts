@@ -137,8 +137,8 @@ test("texBar: палитраас хайж тэмдэг оруулаад сүүл
   search.dispatchEvent(new Event("input", { bubbles: true }));
   const cells = pop.querySelectorAll<HTMLElement>(".tex-grid .tex-cell");
   assert.deepEqual(
-    [...cells].map((cell) => cell.textContent),
-    ["≤"],
+    [...cells].map((cell) => cell.dataset.command),
+    ["leq"],
   );
   assert.equal(pop.querySelector<HTMLElement>(".tex-tabs")!.hidden, true);
   search.dispatchEvent(
@@ -150,13 +150,13 @@ test("texBar: палитраас хайж тэмдэг оруулаад сүүл
   button("symbols").click();
   assert.equal(search.value, "");
   const recent = pop.querySelectorAll<HTMLElement>(".tex-recent .tex-cell");
-  assert.equal(recent[0]!.textContent, "≤");
+  assert.equal(recent[0]!.dataset.command, "leq");
   const tab = pop.querySelectorAll<HTMLElement>(".tex-tab")[3]!;
   tab.click();
   assert.equal(tab.getAttribute("aria-selected"), "true");
   assert.equal(
-    pop.querySelector<HTMLElement>(".tex-grid .tex-cell")!.textContent,
-    "→",
+    pop.querySelector<HTMLElement>(".tex-grid .tex-cell")!.dataset.command,
+    "to",
   );
   search.value = "zzz";
   search.dispatchEvent(new Event("input", { bubbles: true }));

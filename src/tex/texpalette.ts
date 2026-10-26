@@ -1,4 +1,5 @@
 import { KEYS, readJson, writeJson } from "../core/store.ts";
+import { glyphSvg, symbolTex } from "./texglyphs.ts";
 import type { MathSymbol, SymbolTab } from "./texmenudata.ts";
 
 export interface Palette {
@@ -64,7 +65,7 @@ function columnsOf(cells: readonly HTMLElement[]): number {
 function symbolCell(symbol: MathSymbol): HTMLButtonElement {
   const cell = element("button", "tex-cell");
   cell.type = "button";
-  cell.textContent = symbol.glyph;
+  cell.append(glyphSvg(symbolTex(symbol.command)));
   cell.title = "\\" + symbol.command.replace("#", "");
   cell.setAttribute("aria-label", cell.title);
   cell.dataset.command = symbol.command;

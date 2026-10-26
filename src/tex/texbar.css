@@ -44,6 +44,24 @@
   white-space: nowrap;
 }
 
+.tex-glyph {
+  display: block;
+  fill: currentColor;
+  overflow: visible;
+}
+
+.md-bar .tex-group .tex-btn > .tex-glyph {
+  width: 36px;
+  height: 25.2px;
+  flex: none;
+}
+
+.tex-cell > .tex-glyph {
+  width: 2.7rem;
+  height: 1.89rem;
+  margin-inline: -0.25rem;
+}
+
 .md-bar .tex-group .tex-btn > svg {
   display: block;
   width: 20px;

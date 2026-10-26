@@ -1,4 +1,5 @@
 import type { BarTool, MenuSection } from "./texmenudata.ts";
+import { glyphSvg } from "./texglyphs.ts";
 import { insertCode, type Insert } from "./texmenuedit.ts";
 
 export const POP_ID = "texBarPop";
@@ -12,6 +13,7 @@ function toolButton(tool: BarTool): HTMLButtonElement {
   button.setAttribute("aria-label", tool.title);
   if (tool.gap) button.dataset.gap = "";
   if (tool.icon) button.innerHTML = tool.icon;
+  else if (tool.tex) button.append(glyphSvg(tool.tex));
   else button.textContent = tool.glyph;
   if (tool.kind !== "action") {
     button.classList.add("has-menu");
