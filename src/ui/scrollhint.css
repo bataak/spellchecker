@@ -1,0 +1,48 @@
+.scroll-fade-end {
+  mask-image: linear-gradient(to right, #000 calc(100% - 44px), transparent);
+}
+
+.scroll-fade-start {
+  mask-image: linear-gradient(to left, #000 calc(100% - 44px), transparent);
+}
+
+.scroll-fade-start.scroll-fade-end {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 44px,
+    #000 calc(100% - 44px),
+    transparent
+  );
+}
+
+.scroll-arrow {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 32px;
+  padding: 0 0 2px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--paper);
+  color: var(--ink);
+  font: 600 1.15rem/1 var(--sans);
+  cursor: pointer;
+}
+
+.scroll-arrow:hover {
+  border-color: var(--accent);
+}
+
+.scroll-arrow[hidden] {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .scroll-arrow {
+    display: none;
+  }
+}

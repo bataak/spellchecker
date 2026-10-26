@@ -1,4 +1,4 @@
-import { ICON, svg } from "../ui/baricons.ts";
+import { inkSvg } from "../ui/baricons.ts";
 import type { Insert } from "./texmenuedit.ts";
 
 export interface MenuItem {
@@ -280,7 +280,7 @@ export const TEX_TOOLS: readonly BarTool[] = [
   action("italic", "I", "Налуу (\\textit)", cmd("textit{#}")),
   list("font", "Aa", "Үсгийн хэлбэр, хэмжээ", FONT_SECTIONS),
   action("itemize", "•", "Цэгтэй жагсаалт", env("itemize", "\\item #"), {
-    icon: svg(ICON.bullet),
+    icon: inkSvg("bullet"),
     gap: true,
   }),
   action(
@@ -289,7 +289,7 @@ export const TEX_TOOLS: readonly BarTool[] = [
     "Дугаартай жагсаалт",
     env("enumerate", "\\item #"),
     {
-      icon: svg(ICON.ordered),
+      icon: inkSvg("ordered"),
     },
   ),
   action("inline", "$x$", "Мөр доторх томьёо ($…$)", text("$#$"), {
@@ -297,7 +297,7 @@ export const TEX_TOOLS: readonly BarTool[] = [
     gap: true,
   }),
   action("frac", "a⁄b", "Бутархай (\\frac)", cmd("frac{#}{}"), {
-    tex: "a/b",
+    icon: inkSvg("fraction"),
   }),
   action("sqrt", "√x", "Язгуур (\\sqrt)", cmd("sqrt{#}"), {
     tex: "\\sqrt{x}",
@@ -311,7 +311,7 @@ export const TEX_TOOLS: readonly BarTool[] = [
     "Матриц (pmatrix)",
     env("pmatrix", "# & \\\\", "& "),
     {
-      icon: svg(ICON.matrix),
+      icon: inkSvg("matrix"),
     },
   ),
   action(
@@ -324,7 +324,7 @@ export const TEX_TOOLS: readonly BarTool[] = [
       around: ["\\left\\{", "\\right."],
       body: ["# \\\\", ""],
     },
-    { icon: svg(ICON.system) },
+    { icon: inkSvg("system") },
   ),
   list("math", "∑", "Томьёоны орчин, бүтэц", MATH_SECTIONS, {
     tex: "\\sum",
@@ -348,7 +348,7 @@ export const TEX_TOOLS: readonly BarTool[] = [
       "\\caption{}",
       "\\label{fig:}",
     ),
-    { icon: svg(ICON.image), gap: true },
+    { icon: inkSvg("image"), gap: true },
   ),
   action(
     "table",
@@ -363,17 +363,26 @@ export const TEX_TOOLS: readonly BarTool[] = [
       "  a & b \\\\",
       "\\end{tabular}",
     ),
-    { icon: svg(ICON.table) },
+    { icon: inkSvg("table") },
   ),
   list("env", "⊞", "Орчин: голлуулах, ишлэл, теорем", ENV_SECTIONS, {
-    icon: svg(ICON.environment),
+    icon: inkSvg("environment"),
   }),
-  action("close", "⤶", "Нээлттэй орчныг хаах", { kind: "close" }),
-  action("ref", "↪", "Шошгоор заах (\\ref)", cmd("ref{#}"), { gap: true }),
+  action(
+    "close",
+    "⤶",
+    "Нээлттэй орчныг хаах",
+    { kind: "close" },
+    { icon: inkSvg("enter") },
+  ),
+  action("ref", "↪", "Шошгоор заах (\\ref)", cmd("ref{#}"), {
+    tex: "\\hookrightarrow",
+    gap: true,
+  }),
   action("cite", "❝", "Ишлэх (\\cite)", cmd("cite{#}"), {
-    icon: svg(ICON.quote),
+    icon: inkSvg("quote"),
   }),
   list("links", "⋯", "Шошго, товъёг, вэб холбоос", LINK_SECTIONS, {
-    icon: svg(ICON.link),
+    icon: inkSvg("link"),
   }),
 ];
