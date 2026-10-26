@@ -424,9 +424,18 @@
 }
 
 @media (min-width: 1024px) {
-  :root[data-talk] {
+  :root[data-talk]:not([data-talk-float]) {
     --talk-col: calc(var(--panel-w) + var(--panel-gap));
     --gutter-pull: 0px;
+  }
+
+  :root[data-talk-float] .workspace > .talk-window {
+    position: absolute;
+    z-index: 60;
+    inset-block: 0;
+    inset-inline-start: 0;
+    width: var(--panel-w);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
   }
 
   .workspace > .talk-window {
@@ -443,7 +452,7 @@
     display: none;
   }
 
-  :root[data-talk] .workspace > .empty-state {
+  :root[data-talk]:not([data-talk-float]) .workspace > .empty-state {
     left: calc(var(--talk-col) + var(--gutter-w));
   }
 }

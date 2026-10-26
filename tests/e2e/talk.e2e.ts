@@ -205,3 +205,39 @@ test("хамтралгүй бичсэн шүүмж хадгалагдаж, ха�
   assert.deepEqual(errors(owner), []);
   assert.deepEqual(errors(guest), []);
 });
+
+test("хамтрагч бүр хэлэлцүүлэгт өөр өнгөтэй харагдана", async () => {
+  const owner = await openPage(app, await app.context());
+  await typeAtEnd(owner, "Нэг хоёр гурав дөрөв.");
+  const link = await invite(owner);
+  const guest = await openPage(app, await app.context());
+  await guest.evaluate((hash) => {
+    location.hash = hash;
+  }, new URL(link).hash);
+  await until(
+    () => editor(guest),
+    (text) => text.includes("дөрөв"),
+    20000,
+  );
+  await owner.locator(".talk-trigger").click();
+  await owner.locator(".talk-chat .talk-input").fill("Эзний зурвас");
+  await owner.keyboard.press("Enter");
+  await guest.locator(".talk-trigger").click();
+  await guest
+    .locator(".talk-msg-text", { hasText: "Эзний зурвас" })
+    .waitFor({ timeout: 15000 });
+  await guest.locator(".talk-chat .talk-input").fill("Зочны зурвас");
+  await guest.keyboard.press("Enter");
+  await owner
+    .locator(".talk-msg-text", { hasText: "Зочны зурвас" })
+    .waitFor({ timeout: 15000 });
+  const colors = await owner.evaluate(() =>
+    [...document.querySelectorAll<HTMLElement>(".talk-msg .talk-dot")].map(
+      (dot) => getComputedStyle(dot).backgroundColor,
+    ),
+  );
+  assert.equal(colors.length, 2);
+  assert.notEqual(colors[0], colors[1]);
+  assert.deepEqual(errors(owner), []);
+  assert.deepEqual(errors(guest), []);
+});
