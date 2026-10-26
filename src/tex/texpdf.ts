@@ -337,7 +337,10 @@ async function compileOn(
   });
   worker.postMessage({ cmd: "workdir", url: layout.workdir });
   worker.postMessage({ cmd: "setmainfile", url: layout.main });
-  const steps = auxSteps(tex);
+  const texts = Object.values(files).filter(
+    (src): src is string => typeof src === "string",
+  );
+  const steps = auxSteps([tex, ...texts]);
   const job = workerFiles(worker, layout);
   let pdf = await runOnce(worker);
   const total = passes + (steps.length ? 1 : 0);

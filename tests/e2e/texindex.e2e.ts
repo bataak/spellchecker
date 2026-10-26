@@ -23,7 +23,11 @@ const SOURCE = [
   "\\end{document}",
 ].join("\n");
 
-test("\\makeindex-тэй баримтад монгол цагаан толгойн дарааллаар индекс гарна", async () => {
+const FRAGMENT = SOURCE.split("\n")
+  .filter((line) => !/documentclass|fontenc|\{document\}/.test(line))
+  .join("\n");
+
+async function indexText(source: string): Promise<string> {
   const context = await app.context();
   const page = await context.newPage();
   await page.goto(app.url);
@@ -35,18 +39,30 @@ test("\\makeindex-тэй баримтад монгол цагаан толгой
     return extractPdfText(
       new File([pdf], "a.pdf", { type: "application/pdf" }),
     );
-  }, SOURCE);
-  const index = text.slice(text.lastIndexOf("Index"));
-  const order = ["ес, 1", "ёс, 1", "ой, 1", "өвөл, 1, 2"].map((entry) =>
-    index.indexOf(entry),
-  );
-  assert.ok(
-    order.every((at) => at > 0),
-    index,
-  );
-  assert.deepEqual(
-    [...order].sort((a, b) => a - b),
-    order,
-  );
+  }, source);
   await context.close();
-});
+  return text.slice(text.indexOf("Дахин"));
+}
+
+for (const [name, source] of [
+  ["бүтэн баримтад", SOURCE],
+  ["documentclass-гүй хэсэгт", FRAGMENT],
+]) {
+  test(
+    "\\makeindex-тэй " + name + " монгол дарааллаар индекс гарна",
+    async () => {
+      const index = await indexText(source!);
+      const order = ["ес, 1", "ёс, 1", "ой, 1", "өвөл, 1, 2"].map((entry) =>
+        index.indexOf(entry),
+      );
+      assert.ok(
+        order.every((at) => at > 0),
+        index,
+      );
+      assert.deepEqual(
+        [...order].sort((a, b) => a - b),
+        order,
+      );
+    },
+  );
+}

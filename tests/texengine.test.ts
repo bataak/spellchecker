@@ -173,3 +173,20 @@ test("texEngine: \\makeindex байвал индекс үүсгээд дахин
   await compilePdf("\\makeindex");
   assert.equal(compileCount(worker), plain + 2);
 });
+
+test("texEngine: оруулсан файл дахь \\makeindex-ийг ч илрүүлж, тайлбарыг тоохгүй", async () => {
+  const worker = workers.at(-1)!;
+  outputs.set("main.idx", "\\indexentry{b}{4}\n");
+  written.delete("main.ind");
+  const before = compileCount(worker);
+  await compilePdf("\\input{pre}", 1, { "pre.tex": "\\makeindex\n" });
+  assert.equal(compileCount(worker), before + 2);
+  assert.match(written.get("main.ind")!, /\\item b, 4/);
+  written.delete("main.ind");
+  await compilePdf("% \\makeindex\n", 1, {
+    "pre.tex": "%\\makeindex",
+    "logo.png": new Uint8Array([1]),
+  });
+  assert.equal(compileCount(worker), before + 3);
+  assert.equal(written.has("main.ind"), false);
+});
