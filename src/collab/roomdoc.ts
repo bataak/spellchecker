@@ -11,6 +11,7 @@ import type { ChatDoc } from "./chatdoc.ts";
 import { createTalk, type Talk } from "./talk.ts";
 import { createCursors, type CursorView, type Cursors } from "./cursors.ts";
 import { createCommentMarks } from "./commentmarks.ts";
+import { keptComments } from "./commentbus.ts";
 import { textOf } from "./projectdoc.ts";
 import type { Profile } from "./profile.ts";
 
@@ -39,7 +40,7 @@ export async function openDoc(
 }
 
 export interface EditingDeps {
-  readonly link: { readonly room: string };
+  readonly link: { readonly room: string; readonly slot?: string };
   readonly device: string;
   readonly editor: HTMLTextAreaElement;
   readonly view: CursorView;
@@ -67,11 +68,18 @@ function withDestroy(
   doc: Y.Doc,
 ): Editing {
   const marks = createCommentMarks({
-    doc,
     comments: talk.comments,
     editor: deps.editor,
     view: deps.view,
-    cursors: parts.cursors,
+    active: parts.cursors.active,
+    refresh(listener) {
+      const off = parts.cursors.onActive(listener);
+      doc.on("afterTransaction", listener);
+      return () => {
+        off();
+        doc.off("afterTransaction", listener);
+      };
+    },
   });
   return {
     ...parts,
@@ -79,6 +87,7 @@ function withDestroy(
     destroy() {
       parts.binding.destroy();
       parts.swap?.close();
+      keptComments.emit({ slot: talk.slot, threads: talk.comments.export() });
       marks.destroy();
       parts.cursors.destroy();
       talk.chat.destroy();
@@ -110,6 +119,7 @@ export function createEditing(
   const talk = createTalk(
     {
       room: deps.link.room,
+      slot: deps.link.slot ?? null,
       device: deps.device,
       project: deps.project !== null,
       active: activeText(doc, deps.project),

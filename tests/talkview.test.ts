@@ -32,6 +32,16 @@ const dom = installDom(
 ) => setTimeout(run, 0);
 test.after(() => dom.close());
 
+const offlineDeps = {
+  doc: () => null,
+  profile: () => ({ name: "Би", color: 1 }),
+  notes: {
+    load: () => Promise.resolve(null),
+    save: () => Promise.resolve(),
+    drop: () => Promise.resolve(),
+  },
+};
+
 const wait = (ms = 200): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -81,6 +91,7 @@ function fakeTalk(project: boolean, list: Change[] = [change()]) {
     chat,
     changes: changes.tracker,
     comments,
+    slot: null,
     project,
     announce: () => {},
   };
@@ -190,6 +201,7 @@ test("төслийн самбарт товч нэмж, бусад бичвэрт
       host: document.querySelector(".editor-wrap")!,
       rangeRects: () => [],
     },
+    ...offlineDeps,
     anchor: document.querySelector("#collabBtn"),
     workspace: document.querySelector(".workspace"),
     editorWrap: document.querySelector(".editor-wrap"),
@@ -304,6 +316,7 @@ test("бичвэр солигдоход chat-ийн сонсогч давхар�
       host: document.querySelector(".editor-wrap")!,
       rangeRects: () => [],
     },
+    ...offlineDeps,
     anchor: null,
     workspace: null,
     editorWrap: null,

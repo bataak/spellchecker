@@ -55,7 +55,7 @@ test("хамтын бичвэрт хэлэлцэж, хамтрагчийн өө�
   );
 
   await guest.locator(".talk-trigger").click();
-  await guest.locator(".talk-input").fill("Энэ өгүүлбэрийг засъя");
+  await guest.locator(".talk-chat .talk-input").fill("Энэ өгүүлбэрийг засъя");
   await guest.keyboard.press("Enter");
   assert.equal(await badge(owner), "1");
   await owner.locator(".talk-trigger").click();
@@ -151,6 +151,57 @@ test("сонгосон хэсэгт шүүмж бичиж, хамтрагч ха
     15000,
   );
   assert.equal(await guest.locator(".talk-thread").count(), 0);
+  assert.deepEqual(errors(owner), []);
+  assert.deepEqual(errors(guest), []);
+});
+
+test("хамтралгүй бичсэн шүүмж хадгалагдаж, хамтрахад шилжиж, хариу мэдэгдэнэ", async () => {
+  const context = await app.context();
+  const owner = await openPage(app, context);
+  await typeAtEnd(owner, "Маргааш бороо орно гэсэн.");
+  await selectWord(owner, "бороо");
+  await owner.locator(".collab-comment-btn").click();
+  await owner.locator(".talk-compose .talk-input").fill("Эх сурвалж?");
+  await owner.keyboard.press("Enter");
+  await owner.locator(".talk-thread", { hasText: "Эх сурвалж?" }).waitFor();
+  await owner.locator(".collab-comment-mark").first().waitFor();
+  assert.equal(
+    (await owner.locator(".talk-trigger").innerText()).trim(),
+    "Шүүмж",
+  );
+  assert.equal(await owner.locator(".talk-tab:not([hidden])").count(), 1);
+
+  await owner.waitForTimeout(800);
+  await owner.reload();
+  await owner.locator(".collab-comment-mark").first().waitFor({
+    timeout: 20000,
+  });
+
+  const link = await invite(owner);
+  const guest = await openPage(app, await app.context());
+  await guest.evaluate((hash) => {
+    location.hash = hash;
+  }, new URL(link).hash);
+  await guest.locator(".collab-comment-mark").first().waitFor({
+    timeout: 20000,
+  });
+  assert.equal(await badge(guest), "1");
+  await guest.locator(".talk-trigger").click();
+  const thread = guest.locator(".talk-thread", { hasText: "Эх сурвалж?" });
+  await thread.waitFor();
+  assert.equal(
+    await guest.locator(".talk-tab[aria-selected=true]").innerText(),
+    "Шүүмж",
+  );
+  await thread.locator(".talk-reply-input").fill("Цаг уурын газар");
+  await guest.keyboard.press("Enter");
+
+  assert.equal(await badge(owner), "1");
+  await owner.locator(".talk-trigger").click();
+  await owner
+    .locator(".talk-reply .talk-msg-text", { hasText: "Цаг уурын газар" })
+    .waitFor();
+  assert.equal(await owner.locator(".talk-trigger .talk-badge").count(), 0);
   assert.deepEqual(errors(owner), []);
   assert.deepEqual(errors(guest), []);
 });

@@ -16,7 +16,7 @@ export interface SessionStatus {
 export type SessionNotice = UploadNotice;
 
 export interface SessionLink {
-  readonly link: CollabLink;
+  readonly link: CollabLink & { readonly slot?: string };
   readonly endpoint: string;
   readonly device: string;
   readonly access: () => Access;

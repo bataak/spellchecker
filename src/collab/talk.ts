@@ -3,12 +3,13 @@ import { createChat, type Chat } from "./chat.ts";
 import type { ChatDoc } from "./chatdoc.ts";
 import { registerAuthor } from "./changes.ts";
 import { createChangeTracker, type ChangeTracker } from "./changetracker.ts";
-import { authorKey, createComments, type Comments } from "./comments.ts";
+import { authorKey, createComments, type CollabComments } from "./comments.ts";
 import { textsOf } from "./projectdoc.ts";
 import type { Profile } from "./profile.ts";
 
 export interface TalkDeps {
   readonly room: string;
+  readonly slot: string | null;
   readonly device: string;
   readonly project: boolean;
   readonly active: () => Y.Text | null;
@@ -18,7 +19,8 @@ export interface TalkDeps {
 export interface Talk {
   readonly chat: Chat;
   readonly changes: ChangeTracker;
-  readonly comments: Comments;
+  readonly comments: CollabComments;
+  readonly slot: string | null;
   readonly project: boolean;
   announce(): void;
 }
@@ -39,6 +41,7 @@ export function createTalk(deps: TalkDeps, doc: Y.Doc, chat: ChatDoc): Talk {
       author: authorKey(deps.device, deps.room),
       profile: deps.profile,
     }),
+    slot: deps.slot,
     project,
     announce,
   };

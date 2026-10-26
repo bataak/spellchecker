@@ -97,6 +97,20 @@ export function dropSlotText(key: string): Promise<void> {
   return idbDelete(SLOT_PREFIX + key).then(() => undefined);
 }
 
+const NOTES_PREFIX = "notes:";
+
+export function saveNotes(key: string, value: object): Promise<void> {
+  return idbSet(NOTES_PREFIX + key, value).then(() => undefined);
+}
+
+export function loadNotes(key: string): Promise<unknown> {
+  return idbGet(NOTES_PREFIX + key);
+}
+
+export function dropNotes(key: string): Promise<void> {
+  return idbDelete(NOTES_PREFIX + key).then(() => undefined);
+}
+
 function readLocal(): string | null {
   return read(KEYS.legacyText);
 }

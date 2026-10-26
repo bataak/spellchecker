@@ -787,3 +787,14 @@
   margin: 6px 0 0 14px;
   resize: none;
 }
+
+.talk-tab .talk-badge {
+  position: static;
+  display: inline-block;
+  margin-inline-start: 4px;
+}
+
+.talk-tab[hidden],
+.talk-toggle[hidden] {
+  display: none;
+}

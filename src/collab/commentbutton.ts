@@ -23,7 +23,7 @@ function selectionDraft(
 ): CommentDraft | null {
   const { selectionStart: start, selectionEnd: end } = editor;
   if (start >= end) return null;
-  return target.views.talk.comments.draft(
+  return target.views.comments.draft(
     start,
     end,
     editor.value.slice(start, end),
@@ -85,7 +85,7 @@ export function initCommentButton(deps: CommentButtonDeps): void {
   editor.addEventListener("click", () => {
     const target = deps.target();
     if (!target || editor.selectionStart !== editor.selectionEnd) return;
-    const id = target.views.talk.comments.at(editor.selectionStart);
+    const id = target.views.comments.at(editor.selectionStart);
     if (!id) return;
     target.open();
     target.views.views.comments.focus(id);
