@@ -15,16 +15,14 @@ export interface DefinitionCache {
 }
 
 export function createDefinitionCache(
-  define: ((word: string) => Promise<Definition>) | undefined,
+  define: (word: string) => Promise<Definition>,
 ): DefinitionCache {
   let cache = new Map<string, Promise<Definition>>();
   return {
     get(word) {
       let pending = cache.get(word);
       if (!pending) {
-        pending = define
-          ? define(word)
-          : Promise.resolve({ source: "", entries: [], dicts: -1 });
+        pending = define(word);
         const owner = cache;
         const request = pending;
         owner.set(word, request);

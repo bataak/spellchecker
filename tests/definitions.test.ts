@@ -29,8 +29,3 @@ test("createDefinitionCache: хоосон хариуг хадгалахгүй", 
   await cache.get("алга");
   assert.equal(calls, 2);
 });
-
-test("createDefinitionCache: толь байхгүй үед dicts -1", async () => {
-  const def = await createDefinitionCache(undefined).get("үг");
-  assert.deepEqual(def, { source: "", entries: [], dicts: -1 });
-});

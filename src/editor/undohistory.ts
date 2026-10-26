@@ -178,7 +178,8 @@ async function loadStored(slot: string): Promise<Stored | null> {
     const request = db.transaction(STORE).objectStore(STORE).get(slot);
     await done(request);
     return (request.result as Stored | undefined) ?? null;
-  } catch {
+  } catch (error) {
+    noteError(error);
     return null;
   }
 }
@@ -193,7 +194,8 @@ export async function storedHistoryTexts(): Promise<string[]> {
       for (const step of [...entry.history.undo, ...entry.history.redo])
         out.push(step.removed, step.inserted);
     return out;
-  } catch {
+  } catch (error) {
+    noteError(error);
     return [];
   }
 }

@@ -1,3 +1,4 @@
+import { noteError } from "../core/errorlog.ts";
 import type { PdfView, PdfViewOptions } from "./pdfview.ts";
 import type { PreviewHead, ZoomAction } from "./previewhead.ts";
 import { loadZoom, saveZoom, stepZoom } from "./viewprefs.ts";
@@ -169,8 +170,10 @@ export function createPdfPane(
       abort = controller;
       try {
         await renderFile(file, controller);
-      } catch {
-        if (!controller.signal.aborted) onError();
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        noteError(error);
+        onError();
       }
     },
     async showBytes(bytes, beforeRender) {
