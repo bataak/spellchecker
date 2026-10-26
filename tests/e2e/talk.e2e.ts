@@ -89,7 +89,7 @@ test("хамтын бичвэрт хэлэлцэж, хамтрагчийн өө�
     .locator(".talk-changes-bar button", { hasText: "Татгалзсаныг харуулах" })
     .click();
   await owner
-    .locator(".talk-rejected-list button", { hasText: "Сэргээх" })
+    .locator(".talk-change.is-rejected button", { hasText: "Сэргээх" })
     .click();
   await until(
     () => editor(guest),

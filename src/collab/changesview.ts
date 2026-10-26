@@ -102,6 +102,37 @@ function rejectedRow(
   return row;
 }
 
+type Entry =
+  | { readonly kind: "change"; readonly change: Change }
+  | { readonly kind: "rejected"; readonly record: RejectedChange };
+
+export function interleave(
+  changes: readonly Change[],
+  rejected: readonly RejectedChange[],
+  placeOf: (id: string) => number | null,
+): Entry[] {
+  const paths: (string | null)[] = [];
+  const rank = (path: string | null): number => {
+    if (!paths.includes(path)) paths.push(path);
+    return paths.indexOf(path);
+  };
+  const items = [
+    ...changes.map((change) => ({
+      entry: { kind: "change", change } as Entry,
+      path: rank(change.path),
+      at: change.from,
+    })),
+    ...rejected.map((record) => ({
+      entry: { kind: "rejected", record } as Entry,
+      path: rank(record.path),
+      at: placeOf(record.id) ?? Infinity,
+    })),
+  ];
+  return items
+    .sort((a, b) => a.path - b.path || a.at - b.at)
+    .map((item) => item.entry);
+}
+
 export function changesView(
   tracker: ChangeTracker,
   reveal: (change: Change) => void,
@@ -117,9 +148,8 @@ export function changesView(
   const toggle = button("talk-accept-all", "");
   bar.append(count, acceptAll, toggle);
   const list = element("ol", "talk-change-list");
-  const gone = element("ol", "talk-change-list talk-rejected-list");
   const empty = element("p", "talk-empty");
-  el.append(bar, list, empty, gone);
+  el.append(bar, list, empty);
   let visible = false;
   let showRejected = false;
   const actions = { tracker, reveal };
@@ -133,16 +163,19 @@ export function changesView(
     toggle.hidden = rejected.length === 0;
     toggle.textContent = rejectedLabel(rejected.length, showRejected);
     toggle.setAttribute("aria-pressed", String(showRejected));
+    const shown = interleave(
+      changes.slice(0, MAX_SHOWN),
+      showRejected ? rejected : [],
+      tracker.placeOf,
+    );
     list.replaceChildren(
-      ...changes
-        .slice(0, MAX_SHOWN)
-        .map((change) => changeRow(change, actions)),
+      ...shown.map((entry) =>
+        entry.kind === "change"
+          ? changeRow(entry.change, actions)
+          : rejectedRow(entry.record, tracker),
+      ),
     );
-    gone.hidden = !showRejected || rejected.length === 0;
-    gone.replaceChildren(
-      ...rejected.map((record) => rejectedRow(record, tracker)),
-    );
-    empty.hidden = changes.length > 0;
+    empty.hidden = shown.length > 0;
     empty.textContent = tracker.ready() ? CHANGES_EMPTY : CHANGES_WAIT;
   };
   toggle.addEventListener("click", () => {
