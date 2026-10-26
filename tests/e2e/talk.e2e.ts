@@ -387,7 +387,7 @@ test("эзэн хуваалцсан бичвэрийг цэвэрлэхэд ас
   assert.deepEqual(errors(guest), []);
 });
 
-test("сүүлийн үгийг шүүмжилсний дараа үгийн ард курсор тавьж үргэлжлүүлэн бичнэ", async () => {
+test("шүүмжилсэн үгийн ард дарахад шүүмж нээгдэж, курсор ард нь үлдэнэ", async () => {
   const page = await openPage(app, await app.context());
   await typeAtEnd(page, "Өнөөдөр бороо");
   await page.waitForTimeout(700);
@@ -403,6 +403,7 @@ test("сүүлийн үгийг шүүмжилсний дараа үгийн а�
     .first()
     .boundingBox())!;
   await page.mouse.click(mark.x + mark.width + 2, mark.y + mark.height / 2);
+  await page.locator(".talk-thread.is-active").waitFor();
   assert.equal(await page.evaluate(() => document.activeElement?.id), "editor");
   await page.keyboard.type(" орно");
   assert.match(await editor(page), /бороо орно$/);

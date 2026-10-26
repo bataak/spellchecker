@@ -64,10 +64,10 @@ test("шүүмж хамтрагчид дамжиж, засвар хийхэд б
   assert.deepEqual(mine.spans(), [{ id, from: 12, to: 17 }]);
   a.getText("t").insert(14, "й");
   assert.deepEqual(mine.spans(), [{ id, from: 12, to: 18 }]);
-  assert.equal(mine.at(13), id);
-  assert.equal(mine.at(17), id);
-  assert.equal(mine.at(12), null);
-  assert.equal(mine.at(18), null);
+  assert.deepEqual(mine.at(13), { id, inside: true });
+  assert.deepEqual(mine.at(17), { id, inside: true });
+  assert.deepEqual(mine.at(12), { id, inside: false });
+  assert.deepEqual(mine.at(18), { id, inside: false });
   assert.equal(mine.at(3), null);
 
   b.getText("t").delete(12, 6);
