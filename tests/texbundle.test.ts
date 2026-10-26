@@ -35,7 +35,7 @@ test("PDF формат баримт, слайдад санал болгогдо�
 });
 
 test("PDF алдааны мессеж шалтгаан ба байршлыг Монгол үсгээр харуулна", async () => {
-  const { PdfError } = await import("../src/tex/texpdf.ts");
+  const { PdfError } = await import("../src/tex/texerrors.ts");
   const log = [
     "! LaTeX Error: Bad math environment delimiter.",
     "",
@@ -103,7 +103,7 @@ test("ODT гарчгийн жагсаалт сонголтоор", async () => {
 });
 
 test("алдааг алгассан engine-ийн PDF-ийг зөвхөн терминалд алдаа гараагүй үед авна", async () => {
-  const { replyPdf } = await import("../src/tex/texpdf.ts");
+  const { replyPdf } = await import("../src/tex/texerrors.ts");
   const pdf = new ArrayBuffer(4);
   assert.equal(replyPdf({ result: "ok", status: 0, log: "", pdf }), pdf);
   assert.equal(
