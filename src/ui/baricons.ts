@@ -12,9 +12,9 @@ export const ICON = {
     '<path d="M6.5 4h7M6.5 8h7M6.5 12h7"/>',
   ordered:
     '<path d="M6.5 4h7M6.5 8h7M6.5 12h7"/>' +
-    '<text x="0.6" y="5.7" font-size="5.5" fill="currentColor" stroke="none">1</text>' +
-    '<text x="0.6" y="9.7" font-size="5.5" fill="currentColor" stroke="none">2</text>' +
-    '<text x="0.6" y="13.7" font-size="5.5" fill="currentColor" stroke="none">3</text>',
+    '<path stroke-width="0.9" d="M2.4 3.2l.9-.5v2.6' +
+    "M2.2 7.2a.9.9 0 0 1 1.8.1c0 .7-1.8 1-1.8 1.9h1.8" +
+    'M2.2 10.7h1.8l-.9 1a.85.85 0 1 1-.9 1.3"/>',
   quote:
     '<path fill="currentColor" stroke="none" d="M7.1 3.9c-2.1.9-3.6 2.8-3.6 5.1 0 1.8 1.2 3 2.8 3 1.4 0 2.5-1.1 2.5-2.5 0-1.3-1-2.3-2.2-2.3-.2 0-.5 0-.7.1.3-1.1 1.1-2 2.2-2.5z"/>' +
     '<path fill="currentColor" stroke="none" d="M13.9 3.9c-2.1.9-3.6 2.8-3.6 5.1 0 1.8 1.2 3 2.8 3 1.4 0 2.5-1.1 2.5-2.5 0-1.3-1-2.3-2.2-2.3-.2 0-.5 0-.7.1.3-1.1 1.1-2 2.2-2.5z"/>',
@@ -59,8 +59,8 @@ const INK: Record<IconName, string> = {
   center: "0.8 2.3 14.4 11.4",
   right: "0.8 2.3 14.4 11.4",
   signature: "0.8 3 15.7 11.7",
-  bullet: "1.9 2.9 12.3 10.2",
-  ordered: "0.6 1.7 13.6 12",
+  bullet: "1.4 1.9 12.8 12.2",
+  ordered: "1.4 1.9 12.8 12.2",
   quote: "3.5 3.9 12.1 8.1",
   table: "2.3 2.3 11.4 11.4",
   pagebreak: "0.8 0.8 14.4 14.4",

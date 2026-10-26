@@ -5,7 +5,7 @@
 .md-bar .tex-group {
   --tex-ink: 14px;
   --tex-letter: 12px;
-  --tex-text: 10px;
+  --tex-text: 11px;
   gap: 2px;
 }
 
@@ -70,7 +70,7 @@
 }
 
 .md-bar .tex-group .tex-btn[data-tool="inline"] > .tex-glyph {
-  height: calc(var(--tex-letter) * 0.62);
+  height: calc(var(--tex-letter) * 0.7);
 }
 
 .tex-cell > .tex-glyph {
@@ -87,7 +87,7 @@
 }
 
 .md-bar .tex-group .tex-btn[data-tool="cite"] > .ink-icon {
-  height: var(--tex-text);
+  height: 10px;
 }
 
 .tex-group > [data-gap] {
