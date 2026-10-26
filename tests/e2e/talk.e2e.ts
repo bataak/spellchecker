@@ -144,7 +144,15 @@ test("сонгосон хэсэгт шүүмж бичиж, хамтрагч ха
   const thread = guest.locator(".talk-thread.is-active");
   await thread.waitFor();
   assert.match(await thread.innerText(), /Тодруулах уу\?/);
-  await thread.locator(".talk-reply-input").fill("Тийм, Цельсээр");
+  assert.equal(
+    await guest.evaluate(() =>
+      document.activeElement?.matches(
+        ".talk-thread.is-active .talk-reply-input",
+      ),
+    ),
+    true,
+  );
+  await guest.keyboard.type("Тийм, Цельсээр");
   await guest.keyboard.press("Enter");
 
   await owner
