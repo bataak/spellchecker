@@ -110,7 +110,8 @@ test("хамтралгүй шүүмж засвар дагаж, хадгалаг�
   type(0, 0, "Маргааш, ");
   const span = local.spans().find((item) => item.id === first)!;
   assert.equal(editor.value.slice(span.from, span.to), "цаг агаар");
-  assert.equal(local.at(span.from + 2), first);
+  assert.deepEqual(local.at(span.from + 2), { id: first, inside: true });
+  assert.deepEqual(local.at(span.to), { id: first, inside: false });
 
   assert.equal(local.reply(first, "Хариу"), true);
   assert.equal(local.edit(first, "Нэгдүгээр шүүмж"), true);
