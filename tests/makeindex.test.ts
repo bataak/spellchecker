@@ -99,3 +99,10 @@ test("буруу бичлэгийг алгасна", () => {
   );
   assert.equal(makeIndex(""), "\\begin{theindex}\n\n\\end{theindex}\n");
 });
+
+test("ижил түлхүүртэй бичлэгийг харагдах бичвэрээр нь эрэмбэлнэ", () => {
+  assert.equal(
+    makeIndex("\\indexentry{a@y}{2}\n\\indexentry{a@x}{1}\n"),
+    "\\begin{theindex}\n\n  \\item x, 1\n  \\item y, 2\n\n\\end{theindex}\n",
+  );
+});

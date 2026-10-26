@@ -9,7 +9,9 @@ import {
 } from "./texbundle.ts";
 import { KEYS, at } from "../core/store.ts";
 import { noteError } from "../core/errorlog.ts";
-import { auxSteps, runSteps, workerFiles } from "./texpasses.ts";
+import { auxSteps, extraPasses, runSteps } from "./texpasses.ts";
+import { workerFiles } from "./texjobfiles.ts";
+import { queryWorker } from "./workerquery.ts";
 import { decodeTexBytes } from "./texbytes.ts";
 
 export interface EngineReply {
@@ -343,7 +345,7 @@ async function compileOn(
   const steps = auxSteps([tex, ...texts]);
   const job = workerFiles(worker, layout);
   let pdf = await runOnce(worker);
-  const total = passes + (steps.length ? 1 : 0);
+  const total = passes + extraPasses(steps);
   for (let pass = 1; pass < total; pass += 1) {
     await runSteps(steps, job);
     pdf = await runOnce(worker);
@@ -424,18 +426,20 @@ export async function compileTex(
   return (await compileTexDocument(text, project)).pdf;
 }
 
+const MISSES_TIMEOUT_MS = 2000;
+
+interface MissesReply {
+  readonly cmd?: string;
+  readonly names?: string[];
+}
+
 function askMisses(worker: Worker): Promise<string[]> {
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => resolve([]), 2000);
-    worker.onmessage = (
-      event: MessageEvent<{ cmd?: string; names?: string[] }>,
-    ) => {
-      if (event.data.cmd !== "misses") return;
-      clearTimeout(timer);
-      resolve(event.data.names ?? []);
-    };
-    worker.postMessage({ cmd: "misses" });
-  });
+  return queryWorker<MissesReply, string[]>(
+    worker,
+    { cmd: "misses" },
+    (reply) => (reply.cmd === "misses" ? (reply.names ?? []) : undefined),
+    MISSES_TIMEOUT_MS,
+  ).catch(() => []);
 }
 
 function writeMap(worker: Worker, state: EngineFiles): void {
