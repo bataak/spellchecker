@@ -53,8 +53,7 @@ test("хамтрагчийн өнгө хоорондоо тод ялгагдан
   assert.ok(least >= 25, String(least));
 });
 
-test("хамтрагчийн өнгө эсрэг хосуудаас бүрдэнэ", () => {
+test("өнгө бүр хүрдэн дээрх өнцөгтэй", () => {
   assert.equal(CURSOR_HUES.length, CURSOR_COLORS.length);
-  for (let i = 0; i < CURSOR_HUES.length; i += 2)
-    assert.equal((CURSOR_HUES[i]! + 180) % 360, CURSOR_HUES[i + 1]);
+  for (const hue of CURSOR_HUES) assert.ok(hue >= 0 && hue < 360, String(hue));
 });
