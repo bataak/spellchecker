@@ -61,6 +61,14 @@
   stroke-linejoin: round;
 }
 
+.md-bar
+  .tex-group
+  .tex-btn:is([data-tool="sqrt"], [data-tool="integral"])
+  > .tex-glyph {
+  width: calc(var(--tex-ink) * 20 / 14);
+  height: var(--tex-ink);
+}
+
 .md-bar .tex-group .tex-btn[data-tool="inline"] > .tex-glyph {
   height: calc(var(--tex-letter) * 0.62);
 }
