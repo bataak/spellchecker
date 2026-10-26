@@ -1,4 +1,4 @@
-import type { App } from "./appparts.ts";
+import type { Scope } from "./appparts.ts";
 import { MultiSpellChecker } from "../spell/spellchecker.ts";
 import { createSpellSession } from "../spell/spellsession.ts";
 import { createProjectStore } from "../project/projectstore.ts";
@@ -23,7 +23,39 @@ import { createMarkLayer } from "../editor/marklayer.ts";
 import { texSpans } from "../tex/texhighlight.ts";
 import { createPreviewMode } from "../ui/previewmode.ts";
 
-export function composeEditor(app: App): void {
+type EditorReads =
+  | "doc"
+  | "docStatus"
+  | "draft"
+  | "editorText"
+  | "exportCtl"
+  | "isLatexText"
+  | "isTexFile"
+  | "loop"
+  | "marks"
+  | "markupMode"
+  | "nudgeHints"
+  | "pop"
+  | "previewCtl"
+  | "previewMode"
+  | "status";
+type EditorGives =
+  | "backdrop"
+  | "checker"
+  | "controls"
+  | "dicts"
+  | "editor"
+  | "els"
+  | "enterMdMode"
+  | "lastCaret"
+  | "layoutChanged"
+  | "markupMode"
+  | "projectStore"
+  | "spell"
+  | "status"
+  | "view";
+
+export function composeEditor(app: Scope<EditorReads, EditorGives>): void {
   const projectStore = createProjectStore();
   document.body.classList.add("ready");
   const els = queryShell();
@@ -84,7 +116,34 @@ export function composeEditor(app: App): void {
   });
 }
 
-export function composeDocument(app: App): void {
+type DocumentReads =
+  | "backdrop"
+  | "controls"
+  | "dicts"
+  | "doc"
+  | "docMode"
+  | "editor"
+  | "els"
+  | "enterMdMode"
+  | "exportCtl"
+  | "fileIO"
+  | "fixers"
+  | "mdBar"
+  | "previewCtl"
+  | "status"
+  | "undoCtl";
+type DocumentGives =
+  | "doc"
+  | "docMode"
+  | "docStatus"
+  | "isLatexText"
+  | "isTexFile"
+  | "office"
+  | "officeActive";
+
+export function composeDocument(
+  app: Scope<DocumentReads, DocumentGives>,
+): void {
   const { els, editor, status } = app;
   const office = createOfficeSession({
     editor,
@@ -126,7 +185,24 @@ export function composeDocument(app: App): void {
   app.provide({ doc, docStatus, docMode });
 }
 
-export function composeModes(app: App): void {
+type ModesReads =
+  | "backdrop"
+  | "doc"
+  | "els"
+  | "enterMdMode"
+  | "fixers"
+  | "isTexFile"
+  | "marks"
+  | "mdBar"
+  | "measureCtl"
+  | "paneCtl"
+  | "previewCtl"
+  | "projectLink"
+  | "status"
+  | "view";
+type ModesGives = "marks" | "previewMode" | "texMode";
+
+export function composeModes(app: Scope<ModesReads, ModesGives>): void {
   const { els, doc, status } = app;
   const texMode = createTexMode({
     isTex: app.isTexFile,
