@@ -198,7 +198,7 @@ const CYRILLIC_BABEL =
 const FONT_PACKAGE =
   /\\usepackage(?:\[[^\]]*\])?\{(?:paratype|PTSerif|PTSans|cm-super|lmodern|tempora|fontspec)\}/;
 
-const PREAMBLE_LINE = /^[ \t]*\\(?:usepackage|RequirePackage)\b.*$/gm;
+const PREAMBLE_LINE = /^[ \t]*\\(?:usepackage|RequirePackage|makeindex)\b.*$/gm;
 
 export function previewTex(text: string): string {
   if (/\\documentclass\b/.test(text)) return text;

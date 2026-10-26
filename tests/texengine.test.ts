@@ -6,6 +6,8 @@ type Reply = Record<string, unknown>;
 
 const workers: FakeWorker[] = [];
 const replies: (Reply | "hang")[] = [];
+const outputs = new Map<string, string>();
+const written = new Map<string, string>();
 
 class FakeWorker {
   onmessage: ((event: { data: Reply }) => void) | null = null;
@@ -18,8 +20,20 @@ class FakeWorker {
     queueMicrotask(() => this.onmessage?.({ data: { result: "ok" } }));
   }
 
-  postMessage(message: { cmd: string }): void {
+  postMessage(message: { cmd: string; url?: string; src?: unknown }): void {
     this.sent.push(message.cmd);
+    if (message.cmd === "writefile" && typeof message.src === "string")
+      written.set(message.url!, message.src);
+    if (message.cmd === "readfile")
+      queueMicrotask(() =>
+        this.onmessage?.({
+          data: {
+            cmd: "readfile",
+            url: message.url,
+            src: outputs.get(message.url!) ?? null,
+          },
+        }),
+      );
     if (message.cmd === "misses")
       queueMicrotask(() =>
         this.onmessage?.({ data: { cmd: "misses", names: [] } }),
@@ -130,4 +144,49 @@ test("texEngine: хөрвүүлэлтийг цуцлахад хөдөлгүүр�
   const count = workers.length;
   await compilePdf("after");
   assert.equal(workers.length, count + 1);
+});
+
+test("texEngine: \\makeindex байвал индекс үүсгээд дахин хөрвүүлнэ", async () => {
+  const worker = workers.at(-1)!;
+  const before = compileCount(worker);
+  outputs.set("main.idx", "\\indexentry{өвөл}{2}\n\\indexentry{ой}{1}\n");
+  await compilePdf("\\makeindex\\begin{document}\\printindex");
+  assert.equal(compileCount(worker), before + 2);
+  assert.equal(
+    written.get("main.ind"),
+    "\\begin{theindex}\n\n  \\item ой, 1\n\n  \\indexspace\n\n  \\item өвөл, 2\n\n\\end{theindex}\n",
+  );
+  outputs.set("thesis.idx", "\\indexentry{a}{3}\n");
+  await compilePdf(
+    "\\makeindex",
+    2,
+    {},
+    {
+      workdir: "book",
+      main: "thesis.tex",
+      dirs: ["book"],
+    },
+  );
+  assert.equal(compileCount(worker), before + 5);
+  assert.match(written.get("book/thesis.ind")!, /\\item a, 3/);
+  const plain = compileCount(worker);
+  await compilePdf("\\makeindex");
+  assert.equal(compileCount(worker), plain + 2);
+});
+
+test("texEngine: оруулсан файл дахь \\makeindex-ийг ч илрүүлж, тайлбарыг тоохгүй", async () => {
+  const worker = workers.at(-1)!;
+  outputs.set("main.idx", "\\indexentry{b}{4}\n");
+  written.delete("main.ind");
+  const before = compileCount(worker);
+  await compilePdf("\\input{pre}", 1, { "pre.tex": "\\makeindex\n" });
+  assert.equal(compileCount(worker), before + 2);
+  assert.match(written.get("main.ind")!, /\\item b, 4/);
+  written.delete("main.ind");
+  await compilePdf("% \\makeindex\n", 1, {
+    "pre.tex": "%\\makeindex",
+    "logo.png": new Uint8Array([1]),
+  });
+  assert.equal(compileCount(worker), before + 3);
+  assert.equal(written.has("main.ind"), false);
 });
