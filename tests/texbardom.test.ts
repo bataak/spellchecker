@@ -151,7 +151,7 @@ test("texBar: палитраас хайж тэмдэг оруулаад сүүл
   assert.equal(search.value, "");
   const recent = pop.querySelectorAll<HTMLElement>(".tex-recent .tex-cell");
   assert.equal(recent[0]!.textContent, "≤");
-  const tab = pop.querySelectorAll<HTMLElement>(".tex-tab")[4]!;
+  const tab = pop.querySelectorAll<HTMLElement>(".tex-tab")[3]!;
   tab.click();
   assert.equal(tab.getAttribute("aria-selected"), "true");
   assert.equal(

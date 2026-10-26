@@ -217,16 +217,12 @@ const LINK_SECTIONS: readonly MenuSection[] = [
 
 const SYMBOL_TABS: readonly SymbolTab[] = [
   {
-    title: "Грек жижиг",
+    title: "Грек",
     symbols: symbols(`
       α alpha β beta γ gamma δ delta ϵ epsilon ε varepsilon ζ zeta η eta
       θ theta ϑ vartheta ι iota κ kappa λ lambda μ mu ν nu ξ xi π pi
       ϖ varpi ρ rho ϱ varrho σ sigma ς varsigma τ tau υ upsilon φ varphi
-      ϕ phi χ chi ψ psi ω omega`),
-  },
-  {
-    title: "Грек том",
-    symbols: symbols(`
+      ϕ phi χ chi ψ psi ω omega
       Γ Gamma Δ Delta Θ Theta Λ Lambda Ξ Xi Π Pi Σ Sigma Υ Upsilon
       Φ Phi Ψ Psi Ω Omega`),
   },
