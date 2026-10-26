@@ -1,3 +1,4 @@
+import { afterBoot } from "./layoutsnapshot.ts";
 import { initScrollHint } from "./scrollhint.ts";
 import {
   DEFAULT_LAYOUT,
@@ -226,6 +227,10 @@ function applyLayout(l: Layout): void {
   else delete root.dataset.preview;
 }
 
+function publishMetrics(metrics: Metrics): void {
+  afterBoot("metrics", () => setRootMetrics(metrics));
+}
+
 function planViewport(
   wrap: HTMLElement,
   metrics: Metrics,
@@ -293,7 +298,7 @@ export function initMeasureControl(
   let viewportW = 0;
 
   const apply = (l: Layout): void => {
-    applyLayout(l);
+    afterBoot("layout", () => applyLayout(l));
     onChange?.(l);
   };
 
@@ -317,7 +322,7 @@ export function initMeasureControl(
 
   function refresh(): void {
     metrics = readMetrics(area, wrap, persistMetrics);
-    setRootMetrics(metrics);
+    publishMetrics(metrics);
 
     const choose = (fit: Layout[]): LayoutChoice =>
       chooseLayout(fit, desired, previewBlocked, previewMode);
