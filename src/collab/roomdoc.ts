@@ -12,6 +12,8 @@ import { createTalk, type Talk } from "./talk.ts";
 import { createCursors, type CursorView, type Cursors } from "./cursors.ts";
 import { createCommentMarks } from "./commentmarks.ts";
 import { keptComments } from "./commentbus.ts";
+import { authorKey } from "./comments.ts";
+import { createRoomColors, type RoomColors } from "./roomcolors.ts";
 import { textOf } from "./projectdoc.ts";
 import type { Profile } from "./profile.ts";
 
@@ -66,7 +68,12 @@ function withDestroy(
   talk: Talk,
   deps: Pick<EditingDeps, "editor" | "view">,
   doc: Y.Doc,
+  colors: RoomColors,
 ): Editing {
+  const offColors = colors.onChange(() => {
+    parts.cursors.announce();
+    talk.announce();
+  });
   const marks = createCommentMarks({
     comments: talk.comments,
     editor: deps.editor,
@@ -89,6 +96,8 @@ function withDestroy(
       parts.swap?.close();
       keptComments.emit({ slot: talk.slot, threads: talk.comments.export() });
       marks.destroy();
+      offColors();
+      colors.destroy();
       parts.cursors.destroy();
       talk.chat.destroy();
       talk.changes.destroy();
@@ -109,13 +118,19 @@ function activeText(
 }
 
 export function createEditing(
-  deps: EditingDeps,
+  base: EditingDeps,
   docs: RoomDocs,
   fresh: boolean,
   transport: BlobTransport,
   send: (body: Uint8Array) => void,
 ): Editing {
   const { doc } = docs;
+  const colors = createRoomColors(
+    doc,
+    authorKey(base.device, base.link.room),
+    base.profile,
+  );
+  const deps: EditingDeps = { ...base, profile: colors.profile };
   const talk = createTalk(
     {
       room: deps.link.room,
@@ -134,6 +149,7 @@ export function createEditing(
       talk,
       deps,
       doc,
+      colors,
     );
   const text = doc.getText("t");
   const cursors = createCursors({
@@ -147,5 +163,5 @@ export function createEditing(
   const binding = createAttacher(deps.editor, text, fresh, (on) =>
     cursors.setActive(on),
   );
-  return withDestroy({ cursors, binding, swap: null }, talk, deps, doc);
+  return withDestroy({ cursors, binding, swap: null }, talk, deps, doc, colors);
 }
