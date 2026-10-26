@@ -57,6 +57,10 @@ export function rejectAnchored(text: Y.Text, change: Change): RejectedChange {
   };
 }
 
+export function placeOf(text: Y.Text, record: RejectedChange): number | null {
+  return absolute(text, record.start);
+}
+
 export function restoreRejected(text: Y.Text, record: RejectedChange): boolean {
   const start = absolute(text, record.start);
   const found = absolute(text, record.end);
