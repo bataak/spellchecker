@@ -1,6 +1,6 @@
 import { KEYS, read, write } from "../core/store.ts";
 
-const NAMES = [
+export const NAMES = [
   "Чоно",
   "Буга",
   "Үнэг",
@@ -21,10 +21,17 @@ const NAMES = [
   "Гүрвэл",
   "Бамбар",
   "Хярс",
+  "Тас",
+  "Мазаалай",
+  "Тэмээ",
+  "Адуу",
+  "Үхэр",
+  "Согоо",
 ];
 export interface Profile {
   readonly name: string;
   readonly color: number;
+  readonly auto?: number;
 }
 
 const COLORS = 8;
@@ -42,10 +49,10 @@ function hash(text: string): number {
 export function profileFor(device: string, stored: string | null): Profile {
   const seed = hash(device);
   const name = stored?.trim().slice(0, MAX_NAME);
-  return {
-    name: name || NAMES[seed % NAMES.length]!,
-    color: seed % COLORS,
-  };
+  const auto = seed % NAMES.length;
+  return name
+    ? { name, color: seed % COLORS }
+    : { name: NAMES[auto]!, color: seed % COLORS, auto };
 }
 
 export function loadProfile(device: string): Profile {
