@@ -1,4 +1,5 @@
 import * as Y from "yjs";
+import { createEmitter } from "../core/emitter.ts";
 import { fromBase64Url, toBase64Url } from "./collabkey.ts";
 import { CURSOR_COLORS } from "./peercolors.ts";
 import type { Profile } from "./profile.ts";
@@ -21,6 +22,8 @@ export interface Cursors {
   drop(peer: string): void;
   announce(): void;
   setActive(on: boolean): void;
+  active(): boolean;
+  onActive(listener: () => void): () => void;
   destroy(): void;
 }
 
@@ -113,7 +116,7 @@ function move(el: HTMLElement, rect: DOMRect, origin: DOMRect): void {
     "px)";
 }
 
-function place(el: HTMLElement, rect: DOMRect, origin: DOMRect): void {
+export function place(el: HTMLElement, rect: DOMRect, origin: DOMRect): void {
   move(el, rect, origin);
   el.style.height = rect.height + "px";
 }
@@ -162,6 +165,7 @@ export function createCursors(deps: CursorDeps): Cursors {
   let frame = 0;
   let sendTimer: ReturnType<typeof setTimeout> | null = null;
   let lastSent = 0;
+  const activated = createEmitter();
 
   const render = (): void => {
     frame = 0;
@@ -237,7 +241,10 @@ export function createCursors(deps: CursorDeps): Cursors {
       active = on;
       sendNow();
       renderSoon();
+      activated.emit();
     },
+    active: () => active,
+    onActive: activated.on,
     destroy() {
       if (frame) cancelAnimationFrame(frame);
       if (sendTimer) clearTimeout(sendTimer);
@@ -246,6 +253,7 @@ export function createCursors(deps: CursorDeps): Cursors {
       editor.removeEventListener("scroll", onUpdate);
       window.removeEventListener("resize", onUpdate);
       doc.off("afterTransaction", onUpdate);
+      activated.clear();
       layer.remove();
     },
   };

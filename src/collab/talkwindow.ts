@@ -33,7 +33,7 @@ function windowShell({ workspace, editorWrap }: Placement): Shell {
   const win = document.createElement("aside");
   win.className = "talk-window";
   win.hidden = true;
-  win.setAttribute("aria-label", "Хэлэлцүүлэг ба өөрчлөлт");
+  win.setAttribute("aria-label", "Хэлэлцүүлэг, өөрчлөлт, шүүмж");
   const head = document.createElement("div");
   head.className = "talk-window-head";
   const list = document.createElement("div");
@@ -42,6 +42,7 @@ function windowShell({ workspace, editorWrap }: Placement): Shell {
   const tabs = {
     chat: document.createElement("button"),
     changes: document.createElement("button"),
+    comments: document.createElement("button"),
   };
   for (const key of MODES) {
     tabs[key].type = "button";
@@ -52,7 +53,7 @@ function windowShell({ workspace, editorWrap }: Placement): Shell {
   const close = headButton("Хаах", '<path d="M4 4l8 8M12 4l-8 8"/>');
   const gap = document.createElement("span");
   gap.className = "project-foot-gap";
-  list.append(tabs.chat, tabs.changes);
+  list.append(...MODES.map((key) => tabs[key]));
   head.append(list, gap, close);
   const body = document.createElement("div");
   body.className = "talk-window-body";
@@ -68,7 +69,7 @@ function talkTrigger(anchor: HTMLElement | null): HTMLButtonElement {
   trigger.type = "button";
   trigger.className = "tbtn talk-trigger";
   trigger.hidden = true;
-  trigger.title = "Хамтрагчидтай хэлэлцэх, өөрчлөлтийг харах";
+  trigger.title = "Хамтрагчидтай хэлэлцэх, өөрчлөлт ба шүүмжийг харах";
   trigger.innerHTML = icon(ICONS.chat, 14);
   trigger.append(document.createTextNode(" " + TRIGGER_LABEL));
   trigger.setAttribute("aria-pressed", "false");
@@ -117,6 +118,10 @@ export function fileWindow(deps: WindowDeps): Side {
       }
       trigger.hidden = views === null;
       unread();
+    },
+    open(next) {
+      mode = next;
+      open(true);
     },
   };
 }

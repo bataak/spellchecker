@@ -10,6 +10,8 @@ import {
 import type { ChatDoc } from "./chatdoc.ts";
 import { createTalk, type Talk } from "./talk.ts";
 import { createCursors, type CursorView, type Cursors } from "./cursors.ts";
+import { createCommentMarks } from "./commentmarks.ts";
+import { textOf } from "./projectdoc.ts";
 import type { Profile } from "./profile.ts";
 
 export const LOADED = { load: true };
@@ -38,6 +40,7 @@ export async function openDoc(
 
 export interface EditingDeps {
   readonly link: { readonly room: string };
+  readonly device: string;
   readonly editor: HTMLTextAreaElement;
   readonly view: CursorView;
   readonly profile: () => Profile;
@@ -60,17 +63,39 @@ export interface RoomDocs {
 function withDestroy(
   parts: Omit<Editing, "destroy" | "talk">,
   talk: Talk,
+  deps: Pick<EditingDeps, "editor" | "view">,
+  doc: Y.Doc,
 ): Editing {
+  const marks = createCommentMarks({
+    doc,
+    comments: talk.comments,
+    editor: deps.editor,
+    view: deps.view,
+    cursors: parts.cursors,
+  });
   return {
     ...parts,
     talk,
     destroy() {
       parts.binding.destroy();
       parts.swap?.close();
+      marks.destroy();
       parts.cursors.destroy();
       talk.chat.destroy();
       talk.changes.destroy();
+      talk.comments.destroy();
     },
+  };
+}
+
+function activeText(
+  doc: Y.Doc,
+  project: ProjectHooks | null,
+): () => Y.Text | null {
+  if (!project) return () => doc.getText("t");
+  return () => {
+    const path = project.active();
+    return path ? textOf(doc, path) : null;
   };
 }
 
@@ -85,7 +110,9 @@ export function createEditing(
   const talk = createTalk(
     {
       room: deps.link.room,
+      device: deps.device,
       project: deps.project !== null,
+      active: activeText(doc, deps.project),
       profile: deps.profile,
     },
     doc,
@@ -95,6 +122,8 @@ export function createEditing(
     return withDestroy(
       createProjectEditing(deps, doc, deps.project, fresh, send, transport),
       talk,
+      deps,
+      doc,
     );
   const text = doc.getText("t");
   const cursors = createCursors({
@@ -108,5 +137,5 @@ export function createEditing(
   const binding = createAttacher(deps.editor, text, fresh, (on) =>
     cursors.setActive(on),
   );
-  return withDestroy({ cursors, binding, swap: null }, talk);
+  return withDestroy({ cursors, binding, swap: null }, talk, deps, doc);
 }

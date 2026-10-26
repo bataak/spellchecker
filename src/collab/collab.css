@@ -662,3 +662,128 @@
   background: color-mix(in srgb, var(--proof) 18%, transparent);
   color: var(--ink);
 }
+
+.collab-comments {
+  position: absolute;
+  inset: 1px;
+  z-index: 2;
+  overflow: hidden;
+  border-radius: 11px;
+  pointer-events: none;
+}
+
+.collab-comments[hidden] {
+  display: none;
+}
+
+.collab-comment-mark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-bottom: 2px solid color-mix(in srgb, #e0a800 80%, transparent);
+  background: color-mix(in srgb, #f2c200 30%, transparent);
+}
+
+.collab-comment-btn {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8rem;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 18%);
+  cursor: pointer;
+}
+
+.collab-comment-btn[hidden] {
+  display: none;
+}
+
+.collab-comment-btn:hover {
+  color: var(--accent);
+}
+
+.talk-compose {
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.talk-compose[hidden] {
+  display: none;
+}
+
+.talk-compose-quote,
+.talk-quote .talk-change-text {
+  padding-inline-start: 8px;
+  border-inline-start: 3px solid #e0a800;
+  color: var(--muted);
+  max-height: 4.5em;
+}
+
+.talk-compose-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.talk-accept-all.is-primary {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.talk-accept-all[hidden] {
+  display: none;
+}
+
+.talk-thread {
+  margin: 0 0 8px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.talk-thread.is-active {
+  border-color: color-mix(in srgb, #e0a800 70%, transparent);
+}
+
+.talk-thread.is-resolved {
+  opacity: 0.65;
+}
+
+.talk-thread .talk-msg-time {
+  margin-inline-start: 0;
+}
+
+.talk-quote.is-gone {
+  cursor: default;
+  text-decoration: line-through;
+}
+
+.talk-replies {
+  margin: 6px 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+
+.talk-reply {
+  margin: 0 0 6px;
+}
+
+.talk-reply-input,
+.talk-edit {
+  display: block;
+  width: calc(100% - 14px);
+  margin: 6px 0 0 14px;
+  resize: none;
+}

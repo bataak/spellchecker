@@ -207,6 +207,7 @@ export function createCollabWiring(deps: CollabWiringDeps): Collab {
   initTalk({
     collab,
     editor: deps.editor,
+    view: deps.view,
     openPath: (path) => deps.project.openPath(path),
     anchor: document.querySelector("#collabBtn"),
     workspace: document.querySelector(".workspace"),

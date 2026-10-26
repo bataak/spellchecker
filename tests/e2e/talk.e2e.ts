@@ -88,3 +88,69 @@ test("хамтын бичвэрт хэлэлцэж, хамтрагчийн өө�
   assert.deepEqual(errors(owner), []);
   assert.deepEqual(errors(guest), []);
 });
+
+async function selectWord(page: Page, word: string): Promise<void> {
+  await page.evaluate((target) => {
+    const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
+    const start = area.value.indexOf(target);
+    area.focus();
+    area.setSelectionRange(start, start + target.length);
+    document.dispatchEvent(new Event("selectionchange"));
+  }, word);
+}
+
+test("сонгосон хэсэгт шүүмж бичиж, хамтрагч хариулж, шийднэ", async () => {
+  const owner = await openPage(app, await app.context());
+  await typeAtEnd(owner, "Өнөөдөр цаг агаар сайхан байна.");
+  const link = await invite(owner);
+  const guest = await openPage(app, await app.context());
+  await guest.evaluate((hash) => {
+    location.hash = hash;
+  }, new URL(link).hash);
+  await until(
+    () => editor(guest),
+    (text) => text.includes("сайхан байна."),
+    20000,
+  );
+
+  await selectWord(owner, "цаг агаар");
+  const button = owner.locator(".collab-comment-btn");
+  await button.waitFor({ state: "visible" });
+  await button.click();
+  await owner
+    .locator(".talk-compose-quote", { hasText: "цаг агаар" })
+    .waitFor();
+  await owner.locator(".talk-compose .talk-input").fill("Тодруулах уу?");
+  await owner.keyboard.press("Enter");
+  await owner.locator(".talk-thread", { hasText: "Тодруулах уу?" }).waitFor();
+  await owner.locator(".collab-comment-mark").first().waitFor();
+
+  await guest.locator(".collab-comment-mark").first().waitFor({
+    timeout: 15000,
+  });
+  await guest.evaluate(() => {
+    const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
+    const at = area.value.indexOf("агаар");
+    area.focus();
+    area.setSelectionRange(at, at);
+    area.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+  const thread = guest.locator(".talk-thread.is-active");
+  await thread.waitFor();
+  assert.match(await thread.innerText(), /Тодруулах уу\?/);
+  await thread.locator(".talk-reply-input").fill("Тийм, Цельсээр");
+  await guest.keyboard.press("Enter");
+
+  await owner
+    .locator(".talk-reply .talk-msg-text", { hasText: "Тийм, Цельсээр" })
+    .waitFor({ timeout: 15000 });
+  await owner.locator('[aria-label="Шийдсэн гэж тэмдэглэх"]').click();
+  await until(
+    () => guest.locator(".collab-comment-mark").count(),
+    (count) => count === 0,
+    15000,
+  );
+  assert.equal(await guest.locator(".talk-thread").count(), 0);
+  assert.deepEqual(errors(owner), []);
+  assert.deepEqual(errors(guest), []);
+});

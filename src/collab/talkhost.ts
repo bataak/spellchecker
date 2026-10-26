@@ -1,4 +1,6 @@
 import type { Collab, TalkKind } from "./collab.ts";
+import { initCommentButton } from "./commentbutton.ts";
+import type { CursorView } from "./cursors.ts";
 import type { Talk } from "./talk.ts";
 import {
   buildViews,
@@ -11,7 +13,10 @@ import { fileWindow, type WindowDeps } from "./talkwindow.ts";
 
 export interface TalkHostDeps extends RevealDeps, WindowDeps {
   readonly collab: Pick<Collab, "talk" | "onTalk">;
+  readonly view: Pick<CursorView, "host" | "rangeRects">;
 }
+
+const KINDS = ["file", "project"] as const;
 
 export function initTalk(deps: TalkHostDeps): void {
   const sides: Record<TalkKind, Side | null> = {
@@ -21,7 +26,7 @@ export function initTalk(deps: TalkHostDeps): void {
   const built = new Map<Talk, Views>();
   const sync = (): void => {
     const live = new Set<Talk>();
-    for (const kind of ["project", "file"] as const) {
+    for (const kind of KINDS) {
       const talk = deps.collab.talk(kind);
       let views: Views | null = null;
       if (talk) {
@@ -39,4 +44,17 @@ export function initTalk(deps: TalkHostDeps): void {
   };
   deps.collab.onTalk(sync);
   sync();
+  initCommentButton({
+    editor: deps.editor,
+    view: deps.view,
+    target() {
+      for (const kind of KINDS) {
+        const talk = deps.collab.talk(kind);
+        const views = talk && built.get(talk);
+        const side = sides[kind];
+        if (views && side) return { views, open: () => side.open("comments") };
+      }
+      return null;
+    },
+  });
 }
