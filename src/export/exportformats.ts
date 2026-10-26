@@ -176,7 +176,7 @@ export const FORMATS: readonly ExportFormat[] = [
         import("../tex/latex.ts"),
       ]);
       const { tex, files } = await pdfImages(text, source, texImagePath);
-      return compilePdf(tex, tocFor(options, templateId, text) ? 2 : 1, files);
+      return compilePdf(tex, files);
     },
   },
   {

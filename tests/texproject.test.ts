@@ -5,7 +5,6 @@ import {
   buildTree,
   cleanPath,
   commonRoot,
-  compilePasses,
   expandMacros,
   documentFolders,
   findMain,
@@ -136,13 +135,6 @@ test("graphicRefs: тайлбар доторх зургийг алгасна", (
     graphicRefs("\\includegraphics{a}\n% \\includegraphics{b}"),
     ["a"],
   );
-});
-
-test("compilePasses: ном зүйд 3, холбоост 2 удаа хөрвүүлнэ", () => {
-  assert.equal(compilePasses(["Энгийн бичвэр"]), 1);
-  assert.equal(compilePasses(["\\label{x}", "\\ref{x}"]), 2);
-  assert.equal(compilePasses(["\\bibliography{refs}"]), 3);
-  assert.equal(compilePasses(["% \\bibliography{refs}"]), 1);
 });
 
 test("movedPath ба parentDirs: нэр солих замыг тооцно", () => {
@@ -306,7 +298,6 @@ test("\\\\% дараах тайлбар доторх зураг, макро, и�
 c \% \includegraphics{kept}`;
   assert.deepEqual(graphicRefs(text), ["kept"]);
   assert.equal(pathMacros([text]).get("dir"), "new");
-  assert.equal(compilePasses([String.raw`x\\%\ref{a}`]), 1);
 });
 
 test("findMain: TeX-master: t гэж тэмдэглэсэн файлыг илүүд үзнэ", () => {

@@ -19,9 +19,6 @@ const GRAPHIC_EXTS = [
 const INCLUDE =
   /\\includegraphics\s*((?:\*\s*)?(?:\[[^\]]*\]\s*)*)\{((?:[^{}]|\{[^{}]*\})*)\}/g;
 const GRAPHICSPATH = /\\graphicspath\s*\{((?:\s*\{[^}]*\})*)\s*\}/g;
-const CROSS_REF =
-  /\\(?:tableofcontents|listof(?:figures|tables)|ref|eqref|pageref|autoref|cref|Cref|cite|label)\b/;
-const BIBLIOGRAPHY = /\\(?:bibliography|addbibresource)\s*\{/;
 
 export function isEditablePath(path: string): boolean {
   return EDITABLE.test(path);
@@ -285,16 +282,6 @@ const FILE_REFERENCE =
 
 export function referencesFiles(text: string): boolean {
   return FILE_REFERENCE.test(uncommented(text));
-}
-
-export function compilePasses(texts: Iterable<string>): number {
-  let passes = 1;
-  for (const text of texts) {
-    const body = uncommented(text);
-    if (BIBLIOGRAPHY.test(body)) return 3;
-    if (CROSS_REF.test(body)) passes = 2;
-  }
-  return passes;
 }
 
 export function relativePath(path: string, from: string): string {
