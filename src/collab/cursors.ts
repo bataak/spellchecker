@@ -1,6 +1,6 @@
 import * as Y from "yjs";
 import { createEmitter } from "../core/emitter.ts";
-import { move, place } from "./overlay.ts";
+import { move, place, watchLayout } from "./overlay.ts";
 import { fromBase64Url, toBase64Url } from "./collabkey.ts";
 import { CURSOR_COLORS } from "./peercolors.ts";
 import type { Profile } from "./profile.ts";
@@ -140,20 +140,15 @@ function paintMark(
   );
 }
 
-function watchLayout(
+function watchDoc(
   editor: HTMLTextAreaElement,
   doc: Y.Doc,
   update: () => void,
 ): () => void {
-  editor.addEventListener("scroll", update, { passive: true });
-  window.addEventListener("resize", update);
-  const sized = new ResizeObserver(update);
-  sized.observe(editor);
+  const unwatch = watchLayout(editor, update);
   doc.on("afterTransaction", update);
   return () => {
-    editor.removeEventListener("scroll", update);
-    window.removeEventListener("resize", update);
-    sized.disconnect();
+    unwatch();
     doc.off("afterTransaction", update);
   };
 }
@@ -223,7 +218,7 @@ export function createCursors(deps: CursorDeps): Cursors {
 
   document.addEventListener("selectionchange", onSelection);
   editor.addEventListener("input", onSelection);
-  const unwatch = watchLayout(editor, doc, onUpdate);
+  const unwatch = watchDoc(editor, doc, onUpdate);
 
   return {
     receive(peer, body) {

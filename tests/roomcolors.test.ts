@@ -1,7 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as Y from "yjs";
-import { createRoomColors, pickColor } from "../src/collab/roomcolors.ts";
+import {
+  createRoomColors,
+  pickColor,
+  PRUNE_MS,
+  STALE_MS,
+} from "../src/collab/roomcolors.ts";
 
 const claim = (c: number, a: number) => ({ c, a });
 
@@ -70,4 +75,36 @@ test("зэрэг нэгдсэн хоёр хамтрагч өөр өнгөтэй 
   one.destroy();
   two.destroy();
   three.destroy();
+});
+
+test("удаан ирээгүй гишүүний өнгө чөлөөлөгдөж, маш хуучин бүртгэл устна", () => {
+  const doc = new Y.Doc();
+  const map = doc.getMap<unknown>("colors");
+  const now = Date.now();
+  map.set("old", { c: 2, a: now - PRUNE_MS - 1000 });
+  map.set("away", { c: 1, a: now - STALE_MS - 1000 });
+  map.set("here", { c: 0, a: now - 1000, s: now - 1000 });
+  const me = createRoomColors(doc, "me", () => ({ name: "Би", color: 3 }));
+  assert.equal(map.has("old"), false);
+  assert.equal(map.has("away"), true);
+  assert.equal(me.profile().color, 1);
+  assert.equal(me.colorOf("away"), 1);
+  me.forget("here");
+  assert.equal(map.has("here"), false);
+  me.forget("me");
+  assert.equal(map.has("me"), true);
+  me.destroy();
+});
+
+test("өнгөний бүртгэлийн сүүлд харагдсан огноог өдөрт нэг удаа шинэчилнэ", () => {
+  const doc = new Y.Doc();
+  const map = doc.getMap<unknown>("colors");
+  const now = Date.now();
+  map.set("me", { c: 4, a: now - 10 * 86_400_000 });
+  const me = createRoomColors(doc, "me", () => ({ name: "Би", color: 1 }));
+  const claim = map.get("me") as { c: number; a: number; s: number };
+  assert.equal(claim.c, 4);
+  assert.equal(claim.a, now - 10 * 86_400_000);
+  assert.ok(claim.s >= now);
+  me.destroy();
 });

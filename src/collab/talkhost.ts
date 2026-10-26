@@ -40,9 +40,7 @@ const KINDS = ["file", "project"] as const;
 
 function migrate(local: LocalComments, talk: Talk): void {
   if (talk.slot === null) return;
-  void local.take(talk.slot).then((threads) => {
-    if (threads.length) talk.comments.adopt(threads);
-  });
+  void local.take(talk.slot, (threads) => talk.comments.adopt(threads));
 }
 
 export function initTalk(deps: TalkHostDeps): TalkHost {

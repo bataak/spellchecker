@@ -124,13 +124,16 @@ export function connectionControls(
 
 type AdminControls = Pick<Session, "invite" | "members" | "remove" | "end">;
 
-type Paint = (members: Member[] | null) => Member[] | null;
+interface MemberLook {
+  paint(members: Member[] | null): Member[] | null;
+  removed(dev: string): void;
+}
 
 function adminControls(
   admin: Admin,
   gate: Gate,
   invited: () => void,
-  paint: Paint,
+  look: MemberLook,
 ): AdminControls {
   return {
     invite: () =>
@@ -145,12 +148,15 @@ function adminControls(
       gate
         .wait()
         .then(() => admin.members())
-        .then(paint),
+        .then(look.paint),
     remove: (dev, wipe) =>
       gate
         .wait()
         .then(() => admin.remove(dev, wipe))
-        .then(paint),
+        .then((list) => {
+          if (list) look.removed(dev);
+          return look.paint(list);
+        }),
     end: (wipe) => gate.wait().then(() => admin.end(wipe)),
   };
 }
@@ -316,11 +322,14 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
         state.shared = true;
         uploader.force();
       },
-      (list) =>
-        list?.map((member) => ({
-          ...member,
-          color: editing.colorOf(member.dev),
-        })) ?? null,
+      {
+        paint: (list) =>
+          list?.map((member) => ({
+            ...member,
+            color: editing.colorOf(member.dev),
+          })) ?? null,
+        removed: (dev) => editing.forgetColor(dev),
+      },
     ),
     async stop(forget) {
       state.stopped = true;

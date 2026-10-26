@@ -7,6 +7,7 @@ import {
   createLocalComments,
   type DocRef,
 } from "../src/collab/localcomments.ts";
+import type { PortableThread } from "../src/collab/commentmodel.ts";
 import { swapText } from "../src/editor/editortext.ts";
 import {
   diffChange,
@@ -181,26 +182,30 @@ test("хамтрах эхлэхэд шүүмж зохиогчтойгоо шил
     author: "owner",
     profile: () => ({ name: "Бат", color: 3 }),
   });
-  const taken = await local.take("slot1");
+  let taken: PortableThread[] = [];
+  const count = await local.take("slot1", (threads) => {
+    taken = [...threads];
+    return comments.adopt([
+      ...threads,
+      {
+        id: "x9",
+        author: "guest",
+        name: "Дулмаа",
+        color: 4,
+        at: 2,
+        text: "Зочны шүүмж",
+        edited: false,
+        path: null,
+        from: 0,
+        to: 4,
+        quote: "Сайн",
+        resolved: false,
+        replies: [],
+      },
+    ]);
+  });
+  assert.equal(count, 1);
   assert.deepEqual(local.list(), []);
-  comments.adopt([
-    ...taken,
-    {
-      id: "x9",
-      author: "guest",
-      name: "Дулмаа",
-      color: 4,
-      at: 2,
-      text: "Зочны шүүмж",
-      edited: false,
-      path: null,
-      from: 0,
-      to: 4,
-      quote: "Сайн",
-      resolved: false,
-      replies: [],
-    },
-  ]);
   const threads = comments.list();
   assert.deepEqual(
     threads.map((thread) => [thread.text, thread.mine]),
@@ -228,6 +233,29 @@ test("хамтрах эхлэхэд шүүмж зохиогчтойгоо шил
   assert.deepEqual(local.list(), []);
   await local.keep("slot1", back);
   assert.deepEqual(local.list(), []);
+  await local.keep("slot1", back);
+  assert.equal(local.list().length, 2);
+  local.destroy();
+});
+
+test("хамтын баримтад байрлаж чадаагүй шүүмж локалд үлдэнэ", async () => {
+  const { editor, local } = setup("Нэг хоёр гурав");
+  await tick();
+  commentOn(local, editor, "хоёр", "Үлдэх ёстой");
+  const doc = new Y.Doc();
+  const comments = createComments({
+    doc,
+    texts: () => new Map(),
+    active: () => null,
+    author: "owner",
+    profile: () => ({ name: "Бат", color: 3 }),
+  });
+  assert.equal(
+    await local.take("slot1", (threads) => comments.adopt(threads)),
+    0,
+  );
+  assert.equal(local.list()[0]!.text, "Үлдэх ёстой");
+  assert.deepEqual(comments.list(), []);
   local.destroy();
 });
 
@@ -277,5 +305,28 @@ test("бичвэр цэвэрлэхэд шүүмж устаж, гарсан sess
   local.clear("slot1", false);
   await local.keep("slot1", back);
   assert.equal(local.list().length, 1);
+  local.destroy();
+});
+
+test("бичвэр солигдсоны дараа илгээсэн шүүмж анхны бичвэртээ хадгалагдана", async () => {
+  const { editor, store, local, point } = setup("Эхний бичвэрийн үг");
+  await tick();
+  const start = editor.value.indexOf("бичвэрийн");
+  const draft = local.draft(start, start + 9, "бичвэрийн")!;
+  point({ kind: "file", key: "slot2", path: null });
+  swapText(editor, "Огт өөр агуулга", { origin: "slot" });
+  await tick();
+  const id = local.add(draft, "Эхний бичвэрт хамаарна")!;
+  assert.ok(id);
+  assert.deepEqual(local.list(), []);
+  await tick(450);
+  const saved = store.data.get("slot1") as {
+    id: string;
+    from: number;
+    to: number;
+  }[];
+  assert.equal(saved[0]!.id, id);
+  assert.deepEqual([saved[0]!.from, saved[0]!.to], [start, start + 9]);
+  assert.equal(store.data.has("slot2"), false);
   local.destroy();
 });
