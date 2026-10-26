@@ -4,7 +4,8 @@ import type { Chat } from "./chat.ts";
 import type { Comments, CommentThread } from "./commentmodel.ts";
 import { commentsView, type CommentsView } from "./commentview.ts";
 import type { Talk } from "./talk.ts";
-import { changesView, chatView, type TalkView } from "./talkview.ts";
+import { changesView } from "./changesview.ts";
+import { chatView, type TalkView } from "./talkview.ts";
 
 export type TalkMode = "chat" | "changes" | "comments";
 
