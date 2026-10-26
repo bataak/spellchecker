@@ -26,7 +26,7 @@
 }
 
 .md-bar .tex-group .tex-btn {
-  font-size: calc(var(--tex-letter) * 1.2);
+  font-size: 1.05rem;
 }
 
 .md-bar .tex-group .tex-btn[data-tool="bold"] {
