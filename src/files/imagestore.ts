@@ -45,7 +45,8 @@ export async function initImageStore(current: () => string): Promise<void> {
   let db: IDBDatabase;
   try {
     db = await openDb();
-  } catch {
+  } catch (error) {
+    noteError(error);
     return;
   }
   const request = db.transaction(STORE).objectStore(STORE).getAll();

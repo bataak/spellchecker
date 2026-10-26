@@ -1,3 +1,4 @@
+import { noteError } from "../core/errorlog.ts";
 import { requestResult } from "../core/idb.ts";
 import { gunzipped } from "../archive/fflate.ts";
 import { IFO_MAGIC, parseIfo, type StarDict } from "./stardict.ts";
@@ -357,14 +358,16 @@ export async function importDictFiles(
     }
     try {
       plain.push(...(await expandArchive(file)));
-    } catch {
+    } catch (error) {
+      noteError(error);
       result.failed.push(file.name);
     }
   }
   for (const [base, group] of groupDictFiles(plain)) {
     try {
       await importGroup(base, group, known, result);
-    } catch {
+    } catch (error) {
+      noteError(error);
       result.failed.push(base);
     }
   }

@@ -19,7 +19,7 @@ export type { Definition } from "./definitions.ts";
 export interface DefTipDeps {
   readonly editor: HTMLTextAreaElement;
   readonly popover: HTMLElement;
-  readonly define: ((word: string) => Promise<Definition>) | undefined;
+  readonly define: (word: string) => Promise<Definition>;
   readonly showPanel: (word: string) => void;
   readonly hidePopover: () => void;
   readonly holdStatus: (html: string, ms?: number, animate?: boolean) => void;

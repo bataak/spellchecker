@@ -1,3 +1,4 @@
+import { noteError } from "../core/errorlog.ts";
 import { escapeHtml } from "../core/htmlutil.ts";
 import { readFailureMessage } from "./fileerror.ts";
 import type { PreviewSource } from "../preview/preview.ts";
@@ -75,7 +76,8 @@ async function loadOffice(
   let mod: typeof import("./mode.ts");
   try {
     mod = await import("./mode.ts");
-  } catch {
+  } catch (error) {
+    noteError(error);
     holdStatus("Баримт уншигчийг ачаалж чадсангүй");
     return "failed";
   }
