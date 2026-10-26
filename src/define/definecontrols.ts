@@ -5,7 +5,7 @@ import { createDictManager } from "../spellui/dictmanager.ts";
 import { isTouch } from "../editor/input.ts";
 import type { Popover } from "../ui/popover.ts";
 import { isLookupKey, wordAt, type WordSpan } from "../spell/lookup.ts";
-import type { SpellChecker } from "../spell/spellchecker.ts";
+import type { DictLibrary, WordDefiner } from "../spell/spellchecker.ts";
 import type { Token } from "../spell/textcheck.ts";
 
 const WORD_CHAR = /[\p{L}\p{M}\p{N}]/u;
@@ -51,7 +51,7 @@ export interface DefineControlsDeps {
   readonly editor: HTMLTextAreaElement;
   readonly button: HTMLButtonElement | null;
   readonly backdrop: Backdrop;
-  readonly checker: SpellChecker;
+  readonly checker: WordDefiner & DictLibrary;
   readonly defTip: DefTip;
   readonly defDock: DefDock;
   readonly pop: Popover;
@@ -62,7 +62,7 @@ export interface DefineControlsDeps {
 }
 
 function englishReminder(
-  checker: SpellChecker,
+  checker: Pick<WordDefiner, "loadedIds">,
   englishEnabled: () => ReadonlySet<string>,
   holdStatus: DefineControlsDeps["holdStatus"],
 ): (word: string) => void {
@@ -141,13 +141,12 @@ function initHoverDefine(
   latinLookup: () => boolean,
   showDefinition: (span: WordSpan, x?: number) => void,
 ): void {
-  const { editor, backdrop, checker, defTip, defDock } = deps;
+  const { editor, backdrop, defTip, defDock } = deps;
   let hoverPoint: { x: number; y: number } | null = null;
   let hoverSpan: WordSpan | null = null;
   let hoverFrame = 0;
 
   const defineAtPoint = (x: number, y: number): void => {
-    if (!checker.define) return;
     const span = wordAtPoint(editor, backdrop, x, y, latinLookup());
     if (!span) {
       hoverSpan = null;
@@ -192,9 +191,9 @@ export function initDefineControls(deps: DefineControlsDeps): void {
   const { editor, checker, defTip, pop, holdStatus } = deps;
 
   let latinDicts: boolean | null = null;
-  checker.onDictScripts = (latin) => {
+  checker.onDictScripts((latin) => {
     latinDicts = latin;
-  };
+  });
   const latinLookup = (): boolean => latinDicts !== false;
 
   const remindEnglish = englishReminder(
@@ -218,9 +217,9 @@ export function initDefineControls(deps: DefineControlsDeps): void {
     );
 
   const dictManager = createDictManager({
-    list: () => checker.listDicts?.() ?? Promise.resolve([]),
-    reload: () => checker.reloadDicts?.(),
-    reorder: () => checker.reorderDicts?.(),
+    list: () => checker.listDicts(),
+    reload: () => checker.reloadDicts(),
+    reorder: () => checker.reorderDicts(),
     changed: () => defTip.resetDefinitions(),
     status: (message) => holdStatus(message, 5000, false),
   });
@@ -239,7 +238,6 @@ export function initDefineControls(deps: DefineControlsDeps): void {
       deps.showErrorPopover(caretToken);
       return;
     }
-    if (!checker.define) return;
     const span = wordForLookup();
     if (!span) {
       holdStatus("Тайлбар харах үг дээрээ товшоод дахин дарна уу", 3000, false);
@@ -273,7 +271,6 @@ export function initDefineControls(deps: DefineControlsDeps): void {
       deps.showErrorPopover(caretToken);
       return;
     }
-    if (!checker.define) return;
     const span = wordForLookup();
     if (!span) return;
     e.preventDefault();

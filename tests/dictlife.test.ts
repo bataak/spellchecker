@@ -17,11 +17,22 @@ interface Fake {
 function setup(fake: Fake = {}) {
   const calls: string[] = [];
   let complete: (done: { failed: unknown[] }) => void = () => {};
+  const listeners = {
+    fatal: null as ((reason: string) => void) | null,
+    dictUpdated: null as ((id: string) => void) | null,
+  };
   const checker = {
     loadedIds: ["mn_MN", "en_US"],
     mnVersion: "2",
-    onFatal: null as ((reason: string) => void) | null,
-    onDictUpdated: null as ((id: string) => void) | null,
+    listeners,
+    onFatal: (listener: (reason: string) => void) => {
+      listeners.fatal = listener;
+      return () => {};
+    },
+    onDictUpdated: (listener: (id: string) => void) => {
+      listeners.dictUpdated = listener;
+      return () => {};
+    },
     init:
       fake.init ??
       (async () => ({
@@ -96,8 +107,8 @@ test("dictlife: толь ачаалж, бүрэн болоход дахин ша
     assert.ok(calls.includes("refresh"));
     assert.ok(calls.includes("fresh"));
     calls.length = 0;
-    checker.onDictUpdated!("en_US");
-    checker.onDictUpdated!("mn_MN");
+    checker.listeners.dictUpdated!("en_US");
+    checker.listeners.dictUpdated!("mn_MN");
     assert.deepEqual(calls, ["version:2", "recheck"]);
     calls.length = 0;
     window.dispatchEvent(new Event("online"));
@@ -134,7 +145,7 @@ test("dictlife: толь олдохгүй, ачаалалт унах, хуучи
 test("dictlife: зогссон шалгагчийг мэдэгдэж, англи толийг солино", async () => {
   const { life, calls, checker } = setup();
   life.watchFatal();
-  checker.onFatal!("<crash>");
+  checker.listeners.fatal!("<crash>");
   await settle();
   assert.match(calls[0]!, /^status:Алдаа шалгагч зогслоо: &lt;crash&gt;/);
   calls.length = 0;
@@ -142,7 +153,7 @@ test("dictlife: зогссон шалгагчийг мэдэгдэж, англи
   assert.deepEqual(calls, ["english:en_GB", "active:mn_MN", "recheck", "idle"]);
   const stale = setup({ stale: true });
   stale.life.watchFatal();
-  stale.checker.onFatal!("x");
+  stale.checker.listeners.fatal!("x");
   await settle();
   assert.equal(stale.calls.length, 0);
 });

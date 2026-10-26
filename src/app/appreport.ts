@@ -7,7 +7,7 @@ import type { SpellChecker } from "../spell/spellchecker.ts";
 export interface AppReportDeps {
   readonly entryUrl: string;
   readonly editor: HTMLTextAreaElement;
-  readonly checker: SpellChecker;
+  readonly checker: Pick<SpellChecker, "loadedIds" | "listDicts">;
   readonly dicts: DictStatus;
   readonly officeActive: () => boolean;
   readonly markdownActive: () => boolean;
@@ -34,8 +34,7 @@ export function initAppReport(deps: AppReportDeps): void {
       text: deps.editor.value,
       errorWords: deps.errorWords(),
       personalDict: getIgnored(),
-      listDicts: () =>
-        checker.listDicts?.({ peek: true }) ?? Promise.resolve([]),
+      listDicts: () => checker.listDicts({ peek: true }),
     };
   });
 }
