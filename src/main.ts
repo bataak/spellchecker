@@ -1,4 +1,3 @@
-import { confirmWipe } from "./ui/wipe.ts";
 import "./style.css";
 import "./editor/gutter.css";
 import "./mdbar/md-toolbar.css";
@@ -10,11 +9,8 @@ import "./collab/collab.css";
 import "./spellui/dictmanager.css";
 import { MultiSpellChecker } from "./spell/spellchecker.ts";
 import { createSpellSession } from "./spell/spellsession.ts";
-import { createFixFlow } from "./spell/fixflow.ts";
 import type { SpellChecker } from "./spell/spellchecker.ts";
 import { initImageStore } from "./files/imagestore.ts";
-import { initToolbar } from "./app/toolbar.ts";
-import { initKeyboardToolbar } from "./editor/kbtoolbar.ts";
 import { initSurvey } from "./feedback/survey.ts";
 import { initAppearance } from "./ui/appearance.ts";
 import { initMeasureControl } from "./ui/measure.ts";
@@ -24,21 +20,16 @@ import { createPreviewMode } from "./ui/previewmode.ts";
 import { createDocMode } from "./doc/docmode.ts";
 import { createDocumentSession } from "./doc/docsession.ts";
 import { createProjectStore } from "./project/projectstore.ts";
-import { initMdToolbar, sharedSlot } from "./mdbar/mdtoolbar.ts";
+import { initMdToolbar } from "./mdbar/mdtoolbar.ts";
 import { createBackdrop } from "./editor/backdrop.ts";
 import { createMarkLayer } from "./editor/marklayer.ts";
-import { initMarkTap } from "./editor/marktap.ts";
 import { initKeyboardLayout } from "./editor/kblayout.ts";
 import { initUndoHistory } from "./editor/undohistory.ts";
 import { rotateEmptyTips } from "./ui/emptytips.ts";
 import { createOfficeSession } from "./office/session.ts";
 import { createDictStatus } from "./spellui/dictstatus.ts";
-import { initStatus, reveal } from "./ui/status.ts";
-import { initEditorText } from "./editor/editortext.ts";
-import { initDraftText } from "./editor/drafttext.ts";
+import { initStatus } from "./ui/status.ts";
 import { initAppUpdate } from "./app/appupdate.ts";
-import { initShortcuts } from "./ui/shortcuts.ts";
-import { createButtonCommands } from "./ui/commands.ts";
 import { installErrorLog } from "./core/errorlog.ts";
 import { createEditorPort } from "./app/ports.ts";
 import { createDocStatus } from "./app/docstatus.ts";
@@ -52,7 +43,8 @@ import { createEmptyState } from "./app/emptystate.ts";
 import { createTexMode } from "./app/texmode.ts";
 import { initAppExport } from "./app/appexport.ts";
 import { createPopovers } from "./app/popovers.ts";
-import { createFixers } from "./app/fixers.ts";
+import { createEditorWiring } from "./app/editorwiring.ts";
+import { bindAppChrome } from "./app/chromewiring.ts";
 import { createFileWiring } from "./app/filewiring.ts";
 import { createProjectWiring } from "./app/projectwiring.ts";
 import { createPreviewPane } from "./app/previewpane.ts";
@@ -60,7 +52,6 @@ import { watchTabs } from "./app/tabwatch.ts";
 import { initTexInput } from "./app/texinput.ts";
 import { startApp } from "./app/startup.ts";
 import { nextFrame, queryShell } from "./app/dom.ts";
-import { bindArming, bindEditorInput } from "./app/editorinput.ts";
 import { createMarkupMode } from "./app/markupmode.ts";
 import { createLastCaret } from "./app/lastcaret.ts";
 import { createCollabWiring } from "./app/collabwiring.ts";
@@ -243,7 +234,7 @@ const loop = createCheckLoop({
 });
 const render = loop.render;
 
-const { defDock, defTip, pop, errorPanel, suggestPopover } = createPopovers({
+const popovers = createPopovers({
   editor: editorEl,
   backdrop,
   popover: els.popover,
@@ -265,82 +256,21 @@ const { defDock, defTip, pop, errorPanel, suggestPopover } = createPopovers({
   attachKeyboard: (input) => kbLayout.attach(input),
 });
 
-const fixFlow = createFixFlow({
-  editor: editorEl,
-  spell,
-  setText: (text, caret) => editor.set(text, caret),
-  render: () => void render(),
-  commit: loop.commit,
-  cancel: () => pop.hide(),
-});
+const { defDock, defTip, pop, errorPanel } = popovers;
 
-const hadSelection = bindArming(
-  editorEl,
-  () => editorText,
-  () => fixFlow,
-  view.tokenAtCaret,
-);
-
-const editorText = initEditorText({
-  editor: editorEl,
-  onEdit: () => fixFlow.drop(),
-  onReplace: () => previewCtl.setSource(null),
-  accept: (old, next) => {
-    const docx = office.active();
-    if (docx && !docx.sync(old, next)) {
-      status.hold("Энэ өөрчлөлтийг docx файлд буулгах боломжгүй");
-      return false;
-    }
-    return true;
+const { editorText, fixFlow, fixers, draft } = createEditorWiring({
+  view: { editor: editorEl, port: editor, backdrop, view, marks, status },
+  flow: {
+    spell,
+    loop,
+    office,
+    popovers,
+    lastCaret,
+    skipClean: () => !docMode.checksLetters() || isTexFile(),
+    textChanged: syncEmptyState,
+    clearSource: () => previewCtl.setSource(null),
+    mdBar: () => mdBar,
   },
-  onReplaced: () => fixers.sync(),
-});
-
-const fixers = createFixers({
-  editor,
-  invalidate: () => spell.clear(),
-  skipClean: () => !docMode.checksLetters() || isTexFile(),
-});
-
-const draft = initDraftText({
-  editor: editorEl,
-  onLoaded: () => {
-    fixers.sync();
-    if (editorEl.value) reveal(editorEl, "glyph-reveal");
-  },
-  onCaret: lastCaret.set,
-  store: () => ({
-    slot: mdBar.slot,
-    shared: sharedSlot,
-    read: mdBar.draft,
-    write: mdBar.writeDraft,
-    caret: mdBar.caret,
-    writeCaret: mdBar.writeCaret,
-  }),
-});
-
-const markTap = initMarkTap({
-  editor: editorEl,
-  backdrop,
-  tokens: () => marks.tokens(),
-  show: (token) => void suggestPopover.showFor(token),
-});
-
-bindEditorInput({
-  editor: editorEl,
-  editorText,
-  marks,
-  fixFlow,
-  loop,
-  hadSelection,
-  hidePopover: () => pop.hide(),
-  textChanged: syncEmptyState,
-  saveSoon: draft.saveSoon,
-  fixers: [fixers.decode, fixers.clean],
-  setLastCaret: lastCaret.set,
-  markTap,
-  suggest: suggestPopover,
-  tokenAtCaret: view.tokenAtCaret,
 });
 
 initAppearance();
@@ -487,25 +417,25 @@ const exportCtl = initAppExport({
 enterMdMode(doc.markdownActive());
 editorEl.addEventListener("input", nudgeHints);
 
-initShortcuts({
-  editor: editorEl,
-  commands: createButtonCommands(),
-  wipe: confirmWipe,
-  openDictMenu: () => dictionaries.openMenu(),
-  lastCaret: lastCaret.get,
-});
-
 desktopMQ.addEventListener("change", () => {
   paneCtl.sync();
   pop.hide();
   errorPanel.render();
 });
 
-initToolbar({
-  editor,
-  status,
-  statusEl: els.status,
-  office: { active: officeActive, close: office.close },
+bindAppChrome({
+  view: {
+    editor: editorEl,
+    port: editor,
+    status,
+    statusEl: els.status,
+    backdropEl: els.backdrop,
+  },
+  office,
+  marks,
+  fixers,
+  lastCaret,
+  hasOpenFile: () => doc.fileName() !== null,
   forgetFile: () => {
     previewMode.cleared();
     projectLink.cleared();
@@ -517,11 +447,8 @@ initToolbar({
     mdBar.reset(cleared);
     rotateEmptyTips();
   },
-  hasOpenFile: () => doc.fileName() !== null,
-  badTokens: () => marks.tokens(),
-  lettersFixed: fixers.announceLetters,
+  openDictMenu: () => dictionaries.openMenu(),
 });
-initKeyboardToolbar(editorEl, els.backdrop);
 
 const collab = createCollabWiring({
   editor: editorEl,

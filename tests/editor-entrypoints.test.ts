@@ -8,6 +8,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (name: string): string =>
   readFileSync(join(ROOT, "src", name), "utf8");
 const MAIN = read("main.ts");
+const WIRING = read("app/editorwiring.ts");
 const FIXERS = read("app/fixers.ts");
 const LOOKAHEAD = 40;
 
@@ -51,18 +52,19 @@ test("засварлагчид текст оруулах зам бүр товч�
     [],
     "дараах мөрийн ойролцоо товч шинэчлэгдээгүй байна:\n" + missing.join("\n"),
   );
-  assert.match(MAIN, /onLoaded: \(\) => \{?\s*fixers\.sync\(\)/);
-  assert.match(MAIN, /onReplaced: \(\) => fixers\.sync\(\)/);
+  assert.match(WIRING, /onLoaded: \(\) => \{?\s*fixers\.sync\(\)/);
+  assert.match(WIRING, /onReplaced: \(\) => fixers\.sync\(\)/);
   assert.match(FIXERS, /decode\.sync\(\);\s*clean\.sync\(\);/);
 });
 
-test("товчийн илрүүлэгч main.ts-д холбогдсон байна", () => {
+test("товчийн илрүүлэгч засварлагчийн холболтод орсон байна", () => {
   const decode = read("editor/decode.ts");
   assert.match(decode, /from "\.\.\/archive\/cp1251\.ts"/);
   assert.match(decode, /hasMojibake/);
   assert.match(decode, /#decodeBtn/);
   assert.match(decode, /#cleanBtn/);
   assert.match(decode, /needsCleanup/);
-  assert.match(MAIN, /from "\.\/app\/fixers\.ts"/);
+  assert.match(MAIN, /from "\.\/app\/editorwiring\.ts"/);
+  assert.match(WIRING, /from "\.\/fixers\.ts"/);
   assert.match(FIXERS, /from "\.\.\/editor\/decode\.ts"/);
 });
