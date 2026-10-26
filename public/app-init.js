@@ -24,6 +24,19 @@
 
 (function () {
   try {
+    var snap = JSON.parse(
+      sessionStorage.getItem("mn-spell:layout-snapshot") || "null",
+    );
+    if (!snap || snap.width !== window.innerWidth) return;
+    var root = document.documentElement;
+    for (var key in snap.data) root.dataset[key] = snap.data[key];
+    for (var name in snap.style) root.style.setProperty(name, snap.style[name]);
+    root.classList.add("layout-restored");
+  } catch (e) {}
+})();
+
+(function () {
+  try {
     var style = document.documentElement.style;
     var scale = parseFloat(localStorage.getItem("mn-spell:scale") || "");
     if (scale >= 0.8 && scale <= 1.8)
