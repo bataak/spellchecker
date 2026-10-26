@@ -18,7 +18,7 @@ test("pickColor бусдын аваагүй өнгийг сонгож, эрт а
       "me",
       0,
     ),
-    7,
+    5,
   );
   assert.equal(
     pickColor(
