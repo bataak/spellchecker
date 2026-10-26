@@ -35,7 +35,8 @@ export async function readStoredDict(key: string): Promise<StoredDict | null> {
       requestResult<StoredDict | undefined>(store.get(key)),
     );
     return value ?? null;
-  } catch {
+  } catch (error) {
+    noteError(error);
     return null;
   }
 }
@@ -49,7 +50,8 @@ export async function writeStoredDict(
       requestResult(store.put(value, key)),
     );
     return true;
-  } catch {
+  } catch (error) {
+    noteError(error);
     return false;
   }
 }

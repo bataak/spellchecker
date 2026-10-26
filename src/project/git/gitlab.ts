@@ -158,7 +158,7 @@ export function createGitlabHost(
         });
       } catch (error) {
         if ((await head(input.branch)) !== input.head)
-          throw new ProjectError(RACE);
+          throw new ProjectError(RACE, { cause: error });
         throw error;
       }
       const id = ((await response.json()) as { id: string }).id;

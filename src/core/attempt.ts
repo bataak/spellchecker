@@ -1,7 +1,10 @@
-export function attempt<T>(task: () => T, fallback: T): T {
+export type ErrorSink = (error: unknown) => void;
+
+export function attempt<T>(task: () => T, fallback: T, onError?: ErrorSink): T {
   try {
     return task();
-  } catch {
+  } catch (error) {
+    onError?.(error);
     return fallback;
   }
 }
@@ -9,10 +12,12 @@ export function attempt<T>(task: () => T, fallback: T): T {
 export async function attemptAsync<T>(
   task: () => Promise<T>,
   fallback: T,
+  onError?: ErrorSink,
 ): Promise<T> {
   try {
     return await task();
-  } catch {
+  } catch (error) {
+    onError?.(error);
     return fallback;
   }
 }
