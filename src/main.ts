@@ -421,6 +421,8 @@ initTexInput({
   editor: editorEl,
   active: () => marks.tex(),
   rectAt: backdrop.rangeRectAt,
+  project: () => (projectLink.bound() ? projectStore.projectFiles() : null),
+  path: () => projectLink.path(),
 });
 const projectLink = createProjectWiring({
   store: projectStore,

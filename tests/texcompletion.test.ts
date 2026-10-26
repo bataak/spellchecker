@@ -149,3 +149,72 @@ test("жагсаалтын команд, орчин бүр бичигдэх бо
 test("beamer-ийн <> аргументтай командын нэрийг зөв таслана", () => {
   assert.equal(apply("\\onl|", "only"), "\\only<|>{}");
 });
+
+const SYMBOLS = {
+  label: ["sec:intro", "fig:map", "eq:main"],
+  cite: ["knuth84", "lamport94"],
+  index: ["мод", "мод!нарс", "өвөл"],
+  commands: ["R", "pair{#}{}", "section"],
+  environments: ["lemma", "boxed{#}", "itemize"],
+};
+
+function applyWith(marked: string, label: string): string {
+  const { text, caret } = at(marked);
+  const ctx = completionContext(text, caret)!;
+  const item = completions(ctx, SYMBOLS).find((c) => c.label === label)!;
+  assert.ok(item, label + " олдсонгүй");
+  const e = expand(text, caret, ctx, item);
+  const out = text.slice(0, e.from) + e.text + text.slice(e.to);
+  return out.slice(0, e.caret) + "|" + out.slice(e.caret);
+}
+
+const labelsAt = (marked: string): string[] => {
+  const { text, caret } = at(marked);
+  const ctx = completionContext(text, caret);
+  return ctx ? completions(ctx, SYMBOLS).map((c) => c.label) : [];
+};
+
+test("\\ref, \\cite, \\index дотор баримтын нэрсийг санал болгоно", () => {
+  assert.deepEqual(labelsAt("\\ref{|}"), ["sec:intro", "fig:map", "eq:main"]);
+  assert.deepEqual(labelsAt("\\eqref{e|}"), ["eq:main"]);
+  assert.deepEqual(labelsAt("\\cite{knuth84,|}"), ["knuth84", "lamport94"]);
+  assert.deepEqual(labelsAt("\\index{мо|}"), ["мод", "мод!нарс"]);
+  assert.deepEqual(labelsAt("\\index{Ө|}"), ["өвөл"]);
+  assert.equal(applyWith("\\ref{fi|}", "fig:map"), "\\ref{fig:map|}");
+  assert.equal(
+    applyWith("\\citep{knuth84, la|}", "lamport94"),
+    "\\citep{knuth84, lamport94|}",
+  );
+  assert.deepEqual(labelsAt("\\textbf{s|}"), []);
+  assert.deepEqual(labelsAt("% \\ref{|}"), []);
+});
+
+test("бүрэн бичсэн ганц нэрд жагсаалт гаргахгүй, Enter хэвээр ажиллана", () => {
+  assert.deepEqual(labelsAt("\\ref{eq:main|}"), []);
+  const { text, caret } = at("\\index{мод|}");
+  const ctx = completionContext(text, caret)!;
+  const [first] = completions(ctx, SYMBOLS);
+  assert.equal(first!.label, "мод");
+  assert.ok(unchanged(ctx, first!));
+});
+
+test("хэрэглэгчийн команд, орчныг жагсаалтад нэмж, давхардуулахгүй", () => {
+  assert.equal(applyWith("$\\pa|$", "pair"), "$\\pair{|}{}$");
+  assert.equal(applyWith("\\R|", "R"), "\\R|");
+  assert.equal(
+    labelsAt("\\sectio|").filter((label) => label === "section").length,
+    1,
+  );
+  assert.equal(
+    applyWith("\\begin{lem|", "lemma"),
+    "\\begin{lemma}\n  |\n\\end{lemma}",
+  );
+  assert.equal(
+    applyWith("\\begin{box|", "boxed"),
+    "\\begin{boxed}{|}\n  \n\\end{boxed}",
+  );
+  assert.equal(
+    labelsAt("\\begin{itemi|").filter((label) => label === "itemize").length,
+    1,
+  );
+});
