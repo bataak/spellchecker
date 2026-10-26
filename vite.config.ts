@@ -5,6 +5,7 @@ import { execSync } from "node:child_process";
 import { resolve } from "node:path";
 import type { Plugin, ResolvedConfig } from "vite";
 import { stardictIndex } from "./vite-stardict.ts";
+import { collabButton } from "./vite-collab.ts";
 import { attempt } from "./src/core/attempt.ts";
 
 const pkg = JSON.parse(readFileSync("./package.json", "utf-8")) as {
@@ -88,6 +89,7 @@ export default defineConfig({
   optimizeDeps: { include: ["nspell"], exclude: ["hunspell-wasm"] },
   server: { fs: { allow: [".", "../hunspell-wasm"] } },
   plugins: [
+    collabButton(),
     packDict(),
     stardictIndex(),
     VitePWA({

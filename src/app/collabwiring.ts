@@ -12,7 +12,6 @@ import {
   type CollabProject,
 } from "../collab/collab.ts";
 import { projectName, sharedName } from "../collab/collabkey.ts";
-import { snapshotOf } from "../collab/projectdoc.ts";
 import type { BlobPort } from "../collab/projectblobs.ts";
 import { fileSlot, projectSlot, type RoomSlot } from "../collab/roomslot.ts";
 import { confirmReplace } from "../project/linkfiles.ts";
@@ -94,6 +93,7 @@ function blobPort(store: ProjectStore, uid: string): BlobPort {
 async function seedOf(store: ProjectStore, uid: string) {
   const files = store.projectFiles();
   if (!files || files.uid !== uid) return null;
+  const { snapshotOf } = await import("../collab/projectdoc.ts");
   return snapshotOf(files.texts, files.binaries, files.dirs, files.main);
 }
 
