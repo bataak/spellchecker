@@ -178,8 +178,7 @@ test("LaTeX мөрөөр сонголтыг тодруулж, тэмдэг ба 
   await page.keyboard.press("Tab");
   await page.keyboard.type("\n\\begin{quote}\nx\n");
   await page.keyboard.press("Escape");
-  await page.click('.tex-btn[data-tool="env"]');
-  await page.click('.tex-pop .tex-item >> text="Нээлттэй орчныг хаах"');
+  await page.click('.tex-btn[data-tool="close"]');
   assert.ok(
     (await editor(page)).endsWith("$\\alpha$\n\\begin{quote}\nx\n\\end{quote}"),
     await editor(page),

@@ -1,3 +1,4 @@
+import { ICON, svg } from "../ui/baricons.ts";
 import type { Insert } from "./texmenuedit.ts";
 
 export interface MenuItem {
@@ -24,6 +25,8 @@ interface ToolBase {
   readonly id: string;
   readonly glyph: string;
   readonly title: string;
+  readonly icon?: string;
+  readonly gap?: true;
 }
 
 export type BarTool =
@@ -33,17 +36,13 @@ export type BarTool =
       readonly sections: readonly MenuSection[];
     })
   | (ToolBase & {
-      readonly kind: "split";
-      readonly insert: Insert;
-      readonly sections: readonly MenuSection[];
-    })
-  | (ToolBase & {
       readonly kind: "palette";
       readonly tabs: readonly SymbolTab[];
     });
 
 const cmd = (snippet: string): Insert => ({ kind: "cmd", snippet });
-const env = (snippet: string): Insert => ({ kind: "env", snippet });
+const env = (snippet: string, ...body: string[]): Insert =>
+  body.length ? { kind: "env", snippet, body } : { kind: "env", snippet };
 const text = (snippet: string): Insert => ({ kind: "text", snippet });
 
 const item = (label: string, insert: Insert): MenuItem => ({ label, insert });
@@ -56,7 +55,7 @@ function symbols(pairs: string): MathSymbol[] {
   return out;
 }
 
-const TEXT_SECTIONS: readonly MenuSection[] = [
+const STRUCTURE_SECTIONS: readonly MenuSection[] = [
   {
     title: "Бүлэг",
     items: [
@@ -66,27 +65,6 @@ const TEXT_SECTIONS: readonly MenuSection[] = [
       item("Хэсэг бүлэг", cmd("subsection{#}")),
       item("Жижиг хэсэг", cmd("subsubsection{#}")),
       item("Догол", cmd("paragraph{#}")),
-    ],
-  },
-  {
-    title: "Үсэг",
-    items: [
-      item("Тод", cmd("textbf{#}")),
-      item("Налуу", cmd("textit{#}")),
-      item("Онцлох", cmd("emph{#}")),
-      item("Доогуур зураас", cmd("underline{#}")),
-      item("Тэгш өргөнтэй", cmd("texttt{#}")),
-      item("Жижиг том үсэг", cmd("textsc{#}")),
-      item("Зүүлт", cmd("footnote{#}")),
-    ],
-  },
-  {
-    title: "Жагсаалт",
-    items: [
-      item("Цэгтэй", env("itemize")),
-      item("Дугаартай", env("enumerate")),
-      item("Тайлбартай", env("description")),
-      item("Мөр нэмэх", cmd("item ")),
     ],
   },
   {
@@ -101,12 +79,40 @@ const TEXT_SECTIONS: readonly MenuSection[] = [
   },
 ];
 
+const FONT_SECTIONS: readonly MenuSection[] = [
+  {
+    title: "Үсэг",
+    items: [
+      item("Онцлох", cmd("emph{#}")),
+      item("Доогуур зураас", cmd("underline{#}")),
+      item("Тэгш өргөнтэй", cmd("texttt{#}")),
+      item("Жижиг том үсэг", cmd("textsc{#}")),
+      item("Зүүлт", cmd("footnote{#}")),
+    ],
+  },
+  {
+    title: "Хэмжээ",
+    items: [
+      item("Маш жижиг", text("{\\footnotesize #}")),
+      item("Жижиг", text("{\\small #}")),
+      item("Том", text("{\\large #}")),
+      item("Илүү том", text("{\\Large #}")),
+      item("Асар том", text("{\\huge #}")),
+    ],
+  },
+  {
+    title: "Жагсаалт",
+    items: [
+      item("Тайлбартай", env("description", "\\item[#] ")),
+      item("Мөр нэмэх", cmd("item ")),
+    ],
+  },
+];
+
 const MATH_SECTIONS: readonly MenuSection[] = [
   {
     title: "Томьёо",
     items: [
-      item("Мөр доторх", text("$#$")),
-      item("Тусдаа мөрөнд", text("\\[\n#\n\\]")),
       item("Дугаартай", env("equation")),
       item("Дугааргүй", env("equation*")),
       item("Тэгшилсэн", env("align")),
@@ -117,12 +123,10 @@ const MATH_SECTIONS: readonly MenuSection[] = [
   {
     title: "Бүтэц",
     items: [
-      item("Бутархай", cmd("frac{#}{}")),
-      item("Язгуур", cmd("sqrt{#}")),
       item("n зэргийн язгуур", cmd("sqrt[#]{}")),
-      item("Зэрэг", text("^{#}")),
       item("Индекс", text("_{#}")),
       item("Нийлбэр", cmd("sum_{#}^{}")),
+      item("Үржвэр", cmd("prod_{#}^{}")),
       item("Интеграл", cmd("int_{#}^{}")),
       item("Хязгаар", cmd("lim_{#}")),
       item("Хослол", cmd("binom{#}{}")),
@@ -147,15 +151,13 @@ const MATH_SECTIONS: readonly MenuSection[] = [
 
 const ENV_SECTIONS: readonly MenuSection[] = [
   {
-    title: "Зураг, хүснэгт",
+    title: "Байршил",
     items: [
-      item("Зураг", env("figure[ht]")),
-      item("Зураг оруулах", cmd("includegraphics[width=\\linewidth]{#}")),
-      item("Хүснэгт", env("table[ht]")),
-      item("Хүснэгтийн бие", env("tabular{#}")),
-      item("Тайлбар", cmd("caption{#}")),
       item("Голлуулах", env("center")),
       item("Жижиг хуудас", env("minipage{#}")),
+      item("Зураг оруулах", cmd("includegraphics[width=\\linewidth]{#}")),
+      item("Хүснэгтийн бие", env("tabular{#}")),
+      item("Тайлбар", cmd("caption{#}")),
     ],
   },
   {
@@ -186,10 +188,6 @@ const ENV_SECTIONS: readonly MenuSection[] = [
       item("Блок", env("block{#}")),
     ],
   },
-  {
-    title: "Засвар",
-    items: [item("Нээлттэй орчныг хаах", { kind: "close" })],
-  },
 ];
 
 const LINK_SECTIONS: readonly MenuSection[] = [
@@ -197,15 +195,13 @@ const LINK_SECTIONS: readonly MenuSection[] = [
     title: "Холбоос",
     items: [
       item("Шошго", cmd("label{#}")),
-      item("Шошгоор заах", cmd("ref{#}")),
       item("Томьёо заах", cmd("eqref{#}")),
       item("Хуудас заах", cmd("pageref{#}")),
     ],
   },
   {
-    title: "Ном зүй, индекс",
+    title: "Индекс",
     items: [
-      item("Ишлэх", cmd("cite{#}")),
       item("Индексийн үг", cmd("index{#}")),
       item("Индекс хэвлэх", cmd("printindex")),
     ],
@@ -260,36 +256,53 @@ const SYMBOL_TABS: readonly SymbolTab[] = [
   },
 ];
 
+const action = (
+  id: string,
+  glyph: string,
+  title: string,
+  insert: Insert,
+  extra: Partial<Pick<ToolBase, "icon" | "gap">> = {},
+): BarTool => ({ kind: "action", id, glyph, title, insert, ...extra });
+
+const list = (
+  id: string,
+  glyph: string,
+  title: string,
+  sections: readonly MenuSection[],
+  extra: Partial<Pick<ToolBase, "icon" | "gap">> = {},
+): BarTool => ({ kind: "list", id, glyph, title, sections, ...extra });
+
 export const TEX_TOOLS: readonly BarTool[] = [
-  {
-    kind: "list",
-    id: "text",
-    glyph: "§",
-    title: "Бичвэр: бүлэг, үсэг, жагсаалт",
-    sections: TEXT_SECTIONS,
-  },
-  {
-    kind: "action",
-    id: "bold",
-    glyph: "B",
-    title: "Тод (\\textbf)",
-    insert: cmd("textbf{#}"),
-  },
-  {
-    kind: "action",
-    id: "italic",
-    glyph: "I",
-    title: "Налуу (\\textit)",
-    insert: cmd("textit{#}"),
-  },
-  {
-    kind: "split",
-    id: "math",
-    glyph: "x²",
-    title: "Томьёо ($…$)",
-    insert: text("$#$"),
-    sections: MATH_SECTIONS,
-  },
+  list("structure", "§", "Бүлэг, баримтын бүтэц", STRUCTURE_SECTIONS),
+  action("bold", "B", "Тод (\\textbf)", cmd("textbf{#}"), { gap: true }),
+  action("italic", "I", "Налуу (\\textit)", cmd("textit{#}")),
+  list("font", "Aa", "Үсгийн хэлбэр, хэмжээ", FONT_SECTIONS),
+  action("itemize", "•", "Цэгтэй жагсаалт", env("itemize", "\\item #"), {
+    icon: svg(ICON.bullet),
+    gap: true,
+  }),
+  action(
+    "enumerate",
+    "1.",
+    "Дугаартай жагсаалт",
+    env("enumerate", "\\item #"),
+    {
+      icon: svg(ICON.ordered),
+    },
+  ),
+  action("inline", "$x$", "Мөр доторх томьёо ($…$)", text("$#$"), {
+    gap: true,
+  }),
+  action(
+    "display",
+    "[x]",
+    "Тусдаа мөрөнд томьёо (\\[…\\])",
+    text("\\[\n#\n\\]"),
+  ),
+  action("frac", "a⁄b", "Бутархай (\\frac)", cmd("frac{#}{}")),
+  action("sqrt", "√x", "Язгуур (\\sqrt)", cmd("sqrt{#}")),
+  action("power", "x²", "Зэрэг (^)", text("^{#}")),
+  list("math", "∑", "Томьёоны орчин, бүтэц", MATH_SECTIONS),
   {
     kind: "palette",
     id: "symbols",
@@ -297,18 +310,41 @@ export const TEX_TOOLS: readonly BarTool[] = [
     title: "Тэмдэг",
     tabs: SYMBOL_TABS,
   },
-  {
-    kind: "list",
-    id: "env",
-    glyph: "⊞",
-    title: "Орчин: зураг, хүснэгт, теорем",
-    sections: ENV_SECTIONS,
-  },
-  {
-    kind: "list",
-    id: "links",
-    glyph: "↪",
-    title: "Холбоос, ишлэл, индекс",
-    sections: LINK_SECTIONS,
-  },
+  action(
+    "figure",
+    "▧",
+    "Зураг (figure)",
+    env(
+      "figure[ht]",
+      "\\centering",
+      "\\includegraphics[width=\\linewidth]{#}",
+      "\\caption{}",
+      "\\label{fig:}",
+    ),
+    { icon: svg(ICON.image), gap: true },
+  ),
+  action(
+    "table",
+    "▦",
+    "Хүснэгт (table)",
+    env(
+      "table[ht]",
+      "\\centering",
+      "\\caption{#}",
+      "\\label{tab:}",
+      "\\begin{tabular}{ll}",
+      "  a & b \\\\",
+      "\\end{tabular}",
+    ),
+    { icon: svg(ICON.table) },
+  ),
+  list("env", "⊞", "Орчин: голлуулах, ишлэл, теорем", ENV_SECTIONS),
+  action("close", "⤶", "Нээлттэй орчныг хаах", { kind: "close" }),
+  action("ref", "↪", "Шошгоор заах (\\ref)", cmd("ref{#}"), { gap: true }),
+  action("cite", "❝", "Ишлэх (\\cite)", cmd("cite{#}"), {
+    icon: svg(ICON.quote),
+  }),
+  list("links", "⋯", "Шошго, индекс, вэб холбоос", LINK_SECTIONS, {
+    icon: svg(ICON.link),
+  }),
 ];

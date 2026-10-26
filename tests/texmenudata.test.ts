@@ -11,7 +11,7 @@ test("цэсний товч бүр өвөрмөц нэртэй, тайлбарт
 
 test("цэсний сонголт бүр хоосон бичвэрт засвар үүсгэнэ", () => {
   for (const tool of TEX_TOOLS) {
-    if (tool.kind !== "list" && tool.kind !== "split") continue;
+    if (tool.kind !== "list") continue;
     for (const section of tool.sections)
       for (const item of section.items) {
         if (item.insert.kind === "close") continue;

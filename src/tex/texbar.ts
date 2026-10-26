@@ -13,13 +13,7 @@ export interface TexBarDeps {
   readonly tools?: readonly BarTool[];
 }
 
-type MenuTool = Extract<BarTool, { kind: "list" | "split" | "palette" }>;
-
-function directInsert(tool: BarTool, part: string | undefined): Insert | null {
-  if (tool.kind === "action") return tool.insert;
-  if (tool.kind === "split" && part === "main") return tool.insert;
-  return null;
-}
+type MenuTool = Exclude<BarTool, { kind: "action" }>;
 
 export function createTexBar(deps: TexBarDeps): BarTools {
   const { editor } = deps;
@@ -74,13 +68,9 @@ export function createTexBar(deps: TexBarDeps): BarTools {
     );
     const tool = byId.get(button?.dataset.tool ?? "");
     if (!button || !tool) return;
-    const direct = directInsert(tool, button.dataset.part);
-    if (direct) apply(direct);
+    if (tool.kind === "action") apply(tool.insert);
     else if (pop.current() === tool.id) pop.close(true);
-    else {
-      const menu = tool as MenuTool;
-      pop.open(tool.id, button, content(menu), event.detail === 0);
-    }
+    else pop.open(tool.id, button, content(tool), event.detail === 0);
   });
 
   pop.element.addEventListener("click", (event) => {

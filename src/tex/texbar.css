@@ -2,6 +2,15 @@
   --tex-glyph: "STIX Two Math", "Cambria Math", "Latin Modern Math", serif;
 }
 
+.md-bar .tex-group {
+  gap: 2px;
+}
+
+.md-bar .tex-group .tex-btn {
+  min-width: 32px;
+  padding-inline: 5px;
+}
+
 .tex-group .tex-btn {
   position: relative;
   font-family: var(--tex-glyph);
@@ -17,13 +26,38 @@
   font-style: italic;
 }
 
-.tex-group > [data-tool="math"],
-.tex-group > [data-tool="env"] {
-  margin-inline-start: 7px;
+.tex-group .tex-btn[data-tool="font"] {
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 
-.tex-group .tex-btn.has-menu:not(.tex-more) {
-  padding-inline-end: 15px;
+.tex-group .tex-btn:is([data-tool="inline"], [data-tool="display"]) {
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.tex-group .tex-btn > svg {
+  display: block;
+  margin-inline: auto;
+}
+
+.tex-group > [data-gap] {
+  margin-inline-start: 11px;
+}
+
+.tex-group > [data-gap]::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: -7px;
+  top: 25%;
+  bottom: 25%;
+  border-inline-start: 1px solid var(--line);
+  pointer-events: none;
+}
+
+.md-bar .tex-group .tex-btn.has-menu {
+  padding-inline-end: 14px;
 }
 
 .tex-group .tex-btn.has-menu::after {
@@ -44,31 +78,8 @@
   color: var(--accent);
 }
 
-.tex-split {
-  display: inline-flex;
-}
-
 .md-bar:has(.tex-group:not([hidden])) .md-file {
   flex-shrink: 0;
-}
-
-.tex-split > .tex-btn:first-child {
-  border-start-end-radius: 0;
-  border-end-end-radius: 0;
-}
-
-.md-bar .tex-split > .tex-more {
-  min-width: 20px;
-  margin-inline-start: -1px;
-  padding-inline: 0;
-  border-start-start-radius: 0;
-  border-end-start-radius: 0;
-}
-
-.tex-split > .tex-more::after {
-  inset-inline-end: 50%;
-  bottom: 50%;
-  translate: 50% 25%;
 }
 
 .tex-pop.is-list {
@@ -227,12 +238,19 @@
 }
 
 @media (max-width: 700px) {
-  .tex-group .tex-btn {
+  .md-bar .tex-group .tex-btn {
     min-width: 34px;
   }
 
-  .tex-group > [data-tool="math"],
-  .tex-group > [data-tool="env"] {
-    margin-inline-start: 4px;
+  .tex-pop.is-list {
+    columns: auto;
+  }
+
+  .tex-group > [data-gap] {
+    margin-inline-start: 9px;
+  }
+
+  .tex-group > [data-gap]::before {
+    inset-inline-start: -6px;
   }
 }

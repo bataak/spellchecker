@@ -2,20 +2,31 @@ import { lineIndent, type Expansion } from "./texcompletion.ts";
 import { uncommented } from "./texproject.ts";
 
 export type Insert =
-  | { readonly kind: "cmd" | "text" | "env"; readonly snippet: string }
+  | { readonly kind: "cmd" | "text"; readonly snippet: string }
+  | {
+      readonly kind: "env";
+      readonly snippet: string;
+      readonly body?: readonly string[];
+    }
   | { readonly kind: "close" };
+
+type EnvInsert = Extract<Insert, { kind: "env" }>;
 
 const MARK = "#";
 const STOP_CHARS = new Set(["}", "]", "$"]);
+const EMPTY_OPEN = new Set(["{", "["]);
 const ENV_EXTRA = /[{[]/;
 const ENV_TAG = /\\(begin|end)\s*\{([^{}]+)\}/g;
 const INNER_INDENT = "  ";
 const COMMAND_NAME = /^[^{[_^ ]*/;
+const SWITCH = /^\{(\\[A-Za-z]+) #\}$/;
 
 function stopsAfter(text: string, from: number, offset: number): number[] {
   const out: number[] = [];
-  for (let at = from; at < text.length; at += 1)
-    if (STOP_CHARS.has(text[at]!)) out.push(offset + at);
+  for (let at = from; at < text.length; at += 1) {
+    if (!STOP_CHARS.has(text[at]!)) continue;
+    if (!out.length || EMPTY_OPEN.has(text[at - 1]!)) out.push(offset + at);
+  }
   return out;
 }
 
@@ -59,39 +70,37 @@ function wrapEdit(
 }
 
 function envEdit(
-  snippet: string,
+  insert: EnvInsert,
   text: string,
   start: number,
   end: number,
 ): Expansion {
-  const cut = snippet.search(ENV_EXTRA);
-  const name = cut < 0 ? snippet : snippet.slice(0, cut);
-  const extra = cut < 0 ? "" : snippet.slice(cut);
-  const mark = extra.indexOf(MARK);
+  const cut = insert.snippet.search(ENV_EXTRA);
+  const name = cut < 0 ? insert.snippet : insert.snippet.slice(0, cut);
+  const extra = cut < 0 ? "" : insert.snippet.slice(cut);
   const indent = lineIndent(text, start);
-  const lineStart = lineStartAt(text, start);
-  const lead = text.slice(lineStart, start).trim() ? "\n" + indent : "";
-  const head = lead + "\\begin{" + name + "}" + extra.replace(MARK, "");
-  const inner = "\n" + indent + INNER_INDENT + text.slice(start, end);
-  const inserted = head + inner + "\n" + indent + "\\end{" + name + "}";
-  const body = start + head.length + inner.length;
-  if (mark < 0)
-    return {
-      from: start,
-      to: end,
-      text: inserted,
-      caret: body,
-      closes: [],
-      body: null,
-    };
-  const at = lead.length + "\\begin{".length + name.length + 1 + mark;
+  const lead = text.slice(lineStartAt(text, start), start).trim()
+    ? "\n" + indent
+    : "";
+  const selected = text.slice(start, end);
+  const lines = selected || !insert.body ? [selected] : insert.body;
+  const head = lead + "\\begin{" + name + "}" + extra;
+  const body = lines
+    .map((line) => "\n" + indent + INNER_INDENT + line)
+    .join("");
+  const raw = head + body + "\n" + indent + "\\end{" + name + "}";
+  const mark = raw.indexOf(MARK);
+  const inserted = mark < 0 ? raw : raw.slice(0, mark) + raw.slice(mark + 1);
+  const bodyEnd = head.length + body.length - (mark < 0 ? 0 : 1);
+  const inHead = mark >= 0 && mark < head.length;
+  const scope = inHead ? head.length - 1 : bodyEnd;
   return {
     from: start,
     to: end,
     text: inserted,
-    caret: start + at,
-    closes: stopsAfter(head, at, start),
-    body,
+    caret: start + (mark < 0 ? bodyEnd : mark),
+    closes: mark < 0 ? [] : stopsAfter(inserted.slice(0, scope), mark, start),
+    body: inHead ? start + bodyEnd : null,
   };
 }
 
@@ -149,7 +158,7 @@ export function menuEdit(
     case "close":
       return closeEdit(text, start);
     case "env":
-      return envEdit(insert.snippet, text, start, end);
+      return envEdit(insert, text, start, end);
     case "cmd":
       return wrapEdit("\\" + insert.snippet, text, start, end);
     case "text":
@@ -166,6 +175,9 @@ export function insertCode(insert: Insert): string {
     case "cmd":
       return "\\" + COMMAND_NAME.exec(insert.snippet)![0];
     case "text":
-      return insert.snippet.replace(MARK, "…").replace(/\n/g, " ");
+      return (
+        SWITCH.exec(insert.snippet)?.[1] ??
+        insert.snippet.replace(MARK, "…").replace(/\n/g, " ")
+      );
   }
 }
