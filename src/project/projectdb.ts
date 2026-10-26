@@ -14,7 +14,8 @@ export async function dbGet<T>(key: string): Promise<T | null> {
     const store = db.transaction(DB_STORE).objectStore(DB_STORE);
     const value: T | undefined = await requestResult(store.get(key));
     return value ?? null;
-  } catch {
+  } catch (error) {
+    noteError(error);
     return null;
   }
 }

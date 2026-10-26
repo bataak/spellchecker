@@ -106,7 +106,8 @@ async function savedDir(): Promise<FileSystemDirectoryHandle | null> {
         resolve((request.result as FileSystemDirectoryHandle) ?? null);
       request.onerror = () => resolve(null);
     });
-  } catch {
+  } catch (error) {
+    noteError(error);
     return null;
   }
 }
@@ -215,7 +216,8 @@ async function encode(
     return png
       ? { bytes: new Uint8Array(await png.arrayBuffer()), ext: "png" }
       : null;
-  } catch {
+  } catch (error) {
+    noteError(error);
     return null;
   }
 }

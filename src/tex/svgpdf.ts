@@ -1,3 +1,4 @@
+import { noteError } from "../core/errorlog.ts";
 import { jsPDF } from "jspdf";
 import { svg2pdf } from "svg2pdf.js";
 import { genericCss, genericFamily, svgSize } from "./texsvg.ts";
@@ -104,7 +105,8 @@ export async function renderSvg(bytes: Uint8Array): Promise<Uint8Array | null> {
       await addUnicodeFonts(pdf, new XMLSerializer().serializeToString(svg));
     await svg2pdf(svg, pdf, { x: 0, y: 0, width, height });
     return new Uint8Array(pdf.output("arraybuffer"));
-  } catch {
+  } catch (error) {
+    noteError(error);
     return null;
   }
 }

@@ -1,3 +1,4 @@
+import { noteError } from "../core/errorlog.ts";
 import { dropSlotText, loadSlotText, saveSlotText } from "../core/storage.ts";
 import { PROJECT_SLOT, loadSlots } from "./fileslots.ts";
 import {
@@ -22,7 +23,8 @@ function validTemplateId(stored: string | null): string {
     if (raw === null) return PLAIN;
     if (findTemplate(raw) !== undefined || raw === PROJECT_SLOT) return raw;
     return loadSlots().some((slot) => slot.id === raw) ? raw : PLAIN;
-  } catch {
+  } catch (error) {
+    noteError(error);
     return PLAIN;
   }
 }
@@ -80,7 +82,8 @@ export function createDraftStore(onError: () => void = () => {}): DraftStore {
       await slotOps.get(id);
       try {
         return await loadSlotText(id);
-      } catch {
+      } catch (error) {
+        noteError(error);
         return null;
       }
     },

@@ -42,7 +42,8 @@ export async function isOfflineReady(): Promise<boolean> {
     const mn = (man.dicts || []).find((dict) => dict.id === "mn_MN");
     if (!mn) return false;
     return !!(await caches.match(resolveAppUrl("dict/" + mn.dic), opt));
-  } catch {
+  } catch (error) {
+    noteError(error);
     return false;
   }
 }

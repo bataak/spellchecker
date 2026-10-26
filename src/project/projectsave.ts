@@ -1,3 +1,4 @@
+import { noteError } from "../core/errorlog.ts";
 import { fflate } from "../archive/fflate.ts";
 import { downloadBlob } from "../files/download.ts";
 import {
@@ -91,7 +92,8 @@ export async function digestOf(s: State): Promise<string | null> {
     return [...new Uint8Array(digest)]
       .map((byte) => byte.toString(16).padStart(2, "0"))
       .join("");
-  } catch {
+  } catch (error) {
+    noteError(error);
     return null;
   }
 }

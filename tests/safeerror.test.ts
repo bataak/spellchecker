@@ -8,6 +8,8 @@ import {
   recordOnce,
   causeChain,
   MAX_CAUSES,
+  noteError,
+  recentErrors,
 } from "../src/core/errorlog.ts";
 
 const CYR = "НУУЦмаркер";
@@ -218,4 +220,16 @@ test("errorlog: causeChain шалтгааныг дагаж, давталт ба 
   let deep: Error = new Error("0");
   for (let i = 1; i < 10; i++) deep = new Error(String(i), { cause: deep });
   assert.equal(causeChain(deep).length, MAX_CAUSES + 1);
+});
+
+test("errorlog: noteError шалтгааны гинжийг бүртгэж, цуцалсан үйлдлийг алгасна", () => {
+  const before = recentErrors().length;
+  noteError(new DOMException("user cancelled", "AbortError"));
+  assert.equal(recentErrors().length, before);
+  const root = new RangeError("root");
+  noteError(new SyntaxError("top", { cause: root }));
+  const names = recentErrors()
+    .slice(-2)
+    .map((error) => error.name);
+  assert.deepEqual(names, ["SyntaxError", "RangeError"]);
 });
