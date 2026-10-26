@@ -1,4 +1,5 @@
-import { applyEdit, enterInsert, insertImage } from "./mdedit.ts";
+import { applyEdit, enterInsert } from "./mdedit.ts";
+import { insertImage } from "./mdinsert.ts";
 import { replaceRange } from "../editor/editortext.ts";
 import { freeImagePath, pickImage, putImage } from "../files/images.ts";
 import { formatEdit, type Role } from "./mdbuttons.ts";

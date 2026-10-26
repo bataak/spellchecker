@@ -3,15 +3,13 @@ import { ICON, svg } from "../ui/baricons.ts";
 import { insertSignature, toggleAlign, type AlignKind } from "./mdalign.ts";
 import {
   cycleCase,
-  insertPageBreak,
-  insertTable,
   toggleHeading,
   toggleList,
   toggleQuote,
   toggleWrap,
-  wrapLink,
   type Edit,
 } from "./mdedit.ts";
+import { insertPageBreak, insertTable, wrapLink } from "./mdinsert.ts";
 
 export type Role =
   | "bold"

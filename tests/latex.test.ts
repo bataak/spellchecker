@@ -2,8 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { parse, todayText } from "../src/markdown.ts";
+import { escapeTex } from "../src/tex/texescape.ts";
 import {
-  escapeTex,
   previewTex,
   withParatype,
   toBeamer,
