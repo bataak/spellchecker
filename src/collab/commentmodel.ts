@@ -34,10 +34,15 @@ export interface CommentSpan {
   readonly to: number;
 }
 
+export interface CommentHit {
+  readonly id: string;
+  readonly inside: boolean;
+}
+
 export interface Comments {
   list(): readonly CommentThread[];
   spans(): readonly CommentSpan[];
-  at(offset: number): string | null;
+  at(offset: number): CommentHit | null;
   draft(start: number, end: number, sample: string): CommentDraft | null;
   add(draft: CommentDraft, text: string): string | null;
   reply(id: string, text: string): boolean;
@@ -109,12 +114,19 @@ export function oldestFirst(
 export function smallestAt(
   spans: readonly CommentSpan[],
   offset: number,
-): string | null {
+): CommentHit | null {
   let best: CommentSpan | null = null;
-  for (const span of spans)
-    if (span.from < offset && offset < span.to)
-      if (!best || span.to - span.from < best.to - best.from) best = span;
-  return best?.id ?? null;
+  let inside = false;
+  for (const span of spans) {
+    if (offset < span.from || offset > span.to) continue;
+    const within = span.from < offset && offset < span.to;
+    const smaller = !best || span.to - span.from < best.to - best.from;
+    if (!best || (within && !inside) || (within === inside && smaller)) {
+      best = span;
+      inside = within;
+    }
+  }
+  return best ? { id: best.id, inside } : null;
 }
 
 export function diffChange(old: string, next: string): TextChange | null {

@@ -85,10 +85,10 @@ export function initCommentButton(deps: CommentButtonDeps): void {
   editor.addEventListener("click", () => {
     const target = deps.target();
     if (!target || editor.selectionStart !== editor.selectionEnd) return;
-    const id = target.views.comments.at(editor.selectionStart);
-    if (!id) return;
+    const hit = target.views.comments.at(editor.selectionStart);
+    if (!hit) return;
     target.open();
-    target.views.views.comments.focus(id, true);
+    target.views.views.comments.focus(hit.id, hit.inside);
   });
   document.addEventListener("selectionchange", soon);
   editor.addEventListener("blur", hide);
