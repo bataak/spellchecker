@@ -109,9 +109,11 @@ async function postJson<T>(
       body: JSON.stringify(body),
       ...(signal ? { signal } : {}),
     });
-  } catch {
+  } catch (cause) {
     signal?.throwIfAborted();
-    throw new ProjectError("Нэвтрэх үйлчилгээтэй холбогдож чадсангүй");
+    throw new ProjectError("Нэвтрэх үйлчилгээтэй холбогдож чадсангүй", {
+      cause,
+    });
   }
   signal?.throwIfAborted();
   if (!response.ok)
@@ -188,8 +190,8 @@ async function gitlabToken(
       method: "POST",
       body: new URLSearchParams(body),
     });
-  } catch {
-    throw new ProjectError("GitLab-тай холбогдож чадсангүй");
+  } catch (cause) {
+    throw new ProjectError("GitLab-тай холбогдож чадсангүй", { cause });
   }
   const reply = (await response.json().catch(() => ({}))) as TokenReply;
   if (response.status === 400 || response.status === 401)

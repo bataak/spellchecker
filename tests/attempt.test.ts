@@ -23,3 +23,27 @@ test("attemptAsync: reject болбол fallback буцаана", async () => {
   );
   assert.equal(await attemptAsync(async () => "ok", null), "ok");
 });
+
+test("attempt: барьсан алдааг onError уруу дамжуулна", async () => {
+  const seen: unknown[] = [];
+  const failure = new Error("sync");
+  attempt(
+    () => {
+      throw failure;
+    },
+    0,
+    (error) => seen.push(error),
+  );
+  const rejection = new Error("async");
+  await attemptAsync(
+    () => Promise.reject(rejection),
+    0,
+    (error) => seen.push(error),
+  );
+  attempt(
+    () => 1,
+    0,
+    (error) => seen.push(error),
+  );
+  assert.deepEqual(seen, [failure, rejection]);
+});

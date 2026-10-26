@@ -89,7 +89,7 @@ export function guardReads(bytes: DictBytes): DictBytes {
       try {
         return await bytes.read(offset, size);
       } catch (err) {
-        throw new DictReadError(String(err));
+        throw new DictReadError(String(err), { cause: err });
       }
     },
   };

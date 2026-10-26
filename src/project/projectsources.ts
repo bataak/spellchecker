@@ -51,14 +51,14 @@ export async function readZip(file: File): Promise<LoadedFiles> {
   let size: number;
   try {
     size = await unpackedSize(bytes);
-  } catch {
-    throw new ProjectError("Zip файлыг задалж чадсангүй");
+  } catch (cause) {
+    throw new ProjectError("Zip файлыг задалж чадсангүй", { cause });
   }
   if (size > MAX_BYTES) throw new ProjectError(PROJECT_TOO_LARGE);
   try {
     entries = (await fflate()).unzipSync(bytes);
-  } catch {
-    throw new ProjectError("Zip файлыг задалж чадсангүй");
+  } catch (cause) {
+    throw new ProjectError("Zip файлыг задалж чадсангүй", { cause });
   }
   const names = Object.keys(entries);
   const root = commonRoot(names.filter((name) => !name.endsWith("/")));
