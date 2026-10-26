@@ -112,7 +112,7 @@ export function smallestAt(
 ): string | null {
   let best: CommentSpan | null = null;
   for (const span of spans)
-    if (span.from <= offset && offset <= span.to)
+    if (span.from < offset && offset < span.to)
       if (!best || span.to - span.from < best.to - best.from) best = span;
   return best?.id ?? null;
 }
