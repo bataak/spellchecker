@@ -120,7 +120,7 @@ test("decode: эвдэрсэн кирилл бичвэрийг илрүүлж, �
   mock.timers.enable({ apis: ["setTimeout"] });
   try {
     area.value = "";
-    const control = initDecode({ editor: port, invalidate: () => {} });
+    const control = initDecode({ editor: port, invalidate: () => {}, button });
     control.sync();
     assert.equal(button.hidden, true);
     area.value = MOJIBAKE + " ";
@@ -149,7 +149,7 @@ test("decode: буулгасан бичвэр, сонголт, хоосон үр
   mock.timers.enable({ apis: ["setTimeout"] });
   try {
     area.value = "";
-    const control = initClean({ editor: port, invalidate: () => {} });
+    const control = initClean({ editor: port, invalidate: () => {}, button });
     const paste = new Event("paste") as Event & {
       clipboardData: { getData: () => string };
     };

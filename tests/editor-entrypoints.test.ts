@@ -61,8 +61,9 @@ test("товчийн илрүүлэгч засварлагчийн холбол�
   const decode = read("editor/decode.ts");
   assert.match(decode, /from "\.\.\/archive\/cp1251\.ts"/);
   assert.match(decode, /hasMojibake/);
-  assert.match(decode, /#decodeBtn/);
-  assert.match(decode, /#cleanBtn/);
+  const dom = read("app/dom.ts");
+  assert.match(dom, /#decodeBtn/);
+  assert.match(dom, /#cleanBtn/);
   assert.match(decode, /needsCleanup/);
   assert.match(MAIN, /from "\.\/app\/editorwiring\.ts"/);
   assert.match(WIRING, /from "\.\/fixers\.ts"/);
