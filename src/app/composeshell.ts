@@ -1,4 +1,4 @@
-import type { App } from "./appparts.ts";
+import type { Scope } from "./appparts.ts";
 import { initAppExport } from "./appexport.ts";
 import { bindAppChrome } from "./chromewiring.ts";
 import { createCollabWiring } from "./collabwiring.ts";
@@ -7,7 +7,34 @@ import { startApp } from "./startup.ts";
 import { fileSlot } from "../collab/roomslot.ts";
 import { keepLayoutOnReload } from "../ui/layoutsnapshot.ts";
 
-export function composeShell(app: App): void {
+type ShellReads =
+  | "collab"
+  | "dictionaries"
+  | "doc"
+  | "editor"
+  | "els"
+  | "emptyTips"
+  | "enterMdMode"
+  | "errorPanel"
+  | "fileIO"
+  | "fixers"
+  | "isTexFile"
+  | "lastCaret"
+  | "marks"
+  | "mdBar"
+  | "nudgeHints"
+  | "office"
+  | "officeActive"
+  | "paneCtl"
+  | "pop"
+  | "previewCtl"
+  | "previewMode"
+  | "projectLink"
+  | "saveChain"
+  | "status";
+type ShellGives = "exportCtl";
+
+export function composeShell(app: Scope<ShellReads, ShellGives>): void {
   const { els, status, doc, mdBar, projectLink, fileIO } = app;
   const exportCtl = initAppExport({
     saveChain: app.saveChain,
@@ -61,7 +88,32 @@ export function composeShell(app: App): void {
   keepLayoutOnReload();
 }
 
-export function composeSession(app: App): void {
+type SessionReads =
+  | "appUpdate"
+  | "backdrop"
+  | "checker"
+  | "dicts"
+  | "doc"
+  | "docStatus"
+  | "draft"
+  | "els"
+  | "entryUrl"
+  | "fileIO"
+  | "isTexFile"
+  | "loop"
+  | "marks"
+  | "mdBar"
+  | "measureCtl"
+  | "nudgeHints"
+  | "office"
+  | "officeActive"
+  | "projectLink"
+  | "projectStore"
+  | "status"
+  | "undoCtl";
+type SessionGives = "collab" | "dictionaries" | "tabGuard";
+
+export function composeSession(app: Scope<SessionReads, SessionGives>): void {
   const { els, status, doc, mdBar, projectLink, projectStore } = app;
   const collab = createCollabWiring({
     editor: els.editor,

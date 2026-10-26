@@ -1,4 +1,4 @@
-import type { App } from "./appparts.ts";
+import type { App, GivesOf, Part } from "./appparts.ts";
 import {
   composeDocument,
   composeEditor,
@@ -12,7 +12,7 @@ import {
 } from "./composefiles.ts";
 import { composeSession, composeShell } from "./composeshell.ts";
 
-export const COMPOSERS: readonly ((app: App) => void)[] = [
+const STEPS = [
   composeEditor,
   composeDocument,
   composeModes,
@@ -23,7 +23,14 @@ export const COMPOSERS: readonly ((app: App) => void)[] = [
   composeProject,
   composeShell,
   composeSession,
-];
+] as const;
+
+type Unwired = Exclude<Part, GivesOf<(typeof STEPS)[number]> | "entryUrl">;
+
+export const EVERY_PART_WIRED: [Unwired] extends [never] ? true : Unwired =
+  true;
+
+export const COMPOSERS: readonly ((app: App) => void)[] = STEPS;
 
 export function composeApp(app: App): void {
   for (const compose of COMPOSERS) compose(app);
