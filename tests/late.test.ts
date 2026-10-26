@@ -28,3 +28,10 @@ test("late: нэг хэсгийг хоёр дахь удаа өгөхийг хо
     undefined,
   );
 });
+
+test("late: Promise-оор буцаахад then-ийг хайхад алдаа өгөхгүй", async () => {
+  const late = createLate<Parts>();
+  late.provide({ count: 3 });
+  const resolved = await Promise.resolve(late);
+  assert.equal(resolved.count, 3);
+});
