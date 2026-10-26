@@ -1,5 +1,6 @@
 import { parseDock, resolveDock, type DockPlace } from "../ui/layout.ts";
 import { KEYS, read, remove, write } from "../core/store.ts";
+import { closestTarget } from "../ui/dom.ts";
 
 const EMPTY_TEXT = "Тайлбар харах үгэн дээр заагчаа аваачна уу";
 const DRAG_THRESHOLD = 5;
@@ -82,7 +83,7 @@ function bindDragOut(
   let start: { x: number; y: number } | null = null;
   head.addEventListener("pointerdown", (e) => {
     if (e.button !== 0 || e.pointerType === "touch") return;
-    if ((e.target as Element).closest("button")) return;
+    if (closestTarget(e, "button")) return;
     e.preventDefault();
     start = { x: e.clientX, y: e.clientY };
     head.setPointerCapture(e.pointerId);

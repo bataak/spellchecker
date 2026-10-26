@@ -1,6 +1,6 @@
 import * as Y from "yjs";
 import { randomId } from "./collabkey.ts";
-import { minimalDiff } from "../mdbar/mdedit.ts";
+import { minimalDiff } from "../core/textdiff.ts";
 import { unsafeName } from "./safetext.ts";
 import { movedPath, skippedPath, within } from "../tex/texproject.ts";
 

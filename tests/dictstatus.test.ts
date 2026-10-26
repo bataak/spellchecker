@@ -1,8 +1,11 @@
 import { resetStorage } from "./helpers/mock-storage.ts";
 import { beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
-import { createDictStatus, createRefreshGate } from "../src/dict/dictstatus.ts";
-import { dictStatusMessage } from "../src/dict/dictstatus.ts";
+import {
+  createDictStatus,
+  createRefreshGate,
+} from "../src/spellui/dictstatus.ts";
+import { dictStatusMessage } from "../src/spellui/dictstatus.ts";
 
 beforeEach(resetStorage);
 

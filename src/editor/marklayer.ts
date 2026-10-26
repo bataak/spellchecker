@@ -1,13 +1,14 @@
 import type { Backdrop } from "./backdrop.ts";
-import { minimalDiff } from "../mdbar/mdedit.ts";
+import { minimalDiff } from "../core/textdiff.ts";
 import type { Token } from "../spell/textcheck.ts";
-import { texSpans } from "../tex/texhighlight.ts";
+import type { Highlighter } from "./syntaxspans.ts";
 import { shiftTokens, type TextEdit } from "./tokenshift.ts";
 
 export interface MarkLayerDeps {
   readonly editor: HTMLTextAreaElement;
   readonly backdrop: Backdrop;
   readonly syncScroll: () => void;
+  readonly texHighlighter: Highlighter;
 }
 
 export interface MarkLayer {
@@ -34,7 +35,7 @@ export function createMarkLayer(deps: MarkLayerDeps): MarkLayer {
     setTex(on) {
       if (on === tex) return false;
       tex = on;
-      backdrop.setHighlighter(on ? texSpans : null);
+      backdrop.setHighlighter(on ? deps.texHighlighter : null);
       editor.parentElement?.classList.toggle("is-tex", on);
       const text = editor.value;
       if (text !== backdrop.text()) tokens = [];

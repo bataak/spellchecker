@@ -1,4 +1,4 @@
-import type { DictStatus } from "../dict/dictstatus.ts";
+import type { DictStatus } from "../spellui/dictstatus.ts";
 import type { StatusPort } from "../core/ports.ts";
 import {
   caretLine,

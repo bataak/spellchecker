@@ -37,9 +37,16 @@ export interface FileWiring {
 export function createFileWiring(deps: FileWiringDeps): FileWiring {
   const { editor, status, office, doc } = deps;
   const officeActive = (): boolean => office.active() !== null;
-  const saveChain = createSaveChain(document.querySelector("#saveBtn"));
+  const buttons = {
+    open: document.querySelector<HTMLElement>("#openBtn"),
+    pick: document.querySelector<HTMLElement>("#pickBtn"),
+    input: document.querySelector<HTMLInputElement>("#openFile"),
+    save: document.querySelector<HTMLElement>("#saveBtn"),
+  };
+  const saveChain = createSaveChain(buttons.save);
   const fileIO = initFileIO({
     saveChain,
+    buttons,
     editor,
     status,
     office: {
@@ -64,7 +71,7 @@ export function createFileWiring(deps: FileWiringDeps): FileWiring {
       if (ref?.kind === "text")
         queueMicrotask(() => deps.project().fileOpened(ref.name));
     },
-    prepareOpen: createOpenPolicy(deps.mdBar, status.hold),
+    prepareOpen: createOpenPolicy(deps.mdBar, status.hold, buttons.open),
     onLoaded: () => {
       deps.undo().reset();
       deps.mdBar().markSaved();

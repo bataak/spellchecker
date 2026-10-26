@@ -6,6 +6,7 @@ import { deliverText } from "./textfile.ts";
 import type { EditorPort, StatusPort } from "../core/ports.ts";
 import type {
   CurrentFile,
+  FileButtons,
   OfficeFiles,
   PdfSave,
   ProjectFiles,
@@ -17,6 +18,7 @@ export type { OfficeFiles, PdfSave, ProjectFiles } from "./fileports.ts";
 
 export interface FileIODeps {
   readonly editor: EditorPort;
+  readonly buttons: FileButtons;
   readonly status: StatusPort;
   readonly office: OfficeFiles;
   readonly project: ProjectFiles;
@@ -62,6 +64,7 @@ export function initFileIO(deps: FileIODeps): FileIOControl {
     defaultExt: deps.defaultExt,
     onSaved: deps.onSaved,
     deliverText: deps.deliverText ?? deliverText,
+    button: deps.buttons.save,
   });
   deps.saveChain.handle(() => {
     void save();
@@ -69,6 +72,7 @@ export function initFileIO(deps: FileIODeps): FileIOControl {
   });
   initFileOpen({
     editor,
+    buttons: deps.buttons,
     status,
     current,
     office,

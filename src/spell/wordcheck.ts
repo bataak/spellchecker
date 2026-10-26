@@ -9,7 +9,7 @@ import {
   lookupCandidates,
   parseAnalyses,
   type Analysis,
-} from "./verbform.ts";
+} from "../lang/verbform.ts";
 import { attempt } from "../core/attempt.ts";
 
 export interface WordCheckDeps {

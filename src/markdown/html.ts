@@ -7,6 +7,7 @@ import {
   listTree,
 } from "./ast.ts";
 import { blankEm, isBlankRow } from "./blanks.ts";
+import { escapeAttr } from "../core/htmlutil.ts";
 
 const URL_SCHEME = /^([a-z][a-z\d+.-]*):/i;
 const SAFE_SCHEMES: ReadonlySet<string> = new Set([
@@ -22,13 +23,6 @@ export function safeHref(url: string): boolean {
   return !scheme || SAFE_SCHEMES.has(scheme[1]!.toLowerCase());
 }
 
-function esc(s: string): string {
-  return s.replace(
-    /[&<>"]/g,
-    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!,
-  );
-}
-
 function inlineHtml(nodes: readonly Inline[]): string {
   let out = "";
   for (const n of nodes) {
@@ -36,13 +30,13 @@ function inlineHtml(nodes: readonly Inline[]): string {
       out += withLogos(
         dashes(n.value),
         (name) => `<span class="tex-logo">${LOGO_HTML[name]}</span>`,
-        esc,
+        escapeAttr,
       );
-    else if (n.type === "code") out += `<code>${esc(n.value)}</code>`;
+    else if (n.type === "code") out += `<code>${escapeAttr(n.value)}</code>`;
     else if (n.type === "math")
       out +=
         `<span class="math${n.open === "$$" ? " math-display" : ""}">` +
-        `${esc(n.value)}</span>`;
+        `${escapeAttr(n.value)}</span>`;
     else if (n.type === "blank")
       out += n.fill
         ? `<span class="blank fill"></span>`
@@ -55,14 +49,14 @@ function inlineHtml(nodes: readonly Inline[]): string {
     else if (n.type === "del") out += `<del>${inlineHtml(n.children)}</del>`;
     else if (n.type === "image")
       out +=
-        `<img class="md-image" data-src="${esc(n.src)}" alt="${esc(n.alt)}"` +
+        `<img class="md-image" data-src="${escapeAttr(n.src)}" alt="${escapeAttr(n.alt)}"` +
         (n.width === undefined ? "" : ` data-style="width:${n.width}%"`) +
         (n.rotate === undefined ? "" : ` data-rotate="${n.rotate}"`) +
         `>`;
     else if (!safeHref(n.url)) out += inlineHtml(n.children);
     else
       out +=
-        `<a href="${esc(n.url)}" rel="noopener noreferrer" target="_blank">` +
+        `<a href="${escapeAttr(n.url)}" rel="noopener noreferrer" target="_blank">` +
         `${inlineHtml(n.children)}</a>`;
   }
   return out;
@@ -92,7 +86,7 @@ function metaHtml(b: BlockOf<"meta">, at: string): string {
     b.fields
       .map(
         (field) =>
-          `<p class="md-meta-${esc(field.key)}">${esc(field.value)}</p>`,
+          `<p class="md-meta-${escapeAttr(field.key)}">${escapeAttr(field.value)}</p>`,
       )
       .join("") +
     `</div>`
@@ -153,11 +147,11 @@ function blockHtml(b: Block): string {
     case "pagebreak":
       return `<hr class="page-break"${at}>`;
     case "codeblock":
-      return `<pre${at}><code>${esc(b.value)}</code></pre>`;
+      return `<pre${at}><code>${escapeAttr(b.value)}</code></pre>`;
     case "math":
-      return `<div class="math math-display"${at}>${esc(b.value)}</div>`;
+      return `<div class="math math-display"${at}>${escapeAttr(b.value)}</div>`;
     case "latex":
-      return `<pre class="latex"${at}><code>${esc(b.value)}</code></pre>`;
+      return `<pre class="latex"${at}><code>${escapeAttr(b.value)}</code></pre>`;
     case "meta":
       return metaHtml(b, at);
     case "div":

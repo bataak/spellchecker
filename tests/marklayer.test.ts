@@ -40,6 +40,7 @@ test("marklayer: засварын дараа алдааны байрлалыг �
     editor,
     backdrop: backdrop as never,
     syncScroll: () => scrolls++,
+    texHighlighter: () => [],
   });
   layer.show("аа бб вв", [tok("аа", 0), tok("бб", 3), tok("вв", 6)]);
   layer.shift("аа ббX вв", { start: 5, oldEnd: 5, newEnd: 6 });
@@ -76,8 +77,14 @@ test("emptystate: хоосон эсэхээр анги, тэмдэглэгээг
   const el = document.createElement("div");
   let changed = 0;
   let cleared = 0;
+  const synced: boolean[] = [];
+  const tips = {
+    rotate: () => {},
+    sync: (empty: boolean) => synced.push(empty),
+  };
   const update = createEmptyState({
     el,
+    tips,
     textChanged: () => changed++,
     cleared: () => cleared++,
   });
@@ -88,8 +95,10 @@ test("emptystate: хоосон эсэхээр анги, тэмдэглэгээг
   update("");
   assert.ok(!el.classList.contains("is-hidden"));
   assert.ok(!document.documentElement.classList.contains("has-text"));
+  assert.deepEqual(synced, [false, true]);
   createEmptyState({
     el: null,
+    tips,
     textChanged: () => changed++,
     cleared: () => cleared++,
   })("");

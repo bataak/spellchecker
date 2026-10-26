@@ -1,4 +1,4 @@
-import { transactionFailure } from "./idb.ts";
+import { transactionDone } from "./idb.ts";
 import {
   KEYS,
   at,
@@ -133,15 +133,11 @@ function idbRequest<T>(
   mode: IDBTransactionMode,
   run: (store: IDBObjectStore) => IDBRequest<T>,
 ): Promise<T> {
-  return openDb().then(
-    (db) =>
-      new Promise<T>((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, mode);
-        const req = run(tx.objectStore(STORE_NAME));
-        tx.oncomplete = () => resolve(req.result);
-        tx.onabort = () => reject(transactionFailure(tx, req));
-      }),
-  );
+  return openDb().then((db) => {
+    const tx = db.transaction(STORE_NAME, mode);
+    const req = run(tx.objectStore(STORE_NAME));
+    return transactionDone(tx).then(() => req.result);
+  });
 }
 
 export async function storedTexts(): Promise<string[]> {

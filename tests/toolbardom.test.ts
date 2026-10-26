@@ -22,7 +22,7 @@ Object.defineProperty(dom.window.navigator, "clipboard", {
   configurable: true,
 });
 
-const { initToolbar } = await import("../src/ui/toolbar.ts");
+const { initToolbar } = await import("../src/app/toolbar.ts");
 
 test.after(() => dom.close());
 

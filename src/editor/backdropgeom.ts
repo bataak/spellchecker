@@ -1,11 +1,11 @@
 import { stripChunkNewline } from "./backdrophtml.ts";
-import type { TexSpan } from "../tex/texhighlight.ts";
+import type { SyntaxSpan } from "./syntaxspans.ts";
 
 export interface ChunkNode extends HTMLDivElement {
   _start: number;
   _src: string;
   _markKey: string | null;
-  _spans: TexSpan[];
+  _spans: SyntaxSpan[];
   _synKey: string;
   _line: number;
   _lines: number;

@@ -1,4 +1,5 @@
 import type { Session } from "./sessiontypes.ts";
+import { element } from "../ui/dom.ts";
 
 export interface SessionSource {
   readonly session: () => Promise<Session>;
@@ -15,17 +16,6 @@ export function ask<T>(
     .session()
     .then(run)
     .catch(() => null);
-}
-
-export function element<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  className: string,
-  text = "",
-): HTMLElementTagNameMap[K] {
-  const el = document.createElement(tag);
-  if (className) el.className = className;
-  if (text) el.textContent = text;
-  return el;
 }
 
 export function actionButton(label: string): HTMLButtonElement {

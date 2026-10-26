@@ -2,22 +2,37 @@
   --tex-glyph: "STIX Two Math", "Cambria Math", "Latin Modern Math", serif;
 }
 
-.md-bar .tex-group {
+.tex-group {
   --tex-ink: 14px;
   --tex-letter: 12px;
   --tex-text: 11px;
-  gap: 2px;
+  --tex-cite: 10px;
+  --tex-icon-max: 24px;
+  --tex-btn: 31px;
+  --tex-btn-menu: 38px;
+  --tex-menu-pad: 9px;
+  --tex-gap: 2px;
+  --tex-section: 8px;
+  --tex-divider: -5.5px;
+  --tex-chevron: 4px;
+  --tex-chevron-line: 1.3px;
+  --tex-chevron-inset: 5px;
+  --tex-chevron-bottom: 9px;
+}
+
+.md-bar .tex-group {
+  gap: var(--tex-gap);
 }
 
 .md-bar .tex-group .tex-btn {
-  width: 31px;
+  width: var(--tex-btn);
   min-width: 0;
   padding-inline: 0;
 }
 
 .md-bar .tex-group .tex-btn.has-menu {
-  width: 38px;
-  padding-inline-end: 9px;
+  width: var(--tex-btn-menu);
+  padding-inline-end: var(--tex-menu-pad);
 }
 
 .tex-group .tex-btn {
@@ -82,22 +97,22 @@
 .md-bar .tex-group .tex-btn > .ink-icon {
   display: block;
   width: auto;
-  max-width: 24px;
+  max-width: var(--tex-icon-max);
   height: var(--tex-ink);
 }
 
 .md-bar .tex-group .tex-btn[data-tool="cite"] > .ink-icon {
-  height: 10px;
+  height: var(--tex-cite);
 }
 
 .tex-group > [data-gap] {
-  margin-inline-start: 8px;
+  margin-inline-start: var(--tex-section);
 }
 
 .tex-group > [data-gap]::before {
   content: "";
   position: absolute;
-  inset-inline-start: -5.5px;
+  inset-inline-start: var(--tex-divider);
   top: 25%;
   bottom: 25%;
   border-inline-start: 1px solid var(--line);
@@ -107,12 +122,12 @@
 .tex-group .tex-btn.has-menu::after {
   content: "";
   position: absolute;
-  inset-inline-end: 5px;
-  bottom: 9px;
-  width: 4px;
-  height: 4px;
-  border-right: 1.3px solid currentColor;
-  border-bottom: 1.3px solid currentColor;
+  inset-inline-end: var(--tex-chevron-inset);
+  bottom: var(--tex-chevron-bottom);
+  width: var(--tex-chevron);
+  height: var(--tex-chevron);
+  border-right: var(--tex-chevron-line) solid currentColor;
+  border-bottom: var(--tex-chevron-line) solid currentColor;
   transform: rotate(45deg);
   opacity: 0.55;
 }
@@ -282,19 +297,12 @@
 }
 
 @media (max-width: 700px) {
-  .md-bar .tex-group .tex-btn:not(.has-menu) {
-    width: 34px;
+  .tex-group {
+    --tex-btn: 34px;
+    --tex-section: 9px;
   }
 
   .tex-pop.is-list {
     columns: auto;
-  }
-
-  .tex-group > [data-gap] {
-    margin-inline-start: 9px;
-  }
-
-  .tex-group > [data-gap]::before {
-    inset-inline-start: -5.5px;
   }
 }

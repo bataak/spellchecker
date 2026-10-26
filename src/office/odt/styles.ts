@@ -1,6 +1,7 @@
+import { cm } from "../units.ts";
 import type { DocIr } from "../docir.ts";
 import { xmlAttr } from "../sanitize.ts";
-import { cm, NS, paraProps, pt, styleName, textProps } from "./props.ts";
+import { NS, paraProps, pt, styleName, textProps } from "./props.ts";
 
 export const TOC_LEVELS = [1, 2, 3] as const;
 

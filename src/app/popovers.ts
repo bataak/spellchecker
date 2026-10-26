@@ -2,14 +2,14 @@ import type { Backdrop } from "../editor/backdrop.ts";
 import { initDefDock, type DefDock } from "../define/defdock.ts";
 import { initDefineControls } from "../define/definecontrols.ts";
 import { initDefTip, type DefTip } from "../define/deftip.ts";
-import { initErrorPanel, type ErrorPanel } from "../ui/errorpanel.ts";
+import { initErrorPanel, type ErrorPanel } from "../spellui/errorpanel.ts";
 import { initPopover, type Popover } from "../ui/popover.ts";
 import type { SpellChecker } from "../spell/spellchecker.ts";
 import type { Token } from "../spell/textcheck.ts";
 import {
   initSuggestPopover,
   type SuggestPopover,
-} from "../ui/suggestpopover.ts";
+} from "../spellui/suggestpopover.ts";
 import { requireEl } from "./dom.ts";
 import type { Caret } from "./editorinput.ts";
 
@@ -78,6 +78,9 @@ export function createPopovers(deps: PopoversDeps): Popovers {
     editor,
     backdrop,
     desktopMQ,
+    list: document.querySelector<HTMLElement>("#errorList"),
+    copy: document.querySelector<HTMLButtonElement>("#copyErrorsBtn"),
+    title: document.querySelector<HTMLElement>("#errorPanelTitle"),
     badTokens: deps.badTokens,
     lastCaret: deps.lastCaret,
     setLastCaret: deps.setLastCaret,
@@ -88,6 +91,7 @@ export function createPopovers(deps: PopoversDeps): Popovers {
 
   initDefineControls({
     editor,
+    button: document.querySelector<HTMLButtonElement>("#defineBtn"),
     backdrop,
     checker,
     defTip,

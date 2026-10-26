@@ -1,3 +1,4 @@
+import { openDatabase, requestResult } from "../core/idb.ts";
 import { noteError } from "../core/errorlog.ts";
 
 export interface StoredDict {
@@ -10,26 +11,10 @@ export interface StoredDict {
 }
 
 const DB_NAME = "stardict";
-const DB_VERSION = 1;
 const STORE = "dicts";
 
-function request<T>(req: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error ?? new Error("IndexedDB алдаа"));
-  });
-}
-
 function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      if (!req.result.objectStoreNames.contains(STORE))
-        req.result.createObjectStore(STORE);
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error ?? new Error("IndexedDB нээгдсэнгүй"));
-  });
+  return openDatabase(DB_NAME, (db) => db.createObjectStore(STORE));
 }
 
 async function withStore<T>(
@@ -47,7 +32,7 @@ async function withStore<T>(
 export async function readStoredDict(key: string): Promise<StoredDict | null> {
   try {
     const value = await withStore("readonly", (store) =>
-      request<StoredDict | undefined>(store.get(key)),
+      requestResult<StoredDict | undefined>(store.get(key)),
     );
     return value ?? null;
   } catch {
@@ -60,7 +45,9 @@ export async function writeStoredDict(
   value: StoredDict,
 ): Promise<boolean> {
   try {
-    await withStore("readwrite", (store) => request(store.put(value, key)));
+    await withStore("readwrite", (store) =>
+      requestResult(store.put(value, key)),
+    );
     return true;
   } catch {
     return false;
@@ -69,7 +56,7 @@ export async function writeStoredDict(
 
 export async function removeStoredDict(key: string): Promise<void> {
   try {
-    await withStore("readwrite", (store) => request(store.delete(key)));
+    await withStore("readwrite", (store) => requestResult(store.delete(key)));
   } catch (error) {
     noteError(error);
   }

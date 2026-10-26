@@ -6,7 +6,7 @@ import {
   renameUserDict,
   saveDictOrder,
   userKeyOf,
-} from "./userdicts.ts";
+} from "../dict/userdicts.ts";
 
 export interface DictManagerDeps {
   list(): Promise<DictInfo[]>;

@@ -1,5 +1,5 @@
-import type { WordCheck } from "../spell/wordcheck.ts";
-import { standardLetters } from "../spell/letters.ts";
+import type { WordCheck } from "./wordcheck.ts";
+import { standardLetters } from "../lang/letters.ts";
 import {
   findHeadword,
   findTaggedHeadword,
@@ -8,9 +8,9 @@ import {
   type DictEntry,
   type LookupMode,
   type StarDict,
-} from "./stardict.ts";
-import { DictReadError } from "./stardictload.ts";
-import type { StarDictStore } from "./stardictstore.ts";
+} from "../dict/stardict.ts";
+import { DictReadError } from "../dict/stardictload.ts";
+import type { StarDictStore } from "../dict/stardictstore.ts";
 
 export interface DictLookupDeps {
   readonly store: Pick<StarDictStore, "withDicts">;

@@ -1,5 +1,5 @@
 import { initDictMenu } from "../dict/dictmenu.ts";
-import { initIgnoreList } from "../dict/ignorelist.ts";
+import { initIgnoreList } from "../spellui/ignorelist.ts";
 import { onIgnoredChange } from "../spell/ignore.ts";
 import { isDashSuffix } from "../spell/textcheck.ts";
 import type { Token } from "../spell/textcheck.ts";

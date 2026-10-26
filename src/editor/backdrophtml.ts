@@ -1,13 +1,13 @@
 import { escapeHtml } from "../core/htmlutil.ts";
 import type { Token } from "../spell/textcheck.ts";
-import { spansInRange, type TexSpan } from "../tex/texhighlight.ts";
+import { spansInRange, type SyntaxSpan } from "./syntaxspans.ts";
 
 function paint(
   body: string,
   from: number,
   to: number,
   base: number,
-  spans: readonly TexSpan[],
+  spans: readonly SyntaxSpan[],
 ): string {
   if (!spans.length) return escapeHtml(body.slice(from, to));
   let html = "";
@@ -44,7 +44,7 @@ function hangingGuard(body: string): string {
 export function plainHtml(
   raw: string,
   chunkStart = 0,
-  spans: readonly TexSpan[] = [],
+  spans: readonly SyntaxSpan[] = [],
   blocks = true,
 ): string {
   const body = stripChunkNewline(raw);
@@ -74,7 +74,7 @@ export function markedHtml(
   raw: string,
   chunkStart: number,
   slice: Token[],
-  spans: readonly TexSpan[] = [],
+  spans: readonly SyntaxSpan[] = [],
   blocks = true,
 ): string {
   const body = stripChunkNewline(raw);
@@ -128,7 +128,7 @@ function flatMarkedHtml(
   body: string,
   chunkStart: number,
   slice: Token[],
-  spans: readonly TexSpan[],
+  spans: readonly SyntaxSpan[],
 ): string {
   let html = "";
   let cursor = 0;

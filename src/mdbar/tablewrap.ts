@@ -1,5 +1,5 @@
-import { caretInTable } from "../mdbar/mdedit.ts";
-import type { Backdrop } from "./backdrop.ts";
+import { caretInTable } from "./mdedit.ts";
+import type { Backdrop } from "../editor/backdrop.ts";
 
 const NARROW = "(max-width: 700px)";
 const EDGE_PX = 24;

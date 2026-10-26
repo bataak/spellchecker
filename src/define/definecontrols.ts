@@ -1,7 +1,7 @@
 import type { Backdrop } from "../editor/backdrop.ts";
 import type { DefDock } from "./defdock.ts";
 import type { DefTip } from "./deftip.ts";
-import { createDictManager } from "../dict/dictmanager.ts";
+import { createDictManager } from "../spellui/dictmanager.ts";
 import { isTouch } from "../editor/input.ts";
 import type { Popover } from "../ui/popover.ts";
 import { isLookupKey, wordAt, type WordSpan } from "../spell/lookup.ts";
@@ -49,6 +49,7 @@ export function selectedWord(
 
 export interface DefineControlsDeps {
   readonly editor: HTMLTextAreaElement;
+  readonly button: HTMLButtonElement | null;
   readonly backdrop: Backdrop;
   readonly checker: SpellChecker;
   readonly defTip: DefTip;
@@ -225,7 +226,7 @@ export function initDefineControls(deps: DefineControlsDeps): void {
   });
   const manageDicts = (): Promise<void> => dictManager.open();
 
-  const defineBtn = document.querySelector<HTMLButtonElement>("#defineBtn");
+  const defineBtn = deps.button;
   const longPressed = defineBtn ? trackLongPress(defineBtn) : () => false;
 
   defineBtn?.addEventListener("click", async (event) => {

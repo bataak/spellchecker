@@ -10,6 +10,7 @@ import type { EditorPort } from "../core/ports.ts";
 export interface DecodeDeps {
   readonly editor: EditorPort;
   readonly invalidate: () => void;
+  readonly button: HTMLButtonElement | null;
   readonly skip?: () => boolean;
 }
 
@@ -20,7 +21,6 @@ export interface DecodeControl {
 }
 
 interface FixButtonSpec {
-  readonly selector: string;
   readonly label: string;
   readonly detect: (text: string) => boolean;
   readonly fix: (
@@ -37,7 +37,6 @@ const DECODE_TYPING_WINDOW = 64;
 
 export function initDecode(deps: DecodeDeps): DecodeControl {
   return initFixButton(deps, {
-    selector: "#decodeBtn",
     label: "Үсэг таниулах",
     detect: hasMojibake,
     fix: (target, full) => {
@@ -54,7 +53,6 @@ export function initDecode(deps: DecodeDeps): DecodeControl {
 
 export function initClean(deps: DecodeDeps): DecodeControl {
   return initFixButton(deps, {
-    selector: "#cleanBtn",
     label: "Цэвэрлэх",
     detect: needsCleanup,
     fix: (target) => {
@@ -115,7 +113,7 @@ function doneMessage(
 
 function initFixButton(deps: DecodeDeps, spec: FixButtonSpec): DecodeControl {
   const editor = deps.editor.el;
-  const decodeBtn = document.querySelector<HTMLButtonElement>(spec.selector);
+  const decodeBtn = deps.button;
   let decodeCheckTimer: number | null = null;
   let decodeSkipNextInput = false;
 

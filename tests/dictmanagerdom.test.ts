@@ -7,7 +7,7 @@ const dom = installDom("");
 const win = dom.window as unknown as Record<string, unknown>;
 win.matchMedia = () => ({ matches: false });
 
-const { createDictManager } = await import("../src/dict/dictmanager.ts");
+const { createDictManager } = await import("../src/spellui/dictmanager.ts");
 
 test.after(() => dom.close());
 
