@@ -377,6 +377,9 @@ a.tbtn {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+.toolbar .tbtn:focus-visible {
+  outline-offset: -2px;
+}
 .tbtn-icon {
   padding: 7px 8px;
   font-size: 0.95rem;
