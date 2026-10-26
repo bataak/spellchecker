@@ -2,7 +2,18 @@ import { cm } from "../units.ts";
 import { odfFont } from "../fonts.ts";
 import { ODF_TEXT, manifestXml, writeOdf } from "../odf/index.ts";
 import type { OdfPackage } from "../odf/index.ts";
-import { STYLE, imageKey, imageSizeCm } from "../docir.ts";
+import {
+  STYLE,
+  TOC_LEVELS,
+  TOC_TITLE,
+  blockRuns,
+  imageKey,
+  imageSizeCm,
+  outlineLevel,
+  runsText,
+  tocEntries,
+  withToc,
+} from "../docir.ts";
 import type {
   DocIr,
   ImageFiles,
@@ -16,7 +27,7 @@ import { tabFills } from "../flatten.ts";
 import { columnWidths, officeMetrics } from "../table.ts";
 import { xmlAttr, xmlText } from "../sanitize.ts";
 import { NS, runKey, runStyle, styleName } from "./props.ts";
-import { TOC_LEVELS, stylesXml } from "./styles.ts";
+import { stylesXml } from "./styles.ts";
 
 const encoder = new TextEncoder();
 
@@ -345,7 +356,7 @@ function blockXml(
       return paraXml(
         block.style,
         block.runs,
-        doc.styles[block.style]?.outlineLevel ?? 0,
+        outlineLevel(doc, block.style),
         media,
       );
     case "list":
@@ -376,46 +387,33 @@ function tocXml(doc: DocIr): string {
       "<text:index-entry-page-number/><text:index-entry-link-end/>" +
       "</text:table-of-content-entry-template>",
   ).join("");
-  const entries = doc.blocks
-    .map((block) => {
-      if (block.kind !== "para") return "";
-      const level = doc.styles[block.style]?.outlineLevel ?? 0;
-      if (level < 1 || level > 3) return "";
-      return (
+  const entries = tocEntries(doc)
+    .map(
+      ({ level, runs }) =>
         '<text:p text:style-name="TOC_' +
         String(level) +
         '">' +
-        xmlText(
-          block.runs
-            .map((run) => run.text)
-            .join("")
-            .replace(/\s*\n\s*/g, " "),
-        ) +
-        "<text:tab/></text:p>"
-      );
-    })
+        xmlText(runsText(runs).replace(/\s*\n\s*/g, " ")) +
+        "<text:tab/></text:p>",
+    )
     .join("");
   return (
     '<text:table-of-content text:protected="true" text:name="TOC">' +
     '<text:table-of-content-source text:outline-level="3">' +
-    '<text:index-title-template text:style-name="TOC_Heading">Гарчиг' +
+    '<text:index-title-template text:style-name="TOC_Heading">' +
+    TOC_TITLE +
     "</text:index-title-template>" +
     templates +
     "</text:table-of-content-source><text:index-body>" +
     '<text:index-title text:name="TOC_Head">' +
-    '<text:p text:style-name="TOC_Heading">Гарчиг</text:p>' +
+    '<text:p text:style-name="TOC_Heading">' +
+    TOC_TITLE +
+    "</text:p>" +
     "</text:index-title>" +
     entries +
     "</text:index-body></text:table-of-content>" +
     '<text:p text:style-name="PageBreak"/>'
   );
-}
-
-function blockRuns(block: IrBlock): readonly IrRun[] {
-  if (block.kind === "para") return block.runs;
-  if (block.kind === "list") return block.items.flat();
-  if (block.kind === "table") return block.rows.flat(2);
-  return [];
 }
 
 function contentXml(doc: DocIr, options: OdtOptions, media: Media): string {
@@ -428,15 +426,7 @@ function contentXml(doc: DocIr, options: OdtOptions, media: Media): string {
   const parts = doc.blocks.map((block, index) =>
     blockXml(block, index, doc, auto, media),
   );
-  if (options.toc) {
-    const first = doc.blocks[0];
-    const titleFirst =
-      first !== undefined &&
-      first.kind === "para" &&
-      (first.style === STYLE.title ||
-        doc.styles[first.style]?.outlineLevel === 1);
-    parts.splice(titleFirst ? 1 : 0, 0, tocXml(doc));
-  }
+  if (options.toc) withToc(doc, parts, tocXml(doc));
   const body = parts.join("");
 
   return (

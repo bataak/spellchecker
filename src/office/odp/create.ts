@@ -1,6 +1,7 @@
 import { odfFont } from "../fonts.ts";
 import { ODF_PRESENTATION, manifestXml, writeOdf } from "../odf/index.ts";
-import type { DeckDoc, DeckLine, DeckTable } from "../deck.ts";
+import { mapDeck } from "../deck.ts";
+import type { DeckDoc, DeckLine, DeckSlide, DeckTable } from "../deck.ts";
 import {
   TABLE_PT,
   TEXT_PT,
@@ -400,13 +401,16 @@ function tableXml(
   );
 }
 
-function coverPage(doc: DeckDoc, keys: Set<string>): string | null {
-  if (doc.title === null) return null;
+function coverPage(
+  doc: DeckDoc,
+  title: readonly IrRun[],
+  keys: Set<string>,
+): string {
   let frames = frame(
     "title",
     "pr_title",
     { x: MARGIN, y: 4, w: WIDTH, h: 3.2 },
-    para("P_cover", doc.title, keys),
+    para("P_cover", title, keys),
   );
   if (doc.subtitle.length)
     frames += frame(
@@ -481,16 +485,17 @@ function slideFrames(
 function contentXml(doc: DeckDoc, media: Media): string {
   const keys = new Set<string>();
   const auto: Auto = { styles: new Map(), tables: 0 };
-  const pages: string[] = [];
-  const cover = coverPage(doc, keys);
-  if (cover !== null) pages.push(page(pages.length + 1, cover));
-  for (const slide of doc.slides) {
-    const notes = slide.notes.length ? linesXml(slide.notes, keys) : "";
-    const frames = slide.section
-      ? sectionFrame(slide, keys)
-      : slideFrames(slide, media, auto, keys);
-    pages.push(page(pages.length + 1, frames, notes));
-  }
+  const withNotes =
+    (frames: (slide: DeckSlide) => string) =>
+    (slide: DeckSlide): readonly [string, string] => {
+      const notes = slide.notes.length ? linesXml(slide.notes, keys) : "";
+      return [frames(slide), notes] as const;
+    };
+  const pages = mapDeck<readonly [string, string]>(doc, {
+    cover: (title) => [coverPage(doc, title, keys), ""],
+    section: withNotes((slide) => sectionFrame(slide, keys)),
+    content: withNotes((slide) => slideFrames(slide, media, auto, keys)),
+  }).map(([frames, notes], index) => page(index + 1, frames, notes));
   return (
     '<?xml version="1.0" encoding="UTF-8"?>' +
     "<office:document-content" +

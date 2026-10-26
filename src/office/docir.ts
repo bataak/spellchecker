@@ -168,3 +168,50 @@ export function headingStyle(depth: number): string {
 }
 
 export const A4 = { widthCm: 21, heightCm: 29.7 } as const;
+
+export const TOC_TITLE = "Гарчиг";
+export const TOC_LEVELS = [1, 2, 3] as const;
+
+export function isTocLevel(level: number): boolean {
+  return level >= TOC_LEVELS[0] && level <= TOC_LEVELS[TOC_LEVELS.length - 1]!;
+}
+
+export function runsText(runs: readonly IrRun[]): string {
+  return runs.map((run) => run.text).join("");
+}
+
+export function outlineLevel(doc: DocIr, style: string): number {
+  return doc.styles[style]?.outlineLevel ?? 0;
+}
+
+export interface TocEntry {
+  readonly level: number;
+  readonly runs: readonly IrRun[];
+}
+
+export function tocEntries(doc: DocIr): TocEntry[] {
+  const entries: TocEntry[] = [];
+  for (const block of doc.blocks) {
+    if (block.kind !== "para") continue;
+    const level = outlineLevel(doc, block.style);
+    if (isTocLevel(level)) entries.push({ level, runs: block.runs });
+  }
+  return entries;
+}
+
+export function withToc<T>(doc: DocIr, parts: T[], toc: T): T[] {
+  const first = doc.blocks[0];
+  const titleFirst =
+    first !== undefined &&
+    first.kind === "para" &&
+    (first.style === STYLE.title || outlineLevel(doc, first.style) === 1);
+  parts.splice(titleFirst ? 1 : 0, 0, toc);
+  return parts;
+}
+
+export function blockRuns(block: IrBlock): readonly IrRun[] {
+  if (block.kind === "para") return block.runs;
+  if (block.kind === "list") return block.items.flat();
+  if (block.kind === "table") return block.rows.flat(2);
+  return [];
+}

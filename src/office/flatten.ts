@@ -7,7 +7,8 @@ import {
   withLogos,
   type Inline,
 } from "../markdown.ts";
-import type { IrRun } from "./docir.ts";
+import { runsText, type IrRun } from "./docir.ts";
+export { runsText };
 
 interface Marks {
   readonly bold?: boolean;
@@ -134,10 +135,6 @@ export function onlyImages(runs: readonly IrRun[]): boolean {
     runs.some((run) => run.image) &&
     runs.every((run) => run.image || !run.text.trim())
   );
-}
-
-export function runsText(runs: readonly IrRun[]): string {
-  return runs.map((run) => run.text).join("");
 }
 
 export function isBlank(runs: readonly IrRun[]): boolean {
