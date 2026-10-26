@@ -13,6 +13,7 @@ export interface Member {
   readonly name: string;
   readonly online: boolean;
   readonly owner: boolean;
+  readonly color?: number | null;
 }
 
 export interface Admin {

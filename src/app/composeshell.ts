@@ -4,7 +4,8 @@ import { bindAppChrome } from "./chromewiring.ts";
 import { createCollabWiring } from "./collabwiring.ts";
 import { watchTabs } from "./tabwatch.ts";
 import { startApp } from "./startup.ts";
-import { fileSlot } from "../collab/roomslot.ts";
+import { fileSlot, slotKey } from "../collab/roomslot.ts";
+import { clearedComments } from "../collab/commentbus.ts";
 import { keepLayoutOnReload } from "../ui/layoutsnapshot.ts";
 
 type ShellReads =
@@ -76,9 +77,13 @@ export function composeShell(app: Scope<ShellReads, ShellGives>): void {
       app.previewMode.cleared();
       projectLink.cleared();
       fileIO.forgetFile();
-      if (app.collab.forget(fileSlot(mdBar.slot())))
+      const slot = fileSlot(mdBar.slot());
+      const leaving = app.collab.forget(slot);
+      clearedComments.emit({ slot: slotKey(slot), leaving });
+      if (leaving)
         status.hold("Хамтын засвараас гарлаа. Бусдын бичвэр хэвээр үлдэнэ.");
     },
+    confirmClear: () => app.collab.clearShared(fileSlot(mdBar.slot())),
     afterClear: (cleared) => {
       mdBar.reset(cleared);
       app.emptyTips.rotate();

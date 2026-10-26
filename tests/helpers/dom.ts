@@ -23,6 +23,7 @@ const GLOBALS = [
   "requestAnimationFrame",
   "cancelAnimationFrame",
   "ResizeObserver",
+  "MutationObserver",
 ] as const;
 
 export interface Dom {

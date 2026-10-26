@@ -79,8 +79,8 @@ export function initCommentButton(deps: CommentButtonDeps): void {
     const draft = target && selectionDraft(editor, target);
     hide();
     if (!target || !draft) return;
-    target.open();
     target.views.views.comments.compose(draft);
+    target.open();
   });
   editor.addEventListener("click", () => {
     const target = deps.target();
@@ -88,7 +88,7 @@ export function initCommentButton(deps: CommentButtonDeps): void {
     const id = target.views.comments.at(editor.selectionStart);
     if (!id) return;
     target.open();
-    target.views.views.comments.focus(id);
+    target.views.views.comments.focus(id, true);
   });
   document.addEventListener("selectionchange", soon);
   editor.addEventListener("blur", hide);

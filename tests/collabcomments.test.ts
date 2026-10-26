@@ -12,6 +12,7 @@ import {
 import {
   commentsCount,
   commentsView,
+  resolveAllQuestion,
   resolvedLabel,
 } from "../src/collab/commentview.ts";
 import type { CommentThread } from "../src/collab/comments.ts";
@@ -210,12 +211,88 @@ test("шүүмжийн самбар бичих, хариулах, шийдэх, 
     .click();
   assert.equal(view.el.querySelector(".talk-thread"), null);
   const toggle = view.el.querySelector<HTMLButtonElement>(
-    ".talk-changes-bar .talk-accept-all",
+    ".talk-changes-bar .talk-accept-all:last-child",
   )!;
   assert.equal(toggle.textContent, resolvedLabel(1, false));
   toggle.click();
   assert.ok(view.el.querySelector(".talk-thread.is-resolved"));
   assert.equal(view.el.querySelector(".talk-reply-input"), null);
+  view.destroy();
+  view.el.remove();
+});
+
+test("бүх нээлттэй шүүмжийг баталгаажуулсны дараа нэг дор шийднэ", () => {
+  const doc = new Y.Doc();
+  doc.getText("t").insert(0, "Нэг хоёр гурав");
+  const comments = open(doc, "aaa");
+  const view = commentsView(comments, () => {});
+  document.body.append(view.el);
+  view.shown(true);
+  const all = view.el.querySelector<HTMLButtonElement>(
+    ".talk-changes-bar .talk-accept-all",
+  )!;
+  assert.equal(all.textContent, "Бүгдийг шийдэх");
+  assert.equal(all.hidden, true);
+  comments.add(draftOf(comments, doc, "Нэг"), "Эхнийх");
+  comments.add(draftOf(comments, doc, "гурав"), "Хоёр дахь");
+  assert.equal(all.hidden, false);
+  const asked: string[] = [];
+  const confirm = window.confirm;
+  window.confirm = (message?: string) => {
+    asked.push(message ?? "");
+    return asked.length > 1;
+  };
+  all.click();
+  assert.equal(comments.list().filter((t) => t.resolved).length, 0);
+  all.click();
+  window.confirm = confirm;
+  assert.equal(asked[1], resolveAllQuestion(2));
+  assert.ok(comments.list().every((thread) => thread.resolved));
+  assert.equal(all.hidden, true);
+  assert.equal(view.el.querySelectorAll(".talk-thread").length, 0);
+  view.destroy();
+  view.el.remove();
+});
+
+test("шүүмж дээр дарахад түүний хариулах талбар идэвхжинэ", () => {
+  const doc = new Y.Doc();
+  doc.getText("t").insert(0, "Нэг хоёр гурав");
+  const comments = open(doc, "aaa");
+  const view = commentsView(comments, () => {});
+  document.body.append(view.el);
+  view.shown(true);
+  comments.add(draftOf(comments, doc, "Нэг"), "Эхнийх");
+  comments.add(draftOf(comments, doc, "гурав"), "Хоёр дахь");
+  const rows = [...view.el.querySelectorAll<HTMLElement>(".talk-thread")];
+  rows[1]!.querySelector<HTMLElement>(".talk-msg-text")!.click();
+  const reply = rows[1]!.querySelector(".talk-reply-input");
+  assert.equal(document.activeElement, reply);
+  assert.ok(rows[1]!.classList.contains("is-active"));
+  assert.equal(rows[0]!.classList.contains("is-active"), false);
+  (document.activeElement as HTMLElement).blur();
+  rows[0]!.querySelector<HTMLButtonElement>(".talk-quote")!.click();
+  assert.notEqual(
+    document.activeElement,
+    rows[0]!.querySelector(".talk-reply-input"),
+  );
+  view.destroy();
+  view.el.remove();
+});
+
+test("өөрийн шүүмж, хариултын нэрийн хажууд (та) гэж бичнэ", () => {
+  const [a, b] = pair();
+  a.getText("t").insert(0, "Нэг хоёр гурав");
+  const mine = open(a, "aaa", "Бат");
+  const theirs = open(b, "bbb", "Дулмаа");
+  const id = mine.add(draftOf(mine, a, "хоёр"), "Миний шүүмж")!;
+  theirs.reply(id, "Зочны хариу");
+  const view = commentsView(mine, () => {});
+  document.body.append(view.el);
+  view.shown(true);
+  const names = [...view.el.querySelectorAll(".talk-msg-name")].map(
+    (node) => node.textContent,
+  );
+  assert.deepEqual(names, ["Бат (та)", "Дулмаа"]);
   view.destroy();
   view.el.remove();
 });

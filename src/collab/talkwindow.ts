@@ -89,6 +89,13 @@ function paintTrigger(trigger: HTMLButtonElement, shared: boolean): void {
   trigger.append(document.createTextNode(" " + label));
 }
 
+function floating(): boolean {
+  return (
+    !window.matchMedia("(min-width: 1024px)").matches ||
+    "talkFloat" in document.documentElement.dataset
+  );
+}
+
 export function fileWindow(deps: WindowDeps): Side {
   const { win, tabs, close, body } = windowShell(deps);
   const trigger = talkTrigger(deps.anchor);
@@ -98,6 +105,8 @@ export function fileWindow(deps: WindowDeps): Side {
     const current = held.current();
     trigger.hidden =
       !current || (!current.chat && current.comments.list().length === 0);
+    if (trigger.hidden && !win.hidden && !current?.views.comments.busy())
+      return open(false);
     if (current) paintTrigger(trigger, current.chat !== null);
     const reading = win.hidden ? null : shownMode(held.current(), mode);
     badge(trigger, unreadOf(held, reading));
@@ -108,13 +117,13 @@ export function fileWindow(deps: WindowDeps): Side {
   const render = (): void => {
     const current = held.current();
     const shown = shownMode(current, mode);
+    const view = current?.views[shown];
+    if (view) body.replaceChildren(view.el);
     for (const key of MODES) {
       tabs[key].hidden = !current?.views[key];
       tabs[key].setAttribute("aria-selected", String(shown === key));
       current?.views[key]?.shown(!win.hidden && shown === key);
     }
-    const view = current?.views[shown];
-    if (view) body.replaceChildren(view.el);
     trigger.setAttribute("aria-pressed", String(!win.hidden));
     document.documentElement.toggleAttribute("data-talk", !win.hidden);
     unread();
@@ -138,6 +147,14 @@ export function fileWindow(deps: WindowDeps): Side {
   });
   win.addEventListener("keydown", (event) => {
     if (event.key === "Escape") open(false);
+  });
+  document.addEventListener("pointerdown", (event) => {
+    const target = event.target instanceof Node ? event.target : null;
+    if (win.hidden || !floating() || !target) return;
+    if (win.contains(target) || trigger.contains(target)) return;
+    if (target instanceof Element && target.closest(".collab-comment-btn"))
+      return;
+    open(false);
   });
   return {
     sync(views) {

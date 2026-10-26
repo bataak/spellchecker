@@ -34,6 +34,7 @@ export type TalkKind = "file" | "project";
 export interface Collab {
   start(): void;
   forget(slot: RoomSlot): boolean;
+  clearShared(slot: RoomSlot): boolean | Promise<boolean>;
   projectChanged(): void;
   talk(kind: TalkKind): Talk | null;
   onTalk(listener: () => void): void;

@@ -18,6 +18,7 @@ export interface ToolbarDeps {
   readonly office: OfficeSwitch;
   readonly forgetFile: () => void;
   readonly afterClear: (cleared: boolean) => void;
+  readonly confirmClear?: () => boolean | Promise<boolean>;
   readonly lettersFixed: () => void;
   readonly hasOpenFile: () => boolean;
   readonly badTokens: () => Token[];
@@ -269,23 +270,33 @@ function initButtons({
   hasOpenFile,
   badTokens,
   afterClear,
+  confirmClear = () => true,
   lettersFixed,
 }: ToolbarDeps): void {
   const editor = port.el;
   const setStatus = status.set;
   const clearBtn = document.querySelector<HTMLElement>("#clearBtn")!;
   initWipeButton(clearBtn);
+  const wipeText = (): void => {
+    if (editor.value) write(KEYS.lastCleared, editor.value);
+    office.close();
+    forgetFile();
+    void port.replace("", 0);
+    afterClear(true);
+  };
   clearBtn.addEventListener("click", () => {
     if (!editor.value && !hasOpenFile()) {
       afterClear(false);
       editor.focus();
       return;
     }
-    if (editor.value) write(KEYS.lastCleared, editor.value);
-    office.close();
-    forgetFile();
-    void port.replace("", 0);
-    afterClear(true);
+    const ok = confirmClear();
+    if (ok === true) return wipeText();
+    if (ok === false) return;
+    void ok.then((sure) => {
+      if (sure) wipeText();
+      else editor.focus();
+    });
   });
 
   function insertAtCaret(text: string): void {
