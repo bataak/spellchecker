@@ -92,6 +92,7 @@ function fakeTalk(project: boolean, list: Change[] = [change()]) {
     changes: changes.tracker,
     comments,
     slot: null,
+    room: "r1",
     project,
     announce: () => {},
   };

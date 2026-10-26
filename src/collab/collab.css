@@ -195,14 +195,17 @@
 .collab-members li::before {
   content: "";
   flex: none;
+  box-sizing: border-box;
   width: 8px;
   height: 8px;
+  border: 2px solid var(--peer, var(--line));
   border-radius: 50%;
-  background: var(--line);
+  background: transparent;
 }
 
 .collab-members li.is-online::before {
-  background: var(--accent);
+  border-color: var(--peer, var(--accent));
+  background: var(--peer, var(--accent));
 }
 
 .collab-members li.collab-members-empty::before {

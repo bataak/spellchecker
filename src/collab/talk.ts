@@ -21,6 +21,7 @@ export interface Talk {
   readonly changes: ChangeTracker;
   readonly comments: CollabComments;
   readonly slot: string | null;
+  readonly room: string;
   readonly project: boolean;
   announce(): void;
 }
@@ -42,6 +43,7 @@ export function createTalk(deps: TalkDeps, doc: Y.Doc, chat: ChatDoc): Talk {
       profile: deps.profile,
     }),
     slot: deps.slot,
+    room: deps.room,
     project,
     announce,
   };

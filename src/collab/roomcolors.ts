@@ -10,6 +10,7 @@ export interface ColorClaim {
 
 export interface RoomColors {
   profile(): Profile;
+  colorOf(key: string): number | null;
   onChange(listener: () => void): () => void;
   destroy(): void;
 }
@@ -84,6 +85,7 @@ export function createRoomColors(
   settle();
   return {
     profile: () => ({ ...base(), color: color ?? base().color }),
+    colorOf: (key) => claimsOf(map).get(key)?.c ?? null,
     onChange: changed.on,
     destroy() {
       map.unobserve(observer);
