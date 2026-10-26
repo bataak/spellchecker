@@ -55,6 +55,7 @@ export const KEYS = {
   useDays: shared("mn-spell:use-days"),
   texMeta: shared("tex-packages:meta"),
   texOffline: shared("tex-offline:"),
+  texRecent: shared("tex-recent"),
   wipe: session("mn-spell:wipe"),
   hasText: session("mn-spell:has-text"),
   staleReload: session("staleReload:"),

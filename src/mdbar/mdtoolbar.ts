@@ -29,6 +29,7 @@ import { createDraftSwitch } from "./draftswitch.ts";
 import { createBarVisibility } from "./mdvisibility.ts";
 import { createSlotPicker } from "./slotpicker.ts";
 import { createFileSlotOps } from "./fileslotops.ts";
+import { createToolHost, type BarTools } from "./toolhost.ts";
 
 export { sharedSlot, type Caret } from "../slots/slotstore.ts";
 
@@ -66,6 +67,7 @@ export interface MdToolbar {
   leaveProject: () => void;
   markSaved: (written?: boolean) => void;
   fileDirty: (id: string) => boolean;
+  addTools: (tools: BarTools) => void;
   destroy: () => void;
 }
 
@@ -218,7 +220,8 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
   const rebuildMenu = labels.rebuild;
   const group = bar.querySelector<HTMLElement>(".md-group")!;
   const picker = bar.querySelector<HTMLElement>(".md-select")!;
-  const topbar = initTopbarFit(mount, bar, group);
+  const tools = createToolHost(group, () => syncVisible());
+  const topbar = initTopbarFit(mount, bar, tools.anyShown);
 
   onDraftError(options.onDraftError ?? null);
   state.legacy = migrateLegacyDrafts(state.id);
@@ -236,7 +239,8 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     editor,
     mount,
     buttons,
-    menu: dropdown,
+    menu: tools.menu(dropdown),
+    tools,
     active,
     beforeSync: labels.syncLabel,
     afterSync: () => topbar.sync(),
@@ -289,7 +293,9 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     },
     ...files,
     setProject: labels.setProject,
+    addTools: tools.add,
     destroy(): void {
+      tools.destroy();
       visibility.destroy();
       unwatchSlots();
       dropdown.destroy();

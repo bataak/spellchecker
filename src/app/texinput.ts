@@ -1,4 +1,7 @@
 import "../tex/texcomplete.css";
+import "../tex/texbar.css";
+import type { BarTools } from "../mdbar/toolhost.ts";
+import { createTexBar } from "../tex/texbar.ts";
 import { initTexComplete } from "../tex/texcomplete.ts";
 import { initTexImageInput, insertPickedImage } from "../tex/teximages.ts";
 import { initTexItems } from "../tex/texitems.ts";
@@ -12,6 +15,7 @@ export interface TexInputDeps {
   readonly rectAt: (start: number, end: number) => DOMRect | null;
   readonly project: () => ProjectFiles | null;
   readonly path: () => string | null;
+  readonly toolbar: { addTools(tools: BarTools): void };
 }
 
 function* editorSources(
@@ -28,7 +32,7 @@ function* editorSources(
 export function initTexInput(deps: TexInputDeps): void {
   const { editor, active } = deps;
   const index = createSymbolIndex();
-  initTexComplete({
+  const snippets = initTexComplete({
     editor,
     active,
     rectAt: deps.rectAt,
@@ -36,6 +40,9 @@ export function initTexInput(deps: TexInputDeps): void {
     symbols: () =>
       index.collect(editorSources(editor.value, deps.project(), deps.path())),
   });
+  deps.toolbar.addTools(
+    createTexBar({ editor, active, insert: snippets.insert }),
+  );
   initTexImageInput({ editor, active });
   initTexQuotes({ editor, active });
   initTexItems({ editor, active });
