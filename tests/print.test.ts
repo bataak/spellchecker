@@ -4,7 +4,8 @@ import { test } from "node:test";
 import { parse } from "../src/markdown.ts";
 import { applyTemplate } from "../src/office/apply.ts";
 import { docImages, imageKey } from "../src/office/docir.ts";
-import { printHtml, splitStyles } from "../src/office/print.ts";
+import { printHtml } from "../src/office/print.ts";
+import { splitStyles } from "../src/export/printframe.ts";
 import { findTemplate } from "../src/doc/templates.ts";
 
 function letter(md: string): string {

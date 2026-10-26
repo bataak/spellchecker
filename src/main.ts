@@ -123,7 +123,8 @@ const office = createOfficeSession({
   showSource: (source) => previewCtl.setSource(source),
   baseline: () => undoCtl.baseline(),
   syncFixButtons: () => fixers.sync(),
-  onModeChange: () => {
+  onModeChange: (active) => {
+    document.body.classList.toggle("docx-mode", active);
     doc.syncSaveHint();
     exportCtl.syncPrint();
   },
