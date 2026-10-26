@@ -1,12 +1,16 @@
+import { argContext, type ArgContext } from "./texargs.ts";
 import { COMMANDS, ENVIRONMENTS } from "./texcommands.ts";
+import { NO_SYMBOLS, type TexSymbols } from "./texsymbols.ts";
 
-export type CompletionKind = "cmd" | "env";
+export type CompletionKind = "cmd" | "env" | "arg";
 
-export interface CompletionContext {
-  kind: CompletionKind;
-  from: number;
-  prefix: string;
-}
+export type CompletionContext =
+  | {
+      readonly kind: "cmd" | "env";
+      readonly from: number;
+      readonly prefix: string;
+    }
+  | ArgContext;
 
 export interface Completion {
   label: string;
@@ -84,6 +88,17 @@ export function completionContext(
     return { kind: "env", from, prefix: env[1]! };
   }
 
+  const command = commandContext(text, start, caret);
+  if (command) return command;
+  const arg = argContext(text, caret);
+  return arg && !inComment(text, arg.from) ? arg : null;
+}
+
+function commandContext(
+  text: string,
+  start: number,
+  caret: number,
+): CompletionContext | null {
   if (start === caret) return null;
   if (start < 1 || text.charCodeAt(start - 1) !== 92) return null;
   let slashes = 0;
@@ -106,13 +121,39 @@ function rank(list: readonly Completion[], prefix: string): Completion[] {
   return [...exact, ...starts, ...folded].slice(0, LIMIT);
 }
 
-export function completions(context: CompletionContext): Completion[] {
-  if (context.kind === "env") return rank(ENV_LIST, context.prefix);
-  const found = rank(COMMAND_LIST, context.prefix);
-  if (found.length === 1 && found[0]!.label === context.prefix) {
-    const only = found[0]!;
-    if (only.snippet === only.label) return [];
-  }
+const COMMAND_LABELS = new Set(COMMAND_LIST.map((item) => item.label));
+const ENV_LABELS = new Set(ENV_LIST.map((item) => item.label));
+
+function own(
+  snippets: readonly string[],
+  toEntry: (snippet: string) => Completion,
+  known: ReadonlySet<string>,
+): Completion[] {
+  return snippets.map(toEntry).filter((item) => !known.has(item.label));
+}
+
+function candidates(
+  context: CompletionContext,
+  symbols: TexSymbols,
+): readonly Completion[] {
+  if (context.kind === "arg")
+    return symbols[context.source].map((value) => ({
+      label: value,
+      snippet: value,
+    }));
+  if (context.kind === "env")
+    return [...ENV_LIST, ...own(symbols.environments, envEntry, ENV_LABELS)];
+  return [...own(symbols.commands, entry, COMMAND_LABELS), ...COMMAND_LIST];
+}
+
+export function completions(
+  context: CompletionContext,
+  symbols: TexSymbols = NO_SYMBOLS,
+): Completion[] {
+  const found = rank(candidates(context, symbols), context.prefix);
+  if (context.kind === "env") return found;
+  const only = found.length === 1 ? found[0]! : null;
+  if (only?.label === context.prefix && only.snippet === only.label) return [];
   return found;
 }
 
@@ -121,7 +162,7 @@ export function unchanged(
   item: Completion,
 ): boolean {
   return (
-    context.kind === "cmd" &&
+    context.kind !== "env" &&
     item.snippet === item.label &&
     item.label === context.prefix
   );
@@ -139,6 +180,15 @@ export function expand(
   context: CompletionContext,
   item: Completion,
 ): Expansion {
+  if (context.kind === "arg")
+    return {
+      from: context.from,
+      to: caret,
+      text: item.label,
+      caret: context.from + item.label.length,
+      closes: [],
+      body: null,
+    };
   if (context.kind === "cmd") {
     const body = "\\" + item.snippet;
     const mark = body.indexOf("#");
