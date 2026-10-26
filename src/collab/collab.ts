@@ -124,10 +124,20 @@ function projectRoom(
   return uid ? roomOfSlot(rooms, projectSlot(uid)) : null;
 }
 
+function collabAvailable(
+  button: HTMLButtonElement | null,
+): button is HTMLButtonElement {
+  const available =
+    ENDPOINT !== "" &&
+    button !== null &&
+    typeof RTCPeerConnection !== "undefined";
+  if (button && !available) button.hidden = true;
+  return available;
+}
+
 export function initCollab(deps: CollabDeps): Collab {
   const { button, editor } = deps;
-  if (!ENDPOINT || !button || typeof RTCPeerConnection === "undefined")
-    return DISABLED;
+  if (!collabAvailable(button)) return DISABLED;
 
   let rooms = parseRooms(readJson(KEYS.collabRooms));
   let active: string | null = null;

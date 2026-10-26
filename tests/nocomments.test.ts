@@ -8,7 +8,12 @@ import ts from "typescript";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DIRS = ["src", "tests", "scripts", "tools", "worker", "types"];
 const SKIP = new Set(["node_modules", ".cache", "dist"]);
-const CONFIGS = ["vite.config.ts", "vite-stardict.ts", "eslint.config.js"];
+const CONFIGS = [
+  "vite.config.ts",
+  "vite-stardict.ts",
+  "vite-collab.ts",
+  "eslint.config.js",
+];
 
 function walk(dir: string, out: string[]): string[] {
   for (const name of readdirSync(dir)) {
