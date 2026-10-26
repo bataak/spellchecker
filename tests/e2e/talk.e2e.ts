@@ -386,3 +386,25 @@ test("эзэн хуваалцсан бичвэрийг цэвэрлэхэд ас
   assert.deepEqual(errors(owner), []);
   assert.deepEqual(errors(guest), []);
 });
+
+test("сүүлийн үгийг шүүмжилсний дараа үгийн ард курсор тавьж үргэлжлүүлэн бичнэ", async () => {
+  const page = await openPage(app, await app.context());
+  await typeAtEnd(page, "Өнөөдөр бороо");
+  await page.waitForTimeout(700);
+  await selectWord(page, "бороо");
+  await page.locator(".collab-comment-btn").click();
+  await page.keyboard.type("Сүүлийн үг");
+  await page.keyboard.press("Enter");
+  await page.locator(".collab-comment-mark").first().waitFor();
+  await page.locator('.talk-window button[aria-label="Хаах"]').click();
+  await page.locator(".talk-window").waitFor({ state: "hidden" });
+  const mark = (await page
+    .locator(".collab-comment-mark")
+    .first()
+    .boundingBox())!;
+  await page.mouse.click(mark.x + mark.width + 2, mark.y + mark.height / 2);
+  assert.equal(await page.evaluate(() => document.activeElement?.id), "editor");
+  await page.keyboard.type(" орно");
+  assert.match(await editor(page), /бороо орно$/);
+  assert.deepEqual(errors(page), []);
+});
