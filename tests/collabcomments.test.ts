@@ -253,3 +253,28 @@ test("бүх нээлттэй шүүмжийг баталгаажуулсны д
   view.destroy();
   view.el.remove();
 });
+
+test("шүүмж дээр дарахад түүний хариулах талбар идэвхжинэ", () => {
+  const doc = new Y.Doc();
+  doc.getText("t").insert(0, "Нэг хоёр гурав");
+  const comments = open(doc, "aaa");
+  const view = commentsView(comments, () => {});
+  document.body.append(view.el);
+  view.shown(true);
+  comments.add(draftOf(comments, doc, "Нэг"), "Эхнийх");
+  comments.add(draftOf(comments, doc, "гурав"), "Хоёр дахь");
+  const rows = [...view.el.querySelectorAll<HTMLElement>(".talk-thread")];
+  rows[1]!.querySelector<HTMLElement>(".talk-msg-text")!.click();
+  const reply = rows[1]!.querySelector(".talk-reply-input");
+  assert.equal(document.activeElement, reply);
+  assert.ok(rows[1]!.classList.contains("is-active"));
+  assert.equal(rows[0]!.classList.contains("is-active"), false);
+  (document.activeElement as HTMLElement).blur();
+  rows[0]!.querySelector<HTMLButtonElement>(".talk-quote")!.click();
+  assert.notEqual(
+    document.activeElement,
+    rows[0]!.querySelector(".talk-reply-input"),
+  );
+  view.destroy();
+  view.el.remove();
+});

@@ -173,8 +173,20 @@ function threadRow(thread: CommentThread, actions: RowActions): HTMLLIElement {
     reply.placeholder = "Хариулах...";
     reply.setAttribute("aria-label", "Хариулт");
     row.append(reply);
+    row.addEventListener("click", (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest("button, textarea, input, a")) return;
+      markActive(row, thread.id, state);
+      reply.focus();
+    });
   }
   return row;
+}
+
+function markActive(row: HTMLElement, id: string, state: State): void {
+  state.active = id;
+  for (const other of row.parentElement?.children ?? [])
+    other.classList.toggle("is-active", other === row);
 }
 
 interface Composer {
