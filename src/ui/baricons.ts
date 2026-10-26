@@ -31,6 +31,18 @@ export const ICON = {
   link:
     '<path d="M6.9 9.1a3.1 3.1 0 0 0 4.4.3l1.9-1.9a3.1 3.1 0 0 0-4.4-4.4l-1 1"/>' +
     '<path d="M9.1 6.9a3.1 3.1 0 0 0-4.4-.3l-1.9 1.9a3.1 3.1 0 0 0 4.4 4.4l1-1"/>',
+  environment:
+    '<rect x="1.5" y="2.5" width="13" height="11" rx="2.5"/>' +
+    '<path d="M4.5 6.2h7M4.5 9.8h4.5"/>',
+  matrix:
+    '<path d="M4.5 2.5c-2.2 1.8-2.2 9.2 0 11M11.5 2.5c2.2 1.8 2.2 9.2 0 11"/>' +
+    '<circle cx="6.5" cy="5.5" r="0.9" fill="currentColor" stroke="none"/>' +
+    '<circle cx="9.5" cy="5.5" r="0.9" fill="currentColor" stroke="none"/>' +
+    '<circle cx="6.5" cy="10.5" r="0.9" fill="currentColor" stroke="none"/>' +
+    '<circle cx="9.5" cy="10.5" r="0.9" fill="currentColor" stroke="none"/>',
+  system:
+    '<path d="M5.5 2.5c-1.6 0-1.6 1.2-1.6 2.7S3.8 8 2.3 8c1.5 0 1.6 1.3 1.6 2.8s0 2.7 1.6 2.7"/>' +
+    '<path d="M8 5.3h6M8 10.7h6"/>',
 } as const;
 
 export function svg(body: string): string {

@@ -113,6 +113,7 @@ const MATH_SECTIONS: readonly MenuSection[] = [
   {
     title: "Томьёо",
     items: [
+      item("Тусдаа мөрөнд", text("\\[\n#\n\\]")),
       item("Дугаартай", env("equation")),
       item("Дугааргүй", env("equation*")),
       item("Тэгшилсэн", env("align")),
@@ -123,14 +124,13 @@ const MATH_SECTIONS: readonly MenuSection[] = [
   {
     title: "Бүтэц",
     items: [
+      item("Зэрэг", text("^{#}")),
       item("n зэргийн язгуур", cmd("sqrt[#]{}")),
       item("Индекс", text("_{#}")),
       item("Нийлбэр", cmd("sum_{#}^{}")),
       item("Үржвэр", cmd("prod_{#}^{}")),
-      item("Интеграл", cmd("int_{#}^{}")),
       item("Хязгаар", cmd("lim_{#}")),
       item("Хослол", cmd("binom{#}{}")),
-      item("Матриц ( )", env("pmatrix")),
       item("Матриц [ ]", env("bmatrix")),
     ],
   },
@@ -200,10 +200,10 @@ const LINK_SECTIONS: readonly MenuSection[] = [
     ],
   },
   {
-    title: "Индекс",
+    title: "Товъёг",
     items: [
-      item("Индексийн үг", cmd("index{#}")),
-      item("Индекс хэвлэх", cmd("printindex")),
+      item("Товъёгийн үг", cmd("index{#}")),
+      item("Товъёг хэвлэх", cmd("printindex")),
     ],
   },
   {
@@ -217,13 +217,18 @@ const LINK_SECTIONS: readonly MenuSection[] = [
 
 const SYMBOL_TABS: readonly SymbolTab[] = [
   {
-    title: "Грек",
+    title: "Грек жижиг",
     symbols: symbols(`
-      α alpha β beta γ gamma δ delta ε varepsilon ζ zeta η eta θ theta
-      ι iota κ kappa λ lambda μ mu ν nu ξ xi π pi ρ rho σ sigma τ tau
-      υ upsilon φ varphi χ chi ψ psi ω omega Γ Gamma Δ Delta Θ Theta
-      Λ Lambda Ξ Xi Π Pi Σ Sigma Φ Phi Ψ Psi Ω Omega ϵ epsilon ϑ vartheta
-      ϕ phi ϱ varrho ς varsigma`),
+      α alpha β beta γ gamma δ delta ϵ epsilon ε varepsilon ζ zeta η eta
+      θ theta ϑ vartheta ι iota κ kappa λ lambda μ mu ν nu ξ xi π pi
+      ϖ varpi ρ rho ϱ varrho σ sigma ς varsigma τ tau υ upsilon φ varphi
+      ϕ phi χ chi ψ psi ω omega`),
+  },
+  {
+    title: "Грек том",
+    symbols: symbols(`
+      Γ Gamma Δ Delta Θ Theta Λ Lambda Ξ Xi Π Pi Σ Sigma Υ Upsilon
+      Φ Phi Ψ Psi Ω Omega`),
   },
   {
     title: "Харьцаа",
@@ -293,15 +298,30 @@ export const TEX_TOOLS: readonly BarTool[] = [
   action("inline", "$x$", "Мөр доторх томьёо ($…$)", text("$#$"), {
     gap: true,
   }),
-  action(
-    "display",
-    "[x]",
-    "Тусдаа мөрөнд томьёо (\\[…\\])",
-    text("\\[\n#\n\\]"),
-  ),
   action("frac", "a⁄b", "Бутархай (\\frac)", cmd("frac{#}{}")),
   action("sqrt", "√x", "Язгуур (\\sqrt)", cmd("sqrt{#}")),
-  action("power", "x²", "Зэрэг (^)", text("^{#}")),
+  action("integral", "∫", "Интеграл (\\int)", cmd("int_{#}^{}")),
+  action(
+    "matrix",
+    "( )",
+    "Матриц (pmatrix)",
+    env("pmatrix", "# & \\\\", "& "),
+    {
+      icon: svg(ICON.matrix),
+    },
+  ),
+  action(
+    "system",
+    "{",
+    "Нэг хаалттай систем",
+    {
+      kind: "env",
+      snippet: "aligned",
+      around: ["\\left\\{", "\\right."],
+      body: ["# \\\\", ""],
+    },
+    { icon: svg(ICON.system) },
+  ),
   list("math", "∑", "Томьёоны орчин, бүтэц", MATH_SECTIONS),
   {
     kind: "palette",
@@ -338,13 +358,15 @@ export const TEX_TOOLS: readonly BarTool[] = [
     ),
     { icon: svg(ICON.table) },
   ),
-  list("env", "⊞", "Орчин: голлуулах, ишлэл, теорем", ENV_SECTIONS),
+  list("env", "⊞", "Орчин: голлуулах, ишлэл, теорем", ENV_SECTIONS, {
+    icon: svg(ICON.environment),
+  }),
   action("close", "⤶", "Нээлттэй орчныг хаах", { kind: "close" }),
   action("ref", "↪", "Шошгоор заах (\\ref)", cmd("ref{#}"), { gap: true }),
   action("cite", "❝", "Ишлэх (\\cite)", cmd("cite{#}"), {
     icon: svg(ICON.quote),
   }),
-  list("links", "⋯", "Шошго, индекс, вэб холбоос", LINK_SECTIONS, {
+  list("links", "⋯", "Шошго, товъёг, вэб холбоос", LINK_SECTIONS, {
     icon: svg(ICON.link),
   }),
 ];
