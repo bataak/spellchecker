@@ -1,4 +1,4 @@
-import type { DictStatus } from "../dict/dictstatus.ts";
+import type { DictStatus } from "../spellui/dictstatus.ts";
 import type { Layout } from "../ui/layout.ts";
 import { initReportButton } from "../feedback/reportbtn.ts";
 import { getIgnored } from "../spell/ignore.ts";
@@ -18,7 +18,11 @@ export interface AppReportDeps {
 
 export function initAppReport(deps: AppReportDeps): void {
   const { checker } = deps;
-  initReportButton(() => {
+  const els = {
+    button: document.querySelector<HTMLElement>("#reportBtn"),
+    note: document.querySelector<HTMLElement>("#reportNote"),
+  };
+  initReportButton(els, () => {
     const active = deps.dicts.active();
     return {
       entryUrl: deps.entryUrl,

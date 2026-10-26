@@ -13,6 +13,7 @@ export type OpenSlots = Pick<
 export function createOpenPolicy(
   slots: () => OpenSlots,
   hold: (html: string, ms: number, animate: boolean) => void,
+  openButton: HTMLElement | null = null,
 ): FileIODeps["prepareOpen"] {
   return (name, hash, text) => {
     const bar = slots();
@@ -37,7 +38,7 @@ export function createOpenPolicy(
       LIMIT_HOLD_MS,
       false,
     );
-    flash("#openBtn", "Хязгаар");
+    flash(openButton, "Хязгаар");
     return false;
   };
 }

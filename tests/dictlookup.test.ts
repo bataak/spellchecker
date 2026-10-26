@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createDictLookup } from "../src/dict/dictlookup.ts";
+import { createDictLookup } from "../src/spell/dictlookup.ts";
 import {
   openStarDict,
   stardictCompare,

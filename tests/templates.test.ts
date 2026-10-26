@@ -2,7 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { rawGet, rawSet, resetStorage } from "./helpers/mock-storage.ts";
-import { migrateLegacyDrafts } from "../src/slots/slotstore.ts";
+import {
+  createDraftStore,
+  migrateLegacyDrafts,
+} from "../src/slots/slotstore.ts";
 import {
   LEGACY_TEMPLATES,
   TEMPLATE_GROUPS,
@@ -44,7 +47,7 @@ test("хуучин ноорог шинэ талбартаа нийлнэ", () =>
   rawSet("mdDraft:essay", "эссе");
   rawSet("mdDraft:application", "өргөдөл");
 
-  const pending = migrateLegacyDrafts("plain");
+  const pending = migrateLegacyDrafts("plain", createDraftStore());
 
   assert.deepEqual(pending, []);
   assert.equal(rawGet("mdDraft:report"), "тайлан\n\nэссе");
@@ -57,6 +60,8 @@ test("идэвхтэй талбарын хуучин ноорог хадгала
   resetStorage();
   rawSet("mdDraft:coursework", "бие даалт");
 
-  assert.deepEqual(migrateLegacyDrafts("report"), ["coursework"]);
+  assert.deepEqual(migrateLegacyDrafts("report", createDraftStore()), [
+    "coursework",
+  ]);
   assert.equal(rawGet("mdDraft:coursework"), "бие даалт");
 });

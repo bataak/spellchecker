@@ -1,4 +1,4 @@
-import { KEYS, read, type StoreKey, write } from "../core/store.ts";
+import { KEYS, read, type StoreKey, write as store } from "../core/store.ts";
 const INFO_TIPS = [
   "Улаанаар зурагдсан үг бүрийг алдаанд тооцож болохгүй, энэ нь үгийн алдаа шалгах толинд хараахан бүртгэгдээгүй байж болно.",
   "Алдсан үгэн дээр заагчаар дарахад гарах үгийн зөв бичлэг нь оновчгүй байж болохыг мөн анхаарна уу!",
@@ -26,16 +26,13 @@ const ACTION_TIPS = [
   "Монгол үсгийн дүрмийн толь: https://zuv.bichig.dev/book/",
 ];
 
-let wasEmpty: boolean | null = null;
-let swapTimer: ReturnType<typeof setTimeout> | null = null;
-
 function pick(list: string[], key: StoreKey): string {
   const raw = read(key);
   const last = raw === null ? -1 : parseInt(raw, 10);
   let tipIndex = Math.floor(Math.random() * list.length);
   if (list.length > 1 && tipIndex === last)
     tipIndex = (tipIndex + 1) % list.length;
-  write(key, String(tipIndex));
+  store(key, String(tipIndex));
   return list[tipIndex]!;
 }
 
@@ -55,35 +52,49 @@ function renderTip(el: HTMLElement, text: string): void {
   if (rest) el.append(rest);
 }
 
-function apply(animate: boolean): void {
-  const info = document.querySelector<HTMLElement>("#emptyNoteInfo");
-  const action = document.querySelector<HTMLElement>("#emptyNoteAction");
+export interface EmptyTipEls {
+  readonly info: HTMLElement | null;
+  readonly action: HTMLElement | null;
+}
+
+export interface EmptyTips {
+  rotate(): void;
+  sync(isEmpty: boolean): void;
+}
+
+export function createEmptyTips({ info, action }: EmptyTipEls): EmptyTips {
   const els = [info, action].filter((el): el is HTMLElement => el !== null);
-  if (els.length === 0) return;
-  const write = () => {
+  let wasEmpty: boolean | null = null;
+  let swapTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const write = (): void => {
     if (info) renderTip(info, pick(INFO_TIPS, KEYS.tipInfo));
     if (action) renderTip(action, pick(ACTION_TIPS, KEYS.tipAction));
   };
-  if (!animate) {
-    write();
-    return;
+
+  function apply(animate: boolean): void {
+    if (els.length === 0) return;
+    if (!animate) {
+      write();
+      return;
+    }
+    for (const el of els) el.classList.add("tip-swap");
+    if (swapTimer) clearTimeout(swapTimer);
+    swapTimer = setTimeout(() => {
+      write();
+      for (const el of els) el.classList.remove("tip-swap");
+    }, 160);
   }
-  for (const el of els) el.classList.add("tip-swap");
-  if (swapTimer) clearTimeout(swapTimer);
-  swapTimer = setTimeout(() => {
-    write();
-    for (const el of els) el.classList.remove("tip-swap");
-  }, 160);
-}
 
-export function rotateEmptyTips(): void {
-  apply(true);
-  wasEmpty = true;
+  apply(false);
+  return {
+    rotate() {
+      apply(true);
+      wasEmpty = true;
+    },
+    sync(isEmpty) {
+      if (isEmpty && wasEmpty === false) apply(true);
+      wasEmpty = isEmpty;
+    },
+  };
 }
-
-export function syncEmptyTips(isEmpty: boolean): void {
-  if (isEmpty && wasEmpty === false) apply(true);
-  wasEmpty = isEmpty;
-}
-
-apply(false);

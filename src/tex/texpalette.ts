@@ -1,6 +1,7 @@
 import { KEYS, readJson, writeJson } from "../core/store.ts";
 import { glyphSvg, symbolTex } from "./texglyphs.ts";
 import type { MathSymbol, SymbolTab } from "./texmenudata.ts";
+import { element, eventElement } from "../ui/dom.ts";
 
 export interface Palette {
   readonly element: HTMLElement;
@@ -9,15 +10,6 @@ export interface Palette {
 }
 
 const RECENT_LIMIT = 8;
-
-function element<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  className: string,
-): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  node.className = className;
-  return node;
-}
 
 export function loadRecent(): string[] {
   const raw = readJson(KEYS.texRecent);
@@ -132,7 +124,8 @@ function bindPaletteKeys(
   moveTab: (delta: number) => void,
 ): void {
   view.root.addEventListener("keydown", (event) => {
-    const target = event.target as HTMLElement;
+    const target = eventElement(event);
+    if (!(target instanceof HTMLElement)) return;
     if (target === view.search) {
       const first = view.grid.querySelector<HTMLElement>(".tex-cell");
       if (event.key === "ArrowDown") first?.focus();
@@ -187,7 +180,8 @@ export function createPalette(
   }
 
   view.root.addEventListener("click", (event) => {
-    const target = event.target as HTMLElement;
+    const target = eventElement(event);
+    if (!target) return;
     const tab = target.closest<HTMLElement>(".tex-tab");
     if (tab) return chooseTab(Number(tab.dataset.tab), false);
     const command = target.closest<HTMLElement>(".tex-cell")?.dataset.command;

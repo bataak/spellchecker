@@ -9,7 +9,7 @@ const PAGE =
   '<button id="copyErrorsBtn">copy</button></aside>';
 const dom = installDom(PAGE);
 const { initPaneToggle } = await import("../src/ui/panetoggle.ts");
-const { initErrorPanel } = await import("../src/ui/errorpanel.ts");
+const { initErrorPanel } = await import("../src/spellui/errorpanel.ts");
 type Backdrop = import("../src/editor/backdrop.ts").Backdrop;
 type Token = import("../src/spell/textcheck.ts").Token;
 
@@ -58,6 +58,9 @@ function panel(tokens: Token[], desktop = true) {
     editor: area,
     backdrop: { markAt: () => null } as unknown as Backdrop,
     desktopMQ: { matches: desktop } as MediaQueryList,
+    list: document.querySelector<HTMLElement>("#errorList"),
+    copy: document.querySelector<HTMLButtonElement>("#copyErrorsBtn"),
+    title: document.querySelector<HTMLElement>("#errorPanelTitle"),
     badTokens: () => tokens,
     lastCaret: () => null,
     setLastCaret: (caret) => calls.push(`caret:${caret.start}`),

@@ -22,6 +22,7 @@ import {
   type ExportParts,
 } from "./exportmarkup.ts";
 import { bindExportTriggers } from "./exporttriggers.ts";
+import { closestTarget, eventElement } from "../ui/dom.ts";
 
 export interface ExportOptions {
   readonly editor: HTMLTextAreaElement;
@@ -129,9 +130,7 @@ function texFormatsFor(options: ExportOptions): ExportFormat[] {
 
 function bindMissingPick(list: HTMLElement): void {
   list.addEventListener("click", (event) => {
-    const button = (event.target as Element).closest<HTMLElement>(
-      ".export-pick",
-    );
+    const button = closestTarget(event, ".export-pick");
     const src = button?.dataset.src;
     if (!src) return;
     void pickImage().then((file) => {
@@ -250,7 +249,7 @@ function showOffered(overlay: HTMLElement, offered: ExportFormat[]): void {
 }
 
 function clickAction(
-  target: HTMLElement | null,
+  target: Element | null,
   parts: ExportParts,
 ): "close" | "run" | { format: string | undefined } | null {
   if (target === parts.overlay || target?.closest(".export-cancel"))
@@ -356,7 +355,7 @@ export function initExport(options: ExportOptions): ExportControl {
   }
 
   overlay.addEventListener("click", (event) => {
-    const action = clickAction(event.target as HTMLElement | null, parts);
+    const action = clickAction(eventElement(event), parts);
     if (action === "close") close();
     else if (action === "run") void run();
     else if (action) {

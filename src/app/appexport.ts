@@ -35,11 +35,13 @@ export function initAppExport(deps: AppExportDeps): ExportControl {
     if (!isFileSlot(id)) return id;
     return deps.isMarkdownFile() ? "report" : PLAIN;
   };
+  const saveButton = document.querySelector<HTMLElement>("#saveBtn");
+  const printButton = document.querySelector<HTMLElement>("#printBtn");
   return initExport({
     editor: deps.editor,
-    saveButton: document.querySelector<HTMLElement>("#saveBtn"),
+    saveButton,
     saveChain: deps.saveChain,
-    printButton: document.querySelector<HTMLElement>("#printBtn"),
+    printButton,
     template,
     baseName: deps.baseName,
     blocked: deps.blocked,
@@ -58,15 +60,19 @@ export function initAppExport(deps: AppExportDeps): ExportControl {
       return pdf;
     },
     texSource: (name) => deps.saveSource(name, deps.project().bound()),
-    onDone: () => flash("#saveBtn", "Хадгаллаа"),
-    onBlocked: () => flash("#saveBtn", "Экспорт хийх боломжгүй"),
-    onEmpty: () => flash("#saveBtn", "Хоосон байна"),
+    onDone: () => flash(saveButton, "Хадгаллаа"),
+    onBlocked: () => flash(saveButton, "Экспорт хийх боломжгүй"),
+    onEmpty: () => flash(saveButton, "Хоосон байна"),
     onPrintError: (error) => {
-      flash("#printBtn", "Хэвлэж чадсангүй");
+      flash(printButton, "Хэвлэж чадсангүй");
       if (error instanceof Error && error.name === "PdfError")
         deps.hold(escapeHtml(error.message), NOTE_MS, false);
     },
     onBusy: (busy, ext) =>
-      setSaveBusy(busy, ext === "zip" ? "Архивлаж байна…" : undefined),
+      setSaveBusy(
+        saveButton,
+        busy,
+        ext === "zip" ? "Архивлаж байна…" : undefined,
+      ),
   });
 }

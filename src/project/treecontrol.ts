@@ -13,6 +13,7 @@ import { removeQuestion, replaceQuestion } from "./panelview.ts";
 import type { MenuItem, ProjectMenu } from "./projectmenu.ts";
 import { initTreeDrag, movedPath } from "./treedrag.ts";
 import { rowOf, rowSelector } from "./treerows.ts";
+import { closestTarget } from "../ui/dom.ts";
 
 export interface TreeState {
   readonly collapsed: Set<string>;
@@ -289,7 +290,7 @@ function wireTreeEvents(e: TreeEvents): void {
   const { state } = deps;
   const { project, renamePath, projectHas, addFile } = deps.store;
   deps.tree.addEventListener("click", (event) => {
-    if ((event.target as Element).closest(".project-skip")) {
+    if (closestTarget(event, ".project-skip")) {
       state.focus = null;
       deps.render();
       return;
@@ -297,7 +298,7 @@ function wireTreeEvents(e: TreeEvents): void {
     const row = rowOf(event.target);
     if (!row || row.classList.contains("is-new")) return;
     const path = row.dataset.path ?? "";
-    const more = (event.target as Element).closest(".project-more");
+    const more = closestTarget(event, ".project-more");
     if (more) {
       const box = more.getBoundingClientRect();
       openMenu(path, box.left, box.bottom + 4);

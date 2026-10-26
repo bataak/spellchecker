@@ -3,7 +3,7 @@ import { beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { loadSlots, saveSlots, textSum } from "../src/slots/fileslots.ts";
 import { createSlotList } from "../src/slots/slotlist.ts";
-import { saveDraft } from "../src/slots/slotstore.ts";
+import { createDraftStore } from "../src/slots/slotstore.ts";
 
 beforeEach(resetStorage);
 
@@ -12,7 +12,7 @@ test("slotlist идэвхтэй файлыг засварын бичвэрээр
     { id: "file-1", name: "a.md", sum: textSum("A") },
     { id: "file-2", name: "b.md", sum: textSum("B") },
   ]);
-  saveDraft("file-2", "B2");
+  createDraftStore().save("file-2", "B2");
   let text = "A";
   const list = createSlotList(
     () => "file-1",

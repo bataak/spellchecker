@@ -13,7 +13,7 @@ let narrow = true;
   },
   addEventListener: () => {},
 });
-const { initTableWrap } = await import("../src/editor/tablewrap.ts");
+const { initTableWrap } = await import("../src/mdbar/tablewrap.ts");
 type Backdrop = import("../src/editor/backdrop.ts").Backdrop;
 
 test.after(() => dom.close());

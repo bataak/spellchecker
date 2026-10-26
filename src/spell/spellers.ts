@@ -30,6 +30,7 @@ export interface SpellersDeps {
   readonly asset: (path: string) => string;
   readonly netFetch: typeof fetch;
   readonly onUpdated: (id: string, version: string) => void;
+  readonly backend?: () => Promise<SpellBackend>;
 }
 
 export interface Spellers {
@@ -169,7 +170,7 @@ export function createSpellers(deps: SpellersDeps): Spellers {
 
   return {
     async start() {
-      backend = await resolveBackend();
+      backend = await (deps.backend ?? resolveBackend)();
       manifest = await loadManifest(asset);
       return backend;
     },

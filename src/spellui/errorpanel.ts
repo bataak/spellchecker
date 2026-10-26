@@ -1,7 +1,7 @@
 import type { Backdrop } from "../editor/backdrop.ts";
-import { copyText } from "./clipboard.ts";
+import { copyText } from "../ui/clipboard.ts";
 import { escapeHtml } from "../core/htmlutil.ts";
-import { nf, reveal } from "./status.ts";
+import { nf, reveal } from "../ui/status.ts";
 import { buildErrorList, nextOccurrence } from "../spell/textcheck.ts";
 import type { Token } from "../spell/textcheck.ts";
 import { attemptAsync } from "../core/attempt.ts";
@@ -12,6 +12,9 @@ export interface ErrorPanelDeps {
   readonly editor: HTMLTextAreaElement;
   readonly backdrop: Backdrop;
   readonly desktopMQ: MediaQueryList;
+  readonly list: HTMLElement | null;
+  readonly copy: HTMLButtonElement | null;
+  readonly title: HTMLElement | null;
   readonly badTokens: () => Token[];
   readonly lastCaret: () => { start: number; end: number } | null;
   readonly setLastCaret: (caret: { start: number; end: number }) => void;
@@ -102,10 +105,7 @@ function bindCopy(copy: HTMLButtonElement, badTokens: () => Token[]): void {
 }
 
 export function initErrorPanel(deps: ErrorPanelDeps): ErrorPanel {
-  const { editor, backdrop, desktopMQ } = deps;
-  const list = document.querySelector<HTMLElement>("#errorList");
-  const copy = document.querySelector<HTMLButtonElement>("#copyErrorsBtn");
-  const title = document.querySelector<HTMLElement>("#errorPanelTitle");
+  const { editor, backdrop, desktopMQ, list, copy, title } = deps;
   let settled = false;
   let picked: { start: number; end: number } | null = null;
 

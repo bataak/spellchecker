@@ -1,5 +1,7 @@
 import { ALIGN_ENV, alignRows } from "./texalign.ts";
-import { spansInRange, texSpans } from "./texhighlight.ts";
+import { spansInRange } from "../editor/syntaxspans.ts";
+import { texSpans } from "./texhighlight.ts";
+import { escapedAt } from "../core/text.ts";
 
 const INDENT = "  ";
 const LEAD = /^[ \t]+/;
@@ -89,18 +91,12 @@ interface EnvMark {
   readonly name: string;
 }
 
-function escaped(text: string, at: number): boolean {
-  let count = 0;
-  while (at - count - 1 >= 0 && text[at - count - 1] === "\\") count++;
-  return count % 2 === 1;
-}
-
 function envMarks(text: string): EnvMark[] {
   const spans = texSpans(text);
   const out: EnvMark[] = [];
   for (const match of text.matchAll(BEGIN_END)) {
     const at = match.index;
-    if (escaped(text, at)) continue;
+    if (escapedAt(text, at)) continue;
     const hidden = spansInRange(spans, at, at + 1).some(
       (span) => span.kind === "comment" || span.kind === "verb",
     );

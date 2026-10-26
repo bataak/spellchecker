@@ -15,6 +15,7 @@ import { createPreviewSync, previewShown } from "./previewsync.ts";
 import { createTidy } from "./previewtidy.ts";
 import { chooseImageFolder } from "../tex/teximages.ts";
 import { deliverFile } from "../export/export.ts";
+import { eventElement } from "../ui/dom.ts";
 
 const MD_NAME = /\.(md|markdown|mdown|mkd)$/i;
 
@@ -161,9 +162,10 @@ function buildPreview(deps: PreviewDeps) {
   const pane = createPdfPane(panel, body, () => ui);
   pane.syncZoom();
   const imageEdit = initImageEdit(body, area);
-  body.addEventListener("click", (event) =>
-    handleImageClick(body, event.target as Element),
-  );
+  body.addEventListener("click", (event) => {
+    const target = eventElement(event);
+    if (target) handleImageClick(body, target);
+  });
   const htmlSync = createHtmlSync(
     body,
     area,

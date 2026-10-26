@@ -9,6 +9,8 @@ import {
 import { imageKey } from "./docir.ts";
 import type { Align, ImageSet, IrRun } from "./docir.ts";
 import { fontFaces, printFontBase, printPage } from "./print.ts";
+import { escapeAttr } from "../core/htmlutil.ts";
+import { cm } from "./units.ts";
 
 const SLIDE_W = 12192000 / 360000;
 const SLIDE_H = 6858000 / 360000;
@@ -37,18 +39,6 @@ const TEXT_ALIGN: Readonly<Record<Align, string>> = {
   justify: "justify",
 };
 
-function esc(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function cm(value: number): string {
-  return value.toFixed(3) + "cm";
-}
-
 function pt(value: number): string {
   return String(Math.round(value * 100) / 100) + "pt";
 }
@@ -57,12 +47,13 @@ function runsHtml(runs: readonly IrRun[], bold = false): string {
   let out = "";
   for (const run of runs) {
     if (!run.text) continue;
-    let body = esc(run.text).replace(/\n/g, "<br>");
+    let body = escapeAttr(run.text).replace(/\n/g, "<br>");
     if (run.mono) body = '<span class="mono">' + body + "</span>";
     if (run.strike) body = "<s>" + body + "</s>";
     if (run.italic) body = "<i>" + body + "</i>";
     if (run.bold || bold) body = "<b>" + body + "</b>";
-    if (run.href) body = '<a href="' + esc(run.href) + '">' + body + "</a>";
+    if (run.href)
+      body = '<a href="' + escapeAttr(run.href) + '">' + body + "</a>";
     out += body;
   }
   return out || "<br>";
@@ -229,7 +220,7 @@ function imageHtml(images: ImageSet, placed: PlacedImage): string {
   if (!ready) return "";
   return (
     '<img class="img" alt="" src="' +
-    esc(ready.url) +
+    escapeAttr(ready.url) +
     '" data-style="left:' +
     cm(placed.x) +
     ";top:" +
@@ -370,7 +361,7 @@ export function deckPrintHtml(
   return (
     '<!doctype html><html lang="mn"><head><meta charset="utf-8">' +
     "<title>" +
-    esc(title.replace(/\s*\n\s*/g, " ")) +
+    escapeAttr(title.replace(/\s*\n\s*/g, " ")) +
     "</title><style>" +
     css +
     "</style></head><body>" +

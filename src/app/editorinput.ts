@@ -12,7 +12,7 @@ import type { MarkLayer } from "../editor/marklayer.ts";
 import type { MarkTap } from "../editor/marktap.ts";
 import type { FixFlow } from "../spell/fixflow.ts";
 import type { Token } from "../spell/textcheck.ts";
-import type { SuggestPopover } from "../ui/suggestpopover.ts";
+import type { SuggestPopover } from "../spellui/suggestpopover.ts";
 import type { CheckLoop } from "./checkloop.ts";
 
 const NAV_KEYS = new Set([

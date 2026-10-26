@@ -1,5 +1,6 @@
 import { PROJECT_SLOT } from "./fileslots.ts";
 import { onViewportChange, placeBelow } from "../ui/placebelow.ts";
+import { eventElement, eventNode, listStep } from "../ui/dom.ts";
 
 export interface SlotDropdownDeps {
   readonly select: HTMLButtonElement;
@@ -28,14 +29,6 @@ function slotMenu(): HTMLDivElement {
   menu.hidden = true;
   document.body.append(menu);
   return menu;
-}
-
-function navIndex(key: string, at: number, count: number): number {
-  if (key === "ArrowDown") return (at + 1) % count;
-  if (key === "ArrowUp") return (at - 1 + count) % count;
-  if (key === "Home") return 0;
-  if (key === "End") return count - 1;
-  return -1;
 }
 
 function checkItems(
@@ -84,7 +77,7 @@ export function createSlotDropdown(deps: SlotDropdownDeps): SlotDropdown {
   };
 
   const onClick = (event: Event): void => {
-    const target = event.target as HTMLElement | null;
+    const target = eventElement(event);
     const closer = target?.closest<HTMLElement>(".md-menu-close");
     if (closer?.dataset.close === PROJECT_SLOT) {
       close(false);
@@ -107,7 +100,7 @@ export function createSlotDropdown(deps: SlotDropdownDeps): SlotDropdown {
 
   const onKey = (event: KeyboardEvent): void => {
     const at = items.indexOf(document.activeElement as HTMLButtonElement);
-    const next = navIndex(event.key, at, items.length);
+    const next = listStep(event.key, at, items.length);
     if (event.key === "Delete") {
       const id = items[at]?.dataset.value;
       if (id && deps.canClose(id)) {
@@ -127,7 +120,7 @@ export function createSlotDropdown(deps: SlotDropdownDeps): SlotDropdown {
   };
 
   const onPointer = (event: Event): void => {
-    const target = event.target as Node;
+    const target = eventNode(event);
     if (!menu.contains(target) && !select.contains(target)) close(false);
   };
 

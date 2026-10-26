@@ -24,6 +24,7 @@ let caretError: { word: string; start: number; end: number } | null = null;
 let dicts = 1;
 initDefineControls({
   editor,
+  button,
   backdrop: {} as never,
   checker: {
     loadedIds: ["mn_MN"],

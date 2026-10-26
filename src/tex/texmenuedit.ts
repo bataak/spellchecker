@@ -1,5 +1,6 @@
 import { lineIndent, type Expansion } from "./texcompletion.ts";
 import { uncommented } from "./texproject.ts";
+import { lineStartAt } from "../core/text.ts";
 
 export type Insert =
   | { readonly kind: "cmd" | "text"; readonly snippet: string }
@@ -29,10 +30,6 @@ function stopsAfter(text: string, from: number, offset: number): number[] {
     if (!out.length || EMPTY_OPEN.has(text[at - 1]!)) out.push(offset + at);
   }
   return out;
-}
-
-function lineStartAt(text: string, at: number): number {
-  return text.lastIndexOf("\n", at - 1) + 1;
 }
 
 function needsSpace(raw: string, text: string, end: number): boolean {

@@ -1,5 +1,13 @@
 import { KEYS, read, write } from "../core/store.ts";
-export function initAppearance(): void {
+
+export interface AppearanceButtons {
+  readonly theme: HTMLElement;
+  readonly fontInc: HTMLElement;
+  readonly fontDec: HTMLElement;
+  readonly fontReset: HTMLElement;
+}
+
+export function initAppearance(buttons: AppearanceButtons): void {
   const rootEl = document.documentElement;
 
   function applyTheme(theme: string): void {
@@ -17,7 +25,7 @@ export function initAppearance(): void {
     applyTheme(theme);
   })();
 
-  document.querySelector("#themeBtn")!.addEventListener("click", () => {
+  buttons.theme.addEventListener("click", () => {
     const next =
       rootEl.getAttribute("data-theme") === "dark" ? "light" : "dark";
     applyTheme(next);
@@ -37,15 +45,15 @@ export function initAppearance(): void {
     write(KEYS.fontScale, String(fontScale));
   }
   applyScale();
-  document.querySelector("#fontIncBtn")!.addEventListener("click", () => {
+  buttons.fontInc.addEventListener("click", () => {
     fontScale += FONT_STEP;
     applyScale();
   });
-  document.querySelector("#fontDecBtn")!.addEventListener("click", () => {
+  buttons.fontDec.addEventListener("click", () => {
     fontScale -= FONT_STEP;
     applyScale();
   });
-  document.querySelector("#fontResetBtn")!.addEventListener("click", () => {
+  buttons.fontReset.addEventListener("click", () => {
     fontScale = 1;
     applyScale();
   });

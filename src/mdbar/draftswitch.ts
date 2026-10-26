@@ -3,16 +3,15 @@ import { findTemplate } from "../doc/templates.ts";
 import {
   LARGE_DRAFT,
   chosenExample,
-  draftError,
   loadCaret,
   loadDraft,
-  readDraft,
   saveCaret,
-  saveDraft,
+  type DraftStore,
 } from "../slots/slotstore.ts";
 
 export interface DraftSwitchDeps {
   readonly editor: HTMLTextAreaElement;
+  readonly store: DraftStore;
   readonly currentKey: () => string;
   readonly onExample?: () => void;
 }
@@ -63,7 +62,7 @@ export function createDraftSwitch(d: DraftSwitchDeps): DraftSwitch {
       const parts = [editor.value, ...extra].filter(
         (part): part is string => part !== null && part.trim() !== "",
       );
-      if (from !== loadingKey) saveDraft(from, parts.join("\n\n"));
+      if (from !== loadingKey) d.store.save(from, parts.join("\n\n"));
       saveCaret(from, {
         start: editor.selectionStart,
         end: editor.selectionEnd,
@@ -78,9 +77,9 @@ export function createDraftSwitch(d: DraftSwitchDeps): DraftSwitch {
         return;
       }
       loadingKey = key;
-      void readDraft(key).then((stored) => {
+      void d.store.read(key).then((stored) => {
         if (seq !== switchSeq) return;
-        if (stored === null) draftError();
+        if (stored === null) d.store.fail();
         else loadingKey = null;
         showDraft(id, key, stored);
       });

@@ -40,7 +40,7 @@ export interface StemInfo {
 }
 
 import type { DictBytes } from "./dictbytes.ts";
-import { sPluralSingulars } from "../spell/verbform.ts";
+import { sPluralSingulars } from "../lang/verbform.ts";
 
 export const IFO_MAGIC = "StarDict's dict ifo file";
 export const POS_TAGGED_FIELD = "x-pos-tags";

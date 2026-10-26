@@ -1,10 +1,10 @@
 import { buildErrorList, type Token } from "../spell/textcheck.ts";
-import { initWipeButton } from "./wipe.ts";
-import { copyText, flash } from "./clipboard.ts";
+import { initWipeButton } from "../ui/wipe.ts";
+import { copyText, flash } from "../ui/clipboard.ts";
 import { isTouch } from "../editor/input.ts";
 import type { EditorPort, StatusPort } from "../core/ports.ts";
 import { KEYS, read, write } from "../core/store.ts";
-import { standardLetters } from "../spell/letters.ts";
+import { standardLetters } from "../lang/letters.ts";
 
 export interface OfficeSwitch {
   readonly active: () => boolean;
@@ -234,9 +234,9 @@ function initCopyButton(
     if (!editor.value) return;
     try {
       await copyText(editor.value);
-      flash("#copyBtn", "Хуулагдав");
+      flash(btn, "Хуулагдав");
     } catch {
-      flash("#copyBtn", "Боломжгүй");
+      flash(btn, "Боломжгүй");
     }
   });
 }
@@ -244,6 +244,7 @@ function initCopyButton(
 function pasteManually(
   editor: HTMLTextAreaElement,
   setStatus: ToolbarDeps["status"]["set"],
+  pasteBtn: HTMLElement,
 ): void {
   editor.focus();
   if (isTouch()) {
@@ -256,7 +257,7 @@ function pasteManually(
   const isMac =
     /mac/i.test((uaData && uaData.platform) || "") ||
     /Mac|iPhone|iPad|iPod/i.test(navigator.platform || "");
-  flash("#pasteBtn", isMac ? "⌘V" : "Ctrl+V");
+  flash(pasteBtn, isMac ? "⌘V" : "Ctrl+V");
 }
 
 function initButtons({
@@ -299,20 +300,21 @@ function initButtons({
     port.save();
   }
 
-  document.querySelector("#pasteBtn")!.addEventListener("click", async () => {
+  const pasteBtn = document.querySelector<HTMLElement>("#pasteBtn")!;
+  pasteBtn.addEventListener("click", async () => {
     if (office.active()) {
-      flash("#pasteBtn", "Боломжгүй");
+      flash(pasteBtn, "Боломжгүй");
       return;
     }
     if (!navigator.clipboard?.readText) {
-      pasteManually(editor, setStatus);
+      pasteManually(editor, setStatus, pasteBtn);
       return;
     }
     let text: string;
     try {
       text = await navigator.clipboard.readText();
     } catch {
-      pasteManually(editor, setStatus);
+      pasteManually(editor, setStatus, pasteBtn);
       return;
     }
     if (!text) {

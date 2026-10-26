@@ -19,11 +19,10 @@ export interface FileSaveDeps {
   readonly defaultExt: () => string;
   readonly onSaved: (written: boolean) => void;
   readonly deliverText: (text: string, fileName: string) => Promise<boolean>;
+  readonly button: HTMLElement | null;
 }
 
 export type SaveFile = (source?: SaveSource) => Promise<void>;
-
-const saved = (label: string): void => flash("#saveBtn", label);
 
 async function writeTo(
   handle: FileSystemFileHandle,
@@ -42,7 +41,10 @@ export function stampFor(ext: string): string {
   );
 }
 
-async function saveOffice(office: OfficeFiles): Promise<boolean> {
+async function saveOffice(
+  office: OfficeFiles,
+  saved: (label: string) => void,
+): Promise<boolean> {
   if (!office.active()) return false;
   try {
     saved((await office.save()) ? "Хадгаллаа" : "Цуцаллаа");
@@ -54,6 +56,7 @@ async function saveOffice(office: OfficeFiles): Promise<boolean> {
 
 export function createFileSave(d: FileSaveDeps): SaveFile {
   const { current } = d;
+  const saved = (label: string): void => flash(d.button, label);
   const stamp = (): string => stampFor(d.defaultExt());
   const deliver = (text: string, name: string): Promise<boolean> =>
     d.deliverText(text, textName(name, d.defaultExt(), stamp));
@@ -141,7 +144,7 @@ export function createFileSave(d: FileSaveDeps): SaveFile {
   }
 
   return async (source) => {
-    if (await saveOffice(d.office)) return;
+    if (await saveOffice(d.office, saved)) return;
     if (await savePdf(source)) return;
     if (await saveProject(source)) return;
     const text = d.text();

@@ -1,8 +1,10 @@
-import { applyEdit, enterInsert, insertImage } from "./mdedit.ts";
+import { applyEdit, enterInsert } from "./mdedit.ts";
+import { insertImage } from "./mdinsert.ts";
 import { replaceRange } from "../editor/editortext.ts";
 import { freeImagePath, pickImage, putImage } from "../files/images.ts";
 import { formatEdit, type Role } from "./mdbuttons.ts";
 import type { ButtonState } from "./mdbuttonstate.ts";
+import { closestTarget } from "../ui/dom.ts";
 
 export interface FormatDeps {
   readonly bar: HTMLElement;
@@ -37,14 +39,11 @@ export function bindFormatting(d: FormatDeps): () => void {
   }
 
   const onPointerDown = (event: Event): void => {
-    const target = event.target as HTMLElement | null;
-    if (target?.closest(".md-btn")) event.preventDefault();
+    if (closestTarget(event, ".md-btn")) event.preventDefault();
   };
 
   const onClick = (event: Event): void => {
-    const button = (
-      event.target as HTMLElement | null
-    )?.closest<HTMLButtonElement>(".md-btn");
+    const button = closestTarget<HTMLButtonElement>(event, ".md-btn");
     const role = button?.dataset.role as Role | undefined;
     if (role) run(role);
   };

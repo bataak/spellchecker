@@ -29,7 +29,7 @@ export interface Survey {
   readonly onErrorCount: (count: number, hasText: boolean) => void;
 }
 
-export function initSurvey(): Survey {
+export function initSurvey(editor: HTMLTextAreaElement): Survey {
   const form = createSurveyForm(markDone);
   let usedDays = 0;
   let lastUsedDate = "";
@@ -113,8 +113,7 @@ export function initSurvey(): Survey {
       if (!(target instanceof Element)) return;
       const btn = target.closest<HTMLButtonElement>(TRIGGER_BUTTONS);
       if (!btn || btn.disabled) return;
-      const editor = document.querySelector<HTMLTextAreaElement>("#editor");
-      if (!editor || editor.value.trim() === "") return;
+      if (editor.value.trim() === "") return;
       maybeOpen();
     },
     true,
