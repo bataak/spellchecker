@@ -256,3 +256,57 @@ test("chat баримт тусдаа хадгалагдаж, өөрийн мес
   assert.equal(await loadDoc(docKey.chat("talk-chat")), null);
   assert.equal(await loadDoc(docKey.mine("talk-chat")), null);
 });
+
+test("татгалзсан өөрчлөлтийг бүртгэж, буцааж сэргээж, зөвшөөрлийг буцаана", async () => {
+  const [a, b] = pair();
+  const text = (): Y.Text => a.getText("t");
+  const tracker = createChangeTracker({
+    doc: a,
+    room: "undo-room",
+    texts: () => new Map([[null, text()]]),
+  });
+  b.getText("t").insert(0, "Нэг хоёр гурав");
+  await until(() => tracker.ready(), "baseline");
+  registerAuthor(b, { name: "Дулмаа", color: 2 });
+  b.getText("t").insert(4, "шинэ ");
+  const added = tracker.list().find((item) => item.inserted === "шинэ ")!;
+  const id = tracker.reject(added)!;
+  assert.equal(text().toString(), "Нэг хоёр гурав");
+  assert.equal(tracker.rejected()[0]!.inserted, "шинэ ");
+  b.getText("t").insert(0, "Өмнө ");
+  assert.equal(tracker.restore(id), true);
+  assert.equal(b.getText("t").toString(), "Өмнө Нэг шинэ хоёр гурав");
+  assert.deepEqual(tracker.rejected(), []);
+
+  b.getText("t").delete(b.getText("t").toString().indexOf("гурав"), 5);
+  const cut = tracker.list().find((item) => item.removed === "гурав")!;
+  const back = tracker.reject(cut)!;
+  assert.match(text().toString(), /гурав$/);
+  const at = text().toString().indexOf("гурав");
+  b.getText("t").delete(at, 2);
+  assert.equal(tracker.restore(back), false);
+  assert.equal(tracker.rejected().length, 1);
+
+  const one = tracker.list()[0]!;
+  const undo = tracker.accept(one);
+  assert.equal(tracker.list().includes(one), false);
+  undo();
+  assert.ok(tracker.list().some((item) => item.key === one.key));
+  const before = tracker.list().length;
+  const undoAll = tracker.acceptAll();
+  assert.deepEqual(tracker.list(), []);
+  undoAll();
+  assert.equal(tracker.list().length, before);
+  tracker.destroy();
+  await until(() => true, "flush");
+
+  const again = createChangeTracker({
+    doc: a,
+    room: "undo-room",
+    texts: () => new Map([[null, text()]]),
+  });
+  await until(() => again.rejected().length === 1, "stored rejections");
+  again.destroy();
+  await dropRoom("undo-room");
+  assert.equal(await loadDoc("rejected:undo-room"), null);
+});

@@ -807,3 +807,52 @@
 .talk-toggle[hidden] {
   display: none;
 }
+
+.snackbar {
+  position: fixed;
+  z-index: 200;
+  inset-inline-start: 50%;
+  inset-block-end: calc(76px + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 10px 12px 10px 16px;
+  border-radius: 8px;
+  background: #2b2a27;
+  color: #f3efe6;
+  font-family: var(--sans);
+  font-size: 0.9rem;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 30%);
+  transform: translateX(-50%);
+}
+
+.snackbar-action {
+  flex: none;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: #9fd3a8;
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.snackbar-action:hover {
+  background: rgb(255 255 255 / 8%);
+}
+
+.talk-rejected-list[hidden] {
+  display: none;
+}
+
+.talk-change.is-rejected {
+  opacity: 0.75;
+}
+
+.talk-change.is-rejected .talk-change-tools .talk-accept-all {
+  height: 24px;
+  padding: 0 8px;
+}

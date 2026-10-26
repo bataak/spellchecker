@@ -11,12 +11,15 @@ import type { ChangeTracker } from "../src/collab/changetracker.ts";
 import type { Talk } from "../src/collab/talk.ts";
 import {
   changeTitle,
-  changesCount,
-  changesView,
   chatView,
   clip,
   clockOf,
 } from "../src/collab/talkview.ts";
+import {
+  changesCount,
+  changesView,
+  rejectedLabel,
+} from "../src/collab/changesview.ts";
 import { initTalk } from "../src/collab/talkhost.ts";
 import type { TalkKind } from "../src/collab/collab.ts";
 
@@ -63,9 +66,23 @@ function fakeTracker(list: Change[]) {
   const tracker: ChangeTracker = {
     list: () => list,
     ready: () => true,
-    accept: (item) => void calls.push("accept " + item.key),
-    acceptAll: () => void calls.push("all"),
-    reject: (item) => void calls.push("reject " + item.key),
+    accept: (item) => {
+      calls.push("accept " + item.key);
+      return () => void calls.push("unaccept " + item.key);
+    },
+    acceptAll: () => {
+      calls.push("all");
+      return () => void calls.push("unall");
+    },
+    reject: (item) => {
+      calls.push("reject " + item.key);
+      return "r-" + item.key;
+    },
+    rejected: () => [],
+    restore: (id) => {
+      calls.push("restore " + id);
+      return true;
+    },
     onChange(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -332,4 +349,55 @@ test("бичвэр солигдоход chat-ийн сонсогч давхар�
     notify();
   }
   assert.equal(active, base);
+});
+
+test("татгалзсаны дараа мэдэгдлээр буцааж, жагсаалтаас сэргээнэ", () => {
+  const { tracker, calls, emit } = fakeTracker([change()]);
+  const records = [
+    {
+      id: "r1",
+      at: Date.now(),
+      path: null,
+      inserted: "уу ",
+      removed: "",
+      author: { name: "Зочин", color: 3 },
+      before: "Сайн ",
+      after: "байна",
+      start: "x",
+      end: "y",
+    },
+  ];
+  tracker.rejected = () => records;
+  const view = changesView(tracker, () => {});
+  document.body.append(view.el);
+  view.shown(true);
+  emit();
+  view.el
+    .querySelector<HTMLButtonElement>(".talk-change-act.is-reject")!
+    .click();
+  const snack = document.querySelector(".snackbar")!;
+  assert.match(snack.textContent!, /Татгалзлаа/);
+  snack.querySelector<HTMLButtonElement>(".snackbar-action")!.click();
+  assert.deepEqual(calls.slice(-2), ["reject k1", "restore r-k1"]);
+  assert.equal(document.querySelector(".snackbar"), null);
+
+  view.el.querySelector<HTMLButtonElement>(".talk-change-act")!.click();
+  document
+    .querySelector<HTMLButtonElement>(".snackbar .snackbar-action")!
+    .click();
+  assert.deepEqual(calls.slice(-2), ["accept k1", "unaccept k1"]);
+
+  const toggle = [
+    ...view.el.querySelectorAll<HTMLButtonElement>(".talk-changes-bar button"),
+  ].find((node) => node.textContent!.startsWith("Татгалзсаныг"))!;
+  assert.equal(toggle.textContent, rejectedLabel(1, false));
+  const gone = view.el.querySelector<HTMLElement>(".talk-rejected-list")!;
+  assert.equal(gone.hidden, true);
+  toggle.click();
+  assert.equal(gone.hidden, false);
+  assert.match(gone.textContent!, /Зочин нэмсэн/);
+  gone.querySelector<HTMLButtonElement>("button")!.click();
+  assert.equal(calls.at(-1), "restore r1");
+  view.destroy();
+  view.el.remove();
 });
