@@ -17,6 +17,7 @@
     "prepreview": "npm test",
     "preview": "vite build && vite preview",
     "typecheck": "tsc --noEmit",
+    "glyphs": "node --experimental-strip-types scripts/texglyphs.ts",
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,js,mjs,cjs,css,json,yml,yaml}\""
   },

@@ -26,6 +26,7 @@ interface ToolBase {
   readonly glyph: string;
   readonly title: string;
   readonly icon?: string;
+  readonly tex?: string;
   readonly gap?: true;
 }
 
@@ -262,7 +263,7 @@ const action = (
   glyph: string,
   title: string,
   insert: Insert,
-  extra: Partial<Pick<ToolBase, "icon" | "gap">> = {},
+  extra: Partial<Pick<ToolBase, "icon" | "tex" | "gap">> = {},
 ): BarTool => ({ kind: "action", id, glyph, title, insert, ...extra });
 
 const list = (
@@ -270,11 +271,13 @@ const list = (
   glyph: string,
   title: string,
   sections: readonly MenuSection[],
-  extra: Partial<Pick<ToolBase, "icon" | "gap">> = {},
+  extra: Partial<Pick<ToolBase, "icon" | "tex" | "gap">> = {},
 ): BarTool => ({ kind: "list", id, glyph, title, sections, ...extra });
 
 export const TEX_TOOLS: readonly BarTool[] = [
-  list("structure", "§", "Бүлэг, баримтын бүтэц", STRUCTURE_SECTIONS),
+  list("structure", "§", "Бүлэг, баримтын бүтэц", STRUCTURE_SECTIONS, {
+    tex: "\\S",
+  }),
   action("bold", "B", "Тод (\\textbf)", cmd("textbf{#}"), { gap: true }),
   action("italic", "I", "Налуу (\\textit)", cmd("textit{#}")),
   list("font", "Aa", "Үсгийн хэлбэр, хэмжээ", FONT_SECTIONS),
@@ -292,11 +295,18 @@ export const TEX_TOOLS: readonly BarTool[] = [
     },
   ),
   action("inline", "$x$", "Мөр доторх томьёо ($…$)", text("$#$"), {
+    tex: "\\$\\!x\\!\\$",
     gap: true,
   }),
-  action("frac", "a⁄b", "Бутархай (\\frac)", cmd("frac{#}{}")),
-  action("sqrt", "√x", "Язгуур (\\sqrt)", cmd("sqrt{#}")),
-  action("integral", "∫", "Интеграл (\\int)", cmd("int_{#}^{}")),
+  action("frac", "a⁄b", "Бутархай (\\frac)", cmd("frac{#}{}"), {
+    tex: "a/b",
+  }),
+  action("sqrt", "√x", "Язгуур (\\sqrt)", cmd("sqrt{#}"), {
+    tex: "\\sqrt{x}",
+  }),
+  action("integral", "∫", "Интеграл (\\int)", cmd("int_{#}^{}"), {
+    tex: "\\int",
+  }),
   action(
     "matrix",
     "( )",
@@ -318,11 +328,14 @@ export const TEX_TOOLS: readonly BarTool[] = [
     },
     { icon: svg(ICON.system) },
   ),
-  list("math", "∑", "Томьёоны орчин, бүтэц", MATH_SECTIONS),
+  list("math", "∑", "Томьёоны орчин, бүтэц", MATH_SECTIONS, {
+    tex: "\\sum",
+  }),
   {
     kind: "palette",
     id: "symbols",
     glyph: "Ω",
+    tex: "\\Omega",
     title: "Тэмдэг",
     tabs: SYMBOL_TABS,
   },
