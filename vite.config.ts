@@ -108,6 +108,8 @@ export default defineConfig({
         navigateFallback: base + "index.html",
         navigateFallbackDenylist: [/\/oauth\.html/],
         cleanupOutdatedCaches: true,
+        dontCacheBustURLsMatching:
+          /^(?:assets\/|dict\/[\w.-]+\.[0-9a-f]{10}\.(?:aff|dic)\.gz$)/,
         clientsClaim: true,
         skipWaiting: true,
         maximumFileSizeToCacheInBytes: 20 * 1024 * 1024,
