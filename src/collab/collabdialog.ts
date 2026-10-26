@@ -1,6 +1,7 @@
 import { copyText } from "../ui/clipboard.ts";
 import { memberList } from "./collabmembers.ts";
-import { actionButton, ask, element, OFFLINE, say } from "./dialogparts.ts";
+import { element } from "../ui/dom.ts";
+import { actionButton, ask, OFFLINE, say } from "./dialogparts.ts";
 import type { Session } from "./sessiontypes.ts";
 import { MAX_NAME } from "./profile.ts";
 

@@ -1,8 +1,8 @@
+import { element } from "../ui/dom.ts";
 import type { Member } from "./admin.ts";
 import {
   actionButton,
   ask,
-  element,
   OFFLINE,
   say,
   type SessionSource,

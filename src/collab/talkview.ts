@@ -4,6 +4,7 @@ import type { Change } from "./changes.ts";
 import type { ChangeTracker } from "./changetracker.ts";
 import { CURSOR_COLORS } from "./peercolors.ts";
 import { revealText } from "./safetext.ts";
+import { element } from "../ui/dom.ts";
 
 export interface TalkView {
   readonly el: HTMLElement;
@@ -16,17 +17,6 @@ const MAX_PIECE = 600;
 const CHAT_EMPTY = "Одоогоор таны хамтрагчдаас нэг ч зурвас алга.";
 const CHANGES_WAIT = "Өөрчлөлтийг хянаж эхэлж байна…";
 const CHANGES_EMPTY = "Сүүлд зөвшөөрснөөс хойш өөрчлөлт алга.";
-
-function element<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  className: string,
-  text?: string,
-): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  node.className = className;
-  if (text !== undefined) node.textContent = text;
-  return node;
-}
 
 function button(className: string, text: string, title?: string) {
   const node = element("button", className, text);

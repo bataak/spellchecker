@@ -12,6 +12,8 @@ import { listTree, type ListTree } from "../markdown.ts";
 import { odfFont } from "./fonts.ts";
 import { applyDataStyles } from "../core/htmlutil.ts";
 import { columnWidths, officeMetrics } from "./table.ts";
+import { escapeAttr } from "../core/htmlutil.ts";
+import { cm } from "./units.ts";
 
 const LINE_RATIO = 1.15;
 
@@ -28,18 +30,6 @@ const TABLE_MARGIN: Readonly<Record<string, string>> = {
   end: "0 0 0 auto",
   justify: "0 auto",
 };
-
-function esc(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function cm(value: number): string {
-  return value.toFixed(3) + "cm";
-}
 
 function family(name: string): string {
   return '"' + name + '"';
@@ -113,7 +103,7 @@ function imageHtml(image: IrImage, prepared: PreparedImage): string {
         : "";
   return (
     '<img class="image" src="' +
-    esc(prepared.url) +
+    escapeAttr(prepared.url) +
     '" alt=""' +
     (width ? ' data-style="' + width + '"' : "") +
     ">"
@@ -137,12 +127,13 @@ function runsHtml(runs: readonly IrRun[], images: ImageSet): string {
       continue;
     }
     if (!run.text) continue;
-    let body = esc(run.text).replace(/\n/g, "<br>");
+    let body = escapeAttr(run.text).replace(/\n/g, "<br>");
     if (run.mono) body = '<span class="mono">' + body + "</span>";
     if (run.strike) body = "<s>" + body + "</s>";
     if (run.italic) body = "<i>" + body + "</i>";
     if (run.bold) body = "<b>" + body + "</b>";
-    if (run.href) body = '<a href="' + esc(run.href) + '">' + body + "</a>";
+    if (run.href)
+      body = '<a href="' + escapeAttr(run.href) + '">' + body + "</a>";
     out += body;
   }
   return out;
@@ -419,7 +410,7 @@ export function printHtml(
   return (
     '<!doctype html><html lang="mn"><head><meta charset="utf-8">' +
     "<title>" +
-    esc(doc.title ?? "") +
+    escapeAttr(doc.title ?? "") +
     "</title><style>" +
     css +
     "</style></head><body>" +

@@ -1,4 +1,5 @@
 import type { ArgSource } from "./texsymbols.ts";
+import { escapedAt } from "../core/text.ts";
 
 export interface ArgContext {
   readonly kind: "arg";
@@ -44,17 +45,11 @@ const SOURCES = new Map<string, ArgSource>([
 
 const OPEN_ARG = /\\([A-Za-z]+)\*?(?:\s*\[[^\]\n]*\])*\s*\{([^{}\n]*)$/;
 
-function escaped(text: string, at: number): boolean {
-  let slashes = 0;
-  for (let i = at - 1; i >= 0 && text[i] === "\\"; i--) slashes++;
-  return slashes % 2 === 1;
-}
-
 export function argContext(text: string, caret: number): ArgContext | null {
   const lineStart = text.lastIndexOf("\n", caret - 1) + 1;
   const line = text.slice(lineStart, caret);
   const match = OPEN_ARG.exec(line);
-  if (!match || escaped(line, match.index)) return null;
+  if (!match || escapedAt(line, match.index)) return null;
   const name = match[1]!;
   const source = SOURCES.get(name);
   if (!source) return null;

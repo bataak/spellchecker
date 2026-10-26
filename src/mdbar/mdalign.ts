@@ -1,4 +1,5 @@
-import { lineAt, lineEndAt, lineStartAt, type Edit } from "./mdedit.ts";
+import { lineAt, lineEndAt, lineStartAt } from "../core/text.ts";
+import type { Edit } from "./mdedit.ts";
 
 export type AlignKind = "left" | "center" | "right" | "signature";
 

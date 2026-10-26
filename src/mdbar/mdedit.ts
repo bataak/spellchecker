@@ -3,6 +3,7 @@ import { replaceRange } from "../editor/editortext.ts";
 import { imageAttrs, parseImageAttrs } from "../markdown.ts";
 import type { ImageSize } from "../markdown.ts";
 import { minimalDiff } from "../core/textdiff.ts";
+import { lineAt, lineEndAt, lineStartAt } from "../core/text.ts";
 
 export interface Edit {
   readonly text: string;
@@ -18,15 +19,6 @@ const ANY_BULLET = /^\s*[-*+]\s+/;
 const ANY_ORDERED = /^\s*\d+[.)]\s+/;
 const ANY_QUOTE = /^\s*>/;
 const DIVIDER = /^[\s|:-]*-[\s|:-]*$/;
-
-export function lineStartAt(text: string, pos: number): number {
-  return text.lastIndexOf("\n", pos - 1) + 1;
-}
-
-export function lineEndAt(text: string, pos: number): number {
-  const i = text.indexOf("\n", pos);
-  return i < 0 ? text.length : i;
-}
 
 interface Bounds {
   readonly from: number;
@@ -310,11 +302,6 @@ export function toggleList(
     n += 1;
     return { drop, add: ordered ? `${String(n)}. ` : "- " };
   });
-}
-
-export function lineAt(text: string, index: number): string {
-  if (index < 0 || index > text.length) return "";
-  return text.slice(lineStartAt(text, index), lineEndAt(text, index));
 }
 
 function inTable(
