@@ -6,6 +6,7 @@ import {
   expand,
   unchanged,
 } from "../src/tex/texcompletion.ts";
+import { COMMANDS, ENVIRONMENTS } from "../src/tex/texcommands.ts";
 
 function at(marked: string) {
   const caret = marked.indexOf("|");
@@ -124,4 +125,27 @@ test("бүтэн бичсэн команд хэвээр үлдэнэ", () => {
 test("\\item-ийг гүйцээхэд ард нь зай авна", () => {
   assert.equal(apply("\\ite|", "item"), "\\item |");
   assert.equal(apply("\\item|", "item"), "\\item |");
+});
+
+test("\\index болон индексийн командуудыг санал болгоно", () => {
+  assert.equal(apply("Үг\\ind|", "index"), "Үг\\index{|}");
+  const ctx = completionContext("\\inde", 5)!;
+  const snippets = completions(ctx).map((c) => c.snippet);
+  assert.ok(snippets.includes("index{#!}"));
+  assert.ok(snippets.includes("index{#|see{}}"));
+  assert.equal(apply("\\printin|", "printindex"), "\\printindex|");
+  assert.equal(apply("\\makein|", "makeindex"), "\\makeindex|");
+});
+
+test("жагсаалтын команд, орчин бүр бичигдэх боломжтой нэртэй", () => {
+  const labels = [...COMMANDS, ...ENVIRONMENTS].map(
+    (snippet) => /^[A-Za-z]+\*?/.exec(snippet)?.[0] ?? "",
+  );
+  assert.ok(labels.every(Boolean));
+  assert.equal(new Set(COMMANDS).size, COMMANDS.length);
+  assert.equal(new Set(ENVIRONMENTS).size, ENVIRONMENTS.length);
+});
+
+test("beamer-ийн <> аргументтай командын нэрийг зөв таслана", () => {
+  assert.equal(apply("\\onl|", "only"), "\\only<|>{}");
 });
