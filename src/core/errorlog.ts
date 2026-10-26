@@ -74,7 +74,13 @@ export function causeChain(error: unknown): unknown[] {
   return chain;
 }
 
+const isAbort = (error: unknown): boolean =>
+  typeof error === "object" &&
+  error !== null &&
+  (error as { name?: unknown }).name === "AbortError";
+
 export function noteError(error: unknown): void {
+  if (isAbort(error)) return;
   for (const link of causeChain(error))
     recordOnce(globalRing, toSafeError(link));
 }

@@ -1,3 +1,4 @@
+import { noteError } from "../core/errorlog.ts";
 import { decodeFileBytes } from "../archive/cp1251.ts";
 import { bytesSum, fileSum } from "../slots/fileslots.ts";
 import { initFileDrop } from "./filedrop.ts";
@@ -134,7 +135,8 @@ export function initFileOpen(d: FileOpenDeps): void {
     for (const { file, handle } of entries) {
       try {
         if (!(await openOne(file, handle))) return;
-      } catch {
+      } catch (error) {
+        noteError(error);
         opened("Боломжгүй");
       }
     }

@@ -49,7 +49,8 @@ async function saveOffice(
   if (!office.active()) return false;
   try {
     saved((await office.save()) ? "Хадгаллаа" : "Цуцаллаа");
-  } catch {
+  } catch (error) {
+    noteError(error);
     saved("Боломжгүй");
   }
   return true;
@@ -74,7 +75,8 @@ export function createFileSave(d: FileSaveDeps): SaveFile {
       const label = await d.project.save();
       if (label === null) return false;
       saved(label);
-    } catch {
+    } catch (error) {
+      noteError(error);
       saved("Боломжгүй");
     }
     return true;
@@ -116,7 +118,8 @@ export function createFileSave(d: FileSaveDeps): SaveFile {
       const done = await deliver(text, fileName);
       saved(done ? "Хадгалав" : "Цуцаллаа");
       if (done && !source?.inProject) d.onSaved(false);
-    } catch {
+    } catch (error) {
+      noteError(error);
       saved("Боломжгүй");
     }
     return true;
@@ -143,7 +146,8 @@ export function createFileSave(d: FileSaveDeps): SaveFile {
     try {
       const done = await deliver(text, stamp());
       saved(done ? "Хадгаллаа" : "Цуцаллаа");
-    } catch {
+    } catch (error) {
+      noteError(error);
       saved("Боломжгүй");
     }
   }

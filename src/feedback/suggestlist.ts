@@ -1,3 +1,4 @@
+import { noteError } from "../core/errorlog.ts";
 import { getSubmitted } from "./submitted.ts";
 import { MAX_WORDS } from "./suggestsend.ts";
 import {
@@ -71,7 +72,8 @@ export function createWordList(d: WordListDeps): WordList {
     if (!list.length) return null;
     try {
       return await d.checkKnown(list);
-    } catch {
+    } catch (error) {
+      noteError(error);
       return null;
     }
   }
