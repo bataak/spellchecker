@@ -313,3 +313,43 @@ test("хамтарч байхдаа цэвэрлэхэд шүүмж локалд
   assert.equal(await owner.locator(".collab-comment-mark").count(), 0);
   assert.deepEqual(errors(owner), []);
 });
+
+test("эзэн хуваалцсан бичвэрийг цэвэрлэхэд асууж, хамтрагчийн хуулбарыг устгана", async () => {
+  const owner = await openPage(app, await app.context());
+  await typeAtEnd(owner, "Хуваалцсан нууц бичвэр.");
+  const link = await invite(owner);
+  const guest = await openPage(app, await app.context());
+  await guest.evaluate((hash) => {
+    location.hash = hash;
+  }, new URL(link).hash);
+  await until(
+    () => editor(guest),
+    (text) => text.includes("нууц бичвэр"),
+    20000,
+  );
+  const dialog = owner.locator("dialog", {
+    hasText: "Хуваалцсан бичвэрийг цэвэрлэх",
+  });
+  await owner.click("#editor");
+  await owner.keyboard.press("Control+Shift+Backspace");
+  await dialog.waitFor({ timeout: 15000 });
+  await dialog.getByRole("button", { name: "Болих" }).click();
+  await dialog.waitFor({ state: "detached" });
+  assert.match(await editor(owner), /нууц бичвэр/);
+
+  await owner.click("#editor");
+  await owner.keyboard.press("Control+Shift+Backspace");
+  await dialog.getByRole("button", { name: "Бүрмөсөн устгах" }).click();
+  await until(
+    () => editor(owner),
+    (text) => text === "",
+    15000,
+  );
+  await until(
+    () => editor(guest),
+    (text) => !text.includes("нууц бичвэр"),
+    20000,
+  );
+  assert.deepEqual(errors(owner), []);
+  assert.deepEqual(errors(guest), []);
+});
