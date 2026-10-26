@@ -25,7 +25,7 @@ import { createBackdrop } from "./editor/backdrop.ts";
 import { createMarkLayer } from "./editor/marklayer.ts";
 import { initKeyboardLayout } from "./editor/kblayout.ts";
 import { initUndoHistory } from "./editor/undohistory.ts";
-import { rotateEmptyTips } from "./ui/emptytips.ts";
+import { createEmptyTips } from "./ui/emptytips.ts";
 import { createOfficeSession } from "./office/session.ts";
 import { createDictStatus } from "./spellui/dictstatus.ts";
 import { initStatus } from "./ui/status.ts";
@@ -51,7 +51,7 @@ import { createPreviewPane } from "./app/previewpane.ts";
 import { watchTabs } from "./app/tabwatch.ts";
 import { initTexInput } from "./app/texinput.ts";
 import { startApp } from "./app/startup.ts";
-import { nextFrame, queryShell } from "./app/dom.ts";
+import { nextFrame, queryControls, queryShell } from "./app/dom.ts";
 import { createMarkupMode } from "./app/markupmode.ts";
 import { createLastCaret } from "./app/lastcaret.ts";
 import { createCollabWiring } from "./app/collabwiring.ts";
@@ -65,6 +65,7 @@ const { onProjectChange, project } = projectStore;
 document.body.classList.add("ready");
 
 const els = queryShell();
+const controls = queryControls();
 const { editor: editorEl, workspace, editorWrap } = els;
 const { desktopMQ, narrowMQ, touchMQ } = els;
 const layoutChanged = createEmitter<Layout>();
@@ -134,7 +135,7 @@ const doc = createDocumentSession({
   targetName: () => fileIO.targetName(),
   template: () => mdBar.template(),
   isTex: isTexFile,
-  setSaveTitles: initSaveHints(),
+  setSaveTitles: initSaveHints(controls),
   refreshBar: () => mdBar.refresh(),
   enterMode: enterMdMode,
 });
@@ -197,13 +198,15 @@ const previewMode = createPreviewMode({
   },
 });
 
+const emptyTips = createEmptyTips(controls.emptyTips);
 const syncEmptyState = createEmptyState({
   el: els.emptyState,
+  tips: emptyTips,
   textChanged: () => previewMode.textChanged(),
   cleared: () => defTip.clear(),
 });
 
-const survey = initSurvey();
+const survey = initSurvey(editorEl);
 
 const loop = createCheckLoop({
   editor: editorEl,
@@ -273,7 +276,7 @@ const { editorText, fixFlow, fixers, draft } = createEditorWiring({
   },
 });
 
-initAppearance();
+initAppearance(controls.appearance);
 
 const measureCtl = initMeasureControl(editorWrap, editorEl, layoutChanged.emit);
 defDock.sync(measureCtl.layout().panel);
@@ -445,7 +448,7 @@ bindAppChrome({
   },
   afterClear: (cleared) => {
     mdBar.reset(cleared);
-    rotateEmptyTips();
+    emptyTips.rotate();
   },
   openDictMenu: () => dictionaries.openMenu(),
 });

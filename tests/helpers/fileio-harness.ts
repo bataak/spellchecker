@@ -79,6 +79,12 @@ export async function runSave(scenario: SaveScenario): Promise<SaveOutcome> {
   (editorEl as unknown as { value: string }).value = scenario.text ?? "бичвэр";
   const io: FileIOControl = initFileIO({
     saveChain: createSaveChain(el("#saveBtn") as unknown as HTMLElement),
+    buttons: {
+      open: el("#openBtn") as unknown as HTMLElement,
+      pick: el("#pickBtn") as unknown as HTMLElement,
+      input: el("#openFile") as unknown as HTMLInputElement,
+      save: el("#saveBtn") as unknown as HTMLElement,
+    },
     editor: { el: editorEl } as unknown as EditorPort,
     status: { set: () => {}, hold: () => {} } as unknown as StatusPort,
     office: {

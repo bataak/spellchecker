@@ -27,6 +27,7 @@ export function createPdfSave(deps: PdfSaveDeps): PdfSaveControl {
     name,
     saveProject: deps.saveProject,
     notify: (html) => deps.notify(html, NOTIFY_MS, false),
+    button: document.querySelector<HTMLElement>("#saveBtn"),
   });
   return {
     name,

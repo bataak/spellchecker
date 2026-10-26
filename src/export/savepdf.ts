@@ -5,8 +5,11 @@ import type { CompiledPdf } from "../preview/pdfcache.ts";
 
 const PREPARING = "PDF бэлтгэж байна…";
 
-export function setSaveBusy(busy: boolean, text = PREPARING): void {
-  const button = document.querySelector<HTMLElement>("#saveBtn");
+export function setSaveBusy(
+  button: HTMLElement | null,
+  busy: boolean,
+  text = PREPARING,
+): void {
   if (!button) return;
   if (busy) {
     button.dataset.label ||= button.textContent ?? "";
@@ -28,6 +31,7 @@ export interface PdfSaverDeps {
   readonly name: () => string;
   readonly saveProject: () => Promise<unknown> | undefined;
   readonly notify: (html: string) => void;
+  readonly button: HTMLElement | null;
 }
 
 export function createPdfSaver(
@@ -37,7 +41,7 @@ export function createPdfSaver(
   return async (compile) => {
     if (saving) return;
     saving = true;
-    setSaveBusy(true);
+    setSaveBusy(deps.button, true);
     const notes: string[] = [];
     try {
       const name = deps.name();
@@ -49,15 +53,15 @@ export function createPdfSaver(
       );
       if (saved === false) notes.push("Төслийн файлуудыг хадгалж чадсангүй");
       const { pdf, missing } = await compiled;
-      setSaveBusy(false);
+      setSaveBusy(deps.button, false);
       if (missing.length)
         notes.push(missingNote("PDF-д ороогүй зураг: ", missing));
       if (notes.length) deps.notify(notes.join(" · "));
       if (await deliverFile(pdf, name, "application/pdf"))
-        flash("#saveBtn", "PDF хадгаллаа");
+        flash(deps.button, "PDF хадгаллаа");
     } catch (error) {
-      setSaveBusy(false);
-      flash("#saveBtn", "PDF гаргаж чадсангүй");
+      setSaveBusy(deps.button, false);
+      flash(deps.button, "PDF гаргаж чадсангүй");
       if (error instanceof Error && error.name === "PdfError")
         notes.push(escapeHtml(error.message));
       if (notes.length) deps.notify(notes.join(" · "));

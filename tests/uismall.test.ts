@@ -25,12 +25,18 @@ test.after(() => dom.close());
 const root = (): HTMLElement => document.documentElement;
 const click = (id: string): void =>
   document.querySelector<HTMLElement>("#" + id)!.click();
+const buttons = () => ({
+  theme: document.querySelector<HTMLElement>("#themeBtn")!,
+  fontInc: document.querySelector<HTMLElement>("#fontIncBtn")!,
+  fontDec: document.querySelector<HTMLElement>("#fontDecBtn")!,
+  fontReset: document.querySelector<HTMLElement>("#fontResetBtn")!,
+});
 const scale = (): string => root().style.getPropertyValue("--editor-scale");
 
 test("appearance: системийн бараан горимыг дагаж, товчоор сольж хадгална", () => {
   resetStorage();
   dark = true;
-  initAppearance();
+  initAppearance(buttons());
   assert.equal(root().getAttribute("data-theme"), "dark");
   click("themeBtn");
   assert.equal(root().getAttribute("data-theme"), "light");
@@ -40,7 +46,7 @@ test("appearance: системийн бараан горимыг дагаж, т�
 test("appearance: үсгийн хэмжээг 0.8–1.8 хооронд барьж хадгална", () => {
   resetStorage();
   localStorage.setItem("mn-spell:scale", "1.75");
-  initAppearance();
+  initAppearance(buttons());
   assert.equal(scale(), "1.75");
   click("fontIncBtn");
   click("fontIncBtn");
@@ -130,10 +136,13 @@ test("reportbtn: offline үед тайлбар харуулж, цонх нээх
   });
   const note = document.querySelector<HTMLElement>("#reportNote")!;
   let snapshots = 0;
-  initReportButton(() => {
-    snapshots++;
-    return {} as never;
-  });
+  initReportButton(
+    { button: document.querySelector<HTMLElement>("#reportBtn"), note },
+    () => {
+      snapshots++;
+      return {} as never;
+    },
+  );
   Object.defineProperty(navigator, "onLine", {
     value: false,
     configurable: true,

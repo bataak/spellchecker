@@ -2,9 +2,15 @@ import type { ReportInput } from "./report.ts";
 
 type ReportModule = typeof import("./report.ts");
 
-export function initReportButton(input: () => ReportInput): void {
-  const btn = document.querySelector<HTMLButtonElement>("#reportBtn");
-  const note = document.querySelector<HTMLElement>("#reportNote");
+export interface ReportEls {
+  readonly button: HTMLElement | null;
+  readonly note: HTMLElement | null;
+}
+
+export function initReportButton(
+  { button: btn, note }: ReportEls,
+  input: () => ReportInput,
+): void {
   if (!btn) return;
   let mod: Promise<ReportModule> | null = null;
 

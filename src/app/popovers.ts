@@ -78,6 +78,9 @@ export function createPopovers(deps: PopoversDeps): Popovers {
     editor,
     backdrop,
     desktopMQ,
+    list: document.querySelector<HTMLElement>("#errorList"),
+    copy: document.querySelector<HTMLButtonElement>("#copyErrorsBtn"),
+    title: document.querySelector<HTMLElement>("#errorPanelTitle"),
     badTokens: deps.badTokens,
     lastCaret: deps.lastCaret,
     setLastCaret: deps.setLastCaret,
@@ -88,6 +91,7 @@ export function createPopovers(deps: PopoversDeps): Popovers {
 
   initDefineControls({
     editor,
+    button: document.querySelector<HTMLButtonElement>("#defineBtn"),
     backdrop,
     checker,
     defTip,

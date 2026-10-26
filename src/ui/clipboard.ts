@@ -28,8 +28,7 @@ export function copyText(str: string): Promise<void> {
   });
 }
 
-export function flash(sel: string, msg: string): void {
-  const flashBtn = document.querySelector<HTMLElement>(sel);
+export function flash(flashBtn: HTMLElement | null, msg: string): void {
   if (!flashBtn) return;
   const old = flashBtn.dataset.label || flashBtn.textContent || "";
   flashBtn.dataset.label = old;

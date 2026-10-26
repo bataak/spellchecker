@@ -18,7 +18,11 @@ export interface AppReportDeps {
 
 export function initAppReport(deps: AppReportDeps): void {
   const { checker } = deps;
-  initReportButton(() => {
+  const els = {
+    button: document.querySelector<HTMLElement>("#reportBtn"),
+    note: document.querySelector<HTMLElement>("#reportNote"),
+  };
+  initReportButton(els, () => {
     const active = deps.dicts.active();
     return {
       entryUrl: deps.entryUrl,

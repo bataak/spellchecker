@@ -26,3 +26,19 @@ export function queryShell() {
     touchMQ: window.matchMedia("(pointer: coarse)"),
   };
 }
+
+export function queryControls() {
+  const byId = (id: string): HTMLElement | null =>
+    document.querySelector<HTMLElement>("#" + id);
+  return {
+    save: byId("saveBtn"),
+    clear: byId("clearBtn"),
+    emptyTips: { info: byId("emptyNoteInfo"), action: byId("emptyNoteAction") },
+    appearance: {
+      theme: requireEl("#themeBtn"),
+      fontInc: requireEl("#fontIncBtn"),
+      fontDec: requireEl("#fontDecBtn"),
+      fontReset: requireEl("#fontResetBtn"),
+    },
+  };
+}

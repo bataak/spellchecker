@@ -13,19 +13,22 @@ export function saveTitle(base: string, output: string | null): string {
   return output + " болгож хадгална" + combo;
 }
 
-export function initSaveHints(): (
-  output: string | null,
-  open: boolean,
-) => void {
+export interface SaveHintEls {
+  readonly clear: HTMLElement | null;
+  readonly save: HTMLElement | null;
+}
+
+export function initSaveHints({
+  clear,
+  save,
+}: SaveHintEls): (output: string | null, open: boolean) => void {
   let saveBase: string | null = null;
   let clearBase: string | null = null;
   return (output, open) => {
-    const clear = document.querySelector<HTMLElement>("#clearBtn");
     if (clear) {
       clearBase ??= clear.title;
       clear.title = clearTitle(clearBase, open);
     }
-    const save = document.querySelector<HTMLElement>("#saveBtn");
     if (!save) return;
     saveBase ??= save.title;
     save.title = saveTitle(saveBase, output);
