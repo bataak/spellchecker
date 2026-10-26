@@ -265,3 +265,45 @@ test("багтахгүй үед шүүмжийн цонх хөвж, бичвэр
   await win.waitFor({ state: "hidden" });
   assert.deepEqual(errors(page), []);
 });
+
+test("Ctrl+Shift+Backspace бичвэртэй хамт шүүмж ба Шүүмж товчийг арилгана", async () => {
+  const context = await app.context();
+  const page = await openPage(app, context);
+  await typeAtEnd(page, "Үдэш бороо орно.");
+  await selectWord(page, "бороо");
+  await page.locator(".collab-comment-btn").click();
+  await page.locator(".talk-compose .talk-input").fill("Шалгах");
+  await page.keyboard.press("Enter");
+  await page.locator(".collab-comment-mark").first().waitFor();
+  const trigger = page.locator(".talk-trigger");
+  await trigger.waitFor({ state: "visible" });
+  await page.click("#editor");
+  await page.keyboard.press("Control+Shift+Backspace");
+  await trigger.waitFor({ state: "hidden" });
+  await page.locator(".collab-comment-mark").first().waitFor({
+    state: "detached",
+  });
+  await page.waitForTimeout(800);
+  await page.reload();
+  await page.waitForSelector("#editor");
+  await page.waitForTimeout(1500);
+  assert.equal(await trigger.isVisible(), false);
+  assert.deepEqual(errors(page), []);
+});
+
+test("хамтарч байхдаа цэвэрлэхэд шүүмж локалд буцаж хадгалагдахгүй", async () => {
+  const owner = await openPage(app, await app.context());
+  await typeAtEnd(owner, "Маргааш цас орно.");
+  await invite(owner);
+  await selectWord(owner, "цас");
+  await owner.locator(".collab-comment-btn").click();
+  await owner.locator(".talk-compose .talk-input").fill("Хамтын шүүмж");
+  await owner.keyboard.press("Enter");
+  await owner.locator(".talk-thread", { hasText: "Хамтын шүүмж" }).waitFor();
+  await owner.click("#editor");
+  await owner.keyboard.press("Control+Shift+Backspace");
+  await owner.waitForTimeout(2000);
+  assert.equal(await owner.locator(".talk-trigger").isVisible(), false);
+  assert.equal(await owner.locator(".collab-comment-mark").count(), 0);
+  assert.deepEqual(errors(owner), []);
+});

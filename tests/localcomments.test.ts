@@ -258,3 +258,24 @@ test("хамтрагчийн шинэ шүүмж, хариуг уншаагүй�
   assert.equal(theirs.unread(), 0);
   assert.equal(mine.unread(), 1);
 });
+
+test("бичвэр цэвэрлэхэд шүүмж устаж, гарсан session-ий шүүмж буцаж ирэхгүй", async () => {
+  const { editor, store, local } = setup("Нэг хоёр гурав");
+  await tick();
+  const id = commentOn(local, editor, "хоёр", "Устах шүүмж");
+  await tick(450);
+  assert.ok(store.data.has("slot1"));
+  const back = [{ ...local.list()[0]!, author: null, replies: [] }];
+  local.clear("slot1", true);
+  assert.deepEqual(local.list(), []);
+  await tick();
+  assert.equal(store.data.has("slot1"), false);
+  await local.keep("slot1", back);
+  assert.deepEqual(local.list(), []);
+  await local.keep("slot1", back);
+  assert.equal(local.list()[0]!.id, id);
+  local.clear("slot1", false);
+  await local.keep("slot1", back);
+  assert.equal(local.list().length, 1);
+  local.destroy();
+});

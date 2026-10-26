@@ -52,6 +52,7 @@ export interface LocalComments extends Comments {
   take(key: string): Promise<PortableThread[]>;
   keep(key: string, threads: readonly PortableThread[]): Promise<void>;
   discard(key: string): void;
+  clear(key: string, skipKeep: boolean): void;
 }
 
 type Thread = {
@@ -200,6 +201,7 @@ interface Shelf {
   take(key: string): Promise<Thread[]>;
   keep(key: string, incoming: readonly PortableThread[]): Promise<boolean>;
   discard(key: string): void;
+  clear(key: string, skipKeep: boolean): void;
   close(): void;
 }
 
@@ -207,6 +209,7 @@ function createShelf(store: NoteStore, loadedKey: (key: string) => void) {
   const loaded = new Map<string, Thread[]>();
   const loading = new Map<string, Promise<Thread[]>>();
   const discarded = new Set<string>();
+  const skipped = new Set<string>();
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
   const read = (key: string): Promise<Thread[]> =>
     store
@@ -249,6 +252,7 @@ function createShelf(store: NoteStore, loadedKey: (key: string) => void) {
       return out;
     },
     async keep(key, incoming) {
+      if (skipped.delete(key)) return false;
       if (discarded.has(key) || !incoming.length) return false;
       const list = await shelf.load(key);
       if (discarded.has(key)) return false;
@@ -265,11 +269,43 @@ function createShelf(store: NoteStore, loadedKey: (key: string) => void) {
       clearTimeout(timers.get(key));
       store.drop(key).catch(noteError);
     },
+    clear(key, skipKeep) {
+      if (skipKeep) skipped.add(key);
+      loaded.set(key, []);
+      clearTimeout(timers.get(key));
+      store.drop(key).catch(noteError);
+    },
     close() {
       for (const timer of timers.values()) clearTimeout(timer);
     },
   };
   return shelf;
+}
+
+type ShelfActions = Pick<LocalComments, "take" | "keep" | "discard" | "clear">;
+
+function shelfActions(
+  shelf: Shelf,
+  shown: (key: string) => void,
+): ShelfActions {
+  return {
+    async take(key) {
+      const out = await shelf.take(key);
+      if (out.length) shown(key);
+      return out;
+    },
+    async keep(key, incoming) {
+      if (await shelf.keep(key, incoming)) shown(key);
+    },
+    discard(key) {
+      shelf.discard(key);
+      shown(key);
+    },
+    clear(key, skipKeep) {
+      shelf.clear(key, skipKeep);
+      shown(key);
+    },
+  };
 }
 
 export function createLocalComments(deps: LocalCommentsDeps): LocalComments {
@@ -350,18 +386,7 @@ export function createLocalComments(deps: LocalCommentsDeps): LocalComments {
       thread.resolved = on;
       return touch();
     },
-    async take(key) {
-      const out = await shelf.take(key);
-      if (out.length) shown(key);
-      return out;
-    },
-    async keep(key, incoming) {
-      if (await shelf.keep(key, incoming)) shown(key);
-    },
-    discard(key) {
-      shelf.discard(key);
-      shown(key);
-    },
+    ...shelfActions(shelf, shown),
     unread: () => 0,
     seen: () => {},
     onChange: changed.on,
