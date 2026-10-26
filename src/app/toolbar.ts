@@ -119,14 +119,8 @@ function initToolbarSnap(): void {
       clearTimeout(snapTimer);
       snapTimer = setTimeout(() => {
         const barRect = bar.getBoundingClientRect();
-        const max = bar.scrollWidth - bar.clientWidth;
-        const edge =
-          barRect.right - Number.parseFloat(getComputedStyle(bar).paddingRight);
         const dHome = clearBtn.getBoundingClientRect().left - barRect.left;
-        const dSave =
-          bar.scrollLeft >= max - 1
-            ? Infinity
-            : endBtn.getBoundingClientRect().right - edge;
+        const dSave = endBtn.getBoundingClientRect().right - barRect.right;
         const aHome = Math.abs(dHome);
         const aSave = Math.abs(dSave);
         if (Math.min(aHome, aSave) > ZONE) return;
