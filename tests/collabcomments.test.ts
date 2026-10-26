@@ -296,3 +296,59 @@ test("өөрийн шүүмж, хариултын нэрийн хажууд (т�
   view.destroy();
   view.el.remove();
 });
+
+test("урвуу налуу зураас ихтэй урт шүүмж хадгалагдаж, хамтрагчид харагдана", () => {
+  const [a, b] = pair();
+  a.getText("t").insert(0, "\\\\".repeat(200) + " төгсгөл");
+  const mine = open(a, "aaa");
+  const theirs = open(b, "bbb");
+  const quote = a.getText("t").toString().slice(0, 300);
+  const id = mine.add(mine.draft(0, 300, quote)!, "\\".repeat(2000));
+  assert.ok(id);
+  assert.equal(theirs.list().length, 1);
+  assert.equal(theirs.list()[0]!.text.length, 2000);
+  assert.equal(b.getMap("comments").size, 1);
+});
+
+test("хариулт бичиж байхад хамтрагч шүүмж нэмбэл курсор байрандаа үлдэнэ", () => {
+  const [a, b] = pair();
+  a.getText("t").insert(0, "Нэг хоёр гурав");
+  const mine = open(a, "aaa");
+  const theirs = open(b, "bbb");
+  const id = mine.add(draftOf(mine, a, "Нэг"), "Эхнийх")!;
+  const view = commentsView(mine, () => {});
+  document.body.append(view.el);
+  view.shown(true);
+  const reply = view.el.querySelector<HTMLTextAreaElement>(
+    `[data-id="${id}"] .talk-reply-input`,
+  )!;
+  reply.value = "дундаас засна";
+  reply.dispatchEvent(new window.Event("input"));
+  reply.focus();
+  reply.setSelectionRange(4, 6);
+  theirs.add(draftOf(theirs, b, "гурав"), "Хамтрагчийн шүүмж");
+  const again = document.activeElement as HTMLTextAreaElement;
+  assert.ok(again.matches(".talk-reply-input"));
+  assert.equal(again.value, "дундаас засна");
+  assert.deepEqual([again.selectionStart, again.selectionEnd], [4, 6]);
+  view.destroy();
+  view.el.remove();
+});
+
+test("бүгдийг шийдэх нэг шинэчлэлтээр хамтрагчид очно", () => {
+  const [a, b] = pair();
+  a.getText("t").insert(0, "Нэг хоёр гурав дөрөв");
+  const mine = open(a, "aaa");
+  const theirs = open(b, "bbb");
+  const ids = ["Нэг", "хоёр", "гурав"].map((word) =>
+    mine.add(draftOf(mine, a, word), word)!,
+  );
+  let updates = 0;
+  let changes = 0;
+  b.on("update", () => updates++);
+  theirs.onChange(() => changes++);
+  mine.resolveAll(ids);
+  assert.equal(updates, 1);
+  assert.equal(changes, 1);
+  assert.ok(theirs.list().every((thread) => thread.resolved));
+});

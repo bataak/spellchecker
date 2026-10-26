@@ -1,6 +1,6 @@
 import type { Comments } from "./commentmodel.ts";
 import type { CursorView } from "./cursors.ts";
-import { place } from "./overlay.ts";
+import { place, watchLayout } from "./overlay.ts";
 
 export interface CommentMarksDeps {
   readonly comments: Pick<Comments, "spans" | "onChange">;
@@ -51,10 +51,7 @@ export function createCommentMarks(deps: CommentMarksDeps): CommentMarks {
 
   const offRefresh = deps.refresh(renderSoon);
   const offComments = comments.onChange(renderSoon);
-  editor.addEventListener("scroll", renderSoon, { passive: true });
-  window.addEventListener("resize", renderSoon);
-  const sized = new ResizeObserver(renderSoon);
-  sized.observe(editor);
+  const unwatch = watchLayout(editor, renderSoon);
   renderSoon();
 
   return {
@@ -62,9 +59,7 @@ export function createCommentMarks(deps: CommentMarksDeps): CommentMarks {
       if (frame) cancelAnimationFrame(frame);
       offRefresh();
       offComments();
-      editor.removeEventListener("scroll", renderSoon);
-      window.removeEventListener("resize", renderSoon);
-      sized.disconnect();
+      unwatch();
       layer.remove();
     },
   };

@@ -284,7 +284,9 @@ function initButtons({
     void port.replace("", 0);
     afterClear(true);
   };
+  let confirming = false;
   clearBtn.addEventListener("click", () => {
+    if (confirming) return;
     if (!editor.value && !hasOpenFile()) {
       afterClear(false);
       editor.focus();
@@ -293,10 +295,14 @@ function initButtons({
     const ok = confirmClear();
     if (ok === true) return wipeText();
     if (ok === false) return;
-    void ok.then((sure) => {
-      if (sure) wipeText();
-      else editor.focus();
-    });
+    confirming = true;
+    void ok
+      .catch(() => false)
+      .then((sure) => {
+        confirming = false;
+        if (sure) wipeText();
+        else editor.focus();
+      });
   });
 
   function insertAtCaret(text: string): void {

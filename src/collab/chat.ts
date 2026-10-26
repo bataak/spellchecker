@@ -39,7 +39,7 @@ export const MAX_MESSAGES = 300;
 export const MAX_CHAT_TEXT = 2000;
 const MAX_ID = 24;
 const MAX_COLOR = 64;
-const MAX_ENTRY = 4096;
+const MAX_ENTRY = 8192;
 const CHAT = "chat";
 const NO_NAME = "Нэргүй";
 
