@@ -2,6 +2,7 @@ import { saveTypes, stampName, textName } from "./filetypes.ts";
 import { isDesktopApp } from "./textfile.ts";
 import { flash } from "../ui/clipboard.ts";
 import { attemptAsync } from "../core/attempt.ts";
+import { noteError } from "../core/errorlog.ts";
 import type {
   CurrentFile,
   OfficeFiles,
@@ -87,10 +88,14 @@ export function createFileSave(d: FileSaveDeps): SaveFile {
     if (!handle) return false;
     if (source && (source.inProject || source.name !== current.name))
       return false;
-    const written = await attemptAsync(async () => {
-      await writeTo(handle, text);
-      return true;
-    }, false);
+    const written = await attemptAsync(
+      async () => {
+        await writeTo(handle, text);
+        return true;
+      },
+      false,
+      noteError,
+    );
     if (!written) return false;
     saved("Хадгаллаа");
     if (!source?.inProject) d.onSaved(true);

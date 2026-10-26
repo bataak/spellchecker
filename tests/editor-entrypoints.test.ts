@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (name: string): string =>
   readFileSync(join(ROOT, "src", name), "utf8");
-const MAIN = read("main.ts");
+const COMPOSER = read("app/composechecks.ts");
 const WIRING = read("app/editorwiring.ts");
 const FIXERS = read("app/fixers.ts");
 const LOOKAHEAD = 40;
@@ -65,7 +65,7 @@ test("товчийн илрүүлэгч засварлагчийн холбол�
   assert.match(dom, /#decodeBtn/);
   assert.match(dom, /#cleanBtn/);
   assert.match(decode, /needsCleanup/);
-  assert.match(MAIN, /from "\.\/app\/editorwiring\.ts"/);
+  assert.match(COMPOSER, /from "\.\/editorwiring\.ts"/);
   assert.match(WIRING, /from "\.\/fixers\.ts"/);
   assert.match(FIXERS, /from "\.\.\/editor\/decode\.ts"/);
 });

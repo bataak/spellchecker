@@ -1,6 +1,16 @@
 import { zipSync } from "fflate";
 import type { Zippable } from "fflate";
-import { STYLE, imageKey, imageSizeCm } from "../docir.ts";
+import {
+  STYLE,
+  TOC_TITLE,
+  imageKey,
+  imageSizeCm,
+  isTocLevel,
+  outlineLevel,
+  runsText,
+  tocEntries,
+  withToc,
+} from "../docir.ts";
 import type {
   DocIr,
   ImageFiles,
@@ -180,12 +190,8 @@ function styled(style: string, extra = ""): string {
   return '<w:pStyle w:val="' + styleId(style) + '"/>' + extra;
 }
 
-function plainText(runs: readonly IrRun[]): string {
-  return runs.map((run) => run.text).join("");
-}
-
 function headingBookmark(level: number, body: Body, inner: string): string {
-  if (level < 1 || level > 3) return inner;
+  if (!isTocLevel(level)) return inner;
   const id = body.bookmark++;
   const name = "_Toc" + String(100000 + id);
   return (
@@ -317,11 +323,10 @@ function tableXml(
 function blockXml(block: IrBlock, doc: DocIr, body: Body): string {
   switch (block.kind) {
     case "para": {
-      const style = doc.styles[block.style];
       const inner = runsXml(block.runs, body, block.style === STYLE.code);
       return paraXml(
         styled(block.style),
-        headingBookmark(style?.outlineLevel ?? 0, body, inner),
+        headingBookmark(outlineLevel(doc, block.style), body, inner),
       );
     }
     case "list":
@@ -340,24 +345,16 @@ function blockXml(block: IrBlock, doc: DocIr, body: Body): string {
 }
 
 function tocXml(doc: DocIr): string {
-  const entries: string[] = [];
-  let bookmark = 0;
-  for (const block of doc.blocks) {
-    if (block.kind !== "para") continue;
-    const level = doc.styles[block.style]?.outlineLevel ?? 0;
-    if (level < 1 || level > 3) continue;
-    const name = "_Toc" + String(100000 + bookmark++);
-    entries.push(
-      paraXml(
-        '<w:pStyle w:val="TOC' + String(level) + '"/>',
-        '<w:hyperlink w:anchor="' +
-          name +
-          '" w:history="1">' +
-          textRun(plainText(block.runs), "") +
-          "</w:hyperlink>",
-      ),
-    );
-  }
+  const entries = tocEntries(doc).map(({ level, runs }, bookmark) =>
+    paraXml(
+      '<w:pStyle w:val="TOC' + String(level) + '"/>',
+      '<w:hyperlink w:anchor="_Toc' +
+        String(100000 + bookmark) +
+        '" w:history="1">' +
+        textRun(runsText(runs), "") +
+        "</w:hyperlink>",
+    ),
+  );
   const begin =
     '<w:r><w:fldChar w:fldCharType="begin" w:dirty="true"/></w:r>' +
     '<w:r><w:instrText xml:space="preserve"> TOC \\o "1-3" \\h \\z \\u </w:instrText></w:r>' +
@@ -372,7 +369,7 @@ function tocXml(doc: DocIr): string {
   entries[0] = first;
   entries[last] = entries[last]!.replace(/<\/w:p>$/, end + "</w:p>");
   return (
-    paraXml('<w:pStyle w:val="TOCHeading"/>', textRun("Гарчиг", "")) +
+    paraXml('<w:pStyle w:val="TOCHeading"/>', textRun(TOC_TITLE, "")) +
     entries.join("") +
     paraXml("", '<w:r><w:br w:type="page"/></w:r>')
   );
@@ -380,15 +377,7 @@ function tocXml(doc: DocIr): string {
 
 function documentXml(doc: DocIr, options: DocxOptions, body: Body): string {
   const blocks = doc.blocks.map((block) => blockXml(block, doc, body));
-  if (options.toc) {
-    const first = doc.blocks[0];
-    const titleFirst =
-      first !== undefined &&
-      first.kind === "para" &&
-      (first.style === STYLE.title ||
-        doc.styles[first.style]?.outlineLevel === 1);
-    blocks.splice(titleFirst ? 1 : 0, 0, tocXml(doc));
-  }
+  if (options.toc) withToc(doc, blocks, tocXml(doc));
   const page = doc.page;
   const top = twips(page.marginTopCm);
   const sect =

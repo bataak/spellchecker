@@ -6,7 +6,7 @@ import { syncIgnoreVisibility } from "./ignorelist.ts";
 import type { Popover } from "../ui/popover.ts";
 import { openManualFix } from "./suggestfix.ts";
 import { addIgnored, canIgnore } from "../spell/ignore.ts";
-import type { SpellChecker } from "../spell/spellchecker.ts";
+import type { WordChecker } from "../spell/spellchecker.ts";
 import type { Token } from "../spell/textcheck.ts";
 import {
   dashFixes,
@@ -21,7 +21,7 @@ export interface SuggestPopoverDeps {
   readonly popover: HTMLElement;
   readonly pop: Popover;
   readonly defTip: DefTip;
-  readonly checker: SpellChecker;
+  readonly checker: WordChecker;
   readonly desktopMQ: MediaQueryList;
   readonly render: () => Promise<void>;
   readonly apply: (token: Token, replacement: string) => Promise<void>;
@@ -36,7 +36,7 @@ export interface SuggestPopover {
 
 async function collectSuggestions(
   token: Token,
-  checker: SpellChecker,
+  checker: WordChecker,
   limit: number,
 ): Promise<string[]> {
   const checkWords = (words: string[]) => checker.checkWords(words);
@@ -127,10 +127,9 @@ export function initSuggestPopover(deps: SuggestPopoverDeps): SuggestPopover {
       deps.checker,
       deps.desktopMQ.matches ? 15 : 8,
     );
-    const found =
-      deps.checker.lookup && suggestions.length
-        ? await deps.checker.lookup(suggestions)
-        : null;
+    const found = suggestions.length
+      ? await deps.checker.lookup(suggestions)
+      : null;
     if (!pop.isOpenAt(token.start)) return;
     const marks = pickDefinitionMarks(suggestions, found);
     popover.innerHTML = popoverHtml(

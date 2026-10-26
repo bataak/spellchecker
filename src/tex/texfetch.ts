@@ -27,8 +27,8 @@ export interface TexPackage {
 }
 
 export class TexPackageError extends Error {
-  constructor(message: string) {
-    super(message);
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
     this.name = "TexPackageError";
   }
 }
@@ -139,11 +139,12 @@ async function download(name: string): Promise<Uint8Array> {
     response = await fetch(packageUrl(name), {
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
-  } catch {
+  } catch (cause) {
     throw new TexPackageError(
       "«" +
         name +
         "» TeX багцыг татаж чадсангүй — интернэт холболтоо шалгана уу",
+      { cause },
     );
   }
   if (response.status === 404)

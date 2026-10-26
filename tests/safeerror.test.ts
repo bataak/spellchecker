@@ -6,6 +6,8 @@ import {
   attachErrorLog,
   createErrorRing,
   recordOnce,
+  causeChain,
+  MAX_CAUSES,
 } from "../src/core/errorlog.ts";
 
 const CYR = "НУУЦмаркер";
@@ -202,4 +204,18 @@ test("errorlog: recordOnce давтагдсан алдаагаар ring-ийг �
     ring.list().map((item) => item.name),
     ["QuotaExceededError", "TypeError"],
   );
+});
+
+test("errorlog: causeChain шалтгааныг дагаж, давталт ба гүнийг хязгаарлана", () => {
+  const root = new TypeError("root");
+  const middle = new Error("middle", { cause: root });
+  const top = new Error("top", { cause: middle });
+  assert.deepEqual(causeChain(top), [top, middle, root]);
+  assert.deepEqual(causeChain("text"), ["text"]);
+  const loop = new Error("loop");
+  loop.cause = loop;
+  assert.deepEqual(causeChain(loop), [loop]);
+  let deep: Error = new Error("0");
+  for (let i = 1; i < 10; i++) deep = new Error(String(i), { cause: deep });
+  assert.equal(causeChain(deep).length, MAX_CAUSES + 1);
 });

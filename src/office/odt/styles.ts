@@ -1,9 +1,7 @@
 import { cm } from "../units.ts";
-import type { DocIr } from "../docir.ts";
+import { TOC_LEVELS, type DocIr } from "../docir.ts";
 import { xmlAttr } from "../sanitize.ts";
 import { NS, paraProps, pt, styleName, textProps } from "./props.ts";
-
-export const TOC_LEVELS = [1, 2, 3] as const;
 
 export const LIST_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 export const BULLETS = ["\u2022", "\u25E6", "\u25AA"];

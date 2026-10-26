@@ -58,7 +58,7 @@ export function createPopovers(deps: PopoversDeps): Popovers {
   const defTip = initDefTip({
     editor,
     popover,
-    define: checker.define ? (word) => checker.define!(word) : undefined,
+    define: (word) => checker.define(word),
     showPanel: (word) => void pop.showDefPanel(word),
     hidePopover: () => pop.hide(),
     holdStatus: deps.hold,

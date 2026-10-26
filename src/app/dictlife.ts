@@ -69,7 +69,7 @@ export function createDictLife(deps: DictLifeDeps): DictLife {
 
   return {
     watchFatal() {
-      checker.onFatal = (reason) => void reportFatal(reason);
+      checker.onFatal((reason) => void reportFatal(reason));
     },
     async start() {
       try {
@@ -87,11 +87,11 @@ export function createDictLife(deps: DictLifeDeps): DictLife {
             "Нэг ч толь алга — <code>public/dict/</code> дотор .aff/.dic хийнэ үү.",
           );
         }
-        checker.onDictUpdated = (id) => {
+        checker.onDictUpdated((id) => {
           if (id !== "mn_MN") return;
           appUpdate.setDictVersion(checker.mnVersion);
           void deps.recheckAll();
-        };
+        });
         watchRefresh();
         void checker.whenComplete().then((done) => {
           dicts.completed(

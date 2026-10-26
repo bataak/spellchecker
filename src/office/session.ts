@@ -18,7 +18,7 @@ export interface OfficeSessionDeps {
   readonly showSource: (source: PreviewSource) => void;
   readonly baseline: () => void;
   readonly syncFixButtons: () => void;
-  readonly onModeChange: () => void;
+  readonly onModeChange: (active: boolean) => void;
 }
 
 export interface OfficeSession {
@@ -119,8 +119,7 @@ export function createOfficeSession(deps: OfficeSessionDeps): OfficeSession {
     mode = null;
     modeFile = null;
     editor.readOnly = false;
-    document.body.classList.remove("docx-mode");
-    deps.onModeChange();
+    deps.onModeChange(false);
   };
 
   const close = (): void => {
@@ -167,8 +166,7 @@ export function createOfficeSession(deps: OfficeSessionDeps): OfficeSession {
     deps.baseline();
     if (draftText === undefined) queue(() => saveOfficeFile(file));
     deps.showSource({ kind: "office", name: file.name });
-    document.body.classList.add("docx-mode");
-    deps.onModeChange();
+    deps.onModeChange(true);
     deps.syncFixButtons();
     await deps.editor.settle();
     return true;

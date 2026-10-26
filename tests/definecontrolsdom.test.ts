@@ -30,6 +30,7 @@ initDefineControls({
     loadedIds: ["mn_MN"],
     define: async () => ({ dicts, source: "", entries: [] }),
     listDicts: async () => [],
+    onDictScripts: () => () => {},
   } as never,
   defTip: {
     definitionFor: async () => ({ dicts, source: "", entries: [] }),

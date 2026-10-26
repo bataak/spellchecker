@@ -52,6 +52,7 @@ function setup(suggestions: string[], readOnly = false) {
       checkWords: async (words: string[]) =>
         Object.fromEntries(words.map((w) => [w, false])),
       suggest: async () => suggestions,
+      lookup: async () => null,
     } as never,
     desktopMQ: { matches: true } as MediaQueryList,
     render: async () => {

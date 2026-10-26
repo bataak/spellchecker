@@ -1,3 +1,4 @@
+import { createEmitter } from "../core/emitter.ts";
 import { isAbbrev } from "./textcheck.ts";
 import type {
   DefineResponse,
@@ -33,27 +34,45 @@ export interface CompleteResult {
   failed: DictFailure[];
 }
 
-export interface SpellChecker {
+export interface WordChecker {
   readonly ready: boolean;
   readonly dead: boolean;
+  checkWords(words: string[]): Promise<Record<string, boolean>>;
+  suggest(word: string): Promise<string[]>;
+  lookup(words: string[]): Promise<Record<string, string> | null>;
+}
+
+export type Definition = Omit<DefineResponse, "type" | "id">;
+
+export interface WordDefiner {
   readonly loadedIds: string[];
+  define(word: string): Promise<Definition>;
+  onDictScripts(listener: (latin: boolean) => void): () => void;
+}
+
+export interface DictLibrary {
+  listDicts(opts?: { peek?: boolean }): Promise<DictInfo[]>;
+  reloadDicts(): void;
+  reorderDicts(): void;
+}
+
+export interface SpellChecker extends WordChecker, WordDefiner, DictLibrary {
   readonly mnVersion: string | null;
   readonly source: string | null;
   readonly fallbackReason: string | null;
-  onFatal: ((reason: string) => void) | null;
-  onDictUpdated: ((id: string, version: string | null) => void) | null;
-  onDictScripts: ((latin: boolean) => void) | null;
+  onFatal(listener: (reason: string) => void): () => void;
+  onDictUpdated(
+    listener: (id: string, version: string | null) => void,
+  ): () => void;
   init(base: string): Promise<InitResult>;
   whenComplete(): Promise<CompleteResult>;
-  checkWords(words: string[]): Promise<Record<string, boolean>>;
-  suggest(word: string): Promise<string[]>;
-  lookup?(words: string[]): Promise<Record<string, string> | null>;
-  define?(word: string): Promise<Omit<DefineResponse, "type" | "id">>;
-  reloadDicts?(): void;
-  reorderDicts?(): void;
-  listDicts?(opts?: { peek?: boolean }): Promise<DictInfo[]>;
   setActive(ids: string[]): void;
   refresh(): void;
+}
+
+interface DictUpdate {
+  readonly id: string;
+  readonly version: string | null;
 }
 
 export async function checkWordsBatched(
@@ -93,9 +112,9 @@ export class MultiSpellChecker implements SpellChecker {
   fallbackReason: string | null;
   restReady: Promise<CompleteResult>;
   dead: boolean;
-  onFatal: ((reason: string) => void) | null;
-  onDictUpdated: ((id: string, version: string | null) => void) | null;
-  onDictScripts: ((latin: boolean) => void) | null;
+  private readonly _fatalEvent = createEmitter<string>();
+  private readonly _dictUpdated = createEmitter<DictUpdate>();
+  private readonly _dictScripts = createEmitter<boolean>();
   private _seq: number;
   private _pending: Map<number, PendingEntry>;
   private _initHandler: ((msg: InitProgressMessage) => void) | null;
@@ -116,14 +135,27 @@ export class MultiSpellChecker implements SpellChecker {
     this._restResolve = null;
     this.restReady = new Promise((resolve) => (this._restResolve = resolve));
     this.dead = false;
-    this.onFatal = null;
-    this.onDictUpdated = null;
-    this.onDictScripts = null;
     this.worker.onmessage = (e: MessageEvent<WorkerResponse>) =>
       this._onMessage(e.data);
     this.worker.onerror = (e) =>
       this._fatal((e && e.message) || "worker error");
     this.worker.onmessageerror = () => this._fatal("worker message error");
+  }
+
+  onFatal(listener: (reason: string) => void): () => void {
+    return this._fatalEvent.on(listener);
+  }
+
+  onDictUpdated(
+    listener: (id: string, version: string | null) => void,
+  ): () => void {
+    return this._dictUpdated.on((update) =>
+      listener(update.id, update.version),
+    );
+  }
+
+  onDictScripts(listener: (latin: boolean) => void): () => void {
+    return this._dictScripts.on(listener);
   }
 
   _deadResult(type: RpcType, payload: RpcPayload): RpcResponse {
@@ -149,19 +181,19 @@ export class MultiSpellChecker implements SpellChecker {
       pending.resolve(this._deadResult(pending.type, pending.payload));
     if (!this.ready && this._initHandler) {
       this._initHandler({ type: "error", error: String(reason) });
-    } else if (this.onFatal) {
-      this.onFatal(String(reason));
+    } else {
+      this._fatalEvent.emit(String(reason));
     }
   }
 
   _onMessage(msg: WorkerResponse): void {
     if (msg.type === "dictUpdated") {
       if (msg.id === "mn_MN") this.mnVersion = msg.version;
-      if (this.onDictUpdated) this.onDictUpdated(msg.id, msg.version);
+      this._dictUpdated.emit({ id: msg.id, version: msg.version });
       return;
     }
     if (msg.type === "dictScripts") {
-      this.onDictScripts?.(msg.latin);
+      this._dictScripts.emit(msg.latin);
       return;
     }
     if (
@@ -203,7 +235,7 @@ export class MultiSpellChecker implements SpellChecker {
           this._restResolve!({ loaded: msg.loaded, failed: msg.failed });
         } else if (msg.type === "error") {
           if (this.ready) {
-            if (this.onFatal) this.onFatal(String(msg.error));
+            this._fatalEvent.emit(String(msg.error));
           } else {
             reject(new Error(msg.error));
           }
@@ -248,7 +280,7 @@ export class MultiSpellChecker implements SpellChecker {
     return msg.type === "lookup" ? msg.found : null;
   }
 
-  async define(word: string): Promise<Omit<DefineResponse, "type" | "id">> {
+  async define(word: string): Promise<Definition> {
     if (!this.ready || this.dead) return { source: "", entries: [], dicts: -1 };
     const msg = await this._rpc("define", { word });
     return msg.type === "define"
