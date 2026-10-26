@@ -473,15 +473,7 @@
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
-  font-size: 0.85rem;
-}
-
-.talk-chat {
-  font-size: 1rem;
-}
-
-.talk-chat .talk-msg-head {
-  font-size: 0.82rem;
+  font-size: 0.925rem;
 }
 
 .talk-messages,
@@ -504,7 +496,7 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
-  font-size: 0.75rem;
+  font-size: 0.785rem;
   color: var(--muted);
 }
 

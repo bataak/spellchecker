@@ -4,7 +4,7 @@ import { actionButton } from "./dialogparts.ts";
 export type ClearChoice = "keep" | "wipe" | null;
 
 export const CLEAR_SHARED =
-  "Энэ бичвэрийг хамтрагчидтай хуваалцаж байна. Цэвэрлэхэд хамтын засвар бүх хүнд зогсоно. Хамтрагчдын төхөөрөмж дээрх хуулбарыг устгах уу?";
+  "Энэхүү бичвэрийг цэвэрлэвэл хамтын засварыг зогсооход хүрнэ. Хамтрагчдын төхөөрөмж дээрх хуулбарыг устгах уу?";
 
 export function askClearShared(): Promise<ClearChoice> {
   const dialog = element("dialog", "suggest-overlay collab-overlay");
