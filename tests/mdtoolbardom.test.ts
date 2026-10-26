@@ -113,7 +113,7 @@ test("addTools: LaTeX товчнуудыг мөрөнд нэмж, идэвхгү
   md.addTools(tools);
   assert.equal(host.querySelector(".md-group + .tex-group"), tools.group);
   assert.equal(tools.group.hidden, false);
-  tools.group.querySelector<HTMLElement>('[data-tool="text"]')!.click();
+  tools.group.querySelector<HTMLElement>('[data-tool="structure"]')!.click();
   assert.equal(tools.isOpen(), true);
   tex = false;
   md.refresh();

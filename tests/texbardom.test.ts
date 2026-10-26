@@ -32,10 +32,8 @@ function set(text: string, start: number, end = start): void {
   editor.setSelectionRange(start, end);
 }
 
-function button(tool: string, part = "main"): HTMLElement {
-  return bar.group.querySelector<HTMLElement>(
-    `.tex-btn[data-tool="${tool}"][data-part="${part}"]`,
-  )!;
+function button(tool: string): HTMLElement {
+  return bar.group.querySelector<HTMLElement>(`.tex-btn[data-tool="${tool}"]`)!;
 }
 
 const marked = (): string =>
@@ -48,30 +46,49 @@ test("texBar: шууд товч сонголтыг ороож оруулна", (
   button("bold").click();
   assert.equal(marked(), "сайн \\textbf{үг|}");
   set("x", 0, 1);
-  button("math").click();
+  button("inline").click();
   assert.equal(marked(), "$x|$");
+  set("", 0);
+  button("display").click();
+  assert.equal(marked(), "\\[\n|\n\\]");
   assert.equal(bar.isOpen(), false);
+});
+
+test("texBar: жагсаалт, зураг загвар биетэйгээ орно", () => {
+  set("", 0);
+  button("itemize").click();
+  assert.equal(marked(), "\\begin{itemize}\n  \\item |\n\\end{itemize}");
+  set("", 0);
+  button("figure").click();
+  assert.equal(
+    marked(),
+    "\\begin{figure}[ht]\n  \\centering\n" +
+      "  \\includegraphics[width=\\linewidth]{|}\n" +
+      "  \\caption{}\n  \\label{fig:}\n\\end{figure}",
+  );
+  assert.ok(button("itemize").querySelector("svg"));
+  assert.equal(button("itemize").hasAttribute("data-gap"), true);
 });
 
 test("texBar: цэсийг нээж, сонголтоор засвар хийгээд хаана", () => {
   set("", 0);
-  const more = button("math", "menu");
+  const more = button("math");
   more.click();
   assert.equal(bar.isOpen(), true);
   assert.equal(more.getAttribute("aria-expanded"), "true");
   assert.ok(pop.classList.contains("is-list"));
-  const display = [...pop.querySelectorAll<HTMLElement>(".tex-item")].find(
-    (item) => item.textContent!.startsWith("Тусдаа мөрөнд"),
+  const equation = [...pop.querySelectorAll<HTMLElement>(".tex-item")].find(
+    (item) => item.textContent!.startsWith("Дугаартай"),
   )!;
-  assert.equal(display.querySelector(".tex-code")!.textContent, "\\[ … \\]");
-  display.click();
-  assert.equal(marked(), "\\[\n|\n\\]");
+  assert.equal(equation.querySelector(".tex-code")!.textContent, "equation");
+  equation.click();
+  assert.equal(marked(), "\\begin{equation}\n  |\n\\end{equation}");
   assert.equal(bar.isOpen(), false);
   assert.equal(more.getAttribute("aria-expanded"), "false");
 });
 
 test("texBar: дахин дарах, Escape, гадна дарахад цэс хаагдана", () => {
-  const text = button("text");
+  const text = button("structure");
   text.click();
   assert.equal(bar.isOpen(), true);
   text.click();

@@ -79,7 +79,7 @@ export function createPopover(
     pop.setAttribute("aria-label", content.label);
     pop.replaceChildren(...content.nodes);
     openId = id;
-    anchor = button.closest<HTMLElement>(".tex-split") ?? button;
+    anchor = button;
     button.setAttribute("aria-expanded", "true");
     pop.hidden = false;
     place();

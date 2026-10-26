@@ -3,16 +3,17 @@ import { insertCode, type Insert } from "./texmenuedit.ts";
 
 export const POP_ID = "texBarPop";
 
-function toolButton(tool: BarTool, part: "main" | "menu"): HTMLButtonElement {
+function toolButton(tool: BarTool): HTMLButtonElement {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "tbtn md-btn tex-btn";
   button.dataset.tool = tool.id;
-  button.dataset.part = part;
   button.title = tool.title;
   button.setAttribute("aria-label", tool.title);
-  if (part === "main") button.textContent = tool.glyph;
-  if (part === "menu" || tool.kind === "list" || tool.kind === "palette") {
+  if (tool.gap) button.dataset.gap = "";
+  if (tool.icon) button.innerHTML = tool.icon;
+  else button.textContent = tool.glyph;
+  if (tool.kind !== "action") {
     button.classList.add("has-menu");
     button.setAttribute("aria-haspopup", "true");
     button.setAttribute("aria-expanded", "false");
@@ -21,25 +22,13 @@ function toolButton(tool: BarTool, part: "main" | "menu"): HTMLButtonElement {
   return button;
 }
 
-function toolNode(tool: BarTool): HTMLElement {
-  if (tool.kind !== "split") return toolButton(tool, "main");
-  const split = document.createElement("span");
-  split.className = "tex-split";
-  split.dataset.tool = tool.id;
-  const more = toolButton(tool, "menu");
-  more.classList.add("tex-more");
-  more.setAttribute("aria-label", tool.title + " — бусад хэлбэр");
-  split.append(toolButton(tool, "main"), more);
-  return split;
-}
-
 export function toolGroup(tools: readonly BarTool[]): HTMLElement {
   const group = document.createElement("span");
   group.className = "md-group tex-group";
   group.setAttribute("role", "group");
   group.setAttribute("aria-label", "LaTeX");
   group.hidden = true;
-  group.append(...tools.map(toolNode));
+  group.append(...tools.map(toolButton));
   return group;
 }
 
