@@ -12,6 +12,7 @@ import {
 import {
   commentsCount,
   commentsView,
+  resolveAllQuestion,
   resolvedLabel,
 } from "../src/collab/commentview.ts";
 import type { CommentThread } from "../src/collab/comments.ts";
@@ -210,12 +211,45 @@ test("шүүмжийн самбар бичих, хариулах, шийдэх, 
     .click();
   assert.equal(view.el.querySelector(".talk-thread"), null);
   const toggle = view.el.querySelector<HTMLButtonElement>(
-    ".talk-changes-bar .talk-accept-all",
+    ".talk-changes-bar .talk-accept-all:last-child",
   )!;
   assert.equal(toggle.textContent, resolvedLabel(1, false));
   toggle.click();
   assert.ok(view.el.querySelector(".talk-thread.is-resolved"));
   assert.equal(view.el.querySelector(".talk-reply-input"), null);
+  view.destroy();
+  view.el.remove();
+});
+
+test("бүх нээлттэй шүүмжийг баталгаажуулсны дараа нэг дор шийднэ", () => {
+  const doc = new Y.Doc();
+  doc.getText("t").insert(0, "Нэг хоёр гурав");
+  const comments = open(doc, "aaa");
+  const view = commentsView(comments, () => {});
+  document.body.append(view.el);
+  view.shown(true);
+  const all = view.el.querySelector<HTMLButtonElement>(
+    ".talk-changes-bar .talk-accept-all",
+  )!;
+  assert.equal(all.textContent, "Бүгдийг шийдэх");
+  assert.equal(all.hidden, true);
+  comments.add(draftOf(comments, doc, "Нэг"), "Эхнийх");
+  comments.add(draftOf(comments, doc, "гурав"), "Хоёр дахь");
+  assert.equal(all.hidden, false);
+  const asked: string[] = [];
+  const confirm = window.confirm;
+  window.confirm = (message?: string) => {
+    asked.push(message ?? "");
+    return asked.length > 1;
+  };
+  all.click();
+  assert.equal(comments.list().filter((t) => t.resolved).length, 0);
+  all.click();
+  window.confirm = confirm;
+  assert.equal(asked[1], resolveAllQuestion(2));
+  assert.ok(comments.list().every((thread) => thread.resolved));
+  assert.equal(all.hidden, true);
+  assert.equal(view.el.querySelectorAll(".talk-thread").length, 0);
   view.destroy();
   view.el.remove();
 });

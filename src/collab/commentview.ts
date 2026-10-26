@@ -23,6 +23,13 @@ export function commentsCount(open: number): string {
   return open === 0 ? "Нээлттэй шүүмжгүй" : open + " нээлттэй шүүмж";
 }
 
+export function resolveAllQuestion(open: number): string {
+  return (
+    open +
+    " нээлттэй шүүмжийг шийдсэн гэж тэмдэглэх үү? Дараа нь «Шийдсэнийг харуулах»-аас дахин нээж болно."
+  );
+}
+
 export function resolvedLabel(count: number, shown: boolean): string {
   return (
     (shown ? "Шийдсэнийг нуух" : "Шийдсэнийг харуулах") + " (" + count + ")"
@@ -245,7 +252,15 @@ export function commentsView(
   const bar = element("div", "talk-changes-bar");
   const count = element("span", "talk-changes-count");
   const toggle = button("talk-accept-all", "");
-  bar.append(count, toggle);
+  const resolveAll = button("talk-accept-all", "Бүгдийг шийдэх");
+  resolveAll.title = "Нээлттэй бүх шүүмжийг шийдсэн гэж тэмдэглэх";
+  resolveAll.addEventListener("click", () => {
+    const open = comments.list().filter((thread) => !thread.resolved);
+    if (!open.length || !window.confirm(resolveAllQuestion(open.length)))
+      return;
+    for (const thread of open) comments.resolve(thread.id, true);
+  });
+  bar.append(count, resolveAll, toggle);
   const list = element("ol", "talk-change-list talk-thread-list");
   const empty = element("p", "talk-empty", EMPTY);
   const state: State = {
@@ -273,6 +288,7 @@ export function commentsView(
     const resolved = threads.filter((thread) => thread.resolved).length;
     count.textContent = commentsCount(threads.length - resolved);
     toggle.hidden = resolved === 0;
+    resolveAll.hidden = threads.length - resolved === 0;
     toggle.textContent = resolvedLabel(resolved, state.showResolved);
     toggle.setAttribute("aria-pressed", String(state.showResolved));
     const shown = threads.filter(
