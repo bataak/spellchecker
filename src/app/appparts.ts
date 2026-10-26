@@ -99,3 +99,17 @@ export interface AppParts {
 }
 
 export type App = Late<AppParts>;
+
+export type Part = keyof AppParts;
+
+export type Scope<Reads extends Part, Gives extends Part = never> = Readonly<
+  Pick<AppParts, Reads>
+> & {
+  provide(parts: Partial<Pick<AppParts, Gives>>): void;
+};
+
+export type GivesOf<F> = F extends (app: infer S) => void
+  ? S extends { provide(parts: Partial<Pick<AppParts, infer G>>): void }
+    ? G
+    : never
+  : never;
