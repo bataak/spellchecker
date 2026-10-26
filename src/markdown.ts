@@ -36,12 +36,8 @@ export {
   parseInline,
   type ImageSize,
 } from "./markdown/inline.ts";
-export {
-  headingClasses,
-  metaValue,
-  parse,
-  withoutDivs,
-} from "./markdown/blocks.ts";
+export { parse } from "./markdown/blocks.ts";
+export { headingClasses, metaValue, withoutDivs } from "./markdown/divs.ts";
 export {
   blankEm,
   blankUnderscores,
