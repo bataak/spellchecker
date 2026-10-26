@@ -19,7 +19,7 @@ import { askClearShared } from "./clearask.ts";
 import { OFFLINE } from "./dialogparts.ts";
 import { createRegistry, ENDPOINT, type Registry } from "./registry.ts";
 import { arrived, joinRoom, openProjectRoom, resumeJoins } from "./roomjoin.ts";
-import { parseSlot, projectSlot, slotKey } from "./roomslot.ts";
+import { parseSlot, projectSlot, slotKey, type RoomSlot } from "./roomslot.ts";
 import type { SessionStatus } from "./sessiontypes.ts";
 import { openShare } from "./sharedialog.ts";
 import type { SignalState } from "./signalwire.ts";
@@ -146,6 +146,20 @@ function clearOwned(
   return endShared(entry, registry, notify, stop);
 }
 
+function endedSet(stop: (entry: RoomEntry) => void): {
+  stop(entry: RoomEntry): void;
+  take(slot: RoomSlot): boolean;
+} {
+  const slots = new Set<string>();
+  return {
+    stop(entry) {
+      slots.add(entry.slot);
+      stop(entry);
+    },
+    take: (slot) => slots.delete(slotKey(slot)),
+  };
+}
+
 async function endShared(
   entry: RoomEntry,
   registry: Pick<Registry, "open">,
@@ -237,6 +251,7 @@ export function initCollab(deps: CollabDeps): Collab {
     paint();
   };
 
+  const ended = endedSet(stop);
   const takeHash = (): void => {
     const link = parseLink(location.hash);
     if (!link) return;
@@ -276,9 +291,9 @@ export function initCollab(deps: CollabDeps): Collab {
       resumeJoins(rooms, deps, registry, stop);
       takeHash();
     },
-    forget: (slot) => stopIf(roomOfSlot(rooms, slot), stop),
+    forget: (slot) => stopIf(roomOfSlot(rooms, slot), stop) || ended.take(slot),
     clearShared: (slot) =>
-      clearOwned(roomOfSlot(rooms, slot), registry, deps.notify, stop),
+      clearOwned(roomOfSlot(rooms, slot), registry, deps.notify, ended.stop),
     projectChanged: whenStarted(() => sync()),
     talk: (kind) => talkOf(kind, rooms, deps, registry),
     onTalk: (listener) => void talks.on(listener),

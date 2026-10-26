@@ -6,26 +6,32 @@ import type { Profile } from "./profile.ts";
 export interface ColorClaim {
   readonly c: number;
   readonly a: number;
+  readonly s?: number;
 }
 
 export interface RoomColors {
   profile(): Profile;
   colorOf(key: string): number | null;
+  forget(key: string): void;
   onChange(listener: () => void): () => void;
   destroy(): void;
 }
 
 const COLORS = "colors";
 const MAX_KEY = 32;
+const DAY_MS = 86_400_000;
+export const STALE_MS = 30 * DAY_MS;
+export const PRUNE_MS = 90 * DAY_MS;
 
 function validClaim(value: unknown): value is ColorClaim {
   if (!value || typeof value !== "object") return false;
-  const { c, a } = value as Partial<ColorClaim>;
+  const { c, a, s } = value as Partial<ColorClaim>;
   return (
     Number.isInteger(c) &&
     c! >= 0 &&
     c! < CURSOR_COLORS.length &&
-    Number.isFinite(a)
+    Number.isFinite(a) &&
+    (s === undefined || Number.isFinite(s))
   );
 }
 
@@ -72,12 +78,27 @@ function hueGap(a: number, b: number): number {
   return d > 180 ? 360 - d : d;
 }
 
-function claimsOf(map: Y.Map<unknown>): Map<string, ColorClaim> {
+const seenAt = (claim: ColorClaim): number => claim.s ?? claim.a;
+
+function claimsOf(map: Y.Map<unknown>, since = -Infinity) {
   const out = new Map<string, ColorClaim>();
   map.forEach((value, key) => {
-    if (key.length <= MAX_KEY && validClaim(value)) out.set(key, value);
+    if (key.length <= MAX_KEY && validClaim(value) && seenAt(value) >= since)
+      out.set(key, value);
   });
   return out;
+}
+
+function prune(map: Y.Map<unknown>, me: string, now: number): void {
+  const old: string[] = [];
+  map.forEach((value, key) => {
+    if (key === me) return;
+    if (!validClaim(value) || seenAt(value) < now - PRUNE_MS) old.push(key);
+  });
+  if (!old.length) return;
+  const run = (): void => old.forEach((key) => map.delete(key));
+  if (map.doc) map.doc.transact(run);
+  else run();
 }
 
 export function createRoomColors(
@@ -89,9 +110,13 @@ export function createRoomColors(
   const changed = createEmitter();
   let color: number | null = null;
   const settle = (): void => {
-    const claims = claimsOf(map);
+    const now = Date.now();
+    prune(map, me, now);
+    const claims = claimsOf(map, now - STALE_MS);
     const next = pickColor(claims, me, base().color);
-    if (claims.get(me)?.c !== next) map.set(me, { c: next, a: Date.now() });
+    const mine = claimsOf(map).get(me);
+    if (mine?.c !== next) map.set(me, { c: next, a: now, s: now });
+    else if (seenAt(mine) < now - DAY_MS) map.set(me, { ...mine, s: now });
     if (next === color) return;
     color = next;
     changed.emit();
@@ -102,6 +127,7 @@ export function createRoomColors(
   return {
     profile: () => ({ ...base(), color: color ?? base().color }),
     colorOf: (key) => claimsOf(map).get(key)?.c ?? null,
+    forget: (key) => void (key !== me && map.delete(key)),
     onChange: changed.on,
     destroy() {
       map.unobserve(observer);

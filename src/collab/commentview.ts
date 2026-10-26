@@ -255,14 +255,30 @@ function composer(comments: Comments, added: (id: string) => void): Composer {
   };
 }
 
-function refocus(list: HTMLElement, key: string | undefined): void {
-  if (!key) return;
-  const input = list.querySelector<HTMLTextAreaElement>(
-    'textarea[data-key="' + CSS.escape(key) + '"]',
+interface Caret {
+  readonly key: string;
+  readonly start: number;
+  readonly end: number;
+}
+
+function caretIn(list: HTMLElement): Caret | null {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLTextAreaElement) || !list.contains(active))
+    return null;
+  const key = active.dataset.key;
+  return key
+    ? { key, start: active.selectionStart, end: active.selectionEnd }
+    : null;
+}
+
+function refocus(list: HTMLElement, caret: Caret | null): void {
+  if (!caret) return;
+  const input = [...list.querySelectorAll("textarea")].find(
+    (box) => box.dataset.key === caret.key,
   );
   if (!input) return;
   input.focus();
-  input.setSelectionRange(input.value.length, input.value.length);
+  input.setSelectionRange(caret.start, caret.end);
 }
 
 export function commentsView(
@@ -279,7 +295,7 @@ export function commentsView(
     const open = comments.list().filter((thread) => !thread.resolved);
     if (!open.length || !window.confirm(resolveAllQuestion(open.length)))
       return;
-    for (const thread of open) comments.resolve(thread.id, true);
+    comments.resolveAll(open.map((thread) => thread.id));
   });
   bar.append(count, resolveAll, toggle);
   const list = element("ol", "talk-change-list talk-thread-list");
@@ -294,8 +310,8 @@ export function commentsView(
   const focusRow = (id: string, reply = false): void => {
     state.active = id;
     render();
-    const row = list.querySelector<HTMLElement>(
-      '[data-id="' + CSS.escape(id) + '"]',
+    const row = [...list.querySelectorAll<HTMLElement>(".talk-thread")].find(
+      (item) => item.dataset.id === id,
     );
     row?.scrollIntoView({ block: "nearest" });
     if (reply) row?.querySelector<HTMLElement>(".talk-reply-input")?.focus();
@@ -317,11 +333,9 @@ export function commentsView(
     const shown = threads.filter(
       (thread) => state.showResolved || !thread.resolved,
     );
-    const focused = list.contains(document.activeElement)
-      ? (document.activeElement as HTMLElement).dataset.key
-      : undefined;
+    const caret = caretIn(list);
     list.replaceChildren(...shown.map((thread) => threadRow(thread, actions)));
-    refocus(list, focused);
+    refocus(list, caret);
     empty.hidden = threads.length > 0;
   }
   toggle.addEventListener("click", () => {

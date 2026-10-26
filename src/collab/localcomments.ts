@@ -49,7 +49,7 @@ export interface LocalCommentsDeps {
 export interface LocalComments extends Comments {
   current(): DocRef | null;
   sync(): void;
-  take(key: string): Promise<PortableThread[]>;
+  take(key: string, accept: Accept): Promise<number>;
   keep(key: string, threads: readonly PortableThread[]): Promise<void>;
   discard(key: string): void;
   clear(key: string, skipKeep: boolean): void;
@@ -89,15 +89,17 @@ function threadView(thread: Thread): CommentThread {
   };
 }
 
-function shiftThread(thread: Thread, change: TextChange): boolean {
-  if (thread.from === null || thread.to === null) return false;
+type Shift = "same" | "moved" | "gone";
+
+function shiftThread(thread: Thread, change: TextChange): Shift {
+  if (thread.from === null || thread.to === null) return "same";
   const from = shiftStart(thread.from, change);
   const to = shiftEnd(thread.to, change);
-  if (from === thread.from && to === thread.to) return false;
+  if (from === thread.from && to === thread.to) return "same";
   const live = to > from;
   thread.from = live ? from : null;
   thread.to = live ? to : null;
-  return true;
+  return live ? "moved" : "gone";
 }
 
 function noteOf(profile: Profile, body: string): PortableNote {
@@ -157,32 +159,45 @@ function spansOf(threads: readonly Thread[], ref: DocRef | null) {
   return out;
 }
 
+function scopeOf(ref: Pick<DocRef, "key" | "path">): string {
+  return ref.key + "\n" + (ref.path ?? "");
+}
+
+function parseScope(scope: string): Pick<DocRef, "key" | "path"> {
+  const at = scope.indexOf("\n");
+  const path = scope.slice(at + 1);
+  return { key: scope.slice(0, at), path: path || null };
+}
+
 function draftAt(
   value: string,
-  start: number,
-  end: number,
+  span: readonly [number, number],
   sample: string,
+  scope: string,
 ): CommentDraft | null {
+  const [start, end] = span;
   const raw = value.slice(start, end);
   if (start >= end || raw !== sample || !raw.trim()) return null;
   return {
     anchor: String(start),
     head: String(end),
     quote: cleanText(raw).slice(0, MAX_QUOTE),
+    scope,
   };
 }
 
 function threadAt(
-  value: string,
+  value: string | null,
   draft: CommentDraft,
   path: string | null,
   note: PortableNote,
 ): Thread {
-  const place = locateQuote(value, {
+  const span = {
     from: Number(draft.anchor),
     to: Number(draft.head),
     quote: draft.quote,
-  });
+  };
+  const place = value === null ? span : locateQuote(value, span);
   return {
     ...note,
     path,
@@ -198,18 +213,30 @@ interface Shelf {
   get(key: string): Thread[] | undefined;
   load(key: string): Promise<Thread[]>;
   persist(key: string): void;
-  take(key: string): Promise<Thread[]>;
+  take(key: string, accept: Accept): Promise<number>;
   keep(key: string, incoming: readonly PortableThread[]): Promise<boolean>;
   discard(key: string): void;
   clear(key: string, skipKeep: boolean): void;
   close(): void;
 }
 
+export type Accept = (
+  threads: readonly PortableThread[],
+) => ReadonlySet<string>;
+
+const BLOCK_MS = 60_000;
+
 function createShelf(store: NoteStore, loadedKey: (key: string) => void) {
   const loaded = new Map<string, Thread[]>();
   const loading = new Map<string, Promise<Thread[]>>();
-  const discarded = new Set<string>();
-  const skipped = new Set<string>();
+  const blocked = new Map<string, number>();
+  const block = (key: string): void =>
+    void blocked.set(key, Date.now() + BLOCK_MS);
+  const unblock = (key: string): boolean => {
+    const until = blocked.get(key);
+    blocked.delete(key);
+    return until !== undefined && until > Date.now();
+  };
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
   const read = (key: string): Promise<Thread[]> =>
     store
@@ -246,16 +273,19 @@ function createShelf(store: NoteStore, loadedKey: (key: string) => void) {
       };
       timers.set(key, setTimeout(save, SAVE_MS));
     },
-    async take(key) {
-      const out = (await shelf.load(key)).splice(0);
-      if (out.length) shelf.persist(key);
-      return out;
+    async take(key, accept) {
+      const list = await shelf.load(key);
+      if (!list.length) return 0;
+      const done = accept([...list]);
+      const kept = list.filter((thread) => !done.has(thread.id));
+      const taken = list.length - kept.length;
+      list.splice(0, list.length, ...kept);
+      if (taken) shelf.persist(key);
+      return taken;
     },
     async keep(key, incoming) {
-      if (skipped.delete(key)) return false;
-      if (discarded.has(key) || !incoming.length) return false;
+      if (unblock(key) || !incoming.length) return false;
       const list = await shelf.load(key);
-      if (discarded.has(key)) return false;
       const known = new Set(list.map((thread) => thread.id));
       for (const thread of portableThreads(incoming) as Thread[])
         if (!known.has(thread.id) && list.length < MAX_COMMENTS)
@@ -264,13 +294,13 @@ function createShelf(store: NoteStore, loadedKey: (key: string) => void) {
       return true;
     },
     discard(key) {
-      discarded.add(key);
+      block(key);
       loaded.set(key, []);
       clearTimeout(timers.get(key));
       store.drop(key).catch(noteError);
     },
     clear(key, skipKeep) {
-      if (skipKeep) skipped.add(key);
+      if (skipKeep) block(key);
       loaded.set(key, []);
       clearTimeout(timers.get(key));
       store.drop(key).catch(noteError);
@@ -289,10 +319,10 @@ function shelfActions(
   shown: (key: string) => void,
 ): ShelfActions {
   return {
-    async take(key) {
-      const out = await shelf.take(key);
-      if (out.length) shown(key);
-      return out;
+    async take(key, accept) {
+      const taken = await shelf.take(key, accept);
+      if (taken) shown(key);
+      return taken;
     },
     async keep(key, incoming) {
       if (await shelf.keep(key, incoming)) shown(key);
@@ -338,10 +368,11 @@ export function createLocalComments(deps: LocalCommentsDeps): LocalComments {
     const change = diffChange(base, editor.value);
     base = editor.value;
     if (!change || !ref) return;
-    let moved = false;
+    const shifts = new Set<Shift>();
     for (const thread of threads())
-      if (thread.path === ref.path && shiftThread(thread, change)) moved = true;
-    if (moved) touch();
+      if (thread.path === ref.path) shifts.add(shiftThread(thread, change));
+    if (shifts.has("gone")) touch();
+    else if (shifts.has("moved")) shelf.persist(ref.key);
   };
   editor.addEventListener("input", onInput);
   sync();
@@ -355,17 +386,20 @@ export function createLocalComments(deps: LocalCommentsDeps): LocalComments {
     at: (offset) => smallestAt(spans(), offset),
     draft(start, end, sample) {
       if (!ref || !shelf.get(ref.key)) return null;
-      return draftAt(editor.value, start, end, sample);
+      return draftAt(editor.value, [start, end], sample, scopeOf(ref));
     },
     add(draft, text) {
       const body = cleanBody(text);
-      const list = ref && shelf.get(ref.key);
-      if (!body || !ref || !list || list.length >= MAX_COMMENTS) return null;
-      const thread = threadAt(editor.value, draft, ref.path, {
+      const target = draft.scope ? parseScope(draft.scope) : ref;
+      const list = target && shelf.get(target.key);
+      if (!body || !target || !list || list.length >= MAX_COMMENTS) return null;
+      const here = ref !== null && scopeOf(ref) === scopeOf(target);
+      const thread = threadAt(here ? editor.value : null, draft, target.path, {
         ...noteOf(deps.profile(), body),
       });
       list.push(thread);
-      touch();
+      shelf.persist(target.key);
+      changed.emit();
       return thread.id;
     },
     reply(id, text) {
@@ -385,6 +419,12 @@ export function createLocalComments(deps: LocalCommentsDeps): LocalComments {
       if (!thread) return false;
       thread.resolved = on;
       return touch();
+    },
+    resolveAll(ids) {
+      const wanted = new Set(ids);
+      for (const thread of threads())
+        if (wanted.has(thread.id)) thread.resolved = true;
+      touch();
     },
     ...shelfActions(shelf, shown),
     unread: () => 0,
