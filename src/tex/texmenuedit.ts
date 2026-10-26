@@ -92,7 +92,7 @@ function envEdit(
     .join("");
   const tail = "\n" + indent + "\\end{" + name + "}" + after;
   const raw = head + body + tail;
-  const mark = raw.indexOf(MARK);
+  const mark = selected ? head.indexOf(MARK) : raw.indexOf(MARK);
   const inserted = mark < 0 ? raw : raw.slice(0, mark) + raw.slice(mark + 1);
   const bodyEnd = head.length + body.length - (mark < 0 ? 0 : 1);
   const inHead = mark >= 0 && mark < head.length;
