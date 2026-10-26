@@ -6,7 +6,14 @@ import type {
   CommentThread,
 } from "./comments.ts";
 import { revealText } from "./safetext.ts";
-import { button, clip, clockOf, dot, type TalkView } from "./talkview.ts";
+import {
+  button,
+  clip,
+  clockOf,
+  dot,
+  ownName,
+  type TalkView,
+} from "./talkview.ts";
 import { element } from "../ui/dom.ts";
 
 export interface CommentsView extends TalkView {
@@ -103,7 +110,7 @@ function noteHead(note: CommentNote, extra: HTMLElement[]): HTMLElement {
   if (note.edited) time.textContent += EDITED;
   head.append(
     dot(note.color),
-    element("span", "talk-msg-name", note.name),
+    element("span", "talk-msg-name", ownName(note.name, note.mine)),
     time,
   );
   const tools = element("div", "talk-change-tools");

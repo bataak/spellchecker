@@ -54,7 +54,7 @@ function messageRow(message: ChatMessage): HTMLLIElement {
   const head = element("div", "talk-msg-head");
   head.append(
     dot(message.color),
-    element("span", "talk-msg-name", message.name),
+    element("span", "talk-msg-name", ownName(message.name, message.mine)),
     element("time", "talk-msg-time", clockOf(message.at)),
   );
   row.append(head, element("p", "talk-msg-text", message.text));
@@ -126,8 +126,15 @@ function changeBody(change: Change): HTMLElement {
   return body;
 }
 
+export const YOU = " (та)";
+
+export function ownName(name: string, mine: boolean | undefined): string {
+  return mine ? name + YOU : name;
+}
+
 export function changeTitle(change: Change): string {
-  const who = change.author?.name ?? null;
+  const author = change.author;
+  const who = author ? ownName(author.name, author.mine) : null;
   if (change.inserted && change.removed)
     return who ? who + " сольсон" : "Солигдсон";
   if (change.inserted) return who ? who + " нэмсэн" : "Нэмэгдсэн";

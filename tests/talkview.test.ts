@@ -110,6 +110,10 @@ test("цаг, тоо, өөрчлөлтийн гарчгийг монголоор
   assert.equal(changeTitle(change()), "Зочин нэмсэн");
   assert.equal(changeTitle(change({ removed: "x" })), "Зочин сольсон");
   assert.equal(
+    changeTitle(change({ author: { name: "Чоно", color: 1, mine: true } })),
+    "Чоно (та) нэмсэн",
+  );
+  assert.equal(
     changeTitle(change({ author: null, removed: "x" })),
     "Солигдсон",
   );

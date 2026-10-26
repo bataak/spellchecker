@@ -278,3 +278,21 @@ test("шүүмж дээр дарахад түүний хариулах талб�
   view.destroy();
   view.el.remove();
 });
+
+test("өөрийн шүүмж, хариултын нэрийн хажууд (та) гэж бичнэ", () => {
+  const [a, b] = pair();
+  a.getText("t").insert(0, "Нэг хоёр гурав");
+  const mine = open(a, "aaa", "Бат");
+  const theirs = open(b, "bbb", "Дулмаа");
+  const id = mine.add(draftOf(mine, a, "хоёр"), "Миний шүүмж")!;
+  theirs.reply(id, "Зочны хариу");
+  const view = commentsView(mine, () => {});
+  document.body.append(view.el);
+  view.shown(true);
+  const names = [...view.el.querySelectorAll(".talk-msg-name")].map(
+    (node) => node.textContent,
+  );
+  assert.deepEqual(names, ["Бат (та)", "Дулмаа"]);
+  view.destroy();
+  view.el.remove();
+});
