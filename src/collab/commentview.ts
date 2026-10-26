@@ -18,7 +18,7 @@ import { element } from "../ui/dom.ts";
 
 export interface CommentsView extends TalkView {
   compose(draft: CommentDraft): void;
-  focus(id: string): void;
+  focus(id: string, reply?: boolean): void;
   busy(): boolean;
 }
 
@@ -291,14 +291,16 @@ export function commentsView(
     values: new Map(),
   };
   let visible = false;
-  const focusRow = (id: string): void => {
+  const focusRow = (id: string, reply = false): void => {
     state.active = id;
     render();
-    list
-      .querySelector<HTMLElement>('[data-id="' + CSS.escape(id) + '"]')
-      ?.scrollIntoView({ block: "nearest" });
+    const row = list.querySelector<HTMLElement>(
+      '[data-id="' + CSS.escape(id) + '"]',
+    );
+    row?.scrollIntoView({ block: "nearest" });
+    if (reply) row?.querySelector<HTMLElement>(".talk-reply-input")?.focus();
   };
-  const draft = composer(comments, focusRow);
+  const draft = composer(comments, (id) => focusRow(id));
   el.append(bar, draft.form, list, empty);
   const actions: RowActions = { comments, reveal, state, render };
 
