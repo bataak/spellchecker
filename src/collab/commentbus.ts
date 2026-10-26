@@ -7,3 +7,10 @@ export interface KeptComments {
 }
 
 export const keptComments = createEmitter<KeptComments>();
+
+export interface ClearedComments {
+  readonly slot: string;
+  readonly leaving: boolean;
+}
+
+export const clearedComments = createEmitter<ClearedComments>();

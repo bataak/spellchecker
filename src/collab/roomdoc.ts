@@ -55,6 +55,7 @@ export interface Editing {
   readonly binding: Attacher;
   readonly swap: BlobSwap | null;
   readonly talk: Talk;
+  colorOf(device: string): number | null;
   destroy(): void;
 }
 
@@ -64,7 +65,7 @@ export interface RoomDocs {
 }
 
 function withDestroy(
-  parts: Omit<Editing, "destroy" | "talk">,
+  parts: Omit<Editing, "destroy" | "talk" | "colorOf">,
   talk: Talk,
   deps: Pick<EditingDeps, "editor" | "view">,
   doc: Y.Doc,
@@ -91,6 +92,7 @@ function withDestroy(
   return {
     ...parts,
     talk,
+    colorOf: (device) => colors.colorOf(authorKey(device, talk.room)),
     destroy() {
       parts.binding.destroy();
       parts.swap?.close();

@@ -7,7 +7,19 @@ const claim = (c: number, a: number) => ({ c, a });
 
 test("pickColor бусдын аваагүй өнгийг сонгож, эрт авсан нь өнгөө хадгална", () => {
   assert.equal(pickColor(new Map(), "me", 3), 3);
-  assert.equal(pickColor(new Map([["x", claim(3, 1)]]), "me", 3), 4);
+  assert.equal(pickColor(new Map([["x", claim(3, 1)]]), "me", 3), 6);
+  assert.equal(pickColor(new Map([["x", claim(0, 1)]]), "me", 0), 1);
+  assert.equal(
+    pickColor(
+      new Map([
+        ["x", claim(0, 1)],
+        ["y", claim(1, 2)],
+      ]),
+      "me",
+      0,
+    ),
+    5,
+  );
   assert.equal(
     pickColor(
       new Map([
@@ -17,7 +29,7 @@ test("pickColor бусдын аваагүй өнгийг сонгож, эрт а
       "me",
       3,
     ),
-    4,
+    6,
   );
   assert.equal(
     pickColor(

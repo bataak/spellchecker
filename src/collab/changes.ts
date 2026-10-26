@@ -5,6 +5,7 @@ import { MAX_NAME, type Profile } from "./profile.ts";
 export interface ChangeAuthor {
   readonly name: string;
   readonly color: number;
+  readonly mine?: boolean;
 }
 
 export interface Change {
@@ -52,7 +53,11 @@ function authorOf(doc: Y.Doc, client: number): ChangeAuthor | null {
   if (!entry || typeof entry !== "object") return null;
   const { n, c } = entry as { n?: unknown; c?: unknown };
   return typeof n === "string" && Number.isInteger(c) && (c as number) >= 0
-    ? { name: cleanName(n, MAX_NAME), color: c as number }
+    ? {
+        name: cleanName(n, MAX_NAME),
+        color: c as number,
+        mine: client === doc.clientID,
+      }
     : null;
 }
 

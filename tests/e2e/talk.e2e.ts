@@ -120,7 +120,13 @@ test("сонгосон хэсэгт шүүмж бичиж, хамтрагч ха
   await owner
     .locator(".talk-compose-quote", { hasText: "цаг агаар" })
     .waitFor();
-  await owner.locator(".talk-compose .talk-input").fill("Тодруулах уу?");
+  assert.equal(
+    await owner.evaluate(() =>
+      document.activeElement?.matches(".talk-compose .talk-input"),
+    ),
+    true,
+  );
+  await owner.keyboard.type("Тодруулах уу?");
   await owner.keyboard.press("Enter");
   await owner.locator(".talk-thread", { hasText: "Тодруулах уу?" }).waitFor();
   await owner.locator(".collab-comment-mark").first().waitFor();
@@ -138,7 +144,15 @@ test("сонгосон хэсэгт шүүмж бичиж, хамтрагч ха
   const thread = guest.locator(".talk-thread.is-active");
   await thread.waitFor();
   assert.match(await thread.innerText(), /Тодруулах уу\?/);
-  await thread.locator(".talk-reply-input").fill("Тийм, Цельсээр");
+  assert.equal(
+    await guest.evaluate(() =>
+      document.activeElement?.matches(
+        ".talk-thread.is-active .talk-reply-input",
+      ),
+    ),
+    true,
+  );
+  await guest.keyboard.type("Тийм, Цельсээр");
   await guest.keyboard.press("Enter");
 
   await owner
@@ -202,6 +216,148 @@ test("хамтралгүй бичсэн шүүмж хадгалагдаж, ха�
     .locator(".talk-reply .talk-msg-text", { hasText: "Цаг уурын газар" })
     .waitFor();
   assert.equal(await owner.locator(".talk-trigger .talk-badge").count(), 0);
+  assert.deepEqual(errors(owner), []);
+  assert.deepEqual(errors(guest), []);
+});
+
+test("хамтрагч бүр хэлэлцүүлэгт өөр өнгөтэй харагдана", async () => {
+  const owner = await openPage(app, await app.context());
+  await typeAtEnd(owner, "Нэг хоёр гурав дөрөв.");
+  const link = await invite(owner);
+  const guest = await openPage(app, await app.context());
+  await guest.evaluate((hash) => {
+    location.hash = hash;
+  }, new URL(link).hash);
+  await until(
+    () => editor(guest),
+    (text) => text.includes("дөрөв"),
+    20000,
+  );
+  await owner.locator(".talk-trigger").click();
+  await owner.locator(".talk-chat .talk-input").fill("Эзний зурвас");
+  await owner.keyboard.press("Enter");
+  await guest.locator(".talk-trigger").click();
+  await guest
+    .locator(".talk-msg-text", { hasText: "Эзний зурвас" })
+    .waitFor({ timeout: 15000 });
+  await guest.locator(".talk-chat .talk-input").fill("Зочны зурвас");
+  await guest.keyboard.press("Enter");
+  await owner
+    .locator(".talk-msg-text", { hasText: "Зочны зурвас" })
+    .waitFor({ timeout: 15000 });
+  const colors = await owner.evaluate(() =>
+    [...document.querySelectorAll<HTMLElement>(".talk-msg .talk-dot")].map(
+      (dot) => getComputedStyle(dot).backgroundColor,
+    ),
+  );
+  assert.equal(colors.length, 2);
+  assert.notEqual(colors[0], colors[1]);
+  assert.deepEqual(errors(owner), []);
+  assert.deepEqual(errors(guest), []);
+});
+
+test("багтахгүй үед шүүмжийн цонх хөвж, бичвэр дээр дарахад хаагдана", async () => {
+  const context = await app.context();
+  const page = await openPage(app, context);
+  await page.setViewportSize({ width: 1150, height: 800 });
+  await typeAtEnd(page, "Өглөө нар гарлаа.");
+  await selectWord(page, "нар");
+  await page.locator(".collab-comment-btn").click();
+  const win = page.locator(".talk-window");
+  await win.waitFor({ state: "visible" });
+  assert.equal(
+    await page.evaluate(() =>
+      document.documentElement.hasAttribute("data-talk-float"),
+    ),
+    true,
+  );
+  await page.keyboard.type("Тодруулга");
+  await page.keyboard.press("Enter");
+  await page.locator(".talk-thread", { hasText: "Тодруулга" }).waitFor();
+  const box = (await page.locator("#editor").boundingBox())!;
+  await page.mouse.click(box.x + box.width - 40, box.y + box.height - 40);
+  await win.waitFor({ state: "hidden" });
+  assert.deepEqual(errors(page), []);
+});
+
+test("Ctrl+Shift+Backspace бичвэртэй хамт шүүмж ба Шүүмж товчийг арилгана", async () => {
+  const context = await app.context();
+  const page = await openPage(app, context);
+  await typeAtEnd(page, "Үдэш бороо орно.");
+  await selectWord(page, "бороо");
+  await page.locator(".collab-comment-btn").click();
+  await page.locator(".talk-compose .talk-input").fill("Шалгах");
+  await page.keyboard.press("Enter");
+  await page.locator(".collab-comment-mark").first().waitFor();
+  const trigger = page.locator(".talk-trigger");
+  await trigger.waitFor({ state: "visible" });
+  await page.click("#editor");
+  await page.keyboard.press("Control+Shift+Backspace");
+  await trigger.waitFor({ state: "hidden" });
+  await page.locator(".collab-comment-mark").first().waitFor({
+    state: "detached",
+  });
+  await page.waitForTimeout(800);
+  await page.reload();
+  await page.waitForSelector("#editor");
+  await page.waitForTimeout(1500);
+  assert.equal(await trigger.isVisible(), false);
+  assert.deepEqual(errors(page), []);
+});
+
+test("хамтарч байхдаа цэвэрлэхэд шүүмж локалд буцаж хадгалагдахгүй", async () => {
+  const owner = await openPage(app, await app.context());
+  await typeAtEnd(owner, "Маргааш цас орно.");
+  await invite(owner);
+  await selectWord(owner, "цас");
+  await owner.locator(".collab-comment-btn").click();
+  await owner.locator(".talk-compose .talk-input").fill("Хамтын шүүмж");
+  await owner.keyboard.press("Enter");
+  await owner.locator(".talk-thread", { hasText: "Хамтын шүүмж" }).waitFor();
+  await owner.click("#editor");
+  await owner.keyboard.press("Control+Shift+Backspace");
+  await owner.waitForTimeout(2000);
+  assert.equal(await owner.locator(".talk-trigger").isVisible(), false);
+  assert.equal(await owner.locator(".collab-comment-mark").count(), 0);
+  assert.deepEqual(errors(owner), []);
+});
+
+test("эзэн хуваалцсан бичвэрийг цэвэрлэхэд асууж, хамтрагчийн хуулбарыг устгана", async () => {
+  const owner = await openPage(app, await app.context());
+  await typeAtEnd(owner, "Хуваалцсан нууц бичвэр.");
+  const link = await invite(owner);
+  const guest = await openPage(app, await app.context());
+  await guest.evaluate((hash) => {
+    location.hash = hash;
+  }, new URL(link).hash);
+  await until(
+    () => editor(guest),
+    (text) => text.includes("нууц бичвэр"),
+    20000,
+  );
+  const dialog = owner.locator("dialog", {
+    hasText: "Хуваалцсан бичвэрийг цэвэрлэх",
+  });
+  await owner.click("#editor");
+  await owner.keyboard.press("Control+Shift+Backspace");
+  await dialog.waitFor({ timeout: 15000 });
+  await dialog.getByRole("button", { name: "Болих" }).click();
+  await dialog.waitFor({ state: "detached" });
+  assert.match(await editor(owner), /нууц бичвэр/);
+
+  await owner.click("#editor");
+  await owner.keyboard.press("Control+Shift+Backspace");
+  await dialog.getByRole("button", { name: "Бүрмөсөн устгах" }).click();
+  await until(
+    () => editor(owner),
+    (text) => text === "",
+    15000,
+  );
+  await until(
+    () => editor(guest),
+    (text) => !text.includes("нууц бичвэр"),
+    20000,
+  );
   assert.deepEqual(errors(owner), []);
   assert.deepEqual(errors(guest), []);
 });

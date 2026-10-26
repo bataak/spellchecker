@@ -198,6 +198,18 @@ function projectRoom(wrap: HTMLElement, x: Metrics): number {
   return measureVar(wrap, "--project-w", 236) + x.panelGap + x.gutterW;
 }
 
+function talkRoom(x: Metrics, project: number): number {
+  if (!document.documentElement.hasAttribute("data-talk") || !wideQuery.matches)
+    return 0;
+  return x.panelW + x.panelGap + (project > 0 ? 0 : x.gutterW);
+}
+
+function setFlag(name: "projectFloat" | "talkFloat", on: boolean): void {
+  const data = document.documentElement.dataset;
+  if (on) data[name] = "";
+  else delete data[name];
+}
+
 function load(tex: boolean): Layout {
   return parseLayout(read(tex ? KEYS.layoutTex : KEYS.layout));
 }
@@ -237,22 +249,26 @@ function planViewport(
   choose: (fit: Layout[]) => LayoutChoice,
   prev: Layout[],
 ): { viewport: number; offered: Layout[] | null } {
-  const root = document.documentElement;
-  const full = root.clientWidth;
+  const full = document.documentElement.clientWidth;
   const room = projectRoom(wrap, metrics);
-  if (room <= 0) {
-    delete root.dataset.projectFloat;
+  const talk = talkRoom(metrics, room);
+  if (room <= 0 && talk <= 0) {
+    setFlag("projectFloat", false);
+    setFlag("talkFloat", false);
     return { viewport: full, offered: null };
   }
   const wide = choose(available(metrics, full, prev));
-  const plan = projectViewport(
-    full,
-    room,
-    pageWidth(wide.active, metrics, previewMeasure(wide.active, metrics, full)),
+  const loose = pageWidth(
+    wide.active,
+    metrics,
+    previewMeasure(wide.active, metrics, full),
   );
-  if (plan.float) root.dataset.projectFloat = "";
-  else delete root.dataset.projectFloat;
-  return { viewport: plan.viewport, offered: wide.avail };
+  const plan =
+    room > 0 ? projectViewport(full, room, loose) : { viewport: full };
+  setFlag("projectFloat", room > 0 && plan.viewport === full);
+  const side = talk > 0 ? projectViewport(plan.viewport, talk, loose) : plan;
+  setFlag("talkFloat", talk > 0 && side.viewport === plan.viewport);
+  return { viewport: side.viewport, offered: wide.avail };
 }
 
 export interface MeasureControl {
@@ -268,6 +284,18 @@ function setRootMetrics(metrics: Metrics): void {
   const style = document.documentElement.style;
   style.setProperty("--editor-per", `${metrics.per.toFixed(3)}px`);
   style.setProperty("--scrollbar-w", `${measureScrollbar()}px`);
+}
+
+function watchRoot(refresh: () => void): () => void {
+  const root = document.documentElement;
+  const sized = new ResizeObserver(refresh);
+  sized.observe(root);
+  const talk = new MutationObserver(refresh);
+  talk.observe(root, { attributes: true, attributeFilter: ["data-talk"] });
+  return () => {
+    sized.disconnect();
+    talk.disconnect();
+  };
 }
 
 function watchFonts(refresh: () => void): void {
@@ -350,8 +378,7 @@ export function initMeasureControl(
 
   const unbindMenu = bindMenu(control, close);
 
-  const ro = new ResizeObserver(() => refresh());
-  ro.observe(document.documentElement);
+  const unwatch = watchRoot(() => refresh());
 
   watchFonts(() => refresh());
 
@@ -382,7 +409,7 @@ export function initMeasureControl(
       return { ...shown };
     },
     destroy() {
-      ro.disconnect();
+      unwatch();
       toolbar.destroy();
       unbindMenu();
       wrap.append(...tools.querySelectorAll<HTMLElement>(".decode-btn"));

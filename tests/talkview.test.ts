@@ -92,6 +92,7 @@ function fakeTalk(project: boolean, list: Change[] = [change()]) {
     changes: changes.tracker,
     comments,
     slot: null,
+    room: "r1",
     project,
     announce: () => {},
   };
@@ -108,6 +109,10 @@ test("цаг, тоо, өөрчлөлтийн гарчгийг монголоор
   assert.equal(changesCount(3), "3 өөрчлөлт");
   assert.equal(changeTitle(change()), "Зочин нэмсэн");
   assert.equal(changeTitle(change({ removed: "x" })), "Зочин сольсон");
+  assert.equal(
+    changeTitle(change({ author: { name: "Чоно", color: 1, mine: true } })),
+    "Чоно (та) нэмсэн",
+  );
   assert.equal(
     changeTitle(change({ author: null, removed: "x" })),
     "Солигдсон",

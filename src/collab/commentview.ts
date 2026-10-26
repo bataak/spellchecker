@@ -6,21 +6,35 @@ import type {
   CommentThread,
 } from "./comments.ts";
 import { revealText } from "./safetext.ts";
-import { button, clip, clockOf, dot, type TalkView } from "./talkview.ts";
+import {
+  button,
+  clip,
+  clockOf,
+  dot,
+  ownName,
+  type TalkView,
+} from "./talkview.ts";
 import { element } from "../ui/dom.ts";
 
 export interface CommentsView extends TalkView {
   compose(draft: CommentDraft): void;
-  focus(id: string): void;
+  focus(id: string, reply?: boolean): void;
+  busy(): boolean;
 }
 
-const EMPTY =
-  "Шүүмж алга. Текстийн хэсгийг сонгоод «Шүүмж» товчийг дарж бичнэ үү.";
+const EMPTY = "Шүүмжлэхийг хүссэн бичвэрээ сонгоод Шүүмж товчийг дарна уу.";
 const GONE = "Шүүмж бичсэн хэсэг устсан";
 const EDITED = " · засварласан";
 
 export function commentsCount(open: number): string {
-  return open === 0 ? "Нээлттэй шүүмжгүй" : open + " нээлттэй шүүмж";
+  return open === 0 ? "Шүүмжлэл алга" : open + " нээлттэй шүүмж";
+}
+
+export function resolveAllQuestion(open: number): string {
+  return (
+    open +
+    " нээлттэй шүүмжийг шийдсэн гэж тэмдэглэх үү? Дараа нь «Шийдсэнийг харуулах»-аас дахин нээж болно."
+  );
 }
 
 export function resolvedLabel(count: number, shown: boolean): string {
@@ -96,7 +110,7 @@ function noteHead(note: CommentNote, extra: HTMLElement[]): HTMLElement {
   if (note.edited) time.textContent += EDITED;
   head.append(
     dot(note.color),
-    element("span", "talk-msg-name", note.name),
+    element("span", "talk-msg-name", ownName(note.name, note.mine)),
     time,
   );
   const tools = element("div", "talk-change-tools");
@@ -166,13 +180,26 @@ function threadRow(thread: CommentThread, actions: RowActions): HTMLLIElement {
     reply.placeholder = "Хариулах...";
     reply.setAttribute("aria-label", "Хариулт");
     row.append(reply);
+    row.addEventListener("click", (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest("button, textarea, input, a")) return;
+      markActive(row, thread.id, state);
+      reply.focus();
+    });
   }
   return row;
+}
+
+function markActive(row: HTMLElement, id: string, state: State): void {
+  state.active = id;
+  for (const other of row.parentElement?.children ?? [])
+    other.classList.toggle("is-active", other === row);
 }
 
 interface Composer {
   readonly form: HTMLFormElement;
   open(draft: CommentDraft): void;
+  focus(): void;
 }
 
 function composer(comments: Comments, added: (id: string) => void): Composer {
@@ -224,6 +251,7 @@ function composer(comments: Comments, added: (id: string) => void): Composer {
       form.hidden = false;
       input.focus();
     },
+    focus: () => input.focus(),
   };
 }
 
@@ -245,7 +273,15 @@ export function commentsView(
   const bar = element("div", "talk-changes-bar");
   const count = element("span", "talk-changes-count");
   const toggle = button("talk-accept-all", "");
-  bar.append(count, toggle);
+  const resolveAll = button("talk-accept-all", "Бүгдийг шийдэх");
+  resolveAll.title = "Нээлттэй бүх шүүмжийг шийдсэн гэж тэмдэглэх";
+  resolveAll.addEventListener("click", () => {
+    const open = comments.list().filter((thread) => !thread.resolved);
+    if (!open.length || !window.confirm(resolveAllQuestion(open.length)))
+      return;
+    for (const thread of open) comments.resolve(thread.id, true);
+  });
+  bar.append(count, resolveAll, toggle);
   const list = element("ol", "talk-change-list talk-thread-list");
   const empty = element("p", "talk-empty", EMPTY);
   const state: State = {
@@ -255,14 +291,16 @@ export function commentsView(
     values: new Map(),
   };
   let visible = false;
-  const focusRow = (id: string): void => {
+  const focusRow = (id: string, reply = false): void => {
     state.active = id;
     render();
-    list
-      .querySelector<HTMLElement>('[data-id="' + CSS.escape(id) + '"]')
-      ?.scrollIntoView({ block: "nearest" });
+    const row = list.querySelector<HTMLElement>(
+      '[data-id="' + CSS.escape(id) + '"]',
+    );
+    row?.scrollIntoView({ block: "nearest" });
+    if (reply) row?.querySelector<HTMLElement>(".talk-reply-input")?.focus();
   };
-  const draft = composer(comments, focusRow);
+  const draft = composer(comments, (id) => focusRow(id));
   el.append(bar, draft.form, list, empty);
   const actions: RowActions = { comments, reveal, state, render };
 
@@ -273,6 +311,7 @@ export function commentsView(
     const resolved = threads.filter((thread) => thread.resolved).length;
     count.textContent = commentsCount(threads.length - resolved);
     toggle.hidden = resolved === 0;
+    resolveAll.hidden = threads.length - resolved === 0;
     toggle.textContent = resolvedLabel(resolved, state.showResolved);
     toggle.setAttribute("aria-pressed", String(state.showResolved));
     const shown = threads.filter(
@@ -295,9 +334,11 @@ export function commentsView(
     shown(on) {
       visible = on;
       render();
+      if (on && !draft.form.hidden) draft.focus();
     },
     compose: draft.open,
     focus: focusRow,
+    busy: () => !draft.form.hidden,
     destroy: off,
   };
 }

@@ -47,15 +47,16 @@ export function projectSide(editor: HTMLTextAreaElement): Side | null {
     if (mode === null) refocus(side, editor);
     panel.classList.toggle("is-talk", mode !== null);
     side.hidden = mode === null;
+    const view = mode && current?.views[mode];
+    if (view && mode) {
+      title.textContent = TALK_LABELS[mode];
+      side.replaceChildren(title, view.el);
+    }
     for (const key of MODES) {
       buttons[key].hidden = !current?.views[key];
       buttons[key].setAttribute("aria-pressed", String(mode === key));
       current?.views[key]?.shown(mode === key);
     }
-    const view = mode && current?.views[mode];
-    if (!view || !mode) return;
-    title.textContent = TALK_LABELS[mode];
-    side.replaceChildren(title, view.el);
   };
   for (const key of MODES)
     buttons[key].addEventListener("click", () =>

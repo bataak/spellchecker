@@ -1,5 +1,6 @@
 import { element } from "../ui/dom.ts";
 import type { Member } from "./admin.ts";
+import { CURSOR_COLORS } from "./peercolors.ts";
 import {
   actionButton,
   ask,
@@ -15,6 +16,11 @@ function memberRow(
   remove: (member: Member, wipe: boolean) => void,
 ): HTMLLIElement {
   const item = element("li", member.online ? "is-online" : "");
+  if (typeof member.color === "number")
+    item.style.setProperty(
+      "--peer",
+      CURSOR_COLORS[member.color % CURSOR_COLORS.length]!,
+    );
   const name = element("span", "collab-member-name", member.name || "Нэргүй");
   const drop = actionButton("Хасах");
   drop.classList.add("collab-stop");

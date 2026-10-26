@@ -1,7 +1,7 @@
 import { createEmitter } from "../core/emitter.ts";
 import { onSwap } from "../editor/editortext.ts";
 import type { Collab, TalkKind } from "./collab.ts";
-import { keptComments } from "./commentbus.ts";
+import { clearedComments, keptComments } from "./commentbus.ts";
 import { initCommentButton, type CommentTarget } from "./commentbutton.ts";
 import { createCommentMarks } from "./commentmarks.ts";
 import type { CursorView } from "./cursors.ts";
@@ -98,6 +98,7 @@ export function initTalk(deps: TalkHostDeps): TalkHost {
   keptComments.on(({ slot, threads }) => {
     if (slot !== null) void local.keep(slot, threads);
   });
+  clearedComments.on(({ slot, leaving }) => local.clear(slot, leaving));
   sync();
   createCommentMarks({
     comments: local,

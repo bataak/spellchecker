@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import { CURSOR_COLORS } from "../src/collab/peercolors.ts";
 import assert from "node:assert/strict";
 import { installDom } from "./helpers/dom.ts";
 import { openDialog, type DialogDeps } from "../src/collab/collabdialog.ts";
@@ -12,7 +13,13 @@ const wait = (ms = 20): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 const OWNER: Member = { dev: "o", name: "Би", online: true, owner: true };
-const GUEST: Member = { dev: "g", name: "Сараа", online: true, owner: false };
+const GUEST: Member = {
+  dev: "g",
+  name: "Сараа",
+  online: true,
+  owner: false,
+  color: 2,
+};
 
 function session(extra: Partial<Session> = {}): Session {
   return {
@@ -101,7 +108,8 @@ test("хамтрагчийг хуулбартай нь эсвэл устгаж �
   });
   const dialog = open({ session: () => Promise.resolve(live) });
   await wait();
-  const row = dialog.querySelector(".collab-members li")!;
+  const row = dialog.querySelector<HTMLElement>(".collab-members li")!;
+  assert.equal(row.style.getPropertyValue("--peer"), CURSOR_COLORS[2]);
   button(row, "Хасах").click();
   button(row, "Болих").click();
   assert.equal(
