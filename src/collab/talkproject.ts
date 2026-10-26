@@ -3,9 +3,11 @@ import {
   holder,
   MODES,
   refocus,
+  shownMode,
   TALK_LABELS,
   talkButton,
-  unreadOf,
+  unreadChat,
+  unreadComments,
   type Side,
   type TalkMode,
 } from "./talkparts.ts";
@@ -16,10 +18,14 @@ export function projectSide(editor: HTMLTextAreaElement): Side | null {
   const head = panel?.querySelector<HTMLElement>(".project-head");
   if (!panel || !foot || !head) return null;
   const archive = foot.querySelector(".project-foot-btn");
-  const buttons = { changes: talkButton("changes"), chat: talkButton("chat") };
+  const buttons = {
+    changes: talkButton("changes"),
+    chat: talkButton("chat"),
+    comments: talkButton("comments"),
+  };
   const pair = document.createElement("span");
   pair.className = "talk-pair";
-  pair.append(buttons.changes, buttons.chat);
+  pair.append(buttons.changes, buttons.chat, buttons.comments);
   foot.insertBefore(pair, archive);
   const side = document.createElement("section");
   side.className = "project-talk";
@@ -29,23 +35,27 @@ export function projectSide(editor: HTMLTextAreaElement): Side | null {
   side.append(title);
   head.after(side);
   let mode: TalkMode | null = null;
-  const unread = (): void =>
-    badge(buttons.chat, unreadOf(held, mode === "chat"));
+  const unread = (): void => {
+    badge(buttons.chat, unreadChat(held, mode));
+    badge(buttons.comments, unreadComments(held, mode));
+  };
   const held = holder(unread);
 
   const show = (next: TalkMode | null): void => {
     const current = held.current();
-    mode = current ? next : null;
+    mode = current && next ? shownMode(current, next) : null;
     if (mode === null) refocus(side, editor);
     panel.classList.toggle("is-talk", mode !== null);
     side.hidden = mode === null;
     for (const key of MODES) {
+      buttons[key].hidden = !current?.views[key];
       buttons[key].setAttribute("aria-pressed", String(mode === key));
-      current?.views[key].shown(mode === key);
+      current?.views[key]?.shown(mode === key);
     }
-    if (!current || !mode) return;
+    const view = mode && current?.views[mode];
+    if (!view || !mode) return;
     title.textContent = TALK_LABELS[mode];
-    side.replaceChildren(title, current.views[mode].el);
+    side.replaceChildren(title, view.el);
   };
   for (const key of MODES)
     buttons[key].addEventListener("click", () =>
@@ -57,5 +67,6 @@ export function projectSide(editor: HTMLTextAreaElement): Side | null {
       pair.hidden = views === null;
       unread();
     },
+    open: show,
   };
 }

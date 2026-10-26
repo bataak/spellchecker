@@ -18,7 +18,7 @@ const CHAT_EMPTY = "Одоогоор таны хамтрагчдаас нэг ч
 const CHANGES_WAIT = "Өөрчлөлтийг хянаж эхэлж байна…";
 const CHANGES_EMPTY = "Сүүлд зөвшөөрснөөс хойш өөрчлөлт алга.";
 
-function button(className: string, text: string, title?: string) {
+export function button(className: string, text: string, title?: string) {
   const node = element("button", className, text);
   node.type = "button";
   if (title) {
@@ -28,7 +28,7 @@ function button(className: string, text: string, title?: string) {
   return node;
 }
 
-function dot(color: number | null): HTMLElement {
+export function dot(color: number | null): HTMLElement {
   const node = element("span", "talk-dot");
   if (color !== null)
     node.style.setProperty(

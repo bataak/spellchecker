@@ -4,6 +4,7 @@ import * as Y from "yjs";
 import { installDom } from "./helpers/dom.ts";
 import { memoryMine } from "./helpers/memorymine.ts";
 import { createChat } from "../src/collab/chat.ts";
+import { createComments } from "../src/collab/comments.ts";
 
 import type { Change } from "../src/collab/changes.ts";
 import type { ChangeTracker } from "../src/collab/changetracker.ts";
@@ -30,6 +31,16 @@ const dom = installDom(
   run: () => void,
 ) => setTimeout(run, 0);
 test.after(() => dom.close());
+
+const offlineDeps = {
+  doc: () => null,
+  profile: () => ({ name: "Би", color: 1 }),
+  notes: {
+    load: () => Promise.resolve(null),
+    save: () => Promise.resolve(),
+    drop: () => Promise.resolve(),
+  },
+};
 
 const wait = (ms = 200): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
@@ -68,9 +79,19 @@ function fakeTalk(project: boolean, list: Change[] = [change()]) {
   const doc = new Y.Doc();
   const chat = createChat(doc, memoryMine(), () => ({ name: "Би", color: 1 }));
   const changes = fakeTracker(list);
+  const text = doc.getText("t");
+  const comments = createComments({
+    doc,
+    texts: () => new Map([[null, text]]),
+    active: () => text,
+    author: "me",
+    profile: () => ({ name: "Би", color: 1 }),
+  });
   const talk: Talk = {
     chat,
     changes: changes.tracker,
+    comments,
+    slot: null,
     project,
     announce: () => {},
   };
@@ -176,6 +197,11 @@ test("төслийн самбарт товч нэмж, бусад бичвэрт
     },
     editor,
     openPath: (path) => void opened.push(path),
+    view: {
+      host: document.querySelector(".editor-wrap")!,
+      rangeRects: () => [],
+    },
+    ...offlineDeps,
     anchor: document.querySelector("#collabBtn"),
     workspace: document.querySelector(".workspace"),
     editorWrap: document.querySelector(".editor-wrap"),
@@ -185,7 +211,7 @@ test("төслийн самбарт товч нэмж, бусад бичвэрт
   const toggles = [...pair.querySelectorAll<HTMLButtonElement>(".talk-toggle")];
   assert.deepEqual(
     toggles.map((node) => node.getAttribute("aria-label")),
-    ["Өөрчлөлт", "Хэлэлцүүлэг"],
+    ["Өөрчлөлт", "Хэлэлцүүлэг", "Шүүмж"],
   );
   assert.deepEqual(
     [...foot.children].map((node) => node.className),
@@ -286,6 +312,11 @@ test("бичвэр солигдоход chat-ийн сонсогч давхар�
     },
     editor: document.querySelector<HTMLTextAreaElement>("#editor")!,
     openPath: () => {},
+    view: {
+      host: document.querySelector(".editor-wrap")!,
+      rangeRects: () => [],
+    },
+    ...offlineDeps,
     anchor: null,
     workspace: null,
     editorWrap: null,
