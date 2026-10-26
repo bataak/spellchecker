@@ -3,6 +3,7 @@ import { createEmitter, type Emitter } from "../core/emitter.ts";
 import { onSwap, swapOrigin, type SwapOrigin } from "../editor/editortext.ts";
 import { parseLink } from "./collabkey.ts";
 import {
+  isOwner,
   parseRooms,
   roomById,
   roomOfSlot,
@@ -14,6 +15,8 @@ import {
 import { IDLE_LABEL, JOIN_NAME } from "./collabmessages.ts";
 import type { Collab, CollabDeps, TalkKind } from "./collabtypes.ts";
 import { cleanName } from "./safetext.ts";
+import { askClearShared } from "./clearask.ts";
+import { OFFLINE } from "./dialogparts.ts";
 import { createRegistry, ENDPOINT, type Registry } from "./registry.ts";
 import { arrived, joinRoom, openProjectRoom, resumeJoins } from "./roomjoin.ts";
 import { parseSlot, projectSlot, slotKey } from "./roomslot.ts";
@@ -69,6 +72,7 @@ function paintButton(
 const DISABLED: Collab = {
   start: () => {},
   forget: () => false,
+  clearShared: () => true,
   projectChanged: () => {},
   talk: () => null,
   onTalk: () => {},
@@ -122,6 +126,43 @@ function projectRoom(
 ): RoomEntry | null {
   const uid = deps.project?.uid();
   return uid ? roomOfSlot(rooms, projectSlot(uid)) : null;
+}
+
+function stopIf(
+  entry: RoomEntry | null,
+  stop: (entry: RoomEntry) => void,
+): boolean {
+  if (entry) stop(entry);
+  return entry !== null;
+}
+
+function clearOwned(
+  entry: RoomEntry | null,
+  registry: Pick<Registry, "open">,
+  notify: (message: string) => void,
+  stop: (entry: RoomEntry) => void,
+): boolean | Promise<boolean> {
+  if (!entry || !isOwner(entry)) return true;
+  return endShared(entry, registry, notify, stop);
+}
+
+async function endShared(
+  entry: RoomEntry,
+  registry: Pick<Registry, "open">,
+  notify: (message: string) => void,
+  stop: (entry: RoomEntry) => void,
+): Promise<boolean> {
+  const live = await registry.open(entry, false).catch(() => null);
+  const members = live ? await live.members().catch(() => null) : null;
+  if (members && !members.some((member) => !member.owner)) return true;
+  const choice = await askClearShared();
+  if (choice === null) return false;
+  if (!live || !(await live.end(choice === "wipe"))) {
+    notify(OFFLINE);
+    return false;
+  }
+  stop(entry);
+  return true;
 }
 
 function collabAvailable(
@@ -235,11 +276,9 @@ export function initCollab(deps: CollabDeps): Collab {
       resumeJoins(rooms, deps, registry, stop);
       takeHash();
     },
-    forget(slot) {
-      const entry = roomOfSlot(rooms, slot);
-      if (entry) stop(entry);
-      return entry !== null;
-    },
+    forget: (slot) => stopIf(roomOfSlot(rooms, slot), stop),
+    clearShared: (slot) =>
+      clearOwned(roomOfSlot(rooms, slot), registry, deps.notify, stop),
     projectChanged: whenStarted(() => sync()),
     talk: (kind) => talkOf(kind, rooms, deps, registry),
     onTalk: (listener) => void talks.on(listener),

@@ -27,6 +27,7 @@ export interface ChromeWiringDeps {
   readonly hasOpenFile: () => boolean;
   readonly forgetFile: () => void;
   readonly afterClear: (cleared: boolean) => void;
+  readonly confirmClear?: () => boolean | Promise<boolean>;
   readonly openDictMenu: () => void;
 }
 
@@ -49,6 +50,7 @@ export function bindAppChrome(deps: ChromeWiringDeps): void {
     office: { active: () => office.active() !== null, close: office.close },
     forgetFile: deps.forgetFile,
     afterClear: deps.afterClear,
+    confirmClear: deps.confirmClear,
     hasOpenFile: deps.hasOpenFile,
     badTokens: () => deps.marks.tokens(),
     lettersFixed: deps.fixers.announceLetters,
