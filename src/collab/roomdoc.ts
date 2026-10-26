@@ -10,6 +10,11 @@ import {
 import type { ChatDoc } from "./chatdoc.ts";
 import { createTalk, type Talk } from "./talk.ts";
 import { createCursors, type CursorView, type Cursors } from "./cursors.ts";
+import { createCommentMarks } from "./commentmarks.ts";
+import { keptComments } from "./commentbus.ts";
+import { authorKey } from "./comments.ts";
+import { createRoomColors, type RoomColors } from "./roomcolors.ts";
+import { textOf } from "./projectdoc.ts";
 import type { Profile } from "./profile.ts";
 
 export const LOADED = { load: true };
@@ -37,7 +42,8 @@ export async function openDoc(
 }
 
 export interface EditingDeps {
-  readonly link: { readonly room: string };
+  readonly link: { readonly room: string; readonly slot?: string };
+  readonly device: string;
   readonly editor: HTMLTextAreaElement;
   readonly view: CursorView;
   readonly profile: () => Profile;
@@ -60,32 +66,78 @@ export interface RoomDocs {
 function withDestroy(
   parts: Omit<Editing, "destroy" | "talk">,
   talk: Talk,
+  deps: Pick<EditingDeps, "editor" | "view">,
+  doc: Y.Doc,
+  colors: RoomColors,
 ): Editing {
+  const offColors = colors.onChange(() => {
+    parts.cursors.announce();
+    talk.announce();
+  });
+  const marks = createCommentMarks({
+    comments: talk.comments,
+    editor: deps.editor,
+    view: deps.view,
+    active: parts.cursors.active,
+    refresh(listener) {
+      const off = parts.cursors.onActive(listener);
+      doc.on("afterTransaction", listener);
+      return () => {
+        off();
+        doc.off("afterTransaction", listener);
+      };
+    },
+  });
   return {
     ...parts,
     talk,
     destroy() {
       parts.binding.destroy();
       parts.swap?.close();
+      keptComments.emit({ slot: talk.slot, threads: talk.comments.export() });
+      marks.destroy();
+      offColors();
+      colors.destroy();
       parts.cursors.destroy();
       talk.chat.destroy();
       talk.changes.destroy();
+      talk.comments.destroy();
     },
   };
 }
 
+function activeText(
+  doc: Y.Doc,
+  project: ProjectHooks | null,
+): () => Y.Text | null {
+  if (!project) return () => doc.getText("t");
+  return () => {
+    const path = project.active();
+    return path ? textOf(doc, path) : null;
+  };
+}
+
 export function createEditing(
-  deps: EditingDeps,
+  base: EditingDeps,
   docs: RoomDocs,
   fresh: boolean,
   transport: BlobTransport,
   send: (body: Uint8Array) => void,
 ): Editing {
   const { doc } = docs;
+  const colors = createRoomColors(
+    doc,
+    authorKey(base.device, base.link.room),
+    base.profile,
+  );
+  const deps: EditingDeps = { ...base, profile: colors.profile };
   const talk = createTalk(
     {
       room: deps.link.room,
+      slot: deps.link.slot ?? null,
+      device: deps.device,
       project: deps.project !== null,
+      active: activeText(doc, deps.project),
       profile: deps.profile,
     },
     doc,
@@ -95,6 +147,9 @@ export function createEditing(
     return withDestroy(
       createProjectEditing(deps, doc, deps.project, fresh, send, transport),
       talk,
+      deps,
+      doc,
+      colors,
     );
   const text = doc.getText("t");
   const cursors = createCursors({
@@ -108,5 +163,5 @@ export function createEditing(
   const binding = createAttacher(deps.editor, text, fresh, (on) =>
     cursors.setActive(on),
   );
-  return withDestroy({ cursors, binding, swap: null }, talk);
+  return withDestroy({ cursors, binding, swap: null }, talk, deps, doc, colors);
 }

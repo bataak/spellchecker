@@ -13,11 +13,23 @@ import {
 } from "../collab/collab.ts";
 import { projectName, sharedName } from "../collab/collabkey.ts";
 import type { BlobPort } from "../collab/projectblobs.ts";
-import { fileSlot, projectSlot, type RoomSlot } from "../collab/roomslot.ts";
+import {
+  fileSlot,
+  projectSlot,
+  slotKey,
+  type RoomSlot,
+} from "../collab/roomslot.ts";
 import { confirmReplace } from "../project/linkfiles.ts";
-import { saveDraftFile } from "../core/storage.ts";
+import {
+  dropNotes,
+  loadNotes,
+  saveDraftFile,
+  saveNotes,
+} from "../core/storage.ts";
+import { myProfile } from "../collab/device.ts";
+import type { DocRef } from "../collab/localcomments.ts";
 import { PROJECT_SLOT } from "../slots/fileslots.ts";
-import { initTalk } from "../collab/talkhost.ts";
+import { initTalk, type TalkHost } from "../collab/talkhost.ts";
 
 export interface CollabWiringDeps {
   readonly editor: HTMLTextAreaElement;
@@ -142,6 +154,21 @@ function inProject(deps: CollabWiringDeps): boolean {
   return deps.mdBar.slot() === PROJECT_SLOT;
 }
 
+function docRef(deps: CollabWiringDeps): DocRef | null {
+  if (inProject(deps)) {
+    const uid = sharedUid(deps);
+    const path = deps.project.path() ?? deps.store.project()?.active ?? null;
+    if (!uid || !path) return null;
+    return { kind: "project", key: slotKey(projectSlot(uid)), path };
+  }
+  if (deps.officeActive()) return null;
+  return {
+    kind: "file",
+    key: slotKey(fileSlot(deps.mdBar.slot())),
+    path: null,
+  };
+}
+
 export function createCollabWiring(deps: CollabWiringDeps): Collab {
   const { mdBar, doc, store } = deps;
   const slot = (): RoomSlot => {
@@ -150,6 +177,7 @@ export function createCollabWiring(deps: CollabWiringDeps): Collab {
   };
   const hasFile = (id: string): boolean =>
     mdBar.fileSlots().some((file) => file.id === id);
+  let talk: TalkHost | null = null;
   const collab = initCollab({
     editor: deps.editor,
     view: deps.view,
@@ -186,10 +214,12 @@ export function createCollabWiring(deps: CollabWiringDeps): Collab {
     wipe: (target) => {
       if (target.kind === "project") {
         if (sharedUid(deps) !== target.uid) return false;
+        talk?.discard(slotKey(target));
         deps.project.drop();
         return true;
       }
       if (!hasFile(target.id)) return false;
+      talk?.discard(slotKey(target));
       mdBar.closeFile(target.id, true);
       void deps.undo().forget(target.id);
       return true;
@@ -204,9 +234,13 @@ export function createCollabWiring(deps: CollabWiringDeps): Collab {
     shown = uid;
     collab.projectChanged();
   });
-  initTalk({
+  talk = initTalk({
     collab,
     editor: deps.editor,
+    view: deps.view,
+    doc: () => docRef(deps),
+    profile: myProfile,
+    notes: { load: loadNotes, save: saveNotes, drop: dropNotes },
     openPath: (path) => deps.project.openPath(path),
     anchor: document.querySelector("#collabBtn"),
     workspace: document.querySelector(".workspace"),
