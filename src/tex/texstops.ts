@@ -1,6 +1,7 @@
 import type { Patch } from "../core/textdiff.ts";
 import { inComment, lineIndent } from "./texcompletion.ts";
 import type { Expansion } from "./texcompletion.ts";
+import { escapedAt } from "../core/text.ts";
 
 export interface TabStops {
   readonly from: number;
@@ -110,19 +111,14 @@ export function tabStop(
 
 const PAIR_BEFORE = /[\s)\]}.,;:!?]/;
 
-function escaped(text: string, at: number): boolean {
-  let n = 0;
-  while (at - 1 - n >= 0 && text[at - 1 - n] === "\\") n += 1;
-  return n % 2 === 1;
-}
-
 export function typeDollar(
   stack: readonly TabStops[],
   text: string,
   from: number,
   to: number,
 ): PairEdit | null {
-  if (from !== to || escaped(text, from) || inComment(text, from)) return null;
+  if (from !== to || escapedAt(text, from) || inComment(text, from))
+    return null;
   const live = stack.filter((s) => valid(s, text));
   const empty = live.some(
     (s) =>
@@ -182,7 +178,8 @@ export function typeBracket(
   from: number,
   to: number,
 ): PairEdit | null {
-  if (from !== to || !escaped(text, from) || inComment(text, from)) return null;
+  if (from !== to || !escapedAt(text, from) || inComment(text, from))
+    return null;
   if (from < text.length && !PAIR_BEFORE.test(text[from]!)) return null;
   const live = stack.filter((s) => valid(s, text));
   const patch = { from, to: from, insert: "[\\]" };
@@ -218,7 +215,7 @@ export function breakDisplay(
   from: number,
   to: number,
 ): PairEdit | null {
-  if (from !== to || inComment(text, from) || escaped(text, from - 2))
+  if (from !== to || inComment(text, from) || escapedAt(text, from - 2))
     return null;
   const open = text.slice(from - 2, from);
   const close = text.slice(from, from + 2);

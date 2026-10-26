@@ -1,3 +1,4 @@
+import { cm } from "../units.ts";
 import { odfFont } from "../fonts.ts";
 import { ODF_TEXT, manifestXml, writeOdf } from "../odf/index.ts";
 import type { OdfPackage } from "../odf/index.ts";
@@ -14,7 +15,7 @@ import { listTree, type ListTree } from "../../markdown.ts";
 import { tabFills } from "../flatten.ts";
 import { columnWidths, officeMetrics } from "../table.ts";
 import { xmlAttr, xmlText } from "../sanitize.ts";
-import { NS, cm, runKey, runStyle, styleName } from "./props.ts";
+import { NS, runKey, runStyle, styleName } from "./props.ts";
 import { TOC_LEVELS, stylesXml } from "./styles.ts";
 
 const encoder = new TextEncoder();

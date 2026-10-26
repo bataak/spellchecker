@@ -1,4 +1,5 @@
 import { replaceRange } from "../editor/editortext.ts";
+import { lineAt } from "../core/text.ts";
 
 const LIST = /\\(begin|end)\{(itemize|enumerate|description)\}/g;
 const ITEM = /^([ \t]*)\\item\b/;
@@ -27,12 +28,6 @@ function listStart(before: string): number | null {
     else open.pop();
   }
   return open.at(-1) ?? null;
-}
-
-function lineAt(text: string, at: number): string {
-  const start = text.lastIndexOf("\n", at - 1) + 1;
-  const end = text.indexOf("\n", at);
-  return text.slice(start, end < 0 ? text.length : end);
 }
 
 function depthChange(line: string): number {

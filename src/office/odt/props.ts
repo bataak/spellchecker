@@ -1,3 +1,4 @@
+import { cm } from "../units.ts";
 import { odfFont } from "../fonts.ts";
 import type { IrRun, ParaStyle } from "../docir.ts";
 import { xmlAttr } from "../sanitize.ts";
@@ -13,10 +14,6 @@ export const NS =
   ' xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"';
 
 export const MONO = odfFont("Courier New");
-
-export function cm(value: number): string {
-  return value.toFixed(3) + "cm";
-}
 
 export function pt(value: number): string {
   return value.toFixed(1) + "pt";

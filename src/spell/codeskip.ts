@@ -1,3 +1,5 @@
+import { escapedAt, lineAt } from "../core/text.ts";
+
 export interface SkipRange {
   start: number;
   end: number;
@@ -88,21 +90,8 @@ function covered(ranges: SkipRange[], offset: number): boolean {
   return false;
 }
 
-function escaped(text: string, index: number): boolean {
-  let slashes = 0;
-  while (index - slashes > 0 && text.charCodeAt(index - slashes - 1) === 92)
-    slashes += 1;
-  return slashes % 2 === 1;
-}
-
 const BLOCK_START =
   /^[ \t]{0,3}(?:#{1,6}(?:[ \t]|$)|>|[-*+][ \t]|\d+[.)][ \t]|\||`{3,}|~{3,}|:{3,})/;
-
-function lineAt(text: string, offset: number): string {
-  const start = text.lastIndexOf("\n", offset - 1) + 1;
-  const end = text.indexOf("\n", offset);
-  return text.slice(start, end < 0 ? text.length : end);
-}
 
 function paragraphLine(line: string): boolean {
   return line.trim() !== "" && !BLOCK_START.test(line);
@@ -126,7 +115,7 @@ function inlineRanges(text: string, fenced: SkipRange[]): SkipRange[] {
       continue;
     }
 
-    if (covered(fenced, index) || escaped(text, index)) {
+    if (covered(fenced, index) || escapedAt(text, index)) {
       index += 1;
       continue;
     }
