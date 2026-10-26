@@ -1,6 +1,7 @@
 import { headButton } from "../project/panelicons.ts";
 import type { Change } from "./changes.ts";
-import type { CommentThread } from "./comments.ts";
+import type { Chat } from "./chat.ts";
+import type { Comments, CommentThread } from "./commentmodel.ts";
 import { commentsView, type CommentsView } from "./commentview.ts";
 import type { Talk } from "./talk.ts";
 import { changesView, chatView, type TalkView } from "./talkview.ts";
@@ -25,12 +26,15 @@ export const TALK_LABELS: Record<TalkMode, string> = {
 };
 
 export interface Views {
-  readonly talk: Talk;
-  readonly views: Record<"chat" | "changes", TalkView> & {
+  readonly chat: Chat | null;
+  readonly comments: Comments;
+  readonly views: Record<"chat" | "changes", TalkView | null> & {
     readonly comments: CommentsView;
   };
   destroy(): void;
 }
+
+type Reveal = (path: string | null, from: number, to: number) => void;
 
 function selectRange(
   editor: HTMLTextAreaElement,
@@ -42,24 +46,33 @@ function selectRange(
   editor.setSelectionRange(Math.min(from, to), to);
 }
 
-export function buildViews(talk: Talk, deps: RevealDeps): Views {
-  const reveal = (path: string | null, from: number, to: number): void => {
+function revealer(deps: RevealDeps): Reveal {
+  return (path, from, to) => {
     if (path === null) return selectRange(deps.editor, from, to);
     deps.openPath(path);
     requestAnimationFrame(() => selectRange(deps.editor, from, to));
   };
+}
+
+function threadsView(comments: Comments, reveal: Reveal): CommentsView {
+  return commentsView(comments, (thread: CommentThread) => {
+    if (thread.from !== null && thread.to !== null)
+      reveal(thread.path, thread.from, thread.to);
+  });
+}
+
+export function buildViews(talk: Talk, deps: RevealDeps): Views {
+  const reveal = revealer(deps);
   const views = {
     chat: chatView(talk.chat),
     changes: changesView(talk.changes, (change: Change) =>
       reveal(change.path, change.from, change.from + change.inserted.length),
     ),
-    comments: commentsView(talk.comments, (thread: CommentThread) => {
-      if (thread.from !== null && thread.to !== null)
-        reveal(thread.path, thread.from, thread.to);
-    }),
+    comments: threadsView(talk.comments, reveal),
   };
   return {
-    talk,
+    chat: talk.chat,
+    comments: talk.comments,
     views,
     destroy() {
       views.chat.destroy();
@@ -67,6 +80,20 @@ export function buildViews(talk: Talk, deps: RevealDeps): Views {
       views.comments.destroy();
     },
   };
+}
+
+export function localViews(comments: Comments, deps: RevealDeps): Views {
+  const view = threadsView(comments, revealer(deps));
+  return {
+    chat: null,
+    comments,
+    views: { chat: null, changes: null, comments: view },
+    destroy: view.destroy,
+  };
+}
+
+export function shownMode(views: Views | null, mode: TalkMode): TalkMode {
+  return views && !views.views[mode] ? "comments" : mode;
 }
 
 export function badge(target: HTMLElement, count: number): void {
@@ -92,7 +119,7 @@ export interface Holder {
   swap(views: Views | null): boolean;
 }
 
-export function holder(unread: () => void): Holder {
+export function holder(changed: () => void): Holder {
   let current: Views | null = null;
   let off = (): void => {};
   return {
@@ -101,14 +128,30 @@ export function holder(unread: () => void): Holder {
       if (views === current) return false;
       current = views;
       off();
-      off = views?.talk.chat.onChange(unread) ?? (() => {});
+      const offChat = views?.chat?.onChange(changed);
+      const offComments = views?.comments.onChange(changed);
+      off = () => {
+        offChat?.();
+        offComments?.();
+      };
       return true;
     },
   };
 }
 
-export function unreadOf(held: Holder, reading: boolean): number {
-  return reading ? 0 : (held.current()?.talk.chat.unread() ?? 0);
+export function unreadOf(held: Holder, reading: TalkMode | null): number {
+  const views = held.current();
+  if (!views) return 0;
+  const chat = reading === "chat" ? 0 : (views.chat?.unread() ?? 0);
+  return chat + unreadComments(held, reading);
+}
+
+export function unreadComments(held: Holder, reading: TalkMode | null): number {
+  return reading === "comments" ? 0 : (held.current()?.comments.unread() ?? 0);
+}
+
+export function unreadChat(held: Holder, reading: TalkMode | null): number {
+  return reading === "chat" ? 0 : (held.current()?.chat?.unread() ?? 0);
 }
 
 export function talkButton(mode: TalkMode): HTMLButtonElement {

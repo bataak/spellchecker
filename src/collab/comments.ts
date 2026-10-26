@@ -2,52 +2,41 @@ import * as Y from "yjs";
 import { createEmitter } from "../core/emitter.ts";
 import { fromBase64Url, randomId, toBase64Url } from "./collabkey.ts";
 import { MAX_CHAT_TEXT } from "./chat.ts";
+import {
+  cleanBody,
+  colorOf,
+  locateQuote,
+  MAX_COLOR,
+  MAX_COMMENT_ID,
+  MAX_COMMENTS,
+  MAX_QUOTE,
+  MAX_AUTHOR,
+  NO_NAME,
+  newestFirst,
+  oldestFirst,
+  smallestAt,
+  type CommentNote,
+  type Comments,
+  type CommentSpan,
+  type CommentThread,
+  type PortableNote,
+  type PortableThread,
+} from "./commentmodel.ts";
 import { MAX_NAME, type Profile } from "./profile.ts";
 import { cleanName, cleanText } from "./safetext.ts";
 
-export interface CommentNote {
-  readonly id: string;
-  readonly name: string;
-  readonly color: number;
-  readonly at: number;
-  readonly text: string;
-  readonly mine: boolean;
-  readonly edited: boolean;
-}
+export type {
+  CommentDraft,
+  CommentNote,
+  Comments,
+  CommentSpan,
+  CommentThread,
+} from "./commentmodel.ts";
+export { MAX_COMMENTS, MAX_QUOTE } from "./commentmodel.ts";
 
-export interface CommentThread extends CommentNote {
-  readonly path: string | null;
-  readonly from: number | null;
-  readonly to: number | null;
-  readonly quote: string;
-  readonly resolved: boolean;
-  readonly replies: readonly CommentNote[];
-}
-
-export interface CommentDraft {
-  readonly anchor: string;
-  readonly head: string;
-  readonly quote: string;
-}
-
-export interface CommentSpan {
-  readonly id: string;
-  readonly from: number;
-  readonly to: number;
-}
-
-export interface Comments {
-  list(): readonly CommentThread[];
-  spans(): readonly CommentSpan[];
-  at(offset: number): string | null;
-  draft(start: number, end: number, sample: string): CommentDraft | null;
-  add(draft: CommentDraft, text: string): string | null;
-  reply(id: string, text: string): boolean;
-  edit(id: string, text: string): boolean;
-  remove(id: string): boolean;
-  resolve(id: string, on: boolean): boolean;
-  onChange(listener: () => void): () => void;
-  destroy(): void;
+export interface CollabComments extends Comments {
+  adopt(threads: readonly PortableThread[]): void;
+  export(): PortableThread[];
 }
 
 export interface CommentsDeps {
@@ -73,15 +62,10 @@ interface Stored {
   readonly o?: string;
 }
 
-export const MAX_COMMENTS = 1000;
-export const MAX_QUOTE = 300;
-const MAX_ID = 24;
-const MAX_AUTHOR = 16;
+const MAX_ID = MAX_COMMENT_ID;
 const MAX_POSITION = 256;
-const MAX_COLOR = 64;
 const MAX_ENTRY = 4096;
 const COMMENTS = "comments";
-const NO_NAME = "Нэргүй";
 
 function short(value: unknown, max: number): value is string {
   return typeof value === "string" && value.length > 0 && value.length <= max;
@@ -145,10 +129,6 @@ function hashKey(text: string): string {
   return value.toString(36) + mix.toString(36);
 }
 
-function cleanBody(text: string): string {
-  return cleanText(text).trim().slice(0, MAX_CHAT_TEXT);
-}
-
 function noteOf(value: Stored, author: string): CommentNote {
   return {
     id: value.i,
@@ -198,16 +178,6 @@ function locate(
   return { path: null, text: null, from: null, to: null };
 }
 
-function byPlace(a: CommentThread, b: CommentThread): number {
-  if (a.path !== b.path) return (a.path ?? "").localeCompare(b.path ?? "");
-  if (a.from !== b.from) {
-    if (a.from === null) return 1;
-    if (b.from === null) return -1;
-    return a.from - b.from;
-  }
-  return a.at - b.at;
-}
-
 function prune(map: Y.Map<unknown>): void {
   const bad: string[] = [];
   map.forEach((value, key) => {
@@ -239,13 +209,63 @@ function stamp(profile: Profile, author: string, body: string) {
   return {
     i: randomId(9),
     n: cleanName(profile.name, MAX_NAME),
-    c: Number.isInteger(profile.color)
-      ? Math.abs(profile.color) % MAX_COLOR
-      : 0,
+    c: colorOf(profile.color),
     a: Date.now(),
     t: body,
     u: author,
   };
+}
+
+function storedNote(note: PortableNote, author: string, id: string) {
+  const value: Record<string, unknown> = {
+    i: id,
+    n: cleanName(note.name, MAX_NAME),
+    c: colorOf(note.color),
+    a: note.at,
+    t: cleanBody(note.text),
+    u: note.author ?? author,
+  };
+  if (note.edited) value.e = note.at;
+  return value;
+}
+
+function portableOf(note: CommentNote, author: string): PortableNote {
+  return {
+    id: note.id,
+    author: note.mine ? null : author,
+    name: note.name,
+    color: note.color,
+    at: note.at,
+    text: note.text,
+    edited: note.edited,
+  };
+}
+
+function adoptInto(
+  deps: CommentsDeps,
+  map: Y.Map<unknown>,
+  threads: readonly PortableThread[],
+): void {
+  const texts = deps.texts();
+  const fresh = (id: string): string => (map.has(id) ? randomId(9) : id);
+  deps.doc.transact(() => {
+    for (const thread of threads) {
+      const text = texts.get(thread.path);
+      if (!text || !cleanBody(thread.text) || map.has(thread.id)) continue;
+      if (map.size + 1 + thread.replies.length > MAX_COMMENTS) break;
+      const place = locateQuote(text.toString(), thread);
+      const value = storedNote(thread, deps.author, thread.id);
+      value.f = relative(text, place?.from ?? 0, 0);
+      value.h = place ? relative(text, place.to, -1) : value.f;
+      value.q = cleanText(thread.quote).slice(0, MAX_QUOTE);
+      if (thread.resolved) value.s = 1;
+      map.set(thread.id, value);
+      for (const reply of thread.replies) {
+        const id = fresh(reply.id);
+        map.set(id, { ...storedNote(reply, deps.author, id), o: thread.id });
+      }
+    }
+  });
 }
 
 function threadsOf(
@@ -271,10 +291,10 @@ function threadsOf(
       to: place.to,
       quote: cleanText(value.q!),
       resolved: value.s === 1,
-      replies: (replies.get(value.i) ?? []).sort((a, b) => a.at - b.at),
+      replies: (replies.get(value.i) ?? []).sort(oldestFirst),
     });
   }
-  return out.sort(byPlace);
+  return out.sort(newestFirst);
 }
 
 function spansOf(deps: CommentsDeps, stored: readonly Stored[]): CommentSpan[] {
@@ -291,7 +311,25 @@ function spansOf(deps: CommentsDeps, stored: readonly Stored[]): CommentSpan[] {
   return out;
 }
 
-export function createComments(deps: CommentsDeps): Comments {
+function exportOf(
+  threads: readonly CommentThread[],
+  stored: readonly Stored[],
+): PortableThread[] {
+  const authors = new Map(stored.map((value) => [value.i, value.u]));
+  const of = (note: CommentNote): PortableNote =>
+    portableOf(note, authors.get(note.id) ?? "");
+  return threads.map((thread) => ({
+    ...of(thread),
+    path: thread.path,
+    from: thread.from,
+    to: thread.to,
+    quote: thread.quote,
+    resolved: thread.resolved,
+    replies: thread.replies.map(of),
+  }));
+}
+
+export function createComments(deps: CommentsDeps): CollabComments {
   const { doc } = deps;
   const map = doc.getMap<unknown>(COMMENTS);
   const changed = createEmitter();
@@ -313,16 +351,21 @@ export function createComments(deps: CommentsDeps): Comments {
   };
   map.observe(observer);
   prune(map);
+  let seenIds = new Set(stored().map((value) => value.i));
 
+  const list = (): CommentThread[] => threadsOf(deps, stored());
   return {
-    list: () => threadsOf(deps, stored()),
+    list,
     spans,
-    at(offset) {
-      let best: CommentSpan | null = null;
-      for (const span of spans())
-        if (span.from <= offset && offset <= span.to)
-          if (!best || span.to - span.from < best.to - best.from) best = span;
-      return best?.id ?? null;
+    at: (offset) => smallestAt(spans(), offset),
+    adopt: (threads) => adoptInto(deps, map, threads),
+    export: () => exportOf(list(), stored()),
+    unread: () =>
+      stored().filter(
+        (value) => value.u !== deps.author && !seenIds.has(value.i),
+      ).length,
+    seen() {
+      seenIds = new Set(stored().map((value) => value.i));
     },
     draft(start, end, sample) {
       const text = deps.active();

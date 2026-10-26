@@ -1,5 +1,6 @@
 import * as Y from "yjs";
 import { createEmitter } from "../core/emitter.ts";
+import { move, place } from "./overlay.ts";
 import { fromBase64Url, toBase64Url } from "./collabkey.ts";
 import { CURSOR_COLORS } from "./peercolors.ts";
 import type { Profile } from "./profile.ts";
@@ -107,20 +108,6 @@ function newMark(layer: HTMLElement): Mark {
   return { root, caret, label, marks };
 }
 
-function move(el: HTMLElement, rect: DOMRect, origin: DOMRect): void {
-  el.style.transform =
-    "translate(" +
-    (rect.left - origin.left) +
-    "px," +
-    (rect.top - origin.top) +
-    "px)";
-}
-
-export function place(el: HTMLElement, rect: DOMRect, origin: DOMRect): void {
-  move(el, rect, origin);
-  el.style.height = rect.height + "px";
-}
-
 function paintMark(
   mark: Mark,
   state: CursorState,
@@ -151,6 +138,24 @@ function paintMark(
       return el;
     }),
   );
+}
+
+function watchLayout(
+  editor: HTMLTextAreaElement,
+  doc: Y.Doc,
+  update: () => void,
+): () => void {
+  editor.addEventListener("scroll", update, { passive: true });
+  window.addEventListener("resize", update);
+  const sized = new ResizeObserver(update);
+  sized.observe(editor);
+  doc.on("afterTransaction", update);
+  return () => {
+    editor.removeEventListener("scroll", update);
+    window.removeEventListener("resize", update);
+    sized.disconnect();
+    doc.off("afterTransaction", update);
+  };
 }
 
 export function createCursors(deps: CursorDeps): Cursors {
@@ -218,9 +223,7 @@ export function createCursors(deps: CursorDeps): Cursors {
 
   document.addEventListener("selectionchange", onSelection);
   editor.addEventListener("input", onSelection);
-  editor.addEventListener("scroll", onUpdate, { passive: true });
-  window.addEventListener("resize", onUpdate);
-  doc.on("afterTransaction", onUpdate);
+  const unwatch = watchLayout(editor, doc, onUpdate);
 
   return {
     receive(peer, body) {
@@ -250,9 +253,7 @@ export function createCursors(deps: CursorDeps): Cursors {
       if (sendTimer) clearTimeout(sendTimer);
       document.removeEventListener("selectionchange", onSelection);
       editor.removeEventListener("input", onSelection);
-      editor.removeEventListener("scroll", onUpdate);
-      window.removeEventListener("resize", onUpdate);
-      doc.off("afterTransaction", onUpdate);
+      unwatch();
       activated.clear();
       layer.remove();
     },

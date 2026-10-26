@@ -1,13 +1,13 @@
-import type * as Y from "yjs";
-import type { Comments } from "./comments.ts";
-import { place, type Cursors, type CursorView } from "./cursors.ts";
+import type { Comments } from "./commentmodel.ts";
+import type { CursorView } from "./cursors.ts";
+import { place } from "./overlay.ts";
 
 export interface CommentMarksDeps {
-  readonly doc: Y.Doc;
-  readonly comments: Comments;
+  readonly comments: Pick<Comments, "spans" | "onChange">;
   readonly editor: HTMLTextAreaElement;
-  readonly view: CursorView;
-  readonly cursors: Pick<Cursors, "active" | "onActive">;
+  readonly view: Pick<CursorView, "host" | "rangeRects">;
+  readonly active: () => boolean;
+  readonly refresh: (listener: () => void) => () => void;
 }
 
 export interface CommentMarks {
@@ -24,7 +24,7 @@ function markOf(rect: DOMRect, origin: DOMRect, id: string): HTMLElement {
 }
 
 export function createCommentMarks(deps: CommentMarksDeps): CommentMarks {
-  const { comments, editor, view, cursors } = deps;
+  const { comments, editor, view } = deps;
   const layer = document.createElement("div");
   layer.className = "collab-comments";
   layer.hidden = true;
@@ -33,7 +33,7 @@ export function createCommentMarks(deps: CommentMarksDeps): CommentMarks {
 
   const render = (): void => {
     frame = 0;
-    const spans = cursors.active() ? comments.spans() : [];
+    const spans = deps.active() ? comments.spans() : [];
     layer.hidden = spans.length === 0;
     if (layer.hidden) return void layer.replaceChildren();
     const origin = layer.getBoundingClientRect();
@@ -49,21 +49,22 @@ export function createCommentMarks(deps: CommentMarksDeps): CommentMarks {
     if (!frame) frame = requestAnimationFrame(render);
   };
 
-  const offActive = cursors.onActive(renderSoon);
+  const offRefresh = deps.refresh(renderSoon);
   const offComments = comments.onChange(renderSoon);
   editor.addEventListener("scroll", renderSoon, { passive: true });
   window.addEventListener("resize", renderSoon);
-  deps.doc.on("afterTransaction", renderSoon);
+  const sized = new ResizeObserver(renderSoon);
+  sized.observe(editor);
   renderSoon();
 
   return {
     destroy() {
       if (frame) cancelAnimationFrame(frame);
-      offActive();
+      offRefresh();
       offComments();
       editor.removeEventListener("scroll", renderSoon);
       window.removeEventListener("resize", renderSoon);
-      deps.doc.off("afterTransaction", renderSoon);
+      sized.disconnect();
       layer.remove();
     },
   };

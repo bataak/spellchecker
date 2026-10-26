@@ -268,6 +268,7 @@ export function commentsView(
 
   function render(): void {
     if (!visible) return;
+    comments.seen();
     const threads = comments.list();
     const resolved = threads.filter((thread) => thread.resolved).length;
     count.textContent = commentsCount(threads.length - resolved);
