@@ -49,24 +49,6 @@ export function pickerValue(slot: string): string {
 const DRAFT_MAX = 200000;
 export const LARGE_DRAFT = "\u0000idb";
 
-const slotOps = new Map<string, Promise<void>>();
-let draftFailed: (() => void) | null = null;
-
-export function onDraftError(handler: (() => void) | null): void {
-  draftFailed = handler;
-}
-
-export function draftError(): void {
-  draftFailed?.();
-}
-
-function onSlot(id: string, op: () => Promise<void>): void {
-  const next = (slotOps.get(id) ?? Promise.resolve())
-    .then(op)
-    .catch(() => draftFailed?.());
-  slotOps.set(id, next);
-}
-
 export function loadDraft(id: string): string | null {
   return read(at(KEYS.draft, id));
 }
@@ -76,36 +58,56 @@ export function smallDraft(id: string): string | null {
   return text === LARGE_DRAFT ? null : text;
 }
 
-export async function readDraft(id: string): Promise<string | null> {
-  const text = loadDraft(id);
-  if (text !== LARGE_DRAFT) return text;
-  await slotOps.get(id);
-  try {
-    return await loadSlotText(id);
-  } catch {
-    return null;
+export interface DraftStore {
+  read(id: string): Promise<string | null>;
+  save(id: string, text: string): void;
+  drop(id: string): void;
+  fail(): void;
+}
+
+export function createDraftStore(onError: () => void = () => {}): DraftStore {
+  const slotOps = new Map<string, Promise<void>>();
+
+  function onSlot(id: string, op: () => Promise<void>): void {
+    const next = (slotOps.get(id) ?? Promise.resolve()).then(op).catch(onError);
+    slotOps.set(id, next);
   }
+
+  return {
+    async read(id) {
+      const text = loadDraft(id);
+      if (text !== LARGE_DRAFT) return text;
+      await slotOps.get(id);
+      try {
+        return await loadSlotText(id);
+      } catch {
+        return null;
+      }
+    },
+    save(id, text) {
+      const large = text.trim() !== "" && text.length > DRAFT_MAX;
+      const wasLarge = loadDraft(id) === LARGE_DRAFT;
+      if (text.trim() === "") remove(at(KEYS.draft, id));
+      else if (!write(at(KEYS.draft, id), large ? LARGE_DRAFT : text)) {
+        onError();
+        return;
+      }
+      if (large) onSlot(id, () => saveSlotText(id, text));
+      else if (wasLarge) onSlot(id, () => dropSlotText(id));
+    },
+    drop(id) {
+      const wasLarge = loadDraft(id) === LARGE_DRAFT;
+      remove(at(KEYS.draft, id));
+      if (wasLarge) onSlot(id, () => dropSlotText(id));
+    },
+    fail: onError,
+  };
 }
 
-export function saveDraft(id: string, text: string): void {
-  const large = text.trim() !== "" && text.length > DRAFT_MAX;
-  const wasLarge = loadDraft(id) === LARGE_DRAFT;
-  if (text.trim() === "") remove(at(KEYS.draft, id));
-  else if (!write(at(KEYS.draft, id), large ? LARGE_DRAFT : text)) {
-    draftFailed?.();
-    return;
-  }
-  if (large) onSlot(id, () => saveSlotText(id, text));
-  else if (wasLarge) onSlot(id, () => dropSlotText(id));
-}
-
-export function dropDraft(id: string): void {
-  const wasLarge = loadDraft(id) === LARGE_DRAFT;
-  remove(at(KEYS.draft, id));
-  if (wasLarge) onSlot(id, () => dropSlotText(id));
-}
-
-export function migrateLegacyDrafts(active: string): string[] {
+export function migrateLegacyDrafts(
+  active: string,
+  store: DraftStore,
+): string[] {
   const pending: string[] = [];
   for (const [legacy, target] of Object.entries(LEGACY_TEMPLATES)) {
     const text = smallDraft(legacy);
@@ -116,20 +118,20 @@ export function migrateLegacyDrafts(active: string): string[] {
     }
     if (loadDraft(target) === LARGE_DRAFT) continue;
     const existing = smallDraft(target);
-    saveDraft(target, existing === null ? text : existing + "\n\n" + text);
-    dropDraft(legacy);
+    store.save(target, existing === null ? text : existing + "\n\n" + text);
+    store.drop(legacy);
   }
   return pending;
 }
 
-export function migrateSlotDrafts(): void {
+export function migrateSlotDrafts(store: DraftStore): void {
   for (const template of TEMPLATES) {
     if (!template.examples?.length) continue;
     const text = smallDraft(template.id);
     if (text === null) continue;
     const key = pickerValue(template.id);
-    if (loadDraft(key) === null) saveDraft(key, text);
-    dropDraft(template.id);
+    if (loadDraft(key) === null) store.save(key, text);
+    store.drop(template.id);
   }
 }
 

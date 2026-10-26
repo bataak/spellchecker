@@ -9,11 +9,12 @@ import {
   fallbackSlot,
   markSlotSaved,
 } from "../slots/fileslots.ts";
-import { dropCaret, dropDraft } from "../slots/slotstore.ts";
+import { dropCaret, type DraftStore } from "../slots/slotstore.ts";
 import type { SlotList } from "../slots/slotlist.ts";
 
 export interface FileSlotDeps {
   readonly editor: HTMLTextAreaElement;
+  readonly store: DraftStore;
   readonly slots: SlotList;
   readonly templateId: () => string;
   readonly lastTemplate: () => string;
@@ -38,7 +39,7 @@ export function createFileSlotOps(d: FileSlotDeps): FileSlotOps {
   const { slots } = d;
 
   function forget(id: string): void {
-    dropDraft(id);
+    d.store.drop(id);
     dropCaret(id);
     d.onCloseFile?.(id);
   }
