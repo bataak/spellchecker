@@ -48,9 +48,6 @@ test("texBar: шууд товч сонголтыг ороож оруулна", (
   set("x", 0, 1);
   button("inline").click();
   assert.equal(marked(), "$x|$");
-  set("", 0);
-  button("display").click();
-  assert.equal(marked(), "\\[\n|\n\\]");
   assert.equal(bar.isOpen(), false);
 });
 
@@ -65,6 +62,12 @@ test("texBar: жагсаалт, зураг загвар биетэйгээ ор�
     "\\begin{figure}[ht]\n  \\centering\n" +
       "  \\includegraphics[width=\\linewidth]{|}\n" +
       "  \\caption{}\n  \\label{fig:}\n\\end{figure}",
+  );
+  set("", 0);
+  button("system").click();
+  assert.equal(
+    marked(),
+    "\\left\\{\\begin{aligned}\n  | \\\\\n  \n\\end{aligned}\\right.",
   );
   assert.ok(button("itemize").querySelector("svg"));
   assert.equal(button("itemize").hasAttribute("data-gap"), true);
@@ -148,7 +151,7 @@ test("texBar: палитраас хайж тэмдэг оруулаад сүүл
   assert.equal(search.value, "");
   const recent = pop.querySelectorAll<HTMLElement>(".tex-recent .tex-cell");
   assert.equal(recent[0]!.textContent, "≤");
-  const tab = pop.querySelectorAll<HTMLElement>(".tex-tab")[3]!;
+  const tab = pop.querySelectorAll<HTMLElement>(".tex-tab")[4]!;
   tab.click();
   assert.equal(tab.getAttribute("aria-selected"), "true");
   assert.equal(

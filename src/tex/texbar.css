@@ -7,8 +7,14 @@
 }
 
 .md-bar .tex-group .tex-btn {
-  min-width: 32px;
-  padding-inline: 5px;
+  width: 31px;
+  min-width: 0;
+  padding-inline: 0;
+}
+
+.md-bar .tex-group .tex-btn.has-menu {
+  width: 38px;
+  padding-inline-end: 9px;
 }
 
 .tex-group .tex-btn {
@@ -28,42 +34,40 @@
 
 .tex-group .tex-btn[data-tool="font"] {
   font-family: var(--sans);
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   font-weight: 600;
 }
 
-.tex-group .tex-btn:is([data-tool="inline"], [data-tool="display"]) {
-  font-size: 0.9rem;
+.tex-group .tex-btn[data-tool="inline"] {
+  font-size: 0.85rem;
+  letter-spacing: -0.04em;
   white-space: nowrap;
 }
 
-.tex-group .tex-btn > svg {
+.md-bar .tex-group .tex-btn > svg {
   display: block;
-  margin-inline: auto;
+  width: 20px;
+  height: 20px;
 }
 
 .tex-group > [data-gap] {
-  margin-inline-start: 11px;
+  margin-inline-start: 8px;
 }
 
 .tex-group > [data-gap]::before {
   content: "";
   position: absolute;
-  inset-inline-start: -7px;
+  inset-inline-start: -5.5px;
   top: 25%;
   bottom: 25%;
   border-inline-start: 1px solid var(--line);
   pointer-events: none;
 }
 
-.md-bar .tex-group .tex-btn.has-menu {
-  padding-inline-end: 14px;
-}
-
 .tex-group .tex-btn.has-menu::after {
   content: "";
   position: absolute;
-  inset-inline-end: 6px;
+  inset-inline-end: 5px;
   bottom: 9px;
   width: 4px;
   height: 4px;
@@ -238,8 +242,8 @@
 }
 
 @media (max-width: 700px) {
-  .md-bar .tex-group .tex-btn {
-    min-width: 34px;
+  .md-bar .tex-group .tex-btn:not(.has-menu) {
+    width: 34px;
   }
 
   .tex-pop.is-list {
@@ -251,6 +255,6 @@
   }
 
   .tex-group > [data-gap]::before {
-    inset-inline-start: -6px;
+    inset-inline-start: -5.5px;
   }
 }

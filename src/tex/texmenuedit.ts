@@ -7,6 +7,7 @@ export type Insert =
       readonly kind: "env";
       readonly snippet: string;
       readonly body?: readonly string[];
+      readonly around?: readonly [before: string, after: string];
     }
   | { readonly kind: "close" };
 
@@ -84,11 +85,13 @@ function envEdit(
     : "";
   const selected = text.slice(start, end);
   const lines = selected || !insert.body ? [selected] : insert.body;
-  const head = lead + "\\begin{" + name + "}" + extra;
+  const [before, after] = insert.around ?? ["", ""];
+  const head = lead + before + "\\begin{" + name + "}" + extra;
   const body = lines
     .map((line) => "\n" + indent + INNER_INDENT + line)
     .join("");
-  const raw = head + body + "\n" + indent + "\\end{" + name + "}";
+  const tail = "\n" + indent + "\\end{" + name + "}" + after;
+  const raw = head + body + tail;
   const mark = raw.indexOf(MARK);
   const inserted = mark < 0 ? raw : raw.slice(0, mark) + raw.slice(mark + 1);
   const bodyEnd = head.length + body.length - (mark < 0 ? 0 : 1);
