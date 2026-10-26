@@ -35,7 +35,7 @@ export type {
 export { MAX_COMMENTS, MAX_QUOTE } from "./commentmodel.ts";
 
 export interface CollabComments extends Comments {
-  adopt(threads: readonly PortableThread[]): void;
+  adopt(threads: readonly PortableThread[]): ReadonlySet<string>;
   export(): PortableThread[];
 }
 
@@ -64,7 +64,7 @@ interface Stored {
 
 const MAX_ID = MAX_COMMENT_ID;
 const MAX_POSITION = 256;
-const MAX_ENTRY = 4096;
+const MAX_ENTRY = 8192;
 const COMMENTS = "comments";
 
 function short(value: unknown, max: number): value is string {
@@ -245,14 +245,20 @@ function adoptInto(
   deps: CommentsDeps,
   map: Y.Map<unknown>,
   threads: readonly PortableThread[],
-): void {
+): ReadonlySet<string> {
   const texts = deps.texts();
   const fresh = (id: string): string => (map.has(id) ? randomId(9) : id);
+  const done = new Set<string>();
   deps.doc.transact(() => {
     for (const thread of threads) {
+      if (map.has(thread.id) || !cleanBody(thread.text)) {
+        done.add(thread.id);
+        continue;
+      }
       const text = texts.get(thread.path);
-      if (!text || !cleanBody(thread.text) || map.has(thread.id)) continue;
+      if (!text) continue;
       if (map.size + 1 + thread.replies.length > MAX_COMMENTS) break;
+      done.add(thread.id);
       const place = locateQuote(text.toString(), thread);
       const value = storedNote(thread, deps.author, thread.id);
       value.f = relative(text, place?.from ?? 0, 0);
@@ -266,6 +272,7 @@ function adoptInto(
       }
     }
   });
+  return done;
 }
 
 function threadsOf(
@@ -329,6 +336,17 @@ function exportOf(
   }));
 }
 
+function setResolved(map: Y.Map<unknown>, id: string, on: boolean): boolean {
+  const value = map.get(id);
+  if (!validComment(id, value) || value.o !== undefined) return false;
+  if ((value.s === 1) === on) return true;
+  const next: Record<string, unknown> = { ...value };
+  delete next.s;
+  if (on) next.s = 1;
+  map.set(id, next);
+  return true;
+}
+
 export function createComments(deps: CommentsDeps): CollabComments {
   const { doc } = deps;
   const map = doc.getMap<unknown>(COMMENTS);
@@ -344,6 +362,8 @@ export function createComments(deps: CommentsDeps): CollabComments {
     return validComment(id, value) && value.o === undefined ? value : null;
   };
   const spans = (): CommentSpan[] => spansOf(deps, stored());
+  const resolve = (id: string, on: boolean): boolean =>
+    setResolved(map, id, on);
   const observer = (event: Y.YMapEvent<unknown>): void => {
     cached = null;
     if (!event.transaction.local) prune(map);
@@ -412,15 +432,9 @@ export function createComments(deps: CommentsDeps): CollabComments {
       });
       return true;
     },
-    resolve(id, on) {
-      const value = thread(id);
-      if (!value) return false;
-      if ((value.s === 1) === on) return true;
-      const next: Record<string, unknown> = { ...value };
-      delete next.s;
-      if (on) next.s = 1;
-      map.set(id, next);
-      return true;
+    resolve,
+    resolveAll(ids) {
+      doc.transact(() => ids.forEach((id) => resolve(id, true)));
     },
     onChange: changed.on,
     destroy() {

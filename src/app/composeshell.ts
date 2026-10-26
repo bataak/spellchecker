@@ -83,7 +83,12 @@ export function composeShell(app: Scope<ShellReads, ShellGives>): void {
       if (leaving)
         status.hold("Хамтын засвараас гарлаа. Бусдын бичвэр хэвээр үлдэнэ.");
     },
-    confirmClear: () => app.collab.clearShared(fileSlot(mdBar.slot())),
+    confirmClear: () => {
+      const slot = mdBar.slot();
+      const ok = app.collab.clearShared(fileSlot(slot));
+      if (typeof ok === "boolean") return ok;
+      return ok.then((sure) => sure && mdBar.slot() === slot);
+    },
     afterClear: (cleared) => {
       mdBar.reset(cleared);
       app.emptyTips.rotate();

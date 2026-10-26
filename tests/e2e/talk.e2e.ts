@@ -335,6 +335,11 @@ test("эзэн хуваалцсан бичвэрийг цэвэрлэхэд ас
     (text) => text.includes("нууц бичвэр"),
     20000,
   );
+  await selectWord(owner, "нууц");
+  await owner.locator(".collab-comment-btn").click();
+  await owner.keyboard.type("Эзний шүүмж");
+  await owner.keyboard.press("Enter");
+  await owner.locator(".talk-thread", { hasText: "Эзний шүүмж" }).waitFor();
   const dialog = owner.locator("dialog", {
     hasText: "Хуваалцсан бичвэрийг цэвэрлэх",
   });
@@ -358,6 +363,26 @@ test("эзэн хуваалцсан бичвэрийг цэвэрлэхэд ас
     (text) => !text.includes("нууц бичвэр"),
     20000,
   );
+  await owner.waitForTimeout(1500);
+  assert.equal(await owner.locator(".talk-trigger").isVisible(), false);
+  assert.equal(await owner.locator(".collab-comment-mark").count(), 0);
+  const notes = await owner.evaluate(
+    () =>
+      new Promise<string[]>((resolve) => {
+        const open = indexedDB.open("mn-spell", 1);
+        open.onsuccess = () => {
+          const keys = open.result
+            .transaction("kv", "readonly")
+            .objectStore("kv")
+            .getAllKeys();
+          keys.onsuccess = () =>
+            resolve(
+              keys.result.map(String).filter((key) => key.startsWith("notes:")),
+            );
+        };
+      }),
+  );
+  assert.deepEqual(notes, []);
   assert.deepEqual(errors(owner), []);
   assert.deepEqual(errors(guest), []);
 });

@@ -34,6 +34,7 @@ const statusEl = document.querySelector<HTMLElement>("#status")!;
 const calls: string[] = [];
 let officeActive = false;
 let openFile = false;
+let confirm: () => boolean | Promise<boolean> = () => true;
 initToolbar({
   editor: {
     el: editor,
@@ -60,6 +61,7 @@ initToolbar({
   office: { active: () => officeActive, close: () => calls.push("office") },
   forgetFile: () => calls.push("forget"),
   afterClear: (cleared) => calls.push("after:" + cleared),
+  confirmClear: () => confirm(),
   lettersFixed: () => calls.push("letters"),
   hasOpenFile: () => openFile,
   badTokens: () => [
@@ -87,6 +89,33 @@ test("toolbar: хоосон бол цэвэрлэх нь юу ч арилгах�
   click("#clearBtn");
   openFile = false;
   assert.deepEqual(calls, ["office", "forget", "replace", "after:true"]);
+});
+
+test("toolbar: хуваалцсан бичвэрийн цэвэрлэлт хариу хүлээж, давхар дарахыг үл тоомсорлоно", async () => {
+  const answers: ((sure: boolean) => void)[] = [];
+  confirm = () => new Promise<boolean>((resolve) => answers.push(resolve));
+  calls.length = 0;
+  editor.value = "хуваалцсан";
+  click("#clearBtn");
+  click("#clearBtn");
+  assert.equal(answers.length, 1);
+  answers[0]!(false);
+  await wait();
+  assert.equal(editor.value, "хуваалцсан");
+  assert.deepEqual(calls, []);
+  click("#clearBtn");
+  answers[1]!(true);
+  await wait();
+  assert.equal(editor.value, "");
+  assert.deepEqual(calls, ["office", "forget", "replace", "after:true"]);
+  confirm = () => Promise.reject(new Error("offline"));
+  editor.value = "дахин";
+  click("#clearBtn");
+  await wait();
+  assert.equal(editor.value, "дахин");
+  confirm = () => true;
+  click("#clearBtn");
+  assert.equal(editor.value, "");
 });
 
 test("toolbar: буулгахдаа үсгийг стандартчилж курсорын байрлалд оруулна", async () => {

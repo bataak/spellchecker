@@ -25,6 +25,7 @@ export interface CommentDraft {
   readonly anchor: string;
   readonly head: string;
   readonly quote: string;
+  readonly scope?: string;
 }
 
 export interface CommentSpan {
@@ -43,6 +44,7 @@ export interface Comments {
   edit(id: string, text: string): boolean;
   remove(id: string): boolean;
   resolve(id: string, on: boolean): boolean;
+  resolveAll(ids: readonly string[]): void;
   unread(): number;
   seen(): void;
   onChange(listener: () => void): () => void;
