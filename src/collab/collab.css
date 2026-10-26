@@ -442,6 +442,10 @@
   .workspace > .talk-window[hidden] {
     display: none;
   }
+
+  :root[data-talk] .workspace > .empty-state {
+    left: calc(var(--talk-col) + var(--gutter-w));
+  }
 }
 
 .talk-window-body {
