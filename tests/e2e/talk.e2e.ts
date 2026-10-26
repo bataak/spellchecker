@@ -241,3 +241,27 @@ test("хамтрагч бүр хэлэлцүүлэгт өөр өнгөтэй х�
   assert.deepEqual(errors(owner), []);
   assert.deepEqual(errors(guest), []);
 });
+
+test("багтахгүй үед шүүмжийн цонх хөвж, бичвэр дээр дарахад хаагдана", async () => {
+  const context = await app.context();
+  const page = await openPage(app, context);
+  await page.setViewportSize({ width: 1150, height: 800 });
+  await typeAtEnd(page, "Өглөө нар гарлаа.");
+  await selectWord(page, "нар");
+  await page.locator(".collab-comment-btn").click();
+  const win = page.locator(".talk-window");
+  await win.waitFor({ state: "visible" });
+  assert.equal(
+    await page.evaluate(() =>
+      document.documentElement.hasAttribute("data-talk-float"),
+    ),
+    true,
+  );
+  await page.locator(".talk-compose .talk-input").fill("Тодруулга");
+  await page.keyboard.press("Enter");
+  await page.locator(".talk-thread", { hasText: "Тодруулга" }).waitFor();
+  const box = (await page.locator("#editor").boundingBox())!;
+  await page.mouse.click(box.x + box.width - 40, box.y + box.height - 40);
+  await win.waitFor({ state: "hidden" });
+  assert.deepEqual(errors(page), []);
+});

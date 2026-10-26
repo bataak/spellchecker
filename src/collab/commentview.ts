@@ -12,15 +12,15 @@ import { element } from "../ui/dom.ts";
 export interface CommentsView extends TalkView {
   compose(draft: CommentDraft): void;
   focus(id: string): void;
+  busy(): boolean;
 }
 
-const EMPTY =
-  "Шүүмж алга. Текстийн хэсгийг сонгоод «Шүүмж» товчийг дарж бичнэ үү.";
+const EMPTY = "Шүүмжлэхийг хүссэн бичвэрээ сонгоод Шүүмж товчийг дарна уу.";
 const GONE = "Шүүмж бичсэн хэсэг устсан";
 const EDITED = " · засварласан";
 
 export function commentsCount(open: number): string {
-  return open === 0 ? "Нээлттэй шүүмжгүй" : open + " нээлттэй шүүмж";
+  return open === 0 ? "Шүүмжлэл алга" : open + " нээлттэй шүүмж";
 }
 
 export function resolveAllQuestion(open: number): string {
@@ -180,6 +180,7 @@ function threadRow(thread: CommentThread, actions: RowActions): HTMLLIElement {
 interface Composer {
   readonly form: HTMLFormElement;
   open(draft: CommentDraft): void;
+  focus(): void;
 }
 
 function composer(comments: Comments, added: (id: string) => void): Composer {
@@ -231,6 +232,7 @@ function composer(comments: Comments, added: (id: string) => void): Composer {
       form.hidden = false;
       input.focus();
     },
+    focus: () => input.focus(),
   };
 }
 
@@ -311,9 +313,11 @@ export function commentsView(
     shown(on) {
       visible = on;
       render();
+      if (on && !draft.form.hidden) draft.focus();
     },
     compose: draft.open,
     focus: focusRow,
+    busy: () => !draft.form.hidden,
     destroy: off,
   };
 }

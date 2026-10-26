@@ -79,8 +79,8 @@ export function initCommentButton(deps: CommentButtonDeps): void {
     const draft = target && selectionDraft(editor, target);
     hide();
     if (!target || !draft) return;
-    target.open();
     target.views.views.comments.compose(draft);
+    target.open();
   });
   editor.addEventListener("click", () => {
     const target = deps.target();
