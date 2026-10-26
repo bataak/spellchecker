@@ -5,6 +5,7 @@ import { TEX_TOOLS, type BarTool } from "./texmenudata.ts";
 import { menuEdit, type Insert } from "./texmenuedit.ts";
 import { createPalette, type Palette } from "./texpalette.ts";
 import { createPopover, type PopContent } from "./texpop.ts";
+import { closestTarget } from "../ui/dom.ts";
 
 export interface TexBarDeps {
   readonly editor: HTMLTextAreaElement;
@@ -63,9 +64,7 @@ export function createTexBar(deps: TexBarDeps): BarTools {
   }
 
   group.addEventListener("click", (event) => {
-    const button = (event.target as HTMLElement).closest<HTMLElement>(
-      ".tex-btn",
-    );
+    const button = closestTarget(event, ".tex-btn");
     const tool = byId.get(button?.dataset.tool ?? "");
     if (!button || !tool) return;
     if (tool.kind === "action") apply(tool.insert);
@@ -74,9 +73,7 @@ export function createTexBar(deps: TexBarDeps): BarTools {
   });
 
   pop.element.addEventListener("click", (event) => {
-    const item = (event.target as HTMLElement).closest<HTMLElement>(
-      ".tex-item",
-    );
+    const item = closestTarget(event, ".tex-item");
     const insert = item && inserts[Number(item.dataset.insert)];
     if (insert) apply(insert);
   });

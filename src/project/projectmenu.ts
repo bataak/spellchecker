@@ -1,3 +1,5 @@
+import { eventElement } from "../ui/dom.ts";
+
 export interface MenuItem {
   readonly label: string;
   readonly run?: () => void;
@@ -94,7 +96,8 @@ export function createProjectMenu(onEscape: () => void): ProjectMenu {
   };
 
   const arrowGroup = (event: KeyboardEvent): boolean => {
-    const head = groupOf(menu, event.target as HTMLElement);
+    const target = eventElement(event);
+    const head = target instanceof HTMLElement ? groupOf(menu, target) : null;
     if (!head) return false;
     if (event.key === "ArrowRight") {
       toggleGroup(head, true);

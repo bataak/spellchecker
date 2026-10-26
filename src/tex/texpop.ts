@@ -1,6 +1,6 @@
 import { onViewportChange, placeBelow } from "../ui/placebelow.ts";
 import { POP_ID } from "./texbarview.ts";
-import { listStep } from "../ui/dom.ts";
+import { closestTarget, eventNode, listStep } from "../ui/dom.ts";
 
 export interface PopContent {
   readonly kind: "list" | "palette";
@@ -80,7 +80,7 @@ export function createPopover(
   }
 
   pop.addEventListener("pointerdown", (event) => {
-    if (!(event.target as HTMLElement).closest("input")) event.preventDefault();
+    if (!closestTarget(event, "input")) event.preventDefault();
   });
   pop.addEventListener("keydown", (event) => {
     if (event.key === "Tab") {
@@ -90,7 +90,7 @@ export function createPopover(
   });
 
   const onOutside = (event: Event): void => {
-    const target = event.target as Node;
+    const target = eventNode(event);
     if (!pop.contains(target) && !owner.contains(target)) close(false);
   };
   const onEscape = (event: KeyboardEvent): void => {

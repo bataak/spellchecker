@@ -1,6 +1,7 @@
 import { applyEdit } from "../mdbar/mdedit.ts";
 import { imageSizeAt, setImageSize } from "../mdbar/mdinsert.ts";
 import type { ImageSize } from "../markdown.ts";
+import { closestTarget, eventElement } from "../ui/dom.ts";
 
 const CORNERS = ["nw", "ne", "sw", "se"] as const;
 const MIN_PERCENT = 5;
@@ -119,8 +120,8 @@ export function initImageEdit(
   }
 
   const onClick = (event: MouseEvent): void => {
-    const target = event.target as Element;
-    if (frame.contains(target)) return;
+    const target = eventElement(event);
+    if (!target || frame.contains(target)) return;
     const img = target.closest<HTMLElement>(".md-image");
     select(img ? images().indexOf(img) : -1);
   };
@@ -131,9 +132,7 @@ export function initImageEdit(
   };
 
   const onHandleDown = (event: PointerEvent): void => {
-    const handle = (event.target as Element).closest<HTMLElement>(
-      ".image-handle",
-    );
+    const handle = closestTarget(event, ".image-handle");
     const img = current();
     const box = img?.parentElement;
     if (!handle || !img || !box) return;

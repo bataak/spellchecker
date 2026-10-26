@@ -1,6 +1,6 @@
 import { PROJECT_SLOT } from "./fileslots.ts";
 import { onViewportChange, placeBelow } from "../ui/placebelow.ts";
-import { listStep } from "../ui/dom.ts";
+import { eventElement, eventNode, listStep } from "../ui/dom.ts";
 
 export interface SlotDropdownDeps {
   readonly select: HTMLButtonElement;
@@ -77,7 +77,7 @@ export function createSlotDropdown(deps: SlotDropdownDeps): SlotDropdown {
   };
 
   const onClick = (event: Event): void => {
-    const target = event.target as HTMLElement | null;
+    const target = eventElement(event);
     const closer = target?.closest<HTMLElement>(".md-menu-close");
     if (closer?.dataset.close === PROJECT_SLOT) {
       close(false);
@@ -120,7 +120,7 @@ export function createSlotDropdown(deps: SlotDropdownDeps): SlotDropdown {
   };
 
   const onPointer = (event: Event): void => {
-    const target = event.target as Node;
+    const target = eventNode(event);
     if (!menu.contains(target) && !select.contains(target)) close(false);
   };
 
