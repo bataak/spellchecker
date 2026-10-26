@@ -295,7 +295,7 @@ export const TEX_TOOLS: readonly BarTool[] = [
     },
   ),
   action("inline", "$x$", "Мөр доторх томьёо ($…$)", text("$#$"), {
-    tex: "\\$\\!x\\!\\$",
+    tex: "x",
     gap: true,
   }),
   action("frac", "a⁄b", "Бутархай (\\frac)", cmd("frac{#}{}"), {
