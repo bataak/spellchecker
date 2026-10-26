@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   ALL_LAYOUTS,
   DEFAULT_LAYOUT,
+  INITIAL_LAYOUT,
   PREVIEW_MEASURE,
   DEFAULT_METRICS,
   HYSTERESIS,
@@ -226,9 +227,17 @@ test("хадгалалт — гүйлгээ гүйцэд", () => {
 });
 
 test("parseLayout — хог утгыг анхдагч болгоно", () => {
-  for (const v of ["", "z--", "a", "a*-", "abcd", null, undefined, 3]) {
+  for (const v of ["", "z--", "a", "a*-", "abcd", 3]) {
     assert.ok(same(parseLayout(v), DEFAULT_LAYOUT));
   }
+});
+
+test("parseLayout — хадгалсан утгагүй бол анх 80 өргөнөөр нээнэ", () => {
+  for (const v of [null, undefined]) {
+    assert.ok(same(parseLayout(v), INITIAL_LAYOUT));
+  }
+  assert.equal(MEASURES[INITIAL_LAYOUT.measure], 80);
+  assert.equal(INITIAL_LAYOUT.panel, true);
 });
 
 test("previewLayout — багтвал харагдац + алдааны талбар, одоогийн өргөнөөр", () => {
