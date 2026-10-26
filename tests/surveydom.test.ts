@@ -25,7 +25,7 @@ const overlay = () => document.querySelector<HTMLElement>(".survey-overlay");
 
 test("survey: шинэ хэрэглэгчид нээгдэхгүй", () => {
   resetStorage();
-  const survey = initSurvey();
+  const survey = initSurvey(document.createElement("textarea"));
   survey.onErrorCount(2, true);
   survey.onErrorCount(0, true);
   assert.equal(overlay(), null);
@@ -37,7 +37,7 @@ test("survey: алдаа арилахад нээгдэж, дутуу бол тэ
     "mn-spell:use-days",
     JSON.stringify({ days: 10, last: "2000-01-01" }),
   );
-  const survey = initSurvey();
+  const survey = initSurvey(document.createElement("textarea"));
   survey.onErrorCount(3, true);
   survey.onErrorCount(0, true);
   const box = overlay()!;
@@ -76,7 +76,7 @@ test("survey: татгалзвал дахин нээгдэхгүй", () => {
     "mn-spell:use-days",
     JSON.stringify({ days: 10, last: "2000-01-01" }),
   );
-  const survey = initSurvey();
+  const survey = initSurvey(document.createElement("textarea"));
   survey.onErrorCount(1, true);
   survey.onErrorCount(0, true);
   const box = [...document.querySelectorAll<HTMLElement>(".survey-overlay")].at(

@@ -12,10 +12,16 @@ import {
 import type { DraftFile } from "../core/storage.ts";
 import { flash } from "../ui/clipboard.ts";
 import type { EditorPort, StatusPort } from "../core/ports.ts";
-import type { CurrentFile, OfficeFiles, ProjectFiles } from "./fileports.ts";
+import type {
+  CurrentFile,
+  FileButtons,
+  OfficeFiles,
+  ProjectFiles,
+} from "./fileports.ts";
 
 export interface FileOpenDeps {
   readonly editor: EditorPort;
+  readonly buttons: FileButtons;
   readonly status: StatusPort;
   readonly current: CurrentFile;
   readonly office: OfficeFiles;
@@ -31,9 +37,11 @@ export interface FileOpenDeps {
 
 type Entry = { file: File; handle: FileSystemFileHandle | null };
 
-const opened = (label: string): void => flash("#openBtn", label);
-
-function sizeOk(file: File, setStatus: StatusPort["set"]): boolean {
+function sizeOk(
+  file: File,
+  setStatus: StatusPort["set"],
+  opened: (label: string) => void,
+): boolean {
   const verdict = sizeVerdict(file.size);
   if (verdict === "too-big") {
     setStatus(
@@ -52,7 +60,8 @@ function sizeOk(file: File, setStatus: StatusPort["set"]): boolean {
 }
 
 export function initFileOpen(d: FileOpenDeps): void {
-  const { current, editor } = d;
+  const { current, editor, buttons } = d;
+  const opened = (label: string): void => flash(buttons.open, label);
 
   async function loadFileContent(
     content: string,
@@ -91,7 +100,7 @@ export function initFileOpen(d: FileOpenDeps): void {
       opened("Нээх боломжгүй");
       return true;
     }
-    if (!office && !sizeOk(file, d.status.set)) return true;
+    if (!office && !sizeOk(file, d.status.set, opened)) return true;
     const bytes = office ? null : new Uint8Array(await file.arrayBuffer());
     const text = bytes ? decodeFileBytes(bytes) : "";
     if (!office && d.project.openExisting(file.name, text)) {
@@ -131,16 +140,18 @@ export function initFileOpen(d: FileOpenDeps): void {
     }
   }
 
-  bindPicker(openAll);
+  bindPicker(buttons, openAll, opened);
   initFileDrop(editor.el, {
     openFiles: openAll,
     openDir: d.project.openDir,
   });
 }
 
-function bindPicker(openAll: (entries: readonly Entry[]) => Promise<void>) {
-  const openFileEl = document.querySelector<HTMLInputElement>("#openFile");
-  const pickBtn = document.querySelector<HTMLElement>("#pickBtn");
+function bindPicker(
+  { pick: pickBtn, input: openFileEl }: FileButtons,
+  openAll: (entries: readonly Entry[]) => Promise<void>,
+  opened: (label: string) => void,
+) {
   if (!pickBtn || !openFileEl) return;
   pickBtn.addEventListener("click", async () => {
     if (!("showOpenFilePicker" in window)) {

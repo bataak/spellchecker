@@ -1,8 +1,9 @@
-import { syncEmptyTips } from "../ui/emptytips.ts";
+import type { EmptyTips } from "../ui/emptytips.ts";
 import { KEYS, write } from "../core/store.ts";
 
 export interface EmptyStateDeps {
   readonly el: HTMLElement | null;
+  readonly tips: EmptyTips;
   readonly textChanged: () => void;
   readonly cleared: () => void;
 }
@@ -20,6 +21,6 @@ export function createEmptyState(deps: EmptyStateDeps): (text: string) => void {
       root.classList.toggle("has-text", !empty);
       write(KEYS.hasText, empty ? "0" : "1");
     }
-    syncEmptyTips(empty);
+    deps.tips.sync(empty);
   };
 }

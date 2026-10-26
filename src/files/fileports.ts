@@ -1,3 +1,10 @@
+export interface FileButtons {
+  readonly open: HTMLElement | null;
+  readonly pick: HTMLElement | null;
+  readonly input: HTMLInputElement | null;
+  readonly save: HTMLElement | null;
+}
+
 export interface OfficeFiles {
   readonly active: () => boolean;
   readonly open: (file: File) => Promise<boolean>;
