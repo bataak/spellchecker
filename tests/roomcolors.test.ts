@@ -4,9 +4,11 @@ import * as Y from "yjs";
 import {
   createRoomColors,
   pickColor,
+  pickName,
   PRUNE_MS,
   STALE_MS,
 } from "../src/collab/roomcolors.ts";
+import { NAMES } from "../src/collab/profile.ts";
 
 const claim = (c: number, a: number) => ({ c, a });
 
@@ -107,4 +109,55 @@ test("өнгөний бүртгэлийн сүүлд харагдсан огно
   assert.equal(claim.a, now - 10 * 86_400_000);
   assert.ok(claim.s >= now);
   me.destroy();
+});
+
+test("автомат нэр өрөөнд давхардахгүй, өөрөө өгсөн нэр хэвээр үлдэнэ", () => {
+  const a = new Y.Doc();
+  const b = new Y.Doc();
+  a.on("update", (update: Uint8Array) => Y.applyUpdate(b, update));
+  b.on("update", (update: Uint8Array) => Y.applyUpdate(a, update));
+  const one = createRoomColors(a, "aaa", () => ({
+    name: NAMES[0]!,
+    color: 0,
+    auto: 0,
+  }));
+  const two = createRoomColors(b, "bbb", () => ({
+    name: NAMES[0]!,
+    color: 0,
+    auto: 0,
+  }));
+  assert.equal(one.profile().name, NAMES[0]);
+  assert.equal(two.profile().name, NAMES[1]);
+  const c = new Y.Doc();
+  Y.applyUpdate(c, Y.encodeStateAsUpdate(a));
+  let custom = "Бат";
+  const three = createRoomColors(c, "ccc", () =>
+    custom
+      ? { name: custom, color: 0 }
+      : { name: NAMES[0]!, color: 0, auto: 0 },
+  );
+  assert.equal(three.profile().name, "Бат");
+  assert.equal(c.getMap("names").has("ccc"), false);
+  custom = "";
+  c.getMap("names").set("zzz", { c: 5, a: Date.now() - 10 });
+  assert.equal(three.profile().name, NAMES[2]);
+  one.destroy();
+  two.destroy();
+  three.destroy();
+});
+
+test("pickName хамгийн цөөн хүнд оногдсон нэрийг хүссэн нэрээс эхэлж сонгоно", () => {
+  const claim = (c: number, a: number) => ({ c, a });
+  assert.equal(pickName(new Map(), "me", 7), 7);
+  assert.equal(pickName(new Map([["x", claim(7, 1)]]), "me", 7), 8);
+  assert.equal(
+    pickName(
+      new Map([["x", claim(NAMES.length - 1, 1)]]),
+      "me",
+      NAMES.length - 1,
+    ),
+    0,
+  );
+  assert.equal(NAMES.length, 26);
+  assert.equal(new Set(NAMES).size, NAMES.length);
 });
