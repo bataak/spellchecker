@@ -1,6 +1,6 @@
 import type * as Y from "yjs";
 import { createEmitter } from "../core/emitter.ts";
-import { CURSOR_COLORS } from "./peercolors.ts";
+import { CURSOR_COLORS, CURSOR_HUES } from "./peercolors.ts";
 import type { Profile } from "./profile.ts";
 
 export interface ColorClaim {
@@ -49,11 +49,27 @@ export function pickColor(
   for (const [, claim] of others) counts[claim.c]!++;
   const least = Math.min(...counts);
   const start = Math.abs(wanted) % CURSOR_COLORS.length;
+  const used = others.map(([, claim]) => CURSOR_HUES[claim.c]!);
+  let best = start;
+  let bestGap = -1;
   for (let step = 0; step < counts.length; step++) {
     const color = (start + step) % counts.length;
-    if (counts[color] === least) return color;
+    if (counts[color] !== least) continue;
+    const gap = Math.min(
+      360,
+      ...used.map((hue) => hueGap(hue, CURSOR_HUES[color]!)),
+    );
+    if (gap > bestGap) {
+      best = color;
+      bestGap = gap;
+    }
   }
-  return start;
+  return best;
+}
+
+function hueGap(a: number, b: number): number {
+  const d = Math.abs(a - b) % 360;
+  return d > 180 ? 360 - d : d;
 }
 
 function claimsOf(map: Y.Map<unknown>): Map<string, ColorClaim> {
