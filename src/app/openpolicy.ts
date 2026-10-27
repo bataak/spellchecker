@@ -1,3 +1,4 @@
+import { askChoice, type AskOptions } from "../ui/ask.ts";
 import { flash } from "../ui/clipboard.ts";
 import type { FileIODeps } from "../files/fileio.ts";
 import { FILE_LIMIT } from "../slots/fileslots.ts";
@@ -14,8 +15,9 @@ export function createOpenPolicy(
   slots: () => OpenSlots,
   hold: (html: string, ms: number, animate: boolean) => void,
   openButton: HTMLElement | null = null,
+  ask: (options: AskOptions) => Promise<boolean> = askChoice,
 ): FileIODeps["prepareOpen"] {
-  return (name, hash, text) => {
+  return async (name, hash, text) => {
     const bar = slots();
     const open = bar.findFile(name, hash, text);
     if (open !== null) {
@@ -23,11 +25,14 @@ export function createOpenPolicy(
       const reload =
         text !== null &&
         bar.fileDirty(open) &&
-        window.confirm(
-          "«" +
+        (await ask({
+          title:
+            "«" +
             name +
             "» нээлттэй бөгөөд хадгалаагүй өөрчлөлттэй. Файлаас дахин нээх үү?",
-        );
+          yes: "Дахин нээх",
+          no: "Болих",
+        }));
       return reload ? "reload" : "open";
     }
     if (bar.openFile(name, hash)) return "new";

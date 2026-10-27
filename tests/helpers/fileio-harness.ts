@@ -113,7 +113,7 @@ export async function runSave(scenario: SaveScenario): Promise<SaveOutcome> {
     },
     defaultExt: () => "md",
     onFileOpened: () => {},
-    prepareOpen: () => "new",
+    prepareOpen: async () => "new",
     onLoaded: () => {},
     onSaved: (written) => void log.push("saved:" + written),
     deliverText: async (text, name) => {

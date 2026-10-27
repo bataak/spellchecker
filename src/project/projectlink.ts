@@ -3,6 +3,7 @@ import { initProjectPanel, type ProjectPanel } from "./projectpanel.ts";
 import {
   confirmClose,
   confirmReplace,
+  whenSure,
   conflictNotice,
   findSameFile,
   isTexName,
@@ -251,11 +252,11 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
     panel.reveal();
   };
 
-  const close = (): void => {
-    if (!confirmClose(store.project()?.unsaved)) return;
-    store.closeProject();
-    storeSlot(null);
-  };
+  const close = (): void =>
+    whenSure(confirmClose(store.project()?.unsaved), () => {
+      store.closeProject();
+      storeSlot(null);
+    });
 
   const panel = projectPanelFor(deps, binding, opened);
   bindOpenButton(deps.host, panel);
@@ -291,11 +292,11 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
       zipSnap = null;
     },
     async openZip(file) {
-      if (!confirmReplace(store.project()?.unsaved)) return;
+      if (!(await confirmReplace(store.project()?.unsaved))) return;
       await panel.openZipFile(file);
     },
     async openDir(handle) {
-      if (!confirmReplace(store.project()?.unsaved)) return;
+      if (!(await confirmReplace(store.project()?.unsaved))) return;
       const name = deps.file.name();
       const prefer = isTexName(name) && !binding.bound() ? name : undefined;
       try {

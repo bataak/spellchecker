@@ -29,7 +29,7 @@ export interface FileIODeps {
     name: string,
     hash: string,
     text: string | null,
-  ) => "new" | "open" | "reload" | false;
+  ) => Promise<"new" | "open" | "reload" | false>;
   readonly onLoaded: () => void;
   readonly onSaved: (written: boolean) => void;
   readonly saveChain: SaveChain;

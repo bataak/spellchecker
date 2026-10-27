@@ -14,6 +14,7 @@ import {
   typeAtEnd,
   until,
   type App,
+  answer,
 } from "./harness.ts";
 
 let app: App;
@@ -176,21 +177,17 @@ test("урт хадгалаагүй файлыг өөр цонхноос хаа�
   await settle(a);
   await chooseSlot(a, "Бичвэр 1");
   await a.click(".md-template");
-  const asked = await a.evaluate(() => {
-    const id = (
-      JSON.parse(localStorage.getItem("mdFiles")!) as { id: string }[]
-    )[0]!.id;
-    const messages: string[] = [];
-    window.confirm = (message) => {
-      messages.push(String(message));
-      return false;
-    };
-    document
-      .querySelector<HTMLElement>(`.md-menu-close[data-close="${id}"]`)
-      ?.click();
-    return { messages, kept: localStorage.getItem("mdFiles")!.includes(id) };
-  });
-  assert.equal(asked.messages.length, 1);
-  assert.match(asked.messages[0]!, /хадгалагдаагүй/);
-  assert.ok(asked.kept);
+  const id = await a.evaluate(
+    () =>
+      (JSON.parse(localStorage.getItem("mdFiles")!) as { id: string }[])[0]!.id,
+  );
+  await a.click(`.md-menu-close[data-close="${id}"]`);
+  await a.getByText(/хадгалагдаагүй байна\. Файлыг хаах уу/).waitFor();
+  await answer(a, "Болих");
+  assert.ok(
+    await a.evaluate(
+      (slot) => localStorage.getItem("mdFiles")!.includes(slot),
+      id,
+    ),
+  );
 });

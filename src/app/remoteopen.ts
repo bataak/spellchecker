@@ -1,3 +1,4 @@
+import { askChoice } from "../ui/ask.ts";
 import {
   fetchRemote,
   parseRemote,
@@ -12,7 +13,10 @@ import { PROVIDER_NAME } from "../project/git/githost.ts";
 export interface RemoteOpenDeps {
   readonly openText: (name: string, text: string) => Promise<void>;
   readonly notify: (message: string) => void;
-  readonly confirm?: (message: string) => boolean;
+  readonly confirm?: (
+    title: string,
+    text?: string,
+  ) => boolean | Promise<boolean>;
   readonly fetcher?: Parameters<typeof fetchRemote>[2];
 }
 
@@ -63,7 +67,7 @@ async function publicFetch(
 async function privateFetch(
   source: RemoteSource,
   d: RemoteOpenDeps,
-  ask: (message: string) => boolean,
+  ask: Ask,
 ): Promise<RemoteResult | string | null> {
   const { provider, apis } = source;
   if (!provider || !apis[0]) return null;
@@ -76,13 +80,13 @@ async function privateFetch(
     );
   const host = new URL(apis[0]).host;
   if (
-    !ask(
+    !(await ask(
       "Файл олдсонгүй эсвэл нууц repo-д байна. " +
         name +
         "-д нэвтэрсэн эрхээрээ " +
         host +
         "-оос татах уу?",
-    )
+    ))
   )
     return "";
   let token: string;
@@ -94,21 +98,24 @@ async function privateFetch(
   return fetchFirst(apis, token, d);
 }
 
+type Ask = (title: string, text?: string) => boolean | Promise<boolean>;
+
 export async function openRemote(
   input: string,
   d: RemoteOpenDeps,
 ): Promise<boolean> {
-  const ask = d.confirm ?? ((message: string) => window.confirm(message));
+  const ask: Ask =
+    d.confirm ??
+    ((title, text) =>
+      askChoice({ title, ...(text && { text }), yes: "Тэгье", no: "Үгүй" }));
   const parsed = parseRemote(input);
   if (!parsed.ok) {
     d.notify(PARSE_ERRORS[parsed.reason]);
     return false;
   }
   const { source } = parsed;
-  const question =
-    "Дараах файлыг шинэ талбарт энгийн бичвэр байдлаар нээх үү?\n\n" +
-    source.shown;
-  if (!ask(question)) return false;
+  const question = "Дараах файлыг шинэ талбарт энгийн бичвэр байдлаар нээх үү?";
+  if (!(await ask(question, source.shown))) return false;
   let result: RemoteResult | string | null = await publicFetch(source, d);
   if (!result.ok && result.reason === "missing")
     result = (await privateFetch(source, d, ask)) ?? result;

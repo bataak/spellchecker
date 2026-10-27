@@ -15,6 +15,7 @@ import {
   typeAtEnd,
   until,
   type App,
+  answer,
 } from "./harness.ts";
 import { textHash } from "../../src/files/textlink.ts";
 
@@ -77,6 +78,7 @@ test("бичвэртэй холбоос шинэ файлд нээгдэж, хэ
   await typeAtEnd(page, "Хуучин бичвэр");
   const hash = await textHash("Холбоосоор ирсэн бичвэр", "ирсэн.md");
   await visit(page, hash!);
+  await answer(page, "Нээх");
   assert.equal(
     await until(
       () => editor(page),
@@ -111,6 +113,7 @@ test(
       /нууцлалгүй агуулагдаж/,
     );
     await visit(page, linked.slice(app.url.length));
+    await answer(page, "Нээх");
     assert.equal(
       await until(
         () => editor(page),
@@ -171,6 +174,7 @@ test("GitHub файлын холбоосоор файл нээж, хавтасн
     page,
     "#url=https://github.com/u/r/blob/main/docs/%D0%B0%D0%BB%D1%81.md",
   );
+  await answer(page, "Тэгье");
   assert.equal(
     await until(
       () => editor(page),
@@ -186,6 +190,7 @@ test("GitHub файлын холбоосоор файл нээж, хавтасн
   assert.equal(await page.isVisible(".tex-compile"), false);
 
   await visit(page, "#url=https://github.com/u/r/blob/main/a.tex");
+  await answer(page, "Тэгье");
   assert.equal(
     await until(
       () => editor(page),
