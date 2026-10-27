@@ -49,6 +49,7 @@ export interface FileIOControl {
   targetName: () => string | null;
   targetHandle: () => FileSystemFileHandle | null;
   saveSource: (name: string, inProject: boolean) => Promise<void>;
+  openText: (name: string, text: string) => Promise<void>;
 }
 
 export function initFileIO(deps: FileIODeps): FileIOControl {
@@ -70,7 +71,7 @@ export function initFileIO(deps: FileIODeps): FileIOControl {
     void save();
     return true;
   });
-  initFileOpen({
+  const openAll = initFileOpen({
     editor,
     buttons: deps.buttons,
     status,
@@ -84,6 +85,10 @@ export function initFileIO(deps: FileIODeps): FileIOControl {
 
   return {
     saveSource: (name, inProject) => save({ name, inProject }),
+    openText: (name, text) =>
+      openAll([
+        { file: new File([text], name, { type: "text/plain" }), handle: null },
+      ]),
     forgetFile() {
       current.handle = null;
       current.name = null;

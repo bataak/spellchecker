@@ -20,6 +20,7 @@ import { initAppReport } from "./appreport.ts";
 import { initDictionaries, type Dictionaries } from "./dictionaries.ts";
 import { boot } from "./boot.ts";
 import { restoreDraftFile } from "./draftfile.ts";
+import { startUrlNav } from "./urlnav.ts";
 
 export interface StartupDeps {
   readonly entryUrl: string;
@@ -45,6 +46,25 @@ export interface StartupDeps {
   readonly collab: Collab;
   readonly measure: MeasureControl;
   readonly nudge: () => void;
+}
+
+function startNav(deps: StartupDeps): void {
+  const { mdBar, store, project } = deps;
+  startUrlNav({
+    editor: deps.editor,
+    copyButton: document.querySelector<HTMLElement>("#copyBtn"),
+    template: mdBar.template,
+    fileSlots: mdBar.fileSlots,
+    choose: mdBar.choose,
+    showFile: mdBar.showFile,
+    hasProject: () => store.project() !== null,
+    projectText: (path) => store.projectText(path),
+    projectPath: project.path,
+    enterProject: mdBar.enterProject,
+    openPath: project.openPath,
+    openText: deps.fileIO.openText,
+    notify: (message) => deps.status.hold(message, 8000, false),
+  });
 }
 
 export function startApp(deps: StartupDeps): Dictionaries {
@@ -87,7 +107,10 @@ export function startApp(deps: StartupDeps): Dictionaries {
         opened: doc.open,
       }),
     restoreProject: () => deps.project.restore(),
-    restored: () => deps.collab.start(),
+    restored: () => {
+      deps.collab.start();
+      startNav(deps);
+    },
     pruneUndo: () => void pruneUndo(mdBar.fileSlots(), store.project()),
     fontsLoaded: () => {
       deps.backdrop.reset();

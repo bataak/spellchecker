@@ -49,6 +49,7 @@ Object.assign(globalThis, {
   localStorage: dom.window.localStorage,
   sessionStorage: dom.window.sessionStorage,
   location: dom.window.location,
+  history: dom.window.history,
 });
 
 Object.defineProperty(document, "fonts", {
