@@ -28,7 +28,7 @@ export interface ChromeWiringDeps {
   readonly forgetFile: () => void;
   readonly afterClear: (cleared: boolean) => void;
   readonly confirmClear?: () => boolean | Promise<boolean>;
-  readonly invite: (text: string) => boolean;
+  readonly invite: (text: string) => Promise<boolean>;
   readonly closeProject?: () => boolean;
   readonly openDictMenu: () => void;
 }
