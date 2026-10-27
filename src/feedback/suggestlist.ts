@@ -1,3 +1,4 @@
+import { requireEl } from "../ui/dom.ts";
 import { noteError } from "../core/errorlog.ts";
 import { getSubmitted } from "./submitted.ts";
 import { MAX_WORDS } from "./suggestsend.ts";
@@ -40,13 +41,13 @@ export interface WordList {
 
 export function createWordList(d: WordListDeps): WordList {
   const { overlay, note } = d;
-  const wordEl = overlay.querySelector<HTMLInputElement>("#suggestWord")!;
-  const noteEl = overlay.querySelector<HTMLElement>(".suggest-note")!;
+  const wordEl = requireEl<HTMLInputElement>("#suggestWord", overlay);
+  const noteEl = requireEl<HTMLElement>(".suggest-note", overlay);
   let words: string[] = [];
   let pendingAdd: Promise<void> = Promise.resolve();
 
   function render(): void {
-    const box = overlay.querySelector(".suggest-chips")!;
+    const box = requireEl(".suggest-chips", overlay);
     const clr = overlay.querySelector<HTMLElement>(".suggest-clear-all");
     if (clr) clr.hidden = words.length < 2;
     const cnt = overlay.querySelector<HTMLElement>(".suggest-count");

@@ -1,4 +1,4 @@
-import { openDatabase, requestResult, transactionDone } from "../core/idb.ts";
+import { databaseOpener, requestResult, transactionDone } from "../core/idb.ts";
 import { noteError } from "../core/errorlog.ts";
 
 const DB_NAME = "bichig-collab";
@@ -10,11 +10,9 @@ interface Stored {
   readonly at: number;
 }
 
-function openDb(): Promise<IDBDatabase> {
-  return openDatabase(DB_NAME, (db) =>
-    db.createObjectStore(STORE, { keyPath: "room" }),
-  );
-}
+const openDb = databaseOpener(DB_NAME, (db) =>
+  db.createObjectStore(STORE, { keyPath: "room" }),
+);
 
 export async function loadDoc(room: string): Promise<Uint8Array | null> {
   try {

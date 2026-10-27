@@ -1,6 +1,9 @@
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { createServer } from "node:net";
 import { fileURLToPath } from "node:url";
 import { Miniflare } from "miniflare";
+import ts from "typescript";
 
 export interface CollabServer {
   readonly url: string;
@@ -8,9 +11,26 @@ export interface CollabServer {
   close(): Promise<void>;
 }
 
-const SCRIPT = fileURLToPath(
-  new URL("../../worker/collab/src/index.js", import.meta.url),
-);
+const WORKER = fileURLToPath(new URL("../../worker/", import.meta.url));
+
+const SOURCES = [
+  "collab/src/index.ts",
+  ...readdirSync(join(WORKER, "collab/src"))
+    .filter((name) => name.endsWith(".ts") && name !== "index.ts")
+    .map((name) => "collab/src/" + name),
+  "shared/origin.ts",
+].map((name) => join(WORKER, name));
+
+const MODULES = SOURCES.map((path) => ({
+  type: "ESModule" as const,
+  path,
+  contents: ts.transpileModule(readFileSync(path, "utf8"), {
+    compilerOptions: {
+      target: ts.ScriptTarget.ES2022,
+      module: ts.ModuleKind.ESNext,
+    },
+  }).outputText,
+}));
 
 function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -34,8 +54,7 @@ function options(port: number, origins: string, extra: CollabOptions) {
     ? { TURN_KEY_ID: "key", TURN_KEY_TOKEN: "token" }
     : {};
   return {
-    modules: true,
-    scriptPath: SCRIPT,
+    modules: MODULES,
     compatibilityDate: "2026-08-01",
     host: "127.0.0.1",
     port,

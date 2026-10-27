@@ -15,14 +15,41 @@ export function transactionDone(tx: IDBTransaction): Promise<void> {
   });
 }
 
-export function openDatabase(
+function openDatabase(
   name: string,
   create: (db: IDBDatabase) => void,
+  version: number,
 ): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(name, 1);
+    const request = indexedDB.open(name, version);
     request.onupgradeneeded = () => create(request.result);
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(failure(request.error));
   });
+}
+
+export function databaseOpener(
+  name: string,
+  create: (db: IDBDatabase) => void,
+  version = 1,
+): () => Promise<IDBDatabase> {
+  let pending: Promise<IDBDatabase> | null = null;
+  const forget = (): void => {
+    pending = null;
+  };
+  return () =>
+    (pending ??= openDatabase(name, create, version).then(
+      (db) => {
+        db.onclose = forget;
+        db.onversionchange = () => {
+          db.close();
+          forget();
+        };
+        return db;
+      },
+      (error: unknown) => {
+        forget();
+        throw error;
+      },
+    ));
 }

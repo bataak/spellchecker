@@ -1,3 +1,4 @@
+import { requireEl } from "../ui/dom.ts";
 import { escapeHtml } from "../core/htmlutil.ts";
 import {
   SURVEY_ID,
@@ -102,9 +103,10 @@ function collectAnswers(overlay: HTMLElement): {
       ? checked.map((input) => input.value)
       : checked[0].value;
   }
-  const notes = overlay
-    .querySelector<HTMLTextAreaElement>("#surveyNotes")!
-    .value.trim();
+  const notes = requireEl<HTMLTextAreaElement>(
+    "#surveyNotes",
+    overlay,
+  ).value.trim();
   return { answers, notes };
 }
 
@@ -150,13 +152,13 @@ export function createSurveyForm(onDone: () => void): SurveyForm {
   let sent = false;
 
   function note(msg: string, kind?: string): void {
-    const el = overlay!.querySelector<HTMLElement>(".survey-note")!;
+    const el = requireEl<HTMLElement>(".survey-note", overlay!);
     el.textContent = msg;
     el.dataset.kind = kind || "";
   }
 
   function syncSend(): void {
-    overlay!.querySelector<HTMLButtonElement>(".survey-send")!.disabled =
+    requireEl<HTMLButtonElement>(".survey-send", overlay!).disabled =
       busy || sent;
   }
 
@@ -170,9 +172,10 @@ export function createSurveyForm(onDone: () => void): SurveyForm {
     const { answers, notes } = collectAnswers(overlay!);
     if (markMissing(overlay!, answers)) {
       note("Улаанаар тэмдэглэгдсэн асуултад хариулна уу", "err");
-      overlay!
-        .querySelector(".survey-q-missing")!
-        .scrollIntoView({ block: "center", behavior: "smooth" });
+      requireEl(".survey-q-missing", overlay!).scrollIntoView({
+        block: "center",
+        behavior: "smooth",
+      });
       return;
     }
     if (!navigator.onLine) {
@@ -214,15 +217,15 @@ export function createSurveyForm(onDone: () => void): SurveyForm {
       const input = e.target;
       if (input instanceof HTMLInputElement && input.name)
         input.closest(".survey-q")?.classList.remove("survey-q-missing");
-      const noteEl = box.querySelector<HTMLElement>(".survey-note")!;
+      const noteEl = requireEl<HTMLElement>(".survey-note", box);
       if (noteEl.dataset.kind === "err") note("");
     });
-    box.querySelector(".survey-decline")!.addEventListener("click", () => {
+    requireEl(".survey-decline", box).addEventListener("click", () => {
       if (busy) return;
       onDone();
       close();
     });
-    box.querySelector(".survey-send")!.addEventListener("click", submit);
+    requireEl(".survey-send", box).addEventListener("click", submit);
     document.addEventListener("keydown", (e) => {
       if (!box.hidden && e.key === "Escape") close();
     });

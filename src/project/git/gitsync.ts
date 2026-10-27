@@ -6,6 +6,7 @@ import {
   skippedPath,
 } from "../../tex/texproject.ts";
 import { MAX_BYTES, budget } from "../projectdisk.ts";
+import { ownValue, pathRecord } from "../../core/pathrecord.ts";
 import { Cancelled, PROJECT_TOO_LARGE, ProjectError } from "../projecterror.ts";
 import { readText } from "../projectstate.ts";
 import {
@@ -105,7 +106,7 @@ export function remoteFiles(
   spec: { dir: string },
   entries: readonly TreeEntry[],
 ): { files: Record<string, RemoteFile>; dirs: Set<string> } {
-  const files: Record<string, RemoteFile> = {};
+  const files = pathRecord<RemoteFile>();
   const dirs = new Set<string>();
   for (const entry of entries) {
     const rel = within(spec, entry.path);
@@ -189,7 +190,7 @@ export async function planChanges(
   const texts = new Map<string, string>();
   for (const [path, text] of copy.texts) {
     const unchanged =
-      remote.files[path] !== undefined &&
+      ownValue(remote.files, path) !== undefined &&
       !copy.added(path) &&
       copy.saved(path) === text;
     if (unchanged) continue;
@@ -197,7 +198,7 @@ export async function planChanges(
     texts.set(path, text);
   }
   for (const [path, bytes] of copy.binaries) {
-    const known = remote.files[path];
+    const known = ownValue(remote.files, path);
     if (!known || (await gitBlobSha(bytes)) !== known.sha)
       writes.push([path, bytes]);
   }
@@ -226,7 +227,7 @@ async function clashes(
   for (const path of changed) {
     if (!touched.has(path) && !edited(path)) continue;
     const local = localBytes(copy, path);
-    const sha = files[path]?.sha;
+    const sha = ownValue(files, path)?.sha;
     const same = sha
       ? local !== null && (await gitBlobSha(local)) === sha
       : local === null;
@@ -252,7 +253,7 @@ function mergeItems(
       isEditablePath(path) &&
       ours !== undefined &&
       base !== undefined &&
-      remote.files[path] !== undefined
+      ownValue(remote.files, path) !== undefined
     ) {
       const chunks = merge3(base, ours, readText(bytes).text);
       merges.set(path, chunks);
@@ -298,14 +299,17 @@ async function pullChanges(
   const { files, dirs } = remoteFiles(remote, listing.entries);
   const changed = [
     ...new Set([...Object.keys(files), ...Object.keys(remote.files)]),
-  ].filter((path) => files[path]?.sha !== remote.files[path]?.sha);
+  ].filter(
+    (path) => ownValue(files, path)?.sha !== ownValue(remote.files, path)?.sha,
+  );
   const touched = new Set([
     ...plan.writes.map(([path]) => path),
     ...plan.deletes,
   ]);
-  const fetched = await inBatches(changed, (path) =>
-    files[path] ? api.blob(files[path].sha) : Promise.resolve(null),
-  );
+  const fetched = await inBatches(changed, (path) => {
+    const file = ownValue(files, path);
+    return file ? api.blob(file.sha) : Promise.resolve(null);
+  });
   const theirs = new Map(changed.map((path, index) => [path, fetched[index]!]));
   const clash = await clashes(copy, changed, touched, files);
   const seen = new Map(changed.map((path) => [path, copy.texts.get(path)]));
@@ -368,20 +372,20 @@ export async function commitChanges(
     message,
     writes: plan.writes.map(([path, bytes]) => ({
       path: repoPath(base, path),
-      mode: base.files[path]?.mode ?? FILE_MODE,
+      mode: ownValue(base.files, path)?.mode ?? FILE_MODE,
       bytes,
-      exists: base.files[path] !== undefined,
+      exists: ownValue(base.files, path) !== undefined,
     })),
     deletes: plan.deletes.map((path) => ({
       path: repoPath(base, path),
       mode: base.files[path]!.mode,
     })),
   });
-  const files: Record<string, RemoteFile> = { ...base.files };
+  const files = pathRecord(base.files);
   plan.writes.forEach(([path], index) => {
     files[path] = {
       sha: shas[index]!,
-      mode: base.files[path]?.mode ?? FILE_MODE,
+      mode: ownValue(base.files, path)?.mode ?? FILE_MODE,
     };
   });
   for (const path of plan.deletes) delete files[path];
