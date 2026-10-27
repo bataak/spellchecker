@@ -237,6 +237,29 @@ test("status: release нь hold-ыг цуцалж onRelease дуудахгүй",
   assert.equal(released, 0);
 });
 
+test("status: pin тайлагдах хүртэл бусад мэдэгдлийн дараа ч эргэж харагдана", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  globals.window = globalThis;
+  const el = statusEl();
+  let released = 0;
+  const status = initStatus(el, () => {
+    released += 1;
+  });
+  status.pin("түгжээ");
+  assert.equal(el.innerHTML, "түгжээ");
+  status.set("тоолол", false);
+  assert.equal(el.innerHTML, "түгжээ");
+  status.hold("түр", 1000, false);
+  assert.equal(el.innerHTML, "түр");
+  t.mock.timers.tick(1000);
+  assert.equal(el.innerHTML, "түгжээ");
+  assert.equal(released, 0);
+  status.pin(null);
+  assert.equal(released, 1);
+  status.set("тоолол", false);
+  assert.equal(el.innerHTML, "тоолол");
+});
+
 test("watchTabs: ижил төсөл дахин мэдэгдэхэд sync илгээхгүй", async () => {
   delete globals.document;
   delete globals.window;

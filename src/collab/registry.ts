@@ -1,7 +1,6 @@
 import { noteError } from "../core/errorlog.ts";
 import type { Access, RoomEntry } from "./collabrooms.ts";
 import {
-  BUSY_MESSAGE,
   ENDED,
   FULL_MESSAGE,
   NOTICES,
@@ -123,7 +122,6 @@ export function createRegistry(
   );
   const busy = (room: string): void => {
     waiting.add(room);
-    notify(BUSY_MESSAGE);
     changed();
   };
   return {

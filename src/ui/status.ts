@@ -1,6 +1,8 @@
 import type { StatusPort } from "../core/ports.ts";
 
-export type StatusControl = StatusPort;
+export interface StatusControl extends StatusPort {
+  pin(html: string | null): void;
+}
 
 const STATUS_HOLD_MS = 6000;
 
@@ -18,33 +20,48 @@ export function initStatus(
 ): StatusControl {
   let holdUntil = 0;
   let holdTimer: number | null = null;
+  let pinned: string | null = null;
 
-  const set = (html: string, animate = true): void => {
-    if (holdUntil > 0 && Date.now() < holdUntil) return;
+  const show = (html: string, animate: boolean): void => {
     el.innerHTML = html;
     el.classList.remove("status-reveal");
     if (!animate) return;
     void el.offsetWidth;
     el.classList.add("status-reveal");
   };
+  const holding = (): boolean => holdUntil > 0 && Date.now() < holdUntil;
+
+  const set = (html: string, animate = true): void => {
+    if (holding() || pinned !== null) return;
+    show(html, animate);
+  };
 
   function hold(html: string, ms = STATUS_HOLD_MS, animate = true): void {
     if (holdTimer) clearTimeout(holdTimer);
-    holdUntil = 0;
-    set(html, animate);
+    show(html, animate);
     holdUntil = Date.now() + ms;
     holdTimer = window.setTimeout(() => {
       holdTimer = null;
       holdUntil = 0;
-      onRelease();
+      if (pinned !== null) show(pinned, false);
+      else onRelease();
     }, ms);
+  }
+
+  function pin(html: string | null): void {
+    if (html === pinned) return;
+    pinned = html;
+    if (holding()) return;
+    if (html !== null) show(html, false);
+    else onRelease();
   }
 
   function release(): void {
     if (holdTimer) clearTimeout(holdTimer);
     holdTimer = null;
     holdUntil = 0;
+    if (pinned !== null) show(pinned, false);
   }
 
-  return { set, hold, release };
+  return { set, hold, release, pin };
 }

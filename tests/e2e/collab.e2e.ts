@@ -147,7 +147,14 @@ test("нэг хөтчийн хоёр таб нэг өрөөг зэрэг ажи�
     await second.evaluate(
       () => document.querySelector("#statusText")?.textContent ?? "",
     ),
-    /өөр табад/,
+    /түгжсэн/,
+  );
+  await second.waitForTimeout(10000);
+  assert.match(
+    await second.evaluate(
+      () => document.querySelector("#statusText")?.textContent ?? "",
+    ),
+    /түгжсэн/,
   );
   assert.equal(await readOnly(first), false);
   await first.close();
