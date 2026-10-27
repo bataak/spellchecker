@@ -17,7 +17,8 @@
   background: transparent;
 }
 
-.collab-link {
+.collab-link,
+.collab-join-field {
   box-sizing: border-box;
   width: 100%;
   padding: 8px 10px;
@@ -117,10 +118,6 @@
   margin-top: 12px;
 }
 
-.collab-invite > .tbtn {
-  justify-self: start;
-}
-
 .collab-invite-list {
   display: grid;
   gap: 6px;
@@ -141,7 +138,8 @@
   gap: 6px;
 }
 
-.collab-invite-row .collab-link {
+.collab-invite-row .collab-link,
+.collab-invite-row .collab-join-field {
   flex: 1 1 auto;
   width: auto;
   min-width: 0;
@@ -350,6 +348,23 @@
 
 .talk-trigger[hidden] {
   display: none;
+}
+
+.collab-join {
+  margin-top: 4px;
+}
+
+.collab-mode-row {
+  display: flex;
+  gap: 8px;
+}
+
+.collab-mode-row .tbtn {
+  flex: 1 1 0;
+}
+
+.collab-mode-row .tbtn:only-child {
+  flex: none;
 }
 
 .talk-trigger[aria-pressed="true"] {

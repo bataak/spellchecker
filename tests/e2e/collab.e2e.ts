@@ -47,7 +47,7 @@ async function shownRows(page: Page): Promise<string[]> {
 
 async function invite(page: Page): Promise<string> {
   await page.click("#collabBtn");
-  await page.getByText("Шинэ урилга үүсгэх").click();
+  await page.getByText("Урилга өгөх", { exact: true }).click();
   await page.waitForSelector(".collab-link", { timeout: 20000 });
   const link = await page.inputValue(".collab-link");
   await page.keyboard.press("Escape");

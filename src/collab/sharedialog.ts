@@ -9,6 +9,7 @@ import { isOwner, roomOfSlot, type RoomEntry } from "./collabrooms.ts";
 import { HOME_SCREEN_MESSAGE } from "./collabmessages.ts";
 import type { CollabUi, SlotPort } from "./collabtypes.ts";
 import { openDialog } from "./collabdialog.ts";
+import { joinPasted } from "./invitepaste.ts";
 import { myProfile, needsHomeScreen } from "./device.ts";
 import { saveName } from "./profile.ts";
 import type { Registry } from "./registry.ts";
@@ -28,10 +29,12 @@ function showDialog(
   stop: () => void,
   begin: (() => void) | null,
   name: string | null,
+  join: ((text: string) => boolean) | null,
 ): void {
   openDialog({
     owner: isOwner(entry),
     started: begin === null,
+    join,
     session() {
       begin?.();
       begin = null;
@@ -76,7 +79,8 @@ export function openShare(
 ): void {
   const entry = roomOfSlot(rooms, deps.slot());
   const name = deps.shareName();
-  if (entry) return showDialog(entry, registry, () => stop(entry), null, name);
+  if (entry)
+    return showDialog(entry, registry, () => stop(entry), null, name, null);
   const reason = deps.blocked();
   if (reason) return deps.notify(reason);
   const draft = ownedRoom(slotKey(deps.slot()));
@@ -86,5 +90,6 @@ export function openShare(
     () => stop(draft),
     () => adopt(draft),
     name,
+    joinPasted,
   );
 }
