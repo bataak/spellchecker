@@ -1,3 +1,4 @@
+import { pathRecord } from "../core/pathrecord.ts";
 import { attemptAsync } from "../core/attempt.ts";
 import { readDir } from "./projectdisk.ts";
 import { applyEdits } from "./projectedit.ts";
@@ -12,7 +13,7 @@ import {
 import type { StoreCore } from "./storecore.ts";
 
 export function createRestore(core: StoreCore) {
-  let pendingEdits: Record<string, string> = {};
+  let pendingEdits = pathRecord<string>();
 
   function applyRestored(
     next: State,
@@ -93,13 +94,13 @@ export function createRestore(core: StoreCore) {
       metaOf(s),
       pendingEdits,
     );
-    pendingEdits = {};
+    pendingEdits = pathRecord();
     return true;
   }
 
   function closeProject(): void {
     core.replace(null);
-    pendingEdits = {};
+    pendingEdits = pathRecord();
     core.persist.clear();
     core.notify();
   }
