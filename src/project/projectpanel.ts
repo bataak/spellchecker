@@ -1,3 +1,4 @@
+import { talkCovers, yieldTalk } from "../ui/talkslot.ts";
 import type { ProjectStore } from "./projectstore.ts";
 import { failureMessage } from "./projecterror.ts";
 import { buildPanel, type PanelParts } from "./panelmarkup.ts";
@@ -171,7 +172,9 @@ export function initProjectPanel(deps: ProjectPanelDeps): ProjectPanel {
       syncFoot(parts, view.exportedAt);
   }, 60000);
   parts.hideBtn.addEventListener("click", () => vis.show(false));
-  toggle.addEventListener("click", () => vis.show(!vis.visible()));
+  toggle.addEventListener("click", () =>
+    talkCovers() ? yieldTalk(true) : vis.show(!vis.visible()),
+  );
 
   let hadProject = store.project() !== null;
   store.onProjectChange(() => {

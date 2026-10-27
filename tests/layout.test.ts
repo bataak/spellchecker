@@ -31,6 +31,7 @@ import {
   chooseLayout,
   describeLayout,
   projectViewport,
+  talkPlan,
   thumbSpans,
   PREVIEW_MIN_MEASURE,
   previewMeasure,
@@ -312,6 +313,56 @@ test("projectViewport: багтахгүй бол самбар хөвөөд бү�
   });
 });
 
+const even = (width: number) => ({ loose: width, tight: width });
+
+test("talkPlan: зай байвал 358 хүртэл сунаж, багадаа 236 хүртэл агшиж багана болно", () => {
+  const edge = x.panelGap + x.gutterW;
+  assert.deepEqual(talkPlan(x, 2000, even(1200), 0, 236), {
+    mode: "column",
+    width: x.panelW,
+    viewport: 2000 - x.panelW - edge,
+  });
+  const tight = talkPlan(x, 1500, even(1200), 0, 236);
+  assert.equal(tight.mode, "column");
+  assert.equal(tight.width, 1500 - 1200 - edge);
+  assert.equal(tight.viewport, 1200);
+  assert.equal(talkPlan(x, 1400, even(1200), 0, 236).mode, "float");
+});
+
+test("talkPlan: төслийн самбартай багтахгүй бол түүний байрыг эзэлж, бас багтахгүй бол хөвнө", () => {
+  const project = 236 + x.panelGap + x.gutterW;
+  const beside = talkPlan(x, 2200, even(1200), project, 236);
+  assert.equal(beside.mode, "column");
+  assert.equal(beside.width, x.panelW);
+  const swap = talkPlan(x, 1500, even(1200), project, 236);
+  assert.equal(swap.mode, "swap");
+  assert.equal(swap.width, 1500 - 1200 - x.panelGap - x.gutterW);
+  assert.equal(swap.viewport, 1200);
+  const roomy = talkPlan(x, 1700, even(1200), project, 236);
+  assert.equal(roomy.mode, "swap");
+  assert.equal(roomy.width, x.panelW);
+  assert.deepEqual(talkPlan(x, 1300, even(1200), 0, 236), {
+    mode: "float",
+    width: x.panelW,
+    viewport: 1300,
+  });
+});
+
+test("talkPlan: 236 ч багтахгүй бол хөвөхөөс өмнө preview-ийг нарийсгана", () => {
+  const edge = x.panelGap + x.gutterW;
+  const page = { loose: 1600, tight: 1400 };
+  assert.deepEqual(talkPlan(x, 1700, page, 0, 236), {
+    mode: "column",
+    width: 236,
+    viewport: 1700 - 236 - edge,
+  });
+  assert.equal(talkPlan(x, 1600, page, 0, 236).mode, "float");
+  const project = 236 + edge;
+  const swap = talkPlan(x, 1700, page, project, 236);
+  assert.equal(swap.mode, "swap");
+  assert.equal(swap.width, 236);
+});
+
 test("thumbSpans: хэсгүүдийг завсартай дараалуулна", () => {
   const spans = thumbSpans(
     { measure: "a", panel: true, preview: true },
@@ -363,16 +414,23 @@ test("available: 14 инчийн дэлгэцэд хажуу байрлал га
   assert.ok(keys(1920).includes("a-v"));
 });
 
-test("available: 80 тэмдэгтийн preview багтвал хуучин дүрмээр сонгоно", () => {
-  for (const w of [1600, 1700, 1920, 2200, 2800]) {
+test("available: preview нарийсч багтах байрлалуудыг ч санал болгоно", () => {
+  for (const w of [1440, 1600, 1700, 1920, 2200, 2800]) {
+    const list = available(x, w, []);
     const strict = ALL_LAYOUTS.filter((l) => fits(l, x, w));
-    if (strict.some((l) => l.preview))
-      assert.deepEqual(
-        available(x, w, []).map(key),
-        strict.map(key),
-        String(w),
+    assert.ok(
+      strict.every((l) => has(list, l)),
+      String(w),
+    );
+    for (const l of list)
+      assert.ok(
+        l.preview ? fits(l, x, w, false, PREVIEW_MIN_MEASURE) : fits(l, x, w),
+        `${w} ${key(l)}`,
       );
   }
-  const narrow = available(x, 1440, []);
-  assert.ok(narrow.every((l) => fits(l, x, 1440, false, PREVIEW_MIN_MEASURE)));
+  const wider = { measure: "c" as const, panel: false, preview: true };
+  const w = Math.ceil(pageWidth(wider, x, PREVIEW_MIN_MEASURE)) + 60;
+  assert.equal(fits(wider, x, w), false);
+  assert.ok(has(available(x, w, []), wider));
+  assert.ok(has(available(x, w - 60, [wider]), wider));
 });
