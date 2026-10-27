@@ -102,6 +102,7 @@ export function fileWindow(deps: WindowDeps): Side {
   const trigger = talkTrigger(deps.anchor);
   paintTrigger(trigger, true);
   let mode: TalkMode = "chat";
+  const seen = (): boolean => !win.hidden && !talkYielded();
   const unread = (): void => {
     const current = held.current();
     trigger.hidden =
@@ -109,7 +110,7 @@ export function fileWindow(deps: WindowDeps): Side {
     if (trigger.hidden && !win.hidden && !current?.views.comments.busy())
       return open(false);
     if (current) paintTrigger(trigger, current.chat !== null);
-    const reading = win.hidden ? null : shownMode(held.current(), mode);
+    const reading = seen() ? shownMode(held.current(), mode) : null;
     badge(trigger, unreadOf(held, reading));
     badge(tabs.chat, unreadChat(held, reading));
     badge(tabs.comments, unreadComments(held, reading));
@@ -119,13 +120,13 @@ export function fileWindow(deps: WindowDeps): Side {
     const current = held.current();
     const shown = shownMode(current, mode);
     const view = current?.views[shown];
-    if (view) body.replaceChildren(view.el);
+    if (view && body.firstChild !== view.el) body.replaceChildren(view.el);
     for (const key of MODES) {
       tabs[key].hidden = !current?.views[key];
       tabs[key].setAttribute("aria-selected", String(shown === key));
-      current?.views[key]?.shown(!win.hidden && shown === key);
+      current?.views[key]?.shown(seen() && shown === key);
     }
-    trigger.setAttribute("aria-pressed", String(!win.hidden && !talkYielded()));
+    trigger.setAttribute("aria-pressed", String(seen()));
     document.documentElement.toggleAttribute("data-talk", !win.hidden);
     unread();
   };

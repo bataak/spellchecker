@@ -229,3 +229,29 @@ test("төсөлд байхад Цэвэрлэх товч төслийг асу�
   await page.waitForTimeout(300);
   assert.equal(await hasProject(), false);
 });
+
+test("төслийн самбар багтах хилийн орчимд preview алга болохгүй", async () => {
+  const context = await app.context();
+  const seed = await openPage(app, context);
+  await openFile(seed, app.files.project);
+  await projectFile(seed, "main.tex");
+  await seed.close();
+  for (let width = 1690; width <= 1790; width += 10) {
+    const page = await openPage(app, context);
+    await page.setViewportSize({ width, height: 900 });
+    await page.reload();
+    await page.waitForSelector("#editor");
+    await page.waitForTimeout(1500);
+    const state = await page.evaluate(() => {
+      const preview = document.querySelector<HTMLElement>(".preview-panel");
+      return {
+        docked: !("projectFloat" in document.documentElement.dataset),
+        project: document.documentElement.dataset.project === "on",
+        preview: !!preview && preview.offsetParent !== null,
+      };
+    });
+    if (state.project && state.docked)
+      assert.equal(state.preview, true, String(width));
+    await page.close();
+  }
+});
