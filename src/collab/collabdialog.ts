@@ -65,6 +65,8 @@ function inviteRow(url: string, note: HTMLElement): HTMLLIElement {
   return row;
 }
 
+type InviteMode = "idle" | "give" | "take";
+
 function inviteBox(
   deps: DialogDeps,
   note: HTMLElement,
@@ -74,14 +76,19 @@ function inviteBox(
   const box = element("div", "collab-invite");
   const row = element("div", "collab-mode-row");
   const create = actionButton("Урилга өгөх");
-  create.classList.add("suggest-send");
   const list = element("ol", "collab-invite-list");
   const take = join ? actionButton("Урилга авах") : null;
+  let mode: InviteMode = "idle";
+  const render = (): void => {
+    create.classList.toggle("suggest-send", mode !== "take");
+    take?.classList.toggle("suggest-send", mode === "take");
+    if (take) take.hidden = mode === "give";
+    if (join) join.hidden = mode !== "take";
+    list.hidden = mode === "take";
+  };
   create.addEventListener("click", () => {
-    if (join) join.hidden = true;
-    if (take) take.hidden = true;
-    list.hidden = false;
-    create.classList.add("suggest-send");
+    mode = "give";
+    render();
     create.disabled = true;
     say(note, "", "Урилга үүсгэж байна…");
     void ask(deps, (live) => live.invite(deps.inviteName)).then((invite) => {
@@ -98,20 +105,15 @@ function inviteBox(
       );
     });
   });
-  row.append(create);
-  box.append(row, list);
-  if (!join || !take) return box;
-  take.addEventListener("click", () => {
-    list.hidden = true;
-    join.hidden = false;
-    create.classList.remove("suggest-send");
-    take.classList.add("suggest-send");
+  take?.addEventListener("click", () => {
+    mode = "take";
+    render();
     say(note, "", "");
-    join.querySelector<HTMLInputElement>("input")?.focus();
+    join?.querySelector<HTMLInputElement>("input")?.focus();
   });
-  join.hidden = true;
-  row.append(take);
-  box.append(join);
+  row.append(create, ...(take ? [take] : []));
+  box.append(row, list, ...(join ? [join] : []));
+  render();
   return box;
 }
 

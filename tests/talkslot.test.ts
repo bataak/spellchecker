@@ -7,20 +7,18 @@ test.after(() => dom.close());
 
 const slot = await import("../src/ui/talkslot.ts");
 
-const flags = (): string[] =>
-  ["data-talk", "data-talk-float", "data-talk-swap", "data-talk-yield"].filter(
-    (name) => document.documentElement.hasAttribute(name),
-  );
+const shown = (): string | undefined =>
+  document.documentElement.dataset.talkSlot;
 
 const tick = (): Promise<void> =>
   new Promise((resolve) => queueMicrotask(resolve));
 
-test("talkslot: төлөвөөс attribute-ыг зурж, өөрчлөлтийг нэг удаа мэдэгдэнэ", async () => {
+test("talkslot: төлөвөөс data-talk-slot-ыг зурж, өөрчлөлтийг нэг удаа мэдэгдэнэ", async () => {
   let calls = 0;
   const off = slot.onSlotChange(() => calls++);
   slot.setTalkOpen(true);
   slot.placeTalkSlot("swap");
-  assert.deepEqual(flags(), ["data-talk", "data-talk-swap"]);
+  assert.equal(shown(), "swap");
   assert.equal(slot.talkCovers(), true);
   await tick();
   assert.equal(calls, 1);
@@ -30,7 +28,7 @@ test("talkslot: төлөвөөс attribute-ыг зурж, өөрчлөлтийг
   slot.yieldTalk(true);
   assert.equal(slot.talkYielded(), true);
   assert.equal(slot.talkCovers(), false);
-  assert.deepEqual(flags(), ["data-talk", "data-talk-swap", "data-talk-yield"]);
+  assert.equal(shown(), "yield");
   await tick();
   assert.equal(calls, 2);
   off();
@@ -43,13 +41,13 @@ test("talkslot: байрлал солигдох эсвэл цонх хаагда
   slot.placeTalkSlot("float");
   assert.equal(slot.talkYielded(), false);
   assert.equal(slot.talkFloats(), true);
-  assert.deepEqual(flags(), ["data-talk", "data-talk-float"]);
+  assert.equal(shown(), "float");
   slot.placeTalkSlot("swap");
   slot.yieldTalk(true);
   slot.setTalkOpen(false);
   assert.equal(slot.talkOpen(), false);
   assert.equal(slot.talkFloats(), false);
-  assert.deepEqual(flags(), []);
+  assert.equal(shown(), undefined);
   slot.setTalkOpen(true);
   assert.equal(slot.talkYielded(), false);
   slot.setTalkOpen(false);
@@ -60,6 +58,6 @@ test("talkslot: swap биш үед байраа өгөх хүсэлтийг үл
   slot.placeTalkSlot("column");
   slot.yieldTalk(true);
   assert.equal(slot.talkYielded(), false);
-  assert.deepEqual(flags(), ["data-talk"]);
+  assert.equal(shown(), "column");
   slot.setTalkOpen(false);
 });

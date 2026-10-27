@@ -12,12 +12,16 @@ const state: SlotState = { open: false, placement: "column", yielded: false };
 const changes = createEmitter();
 let queued = false;
 
+function shownSlot(): string | null {
+  if (!state.open) return null;
+  return talkYielded() ? "yield" : state.placement;
+}
+
 function paint(): void {
-  const root = document.documentElement;
-  root.toggleAttribute("data-talk", state.open);
-  root.toggleAttribute("data-talk-float", talkFloats());
-  root.toggleAttribute("data-talk-swap", swapped());
-  root.toggleAttribute("data-talk-yield", talkYielded());
+  const data = document.documentElement.dataset;
+  const slot = shownSlot();
+  if (slot) data.talkSlot = slot;
+  else delete data.talkSlot;
 }
 
 function update(next: Partial<SlotState>): void {
