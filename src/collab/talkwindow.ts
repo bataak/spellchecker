@@ -1,3 +1,4 @@
+import { onSlotChange, talkYielded, yieldTalk } from "../ui/talkslot.ts";
 import { headButton, icon } from "../project/panelicons.ts";
 import {
   badge,
@@ -124,7 +125,7 @@ export function fileWindow(deps: WindowDeps): Side {
       tabs[key].setAttribute("aria-selected", String(shown === key));
       current?.views[key]?.shown(!win.hidden && shown === key);
     }
-    trigger.setAttribute("aria-pressed", String(!win.hidden));
+    trigger.setAttribute("aria-pressed", String(!win.hidden && !talkYielded()));
     document.documentElement.toggleAttribute("data-talk", !win.hidden);
     unread();
   };
@@ -140,6 +141,7 @@ export function fileWindow(deps: WindowDeps): Side {
     });
   close.addEventListener("click", () => open(false));
   trigger.addEventListener("click", () => {
+    if (talkYielded()) return yieldTalk(false);
     if (!win.hidden) return open(false);
     if (unreadChat(held, null)) mode = "chat";
     else if (unreadComments(held, null)) mode = "comments";
@@ -148,6 +150,7 @@ export function fileWindow(deps: WindowDeps): Side {
   win.addEventListener("keydown", (event) => {
     if (event.key === "Escape") open(false);
   });
+  onSlotChange(render);
   document.addEventListener("pointerdown", (event) => {
     const target = event.target instanceof Node ? event.target : null;
     if (win.hidden || !floating() || !target) return;
