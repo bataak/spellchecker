@@ -9,6 +9,7 @@ import {
 import type { CollabProject } from "./collabtypes.ts";
 import type { CursorView } from "./cursors.ts";
 import { deviceId, myProfile } from "./device.ts";
+import { dropRoom } from "./docstore.ts";
 import { watchIdle } from "./idle.ts";
 import { parseSlot } from "./roomslot.ts";
 import type { Session, SessionStatus } from "./sessiontypes.ts";
@@ -115,7 +116,9 @@ export function createRegistry(
       pending.delete(room);
       ready.delete(room);
       statuses.delete(room);
-      void live?.then((session) => session.stop(true)).catch(noteError);
+      if (live)
+        void live.then((session) => session.stop(true)).catch(noteError);
+      else void dropRoom(room);
     },
   };
 }
