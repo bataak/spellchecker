@@ -13,7 +13,12 @@ import {
   withoutRoom,
   type RoomEntry,
 } from "./collabrooms.ts";
-import { IDLE_LABEL, JOIN_NAME, SHORT_GONE } from "./collabmessages.ts";
+import {
+  BUSY_MESSAGE,
+  IDLE_LABEL,
+  JOIN_NAME,
+  SHORT_GONE,
+} from "./collabmessages.ts";
 import type { Collab, CollabDeps, TalkKind } from "./collabtypes.ts";
 import { cleanName } from "./safetext.ts";
 import { askClearShared } from "./clearask.ts";
@@ -61,7 +66,9 @@ function paintButton(
   entry: RoomEntry | null,
   registry: Registry,
   talks: Emitter,
+  freeze: (wait: boolean) => void,
 ): void {
+  freeze(!!entry && registry.busy(entry.room));
   talks.emit();
   button.textContent = buttonLabel(
     entry !== null,
@@ -77,6 +84,7 @@ const DISABLED: Collab = {
   projectChanged: () => {},
   talk: () => null,
   onTalk: () => {},
+  locked: () => false,
 };
 
 function talkOf(
@@ -205,6 +213,29 @@ function readHash(
   );
 }
 
+interface Freezer {
+  (wait: boolean): void;
+  readonly frozen: () => boolean;
+}
+
+function freezer(deps: CollabDeps): Freezer {
+  let frozen = false;
+  const freeze = (wait: boolean): void => {
+    if (wait === frozen) return;
+    frozen = wait;
+    deps.editor.readOnly = wait;
+    deps.pin?.(wait ? BUSY_MESSAGE : null);
+  };
+  return Object.assign(freeze, { frozen: () => frozen });
+}
+
+function painter(deps: CollabDeps, button: HTMLButtonElement, talks: Emitter) {
+  const freeze = freezer(deps);
+  const paint = (entry: RoomEntry | null, registry: Registry): void =>
+    paintButton(button, entry, registry, talks, freeze);
+  return Object.assign(paint, { frozen: freeze.frozen });
+}
+
 export function initCollab(deps: CollabDeps): Collab {
   const { button, editor } = deps;
   if (!collabAvailable(button)) return DISABLED;
@@ -219,8 +250,8 @@ export function initCollab(deps: CollabDeps): Collab {
   };
 
   const talks = createEmitter();
-  const paint = (): void =>
-    paintButton(button, roomOfSlot(rooms, deps.slot()), registry, talks);
+  const paintRoom = painter(deps, button, talks);
+  const paint = (): void => paintRoom(roomOfSlot(rooms, deps.slot()), registry);
 
   const registry = createRegistry(editor, deps.view, {
     project: deps.project,
@@ -310,5 +341,6 @@ export function initCollab(deps: CollabDeps): Collab {
     projectChanged: whenStarted(() => sync()),
     talk: (kind) => talkOf(kind, rooms, deps, registry),
     onTalk: (listener) => void talks.on(listener),
+    locked: paintRoom.frozen,
   };
 }

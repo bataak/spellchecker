@@ -42,6 +42,7 @@ export interface CollabWiringDeps {
   readonly officeActive: () => boolean;
   readonly undo: () => UndoControl;
   readonly notify: (message: string) => void;
+  readonly pin: (message: string | null) => void;
 }
 
 const BLOCKED =
@@ -225,6 +226,7 @@ export function createCollabWiring(deps: CollabWiringDeps): Collab {
       return true;
     },
     notify: deps.notify,
+    pin: deps.pin,
     project: createProjectCollab(deps),
   });
   let shown = sharedUid(deps);
