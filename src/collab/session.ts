@@ -147,10 +147,10 @@ function adminControls(
   look: MemberLook,
 ): AdminControls {
   return {
-    invite: () =>
+    invite: (name) =>
       gate
         .wait()
-        .then(() => admin.invite())
+        .then(() => admin.invite(name))
         .then((token) => {
           if (token) invited();
           return token;

@@ -29,3 +29,6 @@ export const NOTICES: Record<SessionNotice, string> = {
 export const START_FAILED = "Хамтын засварыг эхлүүлж чадсангүй";
 export const NO_SLOT =
   "Шинэ файлын талбар нээх боломжгүй. Нэг файлаа хаагаад дахин оролдоно уу.";
+
+export const SHORT_GONE =
+  "Урилгын холбоос хүчингүй эсвэл хугацаа нь дууссан байна. Илгээсэн хүнээс шинэ урилга авна уу.";

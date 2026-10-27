@@ -63,7 +63,12 @@ test("хоёр төхөөрөмж урилгаар нэгдэж, засвары�
   const invite = await owner.session.invite();
   assert.ok(invite);
 
-  const guest = await join("#b", link, { kind: "i", token: invite }, null);
+  const guest = await join(
+    "#b",
+    link,
+    { kind: "i", token: invite.token },
+    null,
+  );
   await until(() => guest.editor.value === "Сайн", "guest text");
   await until(() => guest.access().kind === "m", "guest member");
   await until(() => owner.status()?.peers === 1, "owner peers");

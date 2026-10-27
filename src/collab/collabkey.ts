@@ -10,9 +10,21 @@ export interface InviteLink extends CollabLink {
   readonly name?: string;
 }
 
+export interface Invite {
+  readonly token: string;
+  readonly code: string | null;
+}
+
+export interface ShortLink {
+  readonly code: string;
+  readonly key: string;
+}
+
 export const TOKEN = /^[A-Za-z0-9_-]{22}$/;
 const LINK =
-  /^#?collab=([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{43})\.([A-Za-z0-9_-]{22})(?:\.([A-Za-z0-9_-]{1,400}))?$/;
+  /^#?collab=([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{43}|[A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{22})(?:\.([A-Za-z0-9_-]{1,400}))?$/;
+const SHORT = /^#?j=([A-Za-z0-9_-]{8})\.([A-Za-z0-9_-]{43}|[A-Za-z0-9_-]{22})$/;
+export const SHORT_CODE = /^[A-Za-z0-9_-]{8}$/;
 const SHARED_NAME = /\.(txt|text|md|markdown|mdown|tex|ltx)$/i;
 const MAX_NAME = 120;
 const IV_BYTES = 12;
@@ -38,7 +50,7 @@ export function randomId(bytes: number): string {
 }
 
 export function newLink(): CollabLink {
-  return { room: randomId(16), key: randomId(32) };
+  return { room: randomId(16), key: randomId(16) };
 }
 
 export function newToken(): string {
@@ -68,7 +80,7 @@ export function isProjectName(name: string): boolean {
   );
 }
 
-function validName(name: string): boolean {
+export function validName(name: string): boolean {
   return (sharedName(name) || isProjectName(name)) && !unsafeName(name);
 }
 
@@ -90,6 +102,15 @@ export function parseLink(hash: string): InviteLink | null {
   const link = { room: match[1]!, key: match[2]!, invite: match[3]! };
   const name = readName(match[4]);
   return name ? { ...link, name } : link;
+}
+
+export function parseShort(hash: string): ShortLink | null {
+  const match = SHORT.exec(hash);
+  return match ? { code: match[1]!, key: match[2]! } : null;
+}
+
+export function shortHash(code: string, key: string): string {
+  return "#j=" + code + "." + key;
 }
 
 export function linkHash(link: InviteLink): string {

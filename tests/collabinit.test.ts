@@ -15,14 +15,18 @@ import {
   linkHash,
   newLink,
   newToken,
-  parseLink,
+  parseShort,
+  shortHash,
 } from "../src/collab/collabkey.ts";
+import { resolveShort } from "../src/collab/shortlink.ts";
 import { fileSlot, type RoomSlot } from "../src/collab/roomslot.ts";
 import type { Collab, CollabDeps } from "../src/collab/collab.ts";
 
 const dom = installDom(
   "<button id=a></button><textarea id=ea></textarea>" +
     "<button id=b></button><textarea id=eb></textarea>" +
+    "<button id=c></button><textarea id=ec></textarea>" +
+    "<button id=d></button><textarea id=ed></textarea>" +
     "<textarea id=peer></textarea>",
 );
 const target = globalThis as Record<string, unknown>;
@@ -115,7 +119,10 @@ test("товч дарж урилга үүсгэхэд өрөө нээгдэж, �
   dialogButton("Хаах").click();
   assert.equal(owner.button.getAttribute("aria-pressed"), "true");
 
-  const link = parseLink(new URL(url).hash);
+  const short = parseShort(new URL(url).hash);
+  assert.ok(short);
+  assert.ok(new URL(url).hash.length <= 34);
+  const link = await resolveShort(server.url, short);
   assert.ok(link);
   assert.equal(link.name, "тэмдэглэл.md");
   const guest = await startPeer({
@@ -151,7 +158,11 @@ test("урилгын холбоосоор орж ирэхэд шинэ файл 
   const invite = await owner.session.invite();
   assert.ok(invite);
 
-  location.hash = linkHash({ ...link, invite, name: "өгүүлэл.tex" });
+  location.hash = linkHash({
+    ...link,
+    invite: invite.token,
+    name: "өгүүлэл.tex",
+  });
   const guest = device("b", fileSlot("b"));
   guest.collab.start();
   assert.equal(location.hash, "");
@@ -168,4 +179,43 @@ test("урилгын холбоосоор орж ирэхэд шинэ файл 
   assert.equal(await owner.session.end(false), true);
   await owner.session.stop(true);
   assert.deepEqual(guest.notes, []);
+});
+
+test("богино урилгын холбоосоор орж ирэхэд нэр, бичвэрийг татна", async () => {
+  const link = newLink();
+  assert.equal(link.key.length, 22);
+  const owner = await startPeer({
+    endpoint: server.url,
+    editor: element<HTMLTextAreaElement>("#peer"),
+    link,
+    access: { kind: "o", token: newToken() },
+    name: "Үүсгэгч",
+    seed: "Богино холбоосын бичвэр",
+  });
+  await until(() => owner.status()?.signal === "open", "owner open");
+  const invite = await owner.session.invite("тайлан.md");
+  assert.ok(invite?.code);
+  const hash = shortHash(invite.code, link.key);
+  assert.ok(hash.length <= 34, hash);
+
+  location.hash = hash;
+  const guest = device("c", fileSlot("c"));
+  guest.collab.start();
+  assert.equal(location.hash, "");
+  await until(() => guest.opened.includes("тайлан.md"), "short name", 15000);
+  await until(
+    () => guest.editor.value === "Богино холбоосын бичвэр",
+    "short text",
+    15000,
+  );
+
+  location.hash = shortHash("AAAAAAAA", link.key);
+  const stranger = device("d", fileSlot("d"));
+  stranger.collab.start();
+  await until(() => stranger.notes.length > 0, "short gone", 15000);
+  assert.match(stranger.notes[0]!, /хүчингүй/);
+
+  assert.equal(guest.collab.forget(fileSlot("c")), true);
+  assert.equal(await owner.session.end(false), true);
+  await owner.session.stop(true);
 });

@@ -1,7 +1,8 @@
 import { KEYS, readJson, writeJson } from "../core/store.ts";
 import { createEmitter, type Emitter } from "../core/emitter.ts";
 import { onSwap, swapOrigin, type SwapOrigin } from "../editor/editortext.ts";
-import { parseLink } from "./collabkey.ts";
+import { parseLink, parseShort, type InviteLink } from "./collabkey.ts";
+import { resolveShort } from "./shortlink.ts";
 import {
   isOwner,
   parseRooms,
@@ -12,7 +13,7 @@ import {
   withoutRoom,
   type RoomEntry,
 } from "./collabrooms.ts";
-import { IDLE_LABEL, JOIN_NAME } from "./collabmessages.ts";
+import { IDLE_LABEL, JOIN_NAME, SHORT_GONE } from "./collabmessages.ts";
 import type { Collab, CollabDeps, TalkKind } from "./collabtypes.ts";
 import { cleanName } from "./safetext.ts";
 import { askClearShared } from "./clearask.ts";
@@ -190,6 +191,20 @@ function collabAvailable(
   return available;
 }
 
+function readHash(
+  notify: (message: string) => void,
+  join: (link: InviteLink) => void,
+): void {
+  const short = parseShort(location.hash);
+  const link = short ? null : parseLink(location.hash);
+  if (!short && !link) return;
+  history.replaceState(null, "", location.pathname + location.search);
+  if (link) return join(link);
+  void resolveShort(ENDPOINT, short!).then((found) =>
+    found ? join(found) : notify(SHORT_GONE),
+  );
+}
+
 export function initCollab(deps: CollabDeps): Collab {
   const { button, editor } = deps;
   if (!collabAvailable(button)) return DISABLED;
@@ -252,16 +267,14 @@ export function initCollab(deps: CollabDeps): Collab {
   };
 
   const ended = endedSet(stop);
-  const takeHash = (): void => {
-    const link = parseLink(location.hash);
-    if (!link) return;
-    history.replaceState(null, "", location.pathname + location.search);
+  const joinLink = (link: InviteLink): void => {
     const next = joinRoom(rooms, link, deps);
     if (!next) return;
     save(next);
     sync();
     openProjectRoom(registry, roomById(rooms, link.room));
   };
+  const takeHash = (): void => readHash(deps.notify, joinLink);
 
   const share = (): void =>
     openShare(rooms, deps, registry, stop, (draft) => {

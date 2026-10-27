@@ -3,13 +3,15 @@ import { memberList } from "./collabmembers.ts";
 import { element } from "../ui/dom.ts";
 import { actionButton, ask, OFFLINE, say } from "./dialogparts.ts";
 import type { Session } from "./sessiontypes.ts";
+import type { Invite } from "./collabkey.ts";
 import { MAX_NAME } from "./profile.ts";
 
 export interface DialogDeps {
   readonly owner: boolean;
   readonly session: () => Promise<Session>;
   readonly started: boolean;
-  readonly inviteUrl: (token: string) => string;
+  readonly inviteUrl: (invite: Invite) => string;
+  readonly inviteName?: string | null;
   readonly name: string;
   readonly tip: string | null;
   readonly rename: (name: string) => void;
@@ -74,11 +76,11 @@ function inviteBox(
   create.addEventListener("click", () => {
     create.disabled = true;
     say(note, "", "Урилга үүсгэж байна…");
-    void ask(deps, (live) => live.invite()).then((token) => {
+    void ask(deps, (live) => live.invite(deps.inviteName)).then((invite) => {
       create.disabled = false;
       invited();
-      if (!token) return say(note, "err", OFFLINE);
-      const row = inviteRow(deps.inviteUrl(token), note);
+      if (!invite) return say(note, "err", OFFLINE);
+      const row = inviteRow(deps.inviteUrl(invite), note);
       list.appendChild(row);
       row.scrollIntoView({ block: "nearest" });
       say(
