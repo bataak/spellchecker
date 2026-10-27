@@ -127,20 +127,25 @@ function joinBox(
   const field = element("input", "collab-join-field");
   field.placeholder = "Урилгын холбоосыг энд буулгана уу";
   field.setAttribute("aria-label", "Урилгын холбоос");
-  const go = actionButton("Авах");
   const submit = (): void => {
     if (!field.value.trim()) return field.focus();
     if (!join(field.value))
       return say(note, "err", "Энэ нь хамтран засах урилгын холбоос биш байна");
     done();
   };
-  go.addEventListener("click", submit);
+  field.addEventListener("paste", (event) => {
+    const text = event.clipboardData?.getData("text") ?? "";
+    if (!text.trim()) return;
+    event.preventDefault();
+    field.value = text.trim();
+    submit();
+  });
   field.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
     event.preventDefault();
     submit();
   });
-  row.append(field, go);
+  row.append(field);
   box.appendChild(row);
   return box;
 }
