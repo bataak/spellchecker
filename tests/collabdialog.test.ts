@@ -245,12 +245,18 @@ test("эхэлсэн эсвэл нэгдэх боломжгүй үед нэгд�
 test("«Урилга өгөх» дарахад урилга үүсч, нэгдэх талбар нуугдана", async () => {
   for (const old of document.querySelectorAll(".collab-overlay")) old.remove();
   const dialog = open({ started: false, join: () => true });
-  button(dialog, "Урилга авах").click();
+  const give = button(dialog, "Урилга өгөх");
+  const take = button(dialog, "Урилга авах");
+  const bold = (node: HTMLElement): boolean =>
+    node.classList.contains("suggest-send");
+  take.click();
   const join = dialog.querySelector<HTMLElement>(".collab-join")!;
   assert.equal(join.hidden, false);
-  button(dialog, "Урилга өгөх").click();
+  assert.deepEqual([bold(give), bold(take)], [false, true]);
+  give.click();
   await wait();
   assert.equal(join.hidden, true);
+  assert.deepEqual([bold(give), bold(take)], [true, false]);
   assert.equal(dialog.querySelectorAll(".collab-invite-list > li").length, 1);
   button(dialog, "Урилга өгөх").click();
   await wait();
