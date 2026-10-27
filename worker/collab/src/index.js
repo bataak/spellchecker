@@ -319,19 +319,18 @@ export class Room extends DurableObject {
     const id = params.get("p") ?? "";
     if (!CLIENT_ID.test(dev) || !CLIENT_ID.test(id))
       return new Response("client", { status: 400 });
+    const early = this.crowd(id, dev);
+    if (early.code) return refuse(early.code, early.reason);
     const access = await this.admit(params, dev);
     if (access.code) return refuse(access.code, "denied");
     await this.touch();
-    const others = [];
-    for (const peer of this.peers()) {
-      if (peer.id !== id) {
-        others.push(peer);
-        continue;
-      }
+    const crowd = this.crowd(id, dev);
+    if (crowd.code) return refuse(crowd.code, crowd.reason);
+    const { others } = crowd;
+    for (const peer of crowd.replaced) {
       peer.ws.serializeAttachment(null);
       peer.ws.close(1000, "replaced");
     }
-    if (others.length >= MAX_PEERS) return refuse(FULL, "full");
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
     this.ctx.acceptWebSocket(server);
@@ -356,6 +355,17 @@ export class Room extends DurableObject {
     }
     if (others.length && !offer) this.ctx.waitUntil(this.shareIce());
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  crowd(id, dev) {
+    const others = [];
+    const replaced = [];
+    for (const peer of this.peers())
+      (peer.id === id ? replaced : others).push(peer);
+    if (replaced.some((peer) => peer.dev !== dev))
+      return { code: DENIED, reason: "denied" };
+    if (others.length >= MAX_PEERS) return { code: FULL, reason: "full" };
+    return { others, replaced };
   }
 
   async shareIce() {
@@ -734,6 +744,12 @@ export class Links extends DurableObject {
         invite,
         label,
         now,
+      );
+      sql.exec(
+        "DELETE FROM codes WHERE room = ? AND code NOT IN (SELECT code FROM codes WHERE room = ? ORDER BY at DESC, rowid DESC LIMIT ?)",
+        room,
+        room,
+        MAX_INVITES,
       );
       return code;
     }
