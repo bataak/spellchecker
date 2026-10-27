@@ -4,7 +4,7 @@ export const MAX_OPEN_BYTES = 10 * 1024 * 1024;
 export const BIG_NOTICE_BYTES = 2 * 1024 * 1024;
 
 const OFFICE_EXT = /\.(docx|pptx|odt|odp|pdf)$/i;
-const TEXT_EXT = /\.(txt|md|markdown|mdown|text|tex|ltx)$/i;
+export const TEXT_EXT = /\.(txt|md|markdown|mdown|text|tex|ltx)$/i;
 const MD_EXT = /\.(md|markdown|mdown)$/i;
 const TEX_EXT = /\.(tex|ltx)$/i;
 const PDF_MIME = "application/pdf";

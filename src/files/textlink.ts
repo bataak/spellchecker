@@ -1,4 +1,5 @@
 import { fromBase64Url, toBase64Url, validName } from "../collab/collabkey.ts";
+import { TEXT_EXT } from "./filetypes.ts";
 import { decodeStrict } from "./safetext.ts";
 
 export const TEXT_LINK_MAX = 2000;
@@ -11,7 +12,6 @@ export interface LinkedText {
 }
 
 const PREFIX = "#text=";
-const TEXT_NAME = /\.(txt|md|markdown|tex|ltx)$/i;
 const MAX_ENCODED = 12_000;
 const MAX_BYTES = TEXT_LINK_MAX * 4;
 
@@ -78,7 +78,7 @@ function readName(raw: string | null): string | null {
   if (raw === null) return null;
   try {
     const name = decodeURIComponent(raw);
-    return validName(name) && TEXT_NAME.test(name) ? name : null;
+    return validName(name) && TEXT_EXT.test(name) ? name : null;
   } catch {
     return null;
   }

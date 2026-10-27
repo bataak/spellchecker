@@ -108,3 +108,10 @@ test("нуугдмал болон bidi тэмдэгтийг цэвэрлэж, bi
   assert.equal(decodeStrict(new Uint8Array([0xc3, 0x28])), null);
   assert.equal(decodeStrict(new TextEncoder().encode("\uFEFFСайн")), "Сайн");
 });
+
+test("textHash: .mdown, .text нэрийг холбоосонд хадгална", async () => {
+  for (const name of ["notes.mdown", "notes.text"]) {
+    const hash = await textHash("# Гарчиг", name);
+    assert.deepEqual(await readTextHash(hash!), { text: "# Гарчиг", name });
+  }
+});
