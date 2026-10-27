@@ -142,10 +142,15 @@ export function available(
   viewport: number,
   prev: readonly Layout[] = [],
 ): Layout[] {
-  const at = (measure: number): Layout[] =>
-    ALL_LAYOUTS.filter((l) => fits(l, x, viewport, has(prev, l), measure));
-  const full = at(PREVIEW_MEASURE);
-  return full.some((l) => l.preview) ? full : at(PREVIEW_MIN_MEASURE);
+  const at = (l: Layout, measure: number): boolean =>
+    fits(l, x, viewport, has(prev, l), measure);
+  const full = ALL_LAYOUTS.filter((l) => at(l, PREVIEW_MEASURE));
+  if (!full.some((l) => l.preview))
+    return ALL_LAYOUTS.filter((l) => at(l, PREVIEW_MIN_MEASURE));
+  return ALL_LAYOUTS.filter(
+    (l) =>
+      has(full, l) || (l.preview && !l.panel && at(l, PREVIEW_MIN_MEASURE)),
+  );
 }
 
 export function clamp(desired: Layout, avail: readonly Layout[]): Layout {
@@ -259,22 +264,27 @@ export interface TalkPlan {
 export function talkPlan(
   x: Metrics,
   full: number,
-  loose: number,
+  page: { readonly loose: number; readonly tight: number },
   project: number,
   minWidth: number,
 ): TalkPlan {
+  const fit = (taken: number, edge: number): number | null => {
+    const spare = (width: number): number =>
+      full - taken - width - x.panelGap - edge;
+    if (spare(page.loose) >= minWidth)
+      return Math.min(x.panelW, spare(page.loose));
+    return spare(page.tight) >= minWidth ? minWidth : null;
+  };
   const edge = project > 0 ? 0 : x.gutterW;
-  const beside = full - project - loose - x.panelGap - edge;
-  if (beside >= minWidth) {
-    const width = Math.min(x.panelW, beside);
+  const beside = fit(project, edge);
+  if (beside !== null)
     return {
       mode: "column",
-      width,
-      viewport: full - project - width - x.panelGap - edge,
+      width: beside,
+      viewport: full - project - beside - x.panelGap - edge,
     };
-  }
   if (project > 0) {
-    const width = Math.min(x.panelW, full - loose - x.panelGap - x.gutterW);
+    const width = fit(0, x.gutterW) ?? minWidth;
     return {
       mode: "swap",
       width,

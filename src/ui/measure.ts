@@ -12,6 +12,7 @@ import {
   serializeLayout,
   showsControl,
   chooseLayout,
+  PREVIEW_MIN_MEASURE,
   projectViewport,
   talkPlan,
   type Layout,
@@ -251,7 +252,7 @@ function planTalk(
   wrap: HTMLElement,
   metrics: Metrics,
   full: number,
-  loose: number,
+  page: { readonly loose: number; readonly tight: number },
   project: number,
 ): number | null {
   const style = document.documentElement.style;
@@ -259,7 +260,7 @@ function planTalk(
     ? talkPlan(
         metrics,
         full,
-        loose,
+        page,
         project,
         measureVar(wrap, "--project-w", 236),
       )
@@ -281,7 +282,7 @@ function planViewport(
   const room = projectRoom(wrap, metrics);
   if (room <= 0 && !talkOpen()) {
     setFlag("projectFloat", false);
-    planTalk(wrap, metrics, full, 0, 0);
+    planTalk(wrap, metrics, full, { loose: 0, tight: 0 }, 0);
     return { viewport: full, offered: null };
   }
   const wide = choose(available(metrics, full, prev));
@@ -290,11 +291,20 @@ function planViewport(
     metrics,
     previewMeasure(wide.active, metrics, full),
   );
+  const tight = wide.active.preview
+    ? pageWidth(wide.active, metrics, PREVIEW_MIN_MEASURE)
+    : loose;
   const plan =
-    room > 0 ? projectViewport(full, room, loose) : { viewport: full };
+    room > 0 ? projectViewport(full, room, tight) : { viewport: full };
   const docked = room > 0 && plan.viewport !== full;
   setFlag("projectFloat", room > 0 && !docked);
-  const talk = planTalk(wrap, metrics, full, loose, docked ? room : 0);
+  const talk = planTalk(
+    wrap,
+    metrics,
+    full,
+    { loose, tight },
+    docked ? room : 0,
+  );
   return { viewport: talk ?? plan.viewport, offered: wide.avail };
 }
 
