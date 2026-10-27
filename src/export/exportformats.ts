@@ -253,6 +253,7 @@ const KNOWN_EXT = new RegExp(
         "text",
         "md",
         "markdown",
+        "mdown",
         "tex",
         "ltx",
         "docx",

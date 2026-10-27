@@ -14,3 +14,8 @@ test("зөвхөн мэдэгдэх өргөтгөлийг хасна", () => {
   assert.equal(stripExt("тайлан 1.2.txt"), "тайлан 1.2");
   assert.equal(stripExt("баримт.docx"), "баримт");
 });
+
+test("mdown өргөтгөлийг мэдэгдэх өргөтгөлд тооцно", () => {
+  assert.equal(stripExt("notes.mdown"), "notes");
+  assert.equal(withExt("notes.mdown", "md"), "notes.mdown");
+});
