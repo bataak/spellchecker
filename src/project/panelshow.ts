@@ -1,5 +1,5 @@
 import { KEYS, read, remove, write } from "../core/store.ts";
-import { onSlotChange, talkCovers } from "../ui/talkslot.ts";
+import { onSlotChange, talkCovers, yieldTalk } from "../ui/talkslot.ts";
 
 const PEEK_MS = 5000;
 
@@ -115,6 +115,7 @@ export function createPanelShow(deps: ShowDeps): PanelShow {
     return true;
   };
   const reveal = (): void => {
+    if (talkCovers()) return yieldTalk(true);
     if (!panel.hidden) return;
     show(true);
     if (!floating()) return;

@@ -122,6 +122,7 @@ function bindTriggers(
   button.addEventListener("click", on.share);
   window.addEventListener("hashchange", on.hash);
   editor.addEventListener("paste", (event) => {
+    if (editor.readOnly || event.defaultPrevented) return;
     if (offerInvite(event.clipboardData?.getData("text") ?? ""))
       event.preventDefault();
   });

@@ -19,6 +19,7 @@ g.fetch = async (_url: string, init: { body: string }) => {
   return { status: 201 };
 };
 
+const suggested: string[] = [];
 const { initSuggest } = await import("../src/feedback/suggest.ts");
 const { getSubmitted } = await import("../src/feedback/submitted.ts");
 
@@ -33,7 +34,11 @@ initSuggest({
   ],
   isDashSuffix: () => false,
   checkKnown: async () => null,
-  suggest: async (word) => (word === "боловсролы" ? ["боловсролын"] : []),
+  suggest: async (word) => {
+    suggested.push(word);
+    if (word === "ажилтанаар") return ["ажилтнаар"];
+    return word === "боловсролы" ? ["боловсролын"] : [];
+  },
 });
 
 const chips = () =>
@@ -130,4 +135,25 @@ test("suggestForm: алдаатай байж магадгүй үгийг эхн�
     },
   ]);
   await wait(1500);
+});
+
+test("suggestForm: цонхыг хааж дахин нээхэд анхааруулга дахин гарч, шалгалтыг дахин тооцохгүй", async () => {
+  resetStorage();
+  posted.length = 0;
+  suggested.length = 0;
+  for (let round = 0; round < 2; round++) {
+    const overlay = await open();
+    overlay.querySelector<HTMLElement>(".suggest-clear-all")!.click();
+    const input = overlay.querySelector<HTMLInputElement>("#suggestWord")!;
+    input.value = "ажилтанаар";
+    overlay.querySelector<HTMLElement>(".suggest-send")!.click();
+    await wait(10);
+    assert.equal(posted.length, 0, String(round));
+    assert.match(
+      overlay.querySelector(".suggest-note")!.textContent!,
+      /«ажилтанаар» → «ажилтнаар»/,
+    );
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+  }
+  assert.deepEqual(suggested, ["ажилтанаар"]);
 });
