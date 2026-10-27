@@ -31,6 +31,7 @@ import {
   chooseLayout,
   describeLayout,
   projectViewport,
+  talkPlan,
   thumbSpans,
   PREVIEW_MIN_MEASURE,
   previewMeasure,
@@ -309,6 +310,39 @@ test("projectViewport: багтахгүй бол самбар хөвөөд бү�
   assert.deepEqual(projectViewport(1400, 300, 1200), {
     viewport: 1400,
     float: true,
+  });
+});
+
+test("talkPlan: зай байвал 358 хүртэл сунаж, багадаа 236 хүртэл агшиж багана болно", () => {
+  const edge = x.panelGap + x.gutterW;
+  assert.deepEqual(talkPlan(x, 2000, 1200, 0, 236), {
+    mode: "column",
+    width: x.panelW,
+    viewport: 2000 - x.panelW - edge,
+  });
+  const tight = talkPlan(x, 1500, 1200, 0, 236);
+  assert.equal(tight.mode, "column");
+  assert.equal(tight.width, 1500 - 1200 - edge);
+  assert.equal(tight.viewport, 1200);
+  assert.equal(talkPlan(x, 1400, 1200, 0, 236).mode, "float");
+});
+
+test("talkPlan: төслийн самбартай багтахгүй бол түүний байрыг эзэлж, бас багтахгүй бол хөвнө", () => {
+  const project = 236 + x.panelGap + x.gutterW;
+  const beside = talkPlan(x, 2200, 1200, project, 236);
+  assert.equal(beside.mode, "column");
+  assert.equal(beside.width, x.panelW);
+  const swap = talkPlan(x, 1500, 1200, project, 236);
+  assert.equal(swap.mode, "swap");
+  assert.equal(swap.width, 1500 - 1200 - x.panelGap - x.gutterW);
+  assert.equal(swap.viewport, 1200);
+  const roomy = talkPlan(x, 1700, 1200, project, 236);
+  assert.equal(roomy.mode, "swap");
+  assert.equal(roomy.width, x.panelW);
+  assert.deepEqual(talkPlan(x, 1300, 1200, 0, 236), {
+    mode: "float",
+    width: x.panelW,
+    viewport: 1300,
   });
 });
 
