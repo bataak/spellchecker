@@ -13,7 +13,7 @@ win.turnstile = {
   getResponse: () => "tok",
 };
 g.window = dom.window;
-const posted: unknown[] = [];
+const posted: { device: string }[] = [];
 g.fetch = async (_url: string, init: { body: string }) => {
   posted.push(JSON.parse(init.body));
   return { status: 201 };
@@ -86,10 +86,17 @@ test("suggestForm: хоосон бол илгээхгүй, үгтэй бол и�
   overlay.querySelector<HTMLElement>(".suggest-send")!.click();
   await wait(10);
   assert.deepEqual(posted, [
-    { words: ["сайхан"], note: "тайлбар", turnstileToken: "tok" },
+    {
+      words: ["сайхан"],
+      insisted: [],
+      note: "тайлбар",
+      turnstileToken: "tok",
+      device: posted[0]!.device,
+    },
   ]);
   assert.equal(note.textContent, "Илгээгдлээ, баярлалаа!");
   assert.deepEqual(chips(), []);
+  assert.match(posted[0]!.device, /^[0-9a-f-]{36}$/);
   assert.deepEqual([...getSubmitted()], ["сайхан"]);
   overlay.querySelector<HTMLElement>(".suggest-view-submitted")!.click();
   assert.match(overlay.querySelector("#suggestTitle")!.textContent!, /\(1\)/);
@@ -114,7 +121,13 @@ test("suggestForm: алдаатай байж магадгүй үгийг эхн�
   send.click();
   await wait(10);
   assert.deepEqual(posted, [
-    { words: ["боловсролы"], note: "", turnstileToken: "tok" },
+    {
+      words: ["боловсролы"],
+      insisted: ["боловсролы"],
+      note: "",
+      turnstileToken: "tok",
+      device: posted[0]!.device,
+    },
   ]);
   await wait(1500);
 });

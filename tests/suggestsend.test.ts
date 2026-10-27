@@ -1,6 +1,8 @@
+import { resetStorage } from "./helpers/mock-storage.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  deviceId,
   MAX_WORDS,
   postSuggestion,
   sendBlock,
@@ -27,7 +29,13 @@ test("postSuggestion JSON илгээж төлөвийг буцаана, сүлж
     seen.push(init!);
     return new Response(null, { status: 201 });
   }) as typeof fetch;
-  const payload = { words: ["үг"], note: "", turnstileToken: "t" };
+  const payload = {
+    words: ["үг"],
+    insisted: [],
+    note: "",
+    turnstileToken: "t",
+    device: "",
+  };
   assert.equal(await postSuggestion(payload, ok), 201);
   assert.equal(seen[0]!.method, "POST");
   assert.deepEqual(JSON.parse(String(seen[0]!.body)), payload);
@@ -35,4 +43,15 @@ test("postSuggestion JSON илгээж төлөвийг буцаана, сүлж
     throw new TypeError("offline");
   }) as typeof fetch;
   assert.equal(await postSuggestion(payload, down), null);
+});
+
+test("deviceId: нэг удаа үүсгэж хадгалаад, эвдэрсэн утгыг солино", () => {
+  resetStorage();
+  const first = deviceId();
+  assert.match(first, /^[0-9a-f-]{36}$/);
+  assert.equal(deviceId(), first);
+  localStorage.setItem("mn-spell:device-id", "эвдэрсэн");
+  const next = deviceId();
+  assert.match(next, /^[0-9a-f-]{36}$/);
+  assert.notEqual(next, first);
 });
