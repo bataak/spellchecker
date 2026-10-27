@@ -114,7 +114,6 @@ test("товч дарж урилга үүсгэхэд өрөө нээгдэж, �
 
   owner.button.click();
   dialogButton("Урилга өгөх").click();
-  dialogButton("Шинэ урилга үүсгэх").click();
   await until(() => !!document.querySelector(".collab-link"), "invite link");
   const url = element<HTMLInputElement>(".collab-link").value;
   dialogButton("Хаах").click();

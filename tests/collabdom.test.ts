@@ -516,7 +516,7 @@ test("урилга үүсгэх хүртэл сервер рүү хандахг�
   assert.equal(opened, 0);
   assert.equal(stop.hidden, true);
   assert.equal(dialog.querySelector(".collab-members"), null);
-  dialog.querySelector<HTMLButtonElement>(".collab-invite > .tbtn")!.click();
+  dialog.querySelector<HTMLButtonElement>(".collab-mode-row > .tbtn")!.click();
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.ok(opened >= 1);
   assert.equal(stop.hidden, false);
@@ -544,7 +544,7 @@ test("урилга үүсгэж чадаагүй ч өрөө нээгдсэн б
   });
   const dialog = document.querySelector<HTMLDialogElement>(".collab-overlay")!;
   const stop = dialog.querySelector<HTMLButtonElement>(".collab-stop")!;
-  dialog.querySelector<HTMLButtonElement>(".collab-invite > .tbtn")!.click();
+  dialog.querySelector<HTMLButtonElement>(".collab-mode-row > .tbtn")!.click();
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(stop.hidden, false);
   assert.equal(dialog.querySelectorAll(".collab-invite-row").length, 0);
