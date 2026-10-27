@@ -615,10 +615,18 @@ test("«Хамтрах» цонхонд урилгын холбоос оруул
   await guest.click("#collabBtn");
   await guest.getByText("Урилга авах", { exact: true }).click();
   await guest.fill(".collab-join-field", "энгийн бичвэр");
-  await guest.getByText("Авах", { exact: true }).click();
-  await guest.getByText("урилгын холбоос биш").waitFor();
-  await guest.fill(".collab-join-field", link);
   await guest.keyboard.press("Enter");
+  await guest.getByText("урилгын холбоос биш").waitFor();
+  await guest.fill(".collab-join-field", "");
+  await guest.evaluate((text) => {
+    const data = new DataTransfer();
+    data.setData("text/plain", text);
+    document
+      .querySelector(".collab-join-field")!
+      .dispatchEvent(
+        new ClipboardEvent("paste", { clipboardData: data, cancelable: true }),
+      );
+  }, link);
   await joinedText(guest, "Цонхоор нэгдэх бичвэр.");
   assert.deepEqual(errors(guest), []);
 });

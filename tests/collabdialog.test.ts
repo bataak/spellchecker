@@ -218,12 +218,19 @@ test("эхлээгүй үед «Урилга авах»-аар холбоос о
   assert.equal(list.hidden, true);
   assert.equal(dialog.querySelector(".suggest-hint")!.textContent, hint);
   const field = dialog.querySelector<HTMLInputElement>(".collab-join input")!;
-  field.value = "буруу";
-  button(dialog, "Авах").click();
+  assert.equal([...dialog.querySelectorAll(".collab-join button")].length, 0);
+  const paste = (text: string): void => {
+    const event = new window.Event("paste", { cancelable: true });
+    Object.defineProperty(event, "clipboardData", {
+      value: { getData: () => text },
+    });
+    field.dispatchEvent(event);
+  };
+  paste("буруу");
+  assert.equal(field.value, "буруу");
   assert.match(note(dialog), /урилгын холбоос биш/);
   assert.equal(dialog.open, true);
-  field.value = "https://aldaa.bichig.dev/#j=x";
-  field.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+  paste("  https://aldaa.bichig.dev/#j=x\n");
   assert.deepEqual(joined, ["буруу", "https://aldaa.bichig.dev/#j=x"]);
   assert.equal(document.querySelector(".collab-overlay"), null);
 });
