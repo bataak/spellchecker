@@ -60,7 +60,9 @@ function sizeOk(
   return true;
 }
 
-export function initFileOpen(d: FileOpenDeps): void {
+export type OpenEntries = (entries: readonly Entry[]) => Promise<void>;
+
+export function initFileOpen(d: FileOpenDeps): OpenEntries {
   const { current, editor, buttons } = d;
   const opened = (label: string): void => flash(buttons.open, label);
 
@@ -147,11 +149,12 @@ export function initFileOpen(d: FileOpenDeps): void {
     openFiles: openAll,
     openDir: d.project.openDir,
   });
+  return openAll;
 }
 
 function bindPicker(
   { pick: pickBtn, input: openFileEl }: FileButtons,
-  openAll: (entries: readonly Entry[]) => Promise<void>,
+  openAll: OpenEntries,
   opened: (label: string) => void,
 ) {
   if (!pickBtn || !openFileEl) return;

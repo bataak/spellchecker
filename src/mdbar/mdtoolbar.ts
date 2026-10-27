@@ -50,6 +50,7 @@ export interface MdToolbar {
   refresh: () => void;
   template: () => string;
   slot: () => string;
+  choose: (id: string, example?: string) => void;
   draft: (key: string) => Promise<string | null>;
   caret: (key: string) => Caret | null;
   writeDraft: (key: string, text: string) => void;
@@ -224,7 +225,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       chooseTemplate(slot, example);
       editor.focus();
     },
-    close: (id) => closeFile(id),
+    close: (id) => files.closeFile(id),
   });
   const rebuildMenu = labels.rebuild;
   const group = bar.querySelector<HTMLElement>(".md-group")!;
@@ -275,11 +276,10 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     slots,
     templateId: () => state.id,
     lastTemplate: () => state.last,
-    choose: (id) => chooseTemplate(id),
+    choose: chooseTemplate,
     rebuild: rebuildMenu,
     onCloseFile: options.onCloseFile,
   });
-  const closeFile = files.closeFile;
 
   visibility.hold();
 
@@ -291,6 +291,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     refresh: syncVisible,
     template: () => state.id,
     slot: () => pickerValue(state.id),
+    choose: chooseTemplate,
     draft: store.read,
     caret: loadCaret,
     ...draftWriters(drafts, store),
@@ -298,7 +299,7 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
       store.drop(pickerValue(state.id));
       dropLegacy(state, store);
       visibility.hold();
-      if (close && isFileSlot(state.id)) closeFile(state.id, true);
+      if (close && isFileSlot(state.id)) files.closeFile(state.id, true);
     },
     ...files,
     setProject: labels.setProject,

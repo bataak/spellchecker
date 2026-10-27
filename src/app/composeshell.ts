@@ -5,6 +5,7 @@ import { createCollabWiring } from "./collabwiring.ts";
 import { watchTabs } from "./tabwatch.ts";
 import { startApp } from "./startup.ts";
 import { fileSlot, slotKey } from "../collab/roomslot.ts";
+import { PROJECT_SLOT } from "../slots/fileslots.ts";
 import { clearedComments } from "../collab/commentbus.ts";
 import { keepLayoutOnReload } from "../ui/layoutsnapshot.ts";
 
@@ -88,6 +89,12 @@ export function composeShell(app: Scope<ShellReads, ShellGives>): void {
       const ok = app.collab.clearShared(fileSlot(slot));
       if (typeof ok === "boolean") return ok;
       return ok.then((sure) => sure && mdBar.slot() === slot);
+    },
+    closeProject: () => {
+      if (!projectLink.bound() && mdBar.template() !== PROJECT_SLOT)
+        return false;
+      projectLink.close();
+      return true;
     },
     afterClear: (cleared) => {
       mdBar.reset(cleared);
