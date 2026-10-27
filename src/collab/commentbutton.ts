@@ -67,7 +67,8 @@ export function initCommentButton(deps: CommentButtonDeps): void {
   const update = (): void => {
     frame = 0;
     const target = deps.target();
-    if (dragging || document.activeElement !== editor || !target) return hide();
+    if (dragging || "pick" in editor.dataset) return hide();
+    if (document.activeElement !== editor || !target) return hide();
     if (!selectionDraft(editor, target)) return hide();
     placeAt(editor.selectionStart, editor.selectionEnd);
   };
