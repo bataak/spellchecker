@@ -10,6 +10,7 @@ export interface DialogDeps {
   readonly owner: boolean;
   readonly session: () => Promise<Session>;
   readonly started: boolean;
+  readonly join?: ((text: string) => boolean) | null;
   readonly inviteUrl: (invite: Invite) => string;
   readonly inviteName?: string | null;
   readonly name: string;
@@ -94,6 +95,35 @@ function inviteBox(
   return box;
 }
 
+function joinBox(
+  join: (text: string) => boolean,
+  note: HTMLElement,
+  done: () => void,
+): HTMLElement {
+  const box = element("div", "collab-join");
+  const label = element("label", "collab-name", "Урилга авсан бол");
+  const row = element("div", "collab-invite-row");
+  const field = element("input", "collab-join-field");
+  field.placeholder = "Урилгын холбоосыг энд буулгана уу";
+  const go = actionButton("Нэгдэх");
+  const submit = (): void => {
+    if (!field.value.trim()) return field.focus();
+    if (!join(field.value))
+      return say(note, "err", "Энэ нь хамтран засах урилгын холбоос биш байна");
+    done();
+  };
+  go.addEventListener("click", submit);
+  field.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    submit();
+  });
+  row.append(field, go);
+  label.appendChild(row);
+  box.appendChild(label);
+  return box;
+}
+
 function endChoice(
   deps: DialogDeps,
   note: HTMLElement,
@@ -175,6 +205,8 @@ export function openDialog(deps: DialogDeps): void {
     card.insertBefore(members, note);
   };
   if (deps.owner) card.append(inviteBox(deps, note, showMembers));
+  if (deps.join && !deps.started)
+    card.append(joinBox(deps.join, note, () => dialog.close()));
   card.append(nameField(deps));
   const toggle = (ending: boolean): void => {
     choice.hidden = !ending;

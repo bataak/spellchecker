@@ -7,6 +7,7 @@ import { join } from "node:path";
 import {
   editor,
   errors,
+  FIREFOX,
   openFile,
   openPage,
   startApp,
@@ -556,4 +557,67 @@ test("төслийн самбар ба шүүмжийн цонх сүүлд да
   assert.equal(await box(page, ".project-panel"), null);
   assert.ok(await box(page, ".talk-window"));
   assert.deepEqual(errors(page), []);
+});
+
+async function joinedText(guest: Page, text: string): Promise<void> {
+  await until(
+    () => editor(guest),
+    (value) => value.includes(text),
+    20000,
+  );
+  assert.equal((await editor(guest)).includes("#j="), false);
+}
+
+test("урилгын холбоосыг бичвэрт буулгахад асууж, хамтын бичвэрт нэгдэнэ", async () => {
+  const owner = await openPage(app, await app.context());
+  await typeAtEnd(owner, "Буулгаж нэгдэх бичвэр.");
+  const link = await invite(owner);
+  const guest = await openPage(app, await app.context());
+  await guest.click("#editor");
+  const paste = (answer: boolean) =>
+    guest.evaluate(
+      ([text, yes]) => {
+        window.confirm = () => yes;
+        const data = new DataTransfer();
+        data.setData("text/plain", text);
+        return document.querySelector("#editor")!.dispatchEvent(
+          new ClipboardEvent("paste", {
+            clipboardData: data,
+            cancelable: true,
+          }),
+        );
+      },
+      [link, answer] as const,
+    );
+  assert.equal(await paste(false), true);
+  assert.equal(await paste(true), false);
+  await joinedText(guest, "Буулгаж нэгдэх бичвэр.");
+  assert.deepEqual(errors(guest), []);
+});
+
+test("«Буулгах» товчоор урилгын холбоосыг буулгахад нэгдэнэ", async (t) => {
+  if (FIREFOX) return t.skip("clipboard зөвшөөрөл зөвхөн Chromium-д");
+  const owner = await openPage(app, await app.context());
+  await typeAtEnd(owner, "Товчоор нэгдэх бичвэр.");
+  const link = await invite(owner);
+  const guest = await openPage(app, await app.context({ clipboard: true }));
+  await guest.evaluate((text) => navigator.clipboard.writeText(text), link);
+  await guest.click("#pasteBtn");
+  await joinedText(guest, "Товчоор нэгдэх бичвэр.");
+  assert.deepEqual(errors(guest), []);
+});
+
+test("«Хамтрах» цонхонд урилгын холбоос оруулж нэгдэнэ", async () => {
+  const owner = await openPage(app, await app.context());
+  await typeAtEnd(owner, "Цонхоор нэгдэх бичвэр.");
+  const link = await invite(owner);
+  const guest = await openPage(app, await app.context());
+  await guest.click("#collabBtn");
+  await guest.fill(".collab-join-field", "энгийн бичвэр");
+  await guest.getByText("Нэгдэх", { exact: true }).click();
+  await guest.getByText("урилгын холбоос биш").waitFor();
+  await guest.fill(".collab-join-field", link);
+  await guest.keyboard.press("Enter");
+  await joinedText(guest, "Цонхоор нэгдэх бичвэр.");
+  assert.deepEqual(errors(guest), []);
 });

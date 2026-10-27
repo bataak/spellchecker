@@ -28,6 +28,7 @@ export interface ChromeWiringDeps {
   readonly forgetFile: () => void;
   readonly afterClear: (cleared: boolean) => void;
   readonly confirmClear?: () => boolean | Promise<boolean>;
+  readonly invite: (text: string) => boolean;
   readonly closeProject?: () => boolean;
   readonly openDictMenu: () => void;
 }
@@ -56,6 +57,7 @@ export function bindAppChrome(deps: ChromeWiringDeps): void {
     hasOpenFile: deps.hasOpenFile,
     badTokens: () => deps.marks.tokens(),
     lettersFixed: deps.fixers.announceLetters,
+    invite: deps.invite,
   });
   initKeyboardToolbar(editor, backdropEl);
 }

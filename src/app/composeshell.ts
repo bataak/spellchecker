@@ -74,6 +74,7 @@ export function composeShell(app: Scope<ShellReads, ShellGives>): void {
     fixers: app.fixers,
     lastCaret: app.lastCaret,
     hasOpenFile: () => doc.fileName() !== null,
+    invite: (text) => app.collab.invite(text),
     forgetFile: () => {
       app.previewMode.cleared();
       projectLink.cleared();
