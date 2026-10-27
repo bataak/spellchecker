@@ -1,3 +1,4 @@
+import { pathRecord } from "../core/pathrecord.ts";
 import { noteError } from "../core/errorlog.ts";
 import {
   dirName,
@@ -188,7 +189,7 @@ export async function buildProject(
     search: [...s.texts.values()].flatMap(graphicsPaths),
     macros: pathMacros(s.texts.values()),
     missing: [],
-    files: {},
+    files: pathRecord(),
     dirs: new Set(parentDirs(main)),
   };
   const graphic = await collectGraphics(b);

@@ -1,3 +1,4 @@
+import { ownValue, pathRecord } from "../core/pathrecord.ts";
 import { dbGet, dbPut } from "./projectdb.ts";
 import {
   editsOf,
@@ -31,13 +32,14 @@ async function mergedEdits(s: State): Promise<Record<string, string>> {
     s.persisted = mine;
     return mine;
   }
-  const out = { ...(await storedEdits()) };
+  const out = pathRecord(await storedEdits());
   for (const path of new Set([
     ...Object.keys(mine),
     ...Object.keys(s.persisted),
   ])) {
-    if (mine[path] === s.persisted[path]) continue;
-    if (path in mine) out[path] = mine[path]!;
+    const next = ownValue(mine, path);
+    if (next === ownValue(s.persisted, path)) continue;
+    if (next !== undefined) out[path] = next;
     else delete out[path];
   }
   s.persisted = mine;

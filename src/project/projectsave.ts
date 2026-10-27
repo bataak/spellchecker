@@ -1,3 +1,4 @@
+import { pathRecord } from "../core/pathrecord.ts";
 import { noteError } from "../core/errorlog.ts";
 import { fflate } from "../archive/fflate.ts";
 import { downloadBlob } from "../files/download.ts";
@@ -64,7 +65,7 @@ export async function downloadChanged(s: State): Promise<boolean> {
 export async function zipOf(s: State): Promise<Blob> {
   const { zipSync } = await fflate();
   const encoder = new TextEncoder();
-  const entries: Record<string, Uint8Array> = {};
+  const entries = pathRecord<Uint8Array>();
   for (const [path, text] of s.texts)
     entries[path] = encoder.encode(diskText(s, path, text));
   for (const [path, bytes] of s.binaries) entries[path] = bytes;

@@ -514,3 +514,38 @@ test("commitChanges: татах явцад бичсэн засварыг нэг�
   assert.equal(repo.text("a.tex"), "А1 хожуу\nА2\nА3 бусдын");
   assert.equal(repo.text("b.tex"), "Б миний хожуу");
 });
+
+test("commitChanges: constructor, __proto__ нэртэй файлыг шинэ файл гэж зөв илгээнэ", async () => {
+  const repo = await FakeRepo.create({ "main.tex": MAIN });
+  const { s, remote } = await open(repo);
+  putFile(s, "constructor", encode("К"));
+  putFile(s, "__proto__", encode("П"));
+  const host = githubHost(repo);
+  const sent: { path: string; exists: boolean }[] = [];
+  const spy: GitHost = {
+    ...host,
+    commit: (input) => {
+      sent.push(...input.writes.map(({ path, exists }) => ({ path, exists })));
+      return host.commit(input);
+    },
+  };
+  const done = await commitChanges(spy, workingCopy(s), remote, "Шинэ");
+  assert.ok(done);
+  assert.deepEqual(
+    sent.sort((a, b) => a.path.localeCompare(b.path)),
+    [
+      { path: "__proto__", exists: false },
+      { path: "constructor", exists: false },
+    ],
+  );
+  assert.equal(repo.text("__proto__"), "П");
+  assert.deepEqual(Object.keys(done.remote.files).sort(), [
+    "__proto__",
+    "constructor",
+    "main.tex",
+  ]);
+  assert.equal(
+    await commitChanges(spy, workingCopy(s), done.remote, "дахин"),
+    null,
+  );
+});
