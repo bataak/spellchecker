@@ -1,6 +1,12 @@
 import { requireEl } from "../ui/dom.ts";
 import { getSubmitted, addSubmitted } from "./submitted.ts";
-import { postSuggestion, SENT, sendBlock, sendFailure } from "./suggestsend.ts";
+import {
+  deviceId,
+  postSuggestion,
+  SENT,
+  sendBlock,
+  sendFailure,
+} from "./suggestsend.ts";
 import type { Token } from "../spell/textcheck.ts";
 import { createTurnstileWidget, loadTurnstile } from "./turnstile.ts";
 import {
@@ -213,16 +219,24 @@ function bindOpenLinks(open: () => Promise<void>): void {
   });
 }
 
-function createTypoGate(
+interface Preflight {
+  readonly blocked: string | null;
+  readonly insisted: string[];
+}
+
+function createPreflight(
   suggest: SuggestDeps["suggest"],
-): (words: readonly string[]) => Promise<string | null> {
+): (words: readonly string[], token: string) => Promise<Preflight> {
   let confirmed = "";
-  return async (words) => {
+  return async (words, token) => {
+    const blocked = sendBlock(words.length, navigator.onLine, token);
+    if (blocked) return { blocked, insisted: [] };
     const typos = await findTypos(words, suggest);
     const key = words.join("\n");
-    if (!typos.length || confirmed === key) return null;
+    const insisted = typos.map((typo) => typo.word);
+    if (!typos.length || confirmed === key) return { blocked: null, insisted };
     confirmed = key;
-    return typoNote(typos);
+    return { blocked: typoNote(typos), insisted: [] };
   };
 }
 
@@ -233,7 +247,7 @@ export function initSuggest(deps: SuggestDeps): void {
   let busy = false;
   let showingSubmitted = false;
   let session = 0;
-  const typoWarning = createTypoGate(deps.suggest);
+  const preflight = createPreflight(deps.suggest);
 
   function note(msg: string, kind?: string): void {
     form!.noteEl.textContent = msg;
@@ -297,9 +311,7 @@ export function initSuggest(deps: SuggestDeps): void {
     const { noteInput, sendBtn } = form!;
     const token = turnstile.token();
     const words = list!.words();
-    const blocked =
-      sendBlock(words.length, navigator.onLine, token) ??
-      (await typoWarning(words));
+    const { blocked, insisted } = await preflight(words, token);
     if (current !== session) return;
     busy = false;
     if (blocked) {
@@ -312,8 +324,10 @@ export function initSuggest(deps: SuggestDeps): void {
     note("Илгээж байна…");
     const status = await postSuggestion({
       words: [...words],
+      insisted,
       note: noteInput.value.trim(),
       turnstileToken: token,
+      device: deviceId(),
     });
     if (status === 201) {
       addSubmitted([...words]);
