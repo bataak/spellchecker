@@ -2,6 +2,7 @@ import { KEYS, readJson, writeJson } from "../core/store.ts";
 import { createEmitter, type Emitter } from "../core/emitter.ts";
 import { onSwap, swapOrigin, type SwapOrigin } from "../editor/editortext.ts";
 import { parseLink, parseShort, type InviteLink } from "./collabkey.ts";
+import { offerInvite } from "./invitepaste.ts";
 import { resolveShort } from "./shortlink.ts";
 import {
   isOwner,
@@ -85,6 +86,7 @@ const DISABLED: Collab = {
   talk: () => null,
   onTalk: () => {},
   locked: () => false,
+  invite: () => false,
 };
 
 function talkOf(
@@ -119,6 +121,10 @@ function bindTriggers(
   });
   button.addEventListener("click", on.share);
   window.addEventListener("hashchange", on.hash);
+  editor.addEventListener("paste", (event) => {
+    if (offerInvite(event.clipboardData?.getData("text") ?? ""))
+      event.preventDefault();
+  });
 }
 
 function inProjectRoom(
@@ -342,5 +348,6 @@ export function initCollab(deps: CollabDeps): Collab {
     talk: (kind) => talkOf(kind, rooms, deps, registry),
     onTalk: (listener) => void talks.on(listener),
     locked: paintRoom.frozen,
+    invite: offerInvite,
   };
 }

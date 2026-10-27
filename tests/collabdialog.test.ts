@@ -194,3 +194,32 @@ test("уригдсан хүн баталгаажуулаад хамтын зас
   assert.equal(stopped, 1);
   assert.equal(document.querySelector(".collab-overlay"), null);
 });
+
+test("эхлээгүй үед урилгын холбоосоор нэгдэх талбар гарна", () => {
+  const joined: string[] = [];
+  const dialog = open({
+    started: false,
+    join: (text) => {
+      joined.push(text);
+      return text.startsWith("https://");
+    },
+  });
+  const field = dialog.querySelector<HTMLInputElement>(".collab-join input")!;
+  field.value = "буруу";
+  button(dialog, "Нэгдэх").click();
+  assert.match(note(dialog), /урилгын холбоос биш/);
+  assert.equal(dialog.open, true);
+  field.value = "https://aldaa.bichig.dev/#j=x";
+  field.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+  assert.deepEqual(joined, ["буруу", "https://aldaa.bichig.dev/#j=x"]);
+  assert.equal(document.querySelector(".collab-overlay"), null);
+});
+
+test("эхэлсэн эсвэл нэгдэх боломжгүй үед нэгдэх талбар гарахгүй", () => {
+  const started = open({ join: () => true });
+  assert.equal(started.querySelector(".collab-join"), null);
+  started.close();
+  const plain = open({ started: false });
+  assert.equal(plain.querySelector(".collab-join"), null);
+  plain.close();
+});
