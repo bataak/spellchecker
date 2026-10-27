@@ -26,9 +26,13 @@ test("GitHub-ын blob, raw, gist холбоосыг raw ба API хаяг бо�
     blob.open,
     "https://raw.githubusercontent.com/user/repo/main/docs/%D0%B0.md",
   );
-  assert.equal(
-    blob.api,
+  assert.deepEqual(blob.apis, [
     "https://api.github.com/repos/user/repo/contents/docs/%D0%B0.md?ref=main",
+    "https://api.github.com/repos/user/repo/contents/%D0%B0.md?ref=main%2Fdocs",
+  ]);
+  assert.equal(
+    blob.shown,
+    "https://github.com/user/repo/blob/main/docs/а.md?plain=1#L3",
   );
   const raw = source(
     "https://raw.githubusercontent.com/user/repo/refs/heads/dev/a.tex",
@@ -37,15 +41,14 @@ test("GitHub-ын blob, raw, gist холбоосыг raw ба API хаяг бо�
     raw.open,
     "https://raw.githubusercontent.com/user/repo/refs/heads/dev/a.tex",
   );
-  assert.equal(
-    raw.api,
+  assert.deepEqual(raw.apis, [
     "https://api.github.com/repos/user/repo/contents/a.tex?ref=refs%2Fheads%2Fdev",
-  );
+  ]);
   const gist = source(
     "https://gist.githubusercontent.com/u/abc/raw/1f/note.txt",
   );
   assert.equal(gist.provider, null);
-  assert.equal(gist.api, null);
+  assert.deepEqual(gist.apis, []);
   assert.equal(
     gist.open,
     "https://gist.githubusercontent.com/u/abc/raw/1f/note.txt",
@@ -59,11 +62,36 @@ test("GitLab-ын blob, raw холбоосыг API хаяг болгоно", () 
     );
     assert.equal(file.provider, "gitlab");
     assert.equal(file.open, null);
-    assert.equal(
-      file.api,
+    assert.deepEqual(file.apis, [
       "https://gitlab.com/api/v4/projects/group%2Fsub%2Fproj/repository/files/dir%2Fa.ltx/raw?ref=main",
-    );
+      "https://gitlab.com/api/v4/projects/group%2Fsub%2Fproj/repository/files/a.ltx/raw?ref=main%2Fdir",
+    ]);
   }
+});
+
+test("салбарын нэрэнд / байвал боломжит хуваалтыг дарааллаар оролдоно", async () => {
+  const slash = source("https://github.com/me/r/blob/feature/new/docs/a.md");
+  assert.equal(
+    slash.open,
+    "https://raw.githubusercontent.com/me/r/feature/new/docs/a.md",
+  );
+  assert.equal(slash.apis.length, 3);
+  const net = fake((url) =>
+    url.includes("ref=feature%2Fnew") ? reply("салбар") : reply("", 404),
+  );
+  writeJson(KEYS.gitTokens, {});
+  const h = harness([true], net.fetcher);
+  assert.equal(
+    await openRemote(
+      "https://gitlab.com/me/r/-/blob/feature/new/docs/a.md",
+      h.deps,
+    ),
+    true,
+  );
+  assert.deepEqual(h.opened, [["a.md", "салбар"]]);
+  assert.equal(net.calls.length, 2);
+  const bidi = source("https://github.com/me/r/blob/main/%E2%80%AEdm.txt");
+  assert.equal(bidi.shown, "https://github.com/me/r/blob/main/dm.txt");
 });
 
 test("хавтас, бусад хост, төрөл, хуурамч хаягийг татгалзана", () => {
