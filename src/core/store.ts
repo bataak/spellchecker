@@ -51,8 +51,6 @@ export const KEYS = {
   hintSeen: shared("hintSeen:"),
   tipInfo: shared("mn-spell:tip-info"),
   tipAction: shared("mn-spell:tip-action"),
-  surveyDone: shared("mn-spell:survey-done:"),
-  useDays: shared("mn-spell:use-days"),
   texMeta: shared("tex-packages:meta"),
   texOffline: shared("tex-offline:"),
   texRecent: shared("tex-recent"),

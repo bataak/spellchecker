@@ -1,7 +1,6 @@
 import type { Scope } from "./appparts.ts";
 import { createEmptyTips } from "../ui/emptytips.ts";
 import { createEmptyState } from "./emptystate.ts";
-import { initSurvey } from "../feedback/survey.ts";
 import { createCheckLoop } from "./checkloop.ts";
 import { createPopovers } from "./popovers.ts";
 import { createEditorWiring } from "./editorwiring.ts";
@@ -35,7 +34,6 @@ export function composeChecks(app: Scope<ChecksReads, ChecksGives>): void {
     textChanged: () => app.previewMode.textChanged(),
     cleared: () => app.defTip.clear(),
   });
-  const survey = initSurvey(els.editor);
   const loop = createCheckLoop({
     editor: els.editor,
     spell: app.spell,
@@ -51,11 +49,10 @@ export function composeChecks(app: Scope<ChecksReads, ChecksGives>): void {
       view.syncScroll();
       app.errorPanel.clear(text.trim() !== "");
     },
-    painted: (text, bad) => {
+    painted: () => {
       view.syncScroll();
       view.captureTop();
       app.errorPanel.render();
-      survey.onErrorCount(bad.length, text.trim() !== "");
     },
     setText: (text, caret) => app.editorText.set(text, caret),
     hidePopover: () => app.pop.hide(),
