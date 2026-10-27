@@ -431,34 +431,48 @@ async function joinedText(guest: Page, text: string): Promise<void> {
   assert.equal((await editor(guest)).includes("#j="), false);
 }
 
-test("урилгын холбоосыг бичвэрт буулгахад асууж, хамтын бичвэрт нэгдэнэ", async () => {
+test("урилгын холбоосыг бичвэрт буулгахад асууж, «Үгүй» бол бичвэрт, «Тэгье» бол нэгдэнэ", async () => {
   const owner = await openPage(app, await app.context());
   await typeAtEnd(owner, "Буулгаж нэгдэх бичвэр.");
   const link = await invite(owner);
   const guest = await openPage(app, await app.context());
   await guest.click("#editor");
-  const paste = (answer: boolean) =>
-    guest.evaluate(
-      ([text, yes]) => {
-        window.confirm = () => yes;
-        const data = new DataTransfer();
-        data.setData("text/plain", text);
-        return document.querySelector("#editor")!.dispatchEvent(
-          new ClipboardEvent("paste", {
-            clipboardData: data,
-            cancelable: true,
-          }),
-        );
-      },
-      [link, answer] as const,
-    );
-  assert.equal(await paste(false), true);
-  assert.equal(await paste(true), false);
+  const paste = () =>
+    guest.evaluate((text) => {
+      const data = new DataTransfer();
+      data.setData("text/plain", text);
+      return document.querySelector("#editor")!.dispatchEvent(
+        new ClipboardEvent("paste", {
+          clipboardData: data,
+          cancelable: true,
+        }),
+      );
+    }, link);
+  const ask = guest.getByText("Бичвэр хамтран засах урилгыг хүлээн авах уу?");
+  assert.equal(await paste(), false);
+  await ask.waitFor();
+  await guest.getByRole("button", { name: "Үгүй", exact: true }).click();
+  await until(
+    () => editor(guest),
+    (value) => value.includes(link),
+  );
+  assert.equal(await paste(), false);
+  await ask.waitFor();
+  await guest.keyboard.press("Escape");
+  await ask.waitFor({ state: "detached" });
+  assert.equal((await editor(guest)).split(link).length, 3);
+  await guest.evaluate(() => {
+    const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
+    area.value = "";
+    area.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  assert.equal(await paste(), false);
+  await guest.getByRole("button", { name: "Тэгье", exact: true }).click();
   await joinedText(guest, "Буулгаж нэгдэх бичвэр.");
   assert.deepEqual(errors(guest), []);
 });
 
-test("«Буулгах» товчоор урилгын холбоосыг буулгахад нэгдэнэ", async (t) => {
+test("«Буулгах» товчоор урилгын холбоосыг буулгахад асууж нэгдэнэ", async (t) => {
   if (FIREFOX) return t.skip("clipboard зөвшөөрөл зөвхөн Chromium-д");
   const owner = await openPage(app, await app.context());
   await typeAtEnd(owner, "Товчоор нэгдэх бичвэр.");
@@ -466,6 +480,7 @@ test("«Буулгах» товчоор урилгын холбоосыг буу
   const guest = await openPage(app, await app.context({ clipboard: true }));
   await guest.evaluate((text) => navigator.clipboard.writeText(text), link);
   await guest.click("#pasteBtn");
+  await guest.getByRole("button", { name: "Тэгье", exact: true }).click();
   await joinedText(guest, "Товчоор нэгдэх бичвэр.");
   assert.deepEqual(errors(guest), []);
 });
