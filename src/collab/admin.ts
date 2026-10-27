@@ -2,6 +2,7 @@ import { createEmitter } from "../core/emitter.ts";
 import {
   fromBase64Url,
   newToken,
+  type Invite,
   seal,
   toBase64Url,
   unseal,
@@ -17,7 +18,7 @@ export interface Member {
 }
 
 export interface Admin {
-  invite(): Promise<string | null>;
+  invite(name?: string | null): Promise<Invite | null>;
   members(): Promise<Member[] | null>;
   remove(dev: string, wipe: boolean): Promise<Member[] | null>;
   end(wipe: boolean): Promise<boolean>;
@@ -74,7 +75,7 @@ export function decodeRoster(
 }
 
 export function createAdmin(key: CryptoKey, command: Command): Admin {
-  const invites = new Map<string, (ok: boolean) => void>();
+  const invites = new Map<string, (code: string | null) => void>();
   const rosters = createEmitter<RosterEntry[] | null>();
   const endings = createEmitter<boolean>();
 
@@ -88,14 +89,16 @@ export function createAdmin(key: CryptoKey, command: Command): Admin {
   };
 
   return {
-    async invite() {
+    async invite(name) {
       const token = newToken();
-      if (!command({ t: "invite", i: token })) return null;
-      const ok = await reply<boolean>((done) => {
-        invites.set(token, done);
+      const n = name
+        ? toBase64Url(await seal(key, encoder.encode(name)))
+        : undefined;
+      if (!command({ t: "invite", i: token, ...(n && { n }) })) return null;
+      return reply<Invite | null>((done) => {
+        invites.set(token, (code) => done({ token, code }));
         return () => invites.delete(token);
-      }, false);
-      return ok ? token : null;
+      }, null);
     },
     members: () => roster({ t: "members" }),
     remove: (dev, wipe) => roster({ t: "remove", dev, wipe }),
@@ -110,7 +113,7 @@ export function createAdmin(key: CryptoKey, command: Command): Admin {
     },
     receive(event) {
       if (event.t === "invited") {
-        invites.get(event.i)?.(true);
+        invites.get(event.i)?.(event.c ?? null);
         return true;
       }
       if (event.t === "ended") {
