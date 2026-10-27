@@ -10,7 +10,7 @@ import {
   initSuggestPopover,
   type SuggestPopover,
 } from "../spellui/suggestpopover.ts";
-import { requireEl } from "./dom.ts";
+import { requireEl } from "../ui/dom.ts";
 import type { Caret } from "./editorinput.ts";
 
 export interface PopoversDeps {
