@@ -298,8 +298,23 @@ export class Room extends DurableObject {
     };
   }
 
+  roomId() {
+    return this.meta("room");
+  }
+
+  links() {
+    return this.env.LINKS?.get(this.env.LINKS.idFromName("links")) ?? null;
+  }
+
   async fetch(request) {
-    const params = new URL(request.url).searchParams;
+    const url = new URL(request.url);
+    const params = url.searchParams;
+    const name = url.pathname.split("/")[2];
+    if (name && !this.roomId())
+      this.ctx.storage.sql.exec(
+        "INSERT OR IGNORE INTO meta (k, v) VALUES ('room', ?)",
+        name,
+      );
     const dev = params.get("d") ?? "";
     const id = params.get("p") ?? "";
     if (!CLIENT_ID.test(dev) || !CLIENT_ID.test(id))
@@ -378,7 +393,7 @@ export class Room extends DurableObject {
     if (input?.t === "leave") return this.quit(ws, meta);
     if (input?.t === "snap") return this.expect(ws, meta, input.n);
     if (!meta.owner) return;
-    if (input?.t === "invite") return this.invite(ws, input.i);
+    if (input?.t === "invite") return this.invite(ws, input.i, input.n);
     if (input?.t === "members") return this.send(ws, this.roster());
     if (input?.t === "remove")
       return this.remove(ws, input.dev, input.wipe === true);
@@ -401,7 +416,7 @@ export class Room extends DurableObject {
     this.leave(ws);
   }
 
-  async invite(ws, token) {
+  async invite(ws, token, name) {
     if (typeof token !== "string" || !TOKEN.test(token)) return;
     const hash = await digest(token);
     const sql = this.ctx.storage.sql;
@@ -414,7 +429,16 @@ export class Room extends DurableObject {
       "DELETE FROM invites WHERE dev IS NULL AND h NOT IN (SELECT h FROM invites WHERE dev IS NULL ORDER BY at DESC LIMIT ?)",
       MAX_INVITES,
     );
-    this.send(ws, { t: "invited", i: token });
+    const links = this.links();
+    const room = this.roomId();
+    const code =
+      links && room
+        ? await links.put(room, token, typeof name === "string" ? name : "")
+        : null;
+    this.send(
+      ws,
+      code ? { t: "invited", i: token, c: code } : { t: "invited", i: token },
+    );
   }
 
   roster() {
@@ -460,6 +484,7 @@ export class Room extends DurableObject {
       "INSERT OR REPLACE INTO meta (k, v) VALUES ('closed', ?)",
       String(wipe ? WIPED : ENDED),
     );
+    this.dropLinks();
     this.send(ws, { t: "ended" });
     for (const peer of this.peers()) {
       if (peer.ws !== ws) this.evict(peer.ws, wipe ? WIPED : ENDED);
@@ -618,11 +643,18 @@ export class Room extends DurableObject {
       if (peer.ws !== ws) this.send(peer.ws, { t: "bye", id: meta.id });
   }
 
+  dropLinks() {
+    const links = this.links();
+    const room = this.roomId();
+    if (links && room) this.ctx.waitUntil(links.dropRoom(room));
+  }
+
   async alarm() {
     if (this.peers().length) {
       await this.touch();
       return;
     }
+    this.dropLinks();
     const sql = this.ctx.storage.sql;
     for (const table of [
       "snap",
@@ -666,11 +698,87 @@ export class Quota extends DurableObject {
   }
 }
 
+const CODE = /^[A-Za-z0-9_-]{8}$/;
+const LINK_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+const MAX_NAME = 600;
+
+function newCode() {
+  const bytes = crypto.getRandomValues(new Uint8Array(6));
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+}
+
+export class Links extends DurableObject {
+  constructor(ctx, env) {
+    super(ctx, env);
+    ctx.storage.sql.exec(
+      "CREATE TABLE IF NOT EXISTS codes (code TEXT PRIMARY KEY, room TEXT NOT NULL, invite TEXT NOT NULL, name TEXT NOT NULL DEFAULT '', at INTEGER NOT NULL)",
+    );
+  }
+
+  put(room, invite, name) {
+    const sql = this.ctx.storage.sql;
+    const now = Date.now();
+    sql.exec("DELETE FROM codes WHERE at < ?", now - LINK_TTL_MS);
+    const label =
+      typeof name === "string" && name.length <= MAX_NAME ? name : "";
+    for (let tries = 0; tries < 4; tries++) {
+      const code = newCode();
+      if (first(sql.exec("SELECT 1 AS x FROM codes WHERE code = ?", code)))
+        continue;
+      sql.exec(
+        "INSERT INTO codes (code, room, invite, name, at) VALUES (?, ?, ?, ?, ?)",
+        code,
+        room,
+        invite,
+        label,
+        now,
+      );
+      return code;
+    }
+    return null;
+  }
+
+  get(code) {
+    if (!CODE.test(code)) return null;
+    const row = first(
+      this.ctx.storage.sql.exec(
+        "SELECT room, invite, name, at FROM codes WHERE code = ?",
+        code,
+      ),
+    );
+    if (!row || row.at < Date.now() - LINK_TTL_MS) return null;
+    return { room: row.room, invite: row.invite, name: row.name };
+  }
+
+  dropRoom(room) {
+    this.ctx.storage.sql.exec("DELETE FROM codes WHERE room = ?", room);
+  }
+}
+
+async function lookup(request, env, code) {
+  if (request.headers.get("Upgrade") !== "websocket")
+    return new Response("upgrade", { status: 426 });
+  if (!CODE.test(code) || !env.LINKS)
+    return new Response("code", { status: 404 });
+  const found = await env.LINKS.get(env.LINKS.idFromName("links")).get(code);
+  const pair = new WebSocketPair();
+  const [client, server] = Object.values(pair);
+  server.accept();
+  server.send(JSON.stringify(found ? { t: "link", ...found } : { t: "link" }));
+  server.close(1000, "done");
+  return new Response(null, { status: 101, webSocket: client });
+}
+
 export default {
   async fetch(request, env) {
     const origin = allowedOrigin(request.headers.get("Origin"), env);
     if (!origin) return new Response("origin", { status: 403 });
-    const match = /^\/room\/([^/]+)$/.exec(new URL(request.url).pathname);
+    const path = new URL(request.url).pathname;
+    const short = /^\/j\/([^/]+)$/.exec(path);
+    if (short) return lookup(request, env, short[1]);
+    const match = /^\/room\/([^/]+)$/.exec(path);
     if (!match || !ROOM_ID.test(match[1]))
       return new Response("route", { status: 404 });
     if (request.headers.get("Upgrade") !== "websocket")

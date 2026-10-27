@@ -1,4 +1,10 @@
-import { linkHash, newLink, newToken, type InviteLink } from "./collabkey.ts";
+import {
+  linkHash,
+  newLink,
+  newToken,
+  shortHash,
+  type InviteLink,
+} from "./collabkey.ts";
 import { isOwner, roomOfSlot, type RoomEntry } from "./collabrooms.ts";
 import { HOME_SCREEN_MESSAGE } from "./collabmessages.ts";
 import type { CollabUi, SlotPort } from "./collabtypes.ts";
@@ -31,11 +37,19 @@ function showDialog(
       begin = null;
       return registry.open(entry, false);
     },
+    inviteName: name,
     inviteUrl: (invite) =>
-      shareUrl(
-        { room: entry.room, key: entry.key, invite, ...(name && { name }) },
-        location.href,
-      ),
+      invite.code
+        ? location.href.replace(/#.*$/, "") + shortHash(invite.code, entry.key)
+        : shareUrl(
+            {
+              room: entry.room,
+              key: entry.key,
+              invite: invite.token,
+              ...(name && { name }),
+            },
+            location.href,
+          ),
     name: registry.live(entry.room)?.profile().name ?? myProfile().name,
     tip: needsHomeScreen() ? HOME_SCREEN_MESSAGE : null,
     rename(name) {

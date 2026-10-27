@@ -1,3 +1,5 @@
+import { SHORT_CODE } from "./collabkey.ts";
+
 export type SignalEvent =
   | {
       readonly t: "hi";
@@ -17,7 +19,7 @@ export type SignalEvent =
   | { readonly t: "from"; readonly from: string; readonly d: string }
   | { readonly t: "kick"; readonly id: string }
   | { readonly t: "member"; readonly m: string }
-  | { readonly t: "invited"; readonly i: string }
+  | { readonly t: "invited"; readonly i: string; readonly c?: string }
   | { readonly t: "ended" }
   | { readonly t: "members"; readonly list: RosterEntry[] };
 
@@ -121,7 +123,10 @@ export function parseSignal(raw: string): SignalEvent | null {
 
 function parseAccessEvent(v: Record<string, unknown>): SignalEvent | null {
   if (v.t === "member" && isText(v.m)) return { t: "member", m: v.m };
-  if (v.t === "invited" && isText(v.i)) return { t: "invited", i: v.i };
+  if (v.t === "invited" && isText(v.i))
+    return typeof v.c === "string" && SHORT_CODE.test(v.c)
+      ? { t: "invited", i: v.i, c: v.c }
+      : { t: "invited", i: v.i };
   if (v.t === "ended") return { t: "ended" };
   if (v.t === "members" && Array.isArray(v.list))
     return { t: "members", list: parseRoster(v.list) };
