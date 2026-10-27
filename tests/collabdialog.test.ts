@@ -249,7 +249,7 @@ test("эхэлсэн эсвэл нэгдэх боломжгүй үед нэгд�
   plain.close();
 });
 
-test("«Урилга өгөх» дарахад урилга үүсч, нэгдэх талбар нуугдана", async () => {
+test("«Урилга өгөх» дарахад урилга үүсч, «Урилга авах» алга болно", async () => {
   for (const old of document.querySelectorAll(".collab-overlay")) old.remove();
   const dialog = open({ started: false, join: () => true });
   const give = button(dialog, "Урилга өгөх");
@@ -261,20 +261,13 @@ test("«Урилга өгөх» дарахад урилга үүсч, нэгдэ
   assert.equal(join.hidden, false);
   assert.deepEqual([bold(give), bold(take)], [false, true]);
   give.click();
-  await wait();
+  assert.equal(take.hidden, true);
   assert.equal(join.hidden, true);
-  assert.deepEqual([bold(give), bold(take)], [true, false]);
+  assert.equal(bold(give), true);
+  await wait();
   assert.equal(dialog.querySelectorAll(".collab-invite-list > li").length, 1);
-  button(dialog, "Урилга өгөх").click();
-  await wait();
-  assert.equal(dialog.querySelectorAll(".collab-invite-list > li").length, 2);
-  take.click();
   give.click();
   await wait();
-  assert.equal(join.hidden, true);
   assert.equal(dialog.querySelectorAll(".collab-invite-list > li").length, 2);
-  give.click();
-  await wait();
-  assert.equal(dialog.querySelectorAll(".collab-invite-list > li").length, 3);
   dialog.close();
 });

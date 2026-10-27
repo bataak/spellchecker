@@ -17,7 +17,7 @@ import {
 } from "./suggestmarkup.ts";
 import { attachHoldToCopy, attachIssuesPress } from "./suggestpress.ts";
 import { createWordList, type WordList } from "./suggestlist.ts";
-import { findTypos, typoNote } from "./suggestwords.ts";
+import { findTypos, typoNote, type Typo } from "./suggestwords.ts";
 
 export interface SuggestDeps {
   readonly getBadTokens: () => Token[];
@@ -224,18 +224,42 @@ interface Preflight {
   readonly insisted: string[];
 }
 
+const SUGGEST_WAIT_MS = 4000;
+
+function patient(suggest: SuggestDeps["suggest"]): SuggestDeps["suggest"] {
+  return (word) =>
+    Promise.race([
+      suggest(word),
+      new Promise<string[]>((resolve) =>
+        setTimeout(() => resolve([]), SUGGEST_WAIT_MS),
+      ),
+    ]);
+}
+
 function createPreflight(
   suggest: SuggestDeps["suggest"],
-): (words: readonly string[], token: string) => Promise<Preflight> {
+  checking: () => void,
+): (
+  words: readonly string[],
+  token: string,
+  session: number,
+) => Promise<Preflight> {
+  const bounded = patient(suggest);
   let confirmed = "";
-  return async (words, token) => {
+  let cached: { key: string; typos: Typo[] } | null = null;
+  return async (words, token, session) => {
     const blocked = sendBlock(words.length, navigator.onLine, token);
     if (blocked) return { blocked, insisted: [] };
-    const typos = await findTypos(words, suggest);
     const key = words.join("\n");
+    if (cached?.key !== key) {
+      checking();
+      cached = { key, typos: await findTypos(words, bounded) };
+    }
+    const { typos } = cached;
     const insisted = typos.map((typo) => typo.word);
-    if (!typos.length || confirmed === key) return { blocked: null, insisted };
-    confirmed = key;
+    const mark = session + "\n" + key;
+    if (!typos.length || confirmed === mark) return { blocked: null, insisted };
+    confirmed = mark;
     return { blocked: typoNote(typos), insisted: [] };
   };
 }
@@ -247,7 +271,7 @@ export function initSuggest(deps: SuggestDeps): void {
   let busy = false;
   let showingSubmitted = false;
   let session = 0;
-  const preflight = createPreflight(deps.suggest);
+  const preflight = createPreflight(deps.suggest, () => note("Шалгаж байна…"));
 
   function note(msg: string, kind?: string): void {
     form!.noteEl.textContent = msg;
@@ -311,7 +335,7 @@ export function initSuggest(deps: SuggestDeps): void {
     const { noteInput, sendBtn } = form!;
     const token = turnstile.token();
     const words = list!.words();
-    const { blocked, insisted } = await preflight(words, token);
+    const { blocked, insisted } = await preflight(words, token, current);
     if (current !== session) return;
     busy = false;
     if (blocked) {
