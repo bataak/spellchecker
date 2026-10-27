@@ -42,6 +42,7 @@ function options(port: number, origins: string, extra: CollabOptions) {
     durableObjects: {
       ROOMS: { className: "Room", useSQLite: true },
       QUOTA: { className: "Quota", useSQLite: true },
+      LINKS: { className: "Links", useSQLite: true },
     },
     bindings: {
       ALLOWED_ORIGINS: origins,

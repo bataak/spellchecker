@@ -1,5 +1,5 @@
 import type { Member } from "./admin.ts";
-import type { CollabLink } from "./collabkey.ts";
+import type { CollabLink, Invite } from "./collabkey.ts";
 import type { Access } from "./collabrooms.ts";
 import type { CursorView } from "./cursors.ts";
 import type { UploadNotice } from "./persistence.ts";
@@ -48,7 +48,7 @@ export interface Session {
   sleep(): void;
   resume(): void;
   watch(listener: () => void): () => void;
-  invite(): Promise<string | null>;
+  invite(name?: string | null): Promise<Invite | null>;
   members(): Promise<Member[] | null>;
   remove(dev: string, wipe: boolean): Promise<Member[] | null>;
   end(wipe: boolean): Promise<boolean>;

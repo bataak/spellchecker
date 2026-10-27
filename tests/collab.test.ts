@@ -14,8 +14,11 @@ import {
   newLink,
   newToken,
   parseLink,
+  parseShort,
   projectName,
+  randomId,
   seal,
+  shortHash,
   sharedName,
   toBase64Url,
   unseal,
@@ -140,9 +143,21 @@ test("төслийн нэрийг холбоост тэмдэглэнэ", () => 
 test("хамтын холбоосыг задлах, үүсгэх", () => {
   const link = { ...newLink(), invite: newToken() };
   assert.equal(link.room.length, 22);
-  assert.equal(link.key.length, 43);
+  assert.equal(link.key.length, 22);
   assert.equal(link.invite.length, 22);
   assert.deepEqual(parseLink(linkHash(link)), link);
+  const older = { ...link, key: randomId(32) };
+  assert.equal(older.key.length, 43);
+  assert.deepEqual(parseLink(linkHash(older)), older);
+  const short = shortHash("abcdEFGH", link.key);
+  assert.equal(short.length, 34);
+  assert.deepEqual(parseShort(short), { code: "abcdEFGH", key: link.key });
+  assert.deepEqual(parseShort(shortHash("abcd-_GH", older.key)), {
+    code: "abcd-_GH",
+    key: older.key,
+  });
+  assert.equal(parseShort("#j=short." + link.key), null);
+  assert.equal(parseShort("#j=abcdEFGH"), null);
   assert.equal(parseLink("#collab=" + link.room + "." + link.key), null);
   assert.equal(parseLink("#collab=short.key"), null);
   assert.equal(parseLink(""), null);
@@ -524,8 +539,17 @@ test("урилгыг сервер баталсны дараа л буцаана"
   const pending = admin.invite();
   const token = sent[0]!.i as string;
   assert.equal(sent[0]!.t, "invite");
+  assert.equal(sent[0]!.n, undefined);
   assert.equal(admin.receive({ t: "invited", i: token }), true);
-  assert.equal(await pending, token);
+  assert.deepEqual(await pending, { token, code: null });
+  const named = admin.invite("тайлан.md");
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const second = sent[1]!;
+  assert.equal(typeof second.n, "string");
+  const plain = await unseal(key, fromBase64Url(second.n as string));
+  assert.equal(new TextDecoder().decode(plain!), "тайлан.md");
+  admin.receive({ t: "invited", i: second.i as string, c: "abcdEFGH" });
+  assert.deepEqual(await named, { token: second.i, code: "abcdEFGH" });
   online = false;
   assert.equal(await admin.invite(), null);
   assert.equal(await admin.members(), null);
