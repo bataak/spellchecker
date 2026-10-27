@@ -2,6 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  closeSuggestion,
+  editDistance,
+  findTypos,
+  typoNote,
   copyList,
   mergeWords,
   prefillWords,
@@ -76,4 +80,41 @@ test("splitParts ба copyList: таслал, зай, хятад таслала�
     "үхэр",
     "тэмээ",
   ]);
+});
+
+test("editDistance: оруулах, хасах, солих, байр солих", () => {
+  assert.equal(editDistance("боловсролы", "боловсролын"), 1);
+  assert.equal(editDistance("идэвхитэй", "идэвхтэй"), 1);
+  assert.equal(editDistance("даргийн", "даргын"), 2);
+  assert.equal(editDistance("үгс", "үсг"), 1);
+  assert.equal(editDistance("", "ам"), 2);
+});
+
+test("closeSuggestion: богино үгэнд 1, урт үгэнд 2 хүртэлх зөрүүг тооцно", () => {
+  assert.equal(closeSuggestion("ДАРГИЙН", ["даргын"]), "даргын");
+  assert.equal(closeSuggestion("гэрт", ["гэр", "гэрээ"]), "гэр");
+  assert.equal(closeSuggestion("сү", ["сүү", "суу"]), "сүү");
+  assert.equal(closeSuggestion("гэрт", ["гэрээс"]), null);
+  assert.equal(closeSuggestion("тэндэг", ["тэн дэг"]), null);
+  assert.equal(closeSuggestion("Улаанбаатар", ["улаанбаатар"]), null);
+});
+
+test("findTypos ба typoNote: ойр санал байгаа үгийг жагсааж, алдаатай саналыг алгасна", async () => {
+  const typos = await findTypos(
+    ["боловсролы", "шинэүг", "эвдэрсэн"],
+    async (word) => {
+      if (word === "эвдэрсэн") throw new Error("worker");
+      return word === "боловсролы" ? ["боловсролын"] : ["огт өөр"];
+    },
+  );
+  assert.deepEqual(typos, [{ word: "боловсролы", fix: "боловсролын" }]);
+  assert.match(
+    typoNote(typos),
+    /^Алдаатай бичсэн байж магадгүй: «боловсролы» → «боловсролын»\./,
+  );
+  const many = Array.from({ length: 7 }, (_, i) => ({
+    word: "а" + i,
+    fix: "б" + i,
+  }));
+  assert.match(typoNote(many), /«а4» → «б4», …\./);
 });

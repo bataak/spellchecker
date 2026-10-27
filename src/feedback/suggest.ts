@@ -1,6 +1,12 @@
 import { requireEl } from "../ui/dom.ts";
 import { getSubmitted, addSubmitted } from "./submitted.ts";
-import { postSuggestion, SENT, sendBlock, sendFailure } from "./suggestsend.ts";
+import {
+  deviceId,
+  postSuggestion,
+  SENT,
+  sendBlock,
+  sendFailure,
+} from "./suggestsend.ts";
 import type { Token } from "../spell/textcheck.ts";
 import { createTurnstileWidget, loadTurnstile } from "./turnstile.ts";
 import {
@@ -11,6 +17,7 @@ import {
 } from "./suggestmarkup.ts";
 import { attachHoldToCopy, attachIssuesPress } from "./suggestpress.ts";
 import { createWordList, type WordList } from "./suggestlist.ts";
+import { findTypos, typoNote } from "./suggestwords.ts";
 
 export interface SuggestDeps {
   readonly getBadTokens: () => Token[];
@@ -18,6 +25,7 @@ export interface SuggestDeps {
   readonly checkKnown: (
     words: string[],
   ) => Promise<Record<string, boolean> | null>;
+  readonly suggest: (word: string) => Promise<string[]>;
 }
 
 function hasActiveSelection(): boolean {
@@ -202,6 +210,36 @@ function bindForm(f: FormParts, words: WordList, on: FormHandlers): void {
   bindFormKeys(f, words, on);
 }
 
+function bindOpenLinks(open: () => Promise<void>): void {
+  document.querySelectorAll("a.suggestctl, a.suggest-word").forEach((link) => {
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      void open();
+    });
+  });
+}
+
+interface Preflight {
+  readonly blocked: string | null;
+  readonly insisted: string[];
+}
+
+function createPreflight(
+  suggest: SuggestDeps["suggest"],
+): (words: readonly string[], token: string) => Promise<Preflight> {
+  let confirmed = "";
+  return async (words, token) => {
+    const blocked = sendBlock(words.length, navigator.onLine, token);
+    if (blocked) return { blocked, insisted: [] };
+    const typos = await findTypos(words, suggest);
+    const key = words.join("\n");
+    const insisted = typos.map((typo) => typo.word);
+    if (!typos.length || confirmed === key) return { blocked: null, insisted };
+    confirmed = key;
+    return { blocked: typoNote(typos), insisted: [] };
+  };
+}
+
 export function initSuggest(deps: SuggestDeps): void {
   const turnstile = createTurnstileWidget();
   let form: FormParts | null = null;
@@ -209,6 +247,7 @@ export function initSuggest(deps: SuggestDeps): void {
   let busy = false;
   let showingSubmitted = false;
   let session = 0;
+  const preflight = createPreflight(deps.suggest);
 
   function note(msg: string, kind?: string): void {
     form!.noteEl.textContent = msg;
@@ -269,11 +308,12 @@ export function initSuggest(deps: SuggestDeps): void {
     busy = true;
     await list!.addFromInput(true);
     if (current !== session) return;
-    busy = false;
     const { noteInput, sendBtn } = form!;
     const token = turnstile.token();
     const words = list!.words();
-    const blocked = sendBlock(words.length, navigator.onLine, token);
+    const { blocked, insisted } = await preflight(words, token);
+    if (current !== session) return;
+    busy = false;
     if (blocked) {
       note(blocked, "err");
       if (!words.length) form!.wordEl.focus();
@@ -284,8 +324,10 @@ export function initSuggest(deps: SuggestDeps): void {
     note("Илгээж байна…");
     const status = await postSuggestion({
       words: [...words],
+      insisted,
       note: noteInput.value.trim(),
       turnstileToken: token,
+      device: deviceId(),
     });
     if (status === 201) {
       addSubmitted([...words]);
@@ -301,10 +343,5 @@ export function initSuggest(deps: SuggestDeps): void {
     sendBtn.disabled = false;
   }
 
-  document.querySelectorAll("a.suggestctl, a.suggest-word").forEach((link) => {
-    link.addEventListener("click", (e) => {
-      e.preventDefault();
-      void openForm();
-    });
-  });
+  bindOpenLinks(openForm);
 }

@@ -93,3 +93,74 @@ export function copyList(words: readonly string[], pending: string): string[] {
   }
   return all;
 }
+
+export interface Typo {
+  readonly word: string;
+  readonly fix: string;
+}
+
+const TYPO_LIST_MAX = 5;
+
+export function editDistance(a: string, b: string): number {
+  const x = [...a];
+  const y = [...b];
+  const rows = Array.from({ length: x.length + 1 }, (_, i) =>
+    Array.from({ length: y.length + 1 }, (_, j) =>
+      i === 0 ? j : j === 0 ? i : 0,
+    ),
+  );
+  for (let i = 1; i <= x.length; i++)
+    for (let j = 1; j <= y.length; j++) {
+      const cost = x[i - 1] === y[j - 1] ? 0 : 1;
+      let best = Math.min(
+        rows[i - 1][j] + 1,
+        rows[i][j - 1] + 1,
+        rows[i - 1][j - 1] + cost,
+      );
+      if (i > 1 && j > 1 && x[i - 1] === y[j - 2] && x[i - 2] === y[j - 1])
+        best = Math.min(best, rows[i - 2][j - 2] + 1);
+      rows[i][j] = best;
+    }
+  return rows[x.length][y.length];
+}
+
+export function closeSuggestion(
+  word: string,
+  suggestions: readonly string[],
+): string | null {
+  const key = word.toLowerCase();
+  const limit = [...key].length >= 6 ? 2 : 1;
+  for (const suggestion of suggestions) {
+    if (/\s/.test(suggestion)) continue;
+    const distance = editDistance(key, suggestion.toLowerCase());
+    if (distance > 0 && distance <= limit) return suggestion;
+  }
+  return null;
+}
+
+export async function findTypos(
+  words: readonly string[],
+  suggest: (word: string) => Promise<string[]>,
+): Promise<Typo[]> {
+  const fixes = await Promise.all(
+    words.map(async (word) =>
+      closeSuggestion(word, await suggest(word).catch(() => [])),
+    ),
+  );
+  return words.flatMap((word, index) => {
+    const fix = fixes[index];
+    return fix ? [{ word, fix }] : [];
+  });
+}
+
+export function typoNote(typos: readonly Typo[]): string {
+  const shown = typos
+    .slice(0, TYPO_LIST_MAX)
+    .map(({ word, fix }) => "«" + word + "» → «" + fix + "»");
+  if (typos.length > TYPO_LIST_MAX) shown.push("…");
+  return (
+    "Алдаатай бичсэн байж магадгүй: " +
+    shown.join(", ") +
+    ". Буруу үгийг × дарж хасна уу. Зөв гэдэгт итгэлтэй бол «Илгээх»-ийг дахин дарна уу."
+  );
+}

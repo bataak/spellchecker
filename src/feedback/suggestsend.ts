@@ -1,13 +1,26 @@
+import { KEYS, read, write } from "../core/store.ts";
+
 export const MAX_WORDS = 50;
 export const OFFLINE = "Сүлжээгүй байна — холбогдсоны дараа дахин оролдоно уу";
 export const SENT = "Илгээгдлээ, баярлалаа!";
 
 const ENDPOINT = "https://api.bichig.dev/suggest";
+const DEVICE_RE = /^[0-9a-f-]{36}$/;
 
 export interface SuggestPayload {
   readonly words: readonly string[];
+  readonly insisted: readonly string[];
   readonly note: string;
   readonly turnstileToken: string;
+  readonly device: string;
+}
+
+export function deviceId(): string {
+  const saved = read(KEYS.deviceId);
+  if (saved && DEVICE_RE.test(saved)) return saved;
+  const fresh = crypto.randomUUID();
+  write(KEYS.deviceId, fresh);
+  return fresh;
 }
 
 export function sendBlock(
