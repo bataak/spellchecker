@@ -198,6 +198,17 @@ test("GitHub файлын холбоосоор файл нээж, хавтасн
     timeout: 30000,
   });
   assert.equal(await markdownMode(page), false);
+  assert.equal(
+    await until(
+      () =>
+        page.evaluate(
+          () => !!document.querySelector(".preview-panel.has-pages canvas"),
+        ),
+      (on) => on,
+      90000,
+    ),
+    true,
+  );
 
   await visit(page, "#url=https://github.com/u/r/tree/main/docs");
   assert.match(
