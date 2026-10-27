@@ -198,6 +198,21 @@ test("GitHub файлын холбоосоор файл нээж, хавтасн
     timeout: 30000,
   });
   assert.equal(await markdownMode(page), false);
+  const pdfShown = (): Promise<boolean> =>
+    page.evaluate(
+      () => !!document.querySelector(".preview-panel.has-pages canvas"),
+    );
+  assert.match(
+    await until(
+      () => page.locator(".preview-panel").innerText(),
+      (text) => text.includes("автоматаар хөрвүүлсэнгүй"),
+    ),
+    /автоматаар хөрвүүлсэнгүй/,
+  );
+  await page.waitForTimeout(3000);
+  assert.equal(await pdfShown(), false);
+  await page.click(".tex-compile");
+  assert.equal(await until(pdfShown, (on) => on, 90000), true);
 
   await visit(page, "#url=https://github.com/u/r/tree/main/docs");
   assert.match(
