@@ -1,4 +1,4 @@
-import { openDatabase, requestResult } from "../core/idb.ts";
+import { databaseOpener, requestResult } from "../core/idb.ts";
 import { noteError } from "../core/errorlog.ts";
 
 export interface StoredDict {
@@ -13,20 +13,14 @@ export interface StoredDict {
 const DB_NAME = "stardict";
 const STORE = "dicts";
 
-function openDb(): Promise<IDBDatabase> {
-  return openDatabase(DB_NAME, (db) => db.createObjectStore(STORE));
-}
+const openDb = databaseOpener(DB_NAME, (db) => db.createObjectStore(STORE));
 
 async function withStore<T>(
   mode: IDBTransactionMode,
   run: (store: IDBObjectStore) => Promise<T>,
 ): Promise<T> {
   const db = await openDb();
-  try {
-    return await run(db.transaction(STORE, mode).objectStore(STORE));
-  } finally {
-    db.close();
-  }
+  return run(db.transaction(STORE, mode).objectStore(STORE));
 }
 
 export async function readStoredDict(key: string): Promise<StoredDict | null> {

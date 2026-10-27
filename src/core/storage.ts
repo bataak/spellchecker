@@ -1,4 +1,4 @@
-import { transactionDone } from "./idb.ts";
+import { databaseOpener, transactionDone } from "./idb.ts";
 import {
   KEYS,
   at,
@@ -12,8 +12,6 @@ import { noteError } from "./errorlog.ts";
 const IDB_TEXT_KEY = "text";
 const DB_NAME = "mn-spell";
 const STORE_NAME = "kv";
-
-let dbPromise: Promise<IDBDatabase> | null = null;
 
 export interface DraftFile {
   name: string;
@@ -119,29 +117,9 @@ function getTier(): string | null {
   return read(KEYS.legacyTier);
 }
 
-function openDb(): Promise<IDBDatabase> {
-  if (dbPromise) return dbPromise;
-  dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = () => req.result.createObjectStore(STORE_NAME);
-    req.onsuccess = () => {
-      const db = req.result;
-      db.onclose = () => {
-        dbPromise = null;
-      };
-      db.onversionchange = () => {
-        db.close();
-        dbPromise = null;
-      };
-      resolve(db);
-    };
-    req.onerror = () => {
-      dbPromise = null;
-      reject(req.error ?? new Error("IndexedDB request failed"));
-    };
-  });
-  return dbPromise;
-}
+const openDb = databaseOpener(DB_NAME, (db) =>
+  db.createObjectStore(STORE_NAME),
+);
 
 function idbRequest<T>(
   mode: IDBTransactionMode,

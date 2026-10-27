@@ -1,5 +1,5 @@
 import { PROJECT_SLOT, isFileSlot } from "../slots/fileslots.ts";
-import { openDatabase } from "../core/idb.ts";
+import { databaseOpener } from "../core/idb.ts";
 import { remoteChanges, swapOrigin } from "./editortext.ts";
 import { mapOffset, type TextChange } from "./textdelta.ts";
 import { minimalDiff } from "../core/textdiff.ts";
@@ -159,11 +159,9 @@ interface Stored {
 const DB_NAME = "bichig-undo";
 const STORE = "history";
 
-function openDb(): Promise<IDBDatabase> {
-  return openDatabase(DB_NAME, (db) =>
-    db.createObjectStore(STORE, { keyPath: "slot" }),
-  );
-}
+const openDb = databaseOpener(DB_NAME, (db) =>
+  db.createObjectStore(STORE, { keyPath: "slot" }),
+);
 
 function done(request: IDBRequest): Promise<void> {
   return new Promise((resolve) => {
