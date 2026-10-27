@@ -47,6 +47,7 @@ export function initCommentButton(deps: CommentButtonDeps): void {
   const { editor, view } = deps;
   const node = commentButton(view.host);
   let frame = 0;
+  let dragging = false;
 
   const hide = (): void => {
     node.hidden = true;
@@ -66,7 +67,7 @@ export function initCommentButton(deps: CommentButtonDeps): void {
   const update = (): void => {
     frame = 0;
     const target = deps.target();
-    if (document.activeElement !== editor || !target) return hide();
+    if (dragging || document.activeElement !== editor || !target) return hide();
     if (!selectionDraft(editor, target)) return hide();
     placeAt(editor.selectionStart, editor.selectionEnd);
   };
@@ -89,6 +90,21 @@ export function initCommentButton(deps: CommentButtonDeps): void {
     if (!hit) return;
     target.open();
     target.views.views.comments.focus(hit.id, hit.inside);
+  });
+  const release = (): void => {
+    if (!dragging) return;
+    dragging = false;
+    soon();
+  };
+  editor.addEventListener("pointerdown", (event) => {
+    if (event.pointerType !== "mouse" || event.button !== 0) return;
+    dragging = true;
+    hide();
+  });
+  document.addEventListener("pointerup", release);
+  document.addEventListener("pointercancel", release);
+  document.addEventListener("pointermove", (event) => {
+    if (dragging && event.buttons === 0) release();
   });
   document.addEventListener("selectionchange", soon);
   editor.addEventListener("blur", hide);
