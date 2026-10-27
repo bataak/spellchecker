@@ -10,6 +10,7 @@ export interface DialogDeps {
   readonly owner: boolean;
   readonly session: () => Promise<Session>;
   readonly started: boolean;
+  readonly join?: ((text: string) => boolean) | null;
   readonly inviteUrl: (invite: Invite) => string;
   readonly inviteName?: string | null;
   readonly name: string;
@@ -68,12 +69,21 @@ function inviteBox(
   deps: DialogDeps,
   note: HTMLElement,
   invited: () => void,
+  join: HTMLElement | null,
 ): HTMLElement {
   const box = element("div", "collab-invite");
-  const create = actionButton("Шинэ урилга үүсгэх");
+  const row = element("div", "collab-mode-row");
+  const create = actionButton("Урилга өгөх");
   create.classList.add("suggest-send");
   const list = element("ol", "collab-invite-list");
+  const take = join ? actionButton("Урилга авах") : null;
   create.addEventListener("click", () => {
+    const back = join !== null && !join.hidden && list.childElementCount > 0;
+    if (join) join.hidden = true;
+    list.hidden = false;
+    take?.classList.remove("suggest-send");
+    create.classList.add("suggest-send");
+    if (back) return say(note, "", "");
     create.disabled = true;
     say(note, "", "Урилга үүсгэж байна…");
     void ask(deps, (live) => live.invite(deps.inviteName)).then((invite) => {
@@ -90,7 +100,53 @@ function inviteBox(
       );
     });
   });
-  box.append(create, list);
+  row.append(create);
+  box.append(row, list);
+  if (!join || !take) return box;
+  take.addEventListener("click", () => {
+    list.hidden = true;
+    join.hidden = false;
+    create.classList.remove("suggest-send");
+    take.classList.add("suggest-send");
+    say(note, "", "");
+    join.querySelector<HTMLInputElement>("input")?.focus();
+  });
+  join.hidden = true;
+  row.append(take);
+  box.append(join);
+  return box;
+}
+
+function joinBox(
+  join: (text: string) => boolean,
+  note: HTMLElement,
+  done: () => void,
+): HTMLElement {
+  const box = element("div", "collab-join");
+  const row = element("div", "collab-invite-row");
+  const field = element("input", "collab-join-field");
+  field.placeholder = "Урилгын холбоосыг энд буулгана уу";
+  field.setAttribute("aria-label", "Урилгын холбоос");
+  const submit = (): void => {
+    if (!field.value.trim()) return field.focus();
+    if (!join(field.value))
+      return say(note, "err", "Энэ нь хамтран засах урилгын холбоос биш байна");
+    done();
+  };
+  field.addEventListener("paste", (event) => {
+    const text = event.clipboardData?.getData("text") ?? "";
+    if (!text.trim()) return;
+    event.preventDefault();
+    field.value = text.trim();
+    submit();
+  });
+  field.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    submit();
+  });
+  row.append(field);
+  box.appendChild(row);
   return box;
 }
 
@@ -174,7 +230,11 @@ export function openDialog(deps: DialogDeps): void {
     );
     card.insertBefore(members, note);
   };
-  if (deps.owner) card.append(inviteBox(deps, note, showMembers));
+  const join =
+    deps.join && !deps.started
+      ? joinBox(deps.join, note, () => dialog.close())
+      : null;
+  if (deps.owner) card.append(inviteBox(deps, note, showMembers, join));
   card.append(nameField(deps));
   const toggle = (ending: boolean): void => {
     choice.hidden = !ending;

@@ -109,6 +109,22 @@ export function parseShort(hash: string): ShortLink | null {
   return match ? { code: match[1]!, key: match[2]! } : null;
 }
 
+export function inviteHash(
+  text: string,
+  hosts: readonly string[],
+): string | null {
+  const value = text.trim();
+  if (!value || /\s/.test(value)) return null;
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return null;
+  }
+  if (!hosts.includes(url.host)) return null;
+  return parseShort(url.hash) || parseLink(url.hash) ? url.hash : null;
+}
+
 export function shortHash(code: string, key: string): string {
   return "#j=" + code + "." + key;
 }
