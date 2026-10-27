@@ -1,5 +1,5 @@
 import { noteError } from "../core/errorlog.ts";
-import { requestResult } from "../core/idb.ts";
+import { databaseOpener, requestResult } from "../core/idb.ts";
 import { gunzipped } from "../archive/fflate.ts";
 import { IFO_MAGIC, parseIfo, type StarDict } from "./stardict.ts";
 import { buildStarDict } from "./stardictload.ts";
@@ -133,17 +133,16 @@ async function readBytes(file: Blob): Promise<Uint8Array> {
   return gunzipped(new Uint8Array(await file.arrayBuffer()));
 }
 
-function openDb(): Promise<IDBDatabase> {
-  const request = indexedDB.open(DB_NAME, DB_VERSION);
-  request.onupgradeneeded = () => {
-    const db = request.result;
+const openDb = databaseOpener(
+  DB_NAME,
+  (db) => {
     if (!db.objectStoreNames.contains(STORE))
       db.createObjectStore(STORE, { keyPath: "name" });
     if (!db.objectStoreNames.contains(SETTINGS))
       db.createObjectStore(SETTINGS, { keyPath: "key" });
-  };
-  return requestResult(request);
-}
+  },
+  DB_VERSION,
+);
 
 async function withStore<T>(
   name: string,
@@ -151,13 +150,7 @@ async function withStore<T>(
   run: (store: IDBObjectStore) => IDBRequest<T>,
 ): Promise<T> {
   const db = await openDb();
-  try {
-    return await requestResult(
-      run(db.transaction(name, mode).objectStore(name)),
-    );
-  } finally {
-    db.close();
-  }
+  return requestResult(run(db.transaction(name, mode).objectStore(name)));
 }
 
 export function saveUserDict(dict: UserDict): Promise<IDBValidKey> {
