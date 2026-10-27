@@ -1,6 +1,6 @@
 import * as Y from "yjs";
-import { docKey, loadDoc, saveDoc } from "./docstore.ts";
-import { createSaver, whenHidden } from "./persistence.ts";
+import { docKey, loadDoc, loadLog, saveDoc } from "./docstore.ts";
+import { applyLog, createSaver, whenHidden } from "./persistence.ts";
 import { MAX_CHAT_TEXT, MAX_MESSAGES, type MineStore } from "./chat.ts";
 
 export interface ChatDoc {
@@ -50,12 +50,12 @@ function mineStore(room: string, sent: Map<string, string>): MineStore {
 
 export async function openChatDoc(room: string): Promise<ChatDoc> {
   const doc = new Y.Doc();
-  const [stored, sent] = await Promise.all([
-    loadDoc(docKey.chat(room)),
+  const [log, sent] = await Promise.all([
+    loadLog(docKey.chat(room)),
     loadDoc(docKey.mine(room)),
   ]);
-  if (stored) Y.applyUpdate(doc, stored);
-  const saver = createSaver(doc, docKey.chat(room));
+  applyLog(doc, log);
+  const saver = createSaver(doc, docKey.chat(room), log.keys, []);
   const soon = (): void => saver.soon();
   doc.on("update", soon);
   const unwatch = whenHidden(() => void saver.now());
@@ -65,8 +65,8 @@ export async function openChatDoc(room: string): Promise<ChatDoc> {
     async close(forget) {
       doc.off("update", soon);
       unwatch();
-      if (forget) saver.cancel();
-      else await saver.now();
+      if (!forget) await saver.now();
+      await saver.close();
       doc.destroy();
     },
   };
