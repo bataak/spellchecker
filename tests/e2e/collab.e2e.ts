@@ -125,3 +125,46 @@ test("git төслийг хуваалцахад хамтрагчийн засв�
   assert.deepEqual(errors(owner), []);
   assert.deepEqual(errors(guest), []);
 });
+
+test("нэг хөтчийн хоёр таб нэг өрөөг зэрэг ажиллуулахгүй", async () => {
+  const context = await app.context();
+  const first = await openPage(app, context);
+  await typeAtEnd(first, "Нэг табын бичвэр");
+  await invite(first);
+  const second = await openPage(app, context);
+  const readOnly = (page: Page): Promise<boolean> =>
+    page.evaluate(
+      () => document.querySelector<HTMLTextAreaElement>("#editor")!.readOnly,
+    );
+  assert.equal(
+    await until(
+      () => readOnly(second),
+      (on) => on,
+    ),
+    true,
+  );
+  assert.match(
+    await second.evaluate(
+      () => document.querySelector("#statusText")?.textContent ?? "",
+    ),
+    /өөр табад/,
+  );
+  assert.equal(await readOnly(first), false);
+  await first.close();
+  assert.equal(
+    await until(
+      () => readOnly(second),
+      (on) => !on,
+      20000,
+    ),
+    false,
+  );
+  assert.equal(
+    await until(
+      () => editor(second),
+      (text) => text === "Нэг табын бичвэр",
+    ),
+    "Нэг табын бичвэр",
+  );
+  assert.deepEqual(errors(second), []);
+});

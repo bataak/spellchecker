@@ -205,6 +205,15 @@ function readHash(
   );
 }
 
+function freezer(editor: HTMLTextAreaElement): (wait: boolean) => void {
+  let frozen = false;
+  return (wait) => {
+    if (wait === frozen) return;
+    frozen = wait;
+    editor.readOnly = wait;
+  };
+}
+
 export function initCollab(deps: CollabDeps): Collab {
   const { button, editor } = deps;
   if (!collabAvailable(button)) return DISABLED;
@@ -219,8 +228,12 @@ export function initCollab(deps: CollabDeps): Collab {
   };
 
   const talks = createEmitter();
-  const paint = (): void =>
-    paintButton(button, roomOfSlot(rooms, deps.slot()), registry, talks);
+  const freeze = freezer(editor);
+  const paint = (): void => {
+    const entry = roomOfSlot(rooms, deps.slot());
+    paintButton(button, entry, registry, talks);
+    freeze(!!entry && registry.busy(entry.room));
+  };
 
   const registry = createRegistry(editor, deps.view, {
     project: deps.project,

@@ -27,6 +27,8 @@ export const NOTICES: Record<SessionNotice, string> = {
 };
 
 export const START_FAILED = "Хамтын засварыг эхлүүлж чадсангүй";
+export const BUSY_MESSAGE =
+  "Энэ бичвэр хөтчийн өөр табад хамтын засвартай нээлттэй байна. Тэр табыг хаахад энд үргэлжилнэ.";
 export const NO_SLOT =
   "Шинэ файлын талбар нээх боломжгүй. Нэг файлаа хаагаад дахин оролдоно уу.";
 
