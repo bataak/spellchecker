@@ -19,10 +19,17 @@ import {
   talkPlan,
   type Layout,
   type LayoutChoice,
+  type TalkPlan,
   type Metrics,
 } from "./layout.ts";
 import { KEYS, read, remove, write, writeJson } from "../core/store.ts";
-import { talkYielded, yieldTalk } from "./talkslot.ts";
+import {
+  onSlotChange,
+  placeTalkSlot,
+  talkFloats,
+  talkOpen,
+  talkYielded,
+} from "./talkslot.ts";
 import { bindMenu, buildControl, paintMenu } from "./measuremenu.ts";
 
 const SAMPLE =
@@ -196,27 +203,19 @@ function readMetrics(
 }
 
 const wideQuery = window.matchMedia("(min-width: 1024px)");
+const PROJECT_W = 236;
 
 function projectRoom(wrap: HTMLElement, x: Metrics): number {
   if (document.documentElement.dataset.project !== "on" || !wideQuery.matches)
     return 0;
-  return measureVar(wrap, "--project-w", 236) + x.panelGap + x.gutterW;
+  return measureVar(wrap, "--project-w", PROJECT_W) + x.panelGap + x.gutterW;
 }
 
-function talkOpen(): boolean {
-  return (
-    document.documentElement.hasAttribute("data-talk") && wideQuery.matches
-  );
-}
-
-function setFlag(
-  name: "projectFloat" | "talkFloat" | "talkSwap",
-  on: boolean,
-): void {
+function setProjectFloat(on: boolean): void {
   const data = document.documentElement.dataset;
-  if (on === name in data) return;
-  if (on) data[name] = "";
-  else delete data[name];
+  if (on === "projectFloat" in data) return;
+  if (on) data.projectFloat = "";
+  else delete data.projectFloat;
 }
 
 function load(tex: boolean): Layout {
@@ -252,30 +251,23 @@ function publishMetrics(metrics: Metrics): void {
   afterBoot("metrics", () => setRootMetrics(metrics));
 }
 
+interface ViewportPlan {
+  readonly viewport: number;
+  readonly offered: Layout[] | null;
+  readonly projectFloat: boolean;
+  readonly talk: TalkPlan | null;
+}
+
 function planTalk(
   wrap: HTMLElement,
   metrics: Metrics,
   full: number,
   page: { readonly loose: number; readonly tight: number },
-  project: number,
-): number | null {
-  const style = document.documentElement.style;
-  const plan = talkOpen()
-    ? talkPlan(
-        metrics,
-        full,
-        page,
-        project,
-        measureVar(wrap, "--project-w", 236),
-      )
-    : null;
-  const swap = plan?.mode === "swap";
-  if (!swap) yieldTalk(false);
-  setFlag("talkFloat", plan?.mode === "float");
-  setFlag("talkSwap", swap);
-  if (plan) style.setProperty("--talk-w", `${Math.floor(plan.width)}px`);
-  else style.removeProperty("--talk-w");
-  return plan && plan.mode !== "float" && !talkYielded() ? plan.viewport : null;
+  projectColumn: number,
+): TalkPlan | null {
+  if (!talkOpen() || !wideQuery.matches) return null;
+  const projectW = measureVar(wrap, "--project-w", PROJECT_W);
+  return talkPlan(metrics, full, page, projectColumn, projectW);
 }
 
 function planViewport(
@@ -283,14 +275,11 @@ function planViewport(
   metrics: Metrics,
   choose: (fit: Layout[]) => LayoutChoice,
   prev: Layout[],
-): { viewport: number; offered: Layout[] | null } {
+): ViewportPlan {
   const full = document.documentElement.clientWidth;
   const room = projectRoom(wrap, metrics);
-  if (room <= 0 && !talkOpen()) {
-    setFlag("projectFloat", false);
-    planTalk(wrap, metrics, full, { loose: 0, tight: 0 }, 0);
-    return { viewport: full, offered: null };
-  }
+  if (room <= 0 && !(talkOpen() && wideQuery.matches))
+    return { viewport: full, offered: null, projectFloat: false, talk: null };
   const wide = choose(available(metrics, full, prev));
   const loose = pageWidth(
     wide.active,
@@ -301,10 +290,9 @@ function planViewport(
     ? pageWidth(wide.active, metrics, PREVIEW_MIN_MEASURE) +
       (has(prev, wide.active) ? 0 : HYSTERESIS)
     : loose;
-  const plan =
+  const project =
     room > 0 ? projectViewport(full, room, tight) : { viewport: full };
-  const docked = room > 0 && plan.viewport !== full;
-  setFlag("projectFloat", room > 0 && !docked);
+  const docked = room > 0 && project.viewport !== full;
   const talk = planTalk(
     wrap,
     metrics,
@@ -312,14 +300,30 @@ function planViewport(
     { loose, tight },
     docked ? room : 0,
   );
-  return { viewport: talk ?? plan.viewport, offered: wide.avail };
+  const aside = talk?.mode === "swap" && talkYielded();
+  const ownColumn = talk !== null && talk.mode !== "float" && !aside;
+  return {
+    viewport: ownColumn ? talk.viewport : project.viewport,
+    offered: wide.avail,
+    projectFloat: room > 0 && !docked,
+    talk,
+  };
+}
+
+function applyViewport(plan: ViewportPlan): void {
+  const style = document.documentElement.style;
+  setProjectFloat(plan.projectFloat);
+  placeTalkSlot(plan.talk?.mode ?? "column");
+  if (plan.talk)
+    style.setProperty("--talk-w", `${Math.floor(plan.talk.width)}px`);
+  else style.removeProperty("--talk-w");
 }
 
 function placeTalk(wrap: HTMLElement): void {
   const root = document.documentElement;
   const workspace = wrap.closest<HTMLElement>(".workspace");
   const win = workspace?.querySelector<HTMLElement>(":scope > .talk-window");
-  if (!workspace || !win || !("talkFloat" in root.dataset)) {
+  if (!workspace || !win || !talkFloats()) {
     root.style.removeProperty("--talk-x");
     return;
   }
@@ -334,6 +338,18 @@ function placeTalk(wrap: HTMLElement): void {
     Math.min(anchor - space.left, space.width - win.offsetWidth),
   );
   root.style.setProperty("--talk-x", `${Math.round(x)}px`);
+}
+
+function settleViewport(
+  wrap: HTMLElement,
+  metrics: Metrics,
+  choose: (fit: Layout[]) => LayoutChoice,
+  prev: Layout[],
+): ViewportPlan {
+  const plan = planViewport(wrap, metrics, choose, prev);
+  applyViewport(plan);
+  requestAnimationFrame(() => placeTalk(wrap));
+  return plan;
 }
 
 export interface MeasureControl {
@@ -352,17 +368,12 @@ function setRootMetrics(metrics: Metrics): void {
 }
 
 function watchRoot(refresh: () => void): () => void {
-  const root = document.documentElement;
   const sized = new ResizeObserver(refresh);
-  sized.observe(root);
-  const talk = new MutationObserver(refresh);
-  talk.observe(root, {
-    attributes: true,
-    attributeFilter: ["data-talk", "data-talk-yield"],
-  });
+  sized.observe(document.documentElement);
+  const offSlot = onSlotChange(refresh);
   return () => {
     sized.disconnect();
-    talk.disconnect();
+    offSlot();
   };
 }
 
@@ -424,7 +435,7 @@ export function initMeasureControl(
       chooseLayout(fit, desired, previewBlocked, previewMode);
 
     const root = document.documentElement;
-    const { viewport, offered } = planViewport(wrap, metrics, choose, prev);
+    const { viewport, offered } = settleViewport(wrap, metrics, choose, prev);
     const fit = available(metrics, viewport, prev);
     prev = fit;
     const { avail, active } = choose(fit);
@@ -435,7 +446,6 @@ export function initMeasureControl(
       String(previewMeasure(active, metrics, viewport)),
     );
     apply(active);
-    requestAnimationFrame(() => placeTalk(wrap));
 
     toolbar.sync();
 

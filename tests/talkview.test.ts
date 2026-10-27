@@ -215,6 +215,7 @@ test("төслийн самбарт товч нэмж, бусад бичвэрт
   const editor = document.querySelector<HTMLTextAreaElement>("#editor")!;
   editor.value = "Сайн уу байна";
   initTalk({
+    picking: () => false,
     collab: {
       talk: (kind) => talks[kind],
       onTalk: (listener) => void (notify = listener),
@@ -281,7 +282,7 @@ test("төслийн самбарт товч нэмж, бусад бичвэрт
   const win = document.querySelector<HTMLElement>(".talk-window")!;
   assert.equal(win.hidden, false);
   assert.equal(win.nextElementSibling?.className, "editor-wrap");
-  assert.ok(document.documentElement.hasAttribute("data-talk"));
+  assert.ok(document.documentElement.hasAttribute("data-talk-slot"));
   assert.equal(
     win.querySelector(".talk-input")!.getAttribute("placeholder"),
     "Зурвас илгээх...",
@@ -296,7 +297,7 @@ test("төслийн самбарт товч нэмж, бусад бичвэрт
   assert.equal(editor.selectionStart, 5);
   win.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
   assert.equal(win.hidden, true);
-  assert.equal(document.documentElement.hasAttribute("data-talk"), false);
+  assert.equal(document.documentElement.hasAttribute("data-talk-slot"), false);
   trigger.click();
   win.querySelector<HTMLElement>(".project-act")!.click();
   assert.equal(win.hidden, true);
@@ -330,6 +331,7 @@ test("бичвэр солигдоход chat-ийн сонсогч давхар�
   let current: Talk | null = talks[0]!;
   let notify = (): void => {};
   initTalk({
+    picking: () => false,
     collab: {
       talk: (kind) => (kind === "file" ? current : null),
       onTalk: (listener) => void (notify = listener),

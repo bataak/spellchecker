@@ -12,6 +12,7 @@ export interface CommentButtonDeps {
   readonly editor: HTMLTextAreaElement;
   readonly view: Pick<CursorView, "host" | "rangeRects">;
   readonly target: () => CommentTarget | null;
+  readonly picking: () => boolean;
 }
 
 const GAP = 4;
@@ -67,7 +68,7 @@ export function initCommentButton(deps: CommentButtonDeps): void {
   const update = (): void => {
     frame = 0;
     const target = deps.target();
-    if (dragging || "pick" in editor.dataset) return hide();
+    if (dragging || deps.picking()) return hide();
     if (document.activeElement !== editor || !target) return hide();
     if (!selectionDraft(editor, target)) return hide();
     placeAt(editor.selectionStart, editor.selectionEnd);
