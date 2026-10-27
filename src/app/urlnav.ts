@@ -134,15 +134,14 @@ async function copySlotLink(d: UrlNavDeps): Promise<void> {
   const target = currentTarget(d);
   if (!target) return;
   const text = d.editor.value;
-  const withText = fitsTextLink(text)
-    ? await textHash(text, linkName(d))
-    : null;
+  const name = linkName(d);
   try {
     await copyText(pageUrl() + slotHash(target));
   } catch {
     showSnackbar(CANT_COPY, null);
     return;
   }
+  const withText = fitsTextLink(text) ? await textHash(text, name) : null;
   showSnackbar(
     LINK_COPIED,
     withText

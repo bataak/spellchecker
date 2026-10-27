@@ -36,15 +36,28 @@ const FETCH_ERRORS: Readonly<Record<RemoteFailure, string>> = {
   network: "Файлыг татаж чадсангүй",
 };
 
+async function fetchFirst(
+  urls: readonly string[],
+  token: string | null,
+  d: RemoteOpenDeps,
+): Promise<RemoteResult> {
+  let result: RemoteResult = { ok: false, reason: "missing" };
+  for (const url of urls) {
+    result = await fetchRemote(url, token, d.fetcher);
+    if (result.ok || result.reason !== "missing") return result;
+  }
+  return result;
+}
+
 async function publicFetch(
   source: RemoteSource,
   d: RemoteOpenDeps,
 ): Promise<RemoteResult> {
-  const first = source.open ?? source.api!;
-  const result = await fetchRemote(first, null, d.fetcher);
-  if (result.ok || result.reason !== "network" || !source.open || !source.api)
+  if (!source.open) return fetchFirst(source.apis, null, d);
+  const result = await fetchRemote(source.open, null, d.fetcher);
+  if (result.ok || result.reason !== "network" || !source.apis.length)
     return result;
-  return fetchRemote(source.api, null, d.fetcher);
+  return fetchFirst(source.apis, null, d);
 }
 
 async function privateFetch(
@@ -52,8 +65,8 @@ async function privateFetch(
   d: RemoteOpenDeps,
   ask: (message: string) => boolean,
 ): Promise<RemoteResult | string | null> {
-  const { provider, api } = source;
-  if (!provider || !api) return null;
+  const { provider, apis } = source;
+  if (!provider || !apis[0]) return null;
   const name = PROVIDER_NAME[provider];
   if (!hasToken(provider))
     return (
@@ -61,7 +74,7 @@ async function privateFetch(
       name +
       "-д нэвтэрсний дараа холбоосыг дахин нээнэ үү"
     );
-  const host = new URL(api).host;
+  const host = new URL(apis[0]).host;
   if (
     !ask(
       "Файл олдсонгүй эсвэл нууц repo-д байна. " +
@@ -78,7 +91,7 @@ async function privateFetch(
   } catch {
     return name + "-д дахин нэвтэрнэ үү";
   }
-  return fetchRemote(api, token, d.fetcher);
+  return fetchFirst(apis, token, d);
 }
 
 export async function openRemote(
