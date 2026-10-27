@@ -118,10 +118,6 @@
   margin-top: 12px;
 }
 
-.collab-invite > .tbtn {
-  justify-self: start;
-}
-
 .collab-invite-list {
   display: grid;
   gap: 6px;
@@ -354,17 +350,23 @@
   display: none;
 }
 
+.collab-join {
+  margin-top: 4px;
+}
+
 .collab-mode-row {
   display: flex;
   gap: 8px;
-  margin-top: 4px;
 }
 
 .collab-mode-row .tbtn {
   flex: 1 1 0;
 }
 
-.collab-mode-row .tbtn[aria-pressed="true"],
+.collab-mode-row .tbtn:only-child {
+  flex: none;
+}
+
 .talk-trigger[aria-pressed="true"] {
   border-color: var(--accent);
   color: var(--accent);

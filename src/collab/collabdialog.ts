@@ -69,12 +69,16 @@ function inviteBox(
   deps: DialogDeps,
   note: HTMLElement,
   invited: () => void,
+  join: HTMLElement | null,
 ): HTMLElement {
   const box = element("div", "collab-invite");
-  const create = actionButton("Шинэ урилга үүсгэх");
+  const row = element("div", "collab-mode-row");
+  const create = actionButton("Урилга өгөх");
   create.classList.add("suggest-send");
   const list = element("ol", "collab-invite-list");
   create.addEventListener("click", () => {
+    if (join) join.hidden = true;
+    list.hidden = false;
     create.disabled = true;
     say(note, "", "Урилга үүсгэж байна…");
     void ask(deps, (live) => live.invite(deps.inviteName)).then((invite) => {
@@ -91,7 +95,19 @@ function inviteBox(
       );
     });
   });
-  box.append(create, list);
+  row.append(create);
+  box.append(row, list);
+  if (!join) return box;
+  const take = actionButton("Урилга авах");
+  take.addEventListener("click", () => {
+    list.hidden = true;
+    join.hidden = false;
+    say(note, "", "");
+    join.querySelector<HTMLInputElement>("input")?.focus();
+  });
+  join.hidden = true;
+  row.append(take);
+  box.append(join);
   return box;
 }
 
@@ -101,11 +117,11 @@ function joinBox(
   done: () => void,
 ): HTMLElement {
   const box = element("div", "collab-join");
-  const label = element("label", "collab-name", "Урилгын холбоос");
   const row = element("div", "collab-invite-row");
   const field = element("input", "collab-join-field");
   field.placeholder = "Урилгын холбоосыг энд буулгана уу";
-  const go = actionButton("Нэгдэх");
+  field.setAttribute("aria-label", "Урилгын холбоос");
+  const go = actionButton("Авах");
   const submit = (): void => {
     if (!field.value.trim()) return field.focus();
     if (!join(field.value))
@@ -119,33 +135,7 @@ function joinBox(
     submit();
   });
   row.append(field, go);
-  label.appendChild(row);
-  box.appendChild(label);
-  return box;
-}
-
-function modeBox(
-  invite: HTMLElement,
-  join: HTMLElement,
-  note: HTMLElement,
-): HTMLElement {
-  const box = element("div", "collab-modes");
-  const row = element("div", "collab-mode-row");
-  const give = actionButton("Урилга өгөх");
-  const take = actionButton("Урилга авах");
-  const pick = (giving: boolean): void => {
-    give.setAttribute("aria-pressed", String(giving));
-    take.setAttribute("aria-pressed", String(!giving));
-    invite.hidden = !giving;
-    join.hidden = giving;
-    say(note, "", "");
-    if (!giving) join.querySelector<HTMLInputElement>("input")?.focus();
-  };
-  give.addEventListener("click", () => pick(true));
-  take.addEventListener("click", () => pick(false));
-  invite.hidden = join.hidden = true;
-  row.append(give, take);
-  box.append(row, invite, join);
+  box.appendChild(row);
   return box;
 }
 
@@ -229,16 +219,11 @@ export function openDialog(deps: DialogDeps): void {
     );
     card.insertBefore(members, note);
   };
-  const invites = deps.owner ? inviteBox(deps, note, showMembers) : null;
-  if (invites && deps.join && !deps.started)
-    card.append(
-      modeBox(
-        invites,
-        joinBox(deps.join, note, () => dialog.close()),
-        note,
-      ),
-    );
-  else if (invites) card.append(invites);
+  const join =
+    deps.join && !deps.started
+      ? joinBox(deps.join, note, () => dialog.close())
+      : null;
+  if (deps.owner) card.append(inviteBox(deps, note, showMembers, join));
   card.append(nameField(deps));
   const toggle = (ending: boolean): void => {
     choice.hidden = !ending;

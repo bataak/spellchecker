@@ -77,7 +77,7 @@ test("урилгыг хуулж, илгээж, нэрийг солино", async
   input.value = "Шинэ";
   input.dispatchEvent(new Event("change"));
   assert.deepEqual(names, ["Шинэ"]);
-  button(dialog, "Шинэ урилга үүсгэх").click();
+  button(dialog, "Урилга өгөх").click();
   await wait();
   assert.match(note(dialog), /Урилга бэлэн/);
   const row = dialog.querySelector(".collab-invite-row")!;
@@ -195,7 +195,7 @@ test("уригдсан хүн баталгаажуулаад хамтын зас
   assert.equal(document.querySelector(".collab-overlay"), null);
 });
 
-test("эхлээгүй үед урилга өгөх, авахыг сонгож, холбоосоор нэгдэнэ", () => {
+test("эхлээгүй үед «Урилга авах»-аар холбоос оруулж нэгдэнэ", () => {
   const joined: string[] = [];
   const dialog = open({
     started: false,
@@ -204,24 +204,22 @@ test("эхлээгүй үед урилга өгөх, авахыг сонгож, 
       return text.startsWith("https://");
     },
   });
-  const give = button(dialog, "Урилга өгөх");
   const take = button(dialog, "Урилга авах");
-  const invite = dialog.querySelector<HTMLElement>(".collab-invite")!;
+  const list = dialog.querySelector<HTMLElement>(".collab-invite-list")!;
   const join = dialog.querySelector<HTMLElement>(".collab-join")!;
   const hint = dialog.querySelector(".suggest-hint")!.textContent;
-  assert.equal(invite.hidden && join.hidden, true);
-  give.click();
-  assert.equal(invite.hidden, false);
   assert.equal(join.hidden, true);
-  assert.equal(give.getAttribute("aria-pressed"), "true");
+  assert.equal(
+    [...dialog.querySelectorAll(".collab-mode-row .tbtn")].length,
+    2,
+  );
   take.click();
-  assert.equal(invite.hidden, true);
   assert.equal(join.hidden, false);
-  assert.equal(take.getAttribute("aria-pressed"), "true");
+  assert.equal(list.hidden, true);
   assert.equal(dialog.querySelector(".suggest-hint")!.textContent, hint);
   const field = dialog.querySelector<HTMLInputElement>(".collab-join input")!;
   field.value = "буруу";
-  button(dialog, "Нэгдэх").click();
+  button(dialog, "Авах").click();
   assert.match(note(dialog), /урилгын холбоос биш/);
   assert.equal(dialog.open, true);
   field.value = "https://aldaa.bichig.dev/#j=x";
@@ -242,4 +240,20 @@ test("эхэлсэн эсвэл нэгдэх боломжгүй үед нэгд�
   const plain = open({ started: false });
   assert.equal(plain.querySelector(".collab-join"), null);
   plain.close();
+});
+
+test("«Урилга өгөх» дарахад урилга үүсч, нэгдэх талбар нуугдана", async () => {
+  for (const old of document.querySelectorAll(".collab-overlay")) old.remove();
+  const dialog = open({ started: false, join: () => true });
+  button(dialog, "Урилга авах").click();
+  const join = dialog.querySelector<HTMLElement>(".collab-join")!;
+  assert.equal(join.hidden, false);
+  button(dialog, "Урилга өгөх").click();
+  await wait();
+  assert.equal(join.hidden, true);
+  assert.equal(dialog.querySelectorAll(".collab-invite-list > li").length, 1);
+  button(dialog, "Урилга өгөх").click();
+  await wait();
+  assert.equal(dialog.querySelectorAll(".collab-invite-list > li").length, 2);
+  dialog.close();
 });
