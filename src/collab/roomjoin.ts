@@ -12,19 +12,19 @@ import { needsHomeScreen } from "./device.ts";
 import type { Registry } from "./registry.ts";
 import { invitedUid, parseSlot, projectSlot, slotKey } from "./roomslot.ts";
 
-export function joinRoom(
+export async function joinRoom(
   rooms: readonly RoomEntry[],
   link: InviteLink,
   deps: Pick<SlotPort, "slot" | "showSlot" | "openSlot"> &
     Pick<CollabDeps, "notify" | "project">,
-): RoomEntry[] | null {
+): Promise<RoomEntry[] | null> {
   const known = roomById(rooms, link.room);
   if (known && deps.showSlot(parseSlot(known.slot))) return [...rooms];
   const rest = known ? withoutRoom(rooms, known.room) : rooms;
   if (link.name && isProjectName(link.name)) {
     const uid = invitedUid(link.room);
     const joining = link.name.slice(0, -1);
-    if (!deps.project?.prepare(joining, uid)) return null;
+    if (!(await deps.project?.prepare(joining, uid))) return null;
     return withRoom(rest, {
       slot: slotKey(projectSlot(uid)),
       room: link.room,
@@ -64,17 +64,17 @@ export function arrived(
   return withRoom(rooms, rest);
 }
 
-export function resumeJoins(
+export async function resumeJoins(
   rooms: readonly RoomEntry[],
   deps: Pick<CollabDeps, "project">,
   registry: Pick<Registry, "open">,
   drop: (entry: RoomEntry) => void,
-): void {
+): Promise<void> {
   for (const entry of rooms) {
     const slot = parseSlot(entry.slot);
     if (!entry.joining || slot.kind !== "project") continue;
     if (deps.project?.uid() === slot.uid) continue;
-    if (deps.project?.prepare(entry.joining, slot.uid))
+    if (await deps.project?.prepare(entry.joining, slot.uid))
       openProjectRoom(registry, entry);
     else drop(entry);
   }

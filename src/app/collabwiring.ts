@@ -119,9 +119,13 @@ export function createProjectCollab(
   return {
     uid: () => sharedUid(deps),
     prepare(name, uid) {
-      if (!confirmReplace(store.project()?.unsaved)) return false;
-      joining.set(uid, name);
-      return true;
+      const mark = (): boolean => {
+        joining.set(uid, name);
+        return true;
+      };
+      const answer = confirmReplace(store.project()?.unsaved);
+      if (typeof answer === "boolean") return answer && mark();
+      return answer.then((sure) => sure && mark());
     },
     hooks: (uid, seed) => ({
       port: projectPort(store, uid),

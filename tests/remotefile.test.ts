@@ -218,8 +218,8 @@ function harness(answers: boolean[], fetcher: Fetcher) {
         opened.push([name, text]);
       },
       notify: (message: string) => notes.push(message),
-      confirm: (message: string) => {
-        asked.push(message);
+      confirm: (title: string, text?: string) => {
+        asked.push(text ? title + "\n\n" + text : title);
         return answers.shift() ?? false;
       },
       fetcher,

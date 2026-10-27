@@ -1,3 +1,4 @@
+import { askChoice } from "../ui/ask.ts";
 import {
   FILE_LIMIT,
   PROJECT_SLOT,
@@ -44,6 +45,14 @@ export function createFileSlotOps(d: FileSlotDeps): FileSlotOps {
     d.onCloseFile?.(id);
   }
 
+  function drop(id: string): void {
+    if (d.templateId() === id)
+      d.choose(fallbackSlot(slots.all(), id, d.lastTemplate()));
+    slots.update((list) => list.filter((item) => item.id !== id));
+    forget(id);
+    d.rebuild();
+  }
+
   return {
     openFile(name, hash) {
       const current = slots.stored();
@@ -57,19 +66,15 @@ export function createFileSlotOps(d: FileSlotDeps): FileSlotOps {
     closeFile(id, force = false) {
       const slot = slots.find(id);
       if (!slot) return;
-      if (
-        !force &&
-        slots.dirty(slot) &&
-        !window.confirm(
-          "«" + slot.name + "» хадгалагдаагүй байна. Файлыг хаах уу?",
-        )
-      )
-        return;
-      if (d.templateId() === id)
-        d.choose(fallbackSlot(slots.all(), id, d.lastTemplate()));
-      slots.update((list) => list.filter((item) => item.id !== id));
-      forget(id);
-      d.rebuild();
+      if (force || !slots.dirty(slot)) return drop(id);
+      void askChoice({
+        title: "«" + slot.name + "» хадгалагдаагүй байна. Файлыг хаах уу?",
+        yes: "Хаах",
+        no: "Болих",
+        danger: true,
+      }).then((sure) => {
+        if (sure && slots.find(id)) drop(id);
+      });
     },
     findFile: (name, hash, text) =>
       slots.all().find((slot) => sameFile(slot, name, hash, text))?.id ?? null,

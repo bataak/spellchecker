@@ -32,7 +32,7 @@ export interface FileOpenDeps {
     name: string,
     hash: string,
     text: string | null,
-  ) => "new" | "open" | "reload" | false;
+  ) => Promise<"new" | "open" | "reload" | false>;
   readonly onLoaded: () => void;
 }
 
@@ -110,7 +110,7 @@ export function initFileOpen(d: FileOpenDeps): OpenEntries {
       opened("Нээлээ");
       return true;
     }
-    const prepared = d.prepareOpen(
+    const prepared = await d.prepareOpen(
       file.name,
       bytes ? bytesSum(bytes) : await fileSum(file),
       office ? null : text,
