@@ -76,9 +76,12 @@ function inviteBox(
   const create = actionButton("Урилга өгөх");
   create.classList.add("suggest-send");
   const list = element("ol", "collab-invite-list");
+  const take = join ? actionButton("Урилга авах") : null;
   create.addEventListener("click", () => {
     if (join) join.hidden = true;
     list.hidden = false;
+    take?.classList.remove("suggest-send");
+    create.classList.add("suggest-send");
     create.disabled = true;
     say(note, "", "Урилга үүсгэж байна…");
     void ask(deps, (live) => live.invite(deps.inviteName)).then((invite) => {
@@ -97,11 +100,12 @@ function inviteBox(
   });
   row.append(create);
   box.append(row, list);
-  if (!join) return box;
-  const take = actionButton("Урилга авах");
+  if (!join || !take) return box;
   take.addEventListener("click", () => {
     list.hidden = true;
     join.hidden = false;
+    create.classList.remove("suggest-send");
+    take.classList.add("suggest-send");
     say(note, "", "");
     join.querySelector<HTMLInputElement>("input")?.focus();
   });
