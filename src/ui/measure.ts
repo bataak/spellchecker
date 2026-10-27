@@ -263,11 +263,11 @@ function planTalk(
   metrics: Metrics,
   full: number,
   page: { readonly loose: number; readonly tight: number },
-  project: number,
+  projectColumn: number,
 ): TalkPlan | null {
   if (!talkOpen() || !wideQuery.matches) return null;
   const projectW = measureVar(wrap, "--project-w", PROJECT_W);
-  return talkPlan(metrics, full, page, project, projectW);
+  return talkPlan(metrics, full, page, projectColumn, projectW);
 }
 
 function planViewport(

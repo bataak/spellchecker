@@ -265,26 +265,26 @@ export function talkPlan(
   x: Metrics,
   full: number,
   page: { readonly loose: number; readonly tight: number },
-  project: number,
-  minWidth: number,
+  projectColumn: number,
+  narrowest: number,
 ): TalkPlan {
   const fit = (taken: number, edge: number): number | null => {
     const spare = (width: number): number =>
       full - taken - width - x.panelGap - edge;
-    if (spare(page.loose) >= minWidth)
+    if (spare(page.loose) >= narrowest)
       return Math.min(x.panelW, spare(page.loose));
-    return spare(page.tight) >= minWidth ? minWidth : null;
+    return spare(page.tight) >= narrowest ? narrowest : null;
   };
-  const edge = project > 0 ? 0 : x.gutterW;
-  const beside = fit(project, edge);
+  const edge = projectColumn > 0 ? 0 : x.gutterW;
+  const beside = fit(projectColumn, edge);
   if (beside !== null)
     return {
       mode: "column",
       width: beside,
-      viewport: full - project - beside - x.panelGap - edge,
+      viewport: full - projectColumn - beside - x.panelGap - edge,
     };
-  if (project > 0) {
-    const width = fit(0, x.gutterW) ?? minWidth;
+  if (projectColumn > 0) {
+    const width = fit(0, x.gutterW) ?? narrowest;
     return {
       mode: "swap",
       width,

@@ -278,8 +278,8 @@ test("багтахгүй үед шүүмжийн цонх хөвж, бичвэр
   const win = page.locator(".talk-window");
   await win.waitFor({ state: "visible" });
   assert.equal(
-    await page.evaluate(() =>
-      document.documentElement.hasAttribute("data-talk-float"),
+    await page.evaluate(
+      () => document.documentElement.dataset.talkSlot === "float",
     ),
     true,
   );

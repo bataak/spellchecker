@@ -282,7 +282,7 @@ test("төслийн самбарт товч нэмж, бусад бичвэрт
   const win = document.querySelector<HTMLElement>(".talk-window")!;
   assert.equal(win.hidden, false);
   assert.equal(win.nextElementSibling?.className, "editor-wrap");
-  assert.ok(document.documentElement.hasAttribute("data-talk"));
+  assert.ok(document.documentElement.hasAttribute("data-talk-slot"));
   assert.equal(
     win.querySelector(".talk-input")!.getAttribute("placeholder"),
     "Зурвас илгээх...",
@@ -297,7 +297,7 @@ test("төслийн самбарт товч нэмж, бусад бичвэрт
   assert.equal(editor.selectionStart, 5);
   win.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
   assert.equal(win.hidden, true);
-  assert.equal(document.documentElement.hasAttribute("data-talk"), false);
+  assert.equal(document.documentElement.hasAttribute("data-talk-slot"), false);
   trigger.click();
   win.querySelector<HTMLElement>(".project-act")!.click();
   assert.equal(win.hidden, true);
