@@ -9,7 +9,6 @@ import type { PdfPane } from "./pdfpane.ts";
 import type { TexProject } from "../project/projectbuild.ts";
 import { KEYS, read, write } from "../core/store.ts";
 import { autoDelay } from "./compilemode.ts";
-import { HELD_NOTE, releaseTexCompile, texCompileHeld } from "./texhold.ts";
 import {
   cancelRetry,
   drop,
@@ -77,11 +76,6 @@ function schedule(c: TexCtx): void {
   }
   const key = texKey(c);
   const text = deps.area.value;
-  if (texCompileHeld(text)) {
-    cancelTimer(c);
-    deps.showNotice(HELD_NOTE);
-    return;
-  }
   if (!st.auto && st.texShown !== null) {
     cancelTimer(c);
     return;
@@ -182,7 +176,6 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
     schedule: () => schedule(c),
     recompile() {
       if (st.compiling !== null) return;
-      releaseTexCompile();
       st.forced = true;
       st.retries = 0;
       st.triedText = null;
@@ -196,17 +189,12 @@ export function createTexPreview(deps: TexPreviewDeps): TexPreview {
       write(KEYS.texAuto, on ? "1" : "0");
       deps.onModeChange(on, note);
       if (!on) cancelTimer(c);
-      else if (
-        st.texMode &&
-        texKey(c) !== st.texShown &&
-        !texCompileHeld(deps.area.value)
-      ) {
+      else if (st.texMode && texKey(c) !== st.texShown) {
         cancelTimer(c);
         void render(c);
       }
     },
     compileNow() {
-      releaseTexCompile();
       api.setAuto(false);
       if (!st.texMode || st.compiling !== null) return;
       if (texKey(c) === st.texShown) {

@@ -21,7 +21,6 @@ import { initDictionaries, type Dictionaries } from "./dictionaries.ts";
 import { boot } from "./boot.ts";
 import { restoreDraftFile } from "./draftfile.ts";
 import { startUrlNav } from "./urlnav.ts";
-import { holdTexCompile } from "../preview/texhold.ts";
 
 export interface StartupDeps {
   readonly entryUrl: string;
@@ -63,10 +62,7 @@ function startNav(deps: StartupDeps): void {
     projectPath: project.path,
     enterProject: mdBar.enterProject,
     openPath: project.openPath,
-    openText: (name, text) => {
-      holdTexCompile(text);
-      return deps.fileIO.openText(name, text);
-    },
+    openText: deps.fileIO.openText,
     notify: (message) => deps.status.hold(message, 8000, false),
   });
 }
