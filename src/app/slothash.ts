@@ -2,12 +2,20 @@ import { findTemplate } from "../doc/templates.ts";
 import { PROJECT_SLOT } from "../slots/fileslots.ts";
 
 export type SlotTarget =
-  | { readonly kind: "template"; readonly id: string }
+  | {
+      readonly kind: "template";
+      readonly id: string;
+      readonly example?: string;
+    }
   | { readonly kind: "project"; readonly path: string | null }
   | { readonly kind: "file"; readonly name: string };
 
 const MAX_HASH = 2048;
 const FILE = "file";
+
+export function exampleInHash(id: string): boolean {
+  return (findTemplate(id)?.examples?.length ?? 0) > 1;
+}
 
 function decode(part: string): string | null {
   try {
@@ -21,7 +29,12 @@ const encodePath = (path: string): string =>
   path.split("/").map(encodeURIComponent).join("/");
 
 export function slotHash(target: SlotTarget): string {
-  if (target.kind === "template") return "#" + target.id;
+  if (target.kind === "template")
+    return (
+      "#" +
+      target.id +
+      (target.example && exampleInHash(target.id) ? "/" + target.example : "")
+    );
   if (target.kind === "file")
     return "#" + FILE + "/" + encodeURIComponent(target.name);
   return (
@@ -55,7 +68,11 @@ export function parseSlotHash(hash: string): SlotTarget | null {
       ? { kind: "file", name }
       : null;
   }
-  return rest === null && findTemplate(head) !== undefined
-    ? { kind: "template", id: head }
+  const template = findTemplate(head);
+  if (!template) return null;
+  if (rest === null) return { kind: "template", id: head };
+  return exampleInHash(head) &&
+    template.examples!.some((example) => example.id === rest)
+    ? { kind: "template", id: head, example: rest }
     : null;
 }

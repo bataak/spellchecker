@@ -50,7 +50,7 @@ export interface MdToolbar {
   refresh: () => void;
   template: () => string;
   slot: () => string;
-  choose: (id: string) => void;
+  choose: (id: string, example?: string) => void;
   draft: (key: string) => Promise<string | null>;
   caret: (key: string) => Caret | null;
   writeDraft: (key: string, text: string) => void;
