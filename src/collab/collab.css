@@ -442,25 +442,22 @@
 }
 
 @media (min-width: 1024px) {
-  :root[data-talk]:not([data-talk-float]) {
+  :root[data-talk-slot="column"],
+  :root[data-talk-slot="swap"] {
     --talk-col: calc(var(--talk-w, var(--panel-w)) + var(--panel-gap));
     --gutter-pull: 0px;
   }
 
-  :root[data-talk][data-talk-swap][data-project="on"]:not([data-talk-yield]) {
+  :root[data-talk-slot="swap"][data-project="on"]:not([data-project-float]) {
     --project-col: 0px;
   }
 
-  :root[data-talk][data-talk-swap][data-talk-yield] {
-    --talk-col: 0px;
-  }
-
-  :root[data-talk-swap]:not([data-talk-yield]) .project-panel,
-  :root[data-talk-swap][data-talk-yield] .workspace > .talk-window {
+  :root[data-talk-slot="swap"] .project-panel,
+  :root[data-talk-slot="yield"] .workspace > .talk-window {
     display: none;
   }
 
-  :root[data-talk-float] .workspace > .talk-window {
+  :root[data-talk-slot="float"] .workspace > .talk-window {
     position: absolute;
     z-index: 60;
     inset-block: 0;
@@ -483,7 +480,8 @@
     display: none;
   }
 
-  :root[data-talk]:not([data-talk-float]) .workspace > .empty-state {
+  :root[data-talk-slot="column"] .workspace > .empty-state,
+  :root[data-talk-slot="swap"] .workspace > .empty-state {
     left: calc(var(--talk-col) + var(--gutter-w));
   }
 }

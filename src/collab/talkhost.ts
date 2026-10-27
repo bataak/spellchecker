@@ -29,6 +29,7 @@ export interface TalkHostDeps extends RevealDeps, WindowDeps {
   readonly doc: () => DocRef | null;
   readonly profile: () => Profile;
   readonly notes: NoteStore;
+  readonly picking: () => boolean;
 }
 
 export interface TalkHost {
@@ -117,6 +118,7 @@ export function initTalk(deps: TalkHostDeps): TalkHost {
   initCommentButton({
     editor: deps.editor,
     view: deps.view,
+    picking: deps.picking,
     target(): CommentTarget | null {
       const kind = local.current()?.kind;
       const side = kind ? sides[kind] : null;

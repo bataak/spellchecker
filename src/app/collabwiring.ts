@@ -43,6 +43,7 @@ export interface CollabWiringDeps {
   readonly undo: () => UndoControl;
   readonly notify: (message: string) => void;
   readonly pin: (message: string | null) => void;
+  readonly picking: () => boolean;
 }
 
 const BLOCKED =
@@ -243,6 +244,7 @@ export function createCollabWiring(deps: CollabWiringDeps): Collab {
     doc: () => docRef(deps),
     profile: myProfile,
     notes: { load: loadNotes, save: saveNotes, drop: dropNotes },
+    picking: deps.picking,
     openPath: (path) => deps.project.openPath(path),
     anchor: document.querySelector("#collabBtn"),
     workspace: document.querySelector(".workspace"),

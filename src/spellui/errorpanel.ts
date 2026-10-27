@@ -26,6 +26,7 @@ export interface ErrorPanelDeps {
 export interface ErrorPanel {
   readonly render: () => void;
   readonly clear: (calculating: boolean) => void;
+  readonly picking: () => boolean;
 }
 
 type ErrorItem = ReturnType<typeof buildErrorList>[number];
@@ -193,5 +194,5 @@ export function initErrorPanel(deps: ErrorPanelDeps): ErrorPanel {
 
   if (copy) bindCopy(copy, deps.badTokens);
 
-  return { render, clear };
+  return { render, clear, picking: () => picked !== null };
 }

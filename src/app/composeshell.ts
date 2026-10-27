@@ -116,6 +116,7 @@ type SessionReads =
   | "draft"
   | "els"
   | "entryUrl"
+  | "errorPanel"
   | "fileIO"
   | "isTexFile"
   | "loop"
@@ -149,6 +150,7 @@ export function composeSession(app: Scope<SessionReads, SessionGives>): void {
     undo: () => app.undoCtl,
     notify: (message) => status.hold(message, 8000, false),
     pin: status.pin,
+    picking: () => app.errorPanel.picking(),
   });
   const tabGuard = watchTabs({
     slot: () => mdBar.slot(),

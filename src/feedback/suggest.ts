@@ -226,13 +226,14 @@ interface Preflight {
 
 const SUGGEST_WAIT_MS = 4000;
 
-function patient(suggest: SuggestDeps["suggest"]): SuggestDeps["suggest"] {
+function withTimeout(
+  suggest: SuggestDeps["suggest"],
+  ms: number,
+): SuggestDeps["suggest"] {
   return (word) =>
     Promise.race([
       suggest(word),
-      new Promise<string[]>((resolve) =>
-        setTimeout(() => resolve([]), SUGGEST_WAIT_MS),
-      ),
+      new Promise<string[]>((resolve) => setTimeout(() => resolve([]), ms)),
     ]);
 }
 
@@ -244,7 +245,7 @@ function createPreflight(
   token: string,
   session: number,
 ) => Promise<Preflight> {
-  const bounded = patient(suggest);
+  const bounded = withTimeout(suggest, SUGGEST_WAIT_MS);
   let confirmed = "";
   let cached: { key: string; typos: Typo[] } | null = null;
   return async (words, token, session) => {
