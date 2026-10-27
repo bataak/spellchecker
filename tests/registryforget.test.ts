@@ -18,7 +18,7 @@ after(async () => {
 });
 
 const wait = (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, ms));
+  new Promise((resolve) => nativeTimeout(resolve, ms));
 
 test("сешн нь эхлээгүй өрөөг мартахад хадгалсан өгөгдөл устана", async () => {
   await saveDoc("idle-room", new Uint8Array([1, 2, 3]));
