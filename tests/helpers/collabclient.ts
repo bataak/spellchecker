@@ -7,18 +7,19 @@ export type Message = string | Uint8Array;
 export interface Client {
   readonly id: string;
   hi: Record<string, unknown>;
+  member: string | null;
   send(data: string | Uint8Array): void;
   next(): Promise<Message>;
   close(): void;
 }
 
-export async function connect(
+function socket(
   base: string,
   room: string,
   dev: string,
   access: string,
-): Promise<Client> {
-  const id = randomId(12);
+  id: string,
+): NodeSocket {
   const url =
     base.replace(/^http/, "ws") +
     "/room/" +
@@ -29,7 +30,36 @@ export async function connect(
     id +
     "&" +
     access;
-  const ws = new NodeSocket(url, { headers: { Origin: ORIGIN } });
+  return new NodeSocket(url, { headers: { Origin: ORIGIN } });
+}
+
+export function knock(
+  base: string,
+  room: string,
+  dev: string,
+  access: string,
+  id = randomId(12),
+): Promise<number> {
+  const ws = socket(base, room, dev, access, id);
+  ws.on("error", () => {});
+  return new Promise((resolve) => {
+    ws.once("close", (code) => resolve(code));
+    ws.on("message", (data: Buffer, binary: boolean) => {
+      if (binary || JSON.parse(data.toString()).t !== "hi") return;
+      resolve(0);
+      ws.terminate();
+    });
+  });
+}
+
+export async function connect(
+  base: string,
+  room: string,
+  dev: string,
+  access: string,
+  id = randomId(12),
+): Promise<Client> {
+  const ws = socket(base, room, dev, access, id);
   const inbox: Message[] = [];
   const waiting: ((message: Message) => void)[] = [];
   ws.on("message", (data: Buffer, binary: boolean) => {
@@ -46,6 +76,7 @@ export async function connect(
   const client: Client = {
     id,
     hi: {},
+    member: null,
     send: (data) => ws.send(data),
     next: () =>
       inbox.length
@@ -53,7 +84,15 @@ export async function connect(
         : new Promise((wake) => waiting.push(wake)),
     close: () => ws.terminate(),
   };
-  client.hi = (await event(client, "hi")) as Record<string, unknown>;
+  for (;;) {
+    const message = await client.next();
+    if (typeof message !== "string") continue;
+    const value = JSON.parse(message) as Record<string, unknown>;
+    if (value.t === "member") client.member = value.m as string;
+    if (value.t !== "hi") continue;
+    client.hi = value;
+    break;
+  }
   return client;
 }
 

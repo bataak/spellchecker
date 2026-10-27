@@ -1,3 +1,4 @@
+import { pathRecord } from "../core/pathrecord.ts";
 import {
   findMain,
   isEditablePath,
@@ -160,7 +161,7 @@ export function applyEdits(
   next.exportedAt = meta.exportedAt ?? null;
   next.twin = meta.twin ?? false;
   next.uid = meta.uid ?? next.uid;
-  next.persisted = { ...edits };
+  next.persisted = pathRecord(edits);
   next.active =
     meta.active && next.texts.has(meta.active) ? meta.active : next.main;
   recountDirty(next);

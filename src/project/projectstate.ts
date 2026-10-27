@@ -1,3 +1,4 @@
+import { pathRecord } from "../core/pathrecord.ts";
 import { decodeFileBytes } from "../archive/cp1251.ts";
 import type { GitRemote } from "./git/gitsync.ts";
 import {
@@ -76,7 +77,7 @@ export function metaOf(s: State): Meta {
 }
 
 export function editsOf(s: State): Record<string, string> {
-  const out: Record<string, string> = {};
+  const out = pathRecord<string>();
   for (const path of s.dirty) out[path] = s.texts.get(path) ?? "";
   return out;
 }
@@ -96,7 +97,7 @@ export function noteEol(s: State, path: string, crlf: boolean): void {
 }
 
 export function savedFilesOf(s: State): Record<string, Uint8Array> {
-  const out: Record<string, Uint8Array> = {};
+  const out = pathRecord<Uint8Array>();
   const encoder = new TextEncoder();
   for (const [path, text] of s.saved)
     if (!s.added.has(path)) out[path] = encoder.encode(diskText(s, path, text));
@@ -192,7 +193,7 @@ export function newState(
     crlf,
     twin: false,
     uid: newUid(),
-    persisted: {},
+    persisted: pathRecord(),
     remote: null,
   };
 }

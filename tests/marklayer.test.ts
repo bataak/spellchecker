@@ -106,8 +106,8 @@ test("emptystate: хоосон эсэхээр анги, тэмдэглэгээг
 });
 
 test("app/dom: бүрхүүлийн элементүүдийг олж, дутвал алдаа өгнө", async () => {
-  const { requireEl, nextFrame, queryShell } =
-    await import("../src/app/dom.ts");
+  const { nextFrame, queryShell } = await import("../src/app/dom.ts");
+  const { requireEl } = await import("../src/ui/dom.ts");
   assert.throws(() => requireEl("#none"), /missing element: #none/);
   document.body.insertAdjacentHTML(
     "beforeend",

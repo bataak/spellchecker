@@ -1,3 +1,4 @@
+import { requireEl } from "../ui/dom.ts";
 import { getSubmitted, addSubmitted } from "./submitted.ts";
 import { postSuggestion, SENT, sendBlock, sendFailure } from "./suggestsend.ts";
 import type { Token } from "../spell/textcheck.ts";
@@ -62,7 +63,7 @@ function buildForm(): FormParts {
   overlay.innerHTML = SUGGEST_HTML;
   document.body.appendChild(overlay);
   const find = <T extends HTMLElement>(selector: string): T =>
-    overlay.querySelector<T>(selector)!;
+    requireEl<T>(selector, overlay);
   return {
     overlay,
     card: find(".suggest-card"),
@@ -100,7 +101,7 @@ function bindWordInput(
 function renderSubmitted({ overlay, title }: FormParts): void {
   const submitted = [...getSubmitted()].sort((a, b) => a.localeCompare(b));
   title.innerHTML = submittedTitle(submitted.length);
-  overlay.querySelector(".suggest-submitted-chips")!.innerHTML =
+  requireEl(".suggest-submitted-chips", overlay).innerHTML =
     submittedChips(submitted);
 }
 
@@ -171,7 +172,7 @@ function bindForm(f: FormParts, words: WordList, on: FormHandlers): void {
   overlay.addEventListener("pointerdown", (e) => {
     if (e.target === overlay) on.close();
   });
-  overlay.querySelector(".suggest-cancel")!.addEventListener("click", on.close);
+  requireEl(".suggest-cancel", overlay).addEventListener("click", on.close);
   f.sendBtn.addEventListener("click", on.submit);
   overlay
     .querySelectorAll<HTMLElement>(
@@ -189,10 +190,10 @@ function bindForm(f: FormParts, words: WordList, on: FormHandlers): void {
   attachIssuesPress(
     f.viewBtn,
     () =>
-      getComputedStyle(overlay.querySelector(".suggest-issues")!).display ===
+      getComputedStyle(requireEl(".suggest-issues", overlay)).display ===
       "none",
   );
-  overlay.querySelector(".suggest-clear-all")!.addEventListener("click", () => {
+  requireEl(".suggest-clear-all", overlay).addEventListener("click", () => {
     words.set([]);
     on.note("");
     f.wordEl.focus();

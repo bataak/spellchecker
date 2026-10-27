@@ -1,3 +1,4 @@
+import { requireEl } from "../ui/dom.ts";
 import { downloadBlob } from "../files/download.ts";
 import { escapeAttr } from "../core/htmlutil.ts";
 import {
@@ -86,13 +87,11 @@ export function initIgnoreList(onChange: () => void): void {
   let overlay: HTMLDivElement | null = null;
 
   function renderList(): void {
-    const box = overlay!.querySelector(".ignore-chips")!;
+    const box = requireEl(".ignore-chips", overlay!);
     const words = getIgnored();
-    const empty = overlay!.querySelector<HTMLElement>(".ignore-empty")!;
-    const clearBtn =
-      overlay!.querySelector<HTMLButtonElement>(".ignore-clear")!;
-    const exportBtn =
-      overlay!.querySelector<HTMLButtonElement>(".ignore-export")!;
+    const empty = requireEl<HTMLElement>(".ignore-empty", overlay!);
+    const clearBtn = requireEl<HTMLButtonElement>(".ignore-clear", overlay!);
+    const exportBtn = requireEl<HTMLButtonElement>(".ignore-export", overlay!);
     const cnt = overlay!.querySelector(".ignore-count");
     if (cnt) cnt.textContent = words.length ? "(" + words.length + ")" : "";
     clearBtn.hidden = words.length < 2;
@@ -140,15 +139,11 @@ export function initIgnoreList(onChange: () => void): void {
     overlay.addEventListener("pointerdown", (e) => {
       if (e.target === overlay) closeForm();
     });
-    overlay
-      .querySelector(".ignore-close")!
-      .addEventListener("click", closeForm);
-    overlay
-      .querySelector(".ignore-export")!
-      .addEventListener("click", doExport);
+    requireEl(".ignore-close", overlay).addEventListener("click", closeForm);
+    requireEl(".ignore-export", overlay).addEventListener("click", doExport);
 
-    const fileInput = overlay.querySelector<HTMLInputElement>(".ignore-file")!;
-    overlay.querySelector(".ignore-import")!.addEventListener("click", () => {
+    const fileInput = requireEl<HTMLInputElement>(".ignore-file", overlay);
+    requireEl(".ignore-import", overlay).addEventListener("click", () => {
       fileInput.click();
     });
     fileInput.addEventListener("change", () => {
@@ -156,7 +151,7 @@ export function initIgnoreList(onChange: () => void): void {
       fileInput.value = "";
     });
 
-    overlay.querySelector(".ignore-clear")!.addEventListener("click", () => {
+    requireEl(".ignore-clear", overlay).addEventListener("click", () => {
       if (clearIgnored()) {
         renderList();
         syncIgnoreVisibility();

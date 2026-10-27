@@ -1,11 +1,4 @@
-export function requireEl<T extends Element = HTMLElement>(
-  selector: string,
-  root: ParentNode = document,
-): T {
-  const el = root.querySelector<T>(selector);
-  if (!el) throw new Error("missing element: " + selector);
-  return el;
-}
+import { requireEl } from "../ui/dom.ts";
 
 export function nextFrame(): Promise<void> {
   return new Promise((resolve) => requestAnimationFrame(() => resolve()));

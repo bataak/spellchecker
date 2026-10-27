@@ -1,3 +1,4 @@
+import { requireEl } from "../ui/dom.ts";
 import { KEYS, read, write } from "../core/store.ts";
 export const EN_IDS = ["en_GB", "en_US"] as const;
 
@@ -73,7 +74,7 @@ function dictDialog(): HTMLElement {
   title.className = "dict-menu-title";
   title.textContent = "Ашиглаж буй толь";
   const mnRow = dictRow("Монгол", true);
-  const mnBox = mnRow.querySelector("input")!;
+  const mnBox = requireEl<HTMLInputElement>("input", mnRow);
   mnBox.checked = true;
   mnBox.disabled = true;
   dialog.append(title, mnRow);
@@ -109,7 +110,7 @@ export function initDictMenu(opts: DictMenuOptions): () => void {
     dialog = dictDialog();
     for (const id of EN_IDS) {
       const row = dictRow(EN_LABEL[id]!, false);
-      const box = row.querySelector("input")!;
+      const box = requireEl<HTMLInputElement>("input", row);
       box.className = "dict-en-box";
       box.dataset.id = id;
       box.addEventListener("change", apply);

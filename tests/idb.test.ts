@@ -1,7 +1,12 @@
+import "fake-indexeddb/auto";
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { requestResult, transactionDone } from "../src/core/idb.ts";
+import {
+  databaseOpener,
+  requestResult,
+  transactionDone,
+} from "../src/core/idb.ts";
 
 type Handlers = Record<string, (() => void) | null>;
 
@@ -31,4 +36,31 @@ test("requestResult: үр дүн эсвэл алдааг буцаана", async 
   const failed = requestResult(bad as never);
   bad.onerror!();
   await assert.rejects(failed, /IndexedDB request failed/);
+});
+
+test("databaseOpener: нэг холболтыг дахин ашиглаж, versionchange-д хаагаад дахин нээнэ", async () => {
+  const name = "opener-" + Math.random();
+  const open = databaseOpener(name, (db) => db.createObjectStore("kv"));
+  const first = await open();
+  assert.equal(await open(), first);
+  const removed = indexedDB.deleteDatabase(name);
+  await requestResult(removed);
+  const again = await open();
+  assert.notEqual(again, first);
+  assert.ok(again.objectStoreNames.contains("kv"));
+  again.close();
+});
+
+test("databaseOpener: нээж чадаагүй бол дараагийн удаа дахин оролдоно", async () => {
+  const name = "opener-fail-" + Math.random();
+  let calls = 0;
+  const open = databaseOpener(name, (db) => {
+    calls++;
+    if (calls === 1) throw new Error("upgrade");
+    db.createObjectStore("kv");
+  });
+  await assert.rejects(open());
+  const db = await open();
+  assert.ok(db.objectStoreNames.contains("kv"));
+  db.close();
 });

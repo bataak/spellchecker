@@ -3,7 +3,7 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["dist/", "dev-dist/", "public/", "vendor/", "worker/", "tools/"],
+    ignores: ["dist/", "dev-dist/", "public/", "vendor/", "tools/"],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -22,7 +22,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["src/**/*.ts"],
+    files: ["src/**/*.ts", "worker/**/*.ts"],
     languageOptions: {
       parserOptions: {
         projectService: true,

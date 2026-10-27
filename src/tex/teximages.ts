@@ -1,4 +1,4 @@
-import { openDatabase } from "../core/idb.ts";
+import { databaseOpener } from "../core/idb.ts";
 import { replaceRange } from "../editor/editortext.ts";
 import { pickImage } from "../files/images.ts";
 import { expandMacros, pathMacros, uncommented } from "./texproject.ts";
@@ -90,9 +90,7 @@ function asset(path: string): string {
   return import.meta.env.BASE_URL + path;
 }
 
-function openDb(): Promise<IDBDatabase> {
-  return openDatabase(DB_NAME, (db) => db.createObjectStore(DB_STORE));
-}
+const openDb = databaseOpener(DB_NAME, (db) => db.createObjectStore(DB_STORE));
 
 async function savedDir(): Promise<FileSystemDirectoryHandle | null> {
   try {
