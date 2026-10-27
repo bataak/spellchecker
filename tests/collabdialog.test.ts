@@ -195,7 +195,7 @@ test("уригдсан хүн баталгаажуулаад хамтын зас
   assert.equal(document.querySelector(".collab-overlay"), null);
 });
 
-test("эхлээгүй үед урилгын холбоосоор нэгдэх талбар гарна", () => {
+test("эхлээгүй үед урилга өгөх, авахыг сонгож, холбоосоор нэгдэнэ", () => {
   const joined: string[] = [];
   const dialog = open({
     started: false,
@@ -204,6 +204,21 @@ test("эхлээгүй үед урилгын холбоосоор нэгдэх �
       return text.startsWith("https://");
     },
   });
+  const give = button(dialog, "Урилга өгөх");
+  const take = button(dialog, "Урилга авах");
+  const invite = dialog.querySelector<HTMLElement>(".collab-invite")!;
+  const join = dialog.querySelector<HTMLElement>(".collab-join")!;
+  const hint = dialog.querySelector(".suggest-hint")!.textContent;
+  assert.equal(invite.hidden && join.hidden, true);
+  give.click();
+  assert.equal(invite.hidden, false);
+  assert.equal(join.hidden, true);
+  assert.equal(give.getAttribute("aria-pressed"), "true");
+  take.click();
+  assert.equal(invite.hidden, true);
+  assert.equal(join.hidden, false);
+  assert.equal(take.getAttribute("aria-pressed"), "true");
+  assert.equal(dialog.querySelector(".suggest-hint")!.textContent, hint);
   const field = dialog.querySelector<HTMLInputElement>(".collab-join input")!;
   field.value = "буруу";
   button(dialog, "Нэгдэх").click();
@@ -218,6 +233,11 @@ test("эхлээгүй үед урилгын холбоосоор нэгдэх �
 test("эхэлсэн эсвэл нэгдэх боломжгүй үед нэгдэх талбар гарахгүй", () => {
   const started = open({ join: () => true });
   assert.equal(started.querySelector(".collab-join"), null);
+  assert.equal(started.querySelector(".collab-modes"), null);
+  assert.equal(
+    started.querySelector<HTMLElement>(".collab-invite")!.hidden,
+    false,
+  );
   started.close();
   const plain = open({ started: false });
   assert.equal(plain.querySelector(".collab-join"), null);

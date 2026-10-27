@@ -354,6 +354,17 @@
   display: none;
 }
 
+.collab-mode-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.collab-mode-row .tbtn {
+  flex: 1 1 0;
+}
+
+.collab-mode-row .tbtn[aria-pressed="true"],
 .talk-trigger[aria-pressed="true"] {
   border-color: var(--accent);
   color: var(--accent);
