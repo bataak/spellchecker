@@ -58,14 +58,13 @@ test("файл хаахад цэс товчныхоо доор үлдэнэ", as
   }
 });
 
-test("талбар цэвэрлэсний дараа хэвлэх алдааг хэлнэ", async () => {
+test("төслийн файлыг хоосолсны дараа хэвлэх алдааг хэлнэ", async () => {
   const page = await openPage(app, await app.context());
   await openFile(page, app.files.project);
   await page.waitForTimeout(3000);
-  await page
-    .locator('button[title*="Файлыг хааж"], button[aria-label*="Файлыг хааж"]')
-    .first()
-    .click();
+  await page.click("#editor");
+  await page.keyboard.press("Control+A");
+  await page.keyboard.press("Delete");
   await page.waitForTimeout(1000);
   await page.click("#printBtn");
   const label = await until(
@@ -190,4 +189,43 @@ test("LaTeX мөрөөр сонголтыг тодруулж, тэмдэг ба 
     (await editor(page)).endsWith("\\begin{center}\n  y\n\\end{center}"),
     await editor(page),
   );
+});
+
+test("төсөлд байхад Цэвэрлэх товч төслийг асууж байгаад хаана", async () => {
+  const page = await openPage(app, await app.context());
+  await typeAtEnd(page, "Өмнөх бичвэр");
+  await openFile(page, app.files.project);
+  await typeAtEnd(page, "%засвар");
+  const hasProject = (): Promise<boolean> =>
+    page.evaluate(
+      () =>
+        !!document.querySelector('.md-menu-item[data-value="project"]') ||
+        (document.querySelector(".md-template")?.textContent ?? "").includes(
+          "төсөл",
+        ),
+    );
+
+  await page.evaluate(() => {
+    window.confirm = () => false;
+  });
+  await page.click("#clearBtn");
+  await page.waitForTimeout(600);
+  assert.match(await editor(page), /documentclass[\s\S]*%засвар$/);
+
+  await page.evaluate(() => {
+    window.confirm = () => true;
+  });
+  await page.click("#clearBtn");
+  assert.equal(
+    await until(
+      () => editor(page),
+      (text) => text === "Өмнөх бичвэр",
+    ),
+    "Өмнөх бичвэр",
+  );
+  await page.click("#editor");
+  await page.waitForTimeout(400);
+  await page.click(".md-template");
+  await page.waitForTimeout(300);
+  assert.equal(await hasProject(), false);
 });
