@@ -19,6 +19,7 @@ export interface ToolbarDeps {
   readonly forgetFile: () => void;
   readonly afterClear: (cleared: boolean) => void;
   readonly confirmClear?: () => boolean | Promise<boolean>;
+  readonly closeProject?: () => boolean;
   readonly lettersFixed: () => void;
   readonly hasOpenFile: () => boolean;
   readonly badTokens: () => Token[];
@@ -271,6 +272,7 @@ function initButtons({
   badTokens,
   afterClear,
   confirmClear = () => true,
+  closeProject = () => false,
   lettersFixed,
 }: ToolbarDeps): void {
   const editor = port.el;
@@ -286,7 +288,7 @@ function initButtons({
   };
   let confirming = false;
   clearBtn.addEventListener("click", () => {
-    if (confirming) return;
+    if (confirming || closeProject()) return;
     if (!editor.value && !hasOpenFile()) {
       afterClear(false);
       editor.focus();
