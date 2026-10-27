@@ -186,3 +186,23 @@ test("хулганаар чирж сонгох явцад шүүмжийн то�
   assert.equal((await state()).shown, true);
   assert.deepEqual(errors(page), []);
 });
+
+test("алдаатай үгийн жагсаалтаас үг сонгоход шүүмжийн товч гарахгүй", async () => {
+  const page = await openPage(app, await app.context());
+  await page.setViewportSize({ width: 2000, height: 900 });
+  await typeAtEnd(page, "Өглөө нар гарлаа. Боловсролы асуудал.");
+  const word = page.locator(".ew").first();
+  await word.waitFor({ timeout: 15000 });
+  await word.click();
+  await page.locator("#popover").waitFor({ state: "visible" });
+  await page.waitForTimeout(300);
+  const button = page.locator(".collab-comment-btn");
+  assert.equal(await button.isVisible(), false);
+  await page.evaluate(() => {
+    const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
+    area.setSelectionRange(0, 5);
+    document.dispatchEvent(new Event("selectionchange"));
+  });
+  await button.waitFor({ state: "visible" });
+  assert.deepEqual(errors(page), []);
+});
