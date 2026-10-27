@@ -11,6 +11,7 @@ import {
 } from "./suggestmarkup.ts";
 import { attachHoldToCopy, attachIssuesPress } from "./suggestpress.ts";
 import { createWordList, type WordList } from "./suggestlist.ts";
+import { findTypos, typoNote } from "./suggestwords.ts";
 
 export interface SuggestDeps {
   readonly getBadTokens: () => Token[];
@@ -18,6 +19,7 @@ export interface SuggestDeps {
   readonly checkKnown: (
     words: string[],
   ) => Promise<Record<string, boolean> | null>;
+  readonly suggest: (word: string) => Promise<string[]>;
 }
 
 function hasActiveSelection(): boolean {
@@ -202,6 +204,28 @@ function bindForm(f: FormParts, words: WordList, on: FormHandlers): void {
   bindFormKeys(f, words, on);
 }
 
+function bindOpenLinks(open: () => Promise<void>): void {
+  document.querySelectorAll("a.suggestctl, a.suggest-word").forEach((link) => {
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      void open();
+    });
+  });
+}
+
+function createTypoGate(
+  suggest: SuggestDeps["suggest"],
+): (words: readonly string[]) => Promise<string | null> {
+  let confirmed = "";
+  return async (words) => {
+    const typos = await findTypos(words, suggest);
+    const key = words.join("\n");
+    if (!typos.length || confirmed === key) return null;
+    confirmed = key;
+    return typoNote(typos);
+  };
+}
+
 export function initSuggest(deps: SuggestDeps): void {
   const turnstile = createTurnstileWidget();
   let form: FormParts | null = null;
@@ -209,6 +233,7 @@ export function initSuggest(deps: SuggestDeps): void {
   let busy = false;
   let showingSubmitted = false;
   let session = 0;
+  const typoWarning = createTypoGate(deps.suggest);
 
   function note(msg: string, kind?: string): void {
     form!.noteEl.textContent = msg;
@@ -269,11 +294,14 @@ export function initSuggest(deps: SuggestDeps): void {
     busy = true;
     await list!.addFromInput(true);
     if (current !== session) return;
-    busy = false;
     const { noteInput, sendBtn } = form!;
     const token = turnstile.token();
     const words = list!.words();
-    const blocked = sendBlock(words.length, navigator.onLine, token);
+    const blocked =
+      sendBlock(words.length, navigator.onLine, token) ??
+      (await typoWarning(words));
+    if (current !== session) return;
+    busy = false;
     if (blocked) {
       note(blocked, "err");
       if (!words.length) form!.wordEl.focus();
@@ -301,10 +329,5 @@ export function initSuggest(deps: SuggestDeps): void {
     sendBtn.disabled = false;
   }
 
-  document.querySelectorAll("a.suggestctl, a.suggest-word").forEach((link) => {
-    link.addEventListener("click", (e) => {
-      e.preventDefault();
-      void openForm();
-    });
-  });
+  bindOpenLinks(openForm);
 }

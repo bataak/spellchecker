@@ -29,13 +29,15 @@ export function initDictionaries(deps: DictionariesDeps): Dictionaries {
     blank: () => editor.value.trim() === "",
   });
 
+  const mnReady = (): boolean =>
+    checker.ready && !checker.dead && checker.loadedIds.includes("mn_MN");
   initSuggest({
     getBadTokens: deps.badTokens,
     isDashSuffix: (token) => isDashSuffix(editor.value, token),
     checkKnown: (list) =>
-      checker.ready && !checker.dead && checker.loadedIds.includes("mn_MN")
-        ? checker.checkWords(list)
-        : Promise.resolve(null),
+      mnReady() ? checker.checkWords(list) : Promise.resolve(null),
+    suggest: (word) =>
+      mnReady() ? checker.suggest(word) : Promise.resolve([]),
   });
 
   initIgnoreList(() => void deps.render());
