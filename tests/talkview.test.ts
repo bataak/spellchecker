@@ -215,6 +215,7 @@ test("төслийн самбарт товч нэмж, бусад бичвэрт
   const editor = document.querySelector<HTMLTextAreaElement>("#editor")!;
   editor.value = "Сайн уу байна";
   initTalk({
+    picking: () => false,
     collab: {
       talk: (kind) => talks[kind],
       onTalk: (listener) => void (notify = listener),
@@ -330,6 +331,7 @@ test("бичвэр солигдоход chat-ийн сонсогч давхар�
   let current: Talk | null = talks[0]!;
   let notify = (): void => {};
   initTalk({
+    picking: () => false,
     collab: {
       talk: (kind) => (kind === "file" ? current : null),
       onTalk: (listener) => void (notify = listener),
