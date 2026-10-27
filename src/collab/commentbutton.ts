@@ -16,6 +16,7 @@ export interface CommentButtonDeps {
 }
 
 const GAP = 4;
+const DRAG_IDLE_MS = 800;
 const EDGE = 8;
 
 function selectionDraft(
@@ -49,6 +50,9 @@ export function initCommentButton(deps: CommentButtonDeps): void {
   const node = commentButton(view.host);
   let frame = 0;
   let dragging = false;
+  let pressedAt = 0;
+  const held = (): boolean =>
+    dragging && performance.now() - pressedAt < DRAG_IDLE_MS;
 
   const hide = (): void => {
     node.hidden = true;
@@ -68,7 +72,7 @@ export function initCommentButton(deps: CommentButtonDeps): void {
   const update = (): void => {
     frame = 0;
     const target = deps.target();
-    if (dragging || deps.picking()) return hide();
+    if (held() || deps.picking()) return hide();
     if (document.activeElement !== editor || !target) return hide();
     if (!selectionDraft(editor, target)) return hide();
     placeAt(editor.selectionStart, editor.selectionEnd);
@@ -101,12 +105,17 @@ export function initCommentButton(deps: CommentButtonDeps): void {
   editor.addEventListener("pointerdown", (event) => {
     if (event.pointerType !== "mouse" || event.button !== 0) return;
     dragging = true;
+    pressedAt = performance.now();
     hide();
   });
-  document.addEventListener("pointerup", release);
-  document.addEventListener("pointercancel", release);
+  for (const type of ["pointerup", "pointercancel", "mouseup"])
+    document.addEventListener(type, release, true);
+  window.addEventListener("blur", release);
+  editor.addEventListener("keydown", release);
   document.addEventListener("pointermove", (event) => {
-    if (dragging && event.buttons === 0) release();
+    if (!dragging) return;
+    if (event.buttons === 0) release();
+    else pressedAt = performance.now();
   });
   document.addEventListener("selectionchange", soon);
   editor.addEventListener("blur", hide);
