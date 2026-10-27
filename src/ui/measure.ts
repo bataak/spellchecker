@@ -12,6 +12,8 @@ import {
   serializeLayout,
   showsControl,
   chooseLayout,
+  HYSTERESIS,
+  has,
   PREVIEW_MIN_MEASURE,
   projectViewport,
   talkPlan,
@@ -212,6 +214,7 @@ function setFlag(
   on: boolean,
 ): void {
   const data = document.documentElement.dataset;
+  if (on === name in data) return;
   if (on) data[name] = "";
   else delete data[name];
 }
@@ -295,7 +298,8 @@ function planViewport(
     previewMeasure(wide.active, metrics, full),
   );
   const tight = wide.active.preview
-    ? pageWidth(wide.active, metrics, PREVIEW_MIN_MEASURE)
+    ? pageWidth(wide.active, metrics, PREVIEW_MIN_MEASURE) +
+      (has(prev, wide.active) ? 0 : HYSTERESIS)
     : loose;
   const plan =
     room > 0 ? projectViewport(full, room, tight) : { viewport: full };

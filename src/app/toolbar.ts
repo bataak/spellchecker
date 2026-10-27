@@ -343,7 +343,7 @@ function initButtons({
       editor.focus();
       return;
     }
-    if (invite(text)) return;
+    if (!editor.readOnly && invite(text)) return;
     const fixed = standardLetters(text);
     insertAtCaret(fixed);
     if (fixed !== text) lettersFixed();
