@@ -2,7 +2,7 @@ import * as Y from "yjs";
 import { noteError } from "../core/errorlog.ts";
 import { createEmitter, type Emitter } from "../core/emitter.ts";
 import { importKey, randomId } from "./collabkey.ts";
-import { dropRoom, saveDoc } from "./docstore.ts";
+import { dropRoom } from "./docstore.ts";
 import {
   createEditing,
   LOADED,
@@ -54,18 +54,20 @@ function isRemote(origin: unknown): boolean {
 async function keepOrDrop(
   room: string,
   docs: RoomDocs,
+  saver: Saver,
   forget: boolean,
 ): Promise<void> {
   await docs.chat.close(forget);
+  if (!forget) await saver.compact();
+  await saver.close();
   if (forget) await dropRoom(room);
-  else await saveDoc(room, Y.encodeStateAsUpdate(docs.doc));
 }
 
 function sessionUploader(
   deps: Pick<SessionDeps, "onNotice" | "seed" | "project">,
   doc: Y.Doc,
   key: CryptoKey,
-  gate: Pick<UploaderDeps, "allowed" | "send">,
+  gate: Pick<UploaderDeps, "allowed" | "send" | "encoded">,
 ): Uploader {
   return createUploader(
     { doc, key, ...gate, notice: deps.onNotice },
@@ -257,7 +259,9 @@ export function lateLinks(): LateLinks {
 export async function startSession(deps: SessionDeps): Promise<Session> {
   const { link } = deps;
   const key = await importKey(link.key);
-  const { doc, fresh } = await openDoc(link.room, deps.seed, deps.project);
+  const opened = await openDoc(link.room, deps.seed, deps.project);
+  const { doc, fresh } = opened;
+  const saver = createSaver(doc, link.room, opened.keys, opened.early);
   const chat = await openChatDoc(link.room);
   const links = lateLinks();
   const state: SessionState = {
@@ -280,7 +284,6 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
       signal: state.signal,
       peers: links.peek()?.mesh.open().length ?? 0,
     });
-  const saver = createSaver(doc, link.room);
   const uploader = sessionUploader(deps, doc, key, {
     allowed: () =>
       !state.stopped &&
@@ -288,6 +291,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
       state.signal === "open" &&
       isUploader(self, room, peers.open()),
     send: (data) => links.get().signal.upload(data),
+    encoded: (state) => void saver.compact(state),
   });
   const admin = createAdmin(key, (message) =>
     links.get().signal.command(message),
@@ -346,7 +350,7 @@ export async function startSession(deps: SessionDeps): Promise<Session> {
       sync.close();
       mesh.close();
       closeSignal(signal, forget);
-      await keepOrDrop(link.room, { doc, chat }, forget);
+      await keepOrDrop(link.room, { doc, chat }, saver, forget);
       doc.destroy();
     },
   };
