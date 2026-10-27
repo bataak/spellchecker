@@ -1,4 +1,3 @@
-import { onSwap } from "../editor/editortext.ts";
 import { PROJECT_SLOT, isFileSlot } from "../slots/fileslots.ts";
 import { isPlain } from "../doc/templates.ts";
 import { copyText } from "../ui/clipboard.ts";
@@ -10,14 +9,20 @@ import {
   readTextHash,
   textHash,
 } from "../files/textlink.ts";
-import { parseSlotHash, slotHash, type SlotTarget } from "./slothash.ts";
+import { chosenExample } from "../slots/slotstore.ts";
+import {
+  exampleInHash,
+  parseSlotHash,
+  slotHash,
+  type SlotTarget,
+} from "./slothash.ts";
 
 export interface UrlNavDeps {
   readonly editor: HTMLTextAreaElement;
   readonly copyButton: HTMLElement | null;
   readonly template: () => string;
   readonly fileSlots: () => readonly { id: string; name: string }[];
-  readonly choose: (id: string) => void;
+  readonly choose: (id: string, example?: string) => void;
   readonly showFile: (id: string) => void;
   readonly hasProject: () => boolean;
   readonly projectText: (path: string) => string | null;
@@ -45,7 +50,10 @@ function clearHash(): void {
 function currentTarget(d: UrlNavDeps): SlotTarget | null {
   const id = d.template();
   if (id === PROJECT_SLOT) return { kind: "project", path: d.projectPath() };
-  if (!isFileSlot(id)) return { kind: "template", id };
+  if (!isFileSlot(id))
+    return exampleInHash(id)
+      ? { kind: "template", id, example: chosenExample(id) }
+      : { kind: "template", id };
   const slot = d.fileSlots().find((file) => file.id === id);
   return slot ? { kind: "file", name: slot.name } : null;
 }
@@ -69,7 +77,7 @@ function goProject(d: UrlNavDeps, path: string | null): void {
 }
 
 function goTarget(d: UrlNavDeps, target: SlotTarget): void {
-  if (target.kind === "template") return d.choose(target.id);
+  if (target.kind === "template") return d.choose(target.id, target.example);
   if (target.kind === "project") return goProject(d, target.path);
   const slot = d.fileSlots().find((file) => file.name === target.name);
   if (slot) return d.showFile(slot.id);
@@ -106,7 +114,7 @@ async function openRemoteLink(d: UrlNavDeps, hash: string): Promise<void> {
   });
 }
 
-async function readHash(d: UrlNavDeps, sync: () => void): Promise<void> {
+async function readHash(d: UrlNavDeps): Promise<void> {
   const hash = location.hash;
   if (isTextHash(hash)) {
     clearHash();
@@ -116,9 +124,10 @@ async function readHash(d: UrlNavDeps, sync: () => void): Promise<void> {
     await openRemoteLink(d, hash);
   } else {
     const target = parseSlotHash(hash);
-    if (target) goTarget(d, target);
+    if (!target) return;
+    clearHash();
+    goTarget(d, target);
   }
-  sync();
 }
 
 async function copySlotLink(d: UrlNavDeps): Promise<void> {
@@ -163,19 +172,7 @@ function bindCopy(d: UrlNavDeps): void {
 }
 
 export function startUrlNav(d: UrlNavDeps): void {
-  const sync = (): void => {
-    if (location.hash && !parseSlotHash(location.hash)) return;
-    const target = currentTarget(d);
-    const hash = target ? slotHash(target) : "";
-    if (hash !== location.hash)
-      history.replaceState(
-        history.state,
-        "",
-        location.pathname + location.search + hash,
-      );
-  };
   bindCopy(d);
-  onSwap(() => queueMicrotask(sync));
-  window.addEventListener("hashchange", () => void readHash(d, sync));
-  void readHash(d, sync);
+  window.addEventListener("hashchange", () => void readHash(d));
+  void readHash(d);
 }

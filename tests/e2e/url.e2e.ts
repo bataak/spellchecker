@@ -34,48 +34,38 @@ async function visit(page: Page, hash: string): Promise<void> {
   await ready(page);
 }
 
-test("талбар солиход URL-ийн хэш англи нэрээр шинэчлэгдэж, хэшээр талбар нээгдэнэ", async () => {
+async function openedAs(page: Page, label: string): Promise<void> {
+  const shown = await until(
+    async () =>
+      (await slotLabel(page)) +
+      " " +
+      ((await page.getAttribute("#saveBtn", "title")) ?? ""),
+    (text) => text.includes(label),
+  );
+  assert.ok(shown.includes(label), shown);
+  assert.equal(await hashOf(page), "");
+}
+
+test("хэшээр талбар нээгдэж, хаягийн мөрөнд хэш үлдэхгүй", async () => {
   const page = await openPage(app, await app.context());
-  assert.equal(
-    await until(
-      () => hashOf(page),
-      (h) => h === "#plain",
-    ),
-    "#plain",
-  );
+  assert.equal(await hashOf(page), "");
   await chooseSlot(page, "Бичвэр 2");
-  assert.equal(
-    await until(
-      () => hashOf(page),
-      (h) => h === "#plain2",
-    ),
-    "#plain2",
-  );
+  assert.equal(await hashOf(page), "");
 
   await page.evaluate(() => {
-    location.hash = "#letter";
+    location.hash = "#letter/minutes";
   });
-  assert.equal(
-    await until(
-      () => hashOf(page),
-      (h) => h === "#letter",
-    ),
-    "#letter",
-  );
-  assert.notEqual(await slotLabel(page), "Бичвэр 2");
+  await openedAs(page, "Хурлын тэмдэглэл");
+  await page.evaluate(() => {
+    location.hash = "#letter/application";
+  });
+  await openedAs(page, "Өргөдөл");
 
   await openFile(page, app.files.a);
-  assert.equal(
-    await until(
-      () => hashOf(page),
-      (h) => h === "#file/a.txt",
-    ),
-    "#file/a.txt",
-  );
-
   await visit(page, "#plain2");
-  assert.equal(await slotLabel(page), "Бичвэр 2");
+  await openedAs(page, "Бичвэр 2");
   await visit(page, "#file/a.txt");
+  await openedAs(page, "a.txt");
   assert.equal(await editor(page), "Файл А\n");
   await visit(page, "#file/алга.md");
   assert.match(await status(page), /нээлттэй биш/);
@@ -94,13 +84,7 @@ test("бичвэртэй холбоос шинэ файлд нээгдэж, хэ
     ),
     "Холбоосоор ирсэн бичвэр",
   );
-  assert.equal(
-    await until(
-      () => hashOf(page),
-      (h) => h === "#file/ирсэн.md",
-    ),
-    "#file/ирсэн.md",
-  );
+  await openedAs(page, "ирсэн.md");
   await chooseSlot(page, "Бичвэр 1");
   assert.equal(await editor(page), "Хуучин бичвэр");
   assert.deepEqual(errors(page), []);
@@ -134,13 +118,16 @@ test(
       ),
       "Хуулах бичвэр",
     );
+    await openedAs(page, "бичвэр.txt");
+
+    await visit(page, "#letter/minutes");
+    await openedAs(page, "Хурлын тэмдэглэл");
+    await page.click("#copyBtn", { modifiers: ["Shift"] });
     assert.equal(
-      await until(
-        () => hashOf(page),
-        (h) => h === "#file/бичвэр.txt",
-      ),
-      "#file/бичвэр.txt",
+      await until(clip, (text) => text.endsWith("#letter/minutes")),
+      app.url + "#letter/minutes",
     );
+    assert.equal(await hashOf(page), "");
   },
 );
 
@@ -181,13 +168,7 @@ test("GitHub файлын холбоосоор файл нээж, хавтасн
   assert.deepEqual(requests, [
     "https://raw.githubusercontent.com/u/r/main/docs/%D0%B0%D0%BB%D1%81.md",
   ]);
-  assert.equal(
-    await until(
-      () => hashOf(page),
-      (h) => h === "#file/алс.md",
-    ),
-    "#file/алс.md",
-  );
+  await openedAs(page, "алс.md");
   assert.equal(await markdownMode(page), true);
   assert.equal(await page.isVisible(".tex-compile"), false);
 

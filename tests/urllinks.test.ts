@@ -13,12 +13,18 @@ test("талбарын хэш англи нэрээр бичигдэж, буца
   for (const target of [
     { kind: "template", id: "plain" },
     { kind: "template", id: "letter" },
+    { kind: "template", id: "letter", example: "minutes" },
+    { kind: "template", id: "letter", example: "application" },
     { kind: "project", path: null },
     { kind: "project", path: "бүлэг/оршил.tex" },
     { kind: "file", name: "тайлан 1.md" },
   ] as const)
     assert.deepEqual(parseSlotHash(slotHash(target)), target);
   assert.equal(slotHash({ kind: "template", id: "plain2" }), "#plain2");
+  assert.equal(
+    slotHash({ kind: "template", id: "report", example: "research" }),
+    "#report",
+  );
   assert.equal(
     slotHash({ kind: "project", path: "a b/c.tex" }),
     "#project/a%20b/c.tex",
@@ -31,6 +37,8 @@ test("танихгүй эсвэл аюултай талбарын хэшийг �
     "plain",
     "#unknown",
     "#plain/extra",
+    "#letter/unknown",
+    "#report/research",
     "#project/../x.tex",
     "#project/a//b",
     "#project/%E0%A4%A",
