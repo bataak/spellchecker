@@ -20,6 +20,7 @@ import {
   type Metrics,
 } from "./layout.ts";
 import { KEYS, read, remove, write, writeJson } from "../core/store.ts";
+import { talkYielded, yieldTalk } from "./talkslot.ts";
 import { bindMenu, buildControl, paintMenu } from "./measuremenu.ts";
 
 const SAMPLE =
@@ -265,11 +266,13 @@ function planTalk(
         measureVar(wrap, "--project-w", 236),
       )
     : null;
+  const swap = plan?.mode === "swap";
+  if (!swap) yieldTalk(false);
   setFlag("talkFloat", plan?.mode === "float");
-  setFlag("talkSwap", plan?.mode === "swap");
+  setFlag("talkSwap", swap);
   if (plan) style.setProperty("--talk-w", `${Math.floor(plan.width)}px`);
   else style.removeProperty("--talk-w");
-  return plan && plan.mode !== "float" ? plan.viewport : null;
+  return plan && plan.mode !== "float" && !talkYielded() ? plan.viewport : null;
 }
 
 function planViewport(
@@ -349,7 +352,10 @@ function watchRoot(refresh: () => void): () => void {
   const sized = new ResizeObserver(refresh);
   sized.observe(root);
   const talk = new MutationObserver(refresh);
-  talk.observe(root, { attributes: true, attributeFilter: ["data-talk"] });
+  talk.observe(root, {
+    attributes: true,
+    attributeFilter: ["data-talk", "data-talk-yield"],
+  });
   return () => {
     sized.disconnect();
     talk.disconnect();

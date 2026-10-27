@@ -525,3 +525,35 @@ test("шүүмжийн цонх төслийн самбарын байрыг э�
   assert.ok(await box(page, ".project-panel"));
   assert.deepEqual(errors(page), []);
 });
+
+test("төслийн самбар ба шүүмжийн цонх сүүлд дарснаараа байраа ээлжилнэ", async () => {
+  const page = await openPage(app, await app.context());
+  await page.setViewportSize({ width: 1920, height: 1000 });
+  await openFile(page, app.files.project);
+  await openFile(page, texFile());
+  const toggle = page.locator(".project-toggle");
+  await toggle.click();
+  await page.waitForTimeout(600);
+  await commentStart(page);
+  await page.keyboard.type("Тодруулга");
+  await page.keyboard.press("Enter");
+  await page.locator(".talk-thread", { hasText: "Тодруулга" }).waitFor();
+  assert.equal(await box(page, ".project-panel"), null);
+  await toggle.waitFor({ state: "visible" });
+  await toggle.click();
+  await page.waitForTimeout(600);
+  assert.ok(await box(page, ".project-panel"));
+  assert.equal(await box(page, ".talk-window"), null);
+  assert.equal(await toggle.isVisible(), false);
+  await page.locator(".talk-trigger").click();
+  await page.waitForTimeout(600);
+  assert.ok(await box(page, ".talk-window"));
+  assert.equal(await box(page, ".project-panel"), null);
+  await toggle.click();
+  await page.waitForTimeout(600);
+  await page.locator('.project-panel [aria-label="Самбарыг нуух"]').click();
+  await page.waitForTimeout(600);
+  assert.equal(await box(page, ".project-panel"), null);
+  assert.ok(await box(page, ".talk-window"));
+  assert.deepEqual(errors(page), []);
+});

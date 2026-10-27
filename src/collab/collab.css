@@ -432,11 +432,16 @@
     --gutter-pull: 0px;
   }
 
-  :root[data-talk][data-talk-swap][data-project="on"] {
+  :root[data-talk][data-talk-swap][data-project="on"]:not([data-talk-yield]) {
     --project-col: 0px;
   }
 
-  :root[data-talk-swap] .project-panel {
+  :root[data-talk][data-talk-swap][data-talk-yield] {
+    --talk-col: 0px;
+  }
+
+  :root[data-talk-swap]:not([data-talk-yield]) .project-panel,
+  :root[data-talk-swap][data-talk-yield] .workspace > .talk-window {
     display: none;
   }
 

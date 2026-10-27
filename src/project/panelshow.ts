@@ -1,4 +1,5 @@
 import { KEYS, read, remove, write } from "../core/store.ts";
+import { onSlotChange, talkCovers } from "../ui/talkslot.ts";
 
 const PEEK_MS = 5000;
 
@@ -86,11 +87,12 @@ export function createPanelShow(deps: ShowDeps): PanelShow {
     const tools = deps.tools();
     if (tools && toggle.parentElement !== tools) tools.prepend(toggle);
     const shown = visible();
-    const hide = !deps.texActive() || shown;
+    const seen = shown && !talkCovers();
+    const hide = !deps.texActive() || seen;
     if (toggle.hidden && !hide) flashToggle();
     toggle.hidden = hide;
-    toggle.setAttribute("aria-pressed", String(shown));
-    toggle.classList.toggle("is-on", shown);
+    toggle.setAttribute("aria-pressed", String(seen));
+    toggle.classList.toggle("is-on", seen);
     if (panel.hidden !== !shown) layout(shown);
   };
   const show = (on: boolean): void => {
@@ -131,6 +133,7 @@ export function createPanelShow(deps: ShowDeps): PanelShow {
   wide.addEventListener("change", () => {
     if (!panel.hidden) closeDrawer();
   });
+  onSlotChange(syncVisibility);
   return {
     isOpen: () => open,
     closeDrawer,
