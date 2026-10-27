@@ -59,6 +59,23 @@ export function encodeCursor(
   return encoder.encode(JSON.stringify(value));
 }
 
+export function selectionEdges(
+  text: Y.Text,
+  start: number,
+  end: number,
+  forward: boolean,
+): [anchor: Y.RelativePosition, head: Y.RelativePosition] {
+  const at = (index: number, assoc: number): Y.RelativePosition =>
+    Y.createRelativePositionFromTypeIndex(
+      text,
+      Math.min(index, text.length),
+      assoc,
+    );
+  const left = at(start, 0);
+  const right = start === end ? left : at(end, -1);
+  return forward ? [left, right] : [right, left];
+}
+
 export function decodeCursor(body: Uint8Array): CursorState | null {
   try {
     const value = JSON.parse(decoder.decode(body)) as Record<string, unknown>;
@@ -188,12 +205,13 @@ export function createCursors(deps: CursorDeps): Cursors {
   const encodeLocal = (): Uint8Array => {
     const text = deps.text();
     if (!active || !text) return encodeCursor(deps.profile(), null, null);
-    const at = (index: number): Y.RelativePosition =>
-      Y.createRelativePositionFromTypeIndex(text, Math.min(index, text.length));
-    const forward = editor.selectionDirection !== "backward";
-    const anchor = forward ? editor.selectionStart : editor.selectionEnd;
-    const head = forward ? editor.selectionEnd : editor.selectionStart;
-    return encodeCursor(deps.profile(), at(anchor), at(head));
+    const [anchor, head] = selectionEdges(
+      text,
+      editor.selectionStart,
+      editor.selectionEnd,
+      editor.selectionDirection !== "backward",
+    );
+    return encodeCursor(deps.profile(), anchor, head);
   };
 
   const sendNow = (): void => {
