@@ -4,11 +4,11 @@ import type { SaveChain } from "../ui/savechain.ts";
 import { createPrinter } from "./exportprint.ts";
 import {
   FORMATS,
+  savedName,
   stripExt,
   EMBED_FORMATS,
   NOTES_FORMATS,
   TOC_FORMATS,
-  withExt,
   hasNotes,
   missingImages,
   hasSections,
@@ -328,7 +328,7 @@ export function initExport(options: ExportOptions): ExportControl {
 
   async function run(): Promise<void> {
     const text = editor.value;
-    const name = withExt(nameInput.value.trim() || baseFrom(), chosen.ext);
+    const name = savedName(nameInput.value, baseFrom(), chosen.ext);
     close();
     const format = chosen;
     const failed = await runFormat(options, format, text, name, parts);
