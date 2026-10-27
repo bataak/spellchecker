@@ -456,7 +456,7 @@ async function commentStart(page: Page): Promise<void> {
 
 test("багтахгүй үед шүүмжийн цонх preview-ийн зүүн захад хөвнө", async () => {
   const page = await openPage(app, await app.context());
-  await page.setViewportSize({ width: 1865, height: 1000 });
+  await page.setViewportSize({ width: 1600, height: 1000 });
   await openFile(page, texFile());
   await commentStart(page);
   const talk = (await box(page, ".talk-window"))!;
@@ -467,6 +467,26 @@ test("багтахгүй үед шүүмжийн цонх preview-ийн зүү�
     `${talk.left} vs ${preview.left}`,
   );
   assert.ok(talk.left >= area.right - 2);
+  assert.deepEqual(errors(page), []);
+});
+
+test("төслийн самбар багтах өргөнд шүүмжийн цонх preview-ийг нарийсгаж багана болно", async () => {
+  const page = await openPage(app, await app.context());
+  await page.setViewportSize({ width: 1865, height: 1000 });
+  await openFile(page, texFile());
+  const measure = () =>
+    page.evaluate(() =>
+      document.documentElement.style.getPropertyValue("--editor-measure"),
+    );
+  const before = await measure();
+  await commentStart(page);
+  const talk = (await box(page, ".talk-window"))!;
+  const area = (await box(page, ".editor-wrap"))!;
+  const preview = (await box(page, ".preview-panel"))!;
+  assert.ok(talk.width >= 236 && talk.width <= 358, String(talk.width));
+  assert.ok(talk.right <= area.left);
+  assert.ok(preview.right <= 1865);
+  assert.equal(await measure(), before);
   assert.deepEqual(errors(page), []);
 });
 
