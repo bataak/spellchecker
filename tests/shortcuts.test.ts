@@ -46,7 +46,7 @@ function setup(
   const calls: string[] = [];
   const hints = new Map<CommandId, string>();
   const commands: Commands = {
-    run: (id) => calls.push("run:" + id),
+    run: (id, shift) => calls.push("run:" + id + (shift ? "+shift" : "")),
     click: (id) => calls.push("click:" + id),
     flash: (id) => calls.push("flash:" + id),
     hint: (id, combo) => hints.set(id, combo),
@@ -196,6 +196,9 @@ test("shortcuts: сонголттой үед хуулалтыг хөтчид ү�
   const empty = setup();
   assert.ok(empty.press({ key: "c", ctrl: true }));
   assert.deepEqual(empty.calls, ["run:copy"]);
+  const link = setup({ pageSelection: "үг" });
+  assert.ok(link.press({ key: "C", ctrl: true, shift: true }));
+  assert.deepEqual(link.calls, ["run:copy+shift"]);
 });
 
 test("shortcuts: Ctrl+Shift+. ба Ctrl+Shift+, мөр сонгоно", () => {

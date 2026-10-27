@@ -34,7 +34,7 @@ const BUTTONS: Readonly<Record<CommandId, string>> = {
 const FEEDBACK_MS = 260;
 
 export interface Commands {
-  readonly run: (id: CommandId) => void;
+  readonly run: (id: CommandId, shift?: boolean) => void;
   readonly click: (id: CommandId) => void;
   readonly flash: (id: CommandId) => void;
   readonly hint: (id: CommandId, combo: string) => void;
@@ -55,10 +55,18 @@ export function createButtonCommands(root: ParentNode = document): Commands {
   };
 
   return {
-    run(id) {
+    run(id, shift = false) {
       const btn = button(id);
       if (!btn || btn.disabled) return;
-      btn.click();
+      if (shift)
+        btn.dispatchEvent(
+          new MouseEvent("click", {
+            bubbles: true,
+            cancelable: true,
+            shiftKey: true,
+          }),
+        );
+      else btn.click();
       mark(btn);
     },
     click(id) {

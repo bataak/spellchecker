@@ -128,6 +128,19 @@ test(
       app.url + "#letter/minutes",
     );
     assert.equal(await hashOf(page), "");
+
+    await visit(page, "#plain2");
+    await openedAs(page, "Бичвэр 2");
+    await page.click("#editor");
+    await page.keyboard.press("Control+Shift+C");
+    assert.equal(
+      await until(clip, (text) => text.endsWith("#plain2")),
+      app.url + "#plain2",
+    );
+    assert.match(
+      (await page.getAttribute("#copyBtn", "title")) ?? "",
+      /^Бичвэр хуулах · Ctrl\+C\nЭнэ талбарын холбоосыг хуулах · Ctrl\+Shift\+C\n/,
+    );
   },
 );
 
