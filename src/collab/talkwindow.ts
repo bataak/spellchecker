@@ -1,4 +1,10 @@
-import { onSlotChange, talkYielded, yieldTalk } from "../ui/talkslot.ts";
+import {
+  onSlotChange,
+  setTalkOpen,
+  talkFloats,
+  talkYielded,
+  yieldTalk,
+} from "../ui/talkslot.ts";
 import { headButton, icon } from "../project/panelicons.ts";
 import {
   badge,
@@ -91,10 +97,7 @@ function paintTrigger(trigger: HTMLButtonElement, shared: boolean): void {
 }
 
 function floating(): boolean {
-  return (
-    !window.matchMedia("(min-width: 1024px)").matches ||
-    "talkFloat" in document.documentElement.dataset
-  );
+  return !window.matchMedia("(min-width: 1024px)").matches || talkFloats();
 }
 
 export function fileWindow(deps: WindowDeps): Side {
@@ -127,7 +130,7 @@ export function fileWindow(deps: WindowDeps): Side {
       current?.views[key]?.shown(seen() && shown === key);
     }
     trigger.setAttribute("aria-pressed", String(seen()));
-    document.documentElement.toggleAttribute("data-talk", !win.hidden);
+    setTalkOpen(!win.hidden);
     unread();
   };
   const open = (on: boolean): void => {
