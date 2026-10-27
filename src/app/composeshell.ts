@@ -147,12 +147,15 @@ export function composeSession(app: Scope<SessionReads, SessionGives>): void {
     officeActive: app.officeActive,
     undo: () => app.undoCtl,
     notify: (message) => status.hold(message, 8000, false),
+    pin: status.pin,
   });
   const tabGuard = watchTabs({
     slot: () => mdBar.slot(),
     project: () => projectStore.project()?.uid ?? null,
     onProjectChange: projectStore.onProjectChange,
-    warn: (message) => status.hold(message, 8000, false),
+    warn: (message) => {
+      if (!collab.locked()) status.hold(message, 8000, false);
+    },
   });
   app.provide({ collab, tabGuard });
 

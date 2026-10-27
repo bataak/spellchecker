@@ -8,6 +8,7 @@ export interface CollabUi {
   readonly view: CursorView;
   readonly button: HTMLButtonElement | null;
   readonly notify: (message: string) => void;
+  readonly pin?: (message: string | null) => void;
 }
 
 export interface SlotPort {
@@ -38,4 +39,5 @@ export interface Collab {
   projectChanged(): void;
   talk(kind: TalkKind): Talk | null;
   onTalk(listener: () => void): void;
+  locked(): boolean;
 }
