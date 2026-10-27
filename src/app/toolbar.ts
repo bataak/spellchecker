@@ -1,3 +1,4 @@
+import { requireEl } from "../ui/dom.ts";
 import { buildErrorList, type Token } from "../spell/textcheck.ts";
 import { initWipeButton } from "../ui/wipe.ts";
 import { copyText, flash } from "../ui/clipboard.ts";
@@ -277,7 +278,7 @@ function initButtons({
 }: ToolbarDeps): void {
   const editor = port.el;
   const setStatus = status.set;
-  const clearBtn = document.querySelector<HTMLElement>("#clearBtn")!;
+  const clearBtn = requireEl<HTMLElement>("#clearBtn");
   initWipeButton(clearBtn);
   const wipeText = (): void => {
     if (editor.value) write(KEYS.lastCleared, editor.value);
@@ -319,7 +320,7 @@ function initButtons({
     port.save();
   }
 
-  const pasteBtn = document.querySelector<HTMLElement>("#pasteBtn")!;
+  const pasteBtn = requireEl<HTMLElement>("#pasteBtn");
   pasteBtn.addEventListener("click", async () => {
     if (office.active()) {
       flash(pasteBtn, "Боломжгүй");

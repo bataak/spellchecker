@@ -1,3 +1,4 @@
+import { requireEl } from "../ui/dom.ts";
 import { escapeAttr } from "../core/htmlutil.ts";
 import type { ExportFormat } from "./exportformats.ts";
 
@@ -78,7 +79,7 @@ export function buildExportDialog(
     "</div>";
   document.body.appendChild(overlay);
   const find = <T extends HTMLElement>(selector: string): T =>
-    overlay.querySelector<T>(selector)!;
+    requireEl<T>(selector, overlay);
   return {
     overlay,
     nameInput: find<HTMLInputElement>(".export-name"),

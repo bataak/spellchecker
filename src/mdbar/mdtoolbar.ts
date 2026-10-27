@@ -1,3 +1,4 @@
+import { requireEl } from "../ui/dom.ts";
 import { PROJECT_SLOT, isFileSlot } from "../slots/fileslots.ts";
 import { PLAIN, isPlain } from "../doc/templates.ts";
 import { KEYS } from "../core/store.ts";
@@ -175,7 +176,7 @@ function createSlotMenu(
     projectDirty: () => options.projectDirty?.() ?? false,
   });
   const dropdown = createSlotDropdown({
-    select: bar.querySelector<HTMLButtonElement>(".md-template")!,
+    select: requireEl<HTMLButtonElement>(".md-template", bar),
     beforeOpen: () => labels.rebuild(),
     afterClose: h.sync,
     onSelect: h.select,
@@ -228,8 +229,8 @@ export function initMdToolbar(options: MdToolbarOptions): MdToolbar {
     close: (id) => files.closeFile(id),
   });
   const rebuildMenu = labels.rebuild;
-  const group = bar.querySelector<HTMLElement>(".md-group")!;
-  const picker = bar.querySelector<HTMLElement>(".md-select")!;
+  const group = requireEl<HTMLElement>(".md-group", bar);
+  const picker = requireEl<HTMLElement>(".md-select", bar);
   const tools = createToolHost(group, () => syncVisible());
   const topbar = initTopbarFit(mount, bar, tools.anyShown);
 

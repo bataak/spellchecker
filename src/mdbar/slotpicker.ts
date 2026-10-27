@@ -1,3 +1,4 @@
+import { requireEl } from "../ui/dom.ts";
 import { splitName } from "../office/filename.ts";
 import { renameSlot } from "../slots/fileslots.ts";
 import { pickerOptions } from "../slots/slotmenu.ts";
@@ -23,10 +24,10 @@ export interface SlotPicker {
 
 export function createSlotPicker(d: SlotPickerDeps): SlotPicker {
   const { bar, slots } = d;
-  const select = bar.querySelector<HTMLButtonElement>(".md-template")!;
-  const fileBox = bar.querySelector<HTMLElement>(".md-file")!;
-  const fileHead = fileBox.querySelector<HTMLElement>(".md-file-head")!;
-  const fileTail = fileBox.querySelector<HTMLElement>(".md-file-tail")!;
+  const select = requireEl<HTMLButtonElement>(".md-template", bar);
+  const fileBox = requireEl<HTMLElement>(".md-file", bar);
+  const fileHead = requireEl<HTMLElement>(".md-file-head", fileBox);
+  const fileTail = requireEl<HTMLElement>(".md-file-tail", fileBox);
   let projectName: string | null = null;
   let pickedLabel = "";
   let shownFile: string | null | undefined;
