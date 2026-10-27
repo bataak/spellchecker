@@ -32,6 +32,8 @@ after(async () => {
 
 async function invite(page: Page): Promise<string> {
   await page.click("#collabBtn");
+  const give = page.getByText("Урилга өгөх", { exact: true });
+  if (await give.isVisible()) await give.click();
   await page.getByText("Шинэ урилга үүсгэх").click();
   await page.waitForSelector(".collab-link", { timeout: 20000 });
   const link = await page.inputValue(".collab-link");
@@ -613,6 +615,7 @@ test("«Хамтрах» цонхонд урилгын холбоос оруул
   const link = await invite(owner);
   const guest = await openPage(app, await app.context());
   await guest.click("#collabBtn");
+  await guest.getByText("Урилга авах", { exact: true }).click();
   await guest.fill(".collab-join-field", "энгийн бичвэр");
   await guest.getByText("Нэгдэх", { exact: true }).click();
   await guest.getByText("урилгын холбоос биш").waitFor();
