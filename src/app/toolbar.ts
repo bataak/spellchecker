@@ -24,7 +24,7 @@ export interface ToolbarDeps {
   readonly lettersFixed: () => void;
   readonly hasOpenFile: () => boolean;
   readonly badTokens: () => Token[];
-  readonly invite?: (text: string) => boolean;
+  readonly invite?: (text: string) => Promise<boolean>;
 }
 
 const SCROLL_SAVE_MS = 250;
@@ -276,7 +276,7 @@ function initButtons({
   confirmClear = () => true,
   closeProject = () => false,
   lettersFixed,
-  invite = () => false,
+  invite = async () => false,
 }: ToolbarDeps): void {
   const editor = port.el;
   const setStatus = status.set;
@@ -343,7 +343,7 @@ function initButtons({
       editor.focus();
       return;
     }
-    if (!editor.readOnly && invite(text)) return;
+    if (!editor.readOnly && (await invite(text))) return;
     const fixed = standardLetters(text);
     insertAtCaret(fixed);
     if (fixed !== text) lettersFixed();

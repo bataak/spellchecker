@@ -40,5 +40,5 @@ export interface Collab {
   talk(kind: TalkKind): Talk | null;
   onTalk(listener: () => void): void;
   locked(): boolean;
-  invite(text: string): boolean;
+  invite(text: string): Promise<boolean>;
 }
