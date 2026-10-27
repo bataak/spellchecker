@@ -1,4 +1,6 @@
-const UPSTREAMS = {
+import { allowedOrigin, type OriginEnv } from "../../shared/origin.ts";
+
+const UPSTREAMS: Readonly<Record<string, readonly string[]>> = {
   2026: [
     "https://mirror.math.princeton.edu/pub/CTAN/systems/texlive/tlnet/archive/",
     "https://ftp.fau.de/ctan/systems/texlive/tlnet/archive/",
@@ -11,10 +13,10 @@ const CACHE_SECONDS = 7 * 24 * 60 * 60;
 const CACHE_VERSION = "v2";
 const XZ_MAGIC = [0xfd, 0x37, 0x7a, 0x58, 0x5a, 0x00];
 
-async function asXz(response) {
+async function asXz(response: Response): Promise<Response | null> {
   if (!response.body) return null;
   const reader = response.body.getReader();
-  let head = new Uint8Array(0);
+  let head: Uint8Array<ArrayBuffer> = new Uint8Array(0);
   while (head.length < XZ_MAGIC.length) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -27,7 +29,7 @@ async function asXz(response) {
     await reader.cancel().catch(() => undefined);
     return null;
   }
-  const body = new ReadableStream({
+  const body = new ReadableStream<Uint8Array>({
     start(controller) {
       controller.enqueue(head);
     },
@@ -36,7 +38,7 @@ async function asXz(response) {
       if (done) controller.close();
       else controller.enqueue(value);
     },
-    cancel(reason) {
+    cancel(reason: unknown) {
       return reader.cancel(reason);
     },
   });
@@ -46,15 +48,7 @@ async function asXz(response) {
   });
 }
 
-function allowedOrigin(origin, env) {
-  if (!origin) return null;
-  const list = (env.ALLOWED_ORIGINS ?? "")
-    .split(",")
-    .map((item) => item.trim());
-  return list.includes(origin) ? origin : null;
-}
-
-function corsHeaders(origin) {
+function corsHeaders(origin: string | null): Headers {
   const headers = new Headers({ Vary: "Origin" });
   if (origin) {
     headers.set("Access-Control-Allow-Origin", origin);
@@ -64,11 +58,11 @@ function corsHeaders(origin) {
   return headers;
 }
 
-function reply(status, origin) {
+function reply(status: number, origin: string | null): Response {
   return new Response(null, { status, headers: corsHeaders(origin) });
 }
 
-function withCors(response, origin) {
+function withCors(response: Response, origin: string | null): Response {
   const headers = corsHeaders(origin);
   for (const name of [
     "Content-Type",
@@ -83,10 +77,13 @@ function withCors(response, origin) {
   return new Response(response.body, { status: response.status, headers });
 }
 
-async function fromUpstream(year, name) {
+async function fromUpstream(
+  bases: readonly string[],
+  name: string,
+): Promise<{ status: number; response?: Response }> {
   let status = 502;
-  for (const base of UPSTREAMS[year]) {
-    let upstream;
+  for (const base of bases) {
+    let upstream: Response;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
     try {
@@ -125,7 +122,11 @@ async function fromUpstream(year, name) {
 }
 
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(
+    request: Request,
+    env: OriginEnv,
+    ctx: ExecutionContext,
+  ): Promise<Response> {
     const origin = allowedOrigin(request.headers.get("Origin"), env);
     if (request.headers.get("Origin") && !origin) return reply(403, null);
     if (request.method === "OPTIONS") return reply(204, origin);
@@ -134,8 +135,12 @@ export default {
 
     const url = new URL(request.url);
     const match = PATH.exec(url.pathname);
-    if (!match || !UPSTREAMS[match[1]]) return reply(404, origin);
-    const [, year, name] = match;
+    const bases =
+      match && Object.hasOwn(UPSTREAMS, match[1]!)
+        ? UPSTREAMS[match[1]!]
+        : undefined;
+    if (!match || !bases) return reply(404, origin);
+    const name = match[2]!;
 
     const key = new Request(url.origin + "/" + CACHE_VERSION + url.pathname, {
       method: "GET",
@@ -148,7 +153,7 @@ export default {
       ctx.waitUntil(cache.delete(key).catch(() => undefined));
     }
 
-    const result = await fromUpstream(year, name);
+    const result = await fromUpstream(bases, name);
     if (!result.response) return reply(result.status, origin);
     ctx.waitUntil(
       cache.put(key, result.response.clone()).catch(() => undefined),

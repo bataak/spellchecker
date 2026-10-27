@@ -1,5 +1,5 @@
 name = "collab"
-main = "src/index.js"
+main = "src/index.ts"
 compatibility_date = "2026-09-01"
 workers_dev = false
 routes = [{ pattern = "collab.bichig.dev", custom_domain = true }]

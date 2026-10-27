@@ -6,7 +6,7 @@
   "description": "Монгол үгийн алдаа шалгагч — hunspell-wasm + nspell, GitHub Pages",
   "license": "AGPL-3.0-only",
   "scripts": {
-    "test": "tsc --noEmit && eslint . --quiet --max-warnings 0 && prettier --check \"**/*.{ts,js,mjs,cjs,css,json,yml,yaml}\" --log-level warn && node --import ./tests/helpers/viteenv.ts --test \"tests/*.test.ts\"",
+    "test": "tsc --noEmit && tsc -p worker --noEmit && eslint . --quiet --max-warnings 0 && prettier --check \"**/*.{ts,js,mjs,cjs,css,json,yml,yaml}\" --log-level warn && node --import ./tests/helpers/viteenv.ts --test \"tests/*.test.ts\"",
     "test:coverage": "node --import ./tests/helpers/viteenv.ts --test --experimental-test-coverage --test-coverage-lines=82 --test-coverage-branches=85 --test-coverage-functions=78 --test-coverage-include=\"src/**\" \"tests/*.test.ts\"",
     "test:e2e": "node --test --test-concurrency=4 \"tests/e2e/*.e2e.ts\"",
     "test:e2e:firefox": "E2E_ENGINE=firefox node --test --test-concurrency=4 \"tests/e2e/*.e2e.ts\"",
@@ -16,7 +16,7 @@
     "build": "vite build",
     "prepreview": "npm test",
     "preview": "vite build && vite preview",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p worker --noEmit",
     "glyphs": "node --experimental-strip-types scripts/texglyphs.ts",
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,js,mjs,cjs,css,json,yml,yaml}\""
@@ -32,6 +32,7 @@
     "yjs": "^13.6.33"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "5.20261012.1",
     "@eslint/js": "^10.0.1",
     "@types/node": "^22.10.0",
     "eslint": "^10.13.0",
