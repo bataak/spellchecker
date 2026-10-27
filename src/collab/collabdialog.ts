@@ -78,10 +78,12 @@ function inviteBox(
   const list = element("ol", "collab-invite-list");
   const take = join ? actionButton("Урилга авах") : null;
   create.addEventListener("click", () => {
+    const back = join !== null && !join.hidden && list.childElementCount > 0;
     if (join) join.hidden = true;
     list.hidden = false;
     take?.classList.remove("suggest-send");
     create.classList.add("suggest-send");
+    if (back) return say(note, "", "");
     create.disabled = true;
     say(note, "", "Урилга үүсгэж байна…");
     void ask(deps, (live) => live.invite(deps.inviteName)).then((invite) => {

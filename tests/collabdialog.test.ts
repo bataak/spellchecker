@@ -261,5 +261,13 @@ test("«Урилга өгөх» дарахад урилга үүсч, нэгдэ
   button(dialog, "Урилга өгөх").click();
   await wait();
   assert.equal(dialog.querySelectorAll(".collab-invite-list > li").length, 2);
+  take.click();
+  give.click();
+  await wait();
+  assert.equal(join.hidden, true);
+  assert.equal(dialog.querySelectorAll(".collab-invite-list > li").length, 2);
+  give.click();
+  await wait();
+  assert.equal(dialog.querySelectorAll(".collab-invite-list > li").length, 3);
   dialog.close();
 });
