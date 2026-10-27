@@ -250,6 +250,40 @@ export function projectViewport(
   return { viewport: float ? full : full - room, float };
 }
 
+export interface TalkPlan {
+  readonly mode: "column" | "swap" | "float";
+  readonly width: number;
+  readonly viewport: number;
+}
+
+export function talkPlan(
+  x: Metrics,
+  full: number,
+  loose: number,
+  project: number,
+  minWidth: number,
+): TalkPlan {
+  const edge = project > 0 ? 0 : x.gutterW;
+  const beside = full - project - loose - x.panelGap - edge;
+  if (beside >= minWidth) {
+    const width = Math.min(x.panelW, beside);
+    return {
+      mode: "column",
+      width,
+      viewport: full - project - width - x.panelGap - edge,
+    };
+  }
+  if (project > 0) {
+    const width = Math.min(x.panelW, full - loose - x.panelGap - x.gutterW);
+    return {
+      mode: "swap",
+      width,
+      viewport: full - width - x.panelGap - x.gutterW,
+    };
+  }
+  return { mode: "float", width: x.panelW, viewport: full };
+}
+
 export interface ThumbSpan {
   readonly x: number;
   readonly w: number;

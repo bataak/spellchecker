@@ -13,6 +13,7 @@ import {
   showsControl,
   chooseLayout,
   projectViewport,
+  talkPlan,
   type Layout,
   type LayoutChoice,
   type Metrics,
@@ -198,13 +199,16 @@ function projectRoom(wrap: HTMLElement, x: Metrics): number {
   return measureVar(wrap, "--project-w", 236) + x.panelGap + x.gutterW;
 }
 
-function talkRoom(x: Metrics, project: number): number {
-  if (!document.documentElement.hasAttribute("data-talk") || !wideQuery.matches)
-    return 0;
-  return x.panelW + x.panelGap + (project > 0 ? 0 : x.gutterW);
+function talkOpen(): boolean {
+  return (
+    document.documentElement.hasAttribute("data-talk") && wideQuery.matches
+  );
 }
 
-function setFlag(name: "projectFloat" | "talkFloat", on: boolean): void {
+function setFlag(
+  name: "projectFloat" | "talkFloat" | "talkSwap",
+  on: boolean,
+): void {
   const data = document.documentElement.dataset;
   if (on) data[name] = "";
   else delete data[name];
@@ -243,6 +247,30 @@ function publishMetrics(metrics: Metrics): void {
   afterBoot("metrics", () => setRootMetrics(metrics));
 }
 
+function planTalk(
+  wrap: HTMLElement,
+  metrics: Metrics,
+  full: number,
+  loose: number,
+  project: number,
+): number | null {
+  const style = document.documentElement.style;
+  const plan = talkOpen()
+    ? talkPlan(
+        metrics,
+        full,
+        loose,
+        project,
+        measureVar(wrap, "--project-w", 236),
+      )
+    : null;
+  setFlag("talkFloat", plan?.mode === "float");
+  setFlag("talkSwap", plan?.mode === "swap");
+  if (plan) style.setProperty("--talk-w", `${Math.floor(plan.width)}px`);
+  else style.removeProperty("--talk-w");
+  return plan && plan.mode !== "float" ? plan.viewport : null;
+}
+
 function planViewport(
   wrap: HTMLElement,
   metrics: Metrics,
@@ -251,10 +279,9 @@ function planViewport(
 ): { viewport: number; offered: Layout[] | null } {
   const full = document.documentElement.clientWidth;
   const room = projectRoom(wrap, metrics);
-  const talk = talkRoom(metrics, room);
-  if (room <= 0 && talk <= 0) {
+  if (room <= 0 && !talkOpen()) {
     setFlag("projectFloat", false);
-    setFlag("talkFloat", false);
+    planTalk(wrap, metrics, full, 0, 0);
     return { viewport: full, offered: null };
   }
   const wide = choose(available(metrics, full, prev));
@@ -265,10 +292,31 @@ function planViewport(
   );
   const plan =
     room > 0 ? projectViewport(full, room, loose) : { viewport: full };
-  setFlag("projectFloat", room > 0 && plan.viewport === full);
-  const side = talk > 0 ? projectViewport(plan.viewport, talk, loose) : plan;
-  setFlag("talkFloat", talk > 0 && side.viewport === plan.viewport);
-  return { viewport: side.viewport, offered: wide.avail };
+  const docked = room > 0 && plan.viewport !== full;
+  setFlag("projectFloat", room > 0 && !docked);
+  const talk = planTalk(wrap, metrics, full, loose, docked ? room : 0);
+  return { viewport: talk ?? plan.viewport, offered: wide.avail };
+}
+
+function placeTalk(wrap: HTMLElement): void {
+  const root = document.documentElement;
+  const workspace = wrap.closest<HTMLElement>(".workspace");
+  const win = workspace?.querySelector<HTMLElement>(":scope > .talk-window");
+  if (!workspace || !win || !("talkFloat" in root.dataset)) {
+    root.style.removeProperty("--talk-x");
+    return;
+  }
+  const preview = workspace.querySelector<HTMLElement>(".preview-panel");
+  const space = workspace.getBoundingClientRect();
+  const anchor =
+    preview && !preview.hidden && preview.offsetParent !== null
+      ? preview.getBoundingClientRect().left
+      : wrap.getBoundingClientRect().right - win.offsetWidth;
+  const x = Math.max(
+    0,
+    Math.min(anchor - space.left, space.width - win.offsetWidth),
+  );
+  root.style.setProperty("--talk-x", `${Math.round(x)}px`);
 }
 
 export interface MeasureControl {
@@ -367,6 +415,7 @@ export function initMeasureControl(
       String(previewMeasure(active, metrics, viewport)),
     );
     apply(active);
+    requestAnimationFrame(() => placeTalk(wrap));
 
     toolbar.sync();
 
