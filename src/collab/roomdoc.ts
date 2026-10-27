@@ -1,5 +1,6 @@
 import * as Y from "yjs";
-import { loadDoc } from "./docstore.ts";
+import { loadLog } from "./docstore.ts";
+import { LOADED, applyLog } from "./persistence.ts";
 import type { BlobSwap, BlobTransport } from "./blobswap.ts";
 import { createAttacher, type Attacher } from "./attacher.ts";
 import {
@@ -17,11 +18,28 @@ import { createRoomColors, type RoomColors } from "./roomcolors.ts";
 import { textOf } from "./projectdoc.ts";
 import type { Profile } from "./profile.ts";
 
-export const LOADED = { load: true };
+export { LOADED };
 
 interface OpenedDoc {
   readonly doc: Y.Doc;
   readonly fresh: boolean;
+  readonly keys: readonly string[];
+  readonly early: readonly Uint8Array[];
+}
+
+async function seedDoc(
+  doc: Y.Doc,
+  stored: boolean,
+  seed: (() => string) | null,
+  project: ProjectHooks | null,
+): Promise<boolean> {
+  if (project) {
+    const seeded = await seedProjectDoc(doc, project);
+    return !stored && !seeded;
+  }
+  const text = doc.getText("t");
+  if (seed && text.length === 0) text.insert(0, seed());
+  return !stored && !seed;
 }
 
 export async function openDoc(
@@ -30,15 +48,17 @@ export async function openDoc(
   project: ProjectHooks | null,
 ): Promise<OpenedDoc> {
   const doc = new Y.Doc({ gc: false });
-  const stored = await loadDoc(room);
-  if (stored) Y.applyUpdate(doc, stored, LOADED);
-  if (project) {
-    const seeded = await seedProjectDoc(doc, project);
-    return { doc, fresh: !stored && !seeded };
-  }
-  const text = doc.getText("t");
-  if (seed && text.length === 0) text.insert(0, seed());
-  return { doc, fresh: !stored && !seed };
+  const log = await loadLog(room);
+  applyLog(doc, log);
+  const early: Uint8Array[] = [];
+  const grab = (update: Uint8Array, origin: unknown): void => {
+    if (origin !== LOADED) early.push(update);
+  };
+  doc.on("update", grab);
+  const stored = !!log.base || log.updates.length > 0;
+  const fresh = await seedDoc(doc, stored, seed, project);
+  doc.off("update", grab);
+  return { doc, fresh, keys: log.keys, early };
 }
 
 export interface EditingDeps {

@@ -1,7 +1,9 @@
 import * as Y from "yjs";
 import { deflateSync } from "fflate";
 import { seal } from "./collabkey.ts";
-import { saveDoc } from "./docstore.ts";
+import { appendLog, compactLog, logKey, type StoredLog } from "./docstore.ts";
+
+export const LOADED = { load: true };
 
 const SAVE_MS = 2000;
 const UPLOAD_IDLE_MS = 30_000;
@@ -45,6 +47,7 @@ export interface UploaderDeps {
   readonly allowed: () => boolean;
   readonly send: (data: Uint8Array) => boolean;
   readonly notice: (notice: UploadNotice) => void;
+  readonly encoded?: (state: Uint8Array) => void;
 }
 
 export function createUploader(deps: UploaderDeps, dirty: boolean): Uploader {
@@ -65,7 +68,9 @@ export function createUploader(deps: UploaderDeps, dirty: boolean): Uploader {
     cancel();
     if (!dirty || !deps.allowed()) return;
     const seen = edits;
-    const state = deflateSync(Y.encodeStateAsUpdate(deps.doc));
+    const full = Y.encodeStateAsUpdate(deps.doc);
+    deps.encoded?.(full);
+    const state = deflateSync(full);
     const sealed = await seal(deps.key, state);
     if (sealed.byteLength > MAX_UPLOAD) return warn("too-large");
     if (sealed.byteLength > NEAR_UPLOAD) warn("near-limit");
@@ -105,24 +110,127 @@ export function createUploader(deps: UploaderDeps, dirty: boolean): Uploader {
 export interface Saver {
   soon(): void;
   now(): Promise<void>;
+  compact(state?: Uint8Array): Promise<void>;
   cancel(): void;
+  close(): Promise<void>;
 }
 
-export function createSaver(doc: Y.Doc, room: string): Saver {
+export function applyLog(doc: Y.Doc, log: StoredLog): void {
+  doc.transact(() => {
+    if (log.base) Y.applyUpdate(doc, log.base);
+    for (const update of log.updates) Y.applyUpdate(doc, update);
+  }, LOADED);
+}
+
+export const LOG_COUNT = 200;
+export const LOG_BYTES = 256 * 1024;
+
+interface Logged {
+  readonly key: string;
+  readonly upTo: number;
+}
+
+interface SaverState {
+  seq: number;
+  pending: { readonly n: number; readonly update: Uint8Array }[];
+  logged: Logged[];
+  bytes: number;
+  closed: boolean;
+}
+
+function saverState(keys: readonly string[]): SaverState {
+  return {
+    seq: 0,
+    pending: [],
+    logged: keys.map((key) => ({ key, upTo: 0 })),
+    bytes: 0,
+    closed: false,
+  };
+}
+
+async function appendPending(st: SaverState, room: string): Promise<void> {
+  const batch = st.pending.slice();
+  if (!batch.length) return;
+  const merged = Y.mergeUpdates(batch.map((item) => item.update));
+  const key = logKey(room);
+  if (!(await appendLog(key, merged))) return;
+  const upTo = batch.at(-1)!.n;
+  st.pending = st.pending.filter((item) => item.n > upTo);
+  st.logged.push({ key, upTo });
+  st.bytes += merged.byteLength;
+}
+
+async function compactTo(
+  st: SaverState,
+  room: string,
+  state: Uint8Array,
+  upTo: number,
+): Promise<void> {
+  const covered = st.logged.filter((log) => log.upTo <= upTo);
+  const ok = await compactLog(
+    room,
+    state,
+    covered.map((log) => log.key),
+  );
+  if (!ok) return;
+  st.logged = st.logged.filter((log) => log.upTo > upTo);
+  st.pending = st.pending.filter((item) => item.n > upTo);
+  st.bytes = 0;
+}
+
+export function createSaver(
+  doc: Y.Doc,
+  room: string,
+  keys: readonly string[],
+  early: readonly Uint8Array[],
+): Saver {
+  const st = saverState(keys);
   let timer: ReturnType<typeof setTimeout> | null = null;
+  let queue: Promise<void> = Promise.resolve();
+  const enqueue = (task: () => Promise<void>): Promise<void> =>
+    (queue = queue.then(() => (st.closed ? undefined : task())));
+  const track = (update: Uint8Array): void => {
+    st.pending.push({ n: ++st.seq, update });
+  };
+  const compact = (given?: Uint8Array): Promise<void> => {
+    const upTo = given ? st.seq : 0;
+    return enqueue(() =>
+      given
+        ? compactTo(st, room, given, upTo)
+        : compactTo(st, room, Y.encodeStateAsUpdate(doc), st.seq),
+    );
+  };
   const now = (): Promise<void> => {
     if (timer) clearTimeout(timer);
     timer = null;
-    return saveDoc(room, Y.encodeStateAsUpdate(doc));
+    return enqueue(async () => {
+      await appendPending(st, room);
+      if (st.logged.length >= LOG_COUNT || st.bytes >= LOG_BYTES)
+        await compactTo(st, room, Y.encodeStateAsUpdate(doc), st.seq);
+    });
   };
+  const soon = (): void => {
+    timer ??= setTimeout(() => void now(), SAVE_MS);
+  };
+  for (const update of early) track(update);
+  doc.on("update", (update: Uint8Array, origin: unknown) => {
+    if (origin !== LOADED) track(update);
+  });
+  if (keys.length) void compact();
+  else if (early.length) soon();
   return {
-    soon() {
-      timer ??= setTimeout(() => void now(), SAVE_MS);
-    },
-    now: () => (timer ? now() : Promise.resolve()),
+    soon,
+    now: () => (timer || st.pending.length ? now() : queue),
+    compact,
     cancel() {
       if (timer) clearTimeout(timer);
       timer = null;
+    },
+    async close() {
+      if (timer) clearTimeout(timer);
+      timer = null;
+      st.closed = true;
+      await queue;
     },
   };
 }

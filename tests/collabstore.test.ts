@@ -3,9 +3,21 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as Y from "yjs";
 import { inflateSync } from "fflate";
-import { dropDoc, loadDoc, saveDoc } from "../src/collab/docstore.ts";
+import {
+  appendLog,
+  dropDoc,
+  dropRoom,
+  loadDoc,
+  loadLog,
+  logKey,
+  saveDoc,
+} from "../src/collab/docstore.ts";
 import { openDoc } from "../src/collab/roomdoc.ts";
-import { createSaver, createUploader } from "../src/collab/persistence.ts";
+import {
+  LOG_COUNT,
+  createSaver,
+  createUploader,
+} from "../src/collab/persistence.ts";
 import { importKey, newLink, unseal } from "../src/collab/collabkey.ts";
 import { projectOf } from "../src/collab/projectdoc.ts";
 import type { ProjectHooks } from "../src/collab/projectsession.ts";
@@ -61,17 +73,108 @@ test("төслийн өрөөг төслийн эхний хувилбараар
   assert.equal(guest.fresh, true);
 });
 
-test("saver засварыг хойшлуулж эсвэл шууд хадгална", async () => {
-  const doc = new Y.Doc();
-  const saver = createSaver(doc, "saver-a");
-  doc.getText("t").insert(0, "нэг");
+async function reopen(room: string): Promise<string> {
+  const opened = await openDoc(room, null, null);
+  const text = opened.doc.getText("t").toString();
+  opened.doc.destroy();
+  return text;
+}
+
+test("saver зөвхөн өөрчлөлтийг нэмж бичээд, нээхэд бүрэн сэргээнэ", async () => {
+  await saveDoc("log-a", stateOf("суурь"));
+  const first = await openDoc("log-a", null, null);
+  const saver = createSaver(first.doc, "log-a", first.keys, first.early);
+  const text = first.doc.getText("t");
+  text.insert(text.length, " нэг");
+  await saver.now();
+  text.insert(text.length, " хоёр");
   saver.soon();
-  saver.now();
+  await saver.now();
+  const log = await loadLog("log-a");
+  assert.equal(log.updates.length, 2);
+  assert.ok(log.updates.every((update) => update.byteLength < 200));
+  assert.equal(await reopen("log-a"), "суурь нэг хоёр");
+  await saver.close();
+});
+
+test("нээх үед өөрчлөлтүүдийг нэгтгэж, суурь болгоно", async () => {
+  const first = await openDoc("log-b", () => "эх", null);
+  const saver = createSaver(first.doc, "log-b", first.keys, first.early);
+  await saver.now();
+  first.doc.getText("t").insert(2, "!");
+  await saver.now();
+  await saver.close();
+  assert.equal((await loadLog("log-b")).updates.length, 2);
+  const second = await openDoc("log-b", null, null);
+  const again = createSaver(second.doc, "log-b", second.keys, second.early);
+  await again.now();
+  await again.close();
+  const log = await loadLog("log-b");
+  assert.equal(log.updates.length, 0);
+  assert.ok(log.base);
+  assert.equal(await reopen("log-b"), "эх!");
+});
+
+test("өөрчлөлт 200 хүрэхэд нэгтгэнэ", async () => {
+  const opened = await openDoc("log-c", null, null);
+  const saver = createSaver(opened.doc, "log-c", [], []);
+  const text = opened.doc.getText("t");
+  for (let i = 0; i < LOG_COUNT; i++) {
+    text.insert(text.length, "а");
+    await saver.now();
+  }
+  const log = await loadLog("log-c");
+  assert.equal(log.updates.length, 0);
+  assert.equal(await reopen("log-c"), "а".repeat(LOG_COUNT));
+  await saver.close();
+});
+
+test("uploader-ийн бүтэн хуулбараар нэгтгэхэд дараагийн засвар алдагдахгүй", async () => {
+  const opened = await openDoc("log-d", null, null);
+  const saver = createSaver(opened.doc, "log-d", [], []);
+  const text = opened.doc.getText("t");
+  text.insert(0, "өмнө");
+  await saver.now();
+  const full = Y.encodeStateAsUpdate(opened.doc);
+  const compacted = saver.compact(full);
+  text.insert(text.length, " дараа");
+  await compacted;
+  await saver.now();
+  const log = await loadLog("log-d");
+  assert.equal(log.updates.length, 1);
+  assert.equal(await reopen("log-d"), "өмнө дараа");
+  await saver.close();
+});
+
+test("өөр табын бичсэн өөрчлөлтийг нэгтгэхдээ устгахгүй", async () => {
+  const opened = await openDoc("log-e", null, null);
+  const saver = createSaver(opened.doc, "log-e", [], []);
+  opened.doc.getText("t").insert(0, "миний");
+  await saver.now();
+  const other = new Y.Doc();
+  other.getText("t").insert(0, "бусад ");
+  await appendLog(logKey("log-e"), Y.encodeStateAsUpdate(other));
+  await saver.compact();
+  const log = await loadLog("log-e");
+  assert.equal(log.updates.length, 1);
+  const text = await reopen("log-e");
+  assert.ok(text.includes("миний") && text.includes("бусад"), text);
+  await saver.close();
+});
+
+test("өрөөг мартахад хүлээгдэж буй бичлэг үлдэхгүй", async () => {
+  const opened = await openDoc("log-f", () => "нууц", null);
+  const saver = createSaver(opened.doc, "log-f", [], opened.early);
+  opened.doc.getText("t").insert(0, "!");
+  void saver.now();
+  await saver.close();
+  await dropRoom("log-f");
+  const log = await loadLog("log-f");
+  assert.equal(log.base, null);
+  assert.equal(log.updates.length, 0);
+  void saver.now();
   await wait(20);
-  assert.ok(await loadDoc("saver-a"));
-  saver.soon();
-  saver.cancel();
-  saver.now();
+  assert.equal((await loadLog("log-f")).updates.length, 0);
 });
 
 test("uploader шифрлэсэн snapshot илгээж, том бол нэг удаа сануулна", async () => {
