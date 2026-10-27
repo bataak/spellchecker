@@ -64,7 +64,18 @@ function hints(mac: boolean): readonly [CommandId, string][] {
         "⌫",
     ],
     ["paste", mod + "V"],
-    ["copy", mod + "C" + "\nУдаан дарж алдаатай үгсийг хуулна · " + mod + "E"],
+    [
+      "copy",
+      mod +
+        "C" +
+        "\nЭнэ талбарын холбоосыг хуулах · " +
+        mod +
+        shift +
+        "C" +
+        "\nУдаан дарж алдаатай үгсийг хуулна · " +
+        mod +
+        "E",
+    ],
     ["copyErrors", mod + "E"],
     ["open", mod + "O"],
     [
@@ -218,6 +229,14 @@ export function initShortcuts(deps: ShortcutDeps): void {
       shift: false,
       match: (e) => letter("c")(e) || e.key.toLowerCase() === "ё",
       run: copy,
+    },
+    {
+      shift: true,
+      match: (e) => letter("c")(e) || e.key.toLowerCase() === "ё",
+      run: (e) => {
+        e.preventDefault();
+        commands.run("copy", true);
+      },
     },
   ];
 
