@@ -91,6 +91,14 @@ async function freshToken(where: Where): Promise<string> {
   return next.access;
 }
 
+export function hasToken(provider: Provider): boolean {
+  return stored({ provider, host: DEFAULT_HOST[provider] }) !== null;
+}
+
+export async function providerToken(provider: Provider): Promise<string> {
+  return freshToken({ provider, host: DEFAULT_HOST[provider] });
+}
+
 const text = (value: unknown): string =>
   typeof value === "string" ? value : "";
 
