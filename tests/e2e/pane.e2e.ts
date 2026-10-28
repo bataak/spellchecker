@@ -174,6 +174,26 @@ test("алдааны самбар дахь тайлбарын самбарыг �
   await close.click();
   await page.waitForTimeout(400);
   assert.ok(Math.abs((await scrollTop()) - before) < 2);
+  assert.equal(await page.evaluate(() => document.activeElement?.id), "editor");
+});
+
+test("алдааны самбар дахь тайлбарын бичвэрийг чирж сонгож болно", async () => {
+  const page = await openPage(app, await app.context());
+  await page.evaluate(() => localStorage.setItem("def-dock", "panel"));
+  await reload(page);
+  await typeAtEnd(page, "Мөр алдаатйа үг байна.");
+  const note = page.locator(".def-dock .def-empty");
+  await note.waitFor();
+  const box = (await note.boundingBox())!;
+  await page.mouse.move(box.x + 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width - 2, box.y + box.height / 2, {
+    steps: 8,
+  });
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  const selected = await page.evaluate(() => getSelection()?.toString() ?? "");
+  assert.ok(selected.length > 5, JSON.stringify(selected));
 });
 
 test("LaTeX-ийг хэлбэржүүлэхэд харагдаж буй PDF арилж дахин зурагдахгүй", async () => {

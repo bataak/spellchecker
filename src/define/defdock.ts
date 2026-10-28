@@ -68,6 +68,7 @@ function buildDockPane(
   close.innerHTML = CLOSE_ICON;
   close.addEventListener("click", onClose);
   head.append(title, ...controls, close);
+  head.addEventListener("mousedown", (e) => e.preventDefault());
   const body = document.createElement("div");
   body.className = "def-dock-body";
   body.setAttribute("aria-live", "polite");
