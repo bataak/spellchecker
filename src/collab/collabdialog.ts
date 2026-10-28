@@ -204,7 +204,7 @@ async function endAlone(
 }
 
 export function openDialog(deps: DialogDeps): void {
-  const dialog = element("dialog", "suggest-overlay collab-overlay");
+  const dialog = element("dialog", "suggest-overlay dialog-overlay");
   dialog.setAttribute("aria-labelledby", "collabTitle");
   const card = element("div", "suggest-card");
   const title = element("h2", "suggest-title", "Хамтран засах");
