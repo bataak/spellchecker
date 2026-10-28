@@ -115,7 +115,7 @@ export function initTalk(deps: TalkHostDeps): TalkHost {
       };
     },
   });
-  initCommentButton({
+  const recheck = initCommentButton({
     editor: deps.editor,
     view: deps.view,
     picking: deps.picking,
@@ -128,5 +128,8 @@ export function initTalk(deps: TalkHostDeps): TalkHost {
       return views ? { views, open: () => side.open("comments") } : null;
     },
   });
+  synced.on(recheck);
+  local.onChange(recheck);
+
   return { refresh: sync, discard: local.discard };
 }
