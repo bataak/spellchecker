@@ -25,7 +25,12 @@ import type {
 } from "../docir.ts";
 import { listTree, type ListTree } from "../../markdown.ts";
 import { tabFills } from "../flatten.ts";
-import { columnWidths, shareWidths, officeMetrics } from "../table.ts";
+import {
+  columnWidths,
+  shareWidths,
+  officeMetrics,
+  type TableRules,
+} from "../table.ts";
 import { xmlAttr, xmlText } from "../sanitize.ts";
 import { NS, runKey, runStyle, styleName } from "./props.ts";
 import { stylesXml } from "./styles.ts";
@@ -156,6 +161,8 @@ const CELL_BORDERS: Readonly<Record<string, string>> = {
   C_only:
     'fo:border-top="1pt solid #000000" fo:border-bottom="1pt solid #000000" ',
   C_last: 'fo:border-bottom="1pt solid #000000" ',
+  C_lines: 'fo:border-bottom="0.5pt solid #000000" ',
+  C_grid: 'fo:border="0.5pt solid #000000" ',
 };
 
 function cellStyles(): string {
@@ -231,10 +238,17 @@ function tableStyles(
   );
 }
 
-function rowCellStyle(header: boolean, head: boolean, last: boolean): string {
-  if (!header) return "C_plain";
+function rowCellStyle(
+  header: boolean,
+  head: boolean,
+  last: boolean,
+  rules: TableRules | undefined,
+): string {
+  if (rules === "grid") return "C_grid";
+  const body = rules === "lines" ? "C_lines" : "C_plain";
+  if (!header) return body;
   if (head) return last ? "C_only" : "C_head";
-  return last ? "C_last" : "C_plain";
+  return last ? "C_last" : body;
 }
 
 function fillStyle(base: string, tab: number, auto: Set<string>): string {
@@ -309,11 +323,24 @@ function tableXml(
   );
   auto.add("cells");
   auto.add(tableStyles(name, widths, block.placement ?? "center"));
+  if (block.rowCm)
+    auto.add(
+      '<style:style style:name="' +
+        name +
+        '.R" style:family="table-row"><style:table-row-properties style:min-row-height="' +
+        cm(block.rowCm) +
+        '"/></style:style>',
+    );
   const last = block.rows.length - 1;
   const rows = block.rows
     .map((row, rowIndex) => {
       const head = header && rowIndex === 0;
-      const cellStyle = rowCellStyle(header, head, rowIndex === last);
+      const cellStyle = rowCellStyle(
+        header,
+        head,
+        rowIndex === last,
+        block.rules,
+      );
       const base = head ? "TableHead" : (block.cellStyle ?? "TableCell");
       const cells = widths
         .map((width, i) => {
@@ -326,7 +353,13 @@ function tableXml(
           return cellXml(cellStyle, para, runsXml(runs, media));
         })
         .join("");
-      return "<table:table-row>" + cells + "</table:table-row>";
+      return (
+        (block.rowCm && !head
+          ? '<table:table-row table:style-name="' + name + '.R">'
+          : "<table:table-row>") +
+        cells +
+        "</table:table-row>"
+      );
     })
     .join("");
   return (

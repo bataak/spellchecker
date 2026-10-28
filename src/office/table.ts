@@ -164,3 +164,33 @@ export function shareWidths(
     (part) => Math.round(((targetCm * part) / total) * 100) / 100,
   );
 }
+
+export type TableRules = "lines" | "grid";
+
+export interface TableLook {
+  readonly share: number | null;
+  readonly rules: TableRules | null;
+  readonly rowCm: number | null;
+}
+
+export function tableRow(height: string | undefined): number | null {
+  const match = /^(\d+(?:\.\d+)?)(cm|mm)$/.exec(height ?? "");
+  if (!match) return null;
+  const size = Number(match[1]) / (match[2] === "mm" ? 10 : 1);
+  return size > 0 ? Math.min(10, size) : null;
+}
+
+export function tableLook(
+  classes: readonly string[],
+  keys: Readonly<Record<string, string>>,
+): TableLook {
+  return {
+    share: classes.includes("column") ? null : tableShare(keys["width"]),
+    rules: classes.includes("grid")
+      ? "grid"
+      : classes.includes("lines")
+        ? "lines"
+        : null,
+    rowCm: tableRow(keys["row"]),
+  };
+}

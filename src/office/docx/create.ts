@@ -267,6 +267,25 @@ function cellXml(
   );
 }
 
+function tableBorders(
+  block: Extract<IrBlock, { kind: "table" }>,
+  header: boolean,
+): string {
+  if (block.rules === "grid")
+    return (
+      "<w:tblBorders>" +
+      ["top", "left", "bottom", "right", "insideH", "insideV"]
+        .map((side) => rule(side, 4))
+        .join("") +
+      "</w:tblBorders>"
+    );
+  const edges = header ? rule("top", 12) + rule("bottom", 12) : "";
+  const inside = block.rules === "lines" ? rule("insideH", 4) : "";
+  return edges || inside
+    ? "<w:tblBorders>" + edges + inside + "</w:tblBorders>"
+    : "";
+}
+
 function tableXml(
   block: Extract<IrBlock, { kind: "table" }>,
   doc: DocIr,
@@ -294,9 +313,16 @@ function tableXml(
           cellXml(block, row[i] ?? [], width, block.align[i], head, body),
         )
         .join("");
+      const height =
+        block.rowCm && !head
+          ? '<w:trHeight w:val="' +
+            String(twips(block.rowCm)) +
+            '" w:hRule="atLeast"/>'
+          : "";
+      const props = (head ? "<w:tblHeader/>" : "") + height;
       return (
         "<w:tr>" +
-        (head ? "<w:trPr><w:tblHeader/></w:trPr>" : "") +
+        (props ? "<w:trPr>" + props + "</w:trPr>" : "") +
         cells +
         "</w:tr>"
       );
@@ -308,12 +334,7 @@ function tableXml(
     '" w:type="dxa"/><w:jc w:val="' +
     JC[block.placement ?? "center"] +
     '"/>' +
-    (header
-      ? "<w:tblBorders>" +
-        rule("top", 12) +
-        rule("bottom", 12) +
-        "</w:tblBorders>"
-      : "") +
+    tableBorders(block, header) +
     '<w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="28" w:type="dxa"/><w:left w:w="57" w:type="dxa"/><w:bottom w:w="28" w:type="dxa"/><w:right w:w="57" w:type="dxa"/></w:tblCellMar><w:tblLook w:val="04A0"/></w:tblPr><w:tblGrid>' +
     widths.map((width) => '<w:gridCol w:w="' + String(width) + '"/>').join("") +
     "</w:tblGrid>" +
