@@ -194,7 +194,7 @@ export function initErrorPanel(deps: ErrorPanelDeps): ErrorPanel {
 
     panel.addEventListener("click", (e) => {
       const target = e.target instanceof Element ? e.target : null;
-      if (!target || target.closest("#copyErrorsBtn")) return;
+      if (!target || target.closest("#copyErrorsBtn, .def-dock")) return;
       const btn = target.closest(".ew");
       if (btn) pickError(btn);
       else restoreCaret();
