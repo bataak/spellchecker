@@ -1,3 +1,4 @@
+import { heicToJpeg, isHeic } from "./heic.ts";
 import { imageKey } from "../office/docir.ts";
 import type {
   EmbeddedImage,
@@ -126,14 +127,16 @@ function sameImage(a: Blob, b: Blob): boolean {
 }
 
 export function pickImage(): Promise<File | null> {
-  return new Promise((resolve) => {
+  return new Promise<File | null>((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = "image/*";
+    input.accept = "image/*,.heic,.heif";
     input.addEventListener("change", () => resolve(input.files?.[0] ?? null));
     input.addEventListener("cancel", () => resolve(null));
     input.click();
-  });
+  }).then((file) =>
+    file && isHeic(file) ? heicToJpeg(file).catch(() => file) : file,
+  );
 }
 
 export interface ImageStore {

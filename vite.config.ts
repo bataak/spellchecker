@@ -86,7 +86,10 @@ export default defineConfig({
       },
     },
   },
-  optimizeDeps: { include: ["nspell"], exclude: ["hunspell-wasm"] },
+  optimizeDeps: {
+    include: ["nspell"],
+    exclude: ["hunspell-wasm", "libheif-js"],
+  },
   server: { fs: { allow: [".", "../hunspell-wasm"] } },
   plugins: [
     collabButton(),
@@ -104,6 +107,7 @@ export default defineConfig({
           "**/tex/**",
           "**/examples/**",
           "**/assets/svgpdf/**",
+          "**/assets/heicworker-*.js",
         ],
         navigateFallback: base + "index.html",
         navigateFallbackDenylist: [/\/oauth\.html/],
