@@ -23,6 +23,12 @@ import type {
 import { listTree, type ListTree } from "../../markdown.ts";
 import { tabFills } from "../flatten.ts";
 import { columnWidths, shareWidths, officeMetrics } from "../table.ts";
+import {
+  STROKE_PT,
+  tableStrokes,
+  type Stroke,
+  type TableStrokes,
+} from "../../markdown/tablelook.ts";
 import { xmlAttr } from "../sanitize.ts";
 import { REL, XML_HEAD, relsXml, type Rel } from "../ooxml.ts";
 import {
@@ -227,19 +233,21 @@ function listXml(
   return render(listTree(block), 0);
 }
 
-const rule = (side: string, size: number): string =>
-  "<w:" +
-  side +
-  ' w:val="single" w:sz="' +
-  String(size) +
-  '" w:space="0" w:color="000000"/>';
+const rule = (side: string, stroke: Stroke): string =>
+  stroke === 0
+    ? ""
+    : "<w:" +
+      side +
+      ' w:val="single" w:sz="' +
+      String(STROKE_PT[stroke] * 8) +
+      '" w:space="0" w:color="000000"/>';
 
 function cellXml(
   block: Extract<IrBlock, { kind: "table" }>,
   runs: readonly IrRun[],
   width: number,
   align: (typeof block.align)[number],
-  head: boolean,
+  headRule: Stroke | null,
   body: Body,
 ): string {
   const fill = runs.some((run) => run.fill);
@@ -247,12 +255,16 @@ function cellXml(
     '<w:tc><w:tcPr><w:tcW w:w="' +
     String(width) +
     '" w:type="dxa"/>' +
-    (head ? "<w:tcBorders>" + rule("bottom", 6) + "</w:tcBorders>" : "") +
-    (head ? '<w:vAlign w:val="center"/>' : "") +
+    (headRule
+      ? "<w:tcBorders>" + rule("bottom", headRule) + "</w:tcBorders>"
+      : "") +
+    (headRule === null ? "" : '<w:vAlign w:val="center"/>') +
     "</w:tcPr>" +
     paraXml(
       styled(
-        head ? STYLE.tableHead : (block.cellStyle ?? STYLE.tableCell),
+        headRule === null
+          ? (block.cellStyle ?? STYLE.tableCell)
+          : STYLE.tableHead,
         fill
           ? '<w:tabs><w:tab w:val="right" w:leader="underscore" w:pos="' +
               String(Math.max(0, width - 216)) +
@@ -267,28 +279,24 @@ function cellXml(
   );
 }
 
-function tableBorders(
-  block: Extract<IrBlock, { kind: "table" }>,
-  header: boolean,
-): string {
-  if (block.rules === "grid")
-    return (
-      "<w:tblBorders>" +
-      ["top", "left", "bottom", "right", "insideH", "insideV"]
-        .map((side) => rule(side, 4))
-        .join("") +
-      "</w:tblBorders>"
-    );
-  const lines = block.rules === "lines";
-  const edges = header
-    ? rule("top", 12) + rule("bottom", 12)
-    : lines
-      ? rule("bottom", 4)
-      : "";
-  const inside = lines ? rule("insideH", 4) : "";
-  return edges || inside
-    ? "<w:tblBorders>" + edges + inside + "</w:tblBorders>"
-    : "";
+function tableBorders(strokes: TableStrokes): string {
+  const borders =
+    rule("top", strokes.top) +
+    rule("left", strokes.sides) +
+    rule("bottom", strokes.bottom) +
+    rule("right", strokes.sides) +
+    rule("insideH", strokes.rows) +
+    rule("insideV", strokes.columns);
+  return borders ? "<w:tblBorders>" + borders + "</w:tblBorders>" : "";
+}
+
+function headBorder(
+  strokes: TableStrokes,
+  head: boolean,
+  only: boolean,
+): Stroke | null {
+  if (!head) return null;
+  return only || strokes.head === strokes.rows ? 0 : strokes.head;
 }
 
 function tableXml(
@@ -310,12 +318,14 @@ function tableXml(
     block.rule,
     textWidthCm(doc) * (block.share ?? 0),
   ).map(twips);
+  const strokes = tableStrokes(block.rules, header);
   const rows = block.rows
     .map((row, rowIndex) => {
       const head = header && rowIndex === 0;
+      const under = headBorder(strokes, head, block.rows.length === 1);
       const cells = widths
         .map((width, i) =>
-          cellXml(block, row[i] ?? [], width, block.align[i], head, body),
+          cellXml(block, row[i] ?? [], width, block.align[i], under, body),
         )
         .join("");
       const height =
@@ -339,7 +349,7 @@ function tableXml(
     '" w:type="dxa"/><w:jc w:val="' +
     JC[block.placement ?? "center"] +
     '"/>' +
-    tableBorders(block, header) +
+    tableBorders(strokes) +
     '<w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="28" w:type="dxa"/><w:left w:w="57" w:type="dxa"/><w:bottom w:w="28" w:type="dxa"/><w:right w:w="57" w:type="dxa"/></w:tblCellMar><w:tblLook w:val="04A0"/></w:tblPr><w:tblGrid>' +
     widths.map((width) => '<w:gridCol w:w="' + String(width) + '"/>').join("") +
     "</w:tblGrid>" +

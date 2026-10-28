@@ -11,6 +11,12 @@ import type {
 import { listTree, type ListTree } from "../markdown.ts";
 import { odfFont } from "./fonts.ts";
 import { columnWidths, shareWidths, officeMetrics } from "./table.ts";
+import {
+  STROKE_PT,
+  cellStrokes,
+  strokeClasses,
+  tableStrokes,
+} from "../markdown/tablelook.ts";
 import { escapeAttr } from "../core/htmlutil.ts";
 import { cm } from "./units.ts";
 
@@ -148,10 +154,23 @@ function para(style: string, runs: readonly IrRun[], images: ImageSet): string {
   );
 }
 
-function cellClass(header: boolean, row: number, last: number): string {
-  if (!header) return row === 0 ? "c-plain c-top" : "c-plain";
-  if (row === 0) return row === last ? "c-only" : "c-head";
-  return row === last ? "c-last" : "c-plain";
+function strokeCss(): string {
+  const sides = { t: "top", b: "bottom", l: "left", r: "right" } as const;
+  return Object.entries(sides)
+    .flatMap(([key, side]) =>
+      ([1, 2] as const).map(
+        (stroke) =>
+          "td.e-" +
+          key +
+          String(stroke) +
+          "{border-" +
+          side +
+          ":" +
+          String(STROKE_PT[stroke]) +
+          "pt solid #000}",
+      ),
+    )
+    .join("");
 }
 
 function tableHtml(
@@ -173,7 +192,7 @@ function tableHtml(
     block.rule,
     textWidthCm(doc) * (block.share ?? 0),
   );
-  const last = block.rows.length - 1;
+  const strokes = tableStrokes(block.rules, header);
   const rows = block.rows.map((row, rowIndex) => {
     const head = header && rowIndex === 0;
     const base = head ? STYLE.tableHead : (block.cellStyle ?? STYLE.tableCell);
@@ -183,10 +202,22 @@ function tableHtml(
         const style = align
           ? ' data-style="text-align:' + TEXT_ALIGN[align] + '"'
           : "";
+        const place = {
+          row: rowIndex,
+          rows: block.rows.length,
+          column: i,
+          columns: widths.length,
+        };
+        const classes = [
+          head ? "c-head" : "",
+          strokeClasses(cellStrokes(strokes, place)),
+        ]
+          .filter(Boolean)
+          .join(" ");
         return (
-          '<td class="' +
-          cellClass(header, rowIndex, last) +
-          '"><p class="' +
+          "<td" +
+          (classes ? ' class="' + classes + '"' : "") +
+          '><p class="' +
           className(base) +
           '"' +
           style +
@@ -209,9 +240,7 @@ function tableHtml(
     ? "<thead>" + (first ?? "") + "</thead><tbody>" + rest.join("") + "</tbody>"
     : "<tbody>" + rows.join("") + "</tbody>";
   return (
-    "<table" +
-    (block.rules ? ' class="' + block.rules + '"' : "") +
-    ' data-style="width:' +
+    '<table data-style="width:' +
     cm(widths.reduce((sum, width) => sum + width, 0)) +
     ";margin:" +
     TABLE_MARGIN[block.placement ?? "center"] +
@@ -402,18 +431,11 @@ export function printHtml(
     "}" +
     "a{color:#000080}" +
     "ul,ol{margin:0;padding-left:1.2cm}" +
-    "table{border-collapse:collapse;table-layout:fixed;break-inside:auto}" +
+    "table{border-collapse:separate;border-spacing:0;table-layout:fixed;break-inside:auto}" +
     "tr{break-inside:avoid}" +
     "td{padding:0.05cm 0.1cm;vertical-align:top}" +
-    "td.c-head{border-top:1pt solid #000;border-bottom:0.5pt solid #000;vertical-align:middle}" +
-    "td.c-only{border-top:1pt solid #000;border-bottom:1pt solid #000;vertical-align:middle}" +
-    "td.c-last{border-bottom:1pt solid #000}" +
-    "table.lines,table.grid{border-collapse:separate;border-spacing:0}" +
-    "table.lines td{border-bottom:0.5pt solid #000}" +
-    "table.lines td.c-last,table.lines td.c-only{border-bottom:1pt solid #000}" +
-    "table.grid td{border:0;border-right:0.5pt solid #000;border-bottom:0.5pt solid #000}" +
-    "table.grid td:first-child{border-left:0.5pt solid #000}" +
-    "table.grid thead td,table.grid td.c-top{border-top:0.5pt solid #000}" +
+    "td.c-head{vertical-align:middle}" +
+    strokeCss() +
     ".fill{display:inline-block;width:100%;border-bottom:0.5pt solid #000;height:1em;vertical-align:baseline}" +
     ".tab{display:inline-block;width:1.25cm}" +
     ".rule{margin:6pt 0;border-bottom:0.5pt solid #000;padding-bottom:2pt}" +
