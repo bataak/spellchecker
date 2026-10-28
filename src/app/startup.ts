@@ -21,6 +21,7 @@ import { initDictionaries, type Dictionaries } from "./dictionaries.ts";
 import { boot } from "./boot.ts";
 import { restoreDraftFile } from "./draftfile.ts";
 import { startUrlNav } from "./urlnav.ts";
+import { bindLinkPaste } from "./linkpaste.ts";
 
 export interface StartupDeps {
   readonly entryUrl: string;
@@ -50,6 +51,7 @@ export interface StartupDeps {
 
 function startNav(deps: StartupDeps): void {
   const { mdBar, store, project } = deps;
+  bindLinkPaste(deps.editor);
   startUrlNav({
     editor: deps.editor,
     copyButton: document.querySelector<HTMLElement>("#copyBtn"),

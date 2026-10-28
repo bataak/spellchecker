@@ -4,6 +4,7 @@ import { bindAppChrome } from "./chromewiring.ts";
 import { createCollabWiring } from "./collabwiring.ts";
 import { watchTabs } from "./tabwatch.ts";
 import { startApp } from "./startup.ts";
+import { offerLink } from "./linkpaste.ts";
 import { fileSlot, slotKey } from "../collab/roomslot.ts";
 import { PROJECT_SLOT } from "../slots/fileslots.ts";
 import { clearedComments } from "../collab/commentbus.ts";
@@ -74,7 +75,7 @@ export function composeShell(app: Scope<ShellReads, ShellGives>): void {
     fixers: app.fixers,
     lastCaret: app.lastCaret,
     hasOpenFile: () => doc.fileName() !== null,
-    invite: (text) => app.collab.invite(text),
+    invite: async (text) => (await app.collab.invite(text)) || offerLink(text),
     forgetFile: () => {
       app.previewMode.cleared();
       projectLink.cleared();
