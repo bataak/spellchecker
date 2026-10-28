@@ -37,7 +37,7 @@ async function convert(bytes: ArrayBuffer): Promise<Blob> {
 self.onmessage = (event: MessageEvent<HeicRequest>) => {
   const { id, bytes } = event.data;
   convert(bytes).then(
-    (blob) => self.postMessage({ id, blob }),
+    (value) => self.postMessage({ id, value }),
     (error: unknown) =>
       self.postMessage({
         id,

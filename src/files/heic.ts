@@ -1,16 +1,18 @@
+import { workerJobs } from "../core/workerjobs.ts";
+
 const HEIC_NAME = /\.(heic|heif)$/i;
 const HEIC_TYPE = /^image\/hei[cf]/i;
 const QUALITY = 0.92;
 const DECODE_MS = 60_000;
 
-interface Job {
-  readonly resolve: (blob: Blob) => void;
-  readonly reject: (error: Error) => void;
-}
-
-const jobs = new Map<number, Job>();
-let worker: Worker | null = null;
-let next = 0;
+const decode = workerJobs<{ readonly bytes: ArrayBuffer }, Blob>(
+  () =>
+    new Worker(new URL("./heicworker.ts", import.meta.url), {
+      type: "module",
+    }),
+  "heic",
+  DECODE_MS,
+);
 
 export function isHeic(file: File): boolean {
   return HEIC_TYPE.test(file.type) || HEIC_NAME.test(file.name);
@@ -20,52 +22,9 @@ export function jpegName(name: string): string {
   return name.replace(HEIC_NAME, "") + ".jpg";
 }
 
-function heicWorker(): Worker {
-  if (worker) return worker;
-  const made = new Worker(new URL("./heicworker.ts", import.meta.url), {
-    type: "module",
-  });
-  made.onmessage = (
-    event: MessageEvent<{ id: number; blob?: Blob; error?: string }>,
-  ) => {
-    const job = jobs.get(event.data.id);
-    if (!job) return;
-    jobs.delete(event.data.id);
-    if (event.data.blob) job.resolve(event.data.blob);
-    else job.reject(new Error(event.data.error ?? "heic"));
-  };
-  made.onerror = () => {
-    for (const job of jobs.values()) job.reject(new Error("heic"));
-    jobs.clear();
-    made.terminate();
-    worker = null;
-  };
-  worker = made;
-  return made;
-}
-
 async function decoded(file: File): Promise<Blob> {
   const bytes = await file.arrayBuffer();
-  const id = (next += 1);
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      jobs.delete(id);
-      worker?.terminate();
-      worker = null;
-      reject(new Error("heic timeout"));
-    }, DECODE_MS);
-    jobs.set(id, {
-      resolve: (blob) => {
-        clearTimeout(timer);
-        resolve(blob);
-      },
-      reject: (error) => {
-        clearTimeout(timer);
-        reject(error);
-      },
-    });
-    heicWorker().postMessage({ id, bytes }, [bytes]);
-  });
+  return decode({ bytes }, [bytes]);
 }
 
 async function native(file: File): Promise<Blob | null> {

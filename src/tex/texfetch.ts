@@ -2,6 +2,7 @@ import { TEX_LIVE_YEAR, TEX_PACKAGE_INDEX } from "./texpackages.ts";
 import { isXz } from "../archive/xz.ts";
 import { KEYS, readJson, writeJson } from "../core/store.ts";
 import { noteError } from "../core/errorlog.ts";
+import { workerJobs } from "../core/workerjobs.ts";
 
 export { wantedFiles } from "./texmissing.ts";
 
@@ -159,67 +160,17 @@ async function download(name: string): Promise<Uint8Array> {
   return bytes;
 }
 
-let unpacker: Worker | null = null;
-let unpackSeq = 0;
-const unpacking = new Map<
-  number,
-  {
-    resolve: (files: [string, Uint8Array][]) => void;
-    reject: (error: Error) => void;
-  }
->();
-
-function unpackWorker(): Worker {
-  if (unpacker) return unpacker;
-  const worker = new Worker(new URL("./texunpack.ts", import.meta.url), {
-    type: "module",
-  });
-  worker.onmessage = (
-    event: MessageEvent<{
-      id: number;
-      files?: [string, Uint8Array][];
-      error?: string;
-    }>,
-  ) => {
-    const job = unpacking.get(event.data.id);
-    if (!job) return;
-    unpacking.delete(event.data.id);
-    if (event.data.files) job.resolve(event.data.files);
-    else job.reject(new Error(event.data.error ?? "unpack"));
-  };
-  worker.onerror = () => {
-    for (const job of unpacking.values()) job.reject(new Error("unpack"));
-    unpacking.clear();
-    worker.terminate();
-    unpacker = null;
-  };
-  unpacker = worker;
-  return worker;
-}
-
-function unpack(
-  bytes: Uint8Array,
-  keep: readonly string[],
-): Promise<[string, Uint8Array][]> {
-  return new Promise((resolve, reject) => {
-    const id = ++unpackSeq;
-    const timer = setTimeout(() => {
-      unpacking.delete(id);
-      reject(new Error("unpack timeout"));
-    }, UNPACK_TIMEOUT_MS);
-    unpacking.set(id, {
-      resolve: (files) => {
-        clearTimeout(timer);
-        resolve(files);
-      },
-      reject: (error) => {
-        clearTimeout(timer);
-        reject(error);
-      },
-    });
-    unpackWorker().postMessage({ id, bytes, keep });
-  });
-}
+const unpack = workerJobs<
+  { readonly bytes: Uint8Array; readonly keep: readonly string[] },
+  [string, Uint8Array][]
+>(
+  () =>
+    new Worker(new URL("./texunpack.ts", import.meta.url), {
+      type: "module",
+    }),
+  "unpack",
+  UNPACK_TIMEOUT_MS,
+);
 
 async function packageBytes(
   name: string,
@@ -253,7 +204,7 @@ export async function loadPackage(name: string): Promise<TexPackage> {
     const bytes = await packageBytes(name, cache);
     let unpacked: [string, Uint8Array][];
     try {
-      unpacked = await unpack(bytes, files);
+      unpacked = await unpack({ bytes, keep: files });
     } catch {
       await cache?.delete(packageUrl(name)).catch(() => false);
       throw new TexPackageError("«" + name + "» TeX багц эвдэрсэн байна");
