@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.119.0](https://github.com/bataak/spellchecker/compare/v1.118.0...v1.119.0) (2026-10-28)
+
+
+### Features
+
+* **collab:** ask in an app dialog before joining a pasted invite ([d2836f2](https://github.com/bataak/spellchecker/commit/d2836f22fd7266b53ade63c8fefa345e9806e78a))
+* **collab:** choose between giving and taking an invite in the share dialog ([d572ef9](https://github.com/bataak/spellchecker/commit/d572ef9ae449b17016185661319389aca50da9b1))
+* **collab:** join an invite by pasting its link or entering it in the share dialog ([23ffd5f](https://github.com/bataak/spellchecker/commit/23ffd5fb782c61b65c7071c81260b7ca741908cb))
+* **collab:** join as soon as an invite link is pasted into the share dialog ([9616b76](https://github.com/bataak/spellchecker/commit/9616b76e741c85a80af1344a45b3cb21b5c947c4))
+* **collab:** make «Урилга өгөх» create the invite and «Авах» take one ([4422993](https://github.com/bataak/spellchecker/commit/44229933dd204f7044be0adc890a32e6ae13b84a))
+* **layout:** narrow the preview before floating the project panel or talk window, and before shortening the editor measure ([201d1ac](https://github.com/bataak/spellchecker/commit/201d1acad6b508c03a69b7b3d11e49d274c3920d))
+* **suggest:** report words sent despite the misspelling warning, with a per-device id ([d3f43dd](https://github.com/bataak/spellchecker/commit/d3f43ddf3a4d38a5864e4fdc19df93fee74cefde))
+* **suggest:** warn about likely misspellings before sending and retire the survey ([b6d9cc4](https://github.com/bataak/spellchecker/commit/b6d9cc423986ef1352b94ee7f4a74b04eb8914d7))
+* **talk:** let the project panel and talk window take turns in the shared column ([25e27e0](https://github.com/bataak/spellchecker/commit/25e27e0fdb3ecaeeb25ec45ac224dec9ca9e8cd5))
+* **talk:** shrink the talk window to fit beside the editor, take the project panel's place, or float at the preview's left edge ([691402a](https://github.com/bataak/spellchecker/commit/691402a66a46a8cc7f6449aead28f058affcce11))
+
+
+### Bug Fixes
+
+* address review findings on the talk column, invite dialog and word suggestions ([29f1cdf](https://github.com/bataak/spellchecker/commit/29f1cdff8a3db7e770319920146d49123cd83083))
+* **collab:** highlight whichever of «Урилга өгөх» and «Урилга авах» is selected ([dd78d70](https://github.com/bataak/spellchecker/commit/dd78d7042afd3b2df5ad3e72ac9f5c2669c77734))
+* **collab:** keep the comment button away while the mouse drags a selection ([c32e47c](https://github.com/bataak/spellchecker/commit/c32e47cf37ebdcbed8ff6d334c3330f14c698c63))
+* **collab:** never let a missed pointerup keep the comment button hidden ([4994c5d](https://github.com/bataak/spellchecker/commit/4994c5d36cde577b3b67156b21198f35119261d8))
+* **collab:** no comment button for a word picked from the error list ([3634d1e](https://github.com/bataak/spellchecker/commit/3634d1ee3a99debae1a16030a40b45eeb56c880a))
+* **collab:** show the comment button once comments become available ([f79a171](https://github.com/bataak/spellchecker/commit/f79a171396c48935a2b655656c2b7649c0a6e977))
+* **collab:** switching back to «Урилга өгөх» shows existing invites instead of creating one ([6c28a65](https://github.com/bataak/spellchecker/commit/6c28a65372927d4b4cef00e862ce28a65686a0da))
+* **export:** fall back to the default name when only an extension is left ([248d5d8](https://github.com/bataak/spellchecker/commit/248d5d84a1a17187055d3961aaf017cc99b36081)), closes [#301](https://github.com/bataak/spellchecker/issues/301)
+* **files:** keep .mdown and .text names in text links ([07529b7](https://github.com/bataak/spellchecker/commit/07529b72321f8c25922c6acc602874c9dfaae624)), closes [#300](https://github.com/bataak/spellchecker/issues/300)
+* **files:** reopening a changed file refreshes its slot, and the open file follows disk edits ([6dd27af](https://github.com/bataak/spellchecker/commit/6dd27af602f80f7c896a5d170b9920b2bef8809c)), closes [#299](https://github.com/bataak/spellchecker/issues/299)
+
 ## [1.118.0](https://github.com/bataak/spellchecker/compare/v1.117.0...v1.118.0) (2026-10-27)
 
 
