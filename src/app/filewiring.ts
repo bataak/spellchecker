@@ -75,6 +75,10 @@ export function createFileWiring(deps: FileWiringDeps): FileWiring {
       slots: deps.mdBar,
       hold: status.hold,
       openButton: buttons.open,
+      handleOf: (slot) =>
+        slot === deps.mdBar().slot()
+          ? fileIO.targetHandle()
+          : slots.handle(slot),
     }),
     fileDirty: () => {
       const bar = deps.mdBar();
