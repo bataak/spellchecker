@@ -27,8 +27,8 @@ export interface FileSlotDeps {
 export interface FileSlotOps {
   openFile(name: string, hash?: string): boolean;
   closeFile(id: string, force?: boolean): void;
-  findFile(name: string, hash: string, text: string | null): string | null;
-  findName(name: string): string | null;
+  findFiles(name: string, hash: string, text: string | null): string[];
+  findNames(name: string): string[];
   showFile(id: string): void;
   fileDirty(id: string): boolean;
   fileSlots(): { id: string; name: string; text: string | null }[];
@@ -77,10 +77,16 @@ export function createFileSlotOps(d: FileSlotDeps): FileSlotOps {
         if (sure && slots.find(id)) drop(id);
       });
     },
-    findFile: (name, hash, text) =>
-      slots.all().find((slot) => sameFile(slot, name, hash, text))?.id ?? null,
-    findName: (name) =>
-      slots.all().find((slot) => slot.name === name)?.id ?? null,
+    findFiles: (name, hash, text) =>
+      slots
+        .all()
+        .filter((slot) => sameFile(slot, name, hash, text))
+        .map((slot) => slot.id),
+    findNames: (name) =>
+      slots
+        .all()
+        .filter((slot) => slot.name === name)
+        .map((slot) => slot.id),
     showFile(id) {
       if (slots.find(id)) d.choose(id);
     },

@@ -58,8 +58,8 @@ export interface MdToolbar {
   writeCaret: (key: string, caret: Caret) => void;
   reset: (closeFile: boolean) => void;
   openFile: (name: string, hash?: string) => boolean;
-  findFile: (name: string, hash: string, text: string | null) => string | null;
-  findName: (name: string) => string | null;
+  findFiles: (name: string, hash: string, text: string | null) => string[];
+  findNames: (name: string) => string[];
   showFile: (id: string) => void;
   closeFile: (id: string, force?: boolean) => void;
   fileSlots: () => { id: string; name: string; text: string | null }[];

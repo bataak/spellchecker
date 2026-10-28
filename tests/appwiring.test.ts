@@ -147,8 +147,8 @@ function slots(state: {
   const shown: string[] = [];
   return {
     shown,
-    findFile: () => state.found,
-    findName: () => state.named ?? null,
+    findFiles: () => (state.found ? [state.found] : []),
+    findNames: () => (state.named ? [state.named] : []),
     showFile: (id: string) => void shown.push(id),
     fileDirty: () => state.dirty ?? false,
     openFile: () => state.room ?? true,
@@ -210,6 +210,34 @@ test("openPolicy: ижил нэртэй, өөр агуулгатай файлы�
 
   const office = slots({ found: null, named: "file-4" });
   assert.equal(await policy(office)("a.docx", "new", null), "new");
+});
+
+test("openPolicy: өөр хавтасны ижил нэртэй файлыг шинэ талбарт нээнэ", async () => {
+  globals.document = { querySelector: () => null };
+  const hold = (): void => assert.fail("hold");
+  const ask = async (): Promise<boolean> => assert.fail("ask");
+  const entry = (path: string) =>
+    ({
+      isSameEntry: async (other: { path: string }) => other.path === path,
+      path,
+    }) as unknown as FileSystemFileHandle;
+  const known = entry("/a/a.txt");
+  const policy = (bar: OpenSlots) =>
+    createOpenPolicy({ slots: () => bar, hold, ask, handleOf: () => known });
+
+  const other = slots({ found: "file-1", named: "file-1", dirty: true });
+  assert.equal(
+    await policy(other)("a.txt", "h", "t", entry("/b/a.txt")),
+    "new",
+  );
+  assert.deepEqual(other.shown, []);
+
+  const same = slots({ found: null, named: "file-1" });
+  assert.equal(
+    await policy(same)("a.txt", "h", "t", entry("/a/a.txt")),
+    "reload",
+  );
+  assert.equal(await policy(same)("a.txt", "h", "t", null), "reload");
 });
 
 test("openPolicy: хязгаарт хүрвэл мэдэгдэж false буцаана", async () => {
