@@ -1,3 +1,4 @@
+import { tableRow } from "../office/table.ts";
 import { LOGO_HTML, dashes, withLogos } from "./texlogo.ts";
 import {
   type Block,
@@ -112,10 +113,13 @@ function divHtml(b: BlockOf<"div">, at: string): string {
         : blockHtml(child),
     )
     .join("");
-  const width = percent
-    ? ` data-style="flex-basis:${percent};--table-width:${percent}"`
-    : "";
-  const align = ["right", "center", "left", "signature"]
+  const row = tableRow(b.keys["row"]);
+  const styles = [
+    ...(percent ? [`flex-basis:${percent}`, `--table-width:${percent}`] : []),
+    ...(row ? [`--table-row:${row}cm`] : []),
+  ];
+  const width = styles.length ? ` data-style="${styles.join(";")}"` : "";
+  const align = ["right", "center", "left", "signature", "lines", "grid"]
     .filter((name) => b.classes.includes(name))
     .map((name) => " md-" + name)
     .join("");

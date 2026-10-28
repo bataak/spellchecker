@@ -1249,6 +1249,19 @@ a.tbtn {
   width: var(--table-width, auto);
 }
 
+.preview-body .md-div > table td {
+  height: var(--table-row, auto);
+}
+
+.preview-body .md-lines > table td {
+  border-bottom: 1px solid currentColor;
+}
+
+.preview-body .md-grid > table th,
+.preview-body .md-grid > table td {
+  border: 1px solid currentColor;
+}
+
 .preview-body table:has(thead) {
   border-top: 1.5px solid currentColor;
   border-bottom: 1.5px solid currentColor;
