@@ -131,3 +131,36 @@ export function columnWidths(
     round(width + (spare * (natural[i]! - width)) / stretch),
   );
 }
+
+export function tableShare(width: string | undefined): number | null {
+  const match = /^(\d+(?:\.\d+)?)%$/.exec(width ?? "");
+  if (!match) return null;
+  const share = Number(match[1]) / 100;
+  return share > 0 ? Math.min(1, share) : null;
+}
+
+export function stretchWidths(
+  widths: readonly number[],
+  targetCm: number,
+): number[] {
+  const total = widths.reduce((sum, width) => sum + width, 0);
+  if (total <= 0 || total >= targetCm) return [...widths];
+  return widths.map(
+    (width) => Math.round(((width * targetCm) / total) * 100) / 100,
+  );
+}
+
+export function shareWidths(
+  widths: readonly number[],
+  rule: readonly number[] | undefined,
+  targetCm: number,
+): number[] {
+  if (targetCm <= 0) return [...widths];
+  const parts = rule?.slice(0, widths.length) ?? [];
+  const total = parts.reduce((sum, part) => sum + part, 0);
+  if (parts.length < widths.length || total <= 0)
+    return stretchWidths(widths, targetCm);
+  return parts.map(
+    (part) => Math.round(((targetCm * part) / total) * 100) / 100,
+  );
+}

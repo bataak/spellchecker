@@ -41,6 +41,8 @@ export function wrapLink(text: string, start: number, end: number): Edit {
   };
 }
 
+const TABLE_FENCE = '::: {width="100%"}';
+
 export function insertTable(
   text: string,
   caret: number,
@@ -63,9 +65,10 @@ export function insertTable(
 
   const before = line.trim() ? "\n\n" : "";
   const after = to < text.length ? "\n" : "";
-  const block = head + "\n" + divider + "\n" + body;
+  const block =
+    TABLE_FENCE + "\n" + head + "\n" + divider + "\n" + body + "\n:::";
 
-  const at = to + before.length + 2;
+  const at = to + before.length + TABLE_FENCE.length + 3;
   return {
     text: text.slice(0, to) + before + block + after + text.slice(to),
     start: at,

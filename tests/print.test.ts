@@ -105,3 +105,44 @@ test("splitStyles: CSS-ийг баримтаас салгаж, style блокг�
   assert.match(css, /@page\{/);
   assert.deepEqual(splitStyles("<p>a</p>"), { markup: "<p>a</p>", css: "" });
 });
+
+const FORM = [
+  '::: {width="100%"}',
+  "| №   | Овог, нэр | Тоот | Утас (заавал биш) | Гарын үсэг |",
+  "| --- | --------- | ---- | ----------------- | ---------- |",
+  "| 1   |           |      |                   |            |",
+  ":::",
+].join("\n");
+
+test("printHtml: width=100% хүснэгтийг бичвэрийн бүтэн өргөнөөр сунгана", () => {
+  const template = findTemplate("letter")!;
+  const doc = applyTemplate(parse(FORM), template);
+  const table = doc.blocks.find((block) => block.kind === "table")!;
+  assert.equal(table.kind === "table" && table.share, 1);
+  const width = (html: string): number =>
+    Number(/<table data-style="width:([\d.]+)cm/.exec(html)![1]);
+  const page =
+    doc.page.widthCm - doc.page.marginInnerCm - doc.page.marginOuterCm;
+  assert.ok(Math.abs(width(printHtml(doc)) - page) < 0.1);
+  const plain = applyTemplate(
+    parse(FORM.split("\n").slice(1, -1).join("\n")),
+    template,
+  );
+  assert.ok(width(printHtml(plain)) < page - 3);
+});
+
+test("printHtml: width хашилт доторх хүснэгтийн багана зураасны харьцааг дагана", () => {
+  const md = [
+    '::: {width="100%"}',
+    "| №   | Нэр                 |",
+    "| --- | ------------------- |",
+    "| 1   |                     |",
+    ":::",
+  ].join("\n");
+  const html = printHtml(applyTemplate(parse(md), findTemplate("letter")!));
+  const cols = [...html.matchAll(/<col data-style="width:([\d.]+)cm/g)].map(
+    (m) => Number(m[1]),
+  );
+  assert.equal(cols.length, 2);
+  assert.ok(Math.abs(cols[1]! / cols[0]! - 19 / 3) < 0.05, String(cols));
+});

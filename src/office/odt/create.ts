@@ -11,6 +11,7 @@ import {
   imageSizeCm,
   outlineLevel,
   runsText,
+  textWidthCm,
   tocEntries,
   withToc,
 } from "../docir.ts";
@@ -24,7 +25,7 @@ import type {
 } from "../docir.ts";
 import { listTree, type ListTree } from "../../markdown.ts";
 import { tabFills } from "../flatten.ts";
-import { columnWidths, officeMetrics } from "../table.ts";
+import { columnWidths, shareWidths, officeMetrics } from "../table.ts";
 import { xmlAttr, xmlText } from "../sanitize.ts";
 import { NS, runKey, runStyle, styleName } from "./props.ts";
 import { stylesXml } from "./styles.ts";
@@ -293,13 +294,18 @@ function tableXml(
 ): string {
   const header = block.header !== false;
   const name = "Table" + String(index + 1);
-  const widths = columnWidths(
-    block.rows,
-    header,
-    doc.page.widthCm - doc.page.marginInnerCm - doc.page.marginOuterCm,
-    officeMetrics(
-      doc.styles[block.cellStyle ?? STYLE.tableCell]?.sizePt ?? doc.font.sizePt,
+  const widths = shareWidths(
+    columnWidths(
+      block.rows,
+      header,
+      textWidthCm(doc),
+      officeMetrics(
+        doc.styles[block.cellStyle ?? STYLE.tableCell]?.sizePt ??
+          doc.font.sizePt,
+      ),
     ),
+    block.rule,
+    textWidthCm(doc) * (block.share ?? 0),
   );
   auto.add("cells");
   auto.add(tableStyles(name, widths, block.placement ?? "center"));

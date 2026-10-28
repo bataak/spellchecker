@@ -19,7 +19,7 @@ function stripLines(value: unknown): unknown {
   if (value && typeof value === "object") {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value)) {
-      if (k === "line") continue;
+      if (k === "line" || k === "rule") continue;
       out[k] = stripLines(v);
     }
     return out;

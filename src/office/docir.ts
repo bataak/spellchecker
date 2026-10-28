@@ -128,6 +128,8 @@ export type IrBlock =
       readonly header?: boolean;
       readonly placement?: Align;
       readonly cellStyle?: string;
+      readonly share?: number;
+      readonly rule?: readonly number[];
     }
   | { readonly kind: "rule" }
   | { readonly kind: "break" };
@@ -214,4 +216,8 @@ export function blockRuns(block: IrBlock): readonly IrRun[] {
   if (block.kind === "list") return block.items.flat();
   if (block.kind === "table") return block.rows.flat(2);
   return [];
+}
+
+export function textWidthCm(doc: DocIr): number {
+  return doc.page.widthCm - doc.page.marginInnerCm - doc.page.marginOuterCm;
 }
