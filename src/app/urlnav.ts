@@ -116,6 +116,14 @@ async function openRemoteLink(d: UrlNavDeps, hash: string): Promise<void> {
   });
 }
 
+export function isNavHash(hash: string): boolean {
+  return (
+    isTextHash(hash) ||
+    hash.startsWith(URL_PREFIX) ||
+    parseSlotHash(hash) !== null
+  );
+}
+
 async function readHash(d: UrlNavDeps): Promise<void> {
   const hash = location.hash;
   if (isTextHash(hash)) {
