@@ -337,8 +337,30 @@ function block(
   }
 }
 
+function headingDepths(blocks: readonly Block[]): number[] {
+  return blocks.flatMap((b) =>
+    b.type === "heading"
+      ? [b.depth]
+      : b.type === "div" || b.type === "quote"
+        ? headingDepths(b.children)
+        : [],
+  );
+}
+
+function liftHeadings(blocks: readonly Block[], by: number): Block[] {
+  return blocks.map((b): Block => {
+    if (b.type === "heading") return { ...b, depth: b.depth - by };
+    if (b.type === "div" || b.type === "quote")
+      return { ...b, children: liftHeadings(b.children, by) };
+    return b;
+  });
+}
+
 export function toLatexBody(blocks: readonly Block[]): string {
-  return fitBlanks(blocks)
+  const top = Math.min(...headingDepths(blocks));
+  const lifted =
+    top > 1 && top < Infinity ? liftHeadings(blocks, top - 1) : blocks;
+  return fitBlanks(lifted)
     .map((b) => block(b))
     .filter((text) => text !== "")
     .join("\n\n");

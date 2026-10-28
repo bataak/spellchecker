@@ -187,7 +187,7 @@ test("албан бичгийн эхний гарчиг голлосон, тод
     tex.includes("{\\centering\\large\\bfseries Өргөдөл гаргах нь:\\par}"),
   );
   assert.ok(!tex.includes("\\section*{Өргөдөл"));
-  assert.ok(tex.includes("\\subsection{Хавсралт}"));
+  assert.ok(tex.includes("\\section{Хавсралт}"));
   assert.ok(toLatex(parse(src)).includes("\\section{Өргөдөл гаргах нь:}"));
 });
 
@@ -411,14 +411,33 @@ test("toLatexBody: width=100% хүснэгтийг p{} баганаар бичв
     "| 1   |           |            |",
   ].join("\n");
   const total = (latex: string): number =>
-    [...latex.matchAll(/p\{([\d.]+)cm\}/g)].reduce(
-      (sum, m) => sum + Number(m[1]) + 0.42,
-      0,
-    );
+    [
+      ...latex.matchAll(/p\{\\dimexpr ([\d.]+)\\linewidth-[\d.]+cm\\relax\}/g),
+    ].reduce((sum, m) => sum + Number(m[1]), 0);
   const wide = toLatexBody(parse('::: {width="100%"}\n' + table + "\n:::"));
-  assert.ok(Math.abs(total(wide) - 13.7) < 0.2, wide);
+  assert.ok(Math.abs(total(wide) - 1) < 0.002, wide);
   const half = toLatexBody(parse('::: {width="50%"}\n' + table + "\n:::"));
-  assert.ok(Math.abs(total(half) - 6.85) < 0.6, half);
+  assert.ok(Math.abs(total(half) - 0.5) < 0.002, half);
   const plain = toLatexBody(parse(table));
   assert.doesNotMatch(plain, /p\{/);
+});
+
+test("toLatexBody: хамгийн дээд түвшний гарчиг \\section болж 0.x дугаарлалт гарахгүй", () => {
+  const tex = toLatexBody(
+    parse("## Нэг\n\nТекст\n\n### Дэд\n\n::: {.left}\n## Хоёр\n:::\n"),
+  );
+  assert.match(tex, /\\section\{Нэг\}/);
+  assert.match(tex, /\\subsection\{Дэд\}/);
+  assert.match(tex, /\\section\{Хоёр\}/);
+  assert.match(
+    toLatexBody(parse("# А\n\n## Б\n")),
+    /\\section\{А\}\n\n\\subsection\{Б\}/,
+  );
+  const letter = toLatex(
+    parse("# Өргөдөл\n\n## Хүсэлт\n\nТекст\n"),
+    undefined,
+    { letter: true },
+  );
+  assert.match(letter, /\\section\{Хүсэлт\}/);
+  assert.doesNotMatch(letter, /\\subsection/);
 });
