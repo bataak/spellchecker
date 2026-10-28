@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.120.1](https://github.com/bataak/spellchecker/compare/v1.120.0...v1.120.1) (2026-10-28)
+
+
+### Bug Fixes
+
+* open pasted app links (slot, text, url) after asking ([e85e353](https://github.com/bataak/spellchecker/commit/e85e353fc9d770a3bebf359308c9bb07caa26a15))
+
 ## [1.120.0](https://github.com/bataak/spellchecker/compare/v1.119.0...v1.120.0) (2026-10-28)
 
 
