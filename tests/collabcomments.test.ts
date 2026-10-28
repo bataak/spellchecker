@@ -16,6 +16,7 @@ import {
   resolvedLabel,
 } from "../src/collab/commentview.ts";
 import type { CommentThread } from "../src/collab/comments.ts";
+import { answer, asks } from "./helpers/ask.ts";
 
 const dom = installDom("");
 test.after(() => dom.close());
@@ -223,7 +224,7 @@ test("шүүмжийн самбар бичих, хариулах, шийдэх, 
   view.el.remove();
 });
 
-test("бүх нээлттэй шүүмжийг баталгаажуулсны дараа нэг дор шийднэ", () => {
+test("бүх нээлттэй шүүмжийг баталгаажуулсны дараа нэг дор шийднэ", async () => {
   const doc = new Y.Doc();
   doc.getText("t").insert(0, "Нэг хоёр гурав");
   const comments = open(doc, "aaa");
@@ -238,17 +239,14 @@ test("бүх нээлттэй шүүмжийг баталгаажуулсны д
   comments.add(draftOf(comments, doc, "Нэг"), "Эхнийх");
   comments.add(draftOf(comments, doc, "гурав"), "Хоёр дахь");
   assert.equal(all.hidden, false);
-  const asked: string[] = [];
-  const confirm = window.confirm;
-  window.confirm = (message?: string) => {
-    asked.push(message ?? "");
-    return asked.length > 1;
-  };
   all.click();
+  assert.deepEqual(asks(), [resolveAllQuestion(2)]);
+  await answer("Болих");
+  await new Promise((resolve) => setTimeout(resolve, 0));
   assert.equal(comments.list().filter((t) => t.resolved).length, 0);
   all.click();
-  window.confirm = confirm;
-  assert.equal(asked[1], resolveAllQuestion(2));
+  await answer("Шийдэх");
+  await new Promise((resolve) => setTimeout(resolve, 0));
   assert.ok(comments.list().every((thread) => thread.resolved));
   assert.equal(all.hidden, true);
   assert.equal(view.el.querySelectorAll(".talk-thread").length, 0);

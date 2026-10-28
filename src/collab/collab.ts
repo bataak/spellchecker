@@ -301,8 +301,8 @@ export function initCollab(deps: CollabDeps): Collab {
   };
 
   const ended = endedSet(stop);
-  const joinLink = (link: InviteLink): void => {
-    const next = joinRoom(rooms, link, deps);
+  const joinLink = async (link: InviteLink): Promise<void> => {
+    const next = await joinRoom(rooms, link, deps);
     if (!next) return;
     save(next);
     sync();
@@ -335,7 +335,7 @@ export function initCollab(deps: CollabDeps): Collab {
       if (started) return;
       started = true;
       sync();
-      resumeJoins(rooms, deps, registry, stop);
+      void resumeJoins(rooms, deps, registry, stop);
       takeHash();
     },
     forget: (slot) => stopIf(roomOfSlot(rooms, slot), stop) || ended.take(slot),

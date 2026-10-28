@@ -140,6 +140,7 @@ test("editorPort: settle нь popover хааж, хадгалж, дараа нь 
 
 function slots(state: {
   found: string | null;
+  named?: string;
   dirty?: boolean;
   room?: boolean;
 }): OpenSlots & { shown: string[] } {
@@ -147,50 +148,78 @@ function slots(state: {
   return {
     shown,
     findFile: () => state.found,
+    findName: () => state.named ?? null,
     showFile: (id: string) => void shown.push(id),
     fileDirty: () => state.dirty ?? false,
     openFile: () => state.room ?? true,
   } as unknown as OpenSlots & { shown: string[] };
 }
 
-test("openPolicy: нээлттэй файлыг харуулж, бохир бол асууна", () => {
+test("openPolicy: нээлттэй файлыг харуулж, бохир бол асууна", async () => {
   const asked: string[] = [];
-  globals.window = {
-    confirm: (message: string) => {
-      asked.push(message);
-      return true;
-    },
+  const ask = async (options: { title: string }): Promise<boolean> => {
+    asked.push(options.title);
+    return true;
   };
   globals.document = { querySelector: () => null };
   const hold = (): void => assert.fail("hold");
+  const policy = (bar: OpenSlots) =>
+    createOpenPolicy(() => bar, hold, null, ask);
 
   const clean = slots({ found: "file-1" });
-  assert.equal(createOpenPolicy(() => clean, hold)("a.md", "h", "t"), "open");
+  assert.equal(await policy(clean)("a.md", "h", "t"), "open");
   assert.deepEqual(clean.shown, ["file-1"]);
   assert.equal(asked.length, 0);
 
   const dirty = slots({ found: "file-2", dirty: true });
-  assert.equal(createOpenPolicy(() => dirty, hold)("a.md", "h", "t"), "reload");
+  assert.equal(await policy(dirty)("a.md", "h", "t"), "reload");
   assert.equal(asked.length, 1);
 
   const noText = slots({ found: "file-2", dirty: true });
-  assert.equal(createOpenPolicy(() => noText, hold)("a.md", "h", null), "open");
+  assert.equal(await policy(noText)("a.md", "h", null), "open");
   assert.equal(asked.length, 1);
 
-  assert.equal(
-    createOpenPolicy(() => slots({ found: null }), hold)("b.md", "h", "t"),
-    "new",
-  );
+  assert.equal(await policy(slots({ found: null }))("b.md", "h", "t"), "new");
 });
 
-test("openPolicy: хязгаарт хүрвэл мэдэгдэж false буцаана", () => {
+test("openPolicy: ижил нэртэй, өөр агуулгатай файлыг шинэ талбаргүйгээр дахин дуудна", async () => {
+  const asked: string[] = [];
+  let answer = false;
+  const ask = async (options: { title: string; text?: string }) => {
+    asked.push(options.title + " " + (options.text ?? ""));
+    return answer;
+  };
+  globals.document = { querySelector: () => null };
+  const hold = (): void => assert.fail("hold");
+  const policy = (bar: OpenSlots) =>
+    createOpenPolicy(() => bar, hold, null, ask);
+
+  const clean = slots({ found: null, named: "file-3" });
+  assert.equal(await policy(clean)("a.txt", "new", "ШИНЭ"), "reload");
+  assert.deepEqual(clean.shown, ["file-3"]);
+  assert.equal(asked.length, 0);
+
+  const dirty = slots({ found: null, named: "file-3", dirty: true });
+  assert.equal(await policy(dirty)("a.txt", "new", "ШИНЭ"), "open");
+  assert.match(
+    asked[0]!,
+    /^«a\.txt» файл дискэн дээр өөрчлөгджээ\. Файлыг дахин дуудах уу\? Таны өөрчлөлт устаж болзошгүй\.$/,
+  );
+  answer = true;
+  assert.equal(await policy(dirty)("a.txt", "new", "ШИНЭ"), "reload");
+
+  const office = slots({ found: null, named: "file-4" });
+  assert.equal(await policy(office)("a.docx", "new", null), "new");
+});
+
+test("openPolicy: хязгаарт хүрвэл мэдэгдэж false буцаана", async () => {
   globals.document = { querySelector: () => null };
   const held: string[] = [];
   const policy = createOpenPolicy(
     () => slots({ found: null, room: false }),
     (html) => void held.push(html),
   );
-  assert.equal(policy("c.md", "h", "t"), false);
+  assert.equal(await policy("c.md", "h", "t"), false);
   assert.equal(held.length, 1);
   assert.match(held[0]!, /хүртэл файл нээнэ/);
 });

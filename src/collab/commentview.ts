@@ -1,3 +1,4 @@
+import { askChoice } from "../ui/ask.ts";
 import { MAX_CHAT_TEXT } from "./chat.ts";
 import type {
   CommentDraft,
@@ -98,8 +99,14 @@ function noteTools(note: CommentNote, actions: RowActions): HTMLElement[] {
   });
   const remove = button("talk-change-act is-reject", "✕", "Устгах");
   remove.addEventListener("click", () => {
-    if (window.confirm("Энэ шүүмжийг устгах уу?"))
-      actions.comments.remove(note.id);
+    void askChoice({
+      title: "Энэ шүүмжийг устгах уу?",
+      yes: "Устгах",
+      no: "Болих",
+      danger: true,
+    }).then((sure) => {
+      if (sure) actions.comments.remove(note.id);
+    });
   });
   return [edit, remove];
 }
@@ -293,9 +300,14 @@ export function commentsView(
   resolveAll.title = "Нээлттэй бүх шүүмжийг шийдсэн гэж тэмдэглэх";
   resolveAll.addEventListener("click", () => {
     const open = comments.list().filter((thread) => !thread.resolved);
-    if (!open.length || !window.confirm(resolveAllQuestion(open.length)))
-      return;
-    comments.resolveAll(open.map((thread) => thread.id));
+    if (!open.length) return;
+    void askChoice({
+      title: resolveAllQuestion(open.length),
+      yes: "Шийдэх",
+      no: "Болих",
+    }).then((sure) => {
+      if (sure) comments.resolveAll(open.map((thread) => thread.id));
+    });
   });
   bar.append(count, resolveAll, toggle);
   const list = element("ol", "talk-change-list talk-thread-list");

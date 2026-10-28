@@ -2,6 +2,7 @@ import { test } from "node:test";
 import { CURSOR_COLORS } from "../src/collab/peercolors.ts";
 import assert from "node:assert/strict";
 import { installDom } from "./helpers/dom.ts";
+import { answer, asks } from "./helpers/ask.ts";
 import { openDialog, type DialogDeps } from "../src/collab/collabdialog.ts";
 import type { Member } from "../src/collab/admin.ts";
 import type { Session } from "../src/collab/session.ts";
@@ -56,14 +57,6 @@ function button(root: ParentNode, label: string): HTMLButtonElement {
   );
   assert.ok(found, label);
   return found;
-}
-
-function confirmWith(answer: boolean): () => void {
-  const saved = window.confirm;
-  window.confirm = () => answer;
-  return () => {
-    window.confirm = saved;
-  };
 }
 
 test("урилгыг хуулж, илгээж, нэрийг солино", async () => {
@@ -166,13 +159,12 @@ test("ганцаараа үед баталгаажуулаад зогсооно"
     end: async (wipe) => (ends.push(wipe), false),
   });
   await wait();
-  let restore = confirmWith(false);
   button(dialog, "Зогсоох").click();
-  restore();
+  await answer("Болих");
+  await wait();
   assert.deepEqual(ends, []);
-  restore = confirmWith(true);
   button(dialog, "Зогсоох").click();
-  restore();
+  await answer("Зогсоох");
   await wait();
   assert.deepEqual(ends, [false]);
   assert.match(note(dialog), /Сервертэй холбогдоогүй/);
@@ -180,17 +172,18 @@ test("ганцаараа үед баталгаажуулаад зогсооно"
   assert.equal(document.querySelector(".collab-overlay"), null);
 });
 
-test("уригдсан хүн баталгаажуулаад хамтын засвараас гарна", () => {
+test("уригдсан хүн баталгаажуулаад хамтын засвараас гарна", async () => {
   let stopped = 0;
   const dialog = open({ owner: false, stop: () => (stopped += 1) });
   assert.equal(dialog.querySelector(".collab-invite"), null);
-  let restore = confirmWith(false);
   button(dialog, "Зогсоох").click();
-  restore();
+  assert.match(asks()[0]!, /зогсоох уу/);
+  await answer("Болих");
+  await wait();
   assert.equal(stopped, 0);
-  restore = confirmWith(true);
   button(dialog, "Зогсоох").click();
-  restore();
+  await answer("Зогсоох");
+  await wait();
   assert.equal(stopped, 1);
   assert.equal(document.querySelector(".collab-overlay"), null);
 });

@@ -13,6 +13,7 @@ import {
   typeAtEnd,
   until,
   type App,
+  answer,
 } from "./harness.ts";
 
 let app: App;
@@ -205,17 +206,13 @@ test("төсөлд байхад Цэвэрлэх товч төслийг асу�
         ),
     );
 
-  await page.evaluate(() => {
-    window.confirm = () => false;
-  });
   await page.click("#clearBtn");
+  await answer(page, "Болих");
   await page.waitForTimeout(600);
   assert.match(await editor(page), /documentclass[\s\S]*%засвар$/);
 
-  await page.evaluate(() => {
-    window.confirm = () => true;
-  });
   await page.click("#clearBtn");
+  await answer(page, "Хаах");
   assert.equal(
     await until(
       () => editor(page),

@@ -1,3 +1,4 @@
+import { askChoice } from "../ui/ask.ts";
 import { PROJECT_SLOT, isFileSlot } from "../slots/fileslots.ts";
 import { isPlain } from "../doc/templates.ts";
 import { copyText } from "../ui/clipboard.ts";
@@ -94,7 +95,8 @@ async function openTextLink(d: UrlNavDeps, hash: string): Promise<void> {
     " тэмдэгт) «" +
     name +
     "» нэртэй шинэ файлд нээх үү?";
-  if (window.confirm(ask)) await d.openText(name, linked.text);
+  if (await askChoice({ title: ask, yes: "Нээх", no: "Болих" }))
+    await d.openText(name, linked.text);
 }
 
 function remoteInput(hash: string): string {

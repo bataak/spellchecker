@@ -22,7 +22,7 @@ export interface ProjectPanelDeps {
   readonly away: () => string | null;
   readonly openFile: (path: string) => void;
   readonly view: (path: string | null) => boolean;
-  readonly beforeOpen: () => boolean;
+  readonly beforeOpen: () => boolean | Promise<boolean>;
   readonly onOpened: (fresh: boolean, prefer?: string) => void;
   readonly openedFile: () => OpenedFile | null;
   readonly onClosed: () => void;

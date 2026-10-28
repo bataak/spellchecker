@@ -1,3 +1,4 @@
+import { askChoice } from "../ui/ask.ts";
 import { escapeHtml } from "../core/htmlutil.ts";
 import type { ProjectStore } from "./projectstore.ts";
 import {
@@ -91,18 +92,30 @@ function insertNewRow(
 function confirmReplace(
   view: ReturnType<ProjectStore["project"]>,
   path: string,
-): boolean {
-  return window.confirm(
-    replaceQuestion(
+): Promise<boolean> {
+  return askChoice({
+    title: replaceQuestion(
       baseName(path),
       view?.dirty.has(path) ?? false,
       view?.kind === "dir",
     ),
-  );
+    yes: "Солих",
+    no: "Болих",
+  });
 }
 
-function confirmRemoval(disk: boolean, dir: boolean, path: string): boolean {
-  return window.confirm(removeQuestion(baseName(path), dir, disk));
+async function removalAsked(
+  view: ReturnType<ProjectStore["project"]>,
+  path: string,
+): Promise<boolean> {
+  if (!view) return false;
+  const dir = view.dirs.includes(path);
+  return askChoice({
+    title: removeQuestion(baseName(path), dir, view.kind === "dir"),
+    yes: "Устгах",
+    no: "Болих",
+    danger: true,
+  });
 }
 
 function rowMenu(
@@ -194,17 +207,17 @@ export function initTreeControl(deps: TreeControlDeps): TreeControl {
     });
   };
 
-  const replaceOk = (path: string): boolean => confirmReplace(project(), path);
+  const replaceOk = (path: string): Promise<boolean> =>
+    confirmReplace(project(), path);
 
-  const confirmRemove = (path: string): void => {
-    const view = project();
-    if (!view || !confirmRemoval(view.kind === "dir", isDir(path), path))
-      return;
-    void deps.run(async () => {
-      await removePath(path);
-      if (state.selected === path) state.selected = null;
+  const confirmRemove = (path: string): void =>
+    void removalAsked(project(), path).then((sure) => {
+      if (!sure) return;
+      void deps.run(async () => {
+        await removePath(path);
+        if (state.selected === path) state.selected = null;
+      });
     });
-  };
 
   const openMenu = (path: string, x: number, y: number): void => {
     const view = project();
@@ -246,7 +259,7 @@ interface TreeEvents {
   readonly openMenu: (path: string, x: number, y: number) => void;
   readonly startRename: (path: string) => void;
   readonly confirmRemove: (path: string) => void;
-  readonly replaceOk: (path: string) => boolean;
+  readonly replaceOk: (path: string) => Promise<boolean>;
 }
 
 function onTreeKey(e: TreeEvents, event: KeyboardEvent): void {
@@ -333,7 +346,7 @@ function wireTreeEvents(e: TreeEvents): void {
       void deps.run(async () => {
         for (const file of files) {
           const target = joinPath(dir, file.name);
-          if (projectHas(target) && !e.replaceOk(target)) continue;
+          if (projectHas(target) && !(await e.replaceOk(target))) continue;
           await addFile(target, new Uint8Array(await file.arrayBuffer()));
         }
       });

@@ -1,3 +1,4 @@
+import { askChoice } from "../ui/ask.ts";
 import type { DictInfo } from "../spell/messages.ts";
 import {
   importDictFiles,
@@ -347,7 +348,13 @@ export function createDictManager(deps: DictManagerDeps): DictManager {
     const dict = current[index];
     const key = dict ? userKeyOf(dict.id) : null;
     if (!dict || key == null) return;
-    if (!confirm("«" + dict.name + "» толийг устгах уу?")) return;
+    const sure = await askChoice({
+      title: "«" + dict.name + "» толийг устгах уу?",
+      yes: "Устгах",
+      no: "Болих",
+      danger: true,
+    });
+    if (!sure) return;
     await removeUserDict(key);
     current = current.filter((_, position) => position !== index);
     draw();

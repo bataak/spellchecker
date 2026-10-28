@@ -4,7 +4,7 @@ import { arrived, resumeJoins, type CollabDeps } from "../src/collab/collab.ts";
 import { parseRooms, roomById } from "../src/collab/collabrooms.ts";
 import { projectSlot, slotKey } from "../src/collab/roomslot.ts";
 
-test("төсөл ирэхээс өмнө reload хийсэн ч нэгдэлтийг үргэлжлүүлнэ", () => {
+test("төсөл ирэхээс өмнө reload хийсэн ч нэгдэлтийг үргэлжлүүлнэ", async () => {
   const invite = { kind: "i", token: "B".repeat(22) } as const;
   const joining = {
     slot: slotKey(projectSlot("cr1")),
@@ -45,13 +45,13 @@ test("төсөл ирэхээс өмнө reload хийсэн ч нэгдэлти
     },
   };
   const drop = (entry: { room: string }): void => void dropped.push(entry.room);
-  resumeJoins(rooms, deps, registry, drop);
+  await resumeJoins(rooms, deps, registry, drop);
   assert.deepEqual([prepared, opened, dropped], [["Diplom@cr1"], ["r1"], []]);
   accept = false;
-  resumeJoins(rooms, deps, registry, drop);
+  await resumeJoins(rooms, deps, registry, drop);
   assert.deepEqual(dropped, ["r1"]);
   uid = "cr1";
-  resumeJoins(rooms, deps, registry, drop);
+  await resumeJoins(rooms, deps, registry, drop);
   assert.equal(prepared.length, 2);
   const { joining: _name, ...done } = joining;
   assert.deepEqual(roomById(arrived(rooms, "cr1")!, "r1"), done);
