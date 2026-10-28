@@ -113,3 +113,27 @@ test("LaTeX: .lines мөр хооронд \\midrule, .grid тор, row strut", (
     /\\hline|\\rule\{0pt\}/,
   );
 });
+
+test("хэвлэх: гарчгийн мөр thead-д орж хуудас бүрт давтагдана, .grid хүрээ нэгтгэхгүй", () => {
+  const html = printHtml(doc(sheet(".grid")));
+  assert.match(html, /<thead><tr><td class="c-head">/);
+  assert.match(html, /<\/thead><tbody><tr/);
+  assert.match(
+    html,
+    /table\.lines,table\.grid\{border-collapse:separate;border-spacing:0\}/,
+  );
+  const bare = printHtml(
+    doc(
+      [
+        "::: {.grid}",
+        "|   |   |",
+        "| - | - |",
+        "| 1 | 2 |",
+        "| 3 | 4 |",
+        ":::",
+      ].join("\n"),
+    ),
+  );
+  assert.doesNotMatch(bare, /<thead><tr><td class=/);
+  assert.equal(bare.match(/class="c-plain c-top"/g)?.length, 2);
+});
