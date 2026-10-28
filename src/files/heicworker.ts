@@ -1,4 +1,6 @@
-import libheif from "libheif-js/libheif-wasm/libheif-bundle.mjs";
+import libheif, {
+  type HeifImage,
+} from "libheif-js/libheif-wasm/libheif-bundle.mjs";
 
 interface HeicRequest {
   readonly id: number;
@@ -8,19 +10,23 @@ interface HeicRequest {
 const QUALITY = 0.92;
 let lib: ReturnType<typeof libheif> | null = null;
 
-async function convert(bytes: ArrayBuffer): Promise<Blob> {
-  lib ??= libheif();
-  const images = new lib.HeifDecoder().decode(new Uint8Array(bytes));
-  const image = images[0];
-  if (!image) throw new Error("heic");
-  const width = image.get_width();
-  const height = image.get_height();
-  const pixels = await new Promise<ImageData>((resolve, reject) =>
-    image.display(new ImageData(width, height), (result) =>
+function displayed(image: HeifImage | undefined): Promise<ImageData> {
+  if (!image) return Promise.reject(new Error("heic"));
+  const target = new ImageData(image.get_width(), image.get_height());
+  return new Promise((resolve, reject) =>
+    image.display(target, (result) =>
       result ? resolve(result) : reject(new Error("heic")),
     ),
   );
-  for (const each of images) each.free();
+}
+
+async function convert(bytes: ArrayBuffer): Promise<Blob> {
+  lib ??= libheif();
+  const images = new lib.HeifDecoder().decode(new Uint8Array(bytes));
+  const pixels = await displayed(images[0]).finally(() => {
+    for (const each of images) each.free();
+  });
+  const { width, height } = pixels;
   const canvas = new OffscreenCanvas(width, height);
   const context = canvas.getContext("2d");
   if (!context) throw new Error("heic");

@@ -32,7 +32,7 @@ export interface FileOpenDeps {
     name: string,
     hash: string,
     text: string | null,
-  ) => Promise<"new" | "open" | "reload" | false>;
+  ) => Promise<"new" | "open" | "keep" | "reload" | false>;
   readonly onLoaded: () => void;
 }
 
@@ -120,6 +120,10 @@ export function initFileOpen(d: FileOpenDeps): OpenEntries {
     );
     if (prepared === "reload") {
       await loadFileContent(text, file.name, handle, file.lastModified);
+      return true;
+    }
+    if (prepared === "keep") {
+      opened("Нээлттэй байна");
       return true;
     }
     if (prepared === "open") {

@@ -46,11 +46,9 @@ export function createOpenPolicy(
       bar.showFile(open);
       if (text === null) return "open";
       const dirty = bar.fileDirty(open);
-      const reload =
-        same === null
-          ? !dirty || (await ask(changedAsk(name)))
-          : dirty && (await ask(reopenAsk(name)));
-      return reload ? "reload" : "open";
+      if (same === null)
+        return !dirty || (await ask(changedAsk(name))) ? "reload" : "keep";
+      return dirty && (await ask(reopenAsk(name))) ? "reload" : "open";
     }
     if (bar.openFile(name, hash)) return "new";
     hold(

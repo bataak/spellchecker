@@ -302,7 +302,7 @@ export function initCollab(deps: CollabDeps): Collab {
 
   const ended = endedSet(stop);
   const joinLink = async (link: InviteLink): Promise<void> => {
-    const next = await joinRoom(rooms, link, deps);
+    const next = await joinRoom(() => rooms, link, deps);
     if (!next) return;
     save(next);
     sync();

@@ -48,3 +48,8 @@ test("shareWidths: зураасны харьцаагаар хуваарилж, �
   assert.deepEqual(shareWidths([1, 3], [0, 0], 8), [2, 6]);
   assert.deepEqual(shareWidths([1, 3], [5, 5], 0), [1, 3]);
 });
+
+test("shareWidths: зураас багануудаас цөөн бол дутууг 3 гэж үзээд хувиар хуваана", async () => {
+  const { shareWidths } = await import("../src/office/table.ts");
+  assert.deepEqual(shareWidths([5, 5, 5], [3, 6], 12), [3, 6, 3]);
+});

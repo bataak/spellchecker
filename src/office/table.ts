@@ -156,10 +156,9 @@ export function shareWidths(
   targetCm: number,
 ): number[] {
   if (targetCm <= 0) return [...widths];
-  const parts = rule?.slice(0, widths.length) ?? [];
+  if (!rule?.some((part) => part > 0)) return stretchWidths(widths, targetCm);
+  const parts = widths.map((_, i) => rule[i] ?? 3);
   const total = parts.reduce((sum, part) => sum + part, 0);
-  if (parts.length < widths.length || total <= 0)
-    return stretchWidths(widths, targetCm);
   return parts.map(
     (part) => Math.round(((targetCm * part) / total) * 100) / 100,
   );

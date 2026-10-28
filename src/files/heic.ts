@@ -1,6 +1,7 @@
 const HEIC_NAME = /\.(heic|heif)$/i;
 const HEIC_TYPE = /^image\/hei[cf]/i;
 const QUALITY = 0.92;
+const DECODE_MS = 60_000;
 
 interface Job {
   readonly resolve: (blob: Blob) => void;
@@ -47,7 +48,22 @@ async function decoded(file: File): Promise<Blob> {
   const bytes = await file.arrayBuffer();
   const id = (next += 1);
   return new Promise((resolve, reject) => {
-    jobs.set(id, { resolve, reject });
+    const timer = setTimeout(() => {
+      jobs.delete(id);
+      worker?.terminate();
+      worker = null;
+      reject(new Error("heic timeout"));
+    }, DECODE_MS);
+    jobs.set(id, {
+      resolve: (blob) => {
+        clearTimeout(timer);
+        resolve(blob);
+      },
+      reject: (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    });
     heicWorker().postMessage({ id, bytes }, [bytes]);
   });
 }
@@ -75,4 +91,10 @@ export async function heicToJpeg(file: File): Promise<File> {
     type: "image/jpeg",
     lastModified: file.lastModified,
   });
+}
+
+export function jpegIfHeic(file: File): Promise<File> {
+  return isHeic(file)
+    ? heicToJpeg(file).catch(() => file)
+    : Promise.resolve(file);
 }

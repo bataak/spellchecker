@@ -410,6 +410,7 @@ export function printHtml(
     "td.c-last{border-bottom:1pt solid #000}" +
     "table.lines,table.grid{border-collapse:separate;border-spacing:0}" +
     "table.lines td{border-bottom:0.5pt solid #000}" +
+    "table.lines td.c-last,table.lines td.c-only{border-bottom:1pt solid #000}" +
     "table.grid td{border:0;border-right:0.5pt solid #000;border-bottom:0.5pt solid #000}" +
     "table.grid td:first-child{border-left:0.5pt solid #000}" +
     "table.grid thead td,table.grid td.c-top{border-top:0.5pt solid #000}" +
