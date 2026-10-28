@@ -26,8 +26,15 @@ function isDictManagerKey(event: KeyboardEvent): boolean {
   );
 }
 
-function isHoverDefineKey(e: KeyboardEvent | PointerEvent): boolean {
-  return (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey;
+const HOVER_KEYS = new Set(["Control", "Meta", "Shift"]);
+
+export function isHoverDefineKey(e: {
+  ctrlKey: boolean;
+  metaKey: boolean;
+  shiftKey: boolean;
+  altKey: boolean;
+}): boolean {
+  return (e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey;
 }
 
 export function selectedWord(
@@ -180,7 +187,7 @@ function initHoverDefine(
   });
 
   document.addEventListener("keydown", (e) => {
-    if (e.repeat || (e.key !== "Control" && e.key !== "Meta")) return;
+    if (e.repeat || !HOVER_KEYS.has(e.key)) return;
     if (!hoverPoint || !isHoverDefineKey(e)) return;
     hoverSpan = null;
     defineAtPoint(hoverPoint.x, hoverPoint.y);
