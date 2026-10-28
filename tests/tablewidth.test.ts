@@ -45,3 +45,31 @@ test("\\newpage өмнө нь хоосон мөргүй ч хуудас тасл
   assert.deepEqual(kinds("# Гарчиг\n\\newpage"), ["heading", "pagebreak"]);
   assert.deepEqual(kinds("Мөр \\newpage дотор"), ["paragraph"]);
 });
+
+test("toHtml: width хувийг экспорттой адил 100%-д хязгаарлаж, 0%-ийг үл тооно", () => {
+  const html = (width: string) =>
+    toHtml(parse(`::: {width="${width}"}\n| А |\n| - |\n| 1 |\n:::`));
+  assert.match(html("150%"), /--table-width:100%/);
+  assert.match(html("62.5%"), /--table-width:62.5%/);
+  assert.doesNotMatch(html("0%"), /--table-width/);
+  assert.match(
+    toHtml(parse('::: {.column width="40%"}\nТекст\n:::')),
+    /flex-basis:40%/,
+  );
+});
+
+test("Хэлбэржүүлэх: width хашилт доторх зураасыг харьцаагаар нь уртасгана", () => {
+  const out = format(
+    '::: {width="100%"}\n| a | b |\n| --- | --------- |\n| long content here xx | y |\n:::\n',
+  );
+  const divider = out.split("\n")[2]!;
+  const bars = divider
+    .split("|")
+    .slice(1, -1)
+    .map((cell) => cell.trim().length);
+  assert.equal(bars[1]! / bars[0]!, 3);
+  const plain = format(
+    "| a | b |\n| --- | --------- |\n| long content here xx | y |\n",
+  );
+  assert.match(plain.split("\n")[1]!, /^\| -{20} \| -{9} \|$/);
+});

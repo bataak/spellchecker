@@ -22,6 +22,7 @@ interface RuleLines {
   readonly bottom: string;
   readonly between: string | null;
   readonly edge: string[];
+  readonly tail: string[];
 }
 
 function ruleLines(look: TableLook | undefined): RuleLines {
@@ -32,6 +33,7 @@ function ruleLines(look: TableLook | undefined): RuleLines {
       bottom: "\\hline",
       between: "\\hline",
       edge: ["\\hline"],
+      tail: ["\\hline"],
     };
   return {
     top: "\\toprule",
@@ -39,6 +41,7 @@ function ruleLines(look: TableLook | undefined): RuleLines {
     bottom: "\\bottomrule",
     between: look?.rules ? "\\midrule" : null,
     edge: [],
+    tail: look?.rules ? ["\\midrule"] : [],
   };
 }
 
@@ -94,7 +97,7 @@ export function tableLatex(
       "\\begin{tabular}{" + spec + "}",
       ...rules.edge,
       ...lines(rows),
-      ...rules.edge,
+      ...rules.tail,
       "\\end{tabular}",
     ].join("\n");
   return [
@@ -103,7 +106,7 @@ export function tableLatex(
     "\\begin{tabular}{" + spec + "}",
     ...(header ? [rules.top, row(head ?? [], true), rules.mid] : rules.edge),
     ...lines(body),
-    ...(header ? [rules.bottom] : rules.edge),
+    ...(header ? [rules.bottom] : rules.tail),
     "\\end{tabular}\\par}",
     "\\addvspace{\\medskipamount}",
   ].join("\n");

@@ -13,19 +13,20 @@ import type { Registry } from "./registry.ts";
 import { invitedUid, parseSlot, projectSlot, slotKey } from "./roomslot.ts";
 
 export async function joinRoom(
-  rooms: readonly RoomEntry[],
+  rooms: () => readonly RoomEntry[],
   link: InviteLink,
   deps: Pick<SlotPort, "slot" | "showSlot" | "openSlot"> &
     Pick<CollabDeps, "notify" | "project">,
 ): Promise<RoomEntry[] | null> {
-  const known = roomById(rooms, link.room);
-  if (known && deps.showSlot(parseSlot(known.slot))) return [...rooms];
-  const rest = known ? withoutRoom(rooms, known.room) : rooms;
+  const known = roomById(rooms(), link.room);
+  if (known && deps.showSlot(parseSlot(known.slot))) return [...rooms()];
+  const rest = (): readonly RoomEntry[] =>
+    known ? withoutRoom(rooms(), known.room) : rooms();
   if (link.name && isProjectName(link.name)) {
     const uid = invitedUid(link.room);
     const joining = link.name.slice(0, -1);
     if (!(await deps.project?.prepare(joining, uid))) return null;
-    return withRoom(rest, {
+    return withRoom(rest(), {
       slot: slotKey(projectSlot(uid)),
       room: link.room,
       key: link.key,
@@ -38,7 +39,7 @@ export async function joinRoom(
     return null;
   }
   if (needsHomeScreen()) deps.notify(HOME_SCREEN_MESSAGE);
-  return withRoom(rest, {
+  return withRoom(rest(), {
     slot: slotKey(deps.slot()),
     room: link.room,
     key: link.key,

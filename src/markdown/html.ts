@@ -1,4 +1,4 @@
-import { tableRow } from "../office/table.ts";
+import { tableRow, tableShare } from "../office/table.ts";
 import { LOGO_HTML, dashes, withLogos } from "./texlogo.ts";
 import {
   type Block,
@@ -102,10 +102,16 @@ function divKind(classes: readonly string[]): string {
 }
 
 function divHtml(b: BlockOf<"div">, at: string): string {
-  const percent = /^\d+(?:\.\d+)?%$/.test(b.keys["width"] ?? "")
-    ? b.keys["width"]
-    : null;
-  const sized = percent !== null && !b.classes.includes("column");
+  const column = b.classes.includes("column");
+  const share = tableShare(b.keys["width"]);
+  const percent = column
+    ? /^\d+(?:\.\d+)?%$/.test(b.keys["width"] ?? "")
+      ? b.keys["width"]
+      : null
+    : share === null
+      ? null
+      : `${Math.round(share * 10000) / 100}%`;
+  const sized = percent !== null && !column;
   const inner = b.children
     .map((child) =>
       sized && child.type === "table"
