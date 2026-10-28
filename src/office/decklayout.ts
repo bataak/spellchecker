@@ -1,7 +1,19 @@
 import type { DeckLine, DeckPart, DeckTable } from "./deck.ts";
 import { runsText, type IrImage } from "./docir.ts";
 import { ARIAL_BOLD, ARIAL_REGULAR } from "./arial.ts";
-import { columnWidths, glyphWidth, type TextMetrics } from "./table.ts";
+import {
+  columnWidths,
+  glyphWidth,
+  shareWidths,
+  type TextMetrics,
+} from "./table.ts";
+import type { Stroke } from "../markdown/tablelook.ts";
+
+export const SLIDE_STROKE_PT: Readonly<Record<Stroke, number>> = {
+  0: 0,
+  1: 0.75,
+  2: 1.5,
+};
 
 export const TEXT_PT = 20;
 export const TABLE_PT = 16;
@@ -128,15 +140,15 @@ function tableLayout(
   widthCm: number,
   pt: number,
 ): TableLayout {
-  const widths = columnWidths(
-    table.rows,
-    table.header,
-    widthCm,
-    tableMetrics(pt),
+  const widths = shareWidths(
+    columnWidths(table.rows, table.header, widthCm, tableMetrics(pt)),
+    table.rule,
+    widthCm * (table.share ?? 0),
   );
   const lineCm = pt * PT_CM * LINE;
-  const heights = table.rows.map(
-    (row, r) =>
+  const heights = table.rows.map((row, r) =>
+    Math.max(
+      table.rowCm && !(table.header && r === 0) ? table.rowCm : 0,
       Math.max(
         1,
         ...row.map((cell, i) =>
@@ -149,7 +161,8 @@ function tableLayout(
         ),
       ) *
         lineCm +
-      2 * CELL_PAD_Y_CM,
+        2 * CELL_PAD_Y_CM,
+    ),
   );
   return { widths, heights };
 }
