@@ -1,5 +1,6 @@
 import type { DeckLine, DeckTable } from "../deck.ts";
-import { TEXT_PT, type TableLayout } from "../decklayout.ts";
+import { SLIDE_STROKE_PT, TEXT_PT, type TableLayout } from "../decklayout.ts";
+import { cellStrokes, type Stroke } from "../../markdown/tablelook.ts";
 import type { Align, IrRun } from "../docir.ts";
 import { xmlAttr } from "../sanitize.ts";
 import { REL, XML_HEAD, type Rel } from "../ooxml.ts";
@@ -104,15 +105,14 @@ const ALGN: Readonly<Record<Align, string>> = {
   justify: "just",
 };
 
-const RULE_HEAVY = 19050;
-const RULE_LIGHT = 9525;
+const EMU_PT = 12700;
 
-function border(tag: string, width: number): string {
-  return width
+function border(tag: string, stroke: Stroke): string {
+  return stroke
     ? "<a:" +
         tag +
         ' w="' +
-        String(width) +
+        String(SLIDE_STROKE_PT[stroke] * EMU_PT) +
         '"><a:solidFill><a:srgbClr val="000000"/></a:solidFill></a:' +
         tag +
         ">"
@@ -129,13 +129,18 @@ export function tableXml(
   const id = state.shapeId++;
   const widths = layout.widths.map((w) => Math.round(w * EMU_CM));
   const heights = layout.heights.map((h) => Math.round(h * EMU_CM));
-  const last = table.rows.length - 1;
   const rows = table.rows
     .map((row, r) => {
       const head = table.header && r === 0;
       const cells = widths
         .map((_, c) => {
           const align = table.align[c];
+          const edges = cellStrokes(table.strokes, {
+            row: r,
+            rows: table.rows.length,
+            column: c,
+            columns: widths.length,
+          });
           const pPr = align ? '<a:pPr algn="' + ALGN[align] + '"/>' : "";
           const runs = (row[c] ?? []).map((run) =>
             head ? { ...run, bold: true } : run,
@@ -146,10 +151,10 @@ export function tableXml(
             '</a:txBody><a:tcPr marL="90000" marR="90000" marT="43200" marB="43200" anchor="' +
             (head ? "ctr" : "t") +
             '">' +
-            border("lnL", 0) +
-            border("lnR", 0) +
-            border("lnT", r === 0 ? RULE_HEAVY : 0) +
-            border("lnB", r === last ? RULE_HEAVY : head ? RULE_LIGHT : 0) +
+            border("lnL", edges.left) +
+            border("lnR", edges.right) +
+            border("lnT", edges.top) +
+            border("lnB", edges.bottom) +
             "<a:noFill/></a:tcPr></a:tc>"
           );
         })

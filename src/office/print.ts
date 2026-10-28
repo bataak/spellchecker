@@ -16,6 +16,7 @@ import {
   cellStrokes,
   strokeClasses,
   tableStrokes,
+  type Stroke,
 } from "../markdown/tablelook.ts";
 import { escapeAttr } from "../core/htmlutil.ts";
 import { cm } from "./units.ts";
@@ -154,7 +155,9 @@ function para(style: string, runs: readonly IrRun[], images: ImageSet): string {
   );
 }
 
-function strokeCss(): string {
+export function strokeCss(
+  widths: Readonly<Record<Stroke, number>> = STROKE_PT,
+): string {
   const sides = { t: "top", b: "bottom", l: "left", r: "right" } as const;
   return Object.entries(sides)
     .flatMap(([key, side]) =>
@@ -166,7 +169,7 @@ function strokeCss(): string {
           "{border-" +
           side +
           ":" +
-          String(STROKE_PT[stroke]) +
+          String(widths[stroke]) +
           "pt solid #000}",
       ),
     )
