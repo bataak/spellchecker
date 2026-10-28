@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.120.0](https://github.com/bataak/spellchecker/compare/v1.119.0...v1.120.0) (2026-10-28)
+
+
+### Features
+
+* **define:** show a word's definition on hover with Ctrl+Shift instead of Ctrl ([4cc1a73](https://github.com/bataak/spellchecker/commit/4cc1a73cf21e9b2173e334f5ccfb652b7e695fb5))
+* honor table fences on slides ([56ae8ee](https://github.com/bataak/spellchecker/commit/56ae8ee7166029dc705fde074533e9982c0dd61d))
+* **images:** convert HEIC/HEIF images to JPEG when inserting them ([3fb3183](https://github.com/bataak/spellchecker/commit/3fb318399f419b67f2e9f586c0f5005b4ae42d9b))
+* **markdown:** rule lines, grids and row height for tables in a fenced div ([6c14414](https://github.com/bataak/spellchecker/commit/6c144144e8e05b0bac18890846745eb57dbea9a7))
+* **markdown:** size columns of a widened table by the dashes under its header ([859a93b](https://github.com/bataak/spellchecker/commit/859a93b82c5a033b7ed9c67fb9717dca49d272b9))
+* **markdown:** stretch a table to a share of the text width with ::: {width="N%"} ([e079ca4](https://github.com/bataak/spellchecker/commit/e079ca48a1416fad1d020884805077f0cf157ac0))
+* **mdbar:** insert new tables inside a full-width fence ([a8857c9](https://github.com/bataak/spellchecker/commit/a8857c97f4ddee91d4ac8373b859a0d16d445386))
+* **mdbar:** insert new tables with a full grid ([2da8c1c](https://github.com/bataak/spellchecker/commit/2da8c1cdb7592a67a22dd470156521c420d8118c))
+
+
+### Bug Fixes
+
+* address review findings on reopening files, table fences and HEIC ([b21d21a](https://github.com/bataak/spellchecker/commit/b21d21aabc962a3adae526e30420a2af51b6a321))
+* compact confirmation dialogs ([645a979](https://github.com/bataak/spellchecker/commit/645a979d9f017346399aeeb4047f803762196c2d))
+* keep slot table rules on slides and tell same-name files apart ([c90119d](https://github.com/bataak/spellchecker/commit/c90119dc2474f83305b44f5e6597c2f7284cb0fc))
+* **markdown:** \newpage breaks the page even right after a line of text ([6a308fe](https://github.com/bataak/spellchecker/commit/6a308fe732debeaa280a5fe32f1b64ae54d22373))
+* PDF tables fill the real line width and sections start at 1 ([f3be06f](https://github.com/bataak/spellchecker/commit/f3be06f4787a2f9904983f09ab633c5177261590))
+* **print:** repeat a table's header row on each page and keep rule borders whole in Firefox ([9c48196](https://github.com/bataak/spellchecker/commit/9c481969f40d3b9608f1bd763432d9bd79dc3773))
+
 ## [1.119.0](https://github.com/bataak/spellchecker/compare/v1.118.0...v1.119.0) (2026-10-28)
 
 
