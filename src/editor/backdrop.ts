@@ -12,10 +12,9 @@ import {
 } from "./syntaxspans.ts";
 import {
   caretRectAt,
-  caretSpotAt,
-  chunkOffsetAt,
   chunkRangeRect,
   chunkRangeRects,
+  localOffsetAtPoint,
   localOffsetAtY,
   type ChunkNode,
 } from "./backdropgeom.ts";
@@ -277,6 +276,20 @@ function offsetAtYIn(
   );
 }
 
+function offsetAtPointIn(
+  nodes: readonly ChunkNode[],
+  x: number,
+  y: number,
+  blocks: boolean,
+): number | null {
+  const node = nodesAtY(nodes, y).find(
+    (n) => n.getBoundingClientRect().bottom > y,
+  );
+  if (!node) return null;
+  const body = stripChunkNewline(node._src);
+  return node._start + localOffsetAtPoint(node, body, x, y, blocks);
+}
+
 function caretRectIn(
   nodes: readonly ChunkNode[],
   offset: number,
@@ -394,12 +407,7 @@ export function createBackdrop(root: HTMLElement): Backdrop {
     },
     caretRect: (offset) => caretRectIn(nodes, offset, useBlocks),
     rangeRects: (start, end) => rangeRectsIn(nodes, start, end, useBlocks),
-    offsetAtPoint(x, y) {
-      const spot = caretSpotAt(x, y);
-      if (!spot) return null;
-      const node = nodes.find((n) => n !== spot.node && n.contains(spot.node));
-      return node ? chunkOffsetAt(node, spot, useBlocks) : null;
-    },
+    offsetAtPoint: (x, y) => offsetAtPointIn(nodes, x, y, useBlocks),
     offsetAtY: (y) => offsetAtYIn(nodes, y, useBlocks),
     captureTopAnchor() {
       topAnchor = topAnchorOf(root, nodes, useBlocks);
