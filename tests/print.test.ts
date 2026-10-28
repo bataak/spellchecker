@@ -34,10 +34,10 @@ test("printHtml: хүснэгт, жагсаалт, тэмдэгт", () => {
     html,
     /<ul><li><p class="s-ListItem"><b>нэг<\/b> &lt;x&gt;<\/p><\/li>/,
   );
-  assert.match(html, /<td class="c-head">/);
+  assert.match(html, /<td class="c-head e-t2 e-b1">/);
   assert.match(
     html,
-    /<td class="c-last"><p class="s-TableCell" data-style="text-align:right">2<\/p><\/td>/,
+    /<td class="e-b2"><p class="s-TableCell" data-style="text-align:right">2<\/p><\/td>/,
   );
 });
 

@@ -1,4 +1,4 @@
-import type { TableRules } from "./table.ts";
+import type { TableRules } from "../markdown/tablelook.ts";
 import type { ListLevel } from "../markdown.ts";
 
 export type Align = "start" | "center" | "end" | "justify";
