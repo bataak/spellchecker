@@ -109,7 +109,7 @@ export function parseShort(hash: string): ShortLink | null {
   return match ? { code: match[1]!, key: match[2]! } : null;
 }
 
-export function inviteHash(
+export function appUrlHash(
   text: string,
   hosts: readonly string[],
 ): string | null {
@@ -121,8 +121,15 @@ export function inviteHash(
   } catch {
     return null;
   }
-  if (!hosts.includes(url.host)) return null;
-  return parseShort(url.hash) || parseLink(url.hash) ? url.hash : null;
+  return hosts.includes(url.host) && url.hash ? url.hash : null;
+}
+
+export function inviteHash(
+  text: string,
+  hosts: readonly string[],
+): string | null {
+  const hash = appUrlHash(text, hosts);
+  return hash && (parseShort(hash) || parseLink(hash)) ? hash : null;
 }
 
 export function shortHash(code: string, key: string): string {

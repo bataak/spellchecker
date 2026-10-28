@@ -234,3 +234,37 @@ test("GitHub файлын холбоосоор файл нээж, хавтасн
   assert.equal(requests.length, 2);
   assert.deepEqual(errors(page), []);
 });
+
+async function pasteText(page: Page, text: string): Promise<void> {
+  await page.click("#editor");
+  await page.evaluate((value) => {
+    const data = new DataTransfer();
+    data.setData("text/plain", value);
+    document.querySelector("#editor")!.dispatchEvent(
+      new ClipboardEvent("paste", {
+        clipboardData: data,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+  }, text);
+}
+
+test("буулгасан талбарын холбоосыг асуугаад нээнэ", async () => {
+  const page = await openPage(app, await app.context());
+  await chooseSlot(page, "Бичвэр 2");
+  await typeAtEnd(page, "Сайн ");
+  await pasteText(page, app.url + "#letter/minutes");
+  await answer(page, "Үгүй");
+  assert.equal(
+    await until(
+      () => editor(page),
+      (text) => text.includes("#letter/minutes"),
+    ),
+    "Сайн " + app.url + "#letter/minutes",
+  );
+  await pasteText(page, app.url + "#letter/application");
+  await answer(page, "Нээх");
+  await openedAs(page, "Өргөдөл");
+  assert.deepEqual(errors(page), []);
+});
