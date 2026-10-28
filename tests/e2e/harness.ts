@@ -24,6 +24,7 @@ export interface Fixtures {
   readonly b: string;
   readonly project: string;
   readonly other: string;
+  readonly big: string;
   readonly docx: string;
 }
 
@@ -79,6 +80,22 @@ function fixtures(): Fixtures {
       zip({
         "other/main.tex":
           "\\documentclass{article}\n\\begin{document}\nӨөр төсөл.\n\\end{document}\n",
+      }),
+    ),
+    big: write(
+      "big.zip",
+      zip({
+        "big/main.tex":
+          "\\documentclass{article}\n\\begin{document}\n" +
+          Array.from(
+            { length: 300 },
+            (_, i) =>
+              `\\section{Бүлэг ${i}}\n` +
+              "Монгол хэлний \\textbf{дүрэм} болон $x^2$ бичгийн соёл хөгжиж байна. ".repeat(
+                8,
+              ),
+          ).join("\n\n") +
+          "\n\\end{document}\n",
       }),
     ),
     docx: write(

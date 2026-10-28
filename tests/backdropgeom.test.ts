@@ -82,20 +82,31 @@ test("backdropgeom: chunkRangeRect буруу мужид null буцаана", (
   assert.ok(wide === null || wide.width > 0);
 });
 
-test("backdropgeom: chunkOffsetAt текст дэх байрлалыг бичвэрийн байрлал болгоно", () => {
-  const flat = chunk("сайн байна\n", 7, false);
-  const text = flat.firstChild!;
-  assert.equal(geom.chunkOffsetAt(flat, { node: text, offset: 4 }, false), 11);
-  const lines = chunk("нэг\nхоёр\n", 3, true);
-  const second = lines.children[1].firstChild!;
-  assert.equal(
-    geom.chunkOffsetAt(lines, { node: second, offset: 2 }, true),
-    3 + 4 + 2,
-  );
-  const stray = document.createElement("div");
-  stray.textContent = "x";
-  assert.equal(
-    geom.chunkOffsetAt(lines, { node: stray.firstChild!, offset: 0 }, true),
-    null,
-  );
+test("backdropgeom: localOffsetAtPoint цэгийн доорх тэмдэгтийн байрлалыг олно", () => {
+  const flat = chunk("сайн байна\n", 0, false);
+  const body = "сайн байна";
+  const proto = window.Range.prototype;
+  const saved = proto.getBoundingClientRect;
+  proto.getBoundingClientRect = function (this: Range) {
+    const index = this.startOffset;
+    const row = Math.floor(index / 5);
+    const left = (index % 5) * 10;
+    return {
+      left,
+      right: left,
+      top: row * 20,
+      bottom: row * 20 + 20,
+      width: 0,
+      height: 20,
+    } as DOMRect;
+  };
+  try {
+    assert.equal(geom.localOffsetAtPoint(flat, body, 15, 10, false), 1);
+    assert.equal(geom.localOffsetAtPoint(flat, body, 25, 30, false), 7);
+    assert.equal(geom.localOffsetAtPoint(flat, body, -5, 10, false), 0);
+    assert.equal(geom.localOffsetAtPoint(flat, body, 99, 30, false), 9);
+    assert.equal(geom.localOffsetAtPoint(flat, body, 5, 99, false), 10);
+  } finally {
+    proto.getBoundingClientRect = saved;
+  }
 });

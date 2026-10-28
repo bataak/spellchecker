@@ -161,28 +161,24 @@ export function chunkRangeRects(
   return [...range.getClientRects()].filter((rect) => rect.width > 0.5);
 }
 
-export function chunkOffsetAt(
+export function localOffsetAtPoint(
   node: ChunkNode,
-  spot: { node: Node; offset: number },
+  body: string,
+  x: number,
+  y: number,
   blocks: boolean,
-): number | null {
-  let host: Node = node;
-  let lineStart = 0;
-  if (blocks) {
-    host = spot.node;
-    while (host.parentNode && host.parentNode !== node) host = host.parentNode;
-    const index = Array.prototype.indexOf.call(node.children, host);
-    if (index < 0) return null;
-    const body = stripChunkNewline(node._src);
-    for (let i = 0; i < index; i++)
-      lineStart = body.indexOf("\n", lineStart) + 1;
+): number {
+  const past = (offset: number): boolean => {
+    const rect = caretRectAt(node, body, offset, blocks);
+    if (rect.bottom <= y) return false;
+    return rect.top > y || rect.left > x;
+  };
+  let lo = 0;
+  let hi = body.length + 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (past(mid)) hi = mid;
+    else lo = mid + 1;
   }
-  const range = document.createRange();
-  range.setStart(host, 0);
-  range.setEnd(spot.node, spot.offset);
-  const local = Math.min(
-    lineStart + range.toString().length,
-    stripChunkNewline(node._src).length,
-  );
-  return node._start + local;
+  return Math.max(0, Math.min(lo - 1, body.length));
 }
