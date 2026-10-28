@@ -98,6 +98,17 @@ used by the deployment, together with their licenses.
 - The same fonts are also shipped as `.ttf` in `public/fonts/svgpdf/`; they are
   embedded by jsPDF when SVG images with non-Latin text are converted to PDF
 
+### libheif-js (bundles libheif and libde265)
+
+- Copyright: Kiril Vatev (libheif-js); struktur AG (libheif, libde265)
+- Source: https://github.com/catdad-experiments/libheif-js,
+  https://github.com/strukturag/libheif, https://github.com/strukturag/libde265
+- License: LGPL-3.0
+- Used only to convert HEIC/HEIF images to JPEG when the browser cannot
+  decode them; it is loaded on demand as a separate, unmodified worker file
+  (`assets/heicworker-*.js`) and can be replaced with another build of the
+  same library
+
 ## Other production dependencies
 
 All MIT licensed; see the `LICENSE` file inside each package.
