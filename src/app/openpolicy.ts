@@ -8,8 +8,29 @@ const LIMIT_HOLD_MS = 8000;
 
 export type OpenSlots = Pick<
   MdToolbar,
-  "findFile" | "showFile" | "fileDirty" | "openFile"
+  "findFile" | "findName" | "showFile" | "fileDirty" | "openFile"
 >;
+
+function changedAsk(name: string): AskOptions {
+  return {
+    title:
+      "«" + name + "» файл дискэн дээр өөрчлөгджээ. Файлыг дахин дуудах уу?",
+    text: "Таны өөрчлөлт устаж болзошгүй.",
+    yes: "Дахин дуудах",
+    no: "Болих",
+  };
+}
+
+function reopenAsk(name: string): AskOptions {
+  return {
+    title:
+      "«" +
+      name +
+      "» нээлттэй бөгөөд хадгалаагүй өөрчлөлттэй. Файлаас дахин нээх үү?",
+    yes: "Дахин нээх",
+    no: "Болих",
+  };
+}
 
 export function createOpenPolicy(
   slots: () => OpenSlots,
@@ -19,20 +40,16 @@ export function createOpenPolicy(
 ): FileIODeps["prepareOpen"] {
   return async (name, hash, text) => {
     const bar = slots();
-    const open = bar.findFile(name, hash, text);
+    const same = bar.findFile(name, hash, text);
+    const open = same ?? (text === null ? null : bar.findName(name));
     if (open !== null) {
       bar.showFile(open);
+      if (text === null) return "open";
+      const dirty = bar.fileDirty(open);
       const reload =
-        text !== null &&
-        bar.fileDirty(open) &&
-        (await ask({
-          title:
-            "«" +
-            name +
-            "» нээлттэй бөгөөд хадгалаагүй өөрчлөлттэй. Файлаас дахин нээх үү?",
-          yes: "Дахин нээх",
-          no: "Болих",
-        }));
+        same === null
+          ? !dirty || (await ask(changedAsk(name)))
+          : dirty && (await ask(reopenAsk(name)));
       return reload ? "reload" : "open";
     }
     if (bar.openFile(name, hash)) return "new";

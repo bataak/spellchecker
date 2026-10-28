@@ -47,6 +47,7 @@ test("fileWiring: сонгосон текст файлыг нээж, төлөв�
       ({
         slot: () => "plain",
         findFile: () => null,
+        findName: () => null,
         openFile: () => true,
         markSaved: () => {
           calls.push("markSaved");

@@ -28,6 +28,7 @@ export interface FileSlotOps {
   openFile(name: string, hash?: string): boolean;
   closeFile(id: string, force?: boolean): void;
   findFile(name: string, hash: string, text: string | null): string | null;
+  findName(name: string): string | null;
   showFile(id: string): void;
   fileDirty(id: string): boolean;
   fileSlots(): { id: string; name: string; text: string | null }[];
@@ -78,6 +79,8 @@ export function createFileSlotOps(d: FileSlotDeps): FileSlotOps {
     },
     findFile: (name, hash, text) =>
       slots.all().find((slot) => sameFile(slot, name, hash, text))?.id ?? null,
+    findName: (name) =>
+      slots.all().find((slot) => slot.name === name)?.id ?? null,
     showFile(id) {
       if (slots.find(id)) d.choose(id);
     },

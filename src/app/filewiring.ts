@@ -72,6 +72,16 @@ export function createFileWiring(deps: FileWiringDeps): FileWiring {
         queueMicrotask(() => deps.project().fileOpened(ref.name));
     },
     prepareOpen: createOpenPolicy(deps.mdBar, status.hold, buttons.open),
+    fileDirty: () => {
+      const bar = deps.mdBar();
+      return bar.fileDirty(bar.slot());
+    },
+    onReturn: (listener) => {
+      window.addEventListener("focus", listener);
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) listener();
+      });
+    },
     onLoaded: () => {
       deps.undo().reset();
       deps.mdBar().markSaved();
