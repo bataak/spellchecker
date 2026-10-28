@@ -26,6 +26,7 @@
     "hunspell-wasm": "file:vendor/hunspell-wasm",
     "jspdf": "^4.2.1",
     "katex": "^0.18.9",
+    "libheif-js": "^1.23.5",
     "nspell": "^2.1.5",
     "pdfjs-dist": "5.4.624",
     "svg2pdf.js": "^2.8.1",
