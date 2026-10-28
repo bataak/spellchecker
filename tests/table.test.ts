@@ -28,3 +28,23 @@ test("зай хүрэлцвэл урт нүдийг мөр таслахгүй", 
   const widths = columnWidths(rows, false, 16.5, OFFICE_METRICS);
   assert.ok(widths[1]! > OFFICE_METRICS.width(long, false));
 });
+
+test("tableShare ба stretchWidths: хувиар заасан өргөнд багануудыг харьцаагаар сунгана", async () => {
+  const { stretchWidths, tableShare } = await import("../src/office/table.ts");
+  assert.equal(tableShare("100%"), 1);
+  assert.equal(tableShare("62.5%"), 0.625);
+  assert.equal(tableShare("150%"), 1);
+  for (const bad of [undefined, "", "100", "0%", "wide"])
+    assert.equal(tableShare(bad), null, String(bad));
+  assert.deepEqual(stretchWidths([1, 3], 8), [2, 6]);
+  assert.deepEqual(stretchWidths([4, 6], 8), [4, 6]);
+  assert.deepEqual(stretchWidths([1, 3], 0), [1, 3]);
+});
+
+test("shareWidths: зураасны харьцаагаар хуваарилж, зураасгүй бол сунгана", async () => {
+  const { shareWidths } = await import("../src/office/table.ts");
+  assert.deepEqual(shareWidths([2, 2, 2], [1, 3, 4], 16), [2, 6, 8]);
+  assert.deepEqual(shareWidths([1, 3], undefined, 8), [2, 6]);
+  assert.deepEqual(shareWidths([1, 3], [0, 0], 8), [2, 6]);
+  assert.deepEqual(shareWidths([1, 3], [5, 5], 0), [1, 3]);
+});

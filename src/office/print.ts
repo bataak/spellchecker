@@ -1,4 +1,4 @@
-import { STYLE, imageKey } from "./docir.ts";
+import { STYLE, imageKey, textWidthCm } from "./docir.ts";
 import type {
   DocIr,
   ImageSet,
@@ -10,7 +10,7 @@ import type {
 } from "./docir.ts";
 import { listTree, type ListTree } from "../markdown.ts";
 import { odfFont } from "./fonts.ts";
-import { columnWidths, officeMetrics } from "./table.ts";
+import { columnWidths, shareWidths, officeMetrics } from "./table.ts";
 import { escapeAttr } from "../core/htmlutil.ts";
 import { cm } from "./units.ts";
 
@@ -190,14 +190,18 @@ function blockHtml(block: IrBlock, doc: DocIr, images: ImageSet): string {
 
     case "table": {
       const header = block.header !== false;
-      const widths = columnWidths(
-        block.rows,
-        header,
-        doc.page.widthCm - doc.page.marginInnerCm - doc.page.marginOuterCm,
-        officeMetrics(
-          doc.styles[block.cellStyle ?? STYLE.tableCell]?.sizePt ??
-            doc.font.sizePt,
+      const widths = shareWidths(
+        columnWidths(
+          block.rows,
+          header,
+          textWidthCm(doc),
+          officeMetrics(
+            doc.styles[block.cellStyle ?? STYLE.tableCell]?.sizePt ??
+              doc.font.sizePt,
+          ),
         ),
+        block.rule,
+        textWidthCm(doc) * (block.share ?? 0),
       );
       const last = block.rows.length - 1;
       const rows = block.rows

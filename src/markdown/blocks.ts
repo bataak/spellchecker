@@ -113,14 +113,16 @@ function readTable(lines: readonly string[], start: number): Read | null {
   const line = lines[start]!.trimEnd();
   if (!line.includes("|") || !isDivider(lines[start + 1])) return null;
   const header = splitCells(line);
-  const align = splitCells(lines[start + 1]!).map(alignOf);
+  const dividers = splitCells(lines[start + 1]!);
+  const align = dividers.map(alignOf);
+  const rule = dividers.map((cell) => cell.replace(/[^-]/g, "").length);
   const rows: Inline[][][] = [header.map(parseInline)];
   let i = start + 2;
   while (i < lines.length && lines[i]!.includes("|")) {
     rows.push(splitCells(lines[i]!).map(parseInline));
     i += 1;
   }
-  return { block: { type: "table", align, rows, line: start }, next: i };
+  return { block: { type: "table", align, rows, rule, line: start }, next: i };
 }
 
 function readHeading(lines: readonly string[], start: number): Read | null {

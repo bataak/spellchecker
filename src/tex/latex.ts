@@ -18,6 +18,7 @@ import {
 import { splitSlides, type Slide } from "../doc/slides.ts";
 import { attempt } from "../core/attempt.ts";
 import { tableLatex } from "./latextable.ts";
+import { tableShare } from "../office/table.ts";
 import { LETTER_PAGE, letterTitle } from "./latexletter.ts";
 import { escapeTex } from "./texescape.ts";
 
@@ -224,8 +225,11 @@ function divBlock(b: DivBlock, beamer: boolean): string {
       : b.classes.some((name) => name === "right" || name === "signature")
         ? "\\raggedleft"
         : undefined;
+  const share = b.classes.includes("column")
+    ? null
+    : tableShare(b.keys["width"]);
   const body = (blocks: readonly Block[]): string =>
-    blocks.map((inner) => block(inner, beamer, place)).join("\n\n");
+    blocks.map((inner) => block(inner, beamer, place, share)).join("\n\n");
   if (b.classes.includes("notes"))
     return beamer ? "\\note{" + body(b.children) + "}" : "";
   if (b.classes.includes("signature"))
@@ -290,7 +294,12 @@ function codeLatex(value: string): string {
     .join("\n");
 }
 
-function block(b: Block, beamer = false, place?: string): string {
+function block(
+  b: Block,
+  beamer = false,
+  place?: string,
+  share?: number | null,
+): string {
   switch (b.type) {
     case "heading": {
       const cmd = SECTION[Math.min(b.depth, SECTION.length) - 1]!;
@@ -326,7 +335,7 @@ function block(b: Block, beamer = false, place?: string): string {
     case "list":
       return listLatex(listTree(b), 0);
     case "table":
-      return tableLatex(b, inline, place);
+      return tableLatex(b, inline, place, share);
   }
 }
 

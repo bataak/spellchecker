@@ -1,3 +1,4 @@
+import { tableShare } from "./table.ts";
 import {
   fitBlanks,
   isBlankRow,
@@ -289,13 +290,20 @@ function codeBlock(value: string): IrBlock {
 
 function tableBlock(block: BlockOf<"table">): IrBlock {
   const align = block.align.map(alignOf);
+  const rule = block.rule ? { rule: block.rule } : {};
   if (!isBlankRow(block.rows[0]))
-    return { kind: "table", align, rows: block.rows.map((r) => r.map(runsOf)) };
+    return {
+      kind: "table",
+      align,
+      rows: block.rows.map((r) => r.map(runsOf)),
+      ...rule,
+    };
   return {
     kind: "table",
     align,
     rows: block.rows.slice(1).map((row) => row.map(runsOf)),
     header: false,
+    ...rule,
   };
 }
 
@@ -350,6 +358,14 @@ function visitDiv(ctx: Ctx, block: BlockOf<"div">): void {
   const { out } = ctx;
   const from = out.length;
   visit(ctx, block.children);
+  const share = classes.includes("column")
+    ? null
+    : tableShare(block.keys["width"]);
+  if (share !== null)
+    for (let i = from; i < out.length; i += 1) {
+      const inner = out[i]!;
+      if (inner.kind === "table") out[i] = { ...inner, share };
+    }
   const style = divStyle(classes);
   if (style === null) return;
   for (let i = from; i < out.length; i += 1)
