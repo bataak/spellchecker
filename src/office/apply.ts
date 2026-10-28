@@ -223,7 +223,12 @@ interface Ctx {
   seenHeading: boolean;
   afterHeading: boolean;
   runIn: IrRun[] | null;
+  look: TableExtra;
 }
+
+type TableExtra = Partial<
+  Pick<Extract<IrBlock, { kind: "table" }>, "share" | "rules" | "rowCm">
+>;
 
 type BlockOf<T extends Block["type"]> = Extract<Block, { type: T }>;
 
@@ -357,17 +362,15 @@ function visitDiv(ctx: Ctx, block: BlockOf<"div">): void {
   if (classes.includes("notes")) return;
   const { out } = ctx;
   const from = out.length;
-  visit(ctx, block.children);
   const look = tableLook(classes, block.keys);
-  const extra = {
+  const outer = ctx.look;
+  ctx.look = {
     ...(look.share !== null && { share: look.share }),
     ...(look.rules !== null && { rules: look.rules }),
     ...(look.rowCm !== null && { rowCm: look.rowCm }),
   };
-  for (let i = from; i < out.length; i += 1) {
-    const inner = out[i]!;
-    if (inner.kind === "table") out[i] = { ...inner, ...extra };
-  }
+  visit(ctx, block.children);
+  ctx.look = outer;
   const style = divStyle(classes);
   if (style === null) return;
   for (let i = from; i < out.length; i += 1)
@@ -397,11 +400,15 @@ function visitBlock(ctx: Ctx, block: Block, next: Block | undefined): void {
     case "codeblock":
       return emit(ctx, codeBlock(block.value));
     case "table":
-      return emit(ctx, tableBlock(block), {
-        kind: "para",
-        style: STYLE.tableGap,
-        runs: [],
-      });
+      return emit(
+        ctx,
+        { ...tableBlock(block), ...ctx.look },
+        {
+          kind: "para",
+          style: STYLE.tableGap,
+          runs: [],
+        },
+      );
     case "rule":
       return emit(ctx, { kind: "rule" });
     case "pagebreak":
@@ -424,7 +431,14 @@ export function applyTemplate(
   const frame: Frame = template.frame;
   const out: IrBlock[] = [];
   visit(
-    { frame, out, seenHeading: false, afterHeading: false, runIn: null },
+    {
+      frame,
+      out,
+      seenHeading: false,
+      afterHeading: false,
+      runIn: null,
+      look: {},
+    },
     fitBlanks(blocks),
   );
 

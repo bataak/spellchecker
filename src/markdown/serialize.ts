@@ -1,3 +1,4 @@
+import { tableShare } from "../office/table.ts";
 import { type Block, type Inline, type ListTree, listTree } from "./ast.ts";
 import { RULE_RE, parse } from "./blocks.ts";
 import { MATH_CLOSE } from "./mathblock.ts";
@@ -87,7 +88,74 @@ function listMd(tree: ListTree, indent: string, full: boolean): string {
     .join("\n");
 }
 
-function blockMd(b: Block, full: boolean): string {
+function ruleScale(
+  rule: readonly number[] | undefined,
+  cells: readonly string[][],
+  colons: (i: number) => number,
+): number {
+  if (!rule) return 1;
+  let scale = 1;
+  rule.forEach((bar, i) => {
+    if (bar <= 0) return;
+    const needed = Math.max(3, ...cells.map((r) => r[i]?.length ?? 0));
+    scale = Math.max(scale, (needed - colons(i)) / bar);
+  });
+  return scale;
+}
+
+function tableMd(
+  b: Extract<Block, { type: "table" }>,
+  full: boolean,
+  ratio: boolean,
+): string {
+  const width = Math.max(...b.rows.map((r) => r.length), 1);
+  const cells = b.rows.map((r) =>
+    Array.from({ length: width }, (_, i) => inlineOut(r[i] ?? [], true, full)),
+  );
+  const colons = (i: number): number =>
+    b.align[i] === "center" ? 2 : b.align[i] ? 1 : 0;
+  const scale = ratio ? ruleScale(b.rule, cells, colons) : 1;
+  const bars = Array.from({ length: width }, (_, i) =>
+    Math.ceil((b.rule?.[i] ?? 0) * scale),
+  );
+  const natural = Array.from({ length: width }, (_, i) =>
+    Math.max(3, bars[i]! + colons(i), ...cells.map((r) => r[i]!.length)),
+  );
+  const aligned = natural.reduce((sum, w) => sum + w + 3, 1) <= MAX_ALIGN_ROW;
+  const widths = aligned
+    ? natural
+    : natural.map((_, i) => Math.max(3, bars[i]! + colons(i)));
+  const pad = (s: string, i: number): string => {
+    if (!aligned) return s;
+    const room = widths[i]! - s.length;
+    if (room <= 0) return s;
+    if (b.align[i] === "right") return s.padStart(widths[i]!);
+    if (b.align[i] === "center") {
+      const left = Math.floor(room / 2);
+      return " ".repeat(left) + s + " ".repeat(room - left);
+    }
+    return s.padEnd(widths[i]!);
+  };
+  const divider = Array.from({ length: width }, (_, i) => {
+    const a = b.align[i];
+    const bar = "-".repeat(
+      Math.max(1, widths[i]! - (a === "center" ? 2 : a ? 1 : 0)),
+    );
+    if (a === "center") return ":" + bar + ":";
+    if (a === "right") return bar + ":";
+    if (a === "left") return ":" + bar;
+    return bar;
+  });
+  const row = (r: string[]): string => "| " + r.map(pad).join(" | ") + " |";
+  const [head, ...body] = cells;
+  return [
+    row(head ?? []),
+    "| " + divider.join(" | ") + " |",
+    ...body.map(row),
+  ].join("\n");
+}
+
+function blockMd(b: Block, full: boolean, ratio = false): string {
   switch (b.type) {
     case "heading":
       return (
@@ -119,7 +187,16 @@ function blockMd(b: Block, full: boolean): string {
         " " +
         b.attrs +
         "\n" +
-        b.children.map((inner) => blockMd(inner, full)).join("\n\n") +
+        b.children
+          .map((inner) =>
+            blockMd(
+              inner,
+              full,
+              !b.classes.includes("column") &&
+                tableShare(b.keys["width"]) !== null,
+            ),
+          )
+          .join("\n\n") +
         "\n" +
         b.fence
       );
@@ -136,53 +213,8 @@ function blockMd(b: Block, full: boolean): string {
         .join("\n");
     case "list":
       return listMd(listTree(b), "", full);
-    case "table": {
-      const width = Math.max(...b.rows.map((r) => r.length), 1);
-      const cells = b.rows.map((r) =>
-        Array.from({ length: width }, (_, i) =>
-          inlineOut(r[i] ?? [], true, full),
-        ),
-      );
-      const colons = (i: number): number =>
-        b.align[i] === "center" ? 2 : b.align[i] ? 1 : 0;
-      const bars = Array.from({ length: width }, (_, i) => b.rule?.[i] ?? 0);
-      const natural = Array.from({ length: width }, (_, i) =>
-        Math.max(3, bars[i]! + colons(i), ...cells.map((r) => r[i]!.length)),
-      );
-      const aligned =
-        natural.reduce((sum, w) => sum + w + 3, 1) <= MAX_ALIGN_ROW;
-      const widths = aligned
-        ? natural
-        : natural.map((_, i) => Math.max(3, bars[i]! + colons(i)));
-      const pad = (s: string, i: number): string => {
-        if (!aligned) return s;
-        const room = widths[i]! - s.length;
-        if (room <= 0) return s;
-        if (b.align[i] === "right") return s.padStart(widths[i]!);
-        if (b.align[i] === "center") {
-          const left = Math.floor(room / 2);
-          return " ".repeat(left) + s + " ".repeat(room - left);
-        }
-        return s.padEnd(widths[i]!);
-      };
-      const divider = Array.from({ length: width }, (_, i) => {
-        const a = b.align[i];
-        const bar = "-".repeat(
-          Math.max(1, widths[i]! - (a === "center" ? 2 : a ? 1 : 0)),
-        );
-        if (a === "center") return ":" + bar + ":";
-        if (a === "right") return bar + ":";
-        if (a === "left") return ":" + bar;
-        return bar;
-      });
-      const row = (r: string[]): string => "| " + r.map(pad).join(" | ") + " |";
-      const [head, ...body] = cells;
-      return [
-        row(head ?? []),
-        "| " + divider.join(" | ") + " |",
-        ...body.map(row),
-      ].join("\n");
-    }
+    case "table":
+      return tableMd(b, full, ratio);
   }
 }
 
