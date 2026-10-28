@@ -1,5 +1,6 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import {
   chooseProject,
   chooseSlot,
@@ -15,6 +16,10 @@ import {
   type App,
   answer,
 } from "./harness.ts";
+
+const HAS_DEFINITIONS = existsSync(
+  new URL("../../public/dict/stardict", import.meta.url),
+);
 
 let app: App;
 before(async () => {
@@ -284,10 +289,12 @@ test("том төсөлд Ctrl+Shift дарж заасан үгийн тайлб
   await page.keyboard.down("Control");
   await page.keyboard.down("Shift");
   await page.mouse.move(points[0]!.x, points[0]!.y);
-  assert.match(
-    await until(tipWord, (text) => /дүрэм/i.test(text), 10000),
-    /дүрэм/i,
-  );
+  if (HAS_DEFINITIONS)
+    assert.match(
+      await until(tipWord, (text) => /дүрэм/i.test(text), 10000),
+      /дүрэм/i,
+    );
+  else await page.waitForTimeout(1000);
   const watching = await page.evaluate(() => {
     if (!PerformanceObserver.supportedEntryTypes.includes("longtask"))
       return false;
@@ -302,7 +309,7 @@ test("том төсөлд Ctrl+Shift дарж заасан үгийн тайлб
   for (const point of points.slice(1)) {
     await page.mouse.move(point.x, point.y);
     await page.waitForTimeout(300);
-    assert.match(await tipWord(), /дүрэм/i);
+    if (HAS_DEFINITIONS) assert.match(await tipWord(), /дүрэм/i);
   }
   await page.keyboard.up("Shift");
   await page.keyboard.up("Control");
@@ -310,5 +317,5 @@ test("том төсөлд Ctrl+Shift дарж заасан үгийн тайлб
   const longest = await page.evaluate(
     () => (window as unknown as Record<string, { ms: number }>).__longest!.ms,
   );
-  assert.ok(longest < 100, `${Math.round(longest)} мс`);
+  assert.ok(longest < 60, `${Math.round(longest)} мс`);
 });
