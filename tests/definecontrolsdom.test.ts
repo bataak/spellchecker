@@ -10,7 +10,8 @@ const dom = installDom(
 const win = dom.window as unknown as Record<string, unknown>;
 win.matchMedia = () => ({ matches: false });
 
-const { initDefineControls } = await import("../src/define/definecontrols.ts");
+const { initDefineControls, isHoverDefineKey } =
+  await import("../src/define/definecontrols.ts");
 
 test.after(() => dom.close());
 
@@ -87,4 +88,20 @@ test("defineControls: F2 товч тайлбар харуулна", async () => 
   await wait();
   assert.equal(event.defaultPrevented, true);
   assert.deepEqual(calls, ["show:сайн"]);
+});
+
+test("isHoverDefineKey: зөвхөн Ctrl+Shift (эсвэл ⌘⇧) дарсан үед тайлбар харуулна", () => {
+  const keys = (ctrl: boolean, meta: boolean, shift: boolean, alt = false) =>
+    isHoverDefineKey({
+      ctrlKey: ctrl,
+      metaKey: meta,
+      shiftKey: shift,
+      altKey: alt,
+    });
+  assert.equal(keys(true, false, true), true);
+  assert.equal(keys(false, true, true), true);
+  assert.equal(keys(true, false, false), false);
+  assert.equal(keys(false, true, false), false);
+  assert.equal(keys(false, false, true), false);
+  assert.equal(keys(true, false, true, true), false);
 });

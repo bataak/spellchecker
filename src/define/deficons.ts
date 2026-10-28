@@ -14,7 +14,7 @@ export const PLAY_ICON =
   'stroke-linejoin="round" aria-hidden="true">' +
   '<path d="M7 5v14l11-7z"/></svg>';
 export const PAUSE_LABEL = "Түр зогсоох (эсвэл Shift дарж барих)";
-export const RESUME_LABEL = "Заагчийг чагнах (эсвэл Ctrl дарж үг шалгах)";
+export const RESUME_LABEL = "Заагчийг чагнах (эсвэл Ctrl+Shift дарж үг шалгах)";
 export const CLOSE_ICON =
   '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" ' +
   'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
