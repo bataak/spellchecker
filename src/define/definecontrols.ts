@@ -127,13 +127,7 @@ function wordAtPoint(
   y: number,
   latin: boolean,
 ): WordSpan | null {
-  editor.style.pointerEvents = "none";
-  backdrop.el.style.pointerEvents = "auto";
-  backdrop.el.style.userSelect = "text";
   const offset = backdrop.offsetAtPoint(x, y);
-  editor.style.pointerEvents = "";
-  backdrop.el.style.pointerEvents = "";
-  backdrop.el.style.userSelect = "";
   if (offset === null) return null;
   const span = wordAt(editor.value, offset, latin);
   const rect = span && backdrop.rangeRectAt(span.start, span.end);

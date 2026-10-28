@@ -252,3 +252,63 @@ test("төслийн самбар багтах хилийн орчимд preview
     await page.close();
   }
 });
+
+test("том төсөлд Ctrl+Shift дарж заасан үгийн тайлбар гацалтгүй гарна", async () => {
+  const page = await openPage(app, await app.context());
+  await openFile(page, app.files.big);
+  await page.click("#editor");
+  await page.waitForTimeout(3000);
+  const points = await page.evaluate(() => {
+    const out: { x: number; y: number }[] = [];
+    const root = document.querySelector("#editor")!.parentElement!;
+    const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (let node = walk.nextNode(); node && out.length < 5;) {
+      const at = node.textContent!.indexOf("дүрэм");
+      if (at >= 0) {
+        const range = document.createRange();
+        range.setStart(node, at + 2);
+        range.setEnd(node, at + 3);
+        const box = range.getBoundingClientRect();
+        if (box.width)
+          out.push({ x: box.left + box.width / 2, y: box.top + 4 });
+      }
+      node = walk.nextNode();
+    }
+    return out;
+  });
+  assert.ok(points.length >= 3);
+  const tipWord = () =>
+    page.evaluate(
+      () => document.querySelector(".def-tip .def-tip-hw")?.textContent ?? "",
+    );
+  await page.keyboard.down("Control");
+  await page.keyboard.down("Shift");
+  await page.mouse.move(points[0]!.x, points[0]!.y);
+  assert.match(
+    await until(tipWord, (text) => /дүрэм/i.test(text), 10000),
+    /дүрэм/i,
+  );
+  const watching = await page.evaluate(() => {
+    if (!PerformanceObserver.supportedEntryTypes.includes("longtask"))
+      return false;
+    const longest = { ms: 0 };
+    (window as unknown as Record<string, unknown>).__longest = longest;
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries())
+        longest.ms = Math.max(longest.ms, entry.duration);
+    }).observe({ type: "longtask" });
+    return true;
+  });
+  for (const point of points.slice(1)) {
+    await page.mouse.move(point.x, point.y);
+    await page.waitForTimeout(300);
+    assert.match(await tipWord(), /дүрэм/i);
+  }
+  await page.keyboard.up("Shift");
+  await page.keyboard.up("Control");
+  if (!watching) return;
+  const longest = await page.evaluate(
+    () => (window as unknown as Record<string, { ms: number }>).__longest!.ms,
+  );
+  assert.ok(longest < 100, `${Math.round(longest)} мс`);
+});
