@@ -182,6 +182,8 @@ test("алдааны самбар дахь тайлбарын бичвэрийг
   await page.evaluate(() => localStorage.setItem("def-dock", "panel"));
   await reload(page);
   await typeAtEnd(page, "Мөр алдаатйа үг байна.");
+  await page.locator(".ew").first().waitFor();
+  await page.waitForTimeout(500);
   const note = page.locator(".def-dock .def-empty");
   await note.waitFor();
   const box = (await note.boundingBox())!;
