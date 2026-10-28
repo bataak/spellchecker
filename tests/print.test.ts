@@ -105,3 +105,28 @@ test("splitStyles: CSS-ийг баримтаас салгаж, style блокг�
   assert.match(css, /@page\{/);
   assert.deepEqual(splitStyles("<p>a</p>"), { markup: "<p>a</p>", css: "" });
 });
+
+const FORM = [
+  '::: {width="100%"}',
+  "| №   | Овог, нэр | Тоот | Утас (заавал биш) | Гарын үсэг |",
+  "| --- | --------- | ---- | ----------------- | ---------- |",
+  "| 1   |           |      |                   |            |",
+  ":::",
+].join("\n");
+
+test("printHtml: width=100% хүснэгтийг бичвэрийн бүтэн өргөнөөр сунгана", () => {
+  const template = findTemplate("letter")!;
+  const doc = applyTemplate(parse(FORM), template);
+  const table = doc.blocks.find((block) => block.kind === "table")!;
+  assert.equal(table.kind === "table" && table.share, 1);
+  const width = (html: string): number =>
+    Number(/<table data-style="width:([\d.]+)cm/.exec(html)![1]);
+  const page =
+    doc.page.widthCm - doc.page.marginInnerCm - doc.page.marginOuterCm;
+  assert.ok(Math.abs(width(printHtml(doc)) - page) < 0.1);
+  const plain = applyTemplate(
+    parse(FORM.split("\n").slice(1, -1).join("\n")),
+    template,
+  );
+  assert.ok(width(printHtml(plain)) < page - 3);
+});
