@@ -149,9 +149,80 @@ function para(style: string, runs: readonly IrRun[], images: ImageSet): string {
 }
 
 function cellClass(header: boolean, row: number, last: number): string {
-  if (!header) return "c-plain";
+  if (!header) return row === 0 ? "c-plain c-top" : "c-plain";
   if (row === 0) return row === last ? "c-only" : "c-head";
   return row === last ? "c-last" : "c-plain";
+}
+
+function tableHtml(
+  block: Extract<IrBlock, { kind: "table" }>,
+  doc: DocIr,
+  images: ImageSet,
+): string {
+  const header = block.header !== false;
+  const widths = shareWidths(
+    columnWidths(
+      block.rows,
+      header,
+      textWidthCm(doc),
+      officeMetrics(
+        doc.styles[block.cellStyle ?? STYLE.tableCell]?.sizePt ??
+          doc.font.sizePt,
+      ),
+    ),
+    block.rule,
+    textWidthCm(doc) * (block.share ?? 0),
+  );
+  const last = block.rows.length - 1;
+  const rows = block.rows.map((row, rowIndex) => {
+    const head = header && rowIndex === 0;
+    const base = head ? STYLE.tableHead : (block.cellStyle ?? STYLE.tableCell);
+    const cells = widths
+      .map((_, i) => {
+        const align = block.align[i];
+        const style = align
+          ? ' data-style="text-align:' + TEXT_ALIGN[align] + '"'
+          : "";
+        return (
+          '<td class="' +
+          cellClass(header, rowIndex, last) +
+          '"><p class="' +
+          className(base) +
+          '"' +
+          style +
+          ">" +
+          (runsHtml(row[i] ?? [], images) || "<br>") +
+          "</p></td>"
+        );
+      })
+      .join("");
+    return (
+      (block.rowCm && !head
+        ? '<tr data-style="height:' + cm(block.rowCm) + '">'
+        : "<tr>") +
+      cells +
+      "</tr>"
+    );
+  });
+  const [first, ...rest] = rows;
+  const body = header
+    ? "<thead>" + (first ?? "") + "</thead><tbody>" + rest.join("") + "</tbody>"
+    : "<tbody>" + rows.join("") + "</tbody>";
+  return (
+    "<table" +
+    (block.rules ? ' class="' + block.rules + '"' : "") +
+    ' data-style="width:' +
+    cm(widths.reduce((sum, width) => sum + width, 0)) +
+    ";margin:" +
+    TABLE_MARGIN[block.placement ?? "center"] +
+    '"><colgroup>' +
+    widths
+      .map((width) => '<col data-style="width:' + cm(width) + '">')
+      .join("") +
+    "</colgroup>" +
+    body +
+    "</table>"
+  );
 }
 
 function blockHtml(block: IrBlock, doc: DocIr, images: ImageSet): string {
@@ -188,64 +259,8 @@ function blockHtml(block: IrBlock, doc: DocIr, images: ImageSet): string {
       return render(listTree(block));
     }
 
-    case "table": {
-      const header = block.header !== false;
-      const widths = shareWidths(
-        columnWidths(
-          block.rows,
-          header,
-          textWidthCm(doc),
-          officeMetrics(
-            doc.styles[block.cellStyle ?? STYLE.tableCell]?.sizePt ??
-              doc.font.sizePt,
-          ),
-        ),
-        block.rule,
-        textWidthCm(doc) * (block.share ?? 0),
-      );
-      const last = block.rows.length - 1;
-      const rows = block.rows
-        .map((row, rowIndex) => {
-          const head = header && rowIndex === 0;
-          const base = head
-            ? STYLE.tableHead
-            : (block.cellStyle ?? STYLE.tableCell);
-          const cells = widths
-            .map((_, i) => {
-              const align = block.align[i];
-              const style = align
-                ? ' data-style="text-align:' + TEXT_ALIGN[align] + '"'
-                : "";
-              return (
-                '<td class="' +
-                cellClass(header, rowIndex, last) +
-                '"><p class="' +
-                className(base) +
-                '"' +
-                style +
-                ">" +
-                (runsHtml(row[i] ?? [], images) || "<br>") +
-                "</p></td>"
-              );
-            })
-            .join("");
-          return "<tr>" + cells + "</tr>";
-        })
-        .join("");
-      return (
-        '<table data-style="width:' +
-        cm(widths.reduce((sum, width) => sum + width, 0)) +
-        ";margin:" +
-        TABLE_MARGIN[block.placement ?? "center"] +
-        '"><colgroup>' +
-        widths
-          .map((width) => '<col data-style="width:' + cm(width) + '">')
-          .join("") +
-        "</colgroup>" +
-        rows +
-        "</table>"
-      );
-    }
+    case "table":
+      return tableHtml(block, doc, images);
 
     case "rule":
       return '<p class="rule"></p>';
@@ -393,6 +408,11 @@ export function printHtml(
     "td.c-head{border-top:1pt solid #000;border-bottom:0.5pt solid #000;vertical-align:middle}" +
     "td.c-only{border-top:1pt solid #000;border-bottom:1pt solid #000;vertical-align:middle}" +
     "td.c-last{border-bottom:1pt solid #000}" +
+    "table.lines,table.grid{border-collapse:separate;border-spacing:0}" +
+    "table.lines td{border-bottom:0.5pt solid #000}" +
+    "table.grid td{border:0;border-right:0.5pt solid #000;border-bottom:0.5pt solid #000}" +
+    "table.grid td:first-child{border-left:0.5pt solid #000}" +
+    "table.grid thead td,table.grid td.c-top{border-top:0.5pt solid #000}" +
     ".fill{display:inline-block;width:100%;border-bottom:0.5pt solid #000;height:1em;vertical-align:baseline}" +
     ".tab{display:inline-block;width:1.25cm}" +
     ".rule{margin:6pt 0;border-bottom:0.5pt solid #000;padding-bottom:2pt}" +

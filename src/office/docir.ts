@@ -1,3 +1,4 @@
+import type { TableRules } from "./table.ts";
 import type { ListLevel } from "../markdown.ts";
 
 export type Align = "start" | "center" | "end" | "justify";
@@ -130,6 +131,8 @@ export type IrBlock =
       readonly cellStyle?: string;
       readonly share?: number;
       readonly rule?: readonly number[];
+      readonly rules?: TableRules;
+      readonly rowCm?: number;
     }
   | { readonly kind: "rule" }
   | { readonly kind: "break" };

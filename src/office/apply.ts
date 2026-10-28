@@ -1,4 +1,4 @@
-import { tableShare } from "./table.ts";
+import { tableLook } from "./table.ts";
 import {
   fitBlanks,
   isBlankRow,
@@ -358,14 +358,16 @@ function visitDiv(ctx: Ctx, block: BlockOf<"div">): void {
   const { out } = ctx;
   const from = out.length;
   visit(ctx, block.children);
-  const share = classes.includes("column")
-    ? null
-    : tableShare(block.keys["width"]);
-  if (share !== null)
-    for (let i = from; i < out.length; i += 1) {
-      const inner = out[i]!;
-      if (inner.kind === "table") out[i] = { ...inner, share };
-    }
+  const look = tableLook(classes, block.keys);
+  const extra = {
+    ...(look.share !== null && { share: look.share }),
+    ...(look.rules !== null && { rules: look.rules }),
+    ...(look.rowCm !== null && { rowCm: look.rowCm }),
+  };
+  for (let i = from; i < out.length; i += 1) {
+    const inner = out[i]!;
+    if (inner.kind === "table") out[i] = { ...inner, ...extra };
+  }
   const style = divStyle(classes);
   if (style === null) return;
   for (let i = from; i < out.length; i += 1)
