@@ -45,7 +45,7 @@ function commentButton(host: HTMLElement): HTMLButtonElement {
   return node;
 }
 
-export function initCommentButton(deps: CommentButtonDeps): void {
+export function initCommentButton(deps: CommentButtonDeps): () => void {
   const { editor, view } = deps;
   const node = commentButton(view.host);
   let frame = 0;
@@ -121,4 +121,5 @@ export function initCommentButton(deps: CommentButtonDeps): void {
   editor.addEventListener("blur", hide);
   editor.addEventListener("input", hide);
   editor.addEventListener("scroll", hide, { passive: true });
+  return soon;
 }
