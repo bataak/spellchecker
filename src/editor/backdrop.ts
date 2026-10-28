@@ -19,8 +19,6 @@ import {
   type ChunkNode,
 } from "./backdropgeom.ts";
 
-export { caretSpotAt } from "./backdropgeom.ts";
-
 interface ChunkBound {
   start: number;
   end: number;
@@ -263,12 +261,16 @@ function nodeAt(nodes: readonly ChunkNode[], pos: number): ChunkNode | null {
   );
 }
 
+function nodeAtY(nodes: readonly ChunkNode[], y: number): ChunkNode | null {
+  return nodes.find((n) => n.getBoundingClientRect().bottom > y) ?? null;
+}
+
 function offsetAtYIn(
   nodes: readonly ChunkNode[],
   y: number,
   blocks: boolean,
 ): number | null {
-  const node = nodes.find((n) => n.getBoundingClientRect().bottom > y);
+  const node = nodeAtY(nodes, y);
   if (!node) return null;
   const body = stripChunkNewline(node._src);
   return (
@@ -282,9 +284,7 @@ function offsetAtPointIn(
   y: number,
   blocks: boolean,
 ): number | null {
-  const node = nodesAtY(nodes, y).find(
-    (n) => n.getBoundingClientRect().bottom > y,
-  );
+  const node = nodeAtY(nodes, y);
   if (!node) return null;
   const body = stripChunkNewline(node._src);
   return node._start + localOffsetAtPoint(node, body, x, y, blocks);
