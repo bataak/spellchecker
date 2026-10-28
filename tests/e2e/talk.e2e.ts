@@ -7,6 +7,7 @@ import {
   FIREFOX,
   openPage,
   startApp,
+  throttle,
   typeAtEnd,
   until,
   type App,
@@ -397,6 +398,15 @@ test("эзэн хуваалцсан бичвэрийг цэвэрлэхэд ас
   assert.deepEqual(notes, []);
   assert.deepEqual(errors(owner), []);
   assert.deepEqual(errors(guest), []);
+});
+
+test("удаан төхөөрөмж дээр бичсэн даруйдаа сонгоход шүүмжийн товч гарна", async () => {
+  const page = await openPage(app, await app.context());
+  if (!(await throttle(page, 6))) return;
+  await typeAtEnd(page, "Өнөөдөр бороо");
+  await selectWord(page, "бороо");
+  await page.locator(".collab-comment-btn").waitFor({ timeout: 15000 });
+  assert.deepEqual(errors(page), []);
 });
 
 test("шүүмжилсэн үгийн ард дарахад шүүмж нээгдэж, курсор ард нь үлдэнэ", async () => {

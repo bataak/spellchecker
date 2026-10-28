@@ -194,8 +194,23 @@ test("алдааны самбар дахь тайлбарын бичвэрийг
   });
   await page.mouse.up();
   await page.waitForTimeout(300);
-  const selected = await page.evaluate(() => getSelection()?.toString() ?? "");
-  assert.ok(selected.length > 5, JSON.stringify(selected));
+  const state = await page.evaluate(
+    ({ x, y }) => {
+      const at = document.elementFromPoint(x, y);
+      return {
+        selected: getSelection()?.toString() ?? "",
+        at: at ? `${at.tagName}.${at.className}` : null,
+        active: document.activeElement?.id || document.activeElement?.tagName,
+        place: document.querySelector<HTMLElement>(".def-dock")?.dataset.place,
+        viewport: [innerWidth, innerHeight],
+      };
+    },
+    { x: box.x + 2, y: box.y + box.height / 2 },
+  );
+  assert.ok(
+    state.selected.length > 5,
+    JSON.stringify({ ...state, box: [box.x, box.y, box.width, box.height] }),
+  );
 });
 
 test("LaTeX-ийг хэлбэржүүлэхэд харагдаж буй PDF арилж дахин зурагдахгүй", async () => {

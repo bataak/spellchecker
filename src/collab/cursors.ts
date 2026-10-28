@@ -9,6 +9,7 @@ export interface CursorView {
   readonly host: HTMLElement;
   readonly caretRect: (offset: number) => DOMRect | null;
   readonly rangeRects: (start: number, end: number) => DOMRect[];
+  readonly onRender: (listener: () => void) => () => void;
 }
 
 export interface CursorState {

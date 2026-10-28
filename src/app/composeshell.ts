@@ -141,6 +141,7 @@ export function composeSession(app: Scope<SessionReads, SessionGives>): void {
       host: els.editorWrap,
       caretRect: app.backdrop.caretRect,
       rangeRects: app.backdrop.rangeRects,
+      onRender: app.backdrop.onRender,
     },
     mdBar,
     doc,
