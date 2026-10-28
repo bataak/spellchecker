@@ -2575,6 +2575,26 @@ html.booting .empty-state {
   font-weight: 600;
   color: var(--ink);
 }
+.ask-dialog .suggest-title {
+  margin-bottom: 8px;
+  font-family: var(--sans);
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+.suggest-overlay.ask-dialog {
+  padding: 16px;
+  align-items: center;
+  justify-content: center;
+}
+.ask-dialog .suggest-card {
+  display: block;
+  max-width: 380px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
+  padding: 18px 18px 14px;
+}
 .suggest-hint {
   margin: 0 0 12px;
   font-size: 0.82rem;
