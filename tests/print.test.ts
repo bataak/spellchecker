@@ -130,3 +130,19 @@ test("printHtml: width=100% хүснэгтийг бичвэрийн бүтэн �
   );
   assert.ok(width(printHtml(plain)) < page - 3);
 });
+
+test("printHtml: width хашилт доторх хүснэгтийн багана зураасны харьцааг дагана", () => {
+  const md = [
+    '::: {width="100%"}',
+    "| №   | Нэр                 |",
+    "| --- | ------------------- |",
+    "| 1   |                     |",
+    ":::",
+  ].join("\n");
+  const html = printHtml(applyTemplate(parse(md), findTemplate("letter")!));
+  const cols = [...html.matchAll(/<col data-style="width:([\d.]+)cm/g)].map(
+    (m) => Number(m[1]),
+  );
+  assert.equal(cols.length, 2);
+  assert.ok(Math.abs(cols[1]! / cols[0]! - 19 / 3) < 0.05, String(cols));
+});

@@ -98,6 +98,7 @@ export interface Table {
   type: "table";
   align: (("left" | "right" | "center") | null)[];
   rows: Inline[][][];
+  rule?: number[];
   line: number;
 }
 

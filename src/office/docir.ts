@@ -129,6 +129,7 @@ export type IrBlock =
       readonly placement?: Align;
       readonly cellStyle?: string;
       readonly share?: number;
+      readonly rule?: readonly number[];
     }
   | { readonly kind: "rule" }
   | { readonly kind: "break" };

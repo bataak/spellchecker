@@ -23,7 +23,7 @@ function escapeLeading(s: string): string {
 
 function withoutLines(value: unknown): string {
   return JSON.stringify(value, (key, item: unknown) =>
-    key === "line" ? undefined : item,
+    key === "line" || key === "rule" ? undefined : item,
   );
 }
 
@@ -143,12 +143,17 @@ function blockMd(b: Block, full: boolean): string {
           inlineOut(r[i] ?? [], true, full),
         ),
       );
+      const colons = (i: number): number =>
+        b.align[i] === "center" ? 2 : b.align[i] ? 1 : 0;
+      const bars = Array.from({ length: width }, (_, i) => b.rule?.[i] ?? 0);
       const natural = Array.from({ length: width }, (_, i) =>
-        Math.max(3, ...cells.map((r) => r[i]!.length)),
+        Math.max(3, bars[i]! + colons(i), ...cells.map((r) => r[i]!.length)),
       );
       const aligned =
         natural.reduce((sum, w) => sum + w + 3, 1) <= MAX_ALIGN_ROW;
-      const widths = aligned ? natural : natural.map(() => 3);
+      const widths = aligned
+        ? natural
+        : natural.map((_, i) => Math.max(3, bars[i]! + colons(i)));
       const pad = (s: string, i: number): string => {
         if (!aligned) return s;
         const room = widths[i]! - s.length;
