@@ -333,7 +333,7 @@ function block(
     case "list":
       return listLatex(listTree(b), 0);
     case "table":
-      return tableLatex(b, inline, place, look);
+      return tableLatex(b, inline, { place, look });
   }
 }
 
