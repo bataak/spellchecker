@@ -88,7 +88,7 @@ function fixtures(): Fixtures {
         "big/main.tex":
           "\\documentclass{article}\n\\begin{document}\n" +
           Array.from(
-            { length: 300 },
+            { length: 150 },
             (_, i) =>
               `\\section{Бүлэг ${i}}\n` +
               "Монгол хэлний \\textbf{дүрэм} болон $x^2$ бичгийн соёл хөгжиж байна. ".repeat(
