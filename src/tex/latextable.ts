@@ -50,11 +50,22 @@ export function tableLatex(
   const ruleCm = grid ? (fitted.length + 1) * RULE_CM : 0;
   const target = share === null ? 0 : TEXT_WIDTH_CM * share - ruleCm - SLACK_CM;
   const widths = shareWidths(fitted, b.rule, target);
+  const total = widths.reduce((sum, width) => sum + width, 0);
+  const trim = CELL_PAD_CM + (ruleCm + SLACK_CM) / widths.length;
+  const size = (width: number): string =>
+    share === null
+      ? Math.max(0.5, width - CELL_PAD_CM).toFixed(2) + "cm"
+      : "\\dimexpr " +
+        ((share * width) / total).toFixed(4) +
+        "\\linewidth-" +
+        trim.toFixed(3) +
+        "cm\\relax";
   const columns = widths.map((width, i) => {
     const a = b.align[i];
     if (!wrap) return a ? COLUMN[a] : "l";
-    const size = Math.max(0.5, width - CELL_PAD_CM).toFixed(2);
-    return ">{" + RAGGED[a ?? "left"] + "\\arraybackslash}p{" + size + "cm}";
+    return (
+      ">{" + RAGGED[a ?? "left"] + "\\arraybackslash}p{" + size(width) + "}"
+    );
   });
   const spec = grid ? "|" + columns.join("|") + "|" : columns.join("");
   const strut = look?.rowCm ? "\\rule{0pt}{" + look.rowCm + "cm}" : "";
