@@ -69,7 +69,7 @@ class FakeWorker {
       this.onmessage?.({
         data: {
           id: message.id,
-          files: message.keep.map((file) => [file, new Uint8Array([7])]),
+          value: message.keep.map((file) => [file, new Uint8Array([7])]),
         },
       });
     });
