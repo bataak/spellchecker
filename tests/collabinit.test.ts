@@ -80,6 +80,7 @@ function device(id: string, slot: RoomSlot): Device {
       host: document.createElement("div"),
       caretRect: () => null,
       rangeRects: () => [],
+      onRender: () => () => {},
     },
     button,
     slot: () => slot,

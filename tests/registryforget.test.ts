@@ -25,7 +25,12 @@ test("сешн нь эхлээгүй өрөөг мартахад хадгалс�
   await appendLog(logKey("idle-room"), new Uint8Array([4]));
   const registry = createRegistry(
     document.querySelector("textarea")!,
-    { host: {} as HTMLElement, caretRect: () => null, rangeRects: () => [] },
+    {
+      host: {} as HTMLElement,
+      caretRect: () => null,
+      rangeRects: () => [],
+      onRender: () => () => {},
+    },
     { changed: () => {}, notify: () => {} } as unknown as Parameters<
       typeof createRegistry
     >[2],
