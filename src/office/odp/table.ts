@@ -1,5 +1,6 @@
 import type { DeckTable } from "../deck.ts";
-import { type TableLayout } from "../decklayout.ts";
+import { SLIDE_STROKE_PT, type TableLayout } from "../decklayout.ts";
+import { cellStrokes, type CellStrokes } from "../../markdown/tablelook.ts";
 import type { Align } from "../docir.ts";
 
 import { cm, FONT, MARGIN, PAGE, para } from "./text.ts";
@@ -11,11 +12,6 @@ const ALIGN: Readonly<Record<Align, string>> = {
   center: "center",
   end: "end",
   justify: "justify",
-};
-
-const RULE = {
-  heavy: "1.5pt solid #000000",
-  light: "0.75pt solid #000000",
 };
 
 export interface Auto {
@@ -63,19 +59,21 @@ function cellParaStyle(auto: Auto, align: Align | null, pt: number): string {
   return name;
 }
 
-function cellStyle(
-  auto: Auto,
-  top: string | null,
-  bottom: string | null,
-  middle: boolean,
-): string {
-  const key =
-    (top ? "T" : "") +
-    (bottom === RULE.heavy ? "B" : bottom ? "b" : "") +
+const SIDES = ["top", "bottom", "left", "right"] as const;
+
+function cellStyle(auto: Auto, cell: CellStrokes, middle: boolean): string {
+  const name =
+    "ce_" +
+    SIDES.map((side) => String(cell[side])).join("") +
     (middle ? "m" : "");
-  const name = "ce_" + (key || "plain");
-  const edge = (side: string, value: string | null): string =>
-    "fo:border-" + side + '="' + (value ?? "none") + '"';
+  const edge = (side: (typeof SIDES)[number]): string =>
+    "fo:border-" +
+    side +
+    '="' +
+    (cell[side]
+      ? String(SLIDE_STROKE_PT[cell[side]]) + "pt solid #000000"
+      : "none") +
+    '"';
   auto.styles.set(
     name,
     '<style:style style:name="' +
@@ -86,10 +84,8 @@ function cellStyle(
       '" fo:padding-top="0.12cm" fo:padding-bottom="0.12cm" ' +
       'fo:padding-left="0.25cm" fo:padding-right="0.25cm"/>' +
       "<style:paragraph-properties " +
-      edge("top", top) +
-      " " +
-      edge("bottom", bottom) +
-      ' fo:border-left="none" fo:border-right="none"/>' +
+      SIDES.map(edge).join(" ") +
+      "/>" +
       "</style:style>",
   );
   return name;
@@ -119,7 +115,6 @@ export function tableXml(
       return '<table:table-column table:style-name="' + name + '"/>';
     })
     .join("");
-  const last = table.rows.length - 1;
   const rows = table.rows
     .map((row, r) => {
       const head = table.header && r === 0;
@@ -134,12 +129,13 @@ export function tableXml(
       );
       const cells = layout.widths
         .map((_, c) => {
-          const style = cellStyle(
-            auto,
-            r === 0 ? RULE.heavy : null,
-            r === last ? RULE.heavy : head ? RULE.light : null,
-            head,
-          );
+          const edges = cellStrokes(table.strokes, {
+            row: r,
+            rows: table.rows.length,
+            column: c,
+            columns: layout.widths.length,
+          });
+          const style = cellStyle(auto, edges, head);
           const runs = (row[c] ?? []).map((run) =>
             head ? { ...run, bold: true } : run,
           );

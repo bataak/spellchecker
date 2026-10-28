@@ -147,3 +147,28 @@ test("buildPptx: тэмдэглэлгүй бол notes хэсэг үүсгэхг
   );
   assert.doesNotMatch(out["ppt/presentation.xml"]!, /notesMaster/);
 });
+
+test("слайд: .grid тор, width зураасны харьцаа ба row өндрийг хүндэтгэнэ", () => {
+  const md =
+    '## Слайд\n\n::: {width="100%" .grid row="2cm"}\n| А | Б |\n| --- | --------- |\n| 1 | 2 |\n:::\n';
+  const doc = deck(md);
+  const part = doc.slides[0]!.parts[0]!;
+  assert.equal(part.kind, "table");
+  const table = part.kind === "table" ? part.table : null;
+  assert.equal(table?.strokes.columns, 1);
+  assert.equal(table?.share, 1);
+  assert.equal(table?.rowCm, 2);
+  const odp = files(buildOdp(doc))["content.xml"]!;
+  assert.match(
+    odp,
+    /style:name="ce_1111m"[^]*?fo:border-top="0\.75pt solid #000000" fo:border-bottom="0\.75pt solid #000000" fo:border-left="0\.75pt solid #000000" fo:border-right="0\.75pt solid #000000"/,
+  );
+  const widths = [...odp.matchAll(/style:column-width="([\d.]+)cm"/g)].map(
+    (m) => Number(m[1]),
+  );
+  assert.ok(Math.abs(widths[1]! / widths[0]! - 3) < 0.01, String(widths));
+  assert.match(odp, /style:row-height="2(\.0+)?cm"/);
+  const pptx = files(buildPptx(doc))["ppt/slides/slide1.xml"]!;
+  assert.match(pptx, /<a:lnL w="9525"><a:solidFill>/);
+  assert.match(pptx, /<a:lnR w="9525"><a:solidFill>/);
+});

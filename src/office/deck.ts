@@ -9,6 +9,12 @@ import type { Deck } from "../doc/slides.ts";
 import { guillemets } from "./apply.ts";
 import type { Align, IrImage, IrRun } from "./docir.ts";
 import { flatten } from "./flatten.ts";
+import {
+  tableLook,
+  tableStrokes,
+  type TableLook,
+  type TableStrokes,
+} from "../markdown/tablelook.ts";
 
 export type LineKind = "para" | "bullet" | "number";
 
@@ -22,6 +28,10 @@ export interface DeckTable {
   readonly header: boolean;
   readonly align: readonly (Align | null)[];
   readonly rows: readonly (readonly (readonly IrRun[])[])[];
+  readonly strokes: TableStrokes;
+  readonly rule?: readonly number[];
+  readonly share?: number;
+  readonly rowCm?: number;
 }
 
 export type DeckPart =
@@ -59,10 +69,17 @@ const ALIGN: Readonly<Record<string, Align>> = {
   right: "end",
 };
 
-function deckTable(block: Extract<Block, { type: "table" }>): DeckTable {
+function deckTable(
+  block: Extract<Block, { type: "table" }>,
+  look: TableLook | null,
+): DeckTable {
   const blank = isBlankRow(block.rows[0]);
   return {
     header: !blank,
+    strokes: tableStrokes(look?.rules, !blank),
+    ...(block.rule ? { rule: block.rule } : {}),
+    ...(look?.share ? { share: look.share } : {}),
+    ...(look?.rowCm ? { rowCm: look.rowCm } : {}),
     align: block.align.map((value) => (value ? ALIGN[value]! : null)),
     rows: (blank ? block.rows.slice(1) : block.rows).map((row) =>
       row.map(runs),
@@ -110,11 +127,11 @@ function parts(blocks: readonly Block[]): DeckPart[] {
     if (text.length) out.push({ kind: "text", lines: text });
     pending = [];
   };
-  const visit = (list: readonly Block[]): void => {
+  const visit = (list: readonly Block[], look: TableLook | null): void => {
     for (const b of list) {
       if (b.type === "table") {
         flush();
-        out.push({ kind: "table", table: deckTable(b) });
+        out.push({ kind: "table", table: deckTable(b, look) });
       } else if (b.type === "paragraph" && isFigure(b.children)) {
         flush();
         out.push({ kind: "image", images: imagesOf(b.children) });
@@ -123,11 +140,11 @@ function parts(blocks: readonly Block[]): DeckPart[] {
         flush();
         out.push({ kind: "image", images: imagesOf(b.children) });
       } else if (b.type === "div" && !b.classes.includes("notes"))
-        visit(b.children);
+        visit(b.children, tableLook(b.classes, b.keys));
       else pending.push(b);
     }
   };
-  visit(blocks);
+  visit(blocks, null);
   flush();
   return out;
 }
