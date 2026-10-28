@@ -1,3 +1,4 @@
+import { escapeHtml } from "../core/htmlutil.ts";
 import { initDownloadHint } from "./download.ts";
 import type { SaveChain } from "../ui/savechain.ts";
 import { restoredName } from "./filetypes.ts";
@@ -13,6 +14,7 @@ import type {
 } from "./fileports.ts";
 import { createFileSave } from "./filesave.ts";
 import { initFileOpen } from "./fileopen.ts";
+import { watchFile } from "./filewatch.ts";
 
 export type { OfficeFiles, PdfSave, ProjectFiles } from "./fileports.ts";
 
@@ -34,11 +36,14 @@ export interface FileIODeps {
   readonly onSaved: (written: boolean) => void;
   readonly saveChain: SaveChain;
   readonly deliverText?: (text: string, fileName: string) => Promise<boolean>;
+  readonly fileDirty?: () => boolean;
+  readonly onReturn?: (listener: () => void) => void;
 }
 
 export interface OpenFile {
   readonly handle: FileSystemFileHandle | null;
   readonly name: string;
+  readonly stamp?: number | null;
 }
 
 export interface FileIOControl {
@@ -55,7 +60,18 @@ export interface FileIOControl {
 export function initFileIO(deps: FileIODeps): FileIOControl {
   const { editor, status, office, project, onFileOpened } = deps;
   initDownloadHint(status.hold);
-  const current: CurrentFile = { handle: null, name: null };
+  const current: CurrentFile = { handle: null, name: null, stamp: null };
+  const restamp = (): void => {
+    const handle = current.handle;
+    if (!handle) return;
+    void Promise.resolve()
+      .then(() => handle.getFile())
+      .then((file) => {
+        if (current.handle === handle) current.stamp = file.lastModified;
+      })
+      .catch(() => undefined);
+  };
+
   const save = createFileSave({
     text: () => editor.el.value || "",
     current,
@@ -63,7 +79,10 @@ export function initFileIO(deps: FileIODeps): FileIOControl {
     project,
     pdf: deps.pdf,
     defaultExt: deps.defaultExt,
-    onSaved: deps.onSaved,
+    onSaved: (written) => {
+      if (written) restamp();
+      deps.onSaved(written);
+    },
     deliverText: deps.deliverText ?? deliverText,
     button: deps.buttons.save,
   });
@@ -82,6 +101,14 @@ export function initFileIO(deps: FileIODeps): FileIOControl {
     prepareOpen: deps.prepareOpen,
     onLoaded: deps.onLoaded,
   });
+  if (deps.onReturn)
+    watchFile({
+      current,
+      dirty: deps.fileDirty ?? (() => false),
+      reopen: (file, handle) => openAll([{ file, handle }]),
+      notify: (message) => status.hold(escapeHtml(message), 6000, false),
+      onReturn: deps.onReturn,
+    });
 
   return {
     saveSource: (name, inProject) => save({ name, inProject }),
@@ -92,22 +119,26 @@ export function initFileIO(deps: FileIODeps): FileIOControl {
     forgetFile() {
       current.handle = null;
       current.name = null;
+      current.stamp = null;
       onFileOpened(null);
     },
     takeFile() {
       const file = current.name
-        ? { handle: current.handle, name: current.name }
+        ? { handle: current.handle, name: current.name, stamp: current.stamp }
         : null;
       current.handle = null;
       current.name = null;
+      current.stamp = null;
       return file;
     },
     putFile(file: OpenFile | null) {
       current.handle = file ? file.handle : null;
       current.name = file ? file.name : null;
+      current.stamp = file?.stamp ?? null;
     },
     restoreFile(ref: DraftFile) {
       current.handle = null;
+      current.stamp = null;
       current.name = restoredName(ref);
     },
     targetName() {

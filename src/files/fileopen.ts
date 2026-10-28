@@ -70,9 +70,11 @@ export function initFileOpen(d: FileOpenDeps): OpenEntries {
     content: string,
     name: string | null,
     handle: FileSystemFileHandle | null,
+    stamp: number | null,
   ): Promise<void> {
     d.office.close();
     current.handle = handle || null;
+    current.stamp = handle ? stamp : null;
     current.name = name || (handle && handle.name) || null;
     d.onFileOpened(current.name ? { name: current.name, kind: "text" } : null);
     editor.set(content, content.length);
@@ -84,6 +86,7 @@ export function initFileOpen(d: FileOpenDeps): OpenEntries {
   async function openOffice(file: File): Promise<void> {
     current.handle = null;
     current.name = null;
+    current.stamp = null;
     d.onFileOpened({ name: file.name, kind: "office" });
     await d.office.open(file);
     opened("Нээлээ");
@@ -116,20 +119,21 @@ export function initFileOpen(d: FileOpenDeps): OpenEntries {
       office ? null : text,
     );
     if (prepared === "reload") {
-      await loadFileContent(text, file.name, handle);
+      await loadFileContent(text, file.name, handle, file.lastModified);
       return true;
     }
     if (prepared === "open") {
       if (handle) {
         current.handle = handle;
         current.name = file.name;
+        current.stamp = file.lastModified;
       }
       opened("Нээлттэй байна");
       return true;
     }
     if (!prepared) return false;
     if (office) await openOffice(file);
-    else await loadFileContent(text, file.name, handle);
+    else await loadFileContent(text, file.name, handle, file.lastModified);
     return true;
   }
 
