@@ -8,7 +8,7 @@ const LIMIT_HOLD_MS = 8000;
 
 export type OpenSlots = Pick<
   MdToolbar,
-  "findFile" | "findName" | "showFile" | "fileDirty" | "openFile"
+  "findFiles" | "findNames" | "showFile" | "fileDirty" | "openFile"
 >;
 
 function changedAsk(name: string): AskOptions {
@@ -37,6 +37,15 @@ export interface OpenPolicyDeps {
   readonly hold: (html: string, ms: number, animate: boolean) => void;
   readonly openButton?: HTMLElement | null;
   readonly ask?: (options: AskOptions) => Promise<boolean>;
+  readonly handleOf?: (slot: string) => FileSystemFileHandle | null;
+}
+
+async function sameEntry(
+  known: FileSystemFileHandle | null,
+  handle: FileSystemFileHandle | null,
+): Promise<boolean> {
+  if (!known || !handle) return true;
+  return known.isSameEntry(handle).catch(() => true);
 }
 
 export function createOpenPolicy({
@@ -44,11 +53,18 @@ export function createOpenPolicy({
   hold,
   openButton = null,
   ask = askChoice,
+  handleOf = () => null,
 }: OpenPolicyDeps): FileIODeps["prepareOpen"] {
-  return async (name, hash, text) => {
+  return async (name, hash, text, handle = null) => {
     const bar = slots();
-    const same = bar.findFile(name, hash, text);
-    const open = same ?? (text === null ? null : bar.findName(name));
+    const pick = async (ids: readonly string[]): Promise<string | null> => {
+      for (const id of ids)
+        if (await sameEntry(handleOf(id), handle)) return id;
+      return null;
+    };
+    const same = await pick(bar.findFiles(name, hash, text));
+    const open =
+      same ?? (text === null ? null : await pick(bar.findNames(name)));
     if (open !== null) {
       bar.showFile(open);
       if (text === null) return "open";

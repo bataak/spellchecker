@@ -31,6 +31,7 @@ export interface FileIODeps {
     name: string,
     hash: string,
     text: string | null,
+    handle?: FileSystemFileHandle | null,
   ) => Promise<OpenChoice>;
   readonly onLoaded: () => void;
   readonly onSaved: (written: boolean) => void;

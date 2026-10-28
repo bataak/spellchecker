@@ -34,6 +34,7 @@ export interface FileOpenDeps {
     name: string,
     hash: string,
     text: string | null,
+    handle?: FileSystemFileHandle | null,
   ) => Promise<OpenChoice>;
   readonly onLoaded: () => void;
 }
@@ -119,6 +120,7 @@ export function initFileOpen(d: FileOpenDeps): OpenEntries {
       file.name,
       bytes ? bytesSum(bytes) : await fileSum(file),
       office ? null : text,
+      handle,
     );
     if (prepared === "reload") {
       await loadFileContent(text, file.name, handle, file.lastModified);

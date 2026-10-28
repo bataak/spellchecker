@@ -46,8 +46,8 @@ test("fileWiring: сонгосон текст файлыг нээж, төлөв�
     mdBar: () =>
       ({
         slot: () => "plain",
-        findFile: () => null,
-        findName: () => null,
+        findFiles: () => [],
+        findNames: () => [],
         openFile: () => true,
         markSaved: () => {
           calls.push("markSaved");

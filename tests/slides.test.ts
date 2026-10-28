@@ -172,3 +172,15 @@ test("слайд: .grid тор, width зураасны харьцаа ба row �
   assert.match(pptx, /<a:lnL w="9525"><a:solidFill>/);
   assert.match(pptx, /<a:lnR w="9525"><a:solidFill>/);
 });
+
+test("слайд: гарчиггүй энгийн хүснэгт дээд, доод зузаан зураастай хэвээр", () => {
+  const doc = deck("## Слайд\n\n|   |   |\n| - | - |\n| 1 | 2 |\n| 3 | 4 |\n");
+  const part = doc.slides[0]!.parts[0]!;
+  const strokes = part.kind === "table" ? part.table.strokes : null;
+  assert.equal(strokes?.top, 2);
+  assert.equal(strokes?.bottom, 2);
+  assert.equal(strokes?.rows, 0);
+  const pptx = files(buildPptx(doc))["ppt/slides/slide1.xml"]!;
+  assert.match(pptx, /<a:lnT w="19050"><a:solidFill>/);
+  assert.match(pptx, /<a:lnB w="19050"><a:solidFill>/);
+});
