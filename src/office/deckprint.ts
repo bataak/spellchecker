@@ -1,5 +1,6 @@
 import type { DeckDoc, DeckLine, DeckPart, DeckTable } from "./deck.ts";
 import {
+  SLIDE_STROKE_PT,
   TABLE_PT,
   TEXT_PT,
   layoutSlide,
@@ -8,7 +9,8 @@ import {
 } from "./decklayout.ts";
 import { imageKey } from "./docir.ts";
 import type { Align, ImageSet, IrRun } from "./docir.ts";
-import { fontFaces } from "./print.ts";
+import { fontFaces, strokeCss } from "./print.ts";
+import { cellStrokes, strokeClasses } from "../markdown/tablelook.ts";
 import { escapeAttr } from "../core/htmlutil.ts";
 import { cm } from "./units.ts";
 
@@ -132,25 +134,31 @@ function tableHtml(
   y: number,
   size: number,
 ): string {
-  const last = table.rows.length - 1;
   const rows = table.rows
     .map((row, r) => {
       const head = table.header && r === 0;
-      const classes = [
-        r === 0 ? "first" : "",
-        r === last ? "last" : head ? "head" : "",
-      ]
-        .filter(Boolean)
-        .join(" ");
       const cells = layout.widths
         .map((width, c) => {
           const align = table.align[c];
+          const classes = [
+            head ? "h" : "",
+            strokeClasses(
+              cellStrokes(table.strokes, {
+                row: r,
+                rows: table.rows.length,
+                column: c,
+                columns: layout.widths.length,
+              }),
+            ),
+          ]
+            .filter(Boolean)
+            .join(" ");
           return (
             '<td data-style="width:' +
             cm(width) +
             (align ? ";text-align:" + TEXT_ALIGN[align] : "") +
             '"' +
-            (head ? ' class="h"' : "") +
+            (classes ? ' class="' + classes + '"' : "") +
             ">" +
             runsHtml(row[c] ?? [], head) +
             "</td>"
@@ -158,9 +166,7 @@ function tableHtml(
         })
         .join("");
       return (
-        "<tr" +
-        (classes ? ' class="' + classes + '"' : "") +
-        ' data-style="height:' +
+        '<tr data-style="height:' +
         cm(layout.heights[r] ?? 0) +
         '">' +
         cells +
@@ -354,9 +360,7 @@ export function deckPrintHtml(
     "table{position:absolute;border-collapse:collapse;table-layout:fixed}" +
     "td{box-sizing:border-box;padding:0.12cm 0.25cm;vertical-align:top;line-height:1.2}" +
     "td.h{vertical-align:middle}" +
-    "tr.first td{border-top:1.5pt solid #000}" +
-    "tr.head td{border-bottom:0.75pt solid #000}" +
-    "tr.last td{border-bottom:1.5pt solid #000}";
+    strokeCss(SLIDE_STROKE_PT);
   const title = doc.title?.map((run) => run.text).join("") ?? "";
   return (
     '<!doctype html><html lang="mn"><head><meta charset="utf-8">' +

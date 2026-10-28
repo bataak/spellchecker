@@ -39,7 +39,8 @@ test("deckPrintHtml: нүүр, жагсаалт, дугаар, хүснэгт", 
   assert.match(html, /<span class="mk">•<\/span><b>хоёр<\/b>/);
   assert.match(html, /<span class="mk">3\.<\/span>гурав/);
   assert.match(html, /<span class="mk">4\.<\/span>дөрөв/);
-  assert.match(html, /<tr class="first head"[^>]*><td[^>]*class="h"><b>а<\/b>/);
+  assert.match(html, /<tr[^>]*><td[^>]*class="h e-t2 e-b1"><b>а<\/b>/);
+  assert.match(html, /td\.e-t2\{border-top:1\.5pt solid #000\}/);
   assert.match(html, /text-align:right"[^>]*>2<\/td>/);
 });
 
