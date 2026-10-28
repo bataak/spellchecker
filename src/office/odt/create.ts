@@ -25,12 +25,13 @@ import type {
 } from "../docir.ts";
 import { listTree, type ListTree } from "../../markdown.ts";
 import { tabFills } from "../flatten.ts";
+import { columnWidths, shareWidths, officeMetrics } from "../table.ts";
 import {
-  columnWidths,
-  shareWidths,
-  officeMetrics,
-  type TableRules,
-} from "../table.ts";
+  STROKE_PT,
+  cellStrokes,
+  tableStrokes,
+  type CellStrokes,
+} from "../../markdown/tablelook.ts";
 import { xmlAttr, xmlText } from "../sanitize.ts";
 import { NS, runKey, runStyle, styleName } from "./props.ts";
 import { stylesXml } from "./styles.ts";
@@ -154,32 +155,37 @@ const TABLE_ALIGN: Readonly<Record<string, string>> = {
   justify: "center",
 };
 
-const CELL_BORDERS: Readonly<Record<string, string>> = {
-  C_plain: "",
-  C_head:
-    'fo:border-top="1pt solid #000000" fo:border-bottom="0.5pt solid #000000" ',
-  C_only:
-    'fo:border-top="1pt solid #000000" fo:border-bottom="1pt solid #000000" ',
-  C_last: 'fo:border-bottom="1pt solid #000000" ',
-  C_lines: 'fo:border-bottom="0.5pt solid #000000" ',
-  C_grid: 'fo:border="0.5pt solid #000000" ',
-};
+const SIDES = ["top", "bottom", "left", "right"] as const;
 
-function cellStyles(): string {
-  return Object.entries(CELL_BORDERS)
+function cellStyle(
+  cell: CellStrokes,
+  head: boolean,
+  auto: Set<string>,
+): string {
+  const name =
+    "C_" + SIDES.map((side) => String(cell[side])).join("") + (head ? "h" : "");
+  const borders = SIDES.filter((side) => cell[side] > 0)
     .map(
-      ([name, borders]) =>
-        '<style:style style:name="' +
-        name +
-        '" style:family="table-cell"><style:table-cell-properties ' +
-        borders +
-        'fo:padding-top="0.05cm" fo:padding-bottom="0.05cm" ' +
-        'fo:padding-left="0.1cm" fo:padding-right="0.1cm" ' +
-        'style:vertical-align="' +
-        (name === "C_head" || name === "C_only" ? "middle" : "top") +
-        '"/></style:style>',
+      (side) =>
+        "fo:border-" +
+        side +
+        '="' +
+        String(STROKE_PT[cell[side]]) +
+        'pt solid #000000" ',
     )
     .join("");
+  auto.add(
+    '<style:style style:name="' +
+      name +
+      '" style:family="table-cell"><style:table-cell-properties ' +
+      borders +
+      'fo:padding-top="0.05cm" fo:padding-bottom="0.05cm" ' +
+      'fo:padding-left="0.1cm" fo:padding-right="0.1cm" ' +
+      'style:vertical-align="' +
+      (head ? "middle" : "top") +
+      '"/></style:style>',
+  );
+  return name;
 }
 
 function listXml(
@@ -236,19 +242,6 @@ function tableStyles(
       )
       .join("")
   );
-}
-
-function rowCellStyle(
-  header: boolean,
-  head: boolean,
-  last: boolean,
-  rules: TableRules | undefined,
-): string {
-  if (rules === "grid") return "C_grid";
-  const body = rules === "lines" ? "C_lines" : "C_plain";
-  if (!header) return body;
-  if (head) return last ? "C_only" : "C_head";
-  return last ? "C_last" : body;
 }
 
 function fillStyle(base: string, tab: number, auto: Set<string>): string {
@@ -321,7 +314,7 @@ function tableXml(
     block.rule,
     textWidthCm(doc) * (block.share ?? 0),
   );
-  auto.add("cells");
+  const strokes = tableStrokes(block.rules, header);
   auto.add(tableStyles(name, widths, block.placement ?? "center"));
   if (block.rowCm)
     auto.add(
@@ -331,26 +324,26 @@ function tableXml(
         cm(block.rowCm) +
         '"/></style:style>',
     );
-  const last = block.rows.length - 1;
   const rows = block.rows
     .map((row, rowIndex) => {
       const head = header && rowIndex === 0;
-      const cellStyle = rowCellStyle(
-        header,
-        head,
-        rowIndex === last,
-        block.rules,
-      );
       const base = head ? "TableHead" : (block.cellStyle ?? "TableCell");
       const cells = widths
         .map((width, i) => {
           const runs = row[i] ?? [];
+          const place = {
+            row: rowIndex,
+            rows: block.rows.length,
+            column: i,
+            columns: widths.length,
+          };
+          const style = cellStyle(cellStrokes(strokes, place), head, auto);
           if (runs.some((run) => run.fill)) {
             const para = fillStyle(base, Math.max(0, width - 0.2), auto);
-            return cellXml(cellStyle, para, runsXml(tabFills(runs), media));
+            return cellXml(style, para, runsXml(tabFills(runs), media));
           }
           const para = alignStyle(base, block.align[i], auto);
-          return cellXml(cellStyle, para, runsXml(runs, media));
+          return cellXml(style, para, runsXml(runs, media));
         })
         .join("");
       return (
@@ -481,7 +474,6 @@ function contentXml(doc: DocIr, options: OdtOptions, media: Media): string {
         "</style:style>"
       : "") +
     spans +
-    (auto.delete("cells") ? cellStyles() : "") +
     [...auto].join("") +
     "</office:automatic-styles>" +
     "<office:body><office:text>" +

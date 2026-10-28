@@ -1,4 +1,4 @@
-import { tableShare } from "../office/table.ts";
+import { tableShare } from "./tablelook.ts";
 import { type Block, type Inline, type ListTree, listTree } from "./ast.ts";
 import { RULE_RE, parse } from "./blocks.ts";
 import { MATH_CLOSE } from "./mathblock.ts";

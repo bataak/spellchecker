@@ -52,6 +52,7 @@ export function officeMetrics(pt: number): TextMetrics {
 export const OFFICE_METRICS: TextMetrics = officeMetrics(OFFICE_PT);
 
 const MIN_CM = 1;
+const DEFAULT_PART = 3;
 
 function longestWord(
   runs: readonly IrRun[],
@@ -132,13 +133,6 @@ export function columnWidths(
   );
 }
 
-export function tableShare(width: string | undefined): number | null {
-  const match = /^(\d+(?:\.\d+)?)%$/.exec(width ?? "");
-  if (!match) return null;
-  const share = Number(match[1]) / 100;
-  return share > 0 ? Math.min(1, share) : null;
-}
-
 export function stretchWidths(
   widths: readonly number[],
   targetCm: number,
@@ -157,39 +151,9 @@ export function shareWidths(
 ): number[] {
   if (targetCm <= 0) return [...widths];
   if (!rule?.some((part) => part > 0)) return stretchWidths(widths, targetCm);
-  const parts = widths.map((_, i) => rule[i] ?? 3);
+  const parts = widths.map((_, i) => rule[i] ?? DEFAULT_PART);
   const total = parts.reduce((sum, part) => sum + part, 0);
   return parts.map(
     (part) => Math.round(((targetCm * part) / total) * 100) / 100,
   );
-}
-
-export type TableRules = "lines" | "grid";
-
-export interface TableLook {
-  readonly share: number | null;
-  readonly rules: TableRules | null;
-  readonly rowCm: number | null;
-}
-
-export function tableRow(height: string | undefined): number | null {
-  const match = /^(\d+(?:\.\d+)?)(cm|mm)$/.exec(height ?? "");
-  if (!match) return null;
-  const size = Number(match[1]) / (match[2] === "mm" ? 10 : 1);
-  return size > 0 ? Math.min(10, size) : null;
-}
-
-export function tableLook(
-  classes: readonly string[],
-  keys: Readonly<Record<string, string>>,
-): TableLook {
-  return {
-    share: classes.includes("column") ? null : tableShare(keys["width"]),
-    rules: classes.includes("grid")
-      ? "grid"
-      : classes.includes("lines")
-        ? "lines"
-        : null,
-    rowCm: tableRow(keys["row"]),
-  };
 }

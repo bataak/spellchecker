@@ -18,7 +18,7 @@ import {
 import { splitSlides, type Slide } from "../doc/slides.ts";
 import { attempt } from "../core/attempt.ts";
 import { tableLatex } from "./latextable.ts";
-import { tableLook, type TableLook } from "../office/table.ts";
+import { tableLook, type TableLook } from "../markdown/tablelook.ts";
 import { LETTER_PAGE, letterTitle } from "./latexletter.ts";
 import { escapeTex } from "./texescape.ts";
 
