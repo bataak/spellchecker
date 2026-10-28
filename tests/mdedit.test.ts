@@ -351,7 +351,7 @@ test("хоосон мөрөнд хүснэгт оруулна", () => {
   const e = insertTable("", 0);
   assert.equal(
     e.text,
-    '::: {width="100%"}\n| Багана 1 | Багана 2 |\n| --- | --- |\n|     |     |\n:::',
+    '::: {width="100%" .lines}\n| Багана 1 | Багана 2 |\n| --- | --- |\n|     |     |\n:::',
   );
   assert.equal(e.text.slice(e.start, e.end), "Багана 1");
 });
@@ -359,7 +359,7 @@ test("хоосон мөрөнд хүснэгт оруулна", () => {
 test("бичвэртэй мөрийн ард хоосон мөр үлдээнэ", () => {
   const e = insertTable("Догол", 5);
   assert.equal(
-    e.text.startsWith('Догол\n\n::: {width="100%"}\n| Багана 1'),
+    e.text.startsWith('Догол\n\n::: {width="100%" .lines}\n| Багана 1'),
     true,
   );
   assert.equal(e.text.slice(e.start, e.end), "Багана 1");

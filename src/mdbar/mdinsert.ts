@@ -41,7 +41,7 @@ export function wrapLink(text: string, start: number, end: number): Edit {
   };
 }
 
-const TABLE_FENCE = '::: {width="100%"}';
+const TABLE_FENCE = '::: {width="100%" .lines}';
 
 export function insertTable(
   text: string,
