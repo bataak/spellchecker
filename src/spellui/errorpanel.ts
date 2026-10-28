@@ -170,7 +170,11 @@ export function initErrorPanel(deps: ErrorPanelDeps): ErrorPanel {
       if (!btn) {
         editor.focus({ preventScroll: true });
         const lastCaret = deps.lastCaret();
-        if (lastCaret) {
+        if (
+          lastCaret &&
+          (editor.selectionStart !== lastCaret.start ||
+            editor.selectionEnd !== lastCaret.end)
+        ) {
           editor.setSelectionRange(lastCaret.start, lastCaret.end, "forward");
         }
         return;
