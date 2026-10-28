@@ -137,3 +137,45 @@ test("хэвлэх: гарчгийн мөр thead-д орж хуудас бүр�
   assert.doesNotMatch(bare, /<thead><tr><td class=/);
   assert.equal(bare.match(/class="c-plain c-top"/g)?.length, 2);
 });
+
+test("гадна хашилтын харагдах байдал дотор хашилтын хүснэгтэд хүрэхгүй", () => {
+  const md = [
+    '::: {width="100%" .grid}',
+    "| А | Б |",
+    "| - | - |",
+    "| 1 | 2 |",
+    "",
+    "::: {.left}",
+    "| В | Г |",
+    "| - | - |",
+    "| 3 | 4 |",
+    ":::",
+    ":::",
+  ].join("\n");
+  const tables = doc(md).blocks.filter((b) => b.kind === "table");
+  assert.equal(tables.length, 2);
+  assert.equal(tables[0]!.kind === "table" && tables[0]!.rules, "grid");
+  assert.equal(tables[1]!.kind === "table" && tables[1]!.rules, undefined);
+});
+
+test(".lines: гарчигтай бол хэвлэлтэд 1pt хаалт, гарчиггүй бол DOCX ба LaTeX-д сүүлийн мөрийн доор шугам", () => {
+  assert.match(
+    printHtml(doc(sheet(".lines"))),
+    /table\.lines td\.c-last,table\.lines td\.c-only\{border-bottom:1pt solid #000\}/,
+  );
+  const bare = [
+    "::: {.lines}",
+    "|   |   |",
+    "| - | - |",
+    "| 1 | 2 |",
+    "| 3 | 4 |",
+    ":::",
+  ].join("\n");
+  const docx = zipped(buildDocx(doc(bare)), "word/document.xml");
+  assert.match(
+    docx,
+    /<w:tblBorders><w:bottom w:val="single" w:sz="4"[^>]*\/><w:insideH/,
+  );
+  const latex = toLatexBody(parse(bare));
+  assert.match(latex, /3 & 4 \\\\\n\\midrule\n\\end\{tabular\}/);
+});

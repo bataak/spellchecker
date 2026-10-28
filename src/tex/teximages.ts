@@ -1,3 +1,4 @@
+import { isHeic, jpegIfHeic } from "../files/heic.ts";
 import { databaseOpener } from "../core/idb.ts";
 import { replaceRange } from "../editor/editortext.ts";
 import { pickImage } from "../files/images.ts";
@@ -390,8 +391,8 @@ function addImage(file: File): string {
 }
 
 function imageFilesOf(data: DataTransfer | null): File[] {
-  return [...(data?.files ?? [])].filter((file) =>
-    file.type.startsWith("image/"),
+  return [...(data?.files ?? [])].filter(
+    (file) => file.type.startsWith("image/") || isHeic(file),
   );
 }
 
@@ -403,7 +404,7 @@ export interface TexImageInputDeps {
 export function initTexImageInput(deps: TexImageInputDeps): void {
   const { editor } = deps;
 
-  const insert = (files: File[]): void => {
+  const place = (files: File[]): void => {
     const lines = files.map(
       (file) => "\\includegraphics[width=\\linewidth]{" + addImage(file) + "}",
     );
@@ -413,6 +414,10 @@ export function initTexImageInput(deps: TexImageInputDeps): void {
     if (!replaceRange(editor, start, editor.selectionEnd, text))
       editor.dispatchEvent(new Event("input", { bubbles: true }));
     notify();
+  };
+  const insert = (files: File[]): void => {
+    if (!files.some(isHeic)) return place(files);
+    void Promise.all(files.map(jpegIfHeic)).then(place);
   };
 
   editor.addEventListener(

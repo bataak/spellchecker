@@ -200,7 +200,7 @@ test("openPolicy: ижил нэртэй, өөр агуулгатай файлы�
   assert.equal(asked.length, 0);
 
   const dirty = slots({ found: null, named: "file-3", dirty: true });
-  assert.equal(await policy(dirty)("a.txt", "new", "ШИНЭ"), "open");
+  assert.equal(await policy(dirty)("a.txt", "new", "ШИНЭ"), "keep");
   assert.match(
     asked[0]!,
     /^«a\.txt» файл дискэн дээр өөрчлөгджээ\. Файлыг дахин дуудах уу\? Таны өөрчлөлт устаж болзошгүй\.$/,

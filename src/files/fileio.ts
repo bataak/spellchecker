@@ -31,7 +31,7 @@ export interface FileIODeps {
     name: string,
     hash: string,
     text: string | null,
-  ) => Promise<"new" | "open" | "reload" | false>;
+  ) => Promise<"new" | "open" | "keep" | "reload" | false>;
   readonly onLoaded: () => void;
   readonly onSaved: (written: boolean) => void;
   readonly saveChain: SaveChain;

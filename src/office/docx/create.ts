@@ -279,8 +279,13 @@ function tableBorders(
         .join("") +
       "</w:tblBorders>"
     );
-  const edges = header ? rule("top", 12) + rule("bottom", 12) : "";
-  const inside = block.rules === "lines" ? rule("insideH", 4) : "";
+  const lines = block.rules === "lines";
+  const edges = header
+    ? rule("top", 12) + rule("bottom", 12)
+    : lines
+      ? rule("bottom", 4)
+      : "";
+  const inside = lines ? rule("insideH", 4) : "";
   return edges || inside
     ? "<w:tblBorders>" + edges + inside + "</w:tblBorders>"
     : "";
