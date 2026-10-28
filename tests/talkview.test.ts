@@ -225,6 +225,7 @@ test("төслийн самбарт товч нэмж, бусад бичвэрт
     view: {
       host: document.querySelector(".editor-wrap")!,
       rangeRects: () => [],
+      onRender: () => () => {},
     },
     ...offlineDeps,
     anchor: document.querySelector("#collabBtn"),
@@ -341,6 +342,7 @@ test("бичвэр солигдоход chat-ийн сонсогч давхар�
     view: {
       host: document.querySelector(".editor-wrap")!,
       rangeRects: () => [],
+      onRender: () => () => {},
     },
     ...offlineDeps,
     anchor: null,
