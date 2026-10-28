@@ -12,7 +12,7 @@ const MAC = /mac|iphone|ipad/i.test(navigator.platform);
 
 const KEYBOARD_TIPS = [
   "Ctrl+\\ товчлуурын хослолоор монгол, англи гарын байрлалыг сэлгэн ашиглах боломжтой.",
-  `${MAC ? "⌘" : "Ctrl"} товчийг дарсан чигтээ заагчийг үгэн дээр аваачихад тухайн үгийн тайлбар гарч ирнэ.`,
+  `${MAC ? "⌘⇧" : "Ctrl+Shift"} товчийг дарсан чигтээ заагчийг үгэн дээр аваачихад тухайн үгийн тайлбар гарч ирнэ.`,
 ];
 
 if (matchMedia("(hover: hover) and (pointer: fine)").matches)
