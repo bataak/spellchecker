@@ -105,17 +105,22 @@ function bindCopy(copy: HTMLButtonElement, badTokens: () => Token[]): void {
   });
 }
 
+function selectionIs(
+  editor: HTMLTextAreaElement,
+  range: { start: number; end: number },
+): boolean {
+  return (
+    editor.selectionStart === range.start && editor.selectionEnd === range.end
+  );
+}
+
 export function initErrorPanel(deps: ErrorPanelDeps): ErrorPanel {
   const { editor, backdrop, desktopMQ, list, copy, title } = deps;
   let settled = false;
   let picked: { start: number; end: number } | null = null;
 
   document.addEventListener("selectionchange", () => {
-    if (
-      picked &&
-      (editor.selectionStart !== picked.start ||
-        editor.selectionEnd !== picked.end)
-    ) {
+    if (picked && !selectionIs(editor, picked)) {
       picked = null;
       delete editor.dataset.pick;
     }
@@ -163,22 +168,14 @@ export function initErrorPanel(deps: ErrorPanelDeps): ErrorPanel {
   if (list) {
     const panel = title ? ancestorOf(list, title) : list;
 
-    panel.addEventListener("click", (e) => {
-      const target = e.target instanceof Element ? e.target : null;
-      if (!target || target.closest("#copyErrorsBtn")) return;
-      const btn = target.closest(".ew");
-      if (!btn) {
-        editor.focus({ preventScroll: true });
-        const lastCaret = deps.lastCaret();
-        if (
-          lastCaret &&
-          (editor.selectionStart !== lastCaret.start ||
-            editor.selectionEnd !== lastCaret.end)
-        ) {
-          editor.setSelectionRange(lastCaret.start, lastCaret.end, "forward");
-        }
-        return;
-      }
+    const restoreCaret = (): void => {
+      editor.focus({ preventScroll: true });
+      const lastCaret = deps.lastCaret();
+      if (lastCaret && !selectionIs(editor, lastCaret))
+        editor.setSelectionRange(lastCaret.start, lastCaret.end, "forward");
+    };
+
+    const pickError = (btn: Element): void => {
       const start = Number(btn.getAttribute("data-start"));
       const clickedToken = nextOccurrence(deps.badTokens(), start, {
         start: editor.selectionStart,
@@ -193,6 +190,14 @@ export function initErrorPanel(deps: ErrorPanelDeps): ErrorPanel {
       deps.setLastCaret({ start: clickedToken.end, end: clickedToken.end });
       scrollMarkIntoView(clickedToken.start);
       deps.showPopoverFor(clickedToken);
+    };
+
+    panel.addEventListener("click", (e) => {
+      const target = e.target instanceof Element ? e.target : null;
+      if (!target || target.closest("#copyErrorsBtn")) return;
+      const btn = target.closest(".ew");
+      if (btn) pickError(btn);
+      else restoreCaret();
     });
   }
 
