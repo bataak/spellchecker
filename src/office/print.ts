@@ -398,18 +398,31 @@ export function printFontBase(): string {
   return new URL(import.meta.env.BASE_URL + "fonts/", location.href).href;
 }
 
-export function printHtml(
-  doc: DocIr,
-  fontBase = "fonts/",
-  images: ImageSet = new Map(),
-): string {
+const BLOCK_CSS =
+  "p{margin:0;orphans:2;widows:2}" +
+  "b{font-weight:bold}" +
+  ".mono{font-family:" +
+  MONO_STACK +
+  "}" +
+  "a{color:#000080}" +
+  "ul,ol{margin:0;padding-left:1.2cm}" +
+  "table{border-collapse:separate;border-spacing:0;table-layout:fixed;break-inside:auto}" +
+  "tr{break-inside:avoid}" +
+  "td{padding:0.05cm 0.1cm;vertical-align:top}" +
+  "td.c-head{vertical-align:middle}" +
+  strokeCss() +
+  ".fill{display:inline-block;width:100%;border-bottom:0.5pt solid #000;height:1em;vertical-align:baseline}" +
+  ".tab{display:inline-block;width:1.25cm}" +
+  ".rule{margin:6pt 0;border-bottom:0.5pt solid #000;padding-bottom:2pt}" +
+  ".page-break{break-before:page}" +
+  "table.sheet{width:100%;table-layout:auto}" +
+  ".sheet>tbody>tr{break-inside:auto}" +
+  ".sheet>*>tr>td{padding:0}";
+
+function pageCss(doc: DocIr): string {
   const page = doc.page;
-  const base = doc.font.family;
-  const styles = Object.entries(doc.styles)
-    .map(([name, style]) => "." + className(name) + "{" + styleCss(style) + "}")
-    .join("");
-  const css =
-    fontFaces(fontBase) +
+  const imageCm = page.heightCm - page.marginTopCm - page.marginBottomCm - 1;
+  return (
     "@page{size:" +
     cm(page.widthCm) +
     " " +
@@ -421,31 +434,13 @@ export function printHtml(
     " 0 " +
     cm(page.marginInnerCm) +
     ";font-family:" +
-    serifStack(base) +
+    serifStack(doc.font.family) +
     ";font-size:" +
     String(doc.font.sizePt) +
     "pt;line-height:" +
     String(LINE_RATIO) +
     ";hyphens:auto;-webkit-print-color-adjust:exact;print-color-adjust:exact}" +
-    "p{margin:0;orphans:2;widows:2}" +
-    "b{font-weight:bold}" +
-    ".mono{font-family:" +
-    MONO_STACK +
-    "}" +
-    "a{color:#000080}" +
-    "ul,ol{margin:0;padding-left:1.2cm}" +
-    "table{border-collapse:separate;border-spacing:0;table-layout:fixed;break-inside:auto}" +
-    "tr{break-inside:avoid}" +
-    "td{padding:0.05cm 0.1cm;vertical-align:top}" +
-    "td.c-head{vertical-align:middle}" +
-    strokeCss() +
-    ".fill{display:inline-block;width:100%;border-bottom:0.5pt solid #000;height:1em;vertical-align:baseline}" +
-    ".tab{display:inline-block;width:1.25cm}" +
-    ".rule{margin:6pt 0;border-bottom:0.5pt solid #000;padding-bottom:2pt}" +
-    ".page-break{break-before:page}" +
-    "table.sheet{width:100%;table-layout:auto}" +
-    ".sheet>tbody>tr{break-inside:auto}" +
-    ".sheet>*>tr>td{padding:0}" +
+    BLOCK_CSS +
     ".sheet>thead>tr>td{height:" +
     cm(page.marginTopCm) +
     "}" +
@@ -453,9 +448,21 @@ export function printHtml(
     cm(page.marginBottomCm) +
     "}" +
     ".image{max-width:100%;max-height:" +
-    cm(page.heightCm - page.marginTopCm - page.marginBottomCm - 1) +
-    ";height:auto;object-fit:contain;vertical-align:bottom}" +
-    styles;
+    cm(imageCm) +
+    ";" +
+    "height:auto;object-fit:contain;vertical-align:bottom}"
+  );
+}
+
+export function printHtml(
+  doc: DocIr,
+  fontBase = "fonts/",
+  images: ImageSet = new Map(),
+): string {
+  const styles = Object.entries(doc.styles)
+    .map(([name, style]) => "." + className(name) + "{" + styleCss(style) + "}")
+    .join("");
+  const css = fontFaces(fontBase) + pageCss(doc) + styles;
   return (
     '<!doctype html><html lang="mn"><head><meta charset="utf-8">' +
     "<title>" +
