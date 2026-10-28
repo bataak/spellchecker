@@ -3,7 +3,7 @@ import { askFolder } from "./git/gitdialog.ts";
 import { lastRepo, openRepo, savedToken } from "./git/gitsession.ts";
 import { askRepo, type RepoChoice } from "./git/repodialog.ts";
 import type { Busy } from "./git/form.ts";
-import { confirmClose } from "./linkfiles.ts";
+import { confirmClose, whenSure } from "./linkfiles.ts";
 import type { PanelParts } from "./panelmarkup.ts";
 import { ProjectError, failureMessage } from "./projecterror.ts";
 import type { ProjectPanelDeps } from "./projectpanel.ts";
@@ -70,24 +70,26 @@ function wireOpening(
 ): (file: File) => Promise<void> {
   const { deps, parts, run } = a;
   const { store } = deps;
-  parts.folderBtn.addEventListener("click", () => {
-    if (!deps.beforeOpen()) return;
-    const file = deps.openedFile();
-    void run(async () => {
-      if (await store.pickFolder(file?.handle ?? null)) opened(file?.name);
-    });
-  });
-  parts.zipBtn.addEventListener("click", () => {
-    if (deps.beforeOpen()) parts.zipInput.click();
-  });
-  parts.gitBtn.addEventListener("click", () => {
-    if (!deps.beforeOpen()) return;
-    void askRepo(
-      lastRepo(),
-      (provider, host) => savedToken({ provider, host }),
-      openChosenRepo(a, opened, deps.openedFile()?.name),
-    );
-  });
+  parts.folderBtn.addEventListener("click", () =>
+    whenSure(deps.beforeOpen(), () => {
+      const file = deps.openedFile();
+      void run(async () => {
+        if (await store.pickFolder(file?.handle ?? null)) opened(file?.name);
+      });
+    }),
+  );
+  parts.zipBtn.addEventListener("click", () =>
+    whenSure(deps.beforeOpen(), () => parts.zipInput.click()),
+  );
+  parts.gitBtn.addEventListener("click", () =>
+    whenSure(deps.beforeOpen(), () => {
+      void askRepo(
+        lastRepo(),
+        (provider, host) => savedToken({ provider, host }),
+        openChosenRepo(a, opened, deps.openedFile()?.name),
+      );
+    }),
+  );
   const openZipFile = (file: File): Promise<void> =>
     run(async () => {
       const prefer = deps.openedFile()?.name;
@@ -132,11 +134,12 @@ function wireProjectButtons(a: ActionDeps): void {
       deps.notify("Төслийг zip архив болгож татлаа");
     });
   });
-  parts.closeBtn.addEventListener("click", () => {
-    if (!confirmClose(store.project()?.unsaved)) return;
-    store.closeProject();
-    deps.onClosed();
-  });
+  parts.closeBtn.addEventListener("click", () =>
+    whenSure(confirmClose(store.project()?.unsaved), () => {
+      store.closeProject();
+      deps.onClosed();
+    }),
+  );
 }
 
 export function wireActions(a: ActionDeps): (file: File) => Promise<void> {

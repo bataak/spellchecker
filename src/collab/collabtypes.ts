@@ -27,7 +27,7 @@ export interface CollabDeps extends CollabUi, SlotPort {
 export interface CollabProject {
   readonly uid: () => string | null;
   readonly hooks: (uid: string, seed: boolean) => ProjectHooks;
-  readonly prepare: (name: string, uid: string) => boolean;
+  readonly prepare: (name: string, uid: string) => boolean | Promise<boolean>;
 }
 
 export type TalkKind = "file" | "project";

@@ -123,7 +123,6 @@ export async function startApp(): Promise<App> {
         delete (Window.prototype as unknown as Record<string, unknown>)
           .showOpenFilePicker;
         delete win.showOpenFilePicker;
-        window.confirm = () => true;
       });
       contexts.push(context);
       return context;
@@ -259,3 +258,10 @@ export const projectDirty = (page: Page): Promise<string[]> =>
       .filter((row) => row.querySelector(".project-dot"))
       .map((row) => row.dataset.path ?? ""),
   );
+
+export async function answer(page: Page, label: string): Promise<void> {
+  await page
+    .locator(".ask-dialog")
+    .getByRole("button", { name: label, exact: true })
+    .click();
+}

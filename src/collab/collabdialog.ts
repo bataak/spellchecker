@@ -1,3 +1,4 @@
+import { askChoice } from "../ui/ask.ts";
 import { copyText } from "../ui/clipboard.ts";
 import { memberList } from "./collabmembers.ts";
 import { element } from "../ui/dom.ts";
@@ -20,6 +21,7 @@ export interface DialogDeps {
   readonly end: (wipe: boolean) => Promise<boolean>;
 }
 
+const STOP_ASK = "Хамтран засварлах ажиллагааг зогсоох уу?";
 const OWNER_HINT =
   "Бичвэрээ бусадтай хамтран засахын тулд хамтрагч бүрдээ урилга үүсгэж илгээнэ үү. Урилга зөвхөн нэг төхөөрөмж дээр нээгдэнэ, өөр хүнд дамжуулбал ажиллахгүй. Бичвэр серверээр дамжихдаа нууцлагдаж байгаа болно.";
 const MEMBER_HINT =
@@ -185,13 +187,18 @@ function endChoice(
   return box;
 }
 
-function endAlone(deps: DialogDeps, note: HTMLElement, done: () => void): void {
-  if (
-    !window.confirm(
-      "Хамтран засварлах ажиллагааг зогсоох уу? Бичвэр энэ төхөөрөмж дээр хадгалагдаж үлдэнэ.",
-    )
-  )
-    return;
+async function endAlone(
+  deps: DialogDeps,
+  note: HTMLElement,
+  done: () => void,
+): Promise<void> {
+  const sure = await askChoice({
+    title: STOP_ASK,
+    text: "Бичвэр энэ төхөөрөмж дээр хадгалагдаж үлдэнэ.",
+    yes: "Зогсоох",
+    no: "Болих",
+  });
+  if (!sure) return;
   say(note, "", "Зогсоож байна…");
   void deps.end(false).then((ok) => (ok ? done() : say(note, "err", OFFLINE)));
 }
@@ -253,15 +260,17 @@ export function openDialog(deps: DialogDeps): void {
   else leave.hidden = true;
   leave.addEventListener("click", () => {
     if (deps.owner && others !== 0) return toggle(true);
-    if (deps.owner) return endAlone(deps, note, () => dialog.close());
-    if (
-      !window.confirm(
-        "Хамтран засварлах ажиллагааг зогсоох уу? Дахин хамтран засварлахад шинэ урилга үүсгүүлэх хэрэгтэй. Бичвэр энэ төхөөрөмж дээр хадгалагдаж үлдэнэ.",
-      )
-    )
-      return;
-    deps.stop();
-    dialog.close();
+    if (deps.owner) return void endAlone(deps, note, () => dialog.close());
+    void askChoice({
+      title: STOP_ASK,
+      text: "Дахин хамтран засварлахад шинэ урилга үүсгүүлэх хэрэгтэй. Бичвэр энэ төхөөрөмж дээр хадгалагдаж үлдэнэ.",
+      yes: "Зогсоох",
+      no: "Болих",
+    }).then((sure) => {
+      if (!sure) return;
+      deps.stop();
+      dialog.close();
+    });
   });
   close.addEventListener("click", () => dialog.close());
   dialog.addEventListener("click", (event) => {

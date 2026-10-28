@@ -1,3 +1,4 @@
+import { askChoice } from "./ask.ts";
 import { KEYS, read, write } from "../core/store.ts";
 import { attempt } from "../core/attempt.ts";
 const DATABASES = [
@@ -31,12 +32,17 @@ function wipeNow(): void {
 }
 
 export function confirmWipe(): void {
-  const ok = window.confirm(
-    "Монгол үгийн алдаа шалгагч веб аптай холбоотой бүх өгөгдөл, жишээлбэл, " +
-      "бичвэрүүд, зураг, түүх, толь зэрэг нь буцаах боломжгүйгээр устах болно. " +
-      "Устгах уу?",
-  );
-  if (ok) requestWipe();
+  void askChoice({
+    title: "Бүх өгөгдлийг устгах уу?",
+    text:
+      "Монгол үгийн алдаа шалгагч веб аптай холбоотой бүх өгөгдөл, жишээлбэл, " +
+      "бичвэрүүд, зураг, түүх, толь зэрэг нь буцаах боломжгүйгээр устах болно.",
+    yes: "Устгах",
+    no: "Болих",
+    danger: true,
+  }).then((sure) => {
+    if (sure) requestWipe();
+  });
 }
 
 const LONG_PRESS_MS = 550;

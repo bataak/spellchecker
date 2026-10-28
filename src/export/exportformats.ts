@@ -253,6 +253,7 @@ const KNOWN_EXT = new RegExp(
         "text",
         "md",
         "markdown",
+        "mdown",
         "tex",
         "ltx",
         "docx",
@@ -273,4 +274,13 @@ export function stripExt(name: string): string {
 
 export function withExt(name: string, ext: string): string {
   return KNOWN_EXT.test(name) ? name : name + "." + ext;
+}
+
+export function savedName(
+  typed: string,
+  fallback: string,
+  ext: string,
+): string {
+  const name = typed.trim();
+  return withExt(stripExt(name).trim() ? name : fallback, ext);
 }

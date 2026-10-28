@@ -27,6 +27,7 @@ export interface PdfSave {
 export interface CurrentFile {
   handle: FileSystemFileHandle | null;
   name: string | null;
+  stamp: number | null;
 }
 
 export interface SaveSource {

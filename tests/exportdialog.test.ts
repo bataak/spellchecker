@@ -116,3 +116,18 @@ test("exportDialog: бичвэр хоосон бол цонх нээгдэхгү
   assert.equal(empty.length, 3);
   control.destroy();
 });
+
+test("exportDialog: нэрийг арилгаад зөвхөн өргөтгөл үлдээвэл анхны нэрээр хадгална", async () => {
+  const { control, overlay, done, key } = setup();
+  key({ key: "s", code: "KeyS", ctrlKey: true, altKey: true });
+  overlay.querySelector<HTMLElement>('[data-format="md"]')!.click();
+  const name = overlay.querySelector<HTMLInputElement>(".export-name")!;
+  for (const typed of [".md", "  .md ", ""]) {
+    name.value = typed;
+    overlay.querySelector<HTMLElement>(".export-confirm")!.click();
+    await tick();
+    key({ key: "s", code: "KeyS", ctrlKey: true, altKey: true });
+  }
+  assert.deepEqual(done, ["тайлан.md", "тайлан.md", "тайлан.md"]);
+  control.destroy();
+});

@@ -35,10 +35,10 @@ function deps(prepared: boolean, opened = true) {
   };
 }
 
-test("төслийн урилгаар нэгдэхэд төслийг бэлдэж, нэгдэж буй гэж тэмдэглэнэ", () => {
+test("төслийн урилгаар нэгдэхэд төслийг бэлдэж, нэгдэж буй гэж тэмдэглэнэ", async () => {
   const link = { ...newLink(), invite: newToken(), name: "Дипломын ажил/" };
   const ready = deps(true);
-  const rooms = joinRoom([], link, ready.deps)!;
+  const rooms = (await joinRoom([], link, ready.deps))!;
   const uid = invitedUid(link.room);
   assert.deepEqual(ready.prepares, [["Дипломын ажил", uid]]);
   assert.deepEqual(rooms, [
@@ -50,12 +50,12 @@ test("төслийн урилгаар нэгдэхэд төслийг бэлдэ
       joining: "Дипломын ажил",
     },
   ]);
-  assert.equal(joinRoom([], link, deps(false).deps), null);
+  assert.equal(await joinRoom([], link, deps(false).deps), null);
 });
 
-test("файлын талбар нээгдэхгүй бол сануулаад нэгдэхгүй", () => {
+test("файлын талбар нээгдэхгүй бол сануулаад нэгдэхгүй", async () => {
   const link = { ...newLink(), invite: newToken(), name: "a.md" };
   const busy = deps(true, false);
-  assert.equal(joinRoom([], link, busy.deps), null);
+  assert.equal(await joinRoom([], link, busy.deps), null);
   assert.match(busy.notes[0]!, /Шинэ файлын талбар нээх боломжгүй/);
 });

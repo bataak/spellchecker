@@ -1,3 +1,4 @@
+import { askChoice } from "../ui/ask.ts";
 import { escapeHtml } from "../core/htmlutil.ts";
 import { baseName } from "../tex/texproject.ts";
 import type { SaveResult } from "./projectstore.ts";
@@ -34,20 +35,33 @@ export function saveMessage(result: SaveResult): string {
   return SAVE_MESSAGES[result];
 }
 
-export function confirmClose(unsaved: boolean | undefined): boolean {
-  return (
-    !unsaved ||
-    window.confirm("Төсөлд хадгалагдаагүй файл байна. Төслийг хаах уу?")
-  );
+export type Answer = boolean | Promise<boolean>;
+
+export function whenSure(answer: Answer, go: () => void): void {
+  if (answer === true) return go();
+  if (answer === false) return;
+  void answer.then((sure) => {
+    if (sure) go();
+  });
 }
 
-export function confirmReplace(unsaved: boolean | undefined): boolean {
-  return (
-    !unsaved ||
-    window.confirm(
-      "Нээлттэй төсөлд хадгалагдаагүй файл байна. Шинэ төсөл нээх үү?",
-    )
-  );
+export function confirmClose(unsaved: boolean | undefined): Answer {
+  if (!unsaved) return true;
+  return askChoice({
+    title: "Төсөлд хадгалагдаагүй файл байна. Төслийг хаах уу?",
+    yes: "Хаах",
+    no: "Болих",
+    danger: true,
+  });
+}
+
+export function confirmReplace(unsaved: boolean | undefined): Answer {
+  if (!unsaved) return true;
+  return askChoice({
+    title: "Нээлттэй төсөлд хадгалагдаагүй файл байна. Шинэ төсөл нээх үү?",
+    yes: "Нээх",
+    no: "Болих",
+  });
 }
 
 export function isTexName(name: string | null): name is string {
