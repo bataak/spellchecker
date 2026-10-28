@@ -7,7 +7,7 @@ export const CLEAR_SHARED =
   "Энэхүү бичвэрийг цэвэрлэвэл хамтын засварыг зогсооход хүрнэ. Хамтрагчдын төхөөрөмж дээрх хуулбарыг устгах уу?";
 
 export function askClearShared(): Promise<ClearChoice> {
-  const dialog = element("dialog", "suggest-overlay collab-overlay");
+  const dialog = element("dialog", "suggest-overlay dialog-overlay");
   dialog.setAttribute("aria-labelledby", "clearSharedTitle");
   const card = element("div", "suggest-card");
   const title = element("h2", "suggest-title", "Хуваалцсан бичвэрийг цэвэрлэх");

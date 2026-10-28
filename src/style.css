@@ -2525,6 +2525,30 @@ html.booting .empty-state {
 .suggest-overlay[hidden] {
   display: none;
 }
+
+.dialog-overlay {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  color: var(--ink);
+  font-family: var(--sans);
+}
+
+.dialog-overlay:not([open]) {
+  display: none;
+}
+
+.dialog-overlay::backdrop {
+  background: transparent;
+}
+
+.dialog-overlay .suggest-actions[hidden],
+.dialog-overlay .suggest-actions .tbtn[hidden] {
+  display: none;
+}
 .suggest-card {
   width: 100%;
   max-width: 420px;

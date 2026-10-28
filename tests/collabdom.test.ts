@@ -485,7 +485,7 @@ test("хамтрагч нэгдэхэд цонхны жагсаалт өөрөө
     document.querySelector(".collab-members-title")!.textContent,
     "Хамтрагч",
   );
-  document.querySelector<HTMLDialogElement>(".collab-overlay")!.close();
+  document.querySelector<HTMLDialogElement>(".dialog-overlay")!.close();
   assert.equal(listeners.size, 0);
 });
 
@@ -510,7 +510,7 @@ test("урилга үүсгэх хүртэл сервер рүү хандахг�
     stop: () => {},
     end: async () => true,
   });
-  const dialog = document.querySelector<HTMLDialogElement>(".collab-overlay")!;
+  const dialog = document.querySelector<HTMLDialogElement>(".dialog-overlay")!;
   const stop = dialog.querySelector<HTMLButtonElement>(".collab-stop")!;
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(opened, 0);
@@ -542,7 +542,7 @@ test("урилга үүсгэж чадаагүй ч өрөө нээгдсэн б
     stop: () => {},
     end: async () => true,
   });
-  const dialog = document.querySelector<HTMLDialogElement>(".collab-overlay")!;
+  const dialog = document.querySelector<HTMLDialogElement>(".dialog-overlay")!;
   const stop = dialog.querySelector<HTMLButtonElement>(".collab-stop")!;
   dialog.querySelector<HTMLButtonElement>(".collab-mode-row > .tbtn")!.click();
   await new Promise((resolve) => setTimeout(resolve, 20));

@@ -43,6 +43,7 @@ export interface SlotSwitch {
   readonly leave: (from: string) => void;
   readonly enter: (to: string) => void;
   readonly forget: (slot: string) => void;
+  readonly handle: (slot: string) => FileSystemFileHandle | null;
 }
 
 export function initSlotSwitch(deps: SlotSwitchDeps): SlotSwitch {
@@ -137,5 +138,10 @@ export function initSlotSwitch(deps: SlotSwitchDeps): SlotSwitch {
     deps.office.queue(() => dropOfficeFile(slot));
   }
 
-  return { leave, enter, forget };
+  return {
+    leave,
+    enter,
+    forget,
+    handle: (slot) => files.get(slot)?.handle ?? null,
+  };
 }

@@ -2,6 +2,7 @@ import {
   cellStrokes,
   strokeClasses,
   tableLook,
+  tableShare,
   tableStrokes,
   type TableLook,
 } from "./tablelook.ts";
@@ -109,13 +110,8 @@ function divKind(classes: readonly string[]): string {
 
 function divHtml(b: BlockOf<"div">, at: string): string {
   const look = tableLook(b.classes, b.keys);
-  const percent = b.classes.includes("column")
-    ? /^\d+(?:\.\d+)?%$/.test(b.keys["width"] ?? "")
-      ? b.keys["width"]
-      : null
-    : look.share === null
-      ? null
-      : percentOf(look.share);
+  const share = tableShare(b.keys["width"]);
+  const percent = share === null ? null : percentOf(share);
   const inner = b.children
     .map((child) =>
       child.type === "table"

@@ -9,6 +9,7 @@ test("fileio save: office идэвхтэй бол баримтыг хадгал�
     log: ["office.save"],
     label: "Хадгаллаа",
     handle: null,
+    text: "бичвэр",
   });
   const cancelled = await runSave({ officeActive: true, officeSave: false });
   assert.equal(cancelled.label, "Цуцаллаа");
@@ -83,4 +84,18 @@ test("fileio saveSource: төслийн файлыг onSaved дуудалгүй 
   });
   assert.deepEqual(out.log, ["deliver:main.tex:t"]);
   assert.equal(out.label, "Хадгалав");
+});
+
+test("fileio: дискэн дээрх өөрчлөлтийг дахин дуудахаас татгалзвал бичвэр ба handle хэвээр, хадгалахад өмнөх файл уруу бичнэ", async () => {
+  const out = await runSave({
+    text: "миний засвар",
+    fileName: "a.txt",
+    handle: "ok",
+    reopen: { text: "дискний хувилбар", choice: "keep" },
+  });
+  assert.equal(out.text, "миний засвар");
+  assert.equal(out.handle, "a.txt");
+  assert.ok(out.log.includes("prepare:a.txt"), out.log.join(" "));
+  assert.ok(out.log.includes("write:a.txt:миний засвар"), out.log.join(" "));
+  assert.ok(!out.log.some((line) => line.includes("дискний хувилбар")));
 });

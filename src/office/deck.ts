@@ -69,6 +69,16 @@ const ALIGN: Readonly<Record<string, Align>> = {
   right: "end",
 };
 
+function slideStrokes(
+  rules: TableLook["rules"],
+  header: boolean,
+): TableStrokes {
+  const strokes = tableStrokes(rules, header);
+  return rules === null && !header
+    ? { ...strokes, top: 2, bottom: 2 }
+    : strokes;
+}
+
 function deckTable(
   block: Extract<Block, { type: "table" }>,
   look: TableLook | null,
@@ -76,7 +86,7 @@ function deckTable(
   const blank = isBlankRow(block.rows[0]);
   return {
     header: !blank,
-    strokes: tableStrokes(look?.rules, !blank),
+    strokes: slideStrokes(look?.rules ?? null, !blank),
     ...(block.rule ? { rule: block.rule } : {}),
     ...(look?.share ? { share: look.share } : {}),
     ...(look?.rowCm ? { rowCm: look.rowCm } : {}),
