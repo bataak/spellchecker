@@ -103,20 +103,27 @@ export function caretRectAt(
   return range.getBoundingClientRect();
 }
 
+function firstOffset(limit: number, past: (offset: number) => boolean): number {
+  let lo = 0;
+  let hi = limit;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (past(mid)) hi = mid;
+    else lo = mid + 1;
+  }
+  return lo;
+}
+
 export function localOffsetAtY(
   node: ChunkNode,
   body: string,
   y: number,
   blocks: boolean,
 ): number {
-  let lo = 0;
-  let hi = body.length;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (caretRectAt(node, body, mid, blocks).bottom > y) hi = mid;
-    else lo = mid + 1;
-  }
-  return lo;
+  return firstOffset(
+    body.length,
+    (offset) => caretRectAt(node, body, offset, blocks).bottom > y,
+  );
 }
 
 export function chunkRangeRect(
@@ -173,12 +180,5 @@ export function localOffsetAtPoint(
     if (rect.bottom <= y) return false;
     return rect.top > y || rect.left > x;
   };
-  let lo = 0;
-  let hi = body.length + 1;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (past(mid)) hi = mid;
-    else lo = mid + 1;
-  }
-  return Math.max(0, Math.min(lo - 1, body.length));
+  return Math.max(0, firstOffset(body.length + 1, past) - 1);
 }
