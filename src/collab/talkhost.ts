@@ -25,7 +25,7 @@ import { fileWindow, type WindowDeps } from "./talkwindow.ts";
 
 export interface TalkHostDeps extends RevealDeps, WindowDeps {
   readonly collab: Pick<Collab, "talk" | "onTalk">;
-  readonly view: Pick<CursorView, "host" | "rangeRects">;
+  readonly view: Pick<CursorView, "host" | "rangeRects" | "onRender">;
   readonly doc: () => DocRef | null;
   readonly profile: () => Profile;
   readonly notes: NoteStore;

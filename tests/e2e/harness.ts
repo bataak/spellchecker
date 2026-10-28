@@ -184,6 +184,13 @@ export async function openPage(
   return page;
 }
 
+export async function throttle(page: Page, rate: number): Promise<boolean> {
+  if (FIREFOX) return false;
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate });
+  return true;
+}
+
 export async function ready(page: Page): Promise<void> {
   await page.waitForFunction(
     () => !document.documentElement.classList.contains("booting"),

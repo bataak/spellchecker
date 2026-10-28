@@ -5,6 +5,7 @@ import {
   stripChunkNewline,
 } from "./backdrophtml.ts";
 import type { Token } from "../spell/textcheck.ts";
+import { createEmitter } from "../core/emitter.ts";
 import {
   spansInRange,
   type Highlighter,
@@ -39,6 +40,7 @@ export interface Backdrop {
   setHighlighter(fn: Highlighter | null): void;
   text(): string;
   render(text: string, marks: Token[]): void;
+  onRender(listener: () => void): () => void;
   lineCount(): number;
   marksAtY(y: number): HTMLElement[];
   markAt(start: number): HTMLElement | null;
@@ -330,6 +332,7 @@ export function createBackdrop(root: HTMLElement): Backdrop {
   let syntax: SyntaxSpan[] = [];
   let lastText = "";
   let topAnchor: TopAnchor | null = null;
+  const rendered = createEmitter();
 
   function reset(): void {
     root.textContent = "";
@@ -381,7 +384,9 @@ export function createBackdrop(root: HTMLElement): Backdrop {
       applyVisibleMarks();
       applyGutterWidth(line);
       if (activeLine >= 0) setActiveLine(activeLine);
+      rendered.emit();
     },
+    onRender: rendered.on,
     lineCount: () => lineTotal,
     marksAtY(y) {
       return nodesAtY(nodes, y).flatMap((node) => {

@@ -301,6 +301,7 @@ test("бусдын курсорыг нэр, өнгөтэй нь зурна", asy
     rangeRects: (start: number, end: number) => [
       new DOMRect(start * 10, 0, (end - start) * 10, 20),
     ],
+    onRender: () => () => {},
   };
   const sent: Uint8Array[] = [];
   const cursors = createCursors({
@@ -580,6 +581,7 @@ test("төслийн курсор идэвхтэй файлын бичвэрий
         host,
         caretRect: () => new DOMRect(0, 0, 0, 20),
         rangeRects: () => [],
+        onRender: () => () => {},
       },
       profile: () => ({ name: "Би", color: 0 }),
     },

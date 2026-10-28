@@ -10,7 +10,7 @@ export interface CommentTarget {
 
 export interface CommentButtonDeps {
   readonly editor: HTMLTextAreaElement;
-  readonly view: Pick<CursorView, "host" | "rangeRects">;
+  readonly view: Pick<CursorView, "host" | "rangeRects" | "onRender">;
   readonly target: () => CommentTarget | null;
   readonly picking: () => boolean;
 }
@@ -118,6 +118,7 @@ export function initCommentButton(deps: CommentButtonDeps): () => void {
     else pressedAt = performance.now();
   });
   document.addEventListener("selectionchange", soon);
+  view.onRender(soon);
   editor.addEventListener("blur", hide);
   editor.addEventListener("input", hide);
   editor.addEventListener("scroll", hide, { passive: true });

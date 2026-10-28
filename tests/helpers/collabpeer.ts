@@ -81,6 +81,7 @@ export async function startPeer(options: PeerOptions): Promise<Peer> {
       host: document.createElement("div"),
       caretRect: () => null,
       rangeRects: () => [],
+      onRender: () => () => {},
     },
     profile: () => ({ name: options.name, color: 1 }),
     access: () => access,
