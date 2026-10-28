@@ -1,6 +1,7 @@
 import { initFileIO, type FileIOControl } from "../../src/files/fileio.ts";
 import { createSaveChain } from "../../src/ui/savechain.ts";
 import type { EditorPort, StatusPort } from "../../src/core/ports.ts";
+import type { OpenChoice } from "../../src/files/fileopen.ts";
 
 export interface SaveScenario {
   readonly text?: string;
@@ -14,12 +15,14 @@ export interface SaveScenario {
   readonly desktop?: boolean;
   readonly picker?: "ok" | "abort" | "fail" | null;
   readonly source?: { readonly name: string; readonly inProject: boolean };
+  readonly reopen?: { readonly text: string; readonly choice: OpenChoice };
 }
 
 export interface SaveOutcome {
   readonly log: string[];
   readonly label: string | null;
   readonly handle: string | null;
+  readonly text: string;
 }
 
 class FakeEl {
@@ -46,6 +49,21 @@ function fakeHandle(name: string, ok: boolean, log: string[]) {
       };
     },
   } as unknown as FileSystemFileHandle;
+}
+
+async function drive(
+  io: FileIOControl,
+  scenario: SaveScenario,
+  name: string | null,
+  save: FakeEl,
+): Promise<void> {
+  if (scenario.reopen && name !== null)
+    await io.openText(name, scenario.reopen.text);
+  if (scenario.source)
+    await io.saveSource(scenario.source.name, scenario.source.inProject);
+  else
+    for (const fn of save.listeners.get("click") ?? [])
+      await fn({ shiftKey: false });
 }
 
 export async function runSave(scenario: SaveScenario): Promise<SaveOutcome> {
@@ -113,7 +131,10 @@ export async function runSave(scenario: SaveScenario): Promise<SaveOutcome> {
     },
     defaultExt: () => "md",
     onFileOpened: () => {},
-    prepareOpen: async () => "new",
+    prepareOpen: async (opened) => {
+      log.push("prepare:" + opened);
+      return scenario.reopen?.choice ?? "new";
+    },
     onLoaded: () => {},
     onSaved: (written) => void log.push("saved:" + written),
     deliverText: async (text, name) => {
@@ -134,12 +155,13 @@ export async function runSave(scenario: SaveScenario): Promise<SaveOutcome> {
               : fakeHandle(name, scenario.handle === "ok", log),
         },
   );
-  if (scenario.source)
-    await io.saveSource(scenario.source.name, scenario.source.inProject);
-  else
-    for (const fn of el("#saveBtn").listeners.get("click") ?? [])
-      await fn({ shiftKey: false });
+  await drive(io, scenario, name, el("#saveBtn"));
   await new Promise((resolve) => setImmediate(resolve));
   const label = el("#saveBtn").textContent || null;
-  return { log, label, handle: io.targetHandle()?.name ?? null };
+  return {
+    log,
+    label,
+    handle: io.targetHandle()?.name ?? null,
+    text: (editorEl as unknown as { value: string }).value,
+  };
 }
