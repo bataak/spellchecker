@@ -403,3 +403,22 @@ test("toLatex: аюултай холбоосыг \\href болгохгүй", () 
   assert.match(tex, /дар/);
   assert.match(tex, /\\url\{https:\/\/a\.mn\}/);
 });
+
+test("toLatexBody: width=100% хүснэгтийг p{} баганаар бичвэрийн өргөнд сунгана", () => {
+  const table = [
+    "| № | Овог, нэр | Гарын үсэг |",
+    "| - | --------- | ---------- |",
+    "| 1 |           |            |",
+  ].join("\n");
+  const total = (latex: string): number =>
+    [...latex.matchAll(/p\{([\d.]+)cm\}/g)].reduce(
+      (sum, m) => sum + Number(m[1]) + 0.42,
+      0,
+    );
+  const wide = toLatexBody(parse('::: {width="100%"}\n' + table + "\n:::"));
+  assert.ok(Math.abs(total(wide) - 13.7) < 0.2, wide);
+  const half = toLatexBody(parse('::: {width="50%"}\n' + table + "\n:::"));
+  assert.ok(Math.abs(total(half) - 6.85) < 0.6, half);
+  const plain = toLatexBody(parse(table));
+  assert.doesNotMatch(plain, /p\{/);
+});

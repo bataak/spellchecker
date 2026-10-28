@@ -645,3 +645,10 @@ test("жагсаалт — дэд жагсаалтын догол хэлбэрж
     '<ul data-line="0"><li>Хоол<ul><li>Цуйван</li><li>Бууз</li></ul></li><li>Ундаа<ul><li>Цай</li></ul></li></ul>',
   );
 });
+
+test("toHtml: width хувьтай хашилт хүснэгтийн өргөнийг CSS хувьсагчаар дамжуулна", () => {
+  const html = toHtml(
+    parse('::: {width="100%"}\n| А | Б |\n| - | - |\n| 1 | 2 |\n:::'),
+  );
+  assert.match(html, /data-style="flex-basis:100%;--table-width:100%"/);
+});

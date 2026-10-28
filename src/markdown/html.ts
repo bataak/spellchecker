@@ -101,8 +101,11 @@ function divKind(classes: readonly string[]): string {
 }
 
 function divHtml(b: BlockOf<"div">, at: string): string {
-  const width = /^\d+(?:\.\d+)?%$/.test(b.keys["width"] ?? "")
-    ? ` data-style="flex-basis:${b.keys["width"]}"`
+  const percent = /^\d+(?:\.\d+)?%$/.test(b.keys["width"] ?? "")
+    ? b.keys["width"]
+    : null;
+  const width = percent
+    ? ` data-style="flex-basis:${percent};--table-width:${percent}"`
     : "";
   const align = ["right", "center", "left", "signature"]
     .filter((name) => b.classes.includes(name))

@@ -1,6 +1,6 @@
 import { cellFills, isBlankRow, type Block, type Inline } from "../markdown.ts";
 import { flatten } from "../office/flatten.ts";
-import { columnWidths } from "../office/table.ts";
+import { columnWidths, stretchWidths } from "../office/table.ts";
 
 const COLUMN = { left: "l", center: "c", right: "r" } as const;
 
@@ -18,14 +18,17 @@ export function tableLatex(
   b: TableBlock,
   inline: (nodes: readonly Inline[]) => string,
   place?: string,
+  share?: number | null,
 ): string {
   const [head, ...body] = b.rows;
   const header = !isBlankRow(head);
   const rows = header ? b.rows : body;
   const cells = rows.map((r) => r.map((cell) => flatten(cell)));
   const natural = columnWidths(cells, false, Number.POSITIVE_INFINITY);
-  const wrap = natural.reduce((sum, width) => sum + width, 0) > TEXT_WIDTH_CM;
-  const widths = wrap ? columnWidths(cells, header, TEXT_WIDTH_CM) : natural;
+  const wrap =
+    !!share || natural.reduce((sum, width) => sum + width, 0) > TEXT_WIDTH_CM;
+  const fitted = wrap ? columnWidths(cells, header, TEXT_WIDTH_CM) : natural;
+  const widths = stretchWidths(fitted, TEXT_WIDTH_CM * (share ?? 0));
   const spec = widths
     .map((width, i) => {
       const a = b.align[i];

@@ -8,6 +8,7 @@ import {
   isTocLevel,
   outlineLevel,
   runsText,
+  textWidthCm,
   tocEntries,
   withToc,
 } from "../docir.ts";
@@ -21,7 +22,7 @@ import type {
 } from "../docir.ts";
 import { listTree, type ListTree } from "../../markdown.ts";
 import { tabFills } from "../flatten.ts";
-import { columnWidths, officeMetrics } from "../table.ts";
+import { columnWidths, stretchWidths, officeMetrics } from "../table.ts";
 import { xmlAttr } from "../sanitize.ts";
 import { REL, XML_HEAD, relsXml, type Rel } from "../ooxml.ts";
 import {
@@ -272,13 +273,17 @@ function tableXml(
   body: Body,
 ): string {
   const header = block.header !== false;
-  const widths = columnWidths(
-    block.rows,
-    header,
-    doc.page.widthCm - doc.page.marginInnerCm - doc.page.marginOuterCm,
-    officeMetrics(
-      doc.styles[block.cellStyle ?? STYLE.tableCell]?.sizePt ?? doc.font.sizePt,
+  const widths = stretchWidths(
+    columnWidths(
+      block.rows,
+      header,
+      textWidthCm(doc),
+      officeMetrics(
+        doc.styles[block.cellStyle ?? STYLE.tableCell]?.sizePt ??
+          doc.font.sizePt,
+      ),
     ),
+    textWidthCm(doc) * (block.share ?? 0),
   ).map(twips);
   const rows = block.rows
     .map((row, rowIndex) => {
