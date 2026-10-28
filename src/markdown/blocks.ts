@@ -37,6 +37,7 @@ function headingContinues(line: string | undefined): boolean {
   return !(
     HEADING_RE.test(text) ||
     RULE_RE.test(text) ||
+    PAGEBREAK_RE.test(text) ||
     BULLET_RE.test(text) ||
     ORDERED_RE.test(text) ||
     QUOTE_RE.test(text) ||
@@ -226,6 +227,7 @@ function endsParagraph(
     !line.trim() ||
     HEADING_RE.test(line) ||
     RULE_RE.test(line) ||
+    PAGEBREAK_RE.test(line) ||
     BULLET_RE.test(line) ||
     ORDERED_RE.test(line) ||
     QUOTE_RE.test(line) ||

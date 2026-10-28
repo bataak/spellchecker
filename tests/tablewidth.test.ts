@@ -34,3 +34,14 @@ test("toHtml: width хашилт доторх хүснэгт зураасны х
     /colgroup/,
   );
 });
+
+test("\\newpage өмнө нь хоосон мөргүй ч хуудас таслана", () => {
+  const kinds = (md: string): string[] => parse(md).map((b) => b.type);
+  assert.deepEqual(kinds("Огноо: 2026\n\\newpage\nДараагийн"), [
+    "paragraph",
+    "pagebreak",
+    "paragraph",
+  ]);
+  assert.deepEqual(kinds("# Гарчиг\n\\newpage"), ["heading", "pagebreak"]);
+  assert.deepEqual(kinds("Мөр \\newpage дотор"), ["paragraph"]);
+});
