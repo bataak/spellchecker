@@ -18,7 +18,7 @@ function choiceButton(label: string): HTMLButtonElement {
 
 export function askChoice(options: AskOptions): Promise<boolean> {
   const id = "askTitle" + ++asked;
-  const dialog = element("dialog", "suggest-overlay collab-overlay ask-dialog");
+  const dialog = element("dialog", "suggest-overlay dialog-overlay ask-dialog");
   dialog.setAttribute("aria-labelledby", id);
   const card = element("div", "suggest-card");
   const title = element("h2", "suggest-title", options.title);

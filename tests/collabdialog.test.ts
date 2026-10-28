@@ -45,7 +45,7 @@ function open(extra: Partial<DialogDeps> = {}): HTMLDialogElement {
     end: async () => true,
     ...extra,
   });
-  return document.querySelector<HTMLDialogElement>(".collab-overlay")!;
+  return document.querySelector<HTMLDialogElement>(".dialog-overlay")!;
 }
 
 const note = (dialog: HTMLElement): string =>
@@ -148,7 +148,7 @@ test("хамтрагчтай үед зогсоохдоо хуулбарын та
   button(choice, "Хуулбарыг үлдээх").click();
   await wait();
   assert.deepEqual(ends, [true, false]);
-  assert.equal(document.querySelector(".collab-overlay"), null);
+  assert.equal(document.querySelector(".dialog-overlay"), null);
 });
 
 test("ганцаараа үед баталгаажуулаад зогсооно", async () => {
@@ -169,7 +169,7 @@ test("ганцаараа үед баталгаажуулаад зогсооно"
   assert.deepEqual(ends, [false]);
   assert.match(note(dialog), /Сервертэй холбогдоогүй/);
   dialog.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  assert.equal(document.querySelector(".collab-overlay"), null);
+  assert.equal(document.querySelector(".dialog-overlay"), null);
 });
 
 test("уригдсан хүн баталгаажуулаад хамтын засвараас гарна", async () => {
@@ -185,7 +185,7 @@ test("уригдсан хүн баталгаажуулаад хамтын зас
   await answer("Зогсоох");
   await wait();
   assert.equal(stopped, 1);
-  assert.equal(document.querySelector(".collab-overlay"), null);
+  assert.equal(document.querySelector(".dialog-overlay"), null);
 });
 
 test("эхлээгүй үед «Урилга авах»-аар холбоос оруулж нэгдэнэ", () => {
@@ -225,7 +225,7 @@ test("эхлээгүй үед «Урилга авах»-аар холбоос о
   assert.equal(dialog.open, true);
   paste("  https://aldaa.bichig.dev/#j=x\n");
   assert.deepEqual(joined, ["буруу", "https://aldaa.bichig.dev/#j=x"]);
-  assert.equal(document.querySelector(".collab-overlay"), null);
+  assert.equal(document.querySelector(".dialog-overlay"), null);
 });
 
 test("эхэлсэн эсвэл нэгдэх боломжгүй үед нэгдэх талбар гарахгүй", () => {
@@ -243,7 +243,7 @@ test("эхэлсэн эсвэл нэгдэх боломжгүй үед нэгд�
 });
 
 test("«Урилга өгөх» дарахад урилга үүсч, «Урилга авах» алга болно", async () => {
-  for (const old of document.querySelectorAll(".collab-overlay")) old.remove();
+  for (const old of document.querySelectorAll(".dialog-overlay")) old.remove();
   const dialog = open({ started: false, join: () => true });
   const give = button(dialog, "Урилга өгөх");
   const take = button(dialog, "Урилга авах");

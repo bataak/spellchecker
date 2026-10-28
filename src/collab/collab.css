@@ -1,22 +1,3 @@
-.collab-overlay {
-  width: 100%;
-  height: 100%;
-  max-width: none;
-  max-height: none;
-  margin: 0;
-  border: 0;
-  color: var(--ink);
-  font-family: var(--sans);
-}
-
-.collab-overlay:not([open]) {
-  display: none;
-}
-
-.collab-overlay::backdrop {
-  background: transparent;
-}
-
 .collab-link,
 .collab-join-field {
   box-sizing: border-box;
@@ -219,8 +200,7 @@
   margin-inline-end: 0;
 }
 
-.collab-end[hidden],
-.collab-overlay .suggest-actions[hidden] {
+.collab-end[hidden] {
   display: none;
 }
 
@@ -264,10 +244,6 @@
   border-radius: 7px;
   background: var(--paper);
   font-size: 0.82rem;
-}
-
-.collab-overlay .suggest-actions .tbtn[hidden] {
-  display: none;
 }
 
 .project-panel.is-talk .project-tree,
