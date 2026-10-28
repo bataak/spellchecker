@@ -290,13 +290,20 @@ function codeBlock(value: string): IrBlock {
 
 function tableBlock(block: BlockOf<"table">): IrBlock {
   const align = block.align.map(alignOf);
+  const rule = block.rule ? { rule: block.rule } : {};
   if (!isBlankRow(block.rows[0]))
-    return { kind: "table", align, rows: block.rows.map((r) => r.map(runsOf)) };
+    return {
+      kind: "table",
+      align,
+      rows: block.rows.map((r) => r.map(runsOf)),
+      ...rule,
+    };
   return {
     kind: "table",
     align,
     rows: block.rows.slice(1).map((row) => row.map(runsOf)),
     header: false,
+    ...rule,
   };
 }
 

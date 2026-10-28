@@ -104,6 +104,14 @@ function divHtml(b: BlockOf<"div">, at: string): string {
   const percent = /^\d+(?:\.\d+)?%$/.test(b.keys["width"] ?? "")
     ? b.keys["width"]
     : null;
+  const sized = percent !== null && !b.classes.includes("column");
+  const inner = b.children
+    .map((child) =>
+      sized && child.type === "table"
+        ? tableHtml(child, ` data-line="${child.line}"`, child.rule)
+        : blockHtml(child),
+    )
+    .join("");
   const width = percent
     ? ` data-style="flex-basis:${percent};--table-width:${percent}"`
     : "";
@@ -111,15 +119,36 @@ function divHtml(b: BlockOf<"div">, at: string): string {
     .filter((name) => b.classes.includes(name))
     .map((name) => " md-" + name)
     .join("");
-  return `<div class="${divKind(b.classes)}${align}"${width}${at}>${toHtml(b.children)}</div>`;
+  return `<div class="${divKind(b.classes)}${align}"${width}${at}>${inner}</div>`;
 }
 
-function tableHtml(b: BlockOf<"table">, at: string): string {
+function columnsHtml(rule: readonly number[]): string {
+  const total = rule.reduce((sum, part) => sum + part, 0);
+  if (total <= 0) return "";
+  return (
+    "<colgroup>" +
+    rule
+      .map(
+        (part) =>
+          `<col data-style="width:${Math.round((part * 10000) / total) / 100}%">`,
+      )
+      .join("") +
+    "</colgroup>"
+  );
+}
+
+function tableHtml(
+  b: BlockOf<"table">,
+  at: string,
+  rule?: readonly number[],
+): string {
   const [header, ...body] = b.rows;
   const style = (i: number): string =>
     b.align[i] ? ` data-style="text-align:${b.align[i]}"` : "";
+  const cols = rule ? columnsHtml(rule) : "";
   return (
-    `<table${at}>` +
+    `<table${cols ? ' data-style="table-layout:fixed"' : ""}${at}>` +
+    cols +
     (isBlankRow(header)
       ? ""
       : `<thead><tr>` +

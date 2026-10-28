@@ -22,7 +22,7 @@ import type {
 } from "../docir.ts";
 import { listTree, type ListTree } from "../../markdown.ts";
 import { tabFills } from "../flatten.ts";
-import { columnWidths, stretchWidths, officeMetrics } from "../table.ts";
+import { columnWidths, shareWidths, officeMetrics } from "../table.ts";
 import { xmlAttr } from "../sanitize.ts";
 import { REL, XML_HEAD, relsXml, type Rel } from "../ooxml.ts";
 import {
@@ -273,7 +273,7 @@ function tableXml(
   body: Body,
 ): string {
   const header = block.header !== false;
-  const widths = stretchWidths(
+  const widths = shareWidths(
     columnWidths(
       block.rows,
       header,
@@ -283,6 +283,7 @@ function tableXml(
           doc.font.sizePt,
       ),
     ),
+    block.rule,
     textWidthCm(doc) * (block.share ?? 0),
   ).map(twips);
   const rows = block.rows

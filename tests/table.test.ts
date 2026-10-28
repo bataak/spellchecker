@@ -40,3 +40,11 @@ test("tableShare ба stretchWidths: хувиар заасан өргөнд ба
   assert.deepEqual(stretchWidths([4, 6], 8), [4, 6]);
   assert.deepEqual(stretchWidths([1, 3], 0), [1, 3]);
 });
+
+test("shareWidths: зураасны харьцаагаар хуваарилж, зураасгүй бол сунгана", async () => {
+  const { shareWidths } = await import("../src/office/table.ts");
+  assert.deepEqual(shareWidths([2, 2, 2], [1, 3, 4], 16), [2, 6, 8]);
+  assert.deepEqual(shareWidths([1, 3], undefined, 8), [2, 6]);
+  assert.deepEqual(shareWidths([1, 3], [0, 0], 8), [2, 6]);
+  assert.deepEqual(shareWidths([1, 3], [5, 5], 0), [1, 3]);
+});
