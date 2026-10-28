@@ -349,13 +349,19 @@ test("хоосон тэмдэглэлд араг яс оруулна", () => {
 
 test("хоосон мөрөнд хүснэгт оруулна", () => {
   const e = insertTable("", 0);
-  assert.equal(e.text, "| Багана 1 | Багана 2 |\n| --- | --- |\n|     |     |");
+  assert.equal(
+    e.text,
+    '::: {width="100%"}\n| Багана 1 | Багана 2 |\n| --- | --- |\n|     |     |\n:::',
+  );
   assert.equal(e.text.slice(e.start, e.end), "Багана 1");
 });
 
 test("бичвэртэй мөрийн ард хоосон мөр үлдээнэ", () => {
   const e = insertTable("Догол", 5);
-  assert.equal(e.text.startsWith("Догол\n\n| Багана 1"), true);
+  assert.equal(
+    e.text.startsWith('Догол\n\n::: {width="100%"}\n| Багана 1'),
+    true,
+  );
   assert.equal(e.text.slice(e.start, e.end), "Багана 1");
 });
 
@@ -363,7 +369,16 @@ test("оруулсан хүснэгт задлан шинжлэгдэнэ", asyn
   const { parse } = await import("../src/markdown.ts");
   const e = insertTable("Догол", 5);
   const kinds = parse(e.text).map((b) => b.type);
-  assert.deepEqual(kinds, ["paragraph", "table"]);
+  assert.deepEqual(kinds, ["paragraph", "div"]);
+  const div = parse(e.text)[1] as {
+    keys: Record<string, string>;
+    children: { type: string }[];
+  };
+  assert.equal(div.keys["width"], "100%");
+  assert.deepEqual(
+    div.children.map((b) => b.type),
+    ["table"],
+  );
 });
 
 test("тод, налуу ээлжлэн дарахад од хуримтлагдахгүй", () => {
