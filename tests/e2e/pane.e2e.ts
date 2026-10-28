@@ -186,7 +186,17 @@ test("алдааны самбар дахь тайлбарын бичвэрийг
   await page.waitForTimeout(500);
   const note = page.locator(".def-dock .def-empty");
   await note.waitFor();
-  const box = (await note.boundingBox())!;
+  const box = await page.evaluate(() => {
+    const range = document.createRange();
+    range.selectNodeContents(document.querySelector(".def-dock .def-empty")!);
+    const line = range.getClientRects()[0]!;
+    return {
+      x: line.left,
+      y: line.top,
+      width: line.width,
+      height: line.height,
+    };
+  });
   await page.mouse.move(box.x + 2, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width - 2, box.y + box.height / 2, {
