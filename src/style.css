@@ -1245,26 +1245,28 @@ a.tbtn {
   font-size: 0.92em;
 }
 
-.preview-body .md-div > table {
-  width: var(--table-width, auto);
+.preview-body :is(th, td).e-t1 {
+  border-top: 1px solid currentColor;
 }
 
-.preview-body .md-div > table td {
-  height: var(--table-row, auto);
+.preview-body :is(th, td).e-t2 {
+  border-top: 1.5px solid currentColor;
 }
 
-.preview-body .md-lines > table td {
+.preview-body :is(th, td).e-b1 {
   border-bottom: 1px solid currentColor;
 }
 
-.preview-body .md-grid > table th,
-.preview-body .md-grid > table td {
-  border: 1px solid currentColor;
+.preview-body :is(th, td).e-b2 {
+  border-bottom: 1.5px solid currentColor;
 }
 
-.preview-body table:has(thead) {
-  border-top: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor;
+.preview-body :is(th, td).e-l1 {
+  border-left: 1px solid currentColor;
+}
+
+.preview-body :is(th, td).e-r1 {
+  border-right: 1px solid currentColor;
 }
 
 .preview-body th,

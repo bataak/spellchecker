@@ -1,4 +1,10 @@
-import { tableRow, tableShare } from "../office/table.ts";
+import {
+  cellStrokes,
+  strokeClasses,
+  tableLook,
+  tableStrokes,
+  type TableLook,
+} from "./tablelook.ts";
 import { LOGO_HTML, dashes, withLogos } from "./texlogo.ts";
 import {
   type Block,
@@ -102,34 +108,31 @@ function divKind(classes: readonly string[]): string {
 }
 
 function divHtml(b: BlockOf<"div">, at: string): string {
-  const column = b.classes.includes("column");
-  const share = tableShare(b.keys["width"]);
-  const percent = column
+  const look = tableLook(b.classes, b.keys);
+  const percent = b.classes.includes("column")
     ? /^\d+(?:\.\d+)?%$/.test(b.keys["width"] ?? "")
       ? b.keys["width"]
       : null
-    : share === null
+    : look.share === null
       ? null
-      : `${Math.round(share * 10000) / 100}%`;
-  const sized = percent !== null && !column;
+      : percentOf(look.share);
   const inner = b.children
     .map((child) =>
-      sized && child.type === "table"
-        ? tableHtml(child, ` data-line="${child.line}"`, child.rule)
+      child.type === "table"
+        ? tableHtml(child, ` data-line="${child.line}"`, look)
         : blockHtml(child),
     )
     .join("");
-  const row = tableRow(b.keys["row"]);
-  const styles = [
-    ...(percent ? [`flex-basis:${percent}`, `--table-width:${percent}`] : []),
-    ...(row ? [`--table-row:${row}cm`] : []),
-  ];
-  const width = styles.length ? ` data-style="${styles.join(";")}"` : "";
-  const align = ["right", "center", "left", "signature", "lines", "grid"]
+  const width = percent ? ` data-style="flex-basis:${percent}"` : "";
+  const align = ["right", "center", "left", "signature"]
     .filter((name) => b.classes.includes(name))
     .map((name) => " md-" + name)
     .join("");
   return `<div class="${divKind(b.classes)}${align}"${width}${at}>${inner}</div>`;
+}
+
+function percentOf(share: number): string {
+  return `${Math.round(share * 10000) / 100}%`;
 }
 
 function columnsHtml(rule: readonly number[]): string {
@@ -147,33 +150,40 @@ function columnsHtml(rule: readonly number[]): string {
   );
 }
 
-function tableHtml(
-  b: BlockOf<"table">,
-  at: string,
-  rule?: readonly number[],
-): string {
-  const [header, ...body] = b.rows;
-  const style = (i: number): string =>
-    b.align[i] ? ` data-style="text-align:${b.align[i]}"` : "";
-  const cols = rule ? columnsHtml(rule) : "";
+function tableHtml(b: BlockOf<"table">, at: string, look?: TableLook): string {
+  const header = !isBlankRow(b.rows[0]);
+  const rows = header ? b.rows : b.rows.slice(1);
+  const strokes = tableStrokes(look?.rules, header);
+  const columns = Math.max(0, ...rows.map((r) => r.length));
+  const cell = (c: readonly Inline[], row: number, i: number): string => {
+    const tag = header && row === 0 ? "th" : "td";
+    const edges = strokeClasses(
+      cellStrokes(strokes, { row, rows: rows.length, column: i, columns }),
+    );
+    const align = b.align[i] ? `text-align:${b.align[i]}` : "";
+    return (
+      `<${tag}${edges ? ` class="${edges}"` : ""}` +
+      `${align ? ` data-style="${align}"` : ""}>${inlineHtml(c)}</${tag}>`
+    );
+  };
+  const tr = (r: readonly (readonly Inline[])[], row: number): string => {
+    const tall = look?.rowCm && !(header && row === 0);
+    const height = tall ? ` data-style="height:${look.rowCm}cm"` : "";
+    return `<tr${height}>${r.map((c, i) => cell(c, row, i)).join("")}</tr>`;
+  };
+  const share = look?.share ?? null;
+  const cols = share === null ? "" : columnsHtml(b.rule ?? []);
+  const styles = [
+    ...(share === null ? [] : [`width:${percentOf(share)}`]),
+    ...(cols ? ["table-layout:fixed"] : []),
+  ];
+  const lines = rows.map(tr);
+  const body = header ? lines.slice(1) : lines;
   return (
-    `<table${cols ? ' data-style="table-layout:fixed"' : ""}${at}>` +
+    `<table${styles.length ? ` data-style="${styles.join(";")}"` : ""}${at}>` +
     cols +
-    (isBlankRow(header)
-      ? ""
-      : `<thead><tr>` +
-        (header ?? [])
-          .map((c, i) => `<th${style(i)}>${inlineHtml(c)}</th>`)
-          .join("") +
-        `</tr></thead>`) +
-    `<tbody>` +
-    body
-      .map(
-        (r) =>
-          `<tr>${r.map((c, i) => `<td${style(i)}>${inlineHtml(c)}</td>`).join("")}</tr>`,
-      )
-      .join("") +
-    `</tbody></table>`
+    (header ? `<thead>${lines[0]}</thead>` : "") +
+    `<tbody>${body.join("")}</tbody></table>`
   );
 }
 

@@ -1,4 +1,4 @@
-import { tableLook } from "./table.ts";
+import { tableLook } from "../markdown/tablelook.ts";
 import {
   fitBlanks,
   isBlankRow,

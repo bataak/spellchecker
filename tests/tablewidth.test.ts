@@ -2,11 +2,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { format, parse, toHtml } from "../src/markdown.ts";
 
-test("toHtml: width хувьтай хашилт хүснэгтийн өргөнийг CSS хувьсагчаар дамжуулна", () => {
+test("toHtml: width хувьтай хашилт хүснэгтийн өргөнийг хүснэгтэд өгнө", () => {
   const html = toHtml(
     parse('::: {width="100%"}\n| А | Б |\n| - | - |\n| 1 | 2 |\n:::'),
   );
-  assert.match(html, /data-style="flex-basis:100%;--table-width:100%"/);
+  assert.match(html, /data-style="flex-basis:100%"/);
+  assert.match(html, /<table data-style="width:100%;table-layout:fixed"/);
 });
 
 test("хүснэгт — агуулгаас урт зураасыг хадгалж, нүдийг тэр уртаар дүүргэнэ", () => {
@@ -24,7 +25,7 @@ test("toHtml: width хашилт доторх хүснэгт зураасны х
   const html = toHtml(
     parse('::: {width="100%"}\n| А | Б |\n| --- | --------- |\n| 1 | 2 |\n:::'),
   );
-  assert.match(html, /<table data-style="table-layout:fixed"/);
+  assert.match(html, /<table data-style="width:100%;table-layout:fixed"/);
   assert.match(
     html,
     /<col data-style="width:25%"><col data-style="width:75%">/,
@@ -49,9 +50,9 @@ test("\\newpage өмнө нь хоосон мөргүй ч хуудас тасл
 test("toHtml: width хувийг экспорттой адил 100%-д хязгаарлаж, 0%-ийг үл тооно", () => {
   const html = (width: string) =>
     toHtml(parse(`::: {width="${width}"}\n| А |\n| - |\n| 1 |\n:::`));
-  assert.match(html("150%"), /--table-width:100%/);
-  assert.match(html("62.5%"), /--table-width:62.5%/);
-  assert.doesNotMatch(html("0%"), /--table-width/);
+  assert.match(html("150%"), /<table data-style="width:100%/);
+  assert.match(html("62.5%"), /<table data-style="width:62.5%/);
+  assert.doesNotMatch(html("0%"), /<table data-style="width/);
   assert.match(
     toHtml(parse('::: {.column width="40%"}\nТекст\n:::')),
     /flex-basis:40%/,

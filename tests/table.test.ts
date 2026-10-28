@@ -30,7 +30,8 @@ test("зай хүрэлцвэл урт нүдийг мөр таслахгүй", 
 });
 
 test("tableShare ба stretchWidths: хувиар заасан өргөнд багануудыг харьцаагаар сунгана", async () => {
-  const { stretchWidths, tableShare } = await import("../src/office/table.ts");
+  const { stretchWidths } = await import("../src/office/table.ts");
+  const { tableShare } = await import("../src/markdown/tablelook.ts");
   assert.equal(tableShare("100%"), 1);
   assert.equal(tableShare("62.5%"), 0.625);
   assert.equal(tableShare("150%"), 1);
