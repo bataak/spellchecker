@@ -71,7 +71,11 @@ export function createFileWiring(deps: FileWiringDeps): FileWiring {
       if (ref?.kind === "text")
         queueMicrotask(() => deps.project().fileOpened(ref.name));
     },
-    prepareOpen: createOpenPolicy(deps.mdBar, status.hold, buttons.open),
+    prepareOpen: createOpenPolicy({
+      slots: deps.mdBar,
+      hold: status.hold,
+      openButton: buttons.open,
+    }),
     fileDirty: () => {
       const bar = deps.mdBar();
       return bar.fileDirty(bar.slot());

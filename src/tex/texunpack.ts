@@ -20,7 +20,7 @@ self.onmessage = (event: MessageEvent<UnpackRequest>) => {
       files.push([name, entry.data]);
     }
     self.postMessage(
-      { id, files },
+      { id, value: files },
       { transfer: files.map(([, data]) => data.buffer) },
     );
   } catch (error) {
