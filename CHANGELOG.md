@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.120.2](https://github.com/bataak/spellchecker/compare/v1.120.1...v1.120.2) (2026-10-28)
+
+
+### Bug Fixes
+
+* **collab:** show the comment button once the backdrop catches up ([9ba521b](https://github.com/bataak/spellchecker/commit/9ba521b95502a83c7c5d9db1767dbbdac90727c8))
+* **defdock:** let text in the docked definitions be selected ([2d43600](https://github.com/bataak/spellchecker/commit/2d43600461a4cd513ebce5ad6b1a43c0ecc61f14))
+* **define:** find the hovered word from backdrop geometry instead of hit-testing ([b3e72f2](https://github.com/bataak/spellchecker/commit/b3e72f2e5c00af6ad28c2fee892a0cafd2000bea))
+* **errorpanel:** keep the text in place when closing the docked definitions ([362302b](https://github.com/bataak/spellchecker/commit/362302b3fee6ada2fbfb520305f3e7e7f3204749))
+
 ## [1.120.1](https://github.com/bataak/spellchecker/compare/v1.120.0...v1.120.1) (2026-10-28)
 
 
