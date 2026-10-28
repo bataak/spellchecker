@@ -13,7 +13,7 @@ import type {
   ProjectFiles,
 } from "./fileports.ts";
 import { createFileSave } from "./filesave.ts";
-import { initFileOpen } from "./fileopen.ts";
+import { initFileOpen, type OpenChoice } from "./fileopen.ts";
 import { watchFile } from "./filewatch.ts";
 
 export type { OfficeFiles, PdfSave, ProjectFiles } from "./fileports.ts";
@@ -31,7 +31,7 @@ export interface FileIODeps {
     name: string,
     hash: string,
     text: string | null,
-  ) => Promise<"new" | "open" | "keep" | "reload" | false>;
+  ) => Promise<OpenChoice>;
   readonly onLoaded: () => void;
   readonly onSaved: (written: boolean) => void;
   readonly saveChain: SaveChain;
