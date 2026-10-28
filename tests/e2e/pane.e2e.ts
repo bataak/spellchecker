@@ -147,6 +147,35 @@ test("хадгалсан тайлбарын самбарын байрлалта�
   }
 });
 
+test("алдааны самбар дахь тайлбарын самбарыг хаахад бичвэр гүйхгүй", async () => {
+  const page = await openPage(app, await app.context());
+  await page.evaluate(() => localStorage.setItem("def-dock", "panel"));
+  await reload(page);
+  await typeAtEnd(
+    page,
+    Array.from({ length: 80 }, (_, i) => `Мөр ${i} алдаатйа үг байна.`).join(
+      "\n",
+    ),
+  );
+  const close = page.locator(".def-dock .def-dock-head .error-copy").last();
+  await close.waitFor();
+  const box = (await page.locator("#editor").boundingBox())!;
+  await page.keyboard.press("Control+Home");
+  await page.mouse.click(box.x + 30, box.y + 12);
+  await page.mouse.move(box.x + 300, box.y + 300);
+  await page.mouse.wheel(0, 1200);
+  await page.waitForTimeout(400);
+  const scrollTop = () =>
+    page.evaluate(
+      () => document.querySelector<HTMLTextAreaElement>("#editor")!.scrollTop,
+    );
+  const before = await scrollTop();
+  assert.ok(before > 300, String(before));
+  await close.click();
+  await page.waitForTimeout(400);
+  assert.ok(Math.abs((await scrollTop()) - before) < 2);
+});
+
 test("LaTeX-ийг хэлбэржүүлэхэд харагдаж буй PDF арилж дахин зурагдахгүй", async () => {
   const context = await app.context();
   const page = await openPage(app, context);
