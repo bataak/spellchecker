@@ -32,12 +32,19 @@ function reopenAsk(name: string): AskOptions {
   };
 }
 
-export function createOpenPolicy(
-  slots: () => OpenSlots,
-  hold: (html: string, ms: number, animate: boolean) => void,
-  openButton: HTMLElement | null = null,
-  ask: (options: AskOptions) => Promise<boolean> = askChoice,
-): FileIODeps["prepareOpen"] {
+export interface OpenPolicyDeps {
+  readonly slots: () => OpenSlots;
+  readonly hold: (html: string, ms: number, animate: boolean) => void;
+  readonly openButton?: HTMLElement | null;
+  readonly ask?: (options: AskOptions) => Promise<boolean>;
+}
+
+export function createOpenPolicy({
+  slots,
+  hold,
+  openButton = null,
+  ask = askChoice,
+}: OpenPolicyDeps): FileIODeps["prepareOpen"] {
   return async (name, hash, text) => {
     const bar = slots();
     const same = bar.findFile(name, hash, text);

@@ -34,8 +34,7 @@ function ruleLine(boxed: boolean) {
 export function tableLatex(
   b: TableBlock,
   inline: (nodes: readonly Inline[]) => string,
-  place?: string,
-  look?: TableLook,
+  { place, look }: { readonly place?: string; readonly look?: TableLook } = {},
 ): string {
   const [head, ...body] = b.rows;
   const header = !isBlankRow(head);

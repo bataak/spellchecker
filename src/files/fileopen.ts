@@ -13,6 +13,8 @@ import {
 import type { DraftFile } from "../core/storage.ts";
 import { flash } from "../ui/clipboard.ts";
 import type { EditorPort, StatusPort } from "../core/ports.ts";
+
+export type OpenChoice = "new" | "open" | "keep" | "reload" | false;
 import type {
   CurrentFile,
   FileButtons,
@@ -32,7 +34,7 @@ export interface FileOpenDeps {
     name: string,
     hash: string,
     text: string | null,
-  ) => Promise<"new" | "open" | "keep" | "reload" | false>;
+  ) => Promise<OpenChoice>;
   readonly onLoaded: () => void;
 }
 
