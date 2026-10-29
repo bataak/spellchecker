@@ -12,7 +12,14 @@ import {
   type TalkMode,
 } from "./talkparts.ts";
 
-export function projectSide(editor: HTMLTextAreaElement): Side | null {
+export interface ProjectSide extends Side {
+  docked(): boolean;
+}
+
+export function projectSide(
+  editor: HTMLTextAreaElement,
+  toggled: () => void,
+): ProjectSide | null {
   const panel = document.querySelector<HTMLElement>(".project-panel");
   const foot = panel?.querySelector<HTMLElement>(".project-foot");
   const head = panel?.querySelector<HTMLElement>(".project-head");
@@ -58,6 +65,10 @@ export function projectSide(editor: HTMLTextAreaElement): Side | null {
       current?.views[key]?.shown(mode === key);
     }
   };
+  new MutationObserver(toggled).observe(panel, {
+    attributes: true,
+    attributeFilter: ["hidden"],
+  });
   for (const key of MODES)
     buttons[key].addEventListener("click", () =>
       show(mode === key ? null : key),
@@ -69,5 +80,6 @@ export function projectSide(editor: HTMLTextAreaElement): Side | null {
       unread();
     },
     open: show,
+    docked: () => !panel.hidden,
   };
 }

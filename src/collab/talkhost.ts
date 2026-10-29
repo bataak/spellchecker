@@ -45,10 +45,8 @@ function migrate(local: LocalComments, talk: Talk): void {
 }
 
 export function initTalk(deps: TalkHostDeps): TalkHost {
-  const sides: Record<TalkKind, Side | null> = {
-    project: projectSide(deps.editor),
-    file: fileWindow(deps),
-  };
+  const project = projectSide(deps.editor, () => assign());
+  const floating = fileWindow(deps);
   const local = createLocalComments({
     editor: deps.editor,
     doc: deps.doc,
@@ -63,23 +61,32 @@ export function initTalk(deps: TalkHostDeps): TalkHost {
     const ref = local.current();
     return ref !== null && !deps.collab.talk(ref.kind);
   };
+  const viewsOf = (kind: TalkKind): Views | null => {
+    const talk = deps.collab.talk(kind);
+    if (talk) return built.get(talk) ?? null;
+    return ownDoc(kind) ? offline : null;
+  };
+  const undocked = (): boolean => ownDoc("project") && !project?.docked();
+  const sideOf = (kind: TalkKind): Side =>
+    kind === "project" && project?.docked() ? project : floating;
+  const assign = (): void => {
+    const shared = viewsOf("project");
+    const away = undocked();
+    project?.sync(away ? null : shared);
+    floating.sync(viewsOf("file") ?? (away ? shared : null));
+  };
   const sync = (): void => {
     local.sync();
     const live = new Set<Talk>();
     for (const kind of KINDS) {
       const talk = deps.collab.talk(kind);
-      let views: Views | null = null;
-      if (talk) {
-        live.add(talk);
-        views = built.get(talk) ?? null;
-        if (!views) {
-          views = buildViews(talk, deps);
-          built.set(talk, views);
-          migrate(local, talk);
-        }
-      } else if (ownDoc(kind)) views = offline;
-      sides[kind]?.sync(views);
+      if (!talk) continue;
+      live.add(talk);
+      if (built.has(talk)) continue;
+      built.set(talk, buildViews(talk, deps));
+      migrate(local, talk);
     }
+    assign();
     for (const [talk, views] of built)
       if (!live.has(talk)) {
         views.destroy();
@@ -89,11 +96,7 @@ export function initTalk(deps: TalkHostDeps): TalkHost {
   };
   deps.collab.onTalk(sync);
   onSwap(() => queueMicrotask(sync));
-  local.onChange(() => {
-    for (const kind of KINDS)
-      if (!deps.collab.talk(kind))
-        sides[kind]?.sync(ownDoc(kind) ? offline : null);
-  });
+  local.onChange(assign);
   keptComments.on(({ slot, threads }) => {
     if (slot !== null) void local.keep(slot, threads);
   });
@@ -121,11 +124,10 @@ export function initTalk(deps: TalkHostDeps): TalkHost {
     picking: deps.picking,
     target(): CommentTarget | null {
       const kind = local.current()?.kind;
-      const side = kind ? sides[kind] : null;
-      if (!kind || !side) return null;
-      const talk = deps.collab.talk(kind);
-      const views = talk ? built.get(talk) : offline;
-      return views ? { views, open: () => side.open("comments") } : null;
+      const views = kind ? viewsOf(kind) : null;
+      if (!kind || !views) return null;
+      const side = sideOf(kind);
+      return { views, open: () => side.open("comments") };
     },
   });
   synced.on(recheck);
