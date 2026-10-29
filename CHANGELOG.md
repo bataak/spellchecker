@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.120.3](https://github.com/bataak/spellchecker/compare/v1.120.2...v1.120.3) (2026-10-29)
+
+
+### Bug Fixes
+
+* **editor:** replace large text in one step instead of execCommand ([c11f1f1](https://github.com/bataak/spellchecker/commit/c11f1f1e537716ea7b3e9dee4213b26a2cc66f56))
+
 ## [1.120.2](https://github.com/bataak/spellchecker/compare/v1.120.1...v1.120.2) (2026-10-28)
 
 
