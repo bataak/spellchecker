@@ -160,6 +160,32 @@ export function pasteComposed(
   return true;
 }
 
+const BULK_CHARS = 65_536;
+const BULK_LINES = 500;
+
+function isBulk(text: string): boolean {
+  if (text.length > BULK_CHARS) return true;
+  let lines = 0;
+  for (let i = text.indexOf("\n"); i !== -1; i = text.indexOf("\n", i + 1))
+    if (++lines > BULK_LINES) return true;
+  return false;
+}
+
+function replaceBulk(
+  editor: HTMLTextAreaElement,
+  from: number,
+  to: number,
+  text: string,
+): void {
+  editor.setRangeText(text, from, to, "end");
+  editor.dispatchEvent(
+    new InputEvent("input", {
+      bubbles: true,
+      inputType: "insertReplacementText",
+    }),
+  );
+}
+
 const TRAILING_WORD = /[\p{L}\p{M}]+$/u;
 const WORD_REACH = 256;
 
@@ -240,7 +266,8 @@ export function initEditorText(deps: EditorTextDeps): EditorText {
     );
     programmaticEdit = true;
     try {
-      replaceRange(editor, commonPrefixLen, oldEnd, slice);
+      if (isBulk(slice)) replaceBulk(editor, commonPrefixLen, oldEnd, slice);
+      else replaceRange(editor, commonPrefixLen, oldEnd, slice);
     } finally {
       programmaticEdit = false;
     }
@@ -261,7 +288,8 @@ export function initEditorText(deps: EditorTextDeps): EditorText {
     editor.focus({ preventScroll: true });
     programmaticEdit = true;
     try {
-      replaceRange(editor, start, end, text);
+      if (isBulk(text)) replaceBulk(editor, start, end, text);
+      else replaceRange(editor, start, end, text);
     } finally {
       programmaticEdit = false;
     }
