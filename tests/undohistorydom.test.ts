@@ -6,7 +6,8 @@ import { installDom } from "./helpers/dom.ts";
 const dom = installDom();
 const { initUndoHistory, pruneHistories, storedHistoryTexts } =
   await import("../src/editor/undohistory.ts");
-const { applyRemote, swapText } = await import("../src/editor/editortext.ts");
+const { applyRemote, swapText, initEditorText } =
+  await import("../src/editor/editortext.ts");
 
 test.after(() => dom.close());
 
@@ -129,4 +130,35 @@ test("хуучирсан болон хэрэггүй слотын түүхийг
   });
   assert.ok(dropped >= 1);
   assert.equal((await storedHistoryTexts()).includes("хуучин\n"), false);
+});
+
+test("их хэмжээний бичвэрийг execCommand-гүй оруулж, Ctrl+Z-оор буцаана", () => {
+  const editor = editorWith("эхлэл\n");
+  initUndoHistory({ editor, slot: () => "bulk" });
+  const text = initEditorText({
+    editor,
+    onEdit: () => {},
+    onReplace: () => {},
+    accept: () => true,
+    onReplaced: () => {},
+  });
+  const commands: string[] = [];
+  const saved = document.execCommand;
+  document.execCommand = (cmd: string) => {
+    commands.push(cmd);
+    return false;
+  };
+  const big = "мөр\n".repeat(600);
+  try {
+    text.insert(big, 6, 6);
+    text.set("эхлэл\n" + big + big, null);
+  } finally {
+    document.execCommand = saved;
+  }
+  assert.deepEqual(commands, []);
+  assert.equal(editor.value, "эхлэл\n" + big + big);
+  key(editor, "z");
+  assert.equal(editor.value, "эхлэл\n" + big);
+  key(editor, "z");
+  assert.equal(editor.value, "эхлэл\n");
 });
