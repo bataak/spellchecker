@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.120.4](https://github.com/bataak/spellchecker/compare/v1.120.3...v1.120.4) (2026-10-29)
+
+
+### Bug Fixes
+
+* **collab:** open project comments in floating window when panel is hidden ([0c29c74](https://github.com/bataak/spellchecker/commit/0c29c748b5774a14c43188097211c8bdbf8b32cf))
+
 ## [1.120.3](https://github.com/bataak/spellchecker/compare/v1.120.2...v1.120.3) (2026-10-29)
 
 
