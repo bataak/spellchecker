@@ -12,6 +12,20 @@ export const HARD = "\u0003";
 const MATH_SPAN =
   /(`+)[\s\S]*?\1|\\begin\{math\}([\s\S]*?)\\end\{math\}|\\\(([\s\S]*?)\\\)|\\[\s\S]|\$\$((?:[^$\\]|\\.)+?)\$\$|(?<![$\d])\$(?![\s$])((?:[^$\\]|\\.)*?[^\s$\\]|[^\s$\\])\$(?![\d$])|(?<![\p{L}\p{N}_])(_{3,})(?![\p{L}\p{N}_])/gu;
 
+const CELL_PIPE = new RegExp(MATH_SPAN.source + "|\\|", "gu");
+
+export function splitPipes(line: string): string[] {
+  const parts: string[] = [];
+  let from = 0;
+  for (const match of line.matchAll(CELL_PIPE)) {
+    if (match[0] !== "|") continue;
+    parts.push(line.slice(from, match.index));
+    from = match.index + 1;
+  }
+  parts.push(line.slice(from));
+  return parts;
+}
+
 const ESCAPABLE = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
 
 function closingRun(src: string, from: number, width: number): number {
