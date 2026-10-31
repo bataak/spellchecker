@@ -115,6 +115,7 @@ function readTable(lines: readonly string[], start: number): Read | null {
   if (!line.includes("|") || !isDivider(lines[start + 1])) return null;
   const header = splitCells(line);
   const dividers = splitCells(lines[start + 1]!);
+  if (dividers.length !== header.length) return null;
   const align = dividers.map(alignOf);
   const rule = dividers.map((cell) => cell.replace(/[^-]/g, "").length);
   const rows: Inline[][][] = [header.map(parseInline)];

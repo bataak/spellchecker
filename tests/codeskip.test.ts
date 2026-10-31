@@ -204,6 +204,24 @@ test("skips a bare domain written without a scheme", () => {
   assert.ok(!inRanges(ranges, text.indexOf("дээрээс")));
 });
 
+test("skips a domain regardless of letter case", () => {
+  for (const domain of ["EXAMPLE.COM", "Example.Com", "example.COM"]) {
+    const text = "Хаяг " + domain + " байна.";
+    const ranges = skipRanges(text);
+    assert.ok(inRanges(ranges, text.indexOf(domain)), domain);
+    assert.ok(!inRanges(ranges, text.indexOf("байна")), domain);
+  }
+});
+
+test("skips fenced div attributes", () => {
+  const text = '::: {.grid width="60%" row="2cm"}\n| а | б |\n:::';
+  const ranges = skipRanges(text);
+
+  assert.ok(inRanges(ranges, text.indexOf("2cm")));
+  assert.ok(inRanges(ranges, text.indexOf("grid")));
+  assert.ok(!inRanges(ranges, text.indexOf("а |")));
+});
+
 test("skips a link label that is itself a domain", () => {
   const text = "Хаяг: [zuv.bichig.dev](https://zuv.bichig.dev/) байна.";
   const ranges = skipRanges(text);
