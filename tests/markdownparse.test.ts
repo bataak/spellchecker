@@ -29,3 +29,11 @@ test("format: хаагаагүй олон [ бүхий догол шугаман
   }
   assert.equal(format("[a](b) ба [c\n"), format(format("[a](b) ба [c\n")));
 });
+
+test("parse: баганын тоо таарахгүй тусгаарлагч хүснэгт үүсгэхгүй", () => {
+  assert.deepEqual(
+    parse("Сонголт: a | b\n---\nДараах мөр.").map((b) => b.type),
+    ["paragraph", "rule", "paragraph"],
+  );
+  assert.equal(parse("| a | b |\n|---|---|\n| 1 | 2 |")[0]?.type, "table");
+});
