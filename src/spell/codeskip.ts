@@ -205,6 +205,7 @@ const BARE_URL = new RegExp(
 const WWW_URL = new RegExp(String.raw`\bwww\.${URL_CHARS}+`, "gi");
 const MD_TARGET = /\]\(\s*((?:[^()]|\([^()]*\))*)\)/g;
 const MD_ATTRS = /\]\((?:[^()]|\([^()]*\))*\)(\{[^{}\n]*\})/g;
+const DIV_ATTRS = /^[ \t]{0,3}:{3,}[ \t]*(\{[^{}\n]*\})/gm;
 const MD_DEFINITION = /^[ \t]{0,3}\[[^\]]+\]:[ \t]*(\S+)/gm;
 const AUTOLINK = /<[^\s<>]*(?::\/\/|@)[^\s<>]*>/g;
 const TLD =
@@ -213,7 +214,7 @@ const TLD =
 
 const DOMAIN = new RegExp(
   String.raw`\b(?:[A-Za-z0-9][A-Za-z0-9-]*\.)+(?:${TLD})\b(?:\/${URL_CHARS}*)?`,
-  "g",
+  "gi",
 );
 
 const MD_LABEL = new RegExp(String.raw`\[([^\]\n]+)\](?=\(|\[|:)`, "g");
@@ -278,6 +279,7 @@ export function linkRanges(text: string): SkipRange[] {
   return mergeRanges([
     ...collect(text, MD_TARGET, 1),
     ...collect(text, MD_ATTRS, 1),
+    ...collect(text, DIV_ATTRS, 1),
     ...collect(text, DOMAIN),
     ...urlLikeLabels(text),
     ...collect(text, MD_DEFINITION, 1),
