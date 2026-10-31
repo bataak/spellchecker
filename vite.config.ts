@@ -108,7 +108,7 @@ export default defineConfig({
           "**/examples/**",
           "**/assets/svgpdf/**",
           "**/assets/heicworker-*.js",
-          "og.png",
+          "**/og.png",
         ],
         navigateFallback: base + "index.html",
         navigateFallbackDenylist: [/\/oauth\.html/],
