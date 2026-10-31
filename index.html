@@ -31,11 +31,49 @@
       type="font/woff2"
       crossorigin=""
     />
-    <title>Монгол үгийн алдаа шалгагч</title>
+    <title>Монгол үгийн алдаа шалгагч — онлайн, үнэгүй, офлайн</title>
     <meta
       name="description"
-      content="Монгол болон англи үгийн алдааг интернет хөтөч болон офлайн ап ашиглан шалгана."
+      content="Монгол, англи үгийн алдааг хөтөч дээр суулгахгүй, үнэгүй шалгана. Word, PowerPoint, PDF, LaTeX, Markdown файл засах, албан бичиг, өргөдлийн загвар. Бичвэр сервер рүү илгээгдэхгүй."
     />
+    <link rel="canonical" href="https://aldaa.bichig.dev/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="bichig.dev" />
+    <meta property="og:locale" content="mn_MN" />
+    <meta property="og:url" content="https://aldaa.bichig.dev/" />
+    <meta property="og:title" content="Монгол үгийн алдаа шалгагч" />
+    <meta
+      property="og:description"
+      content="Монгол, англи үгийн алдааг хөтөч дээр суулгахгүй, үнэгүй шалгана. Word, PowerPoint, PDF, LaTeX, Markdown файл засах, албан бичиг, өргөдлийн загвар. Бичвэр сервер рүү илгээгдэхгүй."
+    />
+    <meta property="og:image" content="https://aldaa.bichig.dev/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Алдаатай үгс улаанаар зурагдсан бичвэр, алдаатай үгсийн жагсаалт, үгийн тайлбар"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Монгол үгийн алдаа шалгагч",
+        "url": "https://aldaa.bichig.dev/",
+        "description": "Монгол, англи үгийн алдааг хөтөч дээр суулгахгүй, үнэгүй шалгана. Word, PowerPoint, PDF, LaTeX, Markdown файл засах, албан бичиг, өргөдлийн загвар. Бичвэр сервер рүү илгээгдэхгүй.",
+        "inLanguage": ["mn", "en"],
+        "applicationCategory": "UtilitiesApplication",
+        "operatingSystem": "Windows, macOS, Linux, Android, iOS",
+        "browserRequirements": "Requires JavaScript",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "MNT" },
+        "image": "https://aldaa.bichig.dev/og.png",
+        "sameAs": [
+          "https://zuv.bichig.dev/",
+          "https://github.com/bataak/spellchecker"
+        ]
+      }
+    </script>
 
     <link rel="stylesheet" href="boot.css" />
     <script src="/app-init.js"></script>
@@ -394,12 +432,7 @@
         >
           Буулгах
         </button>
-        <button
-          id="copyBtn"
-          class="tbtn"
-          type="button"
-          title="Бичвэр хуулах"
-        >
+        <button id="copyBtn" class="tbtn" type="button" title="Бичвэр хуулах">
           Хуулах
         </button>
         <button
