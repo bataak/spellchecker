@@ -149,7 +149,7 @@ function quoteOf(thread: CommentThread, actions: RowActions): HTMLElement {
     quote.title = GONE;
     quote.classList.add("is-gone");
   } else {
-    quote.title = "Байрлал руу очих";
+    quote.title = "Байрлал уруу очих";
     quote.addEventListener("click", () => actions.reveal(thread));
   }
   return quote;
