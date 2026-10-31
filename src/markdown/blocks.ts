@@ -1,6 +1,6 @@
 import { type Block, type Inline, type ListLevel } from "./ast.ts";
 import { parseAttrs } from "./attrs.ts";
-import { HARD, inlineOf, parseInline } from "./inline.ts";
+import { HARD, inlineOf, parseInline, splitPipes } from "./inline.ts";
 import { FENCE_RE, closesFence } from "./fences.ts";
 import { MATH_RE, displayMath } from "./mathblock.ts";
 import { DIV_OPEN, divEnd, metaBlock } from "./divs.ts";
@@ -14,7 +14,7 @@ const QUOTE_RE = /^\s*>\s?(.*)$/s;
 const HEADING_ATTRS = /^([\s\S]*?)\s+(\{\s*(?:[.#-]|[\w-]+=)[^{}]*\})\s*$/;
 
 function splitCells(line: string): string[] {
-  const cells = line.trim().split(/(?<!\\)\|/);
+  const cells = splitPipes(line.trim());
   if (cells[0]?.trim() === "") cells.shift();
   if (cells.at(-1)?.trim() === "") cells.pop();
   return cells.map((c) => c.trim());

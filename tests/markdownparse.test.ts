@@ -37,3 +37,17 @@ test("parse: баганын тоо таарахгүй тусгаарлагч х�
   );
   assert.equal(parse("| a | b |\n|---|---|\n| 1 | 2 |")[0]?.type, "table");
 });
+
+test("parse: код, томьёо доторх | хүснэгтийн нүдийг хуваахгүй", () => {
+  for (const text of [
+    "| $|x|$ | y |\n|---|---|\n| 1 | 2 |",
+    "| `a|b` | c |\n|---|---|\n| 1 | 2 |",
+    "| a \\| b | c |\n|---|---|\n| 1 | 2 |",
+  ]) {
+    const [table] = parse(text);
+    assert.equal(table?.type, "table", text);
+    assert.equal(table?.type === "table" && table.rows[0]?.length, 2, text);
+  }
+  const [open] = parse("| `a | b |\n|---|---|\n| 1 | 2 |");
+  assert.equal(open?.type === "table" && open.rows[0]?.length, 2);
+});
