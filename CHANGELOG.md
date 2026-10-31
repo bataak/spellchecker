@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.121.0](https://github.com/bataak/spellchecker/compare/v1.120.4...v1.121.0) (2026-10-31)
+
+
+### Features
+
+* **seo:** add canonical, Open Graph, JSON-LD, sitemap and robots.txt ([751d409](https://github.com/bataak/spellchecker/commit/751d409d07232ff322b63d00bc6909753a9be74f))
+
+
+### Bug Fixes
+
+* **collab:** use уруу in the jump-to-position tooltip ([856cd9f](https://github.com/bataak/spellchecker/commit/856cd9f1777ea2518d72b50cc97b9ba43a7f8bb6))
+* **markdown:** ignore pipes inside code and math when splitting table cells ([e86f747](https://github.com/bataak/spellchecker/commit/e86f747cf9f8559ad150d237c7ff65c83ad1c61a))
+* **markdown:** require matching column count for pipe tables ([ee70f8e](https://github.com/bataak/spellchecker/commit/ee70f8e9734e0d376ac451a48ff7aa9febfd8086)), closes [#307](https://github.com/bataak/spellchecker/issues/307)
+* **seo:** reword the page description ([8e8f926](https://github.com/bataak/spellchecker/commit/8e8f926c46262b2af3f51cc0e68f8eeadb22d32c))
+* **seo:** use уруу in the page description ([e44f4b3](https://github.com/bataak/spellchecker/commit/e44f4b35c8ef37d1e03e29cd2343df88019421bc))
+* **spell:** skip uppercase domains and fenced div attributes ([8367f82](https://github.com/bataak/spellchecker/commit/8367f8257c50b191749745aa66b64a073ce45d4a)), closes [#308](https://github.com/bataak/spellchecker/issues/308) [#309](https://github.com/bataak/spellchecker/issues/309)
+
 ## [1.120.4](https://github.com/bataak/spellchecker/compare/v1.120.3...v1.120.4) (2026-10-29)
 
 
