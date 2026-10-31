@@ -63,7 +63,7 @@ function changeRow(change: Change, actions: ChangeActions): HTMLLIElement {
     head.append(element("span", "talk-change-path", revealText(change.path)));
   const show = button("talk-change-show", "");
   show.append(changeBody(change));
-  show.title = "Байрлал руу очих";
+  show.title = "Байрлал уруу очих";
   show.addEventListener("click", () => actions.reveal(change));
   const yes = button("talk-change-act", "✓", "Зөвшөөрөх");
   yes.addEventListener("click", () => accept(actions.tracker, change));
