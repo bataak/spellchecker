@@ -24,13 +24,20 @@ PAUSE = 20
 SAMPLE_SECONDS = 1
 SETTLE_SECONDS = 5
 MAC = platform.system() == "Darwin"
+WINDOWS = platform.system() == "Windows"
 MAC_OFFICE_PYTHON = "/Applications/LibreOffice.app/Contents/Resources/python"
+WINDOWS_OFFICE_PYTHON = r"C:\Program Files\LibreOffice\program\python.exe"
 LINUX_BATTERY = Path("/sys/class/power_supply/BAT0")
 MIN_LINE = 60
 LIBPROC = ctypes.CDLL("/usr/lib/libproc.dylib") if MAC else None
 RUSAGE_INFO_V0 = 0
 RUSAGE_WORDS = 11
 PHYS_FOOTPRINT = 9
+
+if WINDOWS:
+    import win32com.client
+
+    WMI = win32com.client.GetObject(r"winmgmts:root\wmi")
 
 
 @dataclass(frozen=True)
@@ -54,22 +61,36 @@ def build_text():
     TEXT.write_text("\n".join(lines), encoding="utf-8")
 
 
+def office_python():
+    if MAC:
+        return MAC_OFFICE_PYTHON
+    return WINDOWS_OFFICE_PYTHON if WINDOWS else sys.executable
+
+
+def word_phase(secs, text):
+    if WINDOWS:
+        return Phase(
+            [sys.executable, str(HERE / "type-word.py"), secs, text],
+            ("WINWORD.EXE",),
+        )
+    return Phase(
+        ["osascript", str(HERE / "type-word.applescript"), secs, text],
+        ("Microsoft Word",),
+    )
+
+
 def phases(seconds):
     secs = str(seconds)
     text = str(TEXT)
     browser = ["node", str(HERE / "type-browser.mjs")]
-    office_python = MAC_OFFICE_PYTHON if MAC else sys.executable
     return {
         "idle": Phase(None),
         "chromium": Phase(browser + ["chromium", secs, text]),
         "firefox": Phase(browser + ["firefox", secs, text]),
         "chromium-blank": Phase(browser + ["chromium", secs, text, "blank"]),
         "firefox-blank": Phase(browser + ["firefox", secs, text, "blank"]),
-        "writer": Phase([office_python, str(HERE / "type-writer.py"), secs, text]),
-        "word": Phase(
-            ["osascript", str(HERE / "type-word.applescript"), secs, text],
-            ("Microsoft Word",),
-        ),
+        "writer": Phase([office_python(), str(HERE / "type-writer.py"), secs, text]),
+        "word": word_phase(secs, text),
     }
 
 
@@ -78,6 +99,8 @@ def signed(value):
 
 
 def battery_watts():
+    if WINDOWS:
+        return sum(b.DischargeRate for b in WMI.InstancesOf("BatteryStatus")) / 1000
     if MAC:
         info = subprocess.run(
             ["ioreg", "-rw0", "-c", "AppleSmartBattery"],
@@ -95,6 +118,8 @@ def battery_watts():
 
 
 def has_battery():
+    if WINDOWS:
+        return psutil.sensors_battery() is not None
     if MAC:
         return "InternalBattery" in subprocess.run(
             ["pmset", "-g", "batt"], capture_output=True, text=True
@@ -103,6 +128,9 @@ def has_battery():
 
 
 def on_battery():
+    if WINDOWS:
+        battery = psutil.sensors_battery()
+        return battery is not None and battery.power_plugged is False
     if MAC:
         return "Battery Power" in subprocess.run(
             ["pmset", "-g", "batt"], capture_output=True, text=True

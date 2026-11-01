@@ -14,12 +14,15 @@ PORT = 2002
 CHAR_DELAY = 0.2
 START_TRIES = 60
 MAC_SOFFICE = "/Applications/LibreOffice.app/Contents/MacOS/soffice"
+WINDOWS_SOFFICE = r"C:\Program Files\LibreOffice\program\soffice.exe"
 PARAGRAPH_BREAK = 0
 
 
 def soffice_path():
     if platform.system() == "Darwin":
         return MAC_SOFFICE
+    if platform.system() == "Windows":
+        return WINDOWS_SOFFICE
     return shutil.which("soffice") or "soffice"
 
 
@@ -77,7 +80,7 @@ def type_for(doc, text, seconds):
 def main():
     seconds = float(sys.argv[1])
     text = Path(sys.argv[2]).read_text(encoding="utf-8")
-    with tempfile.TemporaryDirectory() as profile:
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as profile:
         office = start_office(profile)
         ctx = connect()
         desktop = ctx.ServiceManager.createInstanceWithContext(
