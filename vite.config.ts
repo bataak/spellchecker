@@ -6,7 +6,9 @@ import { resolve } from "node:path";
 import type { Plugin, ResolvedConfig } from "vite";
 import { stardictIndex } from "./vite-stardict.ts";
 import { collabButton } from "./vite-collab.ts";
+import { helpPages } from "./vite-help.ts";
 import { attempt } from "./src/core/attempt.ts";
+import { SECTIONS } from "./src/help/site.ts";
 
 const pkg = JSON.parse(readFileSync("./package.json", "utf-8")) as {
   version: string;
@@ -18,6 +20,8 @@ const hunspellVersion = attempt(
 );
 
 const base = process.env.VITE_BASE || "/hunspell-mn/";
+
+const helpSections = SECTIONS.map((section) => section.id);
 
 const svgPdfModule = (id: string): boolean =>
   /node_modules\/(?:jspdf|svg2pdf\.js|html2canvas|dompurify|canvg)\//.test(id);
@@ -93,6 +97,7 @@ export default defineConfig({
   server: { fs: { allow: [".", "../hunspell-wasm"] } },
   plugins: [
     collabButton(),
+    helpPages(),
     packDict(),
     stardictIndex(),
     VitePWA({
@@ -109,9 +114,13 @@ export default defineConfig({
           "**/assets/svgpdf/**",
           "**/assets/heicworker-*.js",
           "**/og.png",
+          ...helpSections.map((id) => "**/" + id + "/**"),
         ],
         navigateFallback: base + "index.html",
-        navigateFallbackDenylist: [/\/oauth\.html/],
+        navigateFallbackDenylist: [
+          /\/oauth\.html/,
+          new RegExp("^" + base + "(?:" + helpSections.join("|") + ")(?:/|$)"),
+        ],
         cleanupOutdatedCaches: true,
         dontCacheBustURLsMatching:
           /^(?:assets\/|dict\/[\w.-]+\.[0-9a-f]{10}\.(?:aff|dic)\.gz$)/,
