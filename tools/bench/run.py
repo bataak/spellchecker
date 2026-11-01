@@ -58,7 +58,7 @@ def build_text():
             if len(line) > MIN_LINE and "|" not in line and re.search("[а-яө]", line):
                 lines.append(line)
     OUT.mkdir(exist_ok=True)
-    TEXT.write_text("\n".join(lines), encoding="utf-8")
+    TEXT.write_text("\n".join(lines), encoding="utf-8", newline="\n")
 
 
 def office_python():
@@ -89,7 +89,10 @@ def phases(seconds):
         "firefox": Phase(browser + ["firefox", secs, text]),
         "chromium-blank": Phase(browser + ["chromium", secs, text, "blank"]),
         "firefox-blank": Phase(browser + ["firefox", secs, text, "blank"]),
-        "writer": Phase([office_python(), str(HERE / "type-writer.py"), secs, text]),
+        "writer": Phase(
+            [office_python(), str(HERE / "type-writer.py"), secs, text],
+            ("soffice.exe", "soffice.bin") if WINDOWS else (),
+        ),
         "word": word_phase(secs, text),
     }
 
