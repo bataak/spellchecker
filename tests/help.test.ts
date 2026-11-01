@@ -124,6 +124,11 @@ test("a template page links to the app's slot hash", () => {
     "/",
   );
   assert.equal(built.open, "#letter/application");
+  const html = renderPage(built, { base: "/", css: "", pages: [built] });
+  assert.match(
+    html,
+    /<a class="button" href="\/#letter\/application">Энэ горимыг ап дээр нээх<\/a>/,
+  );
 });
 
 test("a single-example template drops the example from the hash", () => {
