@@ -87,6 +87,14 @@ def battery_watts():
     return amps * int((LINUX_BATTERY / "voltage_now").read_text()) / 1e12
 
 
+def has_battery():
+    if MAC:
+        return "InternalBattery" in subprocess.run(
+            ["pmset", "-g", "batt"], capture_output=True, text=True
+        ).stdout
+    return LINUX_BATTERY.exists()
+
+
 def on_battery():
     if MAC:
         return "Battery Power" in subprocess.run(
@@ -102,7 +110,7 @@ class PowerMetrics:
 
     def start(self):
         if not MAC or subprocess.run(["sudo", "-n", "true"]).returncode:
-            return
+            return False
         self.process = subprocess.Popen(
             [
                 "sudo",
@@ -119,6 +127,7 @@ class PowerMetrics:
             stderr=subprocess.DEVNULL,
         )
         threading.Thread(target=self.read, daemon=True).start()
+        return True
 
     def read(self):
         buffer = b""
@@ -135,7 +144,13 @@ class PowerMetrics:
         gpu = plist.get("gpu", {})
         cpu_mw = cpu.get("cpu_power", cpu.get("package_watts", 0) * 1000)
         gpu_mw = cpu.get("gpu_power", gpu.get("gpu_energy", 0))
-        return {"t": time.time(), "cpu_w": cpu_mw / 1000, "gpu_w": gpu_mw / 1000}
+        combined_mw = cpu.get("combined_power", cpu_mw + gpu_mw)
+        return {
+            "t": time.time(),
+            "cpu_w": cpu_mw / 1000,
+            "gpu_w": gpu_mw / 1000,
+            "combined_w": combined_mw / 1000,
+        }
 
     def stop(self):
         if self.process:
@@ -228,13 +243,16 @@ def main():
         raise SystemExit("unknown phases: " + ", ".join(unknown))
     build_text()
     metrics = PowerMetrics()
-    metrics.start()
+    measured = metrics.start()
+    plugged = args.plugged or not has_battery()
+    if plugged and not measured and not args.plugged:
+        raise SystemExit("no battery: run `sudo -v` so powermetrics can measure power")
     log = OUT / time.strftime("results-%Y%m%d-%H%M%S.jsonl")
     try:
         for name in args.phases:
-            result = measure(name, table[name], args.seconds, args.plugged)
-            result["cpu_w"] = metrics.mean("cpu_w", result["steady_from"])
-            result["gpu_w"] = metrics.mean("gpu_w", result["steady_from"])
+            result = measure(name, table[name], args.seconds, plugged)
+            for key in ("cpu_w", "gpu_w", "combined_w"):
+                result[key] = metrics.mean(key, result["steady_from"])
             del result["steady_from"]
             with log.open("a", encoding="utf-8") as out:
                 out.write(json.dumps(result, ensure_ascii=False) + "\n")
