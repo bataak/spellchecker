@@ -20,7 +20,8 @@ if (matchMedia("(hover: hover) and (pointer: fine)").matches)
 
 const ACTION_TIPS = [
   "Үг мэдэгдэх холбоосыг ашиглан шинэ болон алдаатай үгийг бидэнд илгээж, толийг баяжуулахад туслаарай.",
-  "Ап ашиглах заавар: https://zuv.bichig.dev/online-app/",
+  "Ап ашиглах заавар: https://aldaa.bichig.dev/zaavar/",
+  "Товчлуурын хослол: https://aldaa.bichig.dev/zaavar/tovch/",
   "Word, Excel файл шалгах заавар: https://zuv.bichig.dev/libreoffice/",
   "LaTeX файл шалгах заавар: https://zuv.bichig.dev/texstudio/",
   "Монгол үсгийн дүрмийн толь: https://zuv.bichig.dev/book/",
