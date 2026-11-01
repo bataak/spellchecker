@@ -189,12 +189,20 @@ function prune(map: Y.Map<unknown>): void {
   });
 }
 
+function byAge(a: Stored, b: Stored): number {
+  return a.a - b.a || (a.i < b.i ? -1 : a.i > b.i ? 1 : 0);
+}
+
 function entries(map: Y.Map<unknown>): Stored[] {
-  const out: Stored[] = [];
+  const all: Stored[] = [];
   map.forEach((value, key) => {
-    if (validComment(key, value) && cleanText(value.t).trim()) out.push(value);
+    if (validComment(key, value) && cleanText(value.t).trim()) all.push(value);
   });
-  return out;
+  const kept = all.sort(byAge).slice(0, MAX_COMMENTS);
+  const threads = new Set(
+    kept.filter((value) => value.o === undefined).map((value) => value.i),
+  );
+  return kept.filter((value) => value.o === undefined || threads.has(value.o));
 }
 
 function relative(text: Y.Text, index: number, assoc: number): string {

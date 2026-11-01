@@ -5,6 +5,7 @@ import { installDom } from "./helpers/dom.ts";
 import {
   authorKey,
   createComments,
+  MAX_COMMENTS,
   MAX_QUOTE,
   validComment,
   type Comments,
@@ -154,6 +155,31 @@ test("хуурамч оруулгыг шүүж, зохиогчийн түлхү�
   assert.notEqual(authorKey("dev", "r1"), authorKey("dev", "r2"));
   assert.equal(authorKey("dev", "r1"), authorKey("dev", "r1"));
   assert.ok(authorKey("dev", "r1").length <= 16);
+});
+
+test("устгагдсан шүүмжийн хариулт, дээд хэмжээнээс илүү шүүмжийг тоолохгүй", () => {
+  const [a, b] = pair();
+  a.getText("t").insert(0, "Сайн байна уу");
+  const mine = open(a, "aaa");
+  const theirs = open(b, "bbb");
+  const id = mine.add(draftOf(mine, a, "байна"), "Асуулт")!;
+  mine.seen();
+  b.transact(() => {
+    theirs.reply(id, "Хариулт");
+    a.getMap("comments").delete(id);
+  });
+  assert.deepEqual(mine.list(), []);
+  assert.equal(mine.unread(), 0);
+  const map = b.getMap("comments");
+  const stamp = { n: "Ч", c: 1, t: "x", u: "ccc", f: "AA", h: "AA", q: "" };
+  b.transact(() => {
+    for (let index = 0; index < MAX_COMMENTS + 20; index++) {
+      const key = "s" + String(index).padStart(5, "0");
+      map.set(key, { ...stamp, i: key, a: index });
+    }
+  });
+  assert.equal(mine.list().length, MAX_COMMENTS);
+  assert.equal(mine.unread(), MAX_COMMENTS);
 });
 
 test("шүүмжийн самбар бичих, хариулах, шийдэх, засахыг харуулна", () => {
