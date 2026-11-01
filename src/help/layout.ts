@@ -162,7 +162,7 @@ function openButton(page: Page, ctx: LayoutContext): string {
   return (
     '<p class="open"><a class="button" href="' +
     escapeAttr(ctx.base + page.open) +
-    '">Ап дээр нээх</a></p>'
+    '">Энэ горимыг ап дээр нээх</a></p>'
   );
 }
 
