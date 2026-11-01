@@ -16,7 +16,7 @@ description: Монгол үгийн алдаа шалгагчийг гар ут
 [aldaa.bichig.dev](/) хаягийг хөтөч дээрээ нээгээд:
 
 - **iPhone, iPad** — Safari-гийн `Share` товчийг дарж `Add to Home Screen` сонгоно.
-- **Android** — Chrome-ийн цэснээс `Add to Home screen` эсвэл `Install app` сонгоно.
+- **Android** — Chrome-ийн цэсээс `Add to Home screen` эсвэл `Install app` сонгоно.
 
 [Гар утсан дээр ап болгон ашиглах заавар](https://www.youtube.com/watch?v=t76Y5oO9_QE)
 
