@@ -231,6 +231,23 @@ test("chat хуурамч болон буруу оруулгыг арилгаж,
   mine.destroy();
 });
 
+test("хамтрагч дээд хэмжээнээс олон мессеж түлхэвэл хуучныг нь хасна", () => {
+  const [a, b] = pair();
+  const mine = createChat(a, memoryMine(), () => ({ name: "Би", color: 2 }));
+  const flood = Array.from({ length: MAX_MESSAGES + 50 }, (_, index) => ({
+    i: "f" + index,
+    n: "Ч",
+    c: 1,
+    a: index,
+    t: "м" + index,
+  }));
+  b.getArray("chat").push(flood);
+  assert.equal(a.getArray("chat").length, MAX_MESSAGES);
+  assert.equal(b.getArray("chat").length, MAX_MESSAGES);
+  assert.equal(mine.list()[0]!.text, "м50");
+  mine.destroy();
+});
+
 test("chat баримт тусдаа хадгалагдаж, өөрийн мессежийг санаж, мартахад арилна", async () => {
   const first = await openChatDoc("talk-chat");
   assert.equal(first.doc.gc, true);
