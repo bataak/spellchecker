@@ -81,6 +81,7 @@ function head(page: Page, ctx: LayoutContext): string {
     '.png">';
   return [
     '<meta charset="utf-8">',
+    '<meta name="google" content="notranslate">',
     '<meta name="viewport" content="width=device-width, initial-scale=1">',
     "<title>" + title + "</title>",
     '<meta name="description" content="' + description + '">',
@@ -207,7 +208,7 @@ const FOOTER =
 
 export function renderPage(page: Page, ctx: LayoutContext): string {
   return (
-    '<!doctype html>\n<html lang="mn">\n<head>\n' +
+    '<!doctype html>\n<html lang="mn" translate="no">\n<head>\n' +
     head(page, ctx) +
     "\n</head>\n<body>\n" +
     topBar(page, ctx) +

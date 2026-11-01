@@ -464,7 +464,8 @@ export function printHtml(
     .join("");
   const css = fontFaces(fontBase) + pageCss(doc) + styles;
   return (
-    '<!doctype html><html lang="mn"><head><meta charset="utf-8">' +
+    '<!doctype html><html lang="mn" translate="no"><head><meta charset="utf-8">' +
+    '<meta name="google" content="notranslate">' +
     "<title>" +
     escapeAttr(doc.title ?? "") +
     "</title><style>" +
