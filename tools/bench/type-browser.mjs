@@ -1,5 +1,6 @@
 import { chromium, firefox } from "playwright";
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 const ENGINES = { chromium, firefox };
 const CHAR_DELAY_MS = 200;
@@ -9,6 +10,15 @@ const BLANK_URL =
 
 const [engine, seconds, textFile, target = "app"] = process.argv.slice(2);
 const blank = target === "blank";
+
+function launchOptions() {
+  if (engine !== "firefox" || process.platform !== "darwin") return {};
+  // macOS denies Playwright's Firefox the user's ~/Library Firefox folders.
+  const home = fileURLToPath(new URL("out/firefox-home", import.meta.url));
+  mkdirSync(`${home}/Library/Caches`, { recursive: true });
+  mkdirSync(`${home}/Library/Application Support`, { recursive: true });
+  return { env: { ...process.env, HOME: home, CFFIXED_USER_HOME: home } };
+}
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -25,7 +35,10 @@ async function typeFor(page, text, ms) {
   return typed;
 }
 
-const browser = await ENGINES[engine].launch({ headless: false });
+const browser = await ENGINES[engine].launch({
+  headless: false,
+  ...launchOptions(),
+});
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 await page.goto(blank ? BLANK_URL : APP_URL, { waitUntil: "networkidle" });
 await page.click(blank ? "textarea" : "#editor");
