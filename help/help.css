@@ -272,6 +272,65 @@ th {
   color: var(--muted);
   font-weight: 400;
 }
+.demo {
+  margin: -12px 0 12px;
+  padding: 8px 16px 12px;
+  border: 1px solid var(--line);
+  border-top: 0;
+  border-radius: 0 0 6px 6px;
+  background: var(--panel);
+}
+pre:has(+ .demo) {
+  border-radius: 6px 6px 0 0;
+}
+.demo-label {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.demo-body {
+  overflow-x: auto;
+}
+.demo-body table {
+  width: auto;
+  margin: 0 auto;
+  font-size: 0.92em;
+}
+.demo-body .md-left > table {
+  margin-left: 0;
+}
+.demo-body .md-right > table {
+  margin-right: 0;
+}
+.demo-body :is(th, td) {
+  padding: 4px 10px;
+  border: 0;
+  color: var(--ink);
+}
+.demo-body td:empty::before {
+  content: "\a0";
+}
+.demo-body th {
+  border-bottom: 1px solid currentColor;
+}
+.demo-body :is(th, td).e-t1 {
+  border-top: 1px solid currentColor;
+}
+.demo-body :is(th, td).e-t2 {
+  border-top: 1.5px solid currentColor;
+}
+.demo-body :is(th, td).e-b1 {
+  border-bottom: 1px solid currentColor;
+}
+.demo-body :is(th, td).e-b2 {
+  border-bottom: 1.5px solid currentColor;
+}
+.demo-body :is(th, td).e-l1 {
+  border-left: 1px solid currentColor;
+}
+.demo-body :is(th, td).e-r1 {
+  border-right: 1px solid currentColor;
+}
 .keys td:not(:first-child) {
   white-space: nowrap;
 }

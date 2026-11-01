@@ -12,6 +12,9 @@ export interface Rendered {
 }
 
 const KEYMAP_MARK = "<p>@keymap</p>";
+const DEMO_FENCE = /^```demo\n([\s\S]*?)\n```$/gm;
+const DEMO_MARK = /<p>@demo(\d+)<\/p>/g;
+const DEMO_LABEL = "Гаралт";
 const VIDEO = /^https:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)/;
 
 const stripTags = (html: string): string => html.replace(/<[^>]*>/g, "");
@@ -83,12 +86,41 @@ function headingIds(html: string): Rendered {
   return { html: out, headings };
 }
 
+interface Demos {
+  readonly source: string;
+  readonly samples: readonly string[];
+}
+
+function takeDemos(source: string): Demos {
+  const samples: string[] = [];
+  const out = source.replace(DEMO_FENCE, (_, code: string) => {
+    samples.push(code);
+    return "```\n" + code + "\n```\n\n@demo" + String(samples.length - 1);
+  });
+  return { source: out, samples };
+}
+
+function demoHtml(sample: string): string {
+  const html = toHtml(parse(sample)).replace(/ data-line="\d+"/g, "");
+  return (
+    '<div class="demo"><p class="demo-label">' +
+    DEMO_LABEL +
+    '</p><div class="demo-body">' +
+    html +
+    "</div></div>"
+  );
+}
+
 export function renderMarkdown(source: string, base: string): Rendered {
-  const raw = toHtml(parse(source))
+  const { source: text, samples } = takeDemos(source);
+  const raw = toHtml(parse(text))
     .replace(/ data-line="\d+"/g, "")
     .replace(/ class="e-[^"]*"/g, "")
     .replace(/<table>/g, '<div class="table"><table>')
     .replace(/<\/table>/g, "</table></div>")
-    .replace(KEYMAP_MARK, keymapHtml());
+    .replace(KEYMAP_MARK, keymapHtml())
+    .replace(DEMO_MARK, (_, index: string) =>
+      demoHtml(samples[Number(index)]!),
+    );
   return headingIds(videos(images(localUrls(raw, base))));
 }
