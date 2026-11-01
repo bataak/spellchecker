@@ -187,7 +187,11 @@ export function createBlobSwap(deps: BlobSwapDeps): BlobSwap {
     const part = parsePart(body);
     const entry = part && wanted.get(part.hash);
     if (!part || !entry || entry.peer !== peer) return;
-    if (part.total * PART_BYTES > entry.size + PART_BYTES) return ask(entry);
+    if (
+      part.data.byteLength > PART_BYTES ||
+      part.total * PART_BYTES > entry.size + PART_BYTES
+    )
+      return ask(entry);
     entry.parts[part.index] = part.data.slice();
     if (entry.timer) clearTimeout(entry.timer);
     entry.timer = setTimeout(() => ask(entry), STALL_MS);

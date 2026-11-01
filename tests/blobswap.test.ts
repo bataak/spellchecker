@@ -166,3 +166,23 @@ test("parts carry their place and malformed parts are dropped", () => {
     null,
   );
 });
+
+test("a part larger than the part size is refused and the next peer is asked", async () => {
+  const sent: string[] = [];
+  const swap = createBlobSwap({
+    transport: {
+      open: () => ["x", "y"],
+      drain: async () => {},
+      send: (to) => void sent.push(to),
+    },
+    have: async () => null,
+  });
+  const hash = "e".repeat(64);
+  const wanted = swap.want(hash, PART_BYTES * 2);
+  wanted.catch(() => {});
+  assert.deepEqual(sent, ["x"]);
+  const huge = partFrame(hash, 0, 2, new Uint8Array(PART_BYTES + 1));
+  swap.receive("x", 5, huge.subarray(1));
+  assert.deepEqual(sent, ["x", "y"]);
+  swap.close();
+});
