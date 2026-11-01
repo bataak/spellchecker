@@ -128,11 +128,12 @@ export function createRegistry(
     open(entry, seed) {
       const known = pending.get(entry.room);
       if (known) return known;
+      const current = (): boolean => pending.get(entry.room) === created;
       const created: Promise<Session> = lockRoom(entry.room, () =>
         busy(entry.room),
       ).then((lock) => {
         waiting.delete(entry.room);
-        if (pending.get(entry.room) !== created) {
+        if (!current()) {
           lock.release();
           throw CLOSED;
         }
@@ -142,11 +143,12 @@ export function createRegistry(
       pending.set(entry.room, created);
       created.then(
         (live) => {
+          if (!current()) return;
           ready.set(entry.room, live);
           changed();
         },
         (error: unknown) => {
-          if (error === CLOSED) return;
+          if (error === CLOSED || !current()) return;
           pending.delete(entry.room);
           release(entry.room);
           noteError(error);

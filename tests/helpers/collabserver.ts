@@ -8,6 +8,7 @@ import ts from "typescript";
 export interface CollabServer {
   readonly url: string;
   allow(origin: string): Promise<void>;
+  expire(room: string): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -81,6 +82,13 @@ export async function startCollab(
   return {
     url,
     allow: (origin) => mf.setOptions(options(port, origin, extra)),
+    async expire(room) {
+      const rooms = await mf.getDurableObjectNamespace("ROOMS");
+      const stub = rooms.get(rooms.idFromName(room)) as unknown as {
+        sweep(): Promise<void>;
+      };
+      await stub.sweep();
+    },
     close: () => mf.dispose(),
   };
 }

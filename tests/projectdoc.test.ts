@@ -99,10 +99,32 @@ test("хамтрагчийн хуурамч зам, үндсэн файлыг х
   assert.deepEqual([...project.texts.keys()], ["main.tex"]);
   assert.deepEqual([...project.dirs], ["fig"]);
   assert.equal(project.main, null);
+  assert.deepEqual([...blobsOf(doc).keys()], []);
   removePath(doc, "fig");
   movePath(doc, "main.tex", "body.tex");
   setMain(doc, "body.tex");
   assert.equal(projectOf(doc).main, "body.tex");
+});
+
+test("хамтрагчийн далд, гаралтын файлыг дискэнд бичихгүй", () => {
+  for (const path of ["x\\..\\.latexmkrc", "a\\b.tex"])
+    assert.equal(sharedPath(path, null), false, path);
+  const doc = new Y.Doc();
+  setMain(doc, "main.tex");
+  addText(doc, "main.tex", "a");
+  addText(doc, ".latexmkrc", "system('x')");
+  addText(doc, ".git/hooks/pre-commit", "x");
+  addText(doc, "x\\..\\.latexmkrc", "x");
+  addBlob(doc, "main.pdf", { hash: "0".repeat(64), size: 1 });
+  addBlob(doc, ".git/objects/x", { hash: "1".repeat(64), size: 1 });
+  addDir(doc, ".git");
+  addDir(doc, "node_modules");
+  addDir(doc, "fig");
+  const project = projectOf(doc);
+  assert.deepEqual([...project.texts.keys()], ["main.tex"]);
+  assert.deepEqual([...project.blobs.keys()], []);
+  assert.deepEqual([...project.dirs], ["fig"]);
+  assert.deepEqual([...blobsOf(doc).keys()], []);
 });
 
 test("хоёр хүний засвар нэг файлд нэгтгэгдэнэ", () => {
