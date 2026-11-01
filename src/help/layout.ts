@@ -14,6 +14,26 @@ const THEME_SCRIPT =
   "try{var t=localStorage.getItem('theme');" +
   "if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}";
 
+const TOGGLE_SCRIPT =
+  "document.getElementById('theme').addEventListener('click',function(){" +
+  "var r=document.documentElement,c=r.getAttribute('data-theme')||" +
+  "(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')," +
+  "n=c==='dark'?'light':'dark';r.setAttribute('data-theme',n);" +
+  "try{localStorage.setItem('theme',n)}catch(e){}})";
+
+const ICON =
+  '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" ' +
+  'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">';
+
+const THEME_BUTTON =
+  '<button id="theme" class="theme" type="button" ' +
+  'title="Гэрэлтэй / бараан" aria-label="Гэрэлтэй / бараан">' +
+  ICON +
+  '<path class="moon" d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>' +
+  '<g class="sun"><circle cx="12" cy="12" r="4"/>' +
+  '<path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4' +
+  'M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></g></svg></button>';
+
 const link = (href: string, text: string, current = false): string =>
   '<a href="' +
   escapeAttr(href) +
@@ -95,11 +115,15 @@ function topBar(page: Page, ctx: LayoutContext): string {
   return (
     '<header class="top"><a class="brand" href="' +
     ctx.base +
-    '">Алдаа шалгагч</a><nav class="sections" aria-label="Хэсгүүд">' +
+    '">' +
+    APP_NAME +
+    '</a><nav class="sections" aria-label="Хэсгүүд">' +
     sections +
-    '</nav><a class="cta" href="' +
+    "</nav>" +
+    THEME_BUTTON +
+    '<a class="cta" href="' +
     ctx.base +
-    '">Апп нээх</a></header>'
+    '">Ап нээх</a></header>'
   );
 }
 
@@ -127,7 +151,7 @@ function toc(page: Page): string {
     .map((h) => "<li>" + link("#" + h.id, h.text) + "</li>")
     .join("");
   return (
-    '<nav class="toc" aria-label="Энэ хуудсанд"><p>Энэ хуудсанд</p><ol>' +
+    '<nav class="toc" aria-label="Гарчиг"><p>Гарчиг</p><ol>' +
     items +
     "</ol></nav>"
   );
@@ -138,7 +162,7 @@ function openButton(page: Page, ctx: LayoutContext): string {
   return (
     '<p class="open"><a class="button" href="' +
     escapeAttr(ctx.base + page.open) +
-    '">Апп дээр нээх</a></p>'
+    '">Ап дээр нээх</a></p>'
   );
 }
 
@@ -195,6 +219,9 @@ export function renderPage(page: Page, ctx: LayoutContext): string {
     pager(page, ctx) +
     "</main></div>" +
     FOOTER +
+    "<script>" +
+    TOGGLE_SCRIPT +
+    "</script>" +
     "\n</body>\n</html>\n"
   );
 }

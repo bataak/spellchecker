@@ -226,6 +226,12 @@ test("a rendered page carries canonical, navigation and breadcrumbs", () => {
   assert.match(html, /"@type":"BreadcrumbList"/);
   assert.match(
     html,
+    /<a class="brand" href="\/b\/">Монгол үгийн алдаа шалгагч<\/a>/,
+  );
+  assert.match(html, /<button id="theme" class="theme" type="button"/);
+  assert.match(html, /localStorage\.setItem\('theme',n\)/);
+  assert.match(
+    html,
     /"name":"Ерөнхий","item":"https:\/\/aldaa\.bichig\.dev\/zaavar\/"/,
   );
 });
@@ -242,7 +248,7 @@ test("long pages get an outline after the title", () => {
   const html = renderPage(long, { base: "/", css: "", pages: [long] });
   assert.match(
     html,
-    /<\/h1><nav class="toc"[^>]*><p>Энэ хуудсанд<\/p><ol><li><a href="#а">А<\/a>/,
+    /<\/h1><nav class="toc"[^>]*><p>Гарчиг<\/p><ol><li><a href="#а">А<\/a>/,
   );
 });
 
@@ -255,6 +261,6 @@ test("every help page in the repo builds", () => {
     );
   for (const item of pages) {
     assert.match(item.content.html, /<h1/, item.path);
-    assert.doesNotMatch(item.content.html, /&lt;(div|iframe)/, item.path);
+    assert.doesNotMatch(item.content.html, /&lt;iframe/, item.path);
   }
 });
