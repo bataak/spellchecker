@@ -1,5 +1,44 @@
 # Changelog
 
+## [1.121.0](https://github.com/bataak/spellchecker/compare/v1.120.4...v1.121.0) (2026-11-01)
+
+
+### Features
+
+* **bench:** add Windows support for battery and Word measurements ([164cb83](https://github.com/bataak/spellchecker/commit/164cb83b1f71d67c8205c8b892e09d854471c15d))
+* **help:** add Markdown, cleanup, LaTeX project and mobile pages ([4d42888](https://github.com/bataak/spellchecker/commit/4d428884af59bf8ecfd72d78d3ed49486634c4e0))
+* **help:** label the template button «Энэ горимыг ап дээр нээх» ([5b7fb39](https://github.com/bataak/spellchecker/commit/5b7fb39a8ed655196c6a8018944f668970ee4085))
+* **help:** publish the help and template pages as static pages ([497e6b0](https://github.com/bataak/spellchecker/commit/497e6b09f5c01288b9d80b364d2e4d55cc90aed2))
+* **help:** show the rendered output under Markdown table examples ([08f17e8](https://github.com/bataak/spellchecker/commit/08f17e884986dc5642ec60f7ff7edaf960b18483))
+* **seo:** add canonical, Open Graph, JSON-LD, sitemap and robots.txt ([751d409](https://github.com/bataak/spellchecker/commit/751d409d07232ff322b63d00bc6909753a9be74f))
+
+
+### Bug Fixes
+
+* **app:** block browser translation on every generated page ([58ed8dd](https://github.com/bataak/spellchecker/commit/58ed8dd6c5700c0f1e34e24e758f1b96e9467a32))
+* **app:** stop Chrome offering to translate the app ([47f9128](https://github.com/bataak/spellchecker/commit/47f9128eb25e44157cd93954fcf10648d27a2e7e))
+* **bench:** count each tracked process once ([242b8e9](https://github.com/bataak/spellchecker/commit/242b8e9e34033abc53228ffd506fda919096fbc5))
+* **bench:** give Firefox its own home folder on macOS ([7d1b8c3](https://github.com/bataak/spellchecker/commit/7d1b8c35fd875f17fe157f7a1499dd2ce1595c39))
+* **bench:** make macOS measurements trustworthy ([04d7b78](https://github.com/bataak/spellchecker/commit/04d7b78d198f757aa3f98001ad7751a6f36bef47))
+* **bench:** track soffice and keep LF text on Windows ([cc5a513](https://github.com/bataak/spellchecker/commit/cc5a51353f05b98dbebd58b52eb91bb1dc3f9f8a))
+* **collab:** apply the message size limit to whole frames ([939602d](https://github.com/bataak/spellchecker/commit/939602d421e324a944c597c98fbb02d44bc75b7a))
+* **collab:** cap comments and drop replies to deleted threads ([18b97dd](https://github.com/bataak/spellchecker/commit/18b97dd1cac24e6aca4e6aeab0fe3ff41b360e49))
+* **collab:** cap snapshot decompression size ([7395741](https://github.com/bataak/spellchecker/commit/739574143b826ce2889e7eaa07665f43d8905afc))
+* **collab:** clean peer names in cursors and the member list ([338b310](https://github.com/bataak/spellchecker/commit/338b3100d9cd999aa477e5561efd113c88557dab))
+* **collab:** keep a room closed while its session is starting ([6a6b2d7](https://github.com/bataak/spellchecker/commit/6a6b2d7558887d0dbbad999b9df82e47de4f56e6))
+* **collab:** keep the closed marker when an idle room is swept ([48fa63e](https://github.com/bataak/spellchecker/commit/48fa63e7b72a9a51e3c93479bcfcb67c656d9a14))
+* **collab:** refuse blob parts larger than the part size ([5c6661b](https://github.com/bataak/spellchecker/commit/5c6661b71131f16839c71f95cabc2941fe2d75a6))
+* **collab:** reject hidden and build-output paths from peers ([0aef79b](https://github.com/bataak/spellchecker/commit/0aef79b3fb74de59f885ed009b2e4a31a56f45e1))
+* **collab:** trim remote chat to the message limit ([d165cc7](https://github.com/bataak/spellchecker/commit/d165cc787213d7765b952dd375d3a154b2255449))
+* **collab:** use уруу in the jump-to-position tooltip ([856cd9f](https://github.com/bataak/spellchecker/commit/856cd9f1777ea2518d72b50cc97b9ba43a7f8bb6))
+* **help:** load styles and scripts from files to satisfy the CSP ([056ccab](https://github.com/bataak/spellchecker/commit/056ccabeba17d3bb948e809fae8e71a0a1743d68))
+* **help:** stop reading the moved stylesheet and inline code ([175aa62](https://github.com/bataak/spellchecker/commit/175aa628cb8f80e1417a454c35e2ea431eb4d327))
+* **markdown:** ignore pipes inside code and math when splitting table cells ([e86f747](https://github.com/bataak/spellchecker/commit/e86f747cf9f8559ad150d237c7ff65c83ad1c61a))
+* **markdown:** require matching column count for pipe tables ([ee70f8e](https://github.com/bataak/spellchecker/commit/ee70f8e9734e0d376ac451a48ff7aa9febfd8086)), closes [#307](https://github.com/bataak/spellchecker/issues/307)
+* **seo:** reword the page description ([8e8f926](https://github.com/bataak/spellchecker/commit/8e8f926c46262b2af3f51cc0e68f8eeadb22d32c))
+* **seo:** use уруу in the page description ([e44f4b3](https://github.com/bataak/spellchecker/commit/e44f4b35c8ef37d1e03e29cd2343df88019421bc))
+* **spell:** skip uppercase domains and fenced div attributes ([8367f82](https://github.com/bataak/spellchecker/commit/8367f8257c50b191749745aa66b64a073ce45d4a)), closes [#308](https://github.com/bataak/spellchecker/issues/308) [#309](https://github.com/bataak/spellchecker/issues/309)
+
 ## [1.120.4](https://github.com/bataak/spellchecker/compare/v1.120.3...v1.120.4) (2026-10-29)
 
 
