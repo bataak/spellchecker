@@ -88,8 +88,8 @@ tools\bench\out\venv\Scripts\python tools\bench\run.py idle firefox writer firef
 
 Windows дээр `cpu_w`, `gpu_w` хоосон гарна. `system_w`-г WMI-ийн
 `BatteryStatus.DischargeRate`-ээс уншдаг. Энэ утга удаан шинэчлэгддэг тул батарейн
-жинхэнэ хэмжилт зөрүүг ялгаж чадах эсэх нь тодорхойгүй. CPU, санах ойг цэнэглэгчгүй
-ажиллуулахгүйгээр хэмжиж болно (10 минут орчим):
+жинхэнэ хэмжилт зөрүүг ялгаж чадах эсэх нь тодорхойгүй. CPU, санах ойг цэнэглэгчтэй
+үед ч хэмжиж болно (10 минут орчим):
 
 ```
 tools\bench\out\venv\Scripts\python tools\bench\run.py --plugged --seconds 120 chromium firefox writer word
@@ -142,6 +142,9 @@ Firefox 157 нь Playwright-ийн хувилбар, LibreOffice 26.2, Word 16.0
 | Хоосон хуудас, Firefox | 1 | 0.046 | 1.4 сек | 515 MB |
 | LibreOffice Writer | 1 | 0.041 | 1.2 сек | 373 MB |
 | Word | 1 | 0.040 | 1.2 сек | 165 MB |
+
+Эдгээрийг процессуудыг PID-аар ялгахаас өмнө хэмжсэн тул Writer-ийн 373 MB-д
+`soffice.exe` давхар тоологдсон байж болзошгүй.
 
 Санах ойн нэмэгдэл нь ижил хөтчийн апын ба хоосон хуудасны зөрүү: Chromium дээр 160
 MB орчим (144–170 MB, 3 хос), Firefox дээр 274 MB (1 хос). Бичвэр `#editor`-т

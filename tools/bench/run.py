@@ -219,7 +219,7 @@ def tracked(root, names):
             found = []
     if names:
         found += [p for p in psutil.process_iter(["name"]) if p.info["name"] in names]
-    return found
+    return list({p.pid: p for p in found}.values())
 
 
 def record_cpu(processes, seen):
