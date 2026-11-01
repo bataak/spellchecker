@@ -13,7 +13,7 @@ aldaa.bichig.dev апыг LibreOffice Writer, Microsoft Word-той харьцу
 - Хэмжилтийн үеэр өөр ажил хийхгүй, бусад программ (ялангуяа хөтөч) хаалттай
   байна. Батарейтай компьютер цэнэглэгчгүй, дэлгэцийн гэрэлтүүлэг тогтмол, автомат
   гэрэлтүүлэг болон Low Power Mode (Windows дээр Battery saver) унтраалттай байна.
-- Батарейгүй компьютер (Mac mini гэх мэт) дээр батарейн оронд `powermetrics`-ийн
+- Батарейгүй компьютер дээр батарейн оронд `powermetrics`-ийн
   процессор, график процессорын чадлыг хэмжинэ. Энэ нь дэлгэцийн зарцуулалтыг
   оруулдаггүй тул программуудын зөрүүг илүү цэвэр харуулна.
 
@@ -103,7 +103,7 @@ tools\bench\out\venv\Scripts\python tools\bench\run.py --plugged --seconds 120 c
 python3 tools/bench/run.py --plugged --seconds 60 idle chromium writer
 ```
 
-Жинхэнэ хэмжилт (25–35 минут; батарейтай бол цэнэглэгчгүй, Mac mini дээр шууд):
+Жинхэнэ хэмжилт (25–35 минут; батарейтай бол цэнэглэгчгүй, батарейгүй бол шууд):
 
 ```
 python3 tools/bench/run.py idle chromium writer word chromium writer word idle
@@ -112,7 +112,7 @@ python3 tools/bench/run.py idle firefox writer firefox-blank firefox writer idle
 
 ## Linux дээрх үр дүн (2026-11-01)
 
-Intel i7-1185G7, Arch Linux, sway (Wayland), Chromium/Firefox нь Playwright-ийн
+Зөөврийн компьютер, Arch Linux, sway (Wayland), Chromium/Firefox нь Playwright-ийн
 хувилбар, LibreOffice 26.8.
 
 | | Батарей (бичих үед нэмэгдсэн) | CPU, 30 сек | sway CPU, 30 сек | GPU ачаалал | Санах ой, YouTube нээлттэй хөтчид нэмэгдэх |
@@ -128,7 +128,7 @@ Intel i7-1185G7, Arch Linux, sway (Wayland), Chromium/Firefox нь Playwright-и
 
 ## Windows дээрх үр дүн (2026-11-01)
 
-Intel i7-1185G7, 16 GB RAM, Lenovo 20W1S2YY00, Windows 11 Pro, Chromium 156 ба
+Зөөврийн компьютер, Windows 11 Pro, Chromium 156 ба
 Firefox 157 нь Playwright-ийн хувилбар, LibreOffice 26.2, Word 16.0. `--plugged
 --seconds 120` горимоор хэмжсэн. Энэ горимд батарейг хэмжээгүй бөгөөд цэнэглэгчгүй
 байсан ажиллуулалт ч бий. Тоог зөвхөн энэ компьютерийн программуудын хооронд
@@ -166,7 +166,7 @@ GPU, дэлгэцийн зарцуулалт тооцоонд ороогүй.
 
 ## macOS дээрх шалгах ажиллуулалт (2026-11-01)
 
-Apple M1, 16 GB RAM, Mac mini (Macmini9,1), macOS 27.2, Chromium нь Playwright-ийн
+Батарейгүй ширээний компьютер, macOS 27.2, Chromium нь Playwright-ийн
 хувилбар. Түүхий утгууд `results/macos-*.jsonl` файлд байна.
 
 | Файл | Үе | `cpu_share` | Санах ой | `power_samples` |
