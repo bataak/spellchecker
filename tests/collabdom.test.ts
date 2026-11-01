@@ -286,6 +286,12 @@ test("курсорын мэдээллийг кодлоод задлахад ба
     encodeCursor({ name: "Бат", color: 1 }, null, null),
   );
   assert.equal(hidden?.head, null);
+  const bytes = (raw: string): Uint8Array => new TextEncoder().encode(raw);
+  assert.equal(decodeCursor(bytes('{"n":"a","c":1e400}')), null);
+  assert.equal(
+    decodeCursor(bytes('{"n":"\\u202eБ\\u200bат ","c":2}'))?.name,
+    "Бат",
+  );
 });
 
 test("бусдын курсорыг нэр, өнгөтэй нь зурна", async () => {
