@@ -1,4 +1,5 @@
 import argparse
+import ctypes
 import json
 import platform
 import plistlib
@@ -9,6 +10,7 @@ import sys
 import threading
 import time
 from dataclasses import dataclass, field
+from datetime import timezone
 from pathlib import Path
 
 import psutil
@@ -20,10 +22,15 @@ TEXT = OUT / "text.txt"
 WARMUP = 45
 PAUSE = 20
 SAMPLE_SECONDS = 1
+SETTLE_SECONDS = 5
 MAC = platform.system() == "Darwin"
 MAC_OFFICE_PYTHON = "/Applications/LibreOffice.app/Contents/Resources/python"
 LINUX_BATTERY = Path("/sys/class/power_supply/BAT0")
 MIN_LINE = 60
+LIBPROC = ctypes.CDLL("/usr/lib/libproc.dylib") if MAC else None
+RUSAGE_INFO_V0 = 0
+RUSAGE_WORDS = 11
+PHYS_FOOTPRINT = 9
 
 
 @dataclass(frozen=True)
@@ -145,8 +152,9 @@ class PowerMetrics:
         cpu_mw = cpu.get("cpu_power", cpu.get("package_watts", 0) * 1000)
         gpu_mw = cpu.get("gpu_power", gpu.get("gpu_energy", 0))
         combined_mw = cpu.get("combined_power", cpu_mw + gpu_mw)
+        taken = plist["timestamp"].replace(tzinfo=timezone.utc).timestamp()
         return {
-            "t": time.time(),
+            "t": taken,
             "cpu_w": cpu_mw / 1000,
             "gpu_w": gpu_mw / 1000,
             "combined_w": combined_mw / 1000,
@@ -156,8 +164,18 @@ class PowerMetrics:
         if self.process:
             subprocess.run(["sudo", "-n", "kill", str(self.process.pid)])
 
-    def mean(self, key, since):
-        values = [s[key] for s in self.samples if s["t"] >= since]
+    def settle(self, until):
+        deadline = time.time() + SETTLE_SECONDS
+        while self.process and time.time() < deadline:
+            if self.samples and self.samples[-1]["t"] >= until:
+                return
+            time.sleep(SAMPLE_SECONDS)
+
+    def between(self, since, until):
+        return [s for s in self.samples if since <= s["t"] <= until]
+
+    def mean(self, key, since, until):
+        values = [s[key] for s in self.between(since, until)]
         return round(statistics.mean(values), 2) if values else None
 
 
@@ -183,11 +201,20 @@ def record_cpu(processes, seen):
     return sum(seen.values())
 
 
+def process_memory(process):
+    if not MAC:
+        return process.memory_full_info().uss
+    info = (ctypes.c_uint64 * RUSAGE_WORDS)()
+    if LIBPROC.proc_pid_rusage(process.pid, RUSAGE_INFO_V0, info):
+        raise psutil.NoSuchProcess(process.pid)
+    return info[PHYS_FOOTPRINT]
+
+
 def memory_mb(processes):
     total = 0
     for process in processes:
         try:
-            total += process.memory_full_info().uss
+            total += process_memory(process)
         except psutil.Error:
             continue
     return round(total / 2**20)
@@ -219,6 +246,8 @@ def measure(name, phase, seconds, plugged):
         memory = max(memory, memory_mb(processes))
         cpu_end = (time.time(), total)
         time.sleep(SAMPLE_SECONDS)
+    if child and child.returncode:
+        raise SystemExit(f"stopped: {name} exited with {child.returncode}")
     steady = [w for t, w in watts if t >= WARMUP]
     span = cpu_end[0] - cpu_start[0] if cpu_start else 0
     return {
@@ -227,6 +256,7 @@ def measure(name, phase, seconds, plugged):
         "cpu_share": round((cpu_end[1] - cpu_start[1]) / span, 3) if span else None,
         "memory_mb": memory,
         "steady_from": started + WARMUP,
+        "steady_to": time.time(),
         "output": child.stdout.read().strip() if child else "",
     }
 
@@ -251,9 +281,12 @@ def main():
     try:
         for name in args.phases:
             result = measure(name, table[name], args.seconds, plugged)
+            since = result.pop("steady_from")
+            until = result.pop("steady_to")
+            metrics.settle(until)
             for key in ("cpu_w", "gpu_w", "combined_w"):
-                result[key] = metrics.mean(key, result["steady_from"])
-            del result["steady_from"]
+                result[key] = metrics.mean(key, since, until)
+            result["power_samples"] = len(metrics.between(since, until))
             with log.open("a", encoding="utf-8") as out:
                 out.write(json.dumps(result, ensure_ascii=False) + "\n")
             print(json.dumps(result, ensure_ascii=False), flush=True)

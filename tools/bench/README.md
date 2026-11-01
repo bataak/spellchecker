@@ -25,7 +25,8 @@ aldaa.bichig.dev апыг LibreOffice Writer, Microsoft Word-той харьцу
 | `cpu_w`, `gpu_w` | macOS дээр `powermetrics`-ийн процессор, график процессорын чадал, W |
 | `combined_w` | Apple Silicon дээр процессор, график процессор, Neural Engine-ийн нийт чадал, W |
 | `cpu_share` | Хэмжиж буй программын процессуудын CPU хугацаа / бодит хугацаа (1 = нэг цөм бүтэн) |
-| `memory_mb` | Программын процессуудын USS санах ойн дээд утга, MB |
+| `power_samples` | `cpu_w`, `gpu_w`-д орсон `powermetrics`-ийн дээжийн тоо |
+| `memory_mb` | Программын процессуудын санах ойн дээд утга, MB. Linux дээр USS, macOS дээр `phys_footprint` тул хооронд нь шууд харьцуулахгүй |
 
 ## Үеүд
 
