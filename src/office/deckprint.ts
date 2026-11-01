@@ -363,7 +363,8 @@ export function deckPrintHtml(
     strokeCss(SLIDE_STROKE_PT);
   const title = doc.title?.map((run) => run.text).join("") ?? "";
   return (
-    '<!doctype html><html lang="mn"><head><meta charset="utf-8">' +
+    '<!doctype html><html lang="mn" translate="no"><head><meta charset="utf-8">' +
+    '<meta name="google" content="notranslate">' +
     "<title>" +
     escapeAttr(title.replace(/\s*\n\s*/g, " ")) +
     "</title><style>" +
