@@ -1,7 +1,8 @@
 <!doctype html>
-<html lang="mn" class="booting">
+<html lang="mn" translate="no" class="booting">
   <head>
     <meta charset="utf-8" />
+    <meta name="google" content="notranslate" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
@@ -68,6 +69,10 @@
         "isAccessibleForFree": true,
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "MNT" },
         "image": "https://aldaa.bichig.dev/og.png",
+        "softwareHelp": {
+          "@type": "CreativeWork",
+          "url": "https://aldaa.bichig.dev/zaavar/"
+        },
         "sameAs": [
           "https://zuv.bichig.dev/",
           "https://github.com/bataak/spellchecker"
@@ -123,7 +128,7 @@
             алдаа шалгах толинд хараахан бүртгэгдээгүй байж болно.
           </p>
           <p id="emptyNoteAction" class="empty-note">
-            Ап ашиглах заавар: https://zuv.bichig.dev/online-app/
+            Ап ашиглах заавар: https://aldaa.bichig.dev/zaavar/
           </p>
         </div>
         <aside
@@ -357,9 +362,9 @@
         <a
           id="helpBtn"
           class="tbtn tbtn-icon tlink"
-          href="https://zuv.bichig.dev/online-app/"
+          href="%BASE_URL%zaavar/"
           target="_blank"
-          rel="noopener noreferrer"
+          rel="noopener"
           title="Тусламж — ашиглах заавар"
           aria-label="Тусламж — ашиглах заавар"
           ><svg
