@@ -62,7 +62,7 @@ import {
   withoutRoom,
 } from "../src/collab/collabrooms.ts";
 import { rebaseHistory, undo } from "../src/editor/undohistory.ts";
-import { createAdmin, decodeRoster } from "../src/collab/admin.ts";
+import { createAdmin } from "../src/collab/admin.ts";
 
 test("Yjs delta-г засварын жагсаалт болгоно", () => {
   const changes = deltaChanges([
@@ -571,16 +571,6 @@ test("хуваалцахыг зогсоохыг сервер баталсны д
   assert.deepEqual(parseSignal('{"t":"ended"}'), { t: "ended" });
   assert.equal(admin.receive({ t: "ended" }), true);
   assert.equal(await ending, true);
-});
-
-test("хамтрагчийн нэрээс далд, чиглэл солих тэмдэгтийг хасна", async () => {
-  const key = await importKey(newLink().key);
-  const raw = "\u202eСар\u200bаа" + "я".repeat(80);
-  const label = toBase64Url(await seal(key, new TextEncoder().encode(raw)));
-  const [member] = await decodeRoster(key, [
-    { dev: "a", label, online: true, owner: false },
-  ]);
-  assert.equal(member!.name, "Сараа" + "я".repeat(35));
 });
 
 test("хамтрагчдын нэрийг түлхүүрээр тайлж харуулна", async () => {

@@ -19,6 +19,8 @@ test("хязгаараас том болж задрах өгөгдлийг хү�
 
 test("тасархай эсвэл гажуудсан өгөгдөлд алдаа өгнө", () => {
   const packed = deflateSync(new Uint8Array(100_000).fill(7));
-  assert.throws(() => inflateCapped(packed.subarray(0, packed.length - 4), 1e6));
+  assert.throws(() =>
+    inflateCapped(packed.subarray(0, packed.length - 4), 1e6),
+  );
   assert.throws(() => inflateCapped(new Uint8Array([255, 255, 255]), 1e6));
 });
