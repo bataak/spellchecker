@@ -13,6 +13,7 @@ import { newToken, randomId } from "../src/collab/collabkey.ts";
 
 const DENIED = 4003;
 const FULL = 4009;
+const WIPED = 4006;
 const MAX_PEERS = 8;
 const MAX_INVITES = 32;
 
@@ -94,4 +95,14 @@ test("богино холбоос өрөөний хадгалдаг сүүлий
   assert.equal(newest.name, "a.md");
   assert.equal(typeof newest.invite, "string");
   client.close();
+});
+
+test("хаагдсан өрөөг хугацаа дууссаны дараа ч дахин эзэмшиж болохгүй", async () => {
+  const { room, client } = await ownedRoom();
+  client.send(JSON.stringify({ t: "close", wipe: true }));
+  await event(client, "ended");
+  client.close();
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  await server.expire(room);
+  assert.equal(await knock(room, randomId(12), "o=" + newToken()), WIPED);
 });

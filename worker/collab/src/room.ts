@@ -444,21 +444,19 @@ export class Room extends DurableObject<Env> {
     if (links && room) this.ctx.waitUntil(links.dropRoom(room));
   }
 
-  async alarm(): Promise<void> {
+  alarm(): Promise<void> {
+    return this.sweep();
+  }
+
+  async sweep(): Promise<void> {
     if (this.peers().length) {
       await this.touch();
       return;
     }
     this.dropLinks();
     const sql = this.ctx.storage.sql;
-    for (const table of [
-      "snap",
-      "piece",
-      "stage",
-      "meta",
-      "invites",
-      "members",
-    ])
+    for (const table of ["snap", "piece", "stage", "invites", "members"])
       sql.exec("DELETE FROM " + table);
+    sql.exec("DELETE FROM meta WHERE k <> 'closed'");
   }
 }
