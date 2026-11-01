@@ -74,7 +74,7 @@ test("images load lazily from the base", () => {
   );
   assert.match(
     html,
-    /<img loading="lazy" decoding="async" src="\/zaavar\/img\/a\.webp" alt="Зураг" style="width:49%">/,
+    /<img loading="lazy" decoding="async" src="\/zaavar\/img\/a\.webp" alt="Зураг" data-style="width:49%">/,
   );
   assert.doesNotMatch(html, /data-line|data-src/);
 });
@@ -114,7 +114,7 @@ test("a demo fence shows its code and its rendered output", () => {
   );
   assert.match(html, /<pre><code>::: \{width=/);
   assert.match(html, /<div class="demo"><p class="demo-label">Гаралт<\/p>/);
-  assert.match(html, /<table style="width:60%/);
+  assert.match(html, /<table data-style="width:60%/);
   assert.match(html, /class="e-/);
   assert.doesNotMatch(html, /@demo|data-line/);
 });
@@ -136,7 +136,7 @@ test("a template page links to the app's slot hash", () => {
     "/",
   );
   assert.equal(built.open, "#letter/application");
-  const html = renderPage(built, { base: "/", css: "", pages: [built] });
+  const html = renderPage(built, { base: "/", pages: [built] });
   assert.match(
     html,
     /<a class="button" href="\/#letter\/application">Энэ горимыг ап дээр нээх<\/a>/,
@@ -222,7 +222,6 @@ test("a rendered page carries canonical, navigation and breadcrumbs", () => {
   const toli = pages.find((item) => item.path === "zaavar/toli/")!;
   const html = renderPage(toli, {
     base: "/b/",
-    css: 'a{src:url("/x")}',
     pages,
   });
   assert.match(
@@ -239,14 +238,14 @@ test("a rendered page carries canonical, navigation and breadcrumbs", () => {
     /<a rel="prev" href="\/b\/zaavar\/"><small>Өмнөх<\/small>Ерөнхий<\/a>/,
   );
   assert.match(html, /<a rel="next" href="\/b\/zaavar\/file\/">/);
-  assert.match(html, /url\("\/b\/x"\)/);
+  assert.match(html, /<link rel="stylesheet" href="\/b\/help\.css">/);
+  assert.match(html, /<script src="\/b\/help\.js"><\/script>/);
   assert.match(html, /"@type":"BreadcrumbList"/);
   assert.match(
     html,
     /<a class="brand" href="\/b\/">Монгол үгийн алдаа шалгагч<\/a>/,
   );
   assert.match(html, /<button id="theme" class="theme" type="button"/);
-  assert.match(html, /localStorage\.setItem\('theme',n\)/);
   assert.match(
     html,
     /"name":"Ерөнхий","item":"https:\/\/aldaa\.bichig\.dev\/zaavar\/"/,
@@ -262,7 +261,7 @@ test("long pages get an outline after the title", () => {
     },
     "/",
   );
-  const html = renderPage(long, { base: "/", css: "", pages: [long] });
+  const html = renderPage(long, { base: "/", pages: [long] });
   assert.match(
     html,
     /<\/h1><nav class="toc"[^>]*><p>Гарчиг<\/p><ol><li><a href="#а">А<\/a>/,
@@ -279,5 +278,14 @@ test("every help page in the repo builds", () => {
   for (const item of pages) {
     assert.match(item.content.html, /<h1/, item.path);
     assert.doesNotMatch(item.content.html, /&lt;iframe/, item.path);
+  }
+});
+
+test("pages stay within a style-src and script-src 'self' policy", () => {
+  const pages = buildPages(sources, "/");
+  for (const page of pages) {
+    const html = renderPage(page, { base: "/", pages });
+    assert.doesNotMatch(html, /<style|\sstyle="|\son[a-z]+="/);
+    assert.doesNotMatch(html, /<script(?![^>]*(?:src=|application\/ld\+json))/);
   }
 });
