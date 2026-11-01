@@ -12,7 +12,7 @@ aldaa.bichig.dev апыг LibreOffice Writer, Microsoft Word-той харьцу
 - Үеүдийг ээлжлэн, давтан явуулна: эхэнд ба төгсгөлд `idle`, дунд нь программууд.
 - Хэмжилтийн үеэр өөр ажил хийхгүй, бусад программ (ялангуяа хөтөч) хаалттай
   байна. Батарейтай компьютер цэнэглэгчгүй, дэлгэцийн гэрэлтүүлэг тогтмол, автомат
-  гэрэлтүүлэг болон Low Power Mode унтраалттай байна.
+  гэрэлтүүлэг болон Low Power Mode (Windows дээр Battery saver) унтраалттай байна.
 - Батарейгүй компьютер (Mac mini гэх мэт) дээр батарейн оронд `powermetrics`-ийн
   процессор, график процессорын чадлыг хэмжинэ. Энэ нь дэлгэцийн зарцуулалтыг
   оруулдаггүй тул программуудын зөрүүг илүү цэвэр харуулна.
@@ -26,14 +26,14 @@ aldaa.bichig.dev апыг LibreOffice Writer, Microsoft Word-той харьцу
 | `combined_w` | Apple Silicon дээр процессор, график процессор, Neural Engine-ийн нийт чадал, W |
 | `cpu_share` | Хэмжиж буй программын процессуудын CPU хугацаа / бодит хугацаа (1 = нэг цөм бүтэн) |
 | `power_samples` | `cpu_w`, `gpu_w`-д орсон `powermetrics`-ийн дээжийн тоо |
-| `memory_mb` | Программын процессуудын санах ойн дээд утга, MB. Linux дээр USS, macOS дээр `phys_footprint` тул хооронд нь шууд харьцуулахгүй |
+| `memory_mb` | Программын процессуудын санах ойн дээд утга, MB. Linux, Windows дээр USS, macOS дээр `phys_footprint` тул хооронд нь шууд харьцуулахгүй |
 
 ## Үеүд
 
 `idle`, `chromium`, `firefox`, `chromium-blank`, `firefox-blank`, `writer`, `word`.
 
 `*-blank` нь апын оронд хоосон `<textarea>` бүхий хуудас бөгөөд хөтчийн өөрийн
-зардлыг апын зардлаас салгахад хэрэглэнэ. `word` зөвхөн macOS дээр ажиллана.
+зардлыг апын зардлаас салгахад хэрэглэнэ. `word` macOS, Windows дээр ажиллана.
 
 ## macOS дээр бэлтгэх
 
@@ -51,6 +51,42 @@ Terminal-д Word-ийг удирдах зөвшөөрөл (Automation) асуу�
 `powermetrics` sudo шаарддаг. Хэмжилтээс өмнө хэрэглэгч `! sudo -v` гэж нууц үгээ
 оруулна. Батарейтай компьютер дээр sudo эрхгүй бол `cpu_w`, `gpu_w` хоосон гарч,
 бусад утга хэмжигдэнэ. Батарейгүй компьютер дээр sudo эрхгүй бол скрипт зогсоно.
+
+## Windows дээр бэлтгэх
+
+Windows-ийн дэмжлэгийг macOS дээр бичсэн бөгөөд Windows дээр хараахан ажиллуулж
+шалгаагүй. Microsoft Word суусан, идэвхжсэн байх ёстой. LibreOffice нь анхдагч
+`C:\Program Files\LibreOffice` замд сууна.
+
+```
+winget install OpenJS.NodeJS.LTS Python.Python.3.13 TheDocumentFoundation.LibreOffice
+npm ci
+npx playwright install chromium firefox
+py -m venv tools\bench\out\venv
+tools\bench\out\venv\Scripts\pip install psutil pywin32
+```
+
+Скриптийг ажиллаж байгааг цэнэглэгчтэй үед шалгах:
+
+```
+tools\bench\out\venv\Scripts\python tools\bench\run.py --plugged --seconds 60 idle chromium writer word
+```
+
+Дараа нь цэнэглэгчийг салгаж, батарейн утгыг богино ажиллуулалтаар шалгана:
+
+```
+tools\bench\out\venv\Scripts\python tools\bench\run.py --seconds 60 idle chromium
+```
+
+Жинхэнэ хэмжилт (мөр бүр 40 минут орчим, цэнэглэгчгүй):
+
+```
+tools\bench\out\venv\Scripts\python tools\bench\run.py idle chromium writer word chromium writer word idle
+tools\bench\out\venv\Scripts\python tools\bench\run.py idle firefox writer firefox-blank firefox writer idle
+```
+
+Windows дээр `cpu_w`, `gpu_w` хоосон гарна. `system_w`-г WMI-ийн
+`BatteryStatus.DischargeRate`-ээс уншдаг.
 
 ## Ажиллуулах
 
@@ -82,6 +118,16 @@ Intel i7-1185G7, Arch Linux, sway (Wayland), Chromium/Firefox нь Playwright-и
 адил гарсан тул апаас бус, Firefox дэлгэцэд гаргах аргаас шалтгаална. Бичихгүй
 үед Firefox заагчийн анивчилтыг зогсоож бараг зарцуулалтгүй болдог бол Chromium
 тасралтгүй анивчуулдаг.
+
+## Windows дээр шалгах зүйлс
+
+1. `system_w` 0 биш гарч, `idle`-ээс `chromium` руу шилжихэд өөрчлөгдөж байгаа эсэх.
+   Зарим зөөврийн компьютерт `DischargeRate` бүдүүн алхамтай шинэчлэгддэг тул 0.15 W
+   орчим зөрүүг ялгаж чадахгүй бол тоог тусламжийн хуудсанд оруулахгүй.
+2. `BatteryStatus`-ийг администратор эрхгүйгээр уншиж чадаж байгаа эсэх.
+3. `word` үеийн анхны ажиллуулалтад Word-ын харилцах цонх гарч бичихэд саад болох эсэх.
+4. Windows-ийн тоог зөвхөн тухайн компьютер доторх программуудын хооронд харьцуулах.
+   Linux-ийн хүснэгттэй шууд нийлүүлэхгүй. Хуудасны бичвэрийг хэрэглэгч хянана.
 
 ## macOS дээр шалгах зүйлс
 
