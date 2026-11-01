@@ -107,6 +107,18 @@ test("the keymap marker expands into tables", () => {
   assert.doesNotMatch(html, /@keymap/);
 });
 
+test("a demo fence shows its code and its rendered output", () => {
+  const { html } = renderMarkdown(
+    '```demo\n::: {width="60%" .grid .center}\n| A | B |\n| --- | --- |\n| 1 | 2 |\n:::\n```',
+    "/",
+  );
+  assert.match(html, /<pre><code>::: \{width=/);
+  assert.match(html, /<div class="demo"><p class="demo-label">Гаралт<\/p>/);
+  assert.match(html, /<table style="width:60%/);
+  assert.match(html, /class="e-/);
+  assert.doesNotMatch(html, /@demo|data-line/);
+});
+
 test("page paths end in a slash and index maps to the section", () => {
   assert.equal(pagePath("zaavar", "index"), "zaavar/");
   assert.equal(pagePath("zaavar", "toli"), "zaavar/toli/");
