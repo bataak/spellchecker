@@ -28,7 +28,7 @@ description: Word, PowerPoint, OpenDocument, PDF, LaTeX, Markdown файлын �
 
 OpenDocument (`*.odt`, `*.odp`) файлыг мөн адил засна.
 
-Түүнчлэн `pdf` файлын бичвэрийн алдааг хянах боломжтой. Сканердсан, текстийн давхаргагүй PDF файлыг уншиж чадахгүй.
+Түүнчлэн `pdf` файлын бичвэрийн алдааг хянах боломжтой. Гэхдээ сканердсан, текстийн давхаргагүй PDF файлыг уншиж чадахгүй.
 
 [Word, PowerPoint, PDF файлын алдаа засварлах](https://www.youtube.com/watch?v=bxQT52J3zTE)
 
