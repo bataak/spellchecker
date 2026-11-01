@@ -10,6 +10,10 @@ SINGLE_RUNS = {"firefox": 0.015, "writer": 0.041, "word": 0.040}
 RUN_SCATTER = statistics.stdev(math.log(x) for x in CHROMIUM_RUNS)
 BASE_K = (1.0, 3.0)
 FIREFOX_RENDER_K = (1.0, 5.8)
+MACOS_APP_SHARE = {
+    "chromium": (0.014, 0.010, 0.016),
+    "firefox": (0.005, 0.004, 0.003),
+}
 
 
 def draw_share(rng, runs):
@@ -63,6 +67,20 @@ def report(title, firefox_k):
             )
 
 
+def runtime_loss_bounds(shares):
+    low = min(shares) * BASE_K[0]
+    high = max(shares) * BASE_K[1]
+    return low / (IDLE_W[1] + low), high / (IDLE_W[0] + high)
+
+
+def report_macos():
+    print("macos: Windows laptop power values, min-max, not measured")
+    for name, shares in MACOS_APP_SHARE.items():
+        low, high = runtime_loss_bounds(shares)
+        print(f"  {name:9} runtime -{low * 100:.2f}% to -{high * 100:.2f}%")
+
+
 print(f"run scatter (log sd): {RUN_SCATTER:.2f}")
 report("base: k 1-3 W per core, shared", BASE_K)
 report("firefox rendering: firefox k 1-5.8", FIREFOX_RENDER_K)
+report_macos()
