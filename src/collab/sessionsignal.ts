@@ -1,5 +1,4 @@
 import * as Y from "yjs";
-import { inflateSync } from "fflate";
 import { noteError } from "../core/errorlog.ts";
 import type { Emitter } from "../core/emitter.ts";
 import type { Admin } from "./admin.ts";
@@ -7,6 +6,7 @@ import type { Attacher } from "./attacher.ts";
 import { fromBase64Url, seal, toBase64Url, unseal } from "./collabkey.ts";
 import type { Access } from "./collabrooms.ts";
 import type { IceKeeper } from "./ice.ts";
+import { inflateCapped } from "./inflatecap.ts";
 import type { Mesh, SignalPayload } from "./mesh.ts";
 import type { Uploader } from "./persistence.ts";
 import type { SessionContent, SessionLink } from "./sessiontypes.ts";
@@ -21,6 +21,7 @@ const MOVES: ReadonlySet<SignalEvent["t"]> = new Set([
   "kick",
 ]);
 const READY_MS = 5000;
+const MAX_PLAIN_SNAPSHOT = 128 * 1024 * 1024;
 export const SNAPSHOT = { snapshot: true };
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -121,7 +122,8 @@ async function applySnapshot(
   data: Uint8Array,
 ): Promise<void> {
   const plain = await unseal(key, data);
-  if (plain) Y.applyUpdate(doc, inflateSync(plain), SNAPSHOT);
+  const update = plain && inflateCapped(plain, MAX_PLAIN_SNAPSHOT);
+  if (update) Y.applyUpdate(doc, update, SNAPSHOT);
 }
 
 export interface Gate {

@@ -202,6 +202,9 @@ test("хэт том мессежийг хаяад дараагийнхыг зө�
   const assembler = createAssembler(5000);
   for (const piece of chunk(new Uint8Array(20_000), 1000))
     assert.equal(assembler.push(piece), null);
+  const whole = chunk(new Uint8Array(6000));
+  assert.equal(whole.length, 1);
+  assert.equal(assembler.push(whole[0]!), null);
   const next = new Uint8Array(3000).fill(7);
   let out: Uint8Array | null = null;
   for (const piece of chunk(next, 1000)) out = assembler.push(piece) ?? out;

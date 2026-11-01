@@ -82,9 +82,11 @@ function invalidAt(array: Y.Array<unknown>): number[] {
 function prune(array: Y.Array<unknown>): void {
   const doc = array.doc;
   const bad = invalidAt(array);
-  if (!bad.length || !doc) return;
+  if (!doc || (!bad.length && array.length <= MAX_MESSAGES)) return;
   doc.transact(() => {
     for (const index of bad.reverse()) array.delete(index, 1);
+    const extra = array.length - MAX_MESSAGES;
+    if (extra > 0) array.delete(0, extra);
   });
 }
 
