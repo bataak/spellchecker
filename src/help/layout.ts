@@ -3,23 +3,11 @@ import { SECTIONS, SITE, type Page } from "./site.ts";
 
 export interface LayoutContext {
   readonly base: string;
-  readonly css: string;
   readonly pages: readonly Page[];
 }
 
 const APP_NAME = "Монгол үгийн алдаа шалгагч";
 const TOC_MIN = 3;
-
-const THEME_SCRIPT =
-  "try{var t=localStorage.getItem('theme');" +
-  "if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}";
-
-const TOGGLE_SCRIPT =
-  "document.getElementById('theme').addEventListener('click',function(){" +
-  "var r=document.documentElement,c=r.getAttribute('data-theme')||" +
-  "(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')," +
-  "n=c==='dark'?'light':'dark';r.setAttribute('data-theme',n);" +
-  "try{localStorage.setItem('theme',n)}catch(e){}})";
 
 const ICON =
   '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" ' +
@@ -98,8 +86,8 @@ function head(page: Page, ctx: LayoutContext): string {
     icon("32x32"),
     icon("16x16"),
     '<link rel="apple-touch-icon" href="' + ctx.base + 'apple-touch-icon.png">',
-    "<script>" + THEME_SCRIPT + "</script>",
-    "<style>" + ctx.css.replace(/url\("\//g, 'url("' + ctx.base) + "</style>",
+    '<script src="' + ctx.base + 'help.js"></script>',
+    '<link rel="stylesheet" href="' + ctx.base + 'help.css">',
     '<script type="application/ld+json">' +
       breadcrumbJson(page, ctx) +
       "</script>",
@@ -220,9 +208,6 @@ export function renderPage(page: Page, ctx: LayoutContext): string {
     pager(page, ctx) +
     "</main></div>" +
     FOOTER +
-    "<script>" +
-    TOGGLE_SCRIPT +
-    "</script>" +
     "\n</body>\n</html>\n"
   );
 }

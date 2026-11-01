@@ -1,11 +1,9 @@
-import { readFileSync } from "node:fs";
 import type { Plugin, ResolvedConfig, ViteDevServer } from "vite";
 import { renderPage } from "./src/help/layout.ts";
 import { buildPages, sitemapXml, type Page } from "./src/help/site.ts";
 import { readSources } from "./src/help/sources.ts";
 
 const DIR = "help";
-const CSS = DIR + "/help.css";
 
 interface Site {
   readonly pages: readonly Page[];
@@ -14,7 +12,7 @@ interface Site {
 
 function loadSite(base: string): Site {
   const pages = buildPages(readSources(DIR), base);
-  const ctx = { base, css: readFileSync(CSS, "utf-8"), pages };
+  const ctx = { base, pages };
   return { pages, html: (page) => renderPage(page, ctx) };
 }
 

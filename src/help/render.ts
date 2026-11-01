@@ -49,7 +49,7 @@ function images(html: string): string {
       /<img class="md-image" data-src="/g,
       '<img loading="lazy" decoding="async" src="',
     )
-    .replace(/ data-style="/g, ' style="');
+    .replace(/ style="/g, ' data-style="');
 }
 
 function videos(html: string): string {
