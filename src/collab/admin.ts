@@ -7,6 +7,8 @@ import {
   toBase64Url,
   unseal,
 } from "./collabkey.ts";
+import { MAX_NAME } from "./profile.ts";
+import { cleanName } from "./safetext.ts";
 import type { RosterEntry, SignalEvent } from "./signalwire.ts";
 
 export interface Member {
@@ -54,7 +56,7 @@ async function readLabel(key: CryptoKey, label: string): Promise<string> {
   if (!label) return "";
   try {
     const plain = await unseal(key, fromBase64Url(label));
-    return plain ? decoder.decode(plain) : "";
+    return plain ? cleanName(decoder.decode(plain), MAX_NAME) : "";
   } catch {
     return "";
   }

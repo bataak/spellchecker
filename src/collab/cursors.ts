@@ -3,7 +3,8 @@ import { createEmitter } from "../core/emitter.ts";
 import { move, place, watchLayout } from "./overlay.ts";
 import { fromBase64Url, toBase64Url } from "./collabkey.ts";
 import { CURSOR_COLORS } from "./peercolors.ts";
-import type { Profile } from "./profile.ts";
+import { MAX_NAME, type Profile } from "./profile.ts";
+import { cleanName } from "./safetext.ts";
 
 export interface CursorView {
   readonly host: HTMLElement;
@@ -40,7 +41,6 @@ export interface CursorDeps {
 
 const SEND_MS = 100;
 const LABEL_ROOM = 18;
-const MAX_NAME = 40;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
@@ -80,14 +80,14 @@ export function selectionEdges(
 export function decodeCursor(body: Uint8Array): CursorState | null {
   try {
     const value = JSON.parse(decoder.decode(body)) as Record<string, unknown>;
-    if (typeof value.n !== "string" || typeof value.c !== "number") return null;
+    if (typeof value.n !== "string" || !Number.isFinite(value.c)) return null;
     const position = (raw: unknown): Y.RelativePosition | null =>
       typeof raw === "string"
         ? Y.decodeRelativePosition(fromBase64Url(raw))
         : null;
     return {
-      name: value.n.slice(0, MAX_NAME),
-      color: Math.abs(Math.trunc(value.c)) % CURSOR_COLORS.length,
+      name: cleanName(value.n, MAX_NAME),
+      color: Math.abs(Math.trunc(value.c as number)) % CURSOR_COLORS.length,
       anchor: position(value.a),
       head: position(value.h),
     };
