@@ -52,6 +52,7 @@ function safePath(path: unknown): path is string {
     typeof path === "string" &&
     path.length <= MAX_PATH &&
     !unsafeName(path) &&
+    !path.includes("\\") &&
     !path.split("/").some((part) => ODD_PARTS.has(part))
   );
 }
@@ -87,10 +88,11 @@ function numbered(path: string, n: number): string {
 
 function resolved(doc: Y.Doc): Map<string, Entry> {
   const out = new Map<string, Entry>();
+  const main = mainOf(doc);
   const sorted = [...files(doc)].sort(([a], [b]) => (a < b ? -1 : 1));
   for (const [, entry] of sorted) {
     const path = pathOf(entry);
-    if (!path) continue;
+    if (!sharedPath(path, main)) continue;
     let free = path;
     for (let n = 2; out.has(free); n++) free = numbered(path, n);
     out.set(free, entry);
@@ -266,7 +268,7 @@ export function projectOf(doc: Y.Doc): ProjectSnapshot {
   return {
     texts,
     blobs,
-    dirs: new Set([...dirs(doc).keys()].filter(safePath)),
+    dirs: new Set([...dirs(doc).keys()].filter(sharedDir)),
     main: mainOf(doc),
   };
 }
