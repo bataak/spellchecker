@@ -81,7 +81,7 @@ export function createAssembler(limit: number): Assembler {
       if (flag === WHOLE) {
         clear();
         skipping = false;
-        return body;
+        return body.byteLength > limit ? null : body;
       }
       if (flag !== PART && flag !== LAST) return null;
       if (!skipping) {
