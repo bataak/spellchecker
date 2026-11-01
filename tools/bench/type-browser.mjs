@@ -13,7 +13,6 @@ const blank = target === "blank";
 
 function launchOptions() {
   if (engine !== "firefox" || process.platform !== "darwin") return {};
-  // macOS denies Playwright's Firefox the user's ~/Library Firefox folders.
   const home = fileURLToPath(new URL("out/firefox-home", import.meta.url));
   mkdirSync(`${home}/Library/Caches`, { recursive: true });
   mkdirSync(`${home}/Library/Application Support`, { recursive: true });
