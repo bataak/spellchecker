@@ -200,3 +200,45 @@ for (const [label, mark] of [
     assertSurvivesTextarea(openOdf(bytes), saveOdf, openOdf);
   });
 }
+
+const CDATA = "<![CDATA[A&amp;B <сан>]]>";
+const CDATA_TEXT = "A&amp;B <сан>";
+
+test("docx: CDATA доторх бичвэрийг шууд уншиж, зассан ч утга нь хэвээр", () => {
+  const bytes = docx(`<w:p><w:r><w:t>компьюте ${CDATA}</w:t></w:r></w:p>`);
+  const doc = openDocx(bytes);
+  assert.equal(doc.text, `компьюте ${CDATA_TEXT}`);
+  const result = replaceWord(doc, saveDocx, "компьюте", "компьютер");
+  assert.equal(openDocx(result.bytes).text, `компьютер ${CDATA_TEXT}`);
+});
+
+test("pptx: CDATA доторх бичвэрийг шууд уншиж, зассан ч утга нь хэвээр", () => {
+  const bytes = pptx(`<a:p><a:r><a:t>компьюте ${CDATA}</a:t></a:r></a:p>`);
+  const doc = openPptx(bytes);
+  assert.equal(doc.text, `компьюте ${CDATA_TEXT}`);
+  const result = replaceWord(doc, savePptx, "компьюте", "компьютер");
+  assert.equal(openPptx(result.bytes).text, `компьютер ${CDATA_TEXT}`);
+});
+
+test("odt: CDATA дотор зассан бичвэр CDATA-гийн тэмдэгт болж хувирахгүй", () => {
+  const bytes = odt("<text:p><![CDATA[компьюте A&amp;B <сан>]]></text:p>");
+  const doc = openOdf(bytes);
+  assert.equal(doc.text, `компьюте ${CDATA_TEXT}`);
+  const result = replaceWord(doc, saveOdf, "компьюте", "компьютер");
+  assert.equal(openOdf(result.bytes).text, `компьютер ${CDATA_TEXT}`);
+  assert.ok(!partOf(result, ODF_PART).includes("<![CDATA["));
+});
+
+test("odt: CDATA-гийн гаднах бичвэрийг зассанд CDATA өөрчлөгдөхгүй", () => {
+  const bytes = odt(`<text:p>компьюте ${CDATA}</text:p>`);
+  const result = replaceWord(openOdf(bytes), saveOdf, "компьюте", "компьютер");
+  assert.ok(partOf(result, ODF_PART).includes(CDATA));
+  assert.equal(openOdf(result.bytes).text, `компьютер ${CDATA_TEXT}`);
+});
+
+test("CDATA дотор энгийн бичвэрийн entity тайлагдахгүй, мөрийн төгсгөл нэгтгэгдэнэ", () => {
+  const bytes = docx(
+    "<w:p><w:r><w:t><![CDATA[а&#13;б\r\nв]]></w:t></w:r></w:p>",
+  );
+  assert.equal(openDocx(bytes).text, "а&#13;б\nв");
+});

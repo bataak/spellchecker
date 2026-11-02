@@ -9,7 +9,7 @@ export interface TagInfo {
 }
 
 export type TagHandler = (tag: TagInfo) => void;
-export type TextHandler = (start: number, end: number) => void;
+export type TextHandler = (start: number, end: number, text: string) => void;
 
 function isNameEnd(code: number): boolean {
   return (
@@ -32,7 +32,7 @@ function skipSpecial(xml: string, lt: number, onText: TextHandler): number {
   if (xml.startsWith("<![CDATA[", lt)) {
     const close = xml.indexOf("]]>", lt + 9);
     if (close < 0) return xml.length;
-    onText(lt + 9, close);
+    onText(lt, close + 3, normalizeLines(xml.slice(lt + 9, close)));
     return close + 3;
   }
   for (const [open, closing] of SKIPPED) {
@@ -77,6 +77,15 @@ function readTag(xml: string, lt: number): TagInfo {
   };
 }
 
+function emitText(
+  xml: string,
+  start: number,
+  end: number,
+  onText: TextHandler,
+): void {
+  onText(start, end, normalizeLines(decodeXmlText(xml.slice(start, end))));
+}
+
 export function scanXml(
   xml: string,
   onTag: TagHandler,
@@ -87,10 +96,10 @@ export function scanXml(
   while (cursor < length) {
     const lt = xml.indexOf("<", cursor);
     if (lt < 0) {
-      onText(cursor, length);
+      emitText(xml, cursor, length, onText);
       return;
     }
-    if (lt > cursor) onText(cursor, lt);
+    if (lt > cursor) emitText(xml, cursor, lt, onText);
     const skipped = skipSpecial(xml, lt, onText);
     if (skipped >= 0) {
       cursor = skipped;
@@ -162,8 +171,8 @@ export function decodeXmlText(value: string): string {
   );
 }
 
-export function readNodeText(raw: string): string {
-  return decodeXmlText(raw).replace(/\r\n?/g, "\n");
+function normalizeLines(value: string): string {
+  return value.replace(/\r\n?/g, "\n");
 }
 
 export function encodeXmlText(value: string): string {
