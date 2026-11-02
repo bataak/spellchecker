@@ -1,3 +1,4 @@
+import type { Html } from "../core/htmlutil.ts";
 import { askCommitMessage } from "./git/gitdialog.ts";
 import { askMerge } from "./git/mergedialog.ts";
 import {
@@ -15,7 +16,7 @@ const COMMITTING = "Commit хийгдэж байна…";
 export function createSave(
   store: ProjectStore,
   binding: Binding,
-  notify: (message: string) => void,
+  notify: (markup: Html) => void,
 ): (diskOnly?: boolean) => Promise<string | null> {
   let committing = false;
   return async (diskOnly = false) => {

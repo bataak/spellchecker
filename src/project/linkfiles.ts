@@ -1,10 +1,12 @@
+import type { Html } from "../core/htmlutil.ts";
 import { askChoice } from "../ui/ask.ts";
-import { escapeHtml } from "../core/htmlutil.ts";
+import { escapeHtml, trustedHtml } from "../core/htmlutil.ts";
 import { baseName } from "../tex/texproject.ts";
 import type { SaveResult } from "./projectstore.ts";
 
-export const FILES_SAVED_NOTICE =
-  "Засварласан файлуудыг «Татаж авсан файлууд» хавтас уруу татлаа — анхны файлыг тэдгээрээр солино уу";
+export const FILES_SAVED_NOTICE = trustedHtml(
+  "Засварласан файлуудыг «Татаж авсан файлууд» хавтас уруу татлаа — анхны файлыг тэдгээрээр солино уу",
+);
 
 const SAVE_MESSAGES: Record<SaveResult, string> = {
   downloaded: "Архивлалаа",
@@ -14,13 +16,13 @@ const SAVE_MESSAGES: Record<SaveResult, string> = {
   clean: "Өөрчлөлт алга",
 };
 
-export function conflictNotice(paths: readonly string[]): string {
+export function conflictNotice(paths: readonly string[]): Html {
   const names = paths
     .map((path) => "«" + escapeHtml(baseName(path)) + "»")
     .join(", ");
-  return (
+  return trustedHtml(
     names +
-    " дискэн дээр өөрчлөгдсөн байна. Таны хадгалаагүй засвар хэвээр үлдсэн бөгөөд хадгалбал дискэн дээрх хувилбарыг дарна"
+      " дискэн дээр өөрчлөгдсөн байна. Таны хадгалаагүй засвар хэвээр үлдсэн бөгөөд хадгалбал дискэн дээрх хувилбарыг дарна",
   );
 }
 
@@ -31,8 +33,8 @@ export function commitSuggestion(dirty: Iterable<string>): string {
   return "Засвар: " + shown + (names.length > 3 ? " болон бусад" : "");
 }
 
-export function saveMessage(result: SaveResult): string {
-  return SAVE_MESSAGES[result];
+export function saveMessage(result: SaveResult): Html {
+  return trustedHtml(SAVE_MESSAGES[result]);
 }
 
 export type Answer = boolean | Promise<boolean>;

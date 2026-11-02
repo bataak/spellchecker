@@ -1,3 +1,4 @@
+import { trustedHtml } from "../src/core/htmlutil.ts";
 import "./helpers/mock-storage.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -34,7 +35,10 @@ test("setSaveBusy: шошгыг түр сольж, буцааж сэргээнэ
 });
 
 test("missingNote: нэрсийг escape хийж нэгтгэнэ", () => {
-  assert.equal(missingNote("Зураг: ", ["a<b>", "c"]), "Зураг: a&lt;b&gt;, c");
+  assert.equal(
+    missingNote(trustedHtml("Зураг: "), ["a<b>", "c"]),
+    "Зураг: a&lt;b&gt;, c",
+  );
 });
 
 test("pdfSaver: хадгалж, ороогүй зургийг мэдэгдэнэ", async () => {

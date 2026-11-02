@@ -1,3 +1,4 @@
+import { html } from "../core/htmlutil.ts";
 import type { EditorPort } from "../core/ports.ts";
 import type { Backdrop } from "../editor/backdrop.ts";
 import { initDraftText, type DraftText } from "../editor/drafttext.ts";
@@ -78,7 +79,7 @@ export function createEditorWiring(deps: EditorWiringDeps): EditorWiring {
     accept: (old, next) => {
       const docx = office.active();
       if (docx && !docx.sync(old, next)) {
-        status.hold("Энэ өөрчлөлтийг docx файлд буулгах боломжгүй");
+        status.hold(html`Энэ өөрчлөлтийг docx файлд буулгах боломжгүй`);
         return false;
       }
       return true;

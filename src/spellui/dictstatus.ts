@@ -1,11 +1,12 @@
-import { escapeHtml } from "../core/htmlutil.ts";
+import type { Html } from "../core/htmlutil.ts";
+import { escapeHtml, trustedHtml, html } from "../core/htmlutil.ts";
 import { DICTIONARIES } from "../spell/spellchecker.ts";
 import { activeIds, loadEnabledEnglish, visibleIds } from "../dict/dictmenu.ts";
 
 type Failed = { id: string; error: string }[] | null;
 
 export interface DictStatus {
-  base(): string;
+  base(): Html;
   indicating(): boolean;
   setIndicating(on: boolean): void;
   english(): Set<string>;
@@ -16,7 +17,7 @@ export interface DictStatus {
 }
 
 export function createDictStatus(): DictStatus {
-  let base = "";
+  let base = html``;
   let indicating = false;
   let english = loadEnabledEnglish();
   let failed: Failed = null;
@@ -66,7 +67,7 @@ export function dictStatusMessage(
   loaded: string[],
   failed: { id: string; error: string }[] | null,
   fallbackReason: string | null,
-): string {
+): Html {
   const seenName = new Set<string>();
   const simple: string[] = [];
   for (const id of loaded) {
@@ -103,5 +104,5 @@ export function dictStatusMessage(
       escapeHtml(fallbackReason) +
       "</span>";
   }
-  return msg;
+  return trustedHtml(msg);
 }

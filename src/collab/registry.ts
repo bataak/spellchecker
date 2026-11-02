@@ -1,3 +1,5 @@
+import { escapeHtml } from "../core/htmlutil.ts";
+import type { Html } from "../core/htmlutil.ts";
 import { noteError } from "../core/errorlog.ts";
 import type { Access, RoomEntry } from "./collabrooms.ts";
 import {
@@ -34,7 +36,7 @@ export interface Registry {
 interface RegistryHooks {
   readonly project: CollabProject | null;
   readonly changed: () => void;
-  readonly notify: (message: string) => void;
+  readonly notify: (markup: Html) => void;
   readonly access: (room: string) => Access | null;
   readonly granted: (room: string, token: string) => void;
   readonly ended: (room: string, state: SignalState) => void;
@@ -84,14 +86,14 @@ function startRoom(
         }
         const ended = ENDED[status.signal];
         if (ended) {
-          notify(ended);
+          notify(escapeHtml(ended));
           queueMicrotask(() => hooks.ended(entry.room, status.signal));
           return;
         }
         statuses.set(entry.room, status);
         changed();
       },
-      onNotice: (notice) => notify(NOTICES[notice]),
+      onNotice: (notice) => notify(escapeHtml(NOTICES[notice])),
     }),
   );
 }

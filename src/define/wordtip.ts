@@ -1,5 +1,6 @@
+import type { Html } from "../core/htmlutil.ts";
 import type { Backdrop } from "../editor/backdrop.ts";
-import { escapeHtml } from "../core/htmlutil.ts";
+import { escapeHtml, html } from "../core/htmlutil.ts";
 import type { WordSpan } from "../spell/lookup.ts";
 import type { Definition } from "./definitions.ts";
 import type { WordAnchor } from "./wordanchor.ts";
@@ -16,7 +17,7 @@ export interface WordTipDeps {
   readonly position: () => void;
   readonly show: (anchor: HTMLElement, word: string) => Promise<void>;
   readonly beforeShow: () => void;
-  readonly holdStatus: (html: string, ms?: number, animate?: boolean) => void;
+  readonly holdStatus: (markup: Html, ms?: number, animate?: boolean) => void;
 }
 
 export interface WordTip {
@@ -67,7 +68,7 @@ export function createWordTip(d: WordTipDeps): WordTip {
       d.beforeShow();
       if (!def.entries.length) {
         d.holdStatus(
-          "Тайлбар олдсонгүй: " + escapeHtml(next.word),
+          html`Тайлбар олдсонгүй: ${escapeHtml(next.word)}`,
           3000,
           false,
         );

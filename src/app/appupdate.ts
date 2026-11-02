@@ -1,3 +1,5 @@
+import { html } from "../core/htmlutil.ts";
+import type { Html } from "../core/htmlutil.ts";
 import { reveal } from "../ui/status.ts";
 import { KEYS, at, read, write } from "../core/store.ts";
 import { noteError } from "../core/errorlog.ts";
@@ -155,7 +157,7 @@ function initVersionLabel(): (version: string | null) => void {
 }
 
 export function initAppUpdate(
-  setStatus: (html: string) => void,
+  setStatus: (markup: Html) => void,
   entryUrl: string,
   base: string = import.meta.env.BASE_URL,
 ): AppUpdate {
@@ -201,14 +203,15 @@ export function initAppUpdate(
     if (reloadEl) reloadEl.hidden = false;
     await waitMs(0);
     setStatus(
-      "Шинэ хувилбар суусан тул энэ үйлдлийг хийхийн тулд ↻ товчийг дарж хуудсыг дахин ачаална уу",
+      html`Шинэ хувилбар суусан тул энэ үйлдлийг хийхийн тулд ↻ товчийг дарж
+      хуудсыг дахин ачаална уу`,
     );
   });
 
   if (reloadEl) {
     reloadEl.addEventListener("click", () => {
       reloadEl.hidden = true;
-      setStatus("Шинэ хувилбарыг ачаалж байна…");
+      setStatus(html`Шинэ хувилбарыг ачаалж байна…`);
       void reloadToLatest();
     });
   }
@@ -247,7 +250,7 @@ export function initAppUpdate(
       return true;
     }
     if (reloadEl) reloadEl.hidden = true;
-    setStatus("Шинэ хувилбарыг ачаалж байна…");
+    setStatus(html`Шинэ хувилбарыг ачаалж байна…`);
     void reloadToLatest();
     return true;
   }

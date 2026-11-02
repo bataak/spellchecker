@@ -1,3 +1,4 @@
+import type { Html } from "../core/htmlutil.ts";
 import { placeTip, placeTipAtPointer } from "./defmarks.ts";
 import {
   createDefinitionCache,
@@ -22,7 +23,7 @@ export interface DefTipDeps {
   readonly define: (word: string) => Promise<Definition>;
   readonly showPanel: (word: string) => void;
   readonly hidePopover: () => void;
-  readonly holdStatus: (html: string, ms?: number, animate?: boolean) => void;
+  readonly holdStatus: (markup: Html, ms?: number, animate?: boolean) => void;
   readonly dock: DefDock;
   readonly backdrop: Backdrop;
 }

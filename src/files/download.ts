@@ -1,13 +1,16 @@
+import { trustedHtml } from "../core/htmlutil.ts";
+import type { Html } from "../core/htmlutil.ts";
 import { KEYS, at, read, write } from "../core/store.ts";
 
 const REVOKE_MS = 1000;
 const HINT_ID = "firefox-save";
 const HINT_MS = 15000;
 
-export const FIREFOX_SAVE_HINT =
+export const FIREFOX_SAVE_HINT = trustedHtml(
   "Firefox файлыг асуулгүйгээр «Татаж авсан файлууд» хавтсанд хадгалдаг. " +
-  "Хадгалах газраа сонгохыг хүсвэл Firefox-ийн Settings → General → " +
-  "Files and Applications хэсэгт «Always ask you where to save files»-ийг асаана уу";
+    "Хадгалах газраа сонгохыг хүсвэл Firefox-ийн Settings → General → " +
+    "Files and Applications хэсэгт «Always ask you where to save files»-ийг асаана уу",
+);
 
 const listeners = new Set<() => void>();
 
@@ -37,7 +40,7 @@ export function asksWhereToSave(userAgent: string, picker: boolean): boolean {
 }
 
 export function initDownloadHint(
-  hold: (html: string, ms?: number, animate?: boolean) => void,
+  hold: (markup: Html, ms?: number, animate?: boolean) => void,
 ): void {
   onDownload(() => {
     if (asksWhereToSave(navigator.userAgent, "showSaveFilePicker" in window))

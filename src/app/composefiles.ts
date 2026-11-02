@@ -1,3 +1,4 @@
+import { html } from "../core/htmlutil.ts";
 import type { Scope } from "./appparts.ts";
 import { createPreviewPane } from "./previewpane.ts";
 import { initAppUpdate } from "./appupdate.ts";
@@ -135,7 +136,7 @@ export function composeToolbar(app: Scope<ToolbarReads, ToolbarGives>): void {
     isMdFile: doc.isMarkdownFile,
     onDraftError: () =>
       status.hold(
-        "Энэ загварын бичвэрийг хадгалж чадсангүй. Файлаар хадгална уу.",
+        html`Энэ загварын бичвэрийг хадгалж чадсангүй. Файлаар хадгална уу.`,
         8000,
         false,
       ),

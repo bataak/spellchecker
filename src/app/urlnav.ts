@@ -1,3 +1,5 @@
+import { trustedHtml, html, escapeHtml } from "../core/htmlutil.ts";
+import type { Html } from "../core/htmlutil.ts";
 import { askChoice } from "../ui/ask.ts";
 import { PROJECT_SLOT, isFileSlot } from "../slots/fileslots.ts";
 import { isPlain } from "../doc/templates.ts";
@@ -31,12 +33,12 @@ export interface UrlNavDeps {
   readonly enterProject: () => void;
   readonly openPath: (path: string) => void;
   readonly openText: (name: string, text: string) => Promise<void>;
-  readonly notify: (message: string) => void;
+  readonly notify: (markup: Html) => void;
 }
 
 const URL_PREFIX = "#url=";
-const NO_PROJECT = "Төсөл нээлттэй биш байна";
-const BAD_TEXT_LINK = "Холбоос доторх бичвэрийг уншиж чадсангүй";
+const NO_PROJECT = trustedHtml("Төсөл нээлттэй биш байна");
+const BAD_TEXT_LINK = trustedHtml("Холбоос доторх бичвэрийг уншиж чадсангүй");
 const LINK_COPIED = "Талбарын холбоос хуулагдлаа";
 const WITH_TEXT = "Бичвэртэй хуулах";
 const CANT_COPY = "Хуулах боломжгүй";
@@ -72,7 +74,7 @@ function linkName(d: UrlNavDeps): string {
 function goProject(d: UrlNavDeps, path: string | null): void {
   if (!d.hasProject()) return d.notify(NO_PROJECT);
   if (path !== null && d.projectText(path) === null)
-    return d.notify("Төсөлд «" + path + "» файл алга");
+    return d.notify(html`Төсөлд «${escapeHtml(path)}» файл алга`);
   d.enterProject();
   if (path !== null && d.projectPath() !== path) d.openPath(path);
 }
@@ -82,7 +84,9 @@ function goTarget(d: UrlNavDeps, target: SlotTarget): void {
   if (target.kind === "project") return goProject(d, target.path);
   const slot = d.fileSlots().find((file) => file.name === target.name);
   if (slot) return d.showFile(slot.id);
-  d.notify("«" + target.name + "» файл энэ төхөөрөмж дээр нээлттэй биш байна");
+  d.notify(
+    html`«${escapeHtml(target.name)}» файл энэ төхөөрөмж дээр нээлттэй биш байна`,
+  );
 }
 
 async function openTextLink(d: UrlNavDeps, hash: string): Promise<void> {

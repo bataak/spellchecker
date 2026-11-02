@@ -1,3 +1,4 @@
+import type { Html } from "../core/htmlutil.ts";
 import { noteError } from "../core/errorlog.ts";
 import { escapeHtml } from "../core/htmlutil.ts";
 
@@ -23,7 +24,7 @@ export function failureMessage(
   return fallback;
 }
 
-export function failureHtml(error: unknown, fallback: string): string | null {
+export function failureHtml(error: unknown, fallback: string): Html | null {
   const message = failureMessage(error, fallback);
   return message === null ? null : escapeHtml(message);
 }

@@ -1,6 +1,7 @@
+import type { Html } from "../core/htmlutil.ts";
 import type { AppUpdate } from "./appupdate.ts";
 import { createRefreshGate, type DictStatus } from "../spellui/dictstatus.ts";
-import { escapeHtml } from "../core/htmlutil.ts";
+import { escapeHtml, html, trustedHtml } from "../core/htmlutil.ts";
 import { runOfflineIndicator } from "../core/offline.ts";
 import type { StatusPort } from "../core/ports.ts";
 import type { SpellChecker } from "../spell/spellchecker.ts";
@@ -25,8 +26,10 @@ export interface DictLife {
   readonly setEnglish: (next: Set<string>) => void;
 }
 
-function failureText(error: unknown): string {
-  return escapeHtml(error instanceof Error ? error.message : String(error));
+function failureText(error: unknown): Html {
+  return trustedHtml(
+    escapeHtml(error instanceof Error ? error.message : String(error)),
+  );
 }
 
 export function createDictLife(deps: DictLifeDeps): DictLife {
@@ -61,9 +64,8 @@ export function createDictLife(deps: DictLifeDeps): DictLife {
   const reportFatal = async (reason: string): Promise<void> => {
     if (await appUpdate.recoverStale()) return;
     status.set(
-      "Алдаа шалгагч зогслоо: " +
-        escapeHtml(String(reason)) +
-        " — хуудсыг дахин ачаална уу",
+      html`Алдаа шалгагч зогслоо: ${escapeHtml(String(reason))} — хуудсыг дахин
+      ачаална уу`,
     );
   };
 
@@ -84,7 +86,8 @@ export function createDictLife(deps: DictLifeDeps): DictLife {
           indicateOffline();
         } else {
           status.set(
-            "Нэг ч толь алга — <code>public/dict/</code> дотор .aff/.dic хийнэ үү.",
+            html`Нэг ч толь алга — <code>public/dict/</code> дотор .aff/.dic
+              хийнэ үү.`,
           );
         }
         checker.onDictUpdated((id) => {
@@ -105,7 +108,7 @@ export function createDictLife(deps: DictLifeDeps): DictLife {
         });
       } catch (e) {
         if (await appUpdate.recoverStale()) return;
-        status.set("Ачаалахад алдаа гарлаа: " + failureText(e));
+        status.set(html`Ачаалахад алдаа гарлаа: ${failureText(e)}`);
       }
     },
     setEnglish(next) {

@@ -1,3 +1,4 @@
+import { escapeHtml } from "../core/htmlutil.ts";
 import type { Scope } from "./appparts.ts";
 import { MultiSpellChecker } from "../spell/spellchecker.ts";
 import { createSpellSession } from "../spell/spellsession.ts";
@@ -78,7 +79,7 @@ export function composeEditor(app: Scope<EditorReads, EditorGives>): void {
     markup: () => app.markupMode.skips(),
     isLatex: (text) => app.isLatexText(text),
     progress: async (message, animate) => {
-      app.status.set(message, animate);
+      app.status.set(escapeHtml(message), animate);
       await nextFrame();
     },
   });

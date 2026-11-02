@@ -1,3 +1,4 @@
+import { setHtml, html } from "../core/htmlutil.ts";
 import { requireEl } from "../ui/dom.ts";
 import { PROJECT_SLOT, isFileSlot } from "../slots/fileslots.ts";
 import { PLAIN, isPlain } from "../doc/templates.ts";
@@ -78,8 +79,10 @@ function createBar(mount: HTMLElement | null): HTMLElement {
   bar.hidden = true;
   bar.setAttribute("role", "toolbar");
   bar.setAttribute("aria-label", "Хэлбэржүүлэх");
-  bar.innerHTML =
-    buildPicker() + '<span class="md-group">' + buildButtons() + "</span>";
+  setHtml(
+    bar,
+    html`${buildPicker()}<span class="md-group">${buildButtons()}</span>`,
+  );
   if (mount) mount.insertBefore(bar, mount.firstChild);
   return bar;
 }

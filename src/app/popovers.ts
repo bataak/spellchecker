@@ -1,3 +1,4 @@
+import type { Html } from "../core/htmlutil.ts";
 import type { Backdrop } from "../editor/backdrop.ts";
 import { initDefDock, type DefDock } from "../define/defdock.ts";
 import { initDefineControls } from "../define/definecontrols.ts";
@@ -21,7 +22,7 @@ export interface PopoversDeps {
   readonly editorWrap: HTMLElement;
   readonly desktopMQ: MediaQueryList;
   readonly checker: SpellChecker;
-  readonly hold: (html: string, ms?: number, animate?: boolean) => void;
+  readonly hold: (markup: Html, ms?: number, animate?: boolean) => void;
   readonly englishEnabled: () => ReadonlySet<string>;
   readonly tokenAtCaret: () => Token | null;
   readonly syncScroll: () => void;

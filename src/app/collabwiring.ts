@@ -1,3 +1,4 @@
+import type { Html } from "../core/htmlutil.ts";
 import type { MdToolbar } from "../mdbar/mdtoolbar.ts";
 import type { DocumentSession } from "../doc/docsession.ts";
 import type { UndoControl } from "../editor/undohistory.ts";
@@ -41,8 +42,8 @@ export interface CollabWiringDeps {
   readonly isTex: () => boolean;
   readonly officeActive: () => boolean;
   readonly undo: () => UndoControl;
-  readonly notify: (message: string) => void;
-  readonly pin: (message: string | null) => void;
+  readonly notify: (markup: Html) => void;
+  readonly pin: (markup: Html | null) => void;
   readonly picking: () => boolean;
 }
 
