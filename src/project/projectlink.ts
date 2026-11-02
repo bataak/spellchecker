@@ -1,4 +1,4 @@
-import { failureMessage } from "./projecterror.ts";
+import { failureHtml } from "./projecterror.ts";
 import { initProjectPanel, type ProjectPanel } from "./projectpanel.ts";
 import {
   confirmClose,
@@ -263,8 +263,8 @@ export function initProjectLink(deps: ProjectLinkDeps): ProjectLink {
   watchProject(deps, binding);
 
   const fail = (error: unknown): void => {
-    const message = failureMessage(error, "Төслийг нээж чадсангүй");
-    if (message !== null) deps.notify(message);
+    const html = failureHtml(error, "Төслийг нээж чадсангүй");
+    if (html !== null) deps.notify(html);
   };
 
   return {

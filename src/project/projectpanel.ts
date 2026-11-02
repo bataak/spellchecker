@@ -1,6 +1,6 @@
 import { talkCovers, yieldTalk } from "../ui/talkslot.ts";
 import type { ProjectStore } from "./projectstore.ts";
-import { failureMessage } from "./projecterror.ts";
+import { failureHtml } from "./projecterror.ts";
 import { buildPanel, type PanelParts } from "./panelmarkup.ts";
 import type { OpenedFile } from "./panelview.ts";
 import {
@@ -80,11 +80,8 @@ function busyRunner(
     try {
       await task();
     } catch (error) {
-      const message = failureMessage(
-        error,
-        "Төслийн үйлдлийг гүйцэтгэж чадсангүй",
-      );
-      if (message !== null) notify(message);
+      const html = failureHtml(error, "Төслийн үйлдлийг гүйцэтгэж чадсангүй");
+      if (html !== null) notify(html);
     } finally {
       busy = false;
       panel.classList.remove("is-busy");
