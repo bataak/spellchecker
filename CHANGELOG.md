@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.121.1](https://github.com/bataak/spellchecker/compare/v1.121.0...v1.121.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* **collab:** compress sync updates too large for one message ([34d4b19](https://github.com/bataak/spellchecker/commit/34d4b198467c95ccffbbe4f267f2983eac387736))
+* **gitauth:** answer non-object bodies with 400 ([d992b16](https://github.com/bataak/spellchecker/commit/d992b16ba89b4701f3bfe9ad5cead59c030856f2))
+* **project:** escape failure messages shown in the status line ([885130b](https://github.com/bataak/spellchecker/commit/885130bf638b205c893a4fd7e7663b1e8ea9180f))
+* **spellui:** escape quotes in the suggestion aria-label ([086a00b](https://github.com/bataak/spellchecker/commit/086a00b02a624ec330ebe1886b83f03d98aeb8f7))
+* **worker:** store nothing for refused room connections ([8a41c37](https://github.com/bataak/spellchecker/commit/8a41c37cf349c7b184de0b7b3207f08894a6482c))
+
 ## [1.121.0](https://github.com/bataak/spellchecker/compare/v1.120.4...v1.121.0) (2026-11-01)
 
 
