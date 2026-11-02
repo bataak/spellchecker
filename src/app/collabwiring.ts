@@ -1,5 +1,6 @@
+import type { Html } from "../core/htmlutil.ts";
 import type { MdToolbar } from "../mdbar/mdtoolbar.ts";
-import type { DocumentSession } from "../doc/docsession.ts";
+import type { DocumentSession } from "../office/docsession.ts";
 import type { UndoControl } from "../editor/undohistory.ts";
 import type { CursorView } from "../collab/cursors.ts";
 import type { ProjectLink } from "../project/projectlink.ts";
@@ -28,7 +29,7 @@ import {
 } from "../core/storage.ts";
 import { myProfile } from "../collab/device.ts";
 import type { DocRef } from "../collab/localcomments.ts";
-import { PROJECT_SLOT } from "../slots/fileslots.ts";
+import { PROJECT_SLOT } from "../core/fileslots.ts";
 import { initTalk, type TalkHost } from "../collab/talkhost.ts";
 
 export interface CollabWiringDeps {
@@ -41,8 +42,8 @@ export interface CollabWiringDeps {
   readonly isTex: () => boolean;
   readonly officeActive: () => boolean;
   readonly undo: () => UndoControl;
-  readonly notify: (message: string) => void;
-  readonly pin: (message: string | null) => void;
+  readonly notify: (markup: Html) => void;
+  readonly pin: (markup: Html | null) => void;
   readonly picking: () => boolean;
 }
 

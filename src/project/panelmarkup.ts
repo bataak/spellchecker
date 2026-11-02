@@ -1,3 +1,4 @@
+import { setHtml } from "../core/htmlutil.ts";
 import { GLYPH, ICON, headButton, icon, textButton } from "./panelicons.ts";
 
 export interface PanelParts {
@@ -33,11 +34,11 @@ export function buildPanel(): PanelParts {
   head.className = "project-head";
   const headIcon = document.createElement("span");
   headIcon.className = "project-head-icon";
-  headIcon.innerHTML = icon(ICON.folder, 16);
+  setHtml(headIcon, icon(ICON.folder, 16));
   const title = document.createElement("span");
   title.className = "project-title";
   const hideBtn = headButton("Самбарыг нуух", "");
-  hideBtn.innerHTML = GLYPH;
+  setHtml(hideBtn, GLYPH);
   head.append(headIcon, title, hideBtn);
 
   const newFileBtn = headButton("Шинэ файл үүсгэх", ICON.newFile);
@@ -86,7 +87,7 @@ export function buildPanel(): PanelParts {
   toggle.title = "LaTeX төсөл";
   toggle.setAttribute("aria-label", "LaTeX төслийн самбар");
   toggle.setAttribute("aria-pressed", "false");
-  toggle.innerHTML = GLYPH;
+  setHtml(toggle, GLYPH);
   toggle.addEventListener("mousedown", (event) => event.preventDefault());
 
   return {

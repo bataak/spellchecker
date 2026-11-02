@@ -5,7 +5,7 @@ import {
   TEXT_LINK_MAX,
   readTextHash,
   textHash,
-} from "../src/files/textlink.ts";
+} from "../src/collab/textlink.ts";
 import { cleanText, decodeStrict } from "../src/files/safetext.ts";
 import { toBase64Url } from "../src/collab/collabkey.ts";
 

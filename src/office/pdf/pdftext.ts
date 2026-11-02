@@ -1,7 +1,7 @@
-import { FileReadError } from "../office/fileerror.ts";
-import { repairCyrillic } from "../archive/cp1251.ts";
-import { isSoftHyphenBreak } from "../office/pdf/dehyphen.ts";
-import { stripInvisible } from "../office/sanitize.ts";
+import { FileReadError } from "../fileerror.ts";
+import { repairCyrillic } from "../../archive/cp1251.ts";
+import { isSoftHyphenBreak } from "./dehyphen.ts";
+import { stripInvisible } from "../sanitize.ts";
 
 const MAX_PDF_MB = 30;
 

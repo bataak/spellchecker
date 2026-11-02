@@ -1,8 +1,10 @@
+import { html } from "../core/htmlutil.ts";
+import type { Html } from "../core/htmlutil.ts";
 import { requireEl } from "../ui/dom.ts";
 import { buildErrorList, type Token } from "../spell/textcheck.ts";
 import { initWipeButton } from "../ui/wipe.ts";
 import { copyText, flash } from "../ui/clipboard.ts";
-import { isTouch } from "../editor/input.ts";
+import { isTouch } from "../ui/input.ts";
 import type { EditorPort, StatusPort } from "../core/ports.ts";
 import { KEYS, read, write } from "../core/store.ts";
 import { standardLetters } from "../lang/letters.ts";
@@ -15,7 +17,6 @@ export interface OfficeSwitch {
 export interface ToolbarDeps {
   readonly editor: EditorPort;
   readonly status: StatusPort;
-  readonly statusEl: HTMLElement;
   readonly office: OfficeSwitch;
   readonly forgetFile: () => void;
   readonly afterClear: (cleared: boolean) => void;
@@ -183,8 +184,7 @@ function initClippedReveal(): void {
 
 function initCopyButton(
   editor: HTMLTextAreaElement,
-  setStatus: ToolbarDeps["status"]["set"],
-  statusEl: HTMLElement,
+  status: ToolbarDeps["status"],
   badTokens: ToolbarDeps["badTokens"],
 ): void {
   const btn = document.querySelector<HTMLElement>("#copyBtn");
@@ -193,12 +193,12 @@ function initCopyButton(
   let timer: ReturnType<typeof setTimeout> | null = null;
   let armed = false;
   let revertTimer: ReturnType<typeof setTimeout> | null = null;
-  const showStatus = (msg: string): void => {
-    const prevStatus = statusEl.innerHTML;
-    setStatus(msg, false);
+  const showStatus = (markup: Html): void => {
+    const previous = status.shown();
+    status.set(markup, false);
     if (revertTimer) clearTimeout(revertTimer);
     revertTimer = setTimeout(() => {
-      if (statusEl.innerHTML === msg) setStatus(prevStatus, false);
+      if (status.shown() === markup) status.set(previous, false);
     }, 1600);
   };
   btn.addEventListener("pointerdown", () => {
@@ -224,14 +224,14 @@ function initCopyButton(
       armed = false;
       const words = buildErrorList(badTokens()).map((token) => token.word);
       if (!words.length) {
-        showStatus("Алдаатай үг алга");
+        showStatus(html`Алдаатай үг алга`);
         return;
       }
       try {
         await copyText(words.join("\n"));
-        showStatus("Алдаатай үгс хуулагдлаа");
+        showStatus(html`Алдаатай үгс хуулагдлаа`);
       } catch {
-        showStatus("Хуулах боломжгүй");
+        showStatus(html`Хуулах боломжгүй`);
       }
       return;
     }
@@ -253,7 +253,8 @@ function pasteManually(
   editor.focus();
   if (isTouch()) {
     setStatus(
-      "Талбар дотор удаан дарахад гарах <b>Paste</b> цэсийг ашиглан буулгана уу",
+      html`Талбар дотор удаан дарахад гарах <b>Paste</b> цэсийг ашиглан буулгана
+        уу`,
     );
     return;
   }
@@ -267,7 +268,6 @@ function pasteManually(
 function initButtons({
   editor: port,
   status,
-  statusEl,
   office,
   forgetFile,
   hasOpenFile,
@@ -349,5 +349,5 @@ function initButtons({
     if (fixed !== text) lettersFixed();
   });
 
-  initCopyButton(editor, status.set, statusEl, badTokens);
+  initCopyButton(editor, status, badTokens);
 }

@@ -1,9 +1,10 @@
+import { setHtml, trustedHtml } from "../core/htmlutil.ts";
 import type { Backdrop } from "../editor/backdrop.ts";
-import type { DefTip } from "../define/deftip.ts";
-import { isTouch } from "../editor/input.ts";
+import type { DefTip } from "./deftip.ts";
+import { isTouch } from "../ui/input.ts";
 import type { WordSpan } from "../spell/lookup.ts";
-import { wordScrollTarget } from "./popgeom.ts";
-import { createPlacer } from "./popplace.ts";
+import { wordScrollTarget } from "../ui/popgeom.ts";
+import { createPlacer } from "../ui/popplace.ts";
 import { buildDefPanel, hintOverlap, scrollHints } from "./popdef.ts";
 
 export interface PopoverDeps {
@@ -72,10 +73,11 @@ function bindDismiss(
   window.addEventListener("resize", a.place);
 }
 
-const POP_LOADING =
+const POP_LOADING = trustedHtml(
   '<div class="pop-scroll">' +
-  '<div class="pop-list"><div class="muted pop-empty">тооцоолж байна…</div></div>' +
-  "</div>";
+    '<div class="pop-list"><div class="muted pop-empty">тооцоолж байна…</div></div>' +
+    "</div>",
+);
 
 const KB_DELAYS = [100, 250, 450, 650];
 
@@ -148,6 +150,15 @@ function createDefPanel(
   return { close, show };
 }
 
+function popoverList(popover: HTMLElement): HTMLElement | null {
+  return popover.querySelector<HTMLElement>(".pop-list");
+}
+
+function refreshScrollHint(popover: HTMLElement): void {
+  const target = popoverList(popover);
+  if (target) scrollHints(popover, target);
+}
+
 export function initPopover(deps: PopoverDeps): Popover {
   const { editor, backdrop, popover, defTip } = deps;
   let activeStart: number | null = null;
@@ -197,13 +208,8 @@ export function initPopover(deps: PopoverDeps): Popover {
     return true;
   });
 
-  const list = (): HTMLElement | null =>
-    popover.querySelector<HTMLElement>(".pop-list");
-
-  function updateScrollHint(): void {
-    const target = list();
-    if (target) scrollHints(popover, target);
-  }
+  const list = (): HTMLElement | null => popoverList(popover);
+  const updateScrollHint = (): void => refreshScrollHint(popover);
 
   const placer = createPlacer({
     popover,
@@ -222,7 +228,7 @@ export function initPopover(deps: PopoverDeps): Popover {
     wordPanelSpan = null;
     delete popover.dataset.view;
     defTip.resetDefinitions();
-    popover.innerHTML = POP_LOADING;
+    setHtml(popover, POP_LOADING);
     activeStart = start;
     popoverScrollTop = editor.scrollTop;
     popover.hidden = false;

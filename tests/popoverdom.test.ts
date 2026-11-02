@@ -8,7 +8,7 @@ const PAGE =
   '<div id="popover" hidden></div><div id="outside"></div>';
 const dom = installDom(PAGE);
 const { createBackdrop } = await import("../src/editor/backdrop.ts");
-const { initPopover } = await import("../src/ui/popover.ts");
+const { initPopover } = await import("../src/define/popover.ts");
 type DefTip = import("../src/define/deftip.ts").DefTip;
 
 test.after(() => dom.close());

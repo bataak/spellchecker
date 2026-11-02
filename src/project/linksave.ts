@@ -1,3 +1,4 @@
+import type { Html } from "../core/htmlutil.ts";
 import { askCommitMessage } from "./git/gitdialog.ts";
 import { askMerge } from "./git/mergedialog.ts";
 import {
@@ -6,7 +7,7 @@ import {
   saveMessage,
 } from "./linkfiles.ts";
 import type { Binding } from "./linkbind.ts";
-import { Cancelled, failureHtml } from "./projecterror.ts";
+import { Cancelled, failureHtml } from "../core/projecterror.ts";
 import type { ProjectStore, SaveResult } from "./projectstore.ts";
 
 const CANCELLED = "Цуцаллаа";
@@ -15,7 +16,7 @@ const COMMITTING = "Commit хийгдэж байна…";
 export function createSave(
   store: ProjectStore,
   binding: Binding,
-  notify: (message: string) => void,
+  notify: (markup: Html) => void,
 ): (diskOnly?: boolean) => Promise<string | null> {
   let committing = false;
   return async (diskOnly = false) => {

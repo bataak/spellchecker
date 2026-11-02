@@ -1,3 +1,4 @@
+import { escapeHtml } from "../core/htmlutil.ts";
 import {
   linkHash,
   newLink,
@@ -82,7 +83,7 @@ export function openShare(
   if (entry)
     return showDialog(entry, registry, () => stop(entry), null, name, null);
   const reason = deps.blocked();
-  if (reason) return deps.notify(reason);
+  if (reason) return deps.notify(escapeHtml(reason));
   const draft = ownedRoom(slotKey(deps.slot()));
   showDialog(
     draft,

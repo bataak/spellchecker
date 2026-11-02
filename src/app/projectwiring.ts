@@ -1,5 +1,5 @@
 import type { MdToolbar } from "../mdbar/mdtoolbar.ts";
-import type { DocumentSession } from "../doc/docsession.ts";
+import type { DocumentSession } from "../office/docsession.ts";
 import type { DocMode } from "../doc/docmode.ts";
 import type { DraftText } from "../editor/drafttext.ts";
 import type { UndoControl } from "../editor/undohistory.ts";
@@ -7,11 +7,11 @@ import type { FileIOControl } from "../files/fileio.ts";
 import type { Preview } from "../preview/preview.ts";
 import { initProjectLink, type ProjectLink } from "../project/projectlink.ts";
 import type { ProjectStore } from "../project/projectstore.ts";
-import { PROJECT_SLOT } from "../slots/fileslots.ts";
+import { PROJECT_SLOT } from "../core/fileslots.ts";
 import type { MeasureControl } from "../ui/measure.ts";
 import type { StatusControl } from "../ui/status.ts";
 import { saveDraftFile } from "../core/storage.ts";
-import { OPEN_LABEL } from "../files/filetypes.ts";
+import { OPEN_LABEL } from "../core/filetypes.ts";
 import type { DocStatus } from "./docstatus.ts";
 import type { TexMode } from "./texmode.ts";
 

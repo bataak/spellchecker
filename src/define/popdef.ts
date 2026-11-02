@@ -1,4 +1,4 @@
-import type { DefTip } from "../define/deftip.ts";
+import type { DefTip } from "./deftip.ts";
 
 type Definition = Awaited<ReturnType<DefTip["definitionFor"]>>;
 

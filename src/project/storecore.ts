@@ -1,5 +1,5 @@
 import { createPersist } from "./projectpersist.ts";
-import { ProjectError } from "./projecterror.ts";
+import { ProjectError } from "../core/projecterror.ts";
 import { newState, type ProjectKind, type State } from "./projectstate.ts";
 
 export interface StoreCore {

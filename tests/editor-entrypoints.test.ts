@@ -13,7 +13,7 @@ const FIXERS = read("app/fixers.ts");
 const LOOKAHEAD = 40;
 
 const ENTRYPOINTS: readonly [string, RegExp, string][] = [
-  ["office/session.ts", /swapText\(editor\b/, "deps.syncFixButtons("],
+  ["app/officesession.ts", /swapText\(editor\b/, "deps.syncFixButtons("],
   ["editor/drafttext.ts", /swapText\(editor, draftText\b/, "deps.onLoaded("],
   ["editor/editortext.ts", /editor\.value\s*=\s*newText/, "deps.onReplaced("],
 ];

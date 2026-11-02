@@ -1,3 +1,4 @@
+import { setHtml } from "../core/htmlutil.ts";
 import {
   buildTree,
   isEditablePath,
@@ -54,7 +55,7 @@ function treeRow(
   caret.className = "project-caret";
   const glyph = document.createElement("span");
   glyph.className = "project-icon";
-  glyph.innerHTML = icon(node.dir ? ICON.folder : ICON.file, 15);
+  setHtml(glyph, icon(node.dir ? ICON.folder : ICON.file, 15));
   const name = document.createElement("span");
   name.className = "project-name";
   name.textContent = node.name;
@@ -69,7 +70,7 @@ function treeRow(
   more.className = "project-more";
   more.tabIndex = -1;
   more.setAttribute("aria-label", "Үйлдлүүд");
-  more.innerHTML = icon(ICON.more, 14);
+  setHtml(more, icon(ICON.more, 14));
   row.append(more);
   return row;
 }

@@ -1,3 +1,4 @@
+import { trustedHtml } from "../core/htmlutil.ts";
 import type { Session } from "./sessiontypes.ts";
 import { element } from "../ui/dom.ts";
 
@@ -5,8 +6,9 @@ export interface SessionSource {
   readonly session: () => Promise<Session>;
 }
 
-export const OFFLINE =
-  "Сервертэй холбогдоогүй байна. Түр хүлээгээд дахин оролдоно уу.";
+export const OFFLINE = trustedHtml(
+  "Сервертэй холбогдоогүй байна. Түр хүлээгээд дахин оролдоно уу.",
+);
 
 export function ask<T>(
   deps: SessionSource,

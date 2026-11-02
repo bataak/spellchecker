@@ -7,7 +7,7 @@ import {
   refreshed,
   type AuthConfig,
 } from "../src/project/git/gitauth.ts";
-import { AuthError, ProjectError } from "../src/project/projecterror.ts";
+import { AuthError, ProjectError } from "../src/core/projecterror.ts";
 
 const config: AuthConfig = {
   proxy: "https://auth.test",

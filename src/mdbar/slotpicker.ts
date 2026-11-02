@@ -1,6 +1,6 @@
 import { requireEl } from "../ui/dom.ts";
-import { splitName } from "../office/filename.ts";
-import { renameSlot } from "../slots/fileslots.ts";
+import { splitName } from "../core/filename.ts";
+import { renameSlot } from "../core/fileslots.ts";
 import { pickerOptions } from "../slots/slotmenu.ts";
 import { pickerValue } from "../slots/slotstore.ts";
 import type { SlotDropdown } from "../slots/slotdropdown.ts";

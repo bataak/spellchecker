@@ -1,6 +1,7 @@
+import type { Html } from "../core/htmlutil.ts";
 import { requireEl } from "../ui/dom.ts";
-import { downloadBlob } from "../files/download.ts";
-import { escapeAttr } from "../core/htmlutil.ts";
+import { downloadBlob } from "../ui/download.ts";
+import { escapeAttr, setHtml, trustedHtml } from "../core/htmlutil.ts";
 import {
   getIgnored,
   addIgnored,
@@ -44,34 +45,37 @@ export function syncIgnoreVisibility(): void {
     });
 }
 
-const IGNORE_HTML =
+const IGNORE_HTML = trustedHtml(
   '<div class="suggest-card" role="dialog" aria-modal="true" aria-labelledby="ignoreTitle">' +
-  '<h2 id="ignoreTitle" class="suggest-title">\u0428\u0430\u043B\u0433\u0430\u043B\u0442\u044B\u0433 \u0430\u043B\u0433\u0430\u0441\u0430\u0445 \u04AF\u0433 <span class="ignore-count" aria-hidden="true"></span></h2>' +
-  '<p class="suggest-hint">\u042D\u0434\u0433\u044D\u044D\u0440 \u04AF\u0433\u0441\u0438\u0439\u0433 \u0430\u043B\u0434\u0430\u0430\u043D\u0434 \u0442\u043E\u043E\u0446\u043E\u0445\u0433\u04AF\u0439 (\u0443\u043B\u0430\u0430\u043D\u0430\u0430\u0440 \u0437\u0443\u0440\u0430\u0445\u0433\u04AF\u0439).</p>' +
-  '<div class="ignore-chips"></div>' +
-  '<p class="ignore-empty suggest-hint" hidden>\u0410\u043B\u0433\u0430\u0441\u0430\u0445 \u04AF\u0433 \u0430\u043B\u0433\u0430.</p>' +
-  '<div class="suggest-actions ignore-actions">' +
-  '<div class="ignore-actions-left">' +
-  '<button type="button" class="tbtn ignore-export">\u042D\u043A\u0441\u043F\u043E\u0440\u0442</button>' +
-  '<button type="button" class="tbtn ignore-import">\u0418\u043C\u043F\u043E\u0440\u0442</button>' +
-  '<button type="button" class="tbtn ignore-clear">\u0423\u0441\u0442\u0433\u0430\u0445</button>' +
-  "</div>" +
-  '<button type="button" class="tbtn ignore-close">\u0425\u0430\u0430\u0445</button>' +
-  "</div>" +
-  '<input type="file" class="ignore-file" accept=".txt,text/plain" hidden />' +
-  "</div>";
+    '<h2 id="ignoreTitle" class="suggest-title">\u0428\u0430\u043B\u0433\u0430\u043B\u0442\u044B\u0433 \u0430\u043B\u0433\u0430\u0441\u0430\u0445 \u04AF\u0433 <span class="ignore-count" aria-hidden="true"></span></h2>' +
+    '<p class="suggest-hint">\u042D\u0434\u0433\u044D\u044D\u0440 \u04AF\u0433\u0441\u0438\u0439\u0433 \u0430\u043B\u0434\u0430\u0430\u043D\u0434 \u0442\u043E\u043E\u0446\u043E\u0445\u0433\u04AF\u0439 (\u0443\u043B\u0430\u0430\u043D\u0430\u0430\u0440 \u0437\u0443\u0440\u0430\u0445\u0433\u04AF\u0439).</p>' +
+    '<div class="ignore-chips"></div>' +
+    '<p class="ignore-empty suggest-hint" hidden>\u0410\u043B\u0433\u0430\u0441\u0430\u0445 \u04AF\u0433 \u0430\u043B\u0433\u0430.</p>' +
+    '<div class="suggest-actions ignore-actions">' +
+    '<div class="ignore-actions-left">' +
+    '<button type="button" class="tbtn ignore-export">\u042D\u043A\u0441\u043F\u043E\u0440\u0442</button>' +
+    '<button type="button" class="tbtn ignore-import">\u0418\u043C\u043F\u043E\u0440\u0442</button>' +
+    '<button type="button" class="tbtn ignore-clear">\u0423\u0441\u0442\u0433\u0430\u0445</button>' +
+    "</div>" +
+    '<button type="button" class="tbtn ignore-close">\u0425\u0430\u0430\u0445</button>' +
+    "</div>" +
+    '<input type="file" class="ignore-file" accept=".txt,text/plain" hidden />' +
+    "</div>",
+);
 
-function chipsHtml(words: readonly string[]): string {
-  return words
-    .map(
-      (word) =>
-        '<span class="suggest-chip">' +
-        escapeAttr(word) +
-        '<button type="button" class="suggest-chip-x" data-w="' +
-        escapeAttr(word) +
-        '" aria-label="Хасах">&times;</button></span>',
-    )
-    .join("");
+function chipsHtml(words: readonly string[]): Html {
+  return trustedHtml(
+    words
+      .map(
+        (word) =>
+          '<span class="suggest-chip">' +
+          escapeAttr(word) +
+          '<button type="button" class="suggest-chip-x" data-w="' +
+          escapeAttr(word) +
+          '" aria-label="Хасах">&times;</button></span>',
+      )
+      .join(""),
+  );
 }
 
 function importWords(text: string): number {
@@ -102,7 +106,7 @@ export function initIgnoreList(onChange: () => void): void {
       return;
     }
     empty.hidden = true;
-    box.innerHTML = chipsHtml(words);
+    setHtml(box, chipsHtml(words));
     box.querySelectorAll<HTMLElement>(".suggest-chip-x").forEach((btn) => {
       btn.addEventListener("click", () => {
         removeIgnored(btn.dataset.w ?? "");
@@ -133,7 +137,7 @@ export function initIgnoreList(onChange: () => void): void {
     overlay = document.createElement("div");
     overlay.className = "suggest-overlay ignore-overlay";
     overlay.hidden = true;
-    overlay.innerHTML = IGNORE_HTML;
+    setHtml(overlay, IGNORE_HTML);
     document.body.appendChild(overlay);
 
     overlay.addEventListener("pointerdown", (e) => {

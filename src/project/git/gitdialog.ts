@@ -1,4 +1,4 @@
-import { ProjectError } from "../projecterror.ts";
+import { ProjectError } from "../../core/projecterror.ts";
 import { PROVIDER_NAME, type Provider } from "./githost.ts";
 import { showForm } from "./form.ts";
 

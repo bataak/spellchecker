@@ -1,3 +1,4 @@
+import { setHtml } from "../core/htmlutil.ts";
 import { icon } from "../project/panelicons.ts";
 import type { CommentDraft } from "./comments.ts";
 import type { CursorView } from "./cursors.ts";
@@ -38,7 +39,7 @@ function commentButton(host: HTMLElement): HTMLButtonElement {
   node.className = "collab-comment-btn";
   node.hidden = true;
   node.title = "Сонгосон хэсэгт шүүмж бичих";
-  node.innerHTML = icon(ICONS.comments, 14);
+  setHtml(node, icon(ICONS.comments, 14));
   node.append(document.createTextNode(" Шүүмж"));
   node.addEventListener("mousedown", (event) => event.preventDefault());
   host.append(node);

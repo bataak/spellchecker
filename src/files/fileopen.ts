@@ -1,6 +1,7 @@
+import { html, escapeHtml } from "../core/htmlutil.ts";
 import { noteError } from "../core/errorlog.ts";
 import { decodeFileBytes } from "../archive/cp1251.ts";
-import { bytesSum, fileSum } from "../slots/fileslots.ts";
+import { bytesSum, fileSum } from "../core/fileslots.ts";
 import { initFileDrop } from "./filedrop.ts";
 import {
   OPEN_TYPES,
@@ -9,7 +10,7 @@ import {
   looksOffice,
   sizeVerdict,
   toMb,
-} from "./filetypes.ts";
+} from "../core/filetypes.ts";
 import type { DraftFile } from "../core/storage.ts";
 import { flash } from "../ui/clipboard.ts";
 import type { EditorPort, StatusPort } from "../core/ports.ts";
@@ -49,16 +50,16 @@ function sizeOk(
   const verdict = sizeVerdict(file.size);
   if (verdict === "too-big") {
     setStatus(
-      "Файл хэт том байна (" +
-        toMb(file.size) +
-        " MB) — 10 мегабайтаас хэтэрч болохгүй",
+      html`Файл хэт том байна (${escapeHtml(toMb(file.size))} MB) — 10
+      мегабайтаас хэтэрч болохгүй`,
     );
     opened("Хэт том");
     return false;
   }
   if (verdict === "big")
     setStatus(
-      "Том файл (" + toMb(file.size) + " MB) уншиж буй тул шалгалт удна",
+      html`Том файл (${escapeHtml(toMb(file.size))} MB) уншиж буй тул шалгалт
+      удна`,
     );
   return true;
 }
@@ -105,7 +106,7 @@ export function initFileOpen(d: FileOpenDeps): OpenEntries {
     }
     const office = looksOffice(file);
     if (!office && !isTextFile(file)) {
-      d.status.set("Файлыг нээх боломжгүй", true);
+      d.status.set(html`Файлыг нээх боломжгүй`, true);
       opened("Нээх боломжгүй");
       return true;
     }

@@ -1,3 +1,4 @@
+import { escapeHtml } from "../core/htmlutil.ts";
 import type { Scope } from "./appparts.ts";
 import { MultiSpellChecker } from "../spell/spellchecker.ts";
 import { createSpellSession } from "../spell/spellsession.ts";
@@ -12,8 +13,8 @@ import { createMarkupMode } from "./markupmode.ts";
 import { initStatus } from "../ui/status.ts";
 import { createEditorPort } from "./ports.ts";
 import { nextFrame, queryControls, queryShell } from "./dom.ts";
-import { createOfficeSession } from "../office/session.ts";
-import { createDocumentSession } from "../doc/docsession.ts";
+import { createOfficeSession } from "./officesession.ts";
+import { createDocumentSession } from "../office/docsession.ts";
 import { initSaveHints } from "../export/savehints.ts";
 import { createDocStatus } from "./docstatus.ts";
 import { createDocMode } from "../doc/docmode.ts";
@@ -78,7 +79,7 @@ export function composeEditor(app: Scope<EditorReads, EditorGives>): void {
     markup: () => app.markupMode.skips(),
     isLatex: (text) => app.isLatexText(text),
     progress: async (message, animate) => {
-      app.status.set(message, animate);
+      app.status.set(escapeHtml(message), animate);
       await nextFrame();
     },
   });
@@ -173,7 +174,6 @@ export function composeDocument(
   });
   const docStatus = createDocStatus({
     status,
-    statusEl: els.status,
     editor: els.editor,
     dicts: app.dicts,
     fileName: doc.fileName,

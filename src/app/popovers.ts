@@ -1,9 +1,10 @@
+import type { Html } from "../core/htmlutil.ts";
 import type { Backdrop } from "../editor/backdrop.ts";
 import { initDefDock, type DefDock } from "../define/defdock.ts";
 import { initDefineControls } from "../define/definecontrols.ts";
 import { initDefTip, type DefTip } from "../define/deftip.ts";
 import { initErrorPanel, type ErrorPanel } from "../spellui/errorpanel.ts";
-import { initPopover, type Popover } from "../ui/popover.ts";
+import { initPopover, type Popover } from "../define/popover.ts";
 import type { SpellChecker } from "../spell/spellchecker.ts";
 import type { Token } from "../spell/textcheck.ts";
 import {
@@ -21,7 +22,7 @@ export interface PopoversDeps {
   readonly editorWrap: HTMLElement;
   readonly desktopMQ: MediaQueryList;
   readonly checker: SpellChecker;
-  readonly hold: (html: string, ms?: number, animate?: boolean) => void;
+  readonly hold: (markup: Html, ms?: number, animate?: boolean) => void;
   readonly englishEnabled: () => ReadonlySet<string>;
   readonly tokenAtCaret: () => Token | null;
   readonly syncScroll: () => void;

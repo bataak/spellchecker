@@ -1,4 +1,4 @@
-import { ProjectError, REPO_TOO_LARGE } from "../projecterror.ts";
+import { ProjectError, REPO_TOO_LARGE } from "../../core/projecterror.ts";
 import {
   RACE,
   fromBase64,

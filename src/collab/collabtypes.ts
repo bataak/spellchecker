@@ -1,3 +1,4 @@
+import type { Html } from "../core/htmlutil.ts";
 import type { CursorView } from "./cursors.ts";
 import type { ProjectHooks } from "./projectsession.ts";
 import type { RoomSlot } from "./roomslot.ts";
@@ -7,8 +8,8 @@ export interface CollabUi {
   readonly editor: HTMLTextAreaElement;
   readonly view: CursorView;
   readonly button: HTMLButtonElement | null;
-  readonly notify: (message: string) => void;
-  readonly pin?: (message: string | null) => void;
+  readonly notify: (markup: Html) => void;
+  readonly pin?: (markup: Html | null) => void;
 }
 
 export interface SlotPort {

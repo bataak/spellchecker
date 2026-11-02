@@ -1,9 +1,15 @@
+import type { Html } from "../core/htmlutil.ts";
 import type { Backdrop } from "../editor/backdrop.ts";
 import { pickDefinitionMarks } from "../define/defmarks.ts";
 import type { DefTip } from "../define/deftip.ts";
-import { escapeAttr, escapeHtml } from "../core/htmlutil.ts";
+import {
+  escapeAttr,
+  escapeHtml,
+  setHtml,
+  trustedHtml,
+} from "../core/htmlutil.ts";
 import { syncIgnoreVisibility } from "./ignorelist.ts";
-import type { Popover } from "../ui/popover.ts";
+import type { Popover } from "../define/popover.ts";
 import { openManualFix } from "./suggestfix.ts";
 import { addIgnored, canIgnore } from "../spell/ignore.ts";
 import type { WordChecker } from "../spell/spellchecker.ts";
@@ -79,28 +85,28 @@ function popoverHtml(
   marks: ReadonlySet<string>,
   readOnly: boolean,
   ignorable: boolean,
-): string {
+): Html {
   const sgHtml = suggestions.length
     ? suggestions.map((s) => suggestionButton(s, marks.has(s))).join("")
     : readOnly
       ? '<button class="sg sg-manual pop-fix-open" type="button">' +
         'санал алга — <span class="pop-fix-cue">засах</span></button>'
       : '<div class="muted pop-empty">санал алга</div>';
-  return (
+  return trustedHtml(
     '<div class="pop-scroll">' +
-    '<div class="pop-list">' +
-    sgHtml +
-    "</div>" +
-    '<div class="pop-less" hidden>' +
-    '<button class="pop-less-btn" type="button" aria-label="Дээш гүйлгэх">' +
-    "</button></div>" +
-    '<div class="pop-more" hidden>' +
-    '<button class="pop-more-btn" type="button" aria-label="Доош гүйлгэх">' +
-    "</button></div>" +
-    "</div>" +
-    (ignorable
-      ? '<button class="sg sg-ignore" type="button">Энэ үгийг алгасах</button>'
-      : "")
+      '<div class="pop-list">' +
+      sgHtml +
+      "</div>" +
+      '<div class="pop-less" hidden>' +
+      '<button class="pop-less-btn" type="button" aria-label="Дээш гүйлгэх">' +
+      "</button></div>" +
+      '<div class="pop-more" hidden>' +
+      '<button class="pop-more-btn" type="button" aria-label="Доош гүйлгэх">' +
+      "</button></div>" +
+      "</div>" +
+      (ignorable
+        ? '<button class="sg sg-ignore" type="button">Энэ үгийг алгасах</button>'
+        : ""),
   );
 }
 
@@ -132,11 +138,9 @@ export function initSuggestPopover(deps: SuggestPopoverDeps): SuggestPopover {
       : null;
     if (!pop.isOpenAt(token.start)) return;
     const marks = pickDefinitionMarks(suggestions, found);
-    popover.innerHTML = popoverHtml(
-      suggestions,
-      marks,
-      editor.readOnly,
-      canIgnore(token.word),
+    setHtml(
+      popover,
+      popoverHtml(suggestions, marks, editor.readOnly, canIgnore(token.word)),
     );
     const list = pop.list();
     if (list) {

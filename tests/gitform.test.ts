@@ -8,7 +8,7 @@ const dom = installDom("");
 const { showForm } = await import("../src/project/git/form.ts");
 const { askCommitMessage, askFolder } =
   await import("../src/project/git/gitdialog.ts");
-const { ProjectError } = await import("../src/project/projecterror.ts");
+const { ProjectError } = await import("../src/core/projecterror.ts");
 const { askMerge } = await import("../src/project/git/mergedialog.ts");
 
 test.after(() => dom.close());
@@ -36,7 +36,7 @@ test("showForm: утгуудыг уншиж буцаагаад цонхыг ха
       ],
       onChange: (values) => changes.push(values.a ?? ""),
     },
-    (values) => values.a + values.b + (values.c ?? ""),
+    (values) => values.a! + values.b! + (values.c ?? ""),
   );
   assert.equal(panel().getAttribute("aria-label"), "Гарчиг");
   assert.equal(panel().querySelector("details")!.open, true);

@@ -1,8 +1,10 @@
+import { html } from "../core/htmlutil.ts";
+import type { Html } from "../core/htmlutil.ts";
 import { validName } from "../tex/texproject.ts";
 
 export interface NameEditorDeps {
   readonly run: (task: () => Promise<unknown>) => Promise<void>;
-  readonly notify: (message: string) => void;
+  readonly notify: (markup: Html) => void;
   readonly done: () => void;
 }
 
@@ -25,7 +27,7 @@ export function editName(
     const name = input.value.trim();
     if (save && name && name !== initial) {
       if (!validName(name)) {
-        deps.notify('Нэрд / \\ : * ? " < > | тэмдэгт орж болохгүй');
+        deps.notify(html`Нэрд / \\ : * ? " < > | тэмдэгт орж болохгүй`);
       } else await deps.run(() => commit(name));
     }
     deps.done();

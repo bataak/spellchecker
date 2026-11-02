@@ -1,6 +1,9 @@
+import type { Html } from "../core/htmlutil.ts";
+import { trustedHtml } from "../core/htmlutil.ts";
+import { setHtml } from "../core/htmlutil.ts";
 import "./hint.css";
 import { KEYS, at, read, write } from "../core/store.ts";
-import { OPEN_LABEL } from "../files/filetypes.ts";
+import { OPEN_LABEL } from "../core/filetypes.ts";
 
 const SHOW_DELAY_MS = 600;
 const HIDE_AFTER_MS = 12000;
@@ -12,7 +15,7 @@ const EDGE = 8;
 export interface Hint {
   readonly id: string;
   readonly target: () => HTMLElement | null;
-  readonly html: string;
+  readonly html: Html;
   readonly anchor?: (el: HTMLElement) => DOMRect | null;
 }
 
@@ -47,7 +50,7 @@ function display(hint: Hint, button: HTMLElement, onHide: () => void): void {
   const tip = document.createElement("div");
   tip.className = "hint-bubble";
   tip.setAttribute("role", "status");
-  tip.innerHTML = hint.html;
+  setHtml(tip, hint.html);
 
   const place = (): void => {
     if (!visible(button)) {
@@ -163,7 +166,7 @@ export function layoutHint(target: () => HTMLElement | null): Hint {
   return {
     id: "layout",
     target,
-    html: "Дэлгэцийн горимыг энд дарж сонгоно.",
+    html: trustedHtml("Дэлгэцийн горимыг энд дарж сонгоно."),
   };
 }
 
@@ -175,10 +178,11 @@ export function keyboardHint(
     id: "keyboard",
     target,
     anchor,
-    html:
+    html: trustedHtml(
       "Монгол, англи гарын байрлалыг " +
-      "<kbd>Ctrl+\\</kbd>" +
-      " товчоор сэлгэнэ. Системдээ монгол гар суулгаагүй ч монголоор бичих боломжтой.",
+        "<kbd>Ctrl+\\</kbd>" +
+        " товчоор сэлгэнэ. Системдээ монгол гар суулгаагүй ч монголоор бичих боломжтой.",
+    ),
   };
 }
 
@@ -186,12 +190,13 @@ export function exportHint(target: () => HTMLElement | null): Hint {
   return {
     id: "export",
     target,
-    html:
+    html: trustedHtml(
       "PDF, DOCX зэрэг файл болгох бол " +
-      kbd("Ctrl+Shift+Alt+S", "⌘⇧⌥S") +
-      " эсвэл " +
-      kbd("Shift", "⇧") +
-      " дарж байгаад <b>Хадгалах</b> товчийг дарна.",
+        kbd("Ctrl+Shift+Alt+S", "⌘⇧⌥S") +
+        " эсвэл " +
+        kbd("Shift", "⇧") +
+        " дарж байгаад <b>Хадгалах</b> товчийг дарна.",
+    ),
   };
 }
 
@@ -199,11 +204,12 @@ export function openHint(target: () => HTMLElement | null): Hint {
   return {
     id: "open",
     target,
-    html:
+    html: trustedHtml(
       OPEN_LABEL +
-      " файлууд дахь бичвэрийн алдааг шалгана (" +
-      kbd("Ctrl+O", "⌘O") +
-      "). Файлаа бичвэрийн талбар уруу чирч оруулж болно.",
+        " файлууд дахь бичвэрийн алдааг шалгана (" +
+        kbd("Ctrl+O", "⌘O") +
+        "). Файлаа бичвэрийн талбар уруу чирч оруулж болно.",
+    ),
   };
 }
 
@@ -211,12 +217,13 @@ export function defineHint(target: () => HTMLElement | null): Hint {
   return {
     id: "define",
     target,
-    html:
+    html: trustedHtml(
       "Үгэн дээр заагчаа байрлуулаад энэ товчийг дарвал үгийн тайлбар харагдана (" +
-      kbd("Ctrl+Shift+Space", "⌘⇧Space") +
-      "). " +
-      kbd("Shift", "⇧") +
-      " товчтой дарвал тайлбар толинуудыг удирдана.",
+        kbd("Ctrl+Shift+Space", "⌘⇧Space") +
+        "). " +
+        kbd("Shift", "⇧") +
+        " товчтой дарвал тайлбар толинуудыг удирдана.",
+    ),
   };
 }
 
@@ -224,10 +231,11 @@ export function spellDictHint(target: () => HTMLElement | null): Hint {
   return {
     id: "spelldict",
     target,
-    html:
+    html: trustedHtml(
       "Монгол, англи алдаа шалгах толинуудаа эндээс сонгоно (" +
-      kbd("Ctrl+Shift+L", "⌘⇧L") +
-      ").",
+        kbd("Ctrl+Shift+L", "⌘⇧L") +
+        ").",
+    ),
   };
 }
 
@@ -235,6 +243,6 @@ export function modeHint(target: () => HTMLElement | null): Hint {
   return {
     id: "mode",
     target,
-    html: "Бичвэрийн горимыг энд дарж солино.",
+    html: trustedHtml("Бичвэрийн горимыг энд дарж солино."),
   };
 }

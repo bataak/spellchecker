@@ -1,5 +1,6 @@
+import { setHtml } from "../core/htmlutil.ts";
 import { onImagesChange, pickImage, putImage } from "../files/images.ts";
-import { downloadBlob } from "../files/download.ts";
+import { downloadBlob } from "../ui/download.ts";
 import type { SaveChain } from "../ui/savechain.ts";
 import { createPrinter } from "./exportprint.ts";
 import {
@@ -15,7 +16,7 @@ import {
   type ExportFormat,
 } from "./exportformats.ts";
 import { findTemplate } from "../doc/templates.ts";
-import type { TexProject } from "../project/projectbuild.ts";
+import type { TexProject } from "../tex/projectbuild.ts";
 import {
   buildExportDialog,
   missingItems,
@@ -222,7 +223,7 @@ function paintMissing(
       ? []
       : missingImages(options.editor.value);
   parts.missingField.hidden = missing.length === 0;
-  parts.missingList.innerHTML = missingItems(missing);
+  setHtml(parts.missingList, missingItems(missing));
 }
 
 function paintFormat(
@@ -275,6 +276,18 @@ function bindDialogKeys(
   });
 }
 
+function openRefused(options: ExportOptions): boolean {
+  if (options.blocked?.()) {
+    options.onBlocked?.();
+    return true;
+  }
+  if (!options.editor.value.trim() && !options.texProject?.()) {
+    options.onEmpty?.();
+    return true;
+  }
+  return false;
+}
+
 export function initExport(options: ExportOptions): ExportControl {
   const { editor } = options;
   const texFormats = texFormatsFor(options);
@@ -298,14 +311,7 @@ export function initExport(options: ExportOptions): ExportControl {
   });
 
   function open(): void {
-    if (options.blocked?.()) {
-      options.onBlocked?.();
-      return;
-    }
-    if (!options.editor.value.trim() && !options.texProject?.()) {
-      options.onEmpty?.();
-      return;
-    }
+    if (openRefused(options)) return;
     restoreFocus = document.activeElement as HTMLElement | null;
     resetDialog(parts);
     const offered = available();

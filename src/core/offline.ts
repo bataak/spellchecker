@@ -1,3 +1,5 @@
+import { html } from "./htmlutil.ts";
+import type { Html } from "./htmlutil.ts";
 import { noteError } from "./errorlog.ts";
 
 export async function requestDurableStorage(): Promise<void> {
@@ -50,8 +52,8 @@ export async function isOfflineReady(): Promise<boolean> {
 
 export interface OfflineIndicatorDeps {
   readonly idle: () => boolean;
-  readonly setStatus: (html: string, animate?: boolean) => void;
-  readonly base: () => string;
+  readonly setStatus: (markup: Html, animate?: boolean) => void;
+  readonly base: () => Html;
   readonly setActive: (on: boolean) => void;
 }
 
@@ -61,7 +63,7 @@ const wait = (ms: number): Promise<void> =>
 export async function runOfflineIndicator(
   deps: OfflineIndicatorDeps,
 ): Promise<void> {
-  const transient = (message: string, animate = true): void => {
+  const transient = (message: Html, animate = true): void => {
     if (deps.idle()) deps.setStatus(message, animate);
   };
 
@@ -71,7 +73,7 @@ export async function runOfflineIndicator(
   }
 
   deps.setActive(true);
-  transient("Офлайн горимд ажиллахад бэлтгэж байна…");
+  transient(html`Офлайн горимд ажиллахад бэлтгэж байна…`);
 
   let ready = await isOfflineReady();
   const deadline = Date.now() + 20000;
@@ -81,7 +83,7 @@ export async function runOfflineIndicator(
   }
 
   if (ready) {
-    transient("Офлайн горимд ажиллахад бэлэн", false);
+    transient(html`Офлайн горимд ажиллахад бэлэн`, false);
     await wait(1500);
   }
 

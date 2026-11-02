@@ -1,3 +1,4 @@
+import type { Html } from "../core/htmlutil.ts";
 import type { DictStatus } from "../spellui/dictstatus.ts";
 import type { StatusPort } from "../core/ports.ts";
 import {
@@ -11,7 +12,6 @@ import {
 
 export interface DocStatusDeps {
   readonly status: StatusPort;
-  readonly statusEl: HTMLElement;
   readonly editor: HTMLTextAreaElement;
   readonly dicts: DictStatus;
   readonly fileName: () => string | null;
@@ -33,6 +33,7 @@ export function createDocStatus(deps: DocStatusDeps): DocStatus {
   const { status, editor, dicts, narrow } = deps;
   let ready = false;
   let stats: DocStats = NO_STATS;
+  let shownStats: Html | null = null;
 
   const blank = (): boolean => editor.value.trim() === "";
 
@@ -47,11 +48,16 @@ export function createDocStatus(deps: DocStatusDeps): DocStatus {
     };
   };
 
-  const current = (knownLine?: number): string =>
+  const current = (knownLine?: number): Html =>
     statsMessage(
       deps.fileName(),
       statsBody(stats, deps.desktop.matches, linePosition(knownLine)),
     );
+
+  const showStats = (knownLine?: number): void => {
+    shownStats = current(knownLine);
+    status.set(shownStats, false);
+  };
 
   const restore = (): void => {
     if (!ready) return;
@@ -59,7 +65,7 @@ export function createDocStatus(deps: DocStatusDeps): DocStatus {
       if (dicts.base() && !dicts.indicating()) status.set(dicts.base());
       return;
     }
-    status.set(current(), false);
+    showStats();
   };
 
   return {
@@ -77,8 +83,8 @@ export function createDocStatus(deps: DocStatusDeps): DocStatus {
     },
     refreshLine(knownLine) {
       if (!ready || !narrow.matches) return;
-      if (!deps.statusEl.innerHTML.includes("Үгийн тоо:")) return;
-      status.set(current(knownLine), false);
+      if (status.shown() !== shownStats) return;
+      showStats(knownLine);
     },
   };
 }

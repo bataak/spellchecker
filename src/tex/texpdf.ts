@@ -1,5 +1,5 @@
 import { unzipSync } from "fflate";
-import type { TexProject } from "../project/projectbuild.ts";
+import type { TexProject } from "./projectbuild.ts";
 import {
   TEX_BUNDLE,
   TEX_ENGINE,

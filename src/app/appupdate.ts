@@ -1,3 +1,5 @@
+import { html } from "../core/htmlutil.ts";
+import type { Html } from "../core/htmlutil.ts";
 import { reveal } from "../ui/status.ts";
 import { KEYS, at, read, write } from "../core/store.ts";
 import { noteError } from "../core/errorlog.ts";
@@ -129,6 +131,7 @@ function trackActivity(): { last(): number; composing(): boolean } {
 function initVersionLabel(): (version: string | null) => void {
   const verEl = document.querySelector<HTMLElement>("#appVersion");
   let verBase = "";
+  let expanded = false;
   if (verEl) {
     const av = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "";
     const hv =
@@ -140,22 +143,21 @@ function initVersionLabel(): (version: string | null) => void {
     if (verEl.textContent) reveal(verEl);
     verEl.style.cursor = "pointer";
     verEl.addEventListener("click", () => {
-      const expanded = verEl.textContent !== verEl.dataset.short;
+      expanded = !expanded;
       verEl.textContent =
-        (expanded ? verEl.dataset.short : verEl.dataset.full) ?? "";
+        (expanded ? verEl.dataset.full : verEl.dataset.short) ?? "";
     });
   }
   return (version) => {
     if (!verEl) return;
     const full = verBase + (version ? " · mn_MN " + version : "");
-    const wasExpanded = verEl.textContent === verEl.dataset.full;
     verEl.dataset.full = full;
-    if (wasExpanded) verEl.textContent = full;
+    if (expanded) verEl.textContent = full;
   };
 }
 
 export function initAppUpdate(
-  setStatus: (html: string) => void,
+  setStatus: (markup: Html) => void,
   entryUrl: string,
   base: string = import.meta.env.BASE_URL,
 ): AppUpdate {
@@ -201,14 +203,15 @@ export function initAppUpdate(
     if (reloadEl) reloadEl.hidden = false;
     await waitMs(0);
     setStatus(
-      "Шинэ хувилбар суусан тул энэ үйлдлийг хийхийн тулд ↻ товчийг дарж хуудсыг дахин ачаална уу",
+      html`Шинэ хувилбар суусан тул энэ үйлдлийг хийхийн тулд ↻ товчийг дарж
+      хуудсыг дахин ачаална уу`,
     );
   });
 
   if (reloadEl) {
     reloadEl.addEventListener("click", () => {
       reloadEl.hidden = true;
-      setStatus("Шинэ хувилбарыг ачаалж байна…");
+      setStatus(html`Шинэ хувилбарыг ачаалж байна…`);
       void reloadToLatest();
     });
   }
@@ -247,7 +250,7 @@ export function initAppUpdate(
       return true;
     }
     if (reloadEl) reloadEl.hidden = true;
-    setStatus("Шинэ хувилбарыг ачаалж байна…");
+    setStatus(html`Шинэ хувилбарыг ачаалж байна…`);
     void reloadToLatest();
     return true;
   }

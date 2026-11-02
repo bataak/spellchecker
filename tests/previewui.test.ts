@@ -1,3 +1,4 @@
+import { trustedHtml } from "../src/core/htmlutil.ts";
 import { resetStorage } from "./helpers/mock-storage.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -216,7 +217,7 @@ test("offline: боломжгүй орчинд шууд үндсэн төлөв�
   await runOfflineIndicator({
     idle: () => true,
     setStatus: (html) => shown.push(html),
-    base: () => "Бэлэн",
+    base: () => trustedHtml("Бэлэн"),
     setActive: () => shown.push("active"),
   });
   assert.deepEqual(shown, ["Бэлэн"]);

@@ -1,9 +1,9 @@
 import type { EditorPort } from "../core/ports.ts";
 import { initKeyboardToolbar } from "../editor/kbtoolbar.ts";
 import type { MarkLayer } from "../editor/marklayer.ts";
-import type { OfficeSession } from "../office/session.ts";
+import type { OfficeSession } from "./officesession.ts";
 import { createButtonCommands } from "../ui/commands.ts";
-import { initShortcuts } from "../ui/shortcuts.ts";
+import { initShortcuts } from "../editor/shortcuts.ts";
 import type { StatusControl } from "../ui/status.ts";
 import { confirmWipe } from "../ui/wipe.ts";
 import type { Fixers } from "./fixers.ts";
@@ -14,7 +14,6 @@ export interface ChromeWiringView {
   readonly editor: HTMLTextAreaElement;
   readonly port: EditorPort;
   readonly status: StatusControl;
-  readonly statusEl: HTMLElement;
   readonly backdropEl: HTMLElement;
 }
 
@@ -34,7 +33,7 @@ export interface ChromeWiringDeps {
 }
 
 export function bindAppChrome(deps: ChromeWiringDeps): void {
-  const { editor, port, status, statusEl, backdropEl } = deps.view;
+  const { editor, port, status, backdropEl } = deps.view;
   const { office } = deps;
 
   initShortcuts({
@@ -48,7 +47,6 @@ export function bindAppChrome(deps: ChromeWiringDeps): void {
   initToolbar({
     editor: port,
     status,
-    statusEl,
     office: { active: () => office.active() !== null, close: office.close },
     forgetFile: deps.forgetFile,
     afterClear: deps.afterClear,

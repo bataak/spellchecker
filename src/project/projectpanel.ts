@@ -1,6 +1,7 @@
+import type { Html } from "../core/htmlutil.ts";
 import { talkCovers, yieldTalk } from "../ui/talkslot.ts";
 import type { ProjectStore } from "./projectstore.ts";
-import { failureHtml } from "./projecterror.ts";
+import { failureHtml } from "../core/projecterror.ts";
 import { buildPanel, type PanelParts } from "./panelmarkup.ts";
 import type { OpenedFile } from "./panelview.ts";
 import {
@@ -27,7 +28,7 @@ export interface ProjectPanelDeps {
   readonly openedFile: () => OpenedFile | null;
   readonly onClosed: () => void;
   readonly onLayout: () => void;
-  readonly notify: (message: string) => void;
+  readonly notify: (markup: Html) => void;
 }
 
 export interface ProjectPanel {
@@ -70,7 +71,7 @@ function openProjectMenu(
 
 function busyRunner(
   panel: HTMLElement,
-  notify: (message: string) => void,
+  notify: (markup: Html) => void,
 ): (task: () => Promise<unknown>) => Promise<void> {
   let busy = false;
   return async (task) => {
