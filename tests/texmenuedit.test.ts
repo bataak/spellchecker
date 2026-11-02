@@ -121,3 +121,20 @@ test("openEnvironment: verbatim доторх \\begin-ийг тоохгүй", () 
     null,
   );
 });
+
+test("menuEdit хаалтын ард үлдэх бичвэрийг шинэ мөрөнд шилжүүлнэ", () => {
+  const close: Insert = { kind: "close" };
+  assert.equal(
+    run("\\begin{a}\n|\\end{document}", close),
+    "\\begin{a}\n\\end{a}|\n\\end{document}",
+  );
+  assert.equal(
+    run("\\begin{a}\n  x|y", close),
+    "\\begin{a}\n  x\n\\end{a}|\n  y",
+  );
+  assert.equal(
+    run("\\begin{a}\n  |\\end{b}", close),
+    "\\begin{a}\n\\end{a}|\n  \\end{b}",
+  );
+  assert.equal(run("\\begin{a}\nx|  ", close), "\\begin{a}\nx\n\\end{a}|  ");
+});
