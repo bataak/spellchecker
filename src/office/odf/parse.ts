@@ -2,9 +2,9 @@ import { readAttr, scanXml } from "../docx/xml.ts";
 import type { TagInfo } from "../docx/xml.ts";
 import type { DocxPart, Paragraph, TextNode } from "../docx/parse.ts";
 
-const PARAGRAPHS = new Set(["text:p", "text:h"]);
+export const PARAGRAPHS: ReadonlySet<string> = new Set(["text:p", "text:h"]);
 
-const SKIPPED_ELEMENTS = new Set([
+export const SKIPPED_ELEMENTS: ReadonlySet<string> = new Set([
   "office:annotation",
   "office:binary-data",
   "draw:image",
