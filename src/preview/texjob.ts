@@ -7,6 +7,7 @@ import {
   lastTex,
   type createPdfPool,
 } from "../tex/pdfcache.ts";
+import { PdfError } from "../tex/texerrors.ts";
 import { tooSlowForAuto } from "./compilemode.ts";
 import type { TexPreviewDeps } from "./texpreview.ts";
 
@@ -25,6 +26,14 @@ export function explainTexError(error: unknown, secure: boolean): string {
   if (!secure)
     return "Сервертэй холбогдож чадсангүй. Энэ хаяг HTTPS биш тул офлайн горим ажиллахгүй, localhost эсвэл HTTPS хаягаар нээнэ үү";
   return "Сервертэй холбогдож чадсангүй. Офлайн ажиллахын тулд нэг удаа онлайн үед хөрвүүлсэн байх шаардлагатай";
+}
+
+export function retryDelay(
+  error: unknown,
+  retries: number,
+): number | undefined {
+  if (error instanceof PdfError && !error.transient) return undefined;
+  return RETRY_MS[retries];
 }
 
 export interface TexState {
@@ -240,7 +249,7 @@ function failed(c: TexCtx, job: Job, error: unknown): void {
   const { st, deps } = c;
   if (!current(c, job.seq)) return;
   st.texShown = job.key;
-  const delay = RETRY_MS[st.retries];
+  const delay = retryDelay(error, st.retries);
   const message =
     explainTexError(error, window.isSecureContext) +
     (delay ? " — дахин оролдож байна…" : "");

@@ -1,3 +1,4 @@
+import { literalTest, liveMatches } from "./texliteral.ts";
 import { cleanPath, joinPath, uncommented } from "./texproject.ts";
 
 const USEPACKAGE = /\\usepackage\s*(\[[^\]]*\]\s*)?\{([^}]*)\}/g;
@@ -48,9 +49,7 @@ export function usesSvgPackage(texts: Iterable<string>): boolean {
 }
 
 export function svgRefs(text: string): string[] {
-  return [...uncommented(text).matchAll(INCLUDE_SVG)].map(
-    (match) => match[2] ?? "",
-  );
+  return liveMatches(text, INCLUDE_SVG).map((match) => match[2] ?? "");
 }
 
 export function svgPaths(text: string): string[] {
@@ -96,7 +95,7 @@ export function rewriteSvg(
   map: (raw: string) => string | null,
   label: (raw: string) => string = (raw) => raw.trim(),
 ): string {
-  return text
+  const setup = text
     .replace(USEPACKAGE, (whole, options: string | undefined, list: string) => {
       const names = packageNames(list);
       if (!names.includes("svg")) return whole;
@@ -107,8 +106,12 @@ export function rewriteSvg(
       return "\\usepackage" + prefix + "{" + kept.join(",") + "}";
     })
     .replace(SVG_PATH, "")
-    .replace(SVG_SETUP, "")
-    .replace(INCLUDE_SVG, (_, options: string | undefined, raw: string) => {
+    .replace(SVG_SETUP, "");
+  const literal = literalTest(setup);
+  return setup.replace(
+    INCLUDE_SVG,
+    (whole, options: string | undefined, raw: string, at: number) => {
+      if (literal(at)) return whole;
       const target = map(raw);
       if (target !== null)
         return (
@@ -119,7 +122,8 @@ export function rewriteSvg(
           "}"
         );
       return "\\fbox{\\ttfamily\\detokenize{" + label(raw) + "}}";
-    });
+    },
+  );
 }
 
 function points(value: string | null): number | null {
