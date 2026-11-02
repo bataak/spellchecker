@@ -6,6 +6,8 @@ import { FileReadError } from "./fileerror.ts";
 import { syncEdits } from "./editsync.ts";
 import { renderFlat } from "./textdoc.ts";
 import type { SaveResult, TextEdit, TextIndex } from "./textdoc.ts";
+import { docxUnread, odfUnread } from "./unread.ts";
+import type { UnreadKind } from "./unread.ts";
 import type { SkipReason } from "./docx/edit.ts";
 import { unpackedSize } from "../archive/archive.ts";
 
@@ -27,6 +29,7 @@ export interface SaveOutcome {
 
 export interface OfficeMode {
   format: OfficeFormat;
+  unread: readonly UnreadKind[];
   text: () => string;
   fileName: () => string;
   outputName: () => string;
@@ -38,6 +41,7 @@ export interface OfficeMode {
 
 interface Engine {
   text: string;
+  unread: readonly UnreadKind[];
   save: (edits: OfficeEdit[]) => SaveResult;
 }
 
@@ -104,15 +108,24 @@ async function readBytes(file: File): Promise<Uint8Array<ArrayBuffer>> {
 function engineOf<D extends TextIndex>(
   doc: D,
   save: (doc: D, edits: OfficeEdit[]) => SaveResult,
+  unread: (doc: D) => readonly UnreadKind[] = () => [],
 ): Engine {
-  return { text: doc.text, save: (edits) => save(doc, edits) };
+  return {
+    text: doc.text,
+    unread: unread(doc),
+    save: (edits) => save(doc, edits),
+  };
 }
 
+const odfEngine = (bytes: Uint8Array): Engine =>
+  engineOf(openOdf(bytes), saveOdf, (doc) => odfUnread(doc.pkg));
+
 const ENGINES: Record<OfficeFormat, (bytes: Uint8Array) => Engine> = {
-  docx: (bytes) => engineOf(openDocx(bytes), saveDocx),
+  docx: (bytes) =>
+    engineOf(openDocx(bytes), saveDocx, (doc) => docxUnread(doc.parts)),
   pptx: (bytes) => engineOf(openPptx(bytes), savePptx),
-  odt: (bytes) => engineOf(openOdf(bytes), saveOdf),
-  odp: (bytes) => engineOf(openOdf(bytes), saveOdf),
+  odt: odfEngine,
+  odp: odfEngine,
 };
 
 export async function deliver(
@@ -163,6 +176,7 @@ export async function openOfficeMode(file: File): Promise<OfficeMode> {
 
   return {
     format,
+    unread: engine.unread,
     text: () => renderFlat(source, edits),
     fileName: () => fileName,
     outputName: () => suggestName(fileName, format),
