@@ -31,8 +31,9 @@ function errorPlace(log: string): string | null {
 
 export class PdfError extends Error {
   readonly log: string;
+  readonly transient: boolean;
 
-  constructor(raw: string) {
+  constructor(raw: string, transient = false) {
     const log = unwrapLog(raw);
     const reason =
       /^!(?: |pdfTeX error: +(?:\(file [^)]*\): )?)(?:LaTeX Error: )?(.+)$/m.exec(
@@ -47,6 +48,7 @@ export class PdfError extends Error {
     );
     this.name = "PdfError";
     this.log = log;
+    this.transient = transient;
   }
 }
 

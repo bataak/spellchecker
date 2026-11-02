@@ -2,12 +2,8 @@ import { isHeic, jpegIfHeic } from "../files/heic.ts";
 import { databaseOpener } from "../core/idb.ts";
 import { replaceRange } from "../editor/editortext.ts";
 import { pickImage } from "../files/images.ts";
-import {
-  expandMacros,
-  pathMacros,
-  runtimePath,
-  uncommented,
-} from "./texproject.ts";
+import { literalTest, liveMatches } from "./texliteral.ts";
+import { expandMacros, pathMacros, runtimePath } from "./texproject.ts";
 import {
   rewriteSvg,
   svgCandidates,
@@ -54,7 +50,7 @@ export function normalizeTexPath(path: string): string {
 export function texImagePaths(text: string): string[] {
   const out = new Set<string>();
   const macros = pathMacros([text]);
-  for (const match of uncommented(text).matchAll(INCLUDE)) {
+  for (const match of liveMatches(text, INCLUDE)) {
     const path = normalizeTexPath(expandMacros(match[2] ?? "", macros));
     if (path && !runtimePath(path)) out.add(path);
   }
@@ -67,9 +63,11 @@ export function rewriteIncludes(
   keep = false,
 ): string {
   const macros = pathMacros([text]);
+  const literal = literalTest(text);
   return text.replace(
     INCLUDE,
-    (match: string, opts: string | undefined, raw: string) => {
+    (match: string, opts: string | undefined, raw: string, at: number) => {
+      if (literal(at)) return match;
       const path = normalizeTexPath(expandMacros(raw, macros));
       const name = names.get(path);
       if (name) return "\\includegraphics" + (opts ?? "") + "{" + name + "}";

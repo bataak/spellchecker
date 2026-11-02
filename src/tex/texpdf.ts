@@ -253,8 +253,9 @@ function runOnce(worker: Worker): Promise<Uint8Array<ArrayBuffer>> {
         resolve(new Uint8Array(pdf));
         return;
       }
-      if (reply.status === ENGINE_CRASHED) dropEngine(worker);
-      reject(new PdfError(reply.log ?? ""));
+      const crashed = reply.status === ENGINE_CRASHED;
+      if (crashed) dropEngine(worker);
+      reject(new PdfError(reply.log ?? "", crashed));
     };
     worker.postMessage({ cmd: "compilelatex" });
   });

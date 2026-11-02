@@ -9,7 +9,8 @@ export interface TexSpan extends SyntaxSpan {
 
 const MATH_ENV =
   /^(?:equation|align|gather|multline|displaymath|flalign|alignat|eqnarray|math)\*?$/;
-const VERB_ENV = /^(?:verbatim|lstlisting|minted|comment)\*?$/;
+const VERB_ENV =
+  /^(?:verbatim|Verbatim|BVerbatim|LVerbatim|spverbatim|lstlisting|minted|comment|filecontents|tcblisting)\*?$/;
 const BEGIN_END = /\\(begin|end)(\s*)\{([^}\n]*)\}/y;
 
 function isLetter(code: number): boolean {
