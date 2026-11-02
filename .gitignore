@@ -11,4 +11,3 @@ public/dict/dict-manifest.json
 public/dict/stardict/
 tools/texlive/.cache/
 *.swp
-tools/bench/out/
