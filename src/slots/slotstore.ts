@@ -1,6 +1,6 @@
 import { noteError } from "../core/errorlog.ts";
 import { dropSlotText, loadSlotText, saveSlotText } from "../core/storage.ts";
-import { PROJECT_SLOT, loadSlots } from "./fileslots.ts";
+import { PROJECT_SLOT, loadSlots } from "../core/fileslots.ts";
 import {
   LEGACY_TEMPLATES,
   PLAIN,

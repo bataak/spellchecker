@@ -1,4 +1,4 @@
-import { downloadBlob } from "../files/download.ts";
+import { downloadBlob } from "../ui/download.ts";
 import { openDocx, saveDocx } from "./docx/index.ts";
 import { openOdf, saveOdf } from "./odf/index.ts";
 import { openPptx, savePptx } from "./pptx/index.ts";

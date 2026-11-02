@@ -1,7 +1,7 @@
 import { html, escapeHtml } from "../core/htmlutil.ts";
 import type { Html } from "../core/htmlutil.ts";
 import { askChoice } from "../ui/ask.ts";
-import type { DictInfo } from "../spell/messages.ts";
+import type { DictInfo } from "./messages.ts";
 import {
   importDictFiles,
   moveItem,

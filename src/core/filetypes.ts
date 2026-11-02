@@ -1,4 +1,4 @@
-import type { DraftFile } from "../core/storage.ts";
+import type { DraftFile } from "./storage.ts";
 
 export const MAX_OPEN_BYTES = 10 * 1024 * 1024;
 export const BIG_NOTICE_BYTES = 2 * 1024 * 1024;

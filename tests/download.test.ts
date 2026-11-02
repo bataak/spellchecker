@@ -11,7 +11,7 @@ const {
   downloadBlob,
   initDownloadHint,
   onDownload,
-} = await import("../src/files/download.ts");
+} = await import("../src/ui/download.ts");
 
 test.after(() => dom.close());
 

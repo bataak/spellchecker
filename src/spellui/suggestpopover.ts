@@ -9,7 +9,7 @@ import {
   trustedHtml,
 } from "../core/htmlutil.ts";
 import { syncIgnoreVisibility } from "./ignorelist.ts";
-import type { Popover } from "../ui/popover.ts";
+import type { Popover } from "../define/popover.ts";
 import { openManualFix } from "./suggestfix.ts";
 import { addIgnored, canIgnore } from "../spell/ignore.ts";
 import type { WordChecker } from "../spell/spellchecker.ts";

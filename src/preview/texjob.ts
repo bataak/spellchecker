@@ -6,7 +6,7 @@ import {
   digestOf,
   lastTex,
   type createPdfPool,
-} from "./pdfcache.ts";
+} from "../tex/pdfcache.ts";
 import { tooSlowForAuto } from "./compilemode.ts";
 import type { TexPreviewDeps } from "./texpreview.ts";
 

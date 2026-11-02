@@ -1,10 +1,10 @@
 import { setHtml, trustedHtml } from "../core/htmlutil.ts";
 import type { Backdrop } from "../editor/backdrop.ts";
-import type { DefTip } from "../define/deftip.ts";
-import { isTouch } from "../editor/input.ts";
+import type { DefTip } from "./deftip.ts";
+import { isTouch } from "../ui/input.ts";
 import type { WordSpan } from "../spell/lookup.ts";
-import { wordScrollTarget } from "./popgeom.ts";
-import { createPlacer } from "./popplace.ts";
+import { wordScrollTarget } from "../ui/popgeom.ts";
+import { createPlacer } from "../ui/popplace.ts";
 import { buildDefPanel, hintOverlap, scrollHints } from "./popdef.ts";
 
 export interface PopoverDeps {

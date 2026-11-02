@@ -5,7 +5,7 @@ import { askRepo, type RepoChoice } from "./git/repodialog.ts";
 import type { Busy } from "./git/form.ts";
 import { confirmClose, whenSure } from "./linkfiles.ts";
 import type { PanelParts } from "./panelmarkup.ts";
-import { ProjectError, failureMessage } from "./projecterror.ts";
+import { ProjectError, failureMessage } from "../core/projecterror.ts";
 import type { ProjectPanelDeps } from "./projectpanel.ts";
 import type { TreeControl, TreeState } from "./treecontrol.ts";
 

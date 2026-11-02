@@ -3,7 +3,7 @@ import { trustedHtml } from "../core/htmlutil.ts";
 import { setHtml } from "../core/htmlutil.ts";
 import "./hint.css";
 import { KEYS, at, read, write } from "../core/store.ts";
-import { OPEN_LABEL } from "../files/filetypes.ts";
+import { OPEN_LABEL } from "../core/filetypes.ts";
 
 const SHOW_DELAY_MS = 600;
 const HIDE_AFTER_MS = 12000;

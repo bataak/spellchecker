@@ -1,4 +1,4 @@
-import { isTouch } from "../editor/input.ts";
+import { isTouch } from "../ui/input.ts";
 
 export interface DotControl {
   readonly isAnchor: (el: HTMLElement) => boolean;

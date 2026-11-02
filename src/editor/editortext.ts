@@ -1,5 +1,5 @@
 import { attempt } from "../core/attempt.ts";
-import { isSeparatorInput } from "./input.ts";
+import { isSeparatorInput } from "../ui/input.ts";
 import { standardLetters } from "../lang/letters.ts";
 import type { TextEdit } from "./tokenshift.ts";
 import type { TextChange } from "./textdelta.ts";

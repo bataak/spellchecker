@@ -8,7 +8,7 @@ const dom = installDom("");
 const { showForm } = await import("../src/project/git/form.ts");
 const { askCommitMessage, askFolder } =
   await import("../src/project/git/gitdialog.ts");
-const { ProjectError } = await import("../src/project/projecterror.ts");
+const { ProjectError } = await import("../src/core/projecterror.ts");
 const { askMerge } = await import("../src/project/git/mergedialog.ts");
 
 test.after(() => dom.close());

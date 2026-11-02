@@ -1,7 +1,7 @@
 import type { MdToolbar } from "../mdbar/mdtoolbar.ts";
-import type { DocumentSession } from "../doc/docsession.ts";
+import type { DocumentSession } from "../office/docsession.ts";
 import type { UndoControl } from "../editor/undohistory.ts";
-import type { OfficeSession } from "../office/session.ts";
+import type { OfficeSession } from "./officesession.ts";
 import type { ProjectLink } from "../project/projectlink.ts";
 import {
   initFileIO,

@@ -7,7 +7,7 @@ import { watchTabs } from "./tabwatch.ts";
 import { startApp } from "./startup.ts";
 import { offerLink } from "./linkpaste.ts";
 import { fileSlot, slotKey } from "../collab/roomslot.ts";
-import { PROJECT_SLOT } from "../slots/fileslots.ts";
+import { PROJECT_SLOT } from "../core/fileslots.ts";
 import { clearedComments } from "../collab/commentbus.ts";
 import { keepLayoutOnReload } from "../ui/layoutsnapshot.ts";
 

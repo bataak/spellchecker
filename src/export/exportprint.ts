@@ -3,7 +3,7 @@ import { parse } from "../markdown.ts";
 import { splitSlides } from "../doc/slides.ts";
 import { docImages } from "../office/docir.ts";
 import { findTemplate, type Frame } from "../doc/templates.ts";
-import type { TexProject } from "../project/projectbuild.ts";
+import type { TexProject } from "../tex/projectbuild.ts";
 
 const PRINT_FRAMES: ReadonlySet<Frame> = new Set([
   "letter",

@@ -4,9 +4,9 @@ import {
   createPdfPool,
   digestOf,
   type CompiledPdf,
-} from "./pdfcache.ts";
+} from "../tex/pdfcache.ts";
 import type { PdfPane } from "./pdfpane.ts";
-import type { TexProject } from "../project/projectbuild.ts";
+import type { TexProject } from "../tex/projectbuild.ts";
 import { KEYS, read, write } from "../core/store.ts";
 import { autoDelay } from "./compilemode.ts";
 import {

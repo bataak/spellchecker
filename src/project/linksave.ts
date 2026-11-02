@@ -7,7 +7,7 @@ import {
   saveMessage,
 } from "./linkfiles.ts";
 import type { Binding } from "./linkbind.ts";
-import { Cancelled, failureHtml } from "./projecterror.ts";
+import { Cancelled, failureHtml } from "../core/projecterror.ts";
 import type { ProjectStore, SaveResult } from "./projectstore.ts";
 
 const CANCELLED = "Цуцаллаа";

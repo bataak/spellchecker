@@ -1,7 +1,7 @@
 import type { Html } from "../core/htmlutil.ts";
 import { noteError } from "../core/errorlog.ts";
 import { escapeHtml, html, trustedHtml } from "../core/htmlutil.ts";
-import { readFailureMessage } from "./fileerror.ts";
+import { readFailureMessage } from "../office/fileerror.ts";
 import type { PreviewSource } from "../preview/preview.ts";
 import { swapText } from "../editor/editortext.ts";
 import type { EditorPort, StatusPort } from "../core/ports.ts";
@@ -10,7 +10,7 @@ import {
   loadOfficeFile,
   saveOfficeFile,
 } from "../core/storage.ts";
-import type { OfficeMode } from "./mode.ts";
+import type { OfficeMode } from "../office/mode.ts";
 
 const PREPARE_HOLD_MS = 3000;
 
@@ -55,7 +55,7 @@ async function readPdf(file: File, status: StatusPort): Promise<string | null> {
     }, 5000);
   };
   try {
-    const mod = await import("../preview/pdftext.ts");
+    const mod = await import("../office/pdf/pdftext.ts");
     armStall();
     return await mod.extractPdfText(file, (page, total) => {
       armStall();
@@ -76,9 +76,9 @@ async function loadOffice(
   file: File,
   holdStatus: StatusPort["hold"],
 ): Promise<OfficeMode | "unknown" | "failed"> {
-  let mod: typeof import("./mode.ts");
+  let mod: typeof import("../office/mode.ts");
   try {
-    mod = await import("./mode.ts");
+    mod = await import("../office/mode.ts");
   } catch (error) {
     noteError(error);
     holdStatus(html`Баримт уншигчийг ачаалж чадсангүй`);

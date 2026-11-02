@@ -1,4 +1,4 @@
-import { ProjectError } from "../projecterror.ts";
+import { ProjectError } from "../../core/projecterror.ts";
 import {
   DEFAULT_HOST,
   PROVIDER_NAME,

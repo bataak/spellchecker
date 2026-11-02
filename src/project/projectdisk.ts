@@ -5,7 +5,7 @@ import {
   movedPath,
   skippedPath,
 } from "../tex/texproject.ts";
-import { PROJECT_TOO_LARGE, ProjectError } from "./projecterror.ts";
+import { PROJECT_TOO_LARGE, ProjectError } from "../core/projecterror.ts";
 
 const MAX_FILES = 3000;
 export const MAX_BYTES = 200 * 1024 * 1024;

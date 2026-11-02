@@ -3,7 +3,7 @@ import { attemptAsync } from "../core/attempt.ts";
 import type { LoadedRepo } from "./git/gitsync.ts";
 import { readDir } from "./projectdisk.ts";
 import { applyScan } from "./projectedit.ts";
-import { ProjectError } from "./projecterror.ts";
+import { ProjectError } from "../core/projecterror.ts";
 import {
   pickDirectoryFiles,
   readFileList,

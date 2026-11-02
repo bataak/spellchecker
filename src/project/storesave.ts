@@ -1,5 +1,5 @@
-import { downloadBlob } from "../files/download.ts";
-import { buildProject, type ProjectBuild } from "./projectbuild.ts";
+import { downloadBlob } from "../ui/download.ts";
+import { buildProject, type ProjectBuild } from "../tex/projectbuild.ts";
 import { markZipped, snapshotOf, type ProjectSnapshot } from "./projectedit.ts";
 import { downloadChanged, writeChanged, zipOf } from "./projectsave.ts";
 import { commitState } from "./git/gitsession.ts";
