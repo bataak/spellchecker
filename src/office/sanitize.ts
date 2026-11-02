@@ -22,3 +22,16 @@ export function xmlText(value: string): string {
 export function xmlAttr(value: string): string {
   return xmlText(value).replace(/"/g, "&quot;");
 }
+
+export function verbatimText(text: string): string {
+  return xmlText(text)
+    .replace(/\t/g, "<text:tab/>")
+    .replace(/^ +| {2,}/g, (spaces, at: number) => {
+      const lead = at === 0 ? 0 : 1;
+      const count = spaces.length - lead;
+      return (
+        " ".repeat(lead) +
+        (count === 1 ? "<text:s/>" : '<text:s text:c="' + count + '"/>')
+      );
+    });
+}
