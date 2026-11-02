@@ -1,4 +1,5 @@
 import { noteError } from "../core/errorlog.ts";
+import { escapeHtml } from "../core/htmlutil.ts";
 
 export class ProjectError extends Error {}
 
@@ -20,4 +21,9 @@ export function failureMessage(
   if (error instanceof DOMException && error.name === "AbortError") return null;
   console.error("project:", error);
   return fallback;
+}
+
+export function failureHtml(error: unknown, fallback: string): string | null {
+  const message = failureMessage(error, fallback);
+  return message === null ? null : escapeHtml(message);
 }

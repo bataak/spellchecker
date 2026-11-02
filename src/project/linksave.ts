@@ -1,4 +1,3 @@
-import { escapeHtml } from "../core/htmlutil.ts";
 import { askCommitMessage } from "./git/gitdialog.ts";
 import { askMerge } from "./git/mergedialog.ts";
 import {
@@ -7,7 +6,7 @@ import {
   saveMessage,
 } from "./linkfiles.ts";
 import type { Binding } from "./linkbind.ts";
-import { Cancelled, failureMessage } from "./projecterror.ts";
+import { Cancelled, failureHtml } from "./projecterror.ts";
 import type { ProjectStore, SaveResult } from "./projectstore.ts";
 
 const CANCELLED = "Цуцаллаа";
@@ -47,8 +46,8 @@ export function createSave(
       );
     } catch (error) {
       if (error instanceof Cancelled) return CANCELLED;
-      const text = failureMessage(error, "Хадгалж чадсангүй");
-      if (text) notify(escapeHtml(text));
+      const html = failureHtml(error, "Хадгалж чадсангүй");
+      if (html) notify(html);
       throw error;
     } finally {
       if (git) committing = false;

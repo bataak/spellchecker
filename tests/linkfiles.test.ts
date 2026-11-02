@@ -7,7 +7,11 @@ import {
   saveMessage,
   conflictNotice,
 } from "../src/project/linkfiles.ts";
-import { failureMessage, ProjectError } from "../src/project/projecterror.ts";
+import {
+  failureHtml,
+  failureMessage,
+  ProjectError,
+} from "../src/project/projecterror.ts";
 
 const files = ["main.tex", "ch/intro.tex", "a/b/intro.tex", "img/fig.png"];
 
@@ -70,4 +74,12 @@ test("conflictNotice: файлын нэрийг HTML болгохгүй", () => 
   const html = conflictNotice(["ch/<img src=x>.tex"]);
   assert.match(html, /«&lt;img src=x&gt;\.tex»/);
   assert.doesNotMatch(html, /<img/);
+});
+
+test("failureHtml: алдааны текстийг HTML болгохгүй, цуцлалтыг өнгөрөөнө", () => {
+  assert.equal(
+    failureHtml(new ProjectError("«<img src=x>» уншсангүй"), "x"),
+    "«&lt;img src=x&gt;» уншсангүй",
+  );
+  assert.equal(failureHtml(new DOMException("stop", "AbortError"), "x"), null);
 });
