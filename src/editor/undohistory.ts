@@ -126,18 +126,89 @@ export function redo(text: string, history: History): Applied | null {
   };
 }
 
+function crossStep(
+  changes: readonly TextChange[],
+  from: number,
+  oldLength: number,
+  newLength: number,
+): TextChange[] | null {
+  const shift = newLength - oldLength;
+  const crossed: TextChange[] = [];
+  for (const change of changes) {
+    if (change.to > from && change.from < from + oldLength) return null;
+    crossed.push(
+      change.to <= from
+        ? change
+        : { ...change, from: change.from + shift, to: change.to + shift },
+    );
+  }
+  return crossed;
+}
+
+function shiftStart(changes: readonly TextChange[], from: number): number {
+  let shifted = from;
+  for (const change of changes)
+    if (change.to <= from)
+      shifted += change.insert.length - (change.to - change.from);
+  return shifted;
+}
+
+function shiftSelection(
+  changes: readonly TextChange[],
+  selection: [number, number],
+): [number, number] {
+  return [mapOffset(changes, selection[0]), mapOffset(changes, selection[1])];
+}
+
+interface StackWalk {
+  readonly lengths: (step: Step) => [number, number];
+  readonly near: "before" | "after";
+  readonly far: "before" | "after";
+}
+
+const UNDO_WALK: StackWalk = {
+  lengths: (step) => [step.inserted.length, step.removed.length],
+  near: "after",
+  far: "before",
+};
+
+const REDO_WALK: StackWalk = {
+  lengths: (step) => [step.removed.length, step.inserted.length],
+  near: "before",
+  far: "after",
+};
+
+function rebaseStack(
+  steps: readonly Step[],
+  changes: readonly TextChange[],
+  walk: StackWalk,
+): Step[] {
+  const rebased: Step[] = [];
+  let current = changes;
+  for (let i = steps.length - 1; i >= 0; i--) {
+    const step = steps[i]!;
+    const [oldLength, newLength] = walk.lengths(step);
+    const crossed = crossStep(current, step.from, oldLength, newLength);
+    if (!crossed) break;
+    rebased.push({
+      ...step,
+      from: shiftStart(current, step.from),
+      [walk.near]: shiftSelection(current, step[walk.near]),
+      [walk.far]: shiftSelection(crossed, step[walk.far]),
+    });
+    current = crossed;
+  }
+  return rebased.reverse();
+}
+
 export function rebaseHistory(
   history: History,
   changes: readonly TextChange[],
 ): History {
-  const at = (pos: number): number => mapOffset(changes, pos);
-  const shift = (step: Step): Step => ({
-    ...step,
-    from: at(step.from),
-    before: [at(step.before[0]), at(step.before[1])],
-    after: [at(step.after[0]), at(step.after[1])],
-  });
-  return { undo: history.undo.map(shift), redo: history.redo.map(shift) };
+  return {
+    undo: rebaseStack(history.undo, changes, UNDO_WALK),
+    redo: rebaseStack(history.redo, changes, REDO_WALK),
+  };
 }
 
 export function checksum(text: string): string {
@@ -419,8 +490,10 @@ export function initUndoHistory(deps: UndoDeps): UndoControl {
     persist();
   };
 
-  const step = (kind: "undo" | "redo"): void =>
+  const step = (kind: "undo" | "redo"): void => {
+    if (editor.readOnly) return;
     apply((kind === "undo" ? undo : redo)(editor.value, history));
+  };
 
   const recordEdit = (): void => {
     const next = editor.value;

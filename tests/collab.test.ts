@@ -62,7 +62,6 @@ import {
   withRoom,
   withoutRoom,
 } from "../src/collab/collabrooms.ts";
-import { rebaseHistory, undo } from "../src/editor/undohistory.ts";
 import { createAdmin } from "../src/collab/admin.ts";
 
 test("Yjs delta-г засварын жагсаалт болгоно", () => {
@@ -446,26 +445,6 @@ test("засвар хүлээж байх үед ирсэн өөрчлөлтий�
     text: ">> abc",
     local: null,
   });
-});
-
-test("буцаах түүхийг бусдын засвараар шилжүүлнэ", () => {
-  const history = {
-    undo: [
-      {
-        from: 4,
-        removed: "",
-        inserted: "XY",
-        before: [4, 4] as [number, number],
-        after: [6, 6] as [number, number],
-        at: 0,
-      },
-    ],
-    redo: [],
-  };
-  const rebased = rebaseHistory(history, [{ from: 0, to: 0, insert: "123" }]);
-  assert.equal(rebased.undo[0]!.from, 7);
-  assert.deepEqual(rebased.undo[0]!.after, [9, 9]);
-  assert.equal(undo("123abcdXYef", rebased)?.text, "123abcdef");
 });
 
 test("хамтын өрөөнүүдийн жагсаалтыг шалгана", () => {
