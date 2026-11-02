@@ -491,6 +491,7 @@ export function initUndoHistory(deps: UndoDeps): UndoControl {
   };
 
   const step = (kind: "undo" | "redo"): void => {
+    if (editor.readOnly) return;
     apply((kind === "undo" ? undo : redo)(editor.value, history));
   };
 
