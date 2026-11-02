@@ -174,7 +174,6 @@ export function composeDocument(
   });
   const docStatus = createDocStatus({
     status,
-    statusEl: els.status,
     editor: els.editor,
     dicts: app.dicts,
     fileName: doc.fileName,

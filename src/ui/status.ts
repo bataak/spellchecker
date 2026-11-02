@@ -1,4 +1,4 @@
-import { setHtml } from "../core/htmlutil.ts";
+import { setHtml, trustedHtml } from "../core/htmlutil.ts";
 import type { Html } from "../core/htmlutil.ts";
 import type { StatusPort } from "../core/ports.ts";
 
@@ -23,8 +23,10 @@ export function initStatus(
   let holdUntil = 0;
   let holdTimer: number | null = null;
   let pinned: Html | null = null;
+  let current = trustedHtml(el.innerHTML);
 
   const show = (markup: Html, animate: boolean): void => {
+    current = markup;
     setHtml(el, markup);
     el.classList.remove("status-reveal");
     if (!animate) return;
@@ -65,5 +67,5 @@ export function initStatus(
     if (pinned !== null) show(pinned, false);
   }
 
-  return { set, hold, release, pin };
+  return { set, hold, release, pin, shown: () => current };
 }

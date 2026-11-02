@@ -34,7 +34,7 @@ async function indexText(source: string): Promise<string> {
   const text = await page.evaluate(async (source) => {
     const load = (path: string) => import(new URL(path, location.href).href);
     const { compileTex } = await load("src/tex/texpdf.ts");
-    const { extractPdfText } = await load("src/preview/pdftext.ts");
+    const { extractPdfText } = await load("src/office/pdf/pdftext.ts");
     const pdf = await compileTex(source);
     return extractPdfText(
       new File([pdf], "a.pdf", { type: "application/pdf" }),

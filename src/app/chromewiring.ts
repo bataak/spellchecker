@@ -14,7 +14,6 @@ export interface ChromeWiringView {
   readonly editor: HTMLTextAreaElement;
   readonly port: EditorPort;
   readonly status: StatusControl;
-  readonly statusEl: HTMLElement;
   readonly backdropEl: HTMLElement;
 }
 
@@ -34,7 +33,7 @@ export interface ChromeWiringDeps {
 }
 
 export function bindAppChrome(deps: ChromeWiringDeps): void {
-  const { editor, port, status, statusEl, backdropEl } = deps.view;
+  const { editor, port, status, backdropEl } = deps.view;
   const { office } = deps;
 
   initShortcuts({
@@ -48,7 +47,6 @@ export function bindAppChrome(deps: ChromeWiringDeps): void {
   initToolbar({
     editor: port,
     status,
-    statusEl,
     office: { active: () => office.active() !== null, close: office.close },
     forgetFile: deps.forgetFile,
     afterClear: deps.afterClear,

@@ -1,3 +1,4 @@
+import { html } from "../src/core/htmlutil.ts";
 import { resetStorage } from "./helpers/mock-storage.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -56,8 +57,8 @@ initToolbar({
     },
     hold: () => {},
     release: () => {},
+    shown: () => html``,
   },
-  statusEl,
   office: { active: () => officeActive, close: () => calls.push("office") },
   forgetFile: () => calls.push("forget"),
   afterClear: (cleared) => calls.push("after:" + cleared),

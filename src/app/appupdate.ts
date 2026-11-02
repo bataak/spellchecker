@@ -131,6 +131,7 @@ function trackActivity(): { last(): number; composing(): boolean } {
 function initVersionLabel(): (version: string | null) => void {
   const verEl = document.querySelector<HTMLElement>("#appVersion");
   let verBase = "";
+  let expanded = false;
   if (verEl) {
     const av = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "";
     const hv =
@@ -142,17 +143,16 @@ function initVersionLabel(): (version: string | null) => void {
     if (verEl.textContent) reveal(verEl);
     verEl.style.cursor = "pointer";
     verEl.addEventListener("click", () => {
-      const expanded = verEl.textContent !== verEl.dataset.short;
+      expanded = !expanded;
       verEl.textContent =
-        (expanded ? verEl.dataset.short : verEl.dataset.full) ?? "";
+        (expanded ? verEl.dataset.full : verEl.dataset.short) ?? "";
     });
   }
   return (version) => {
     if (!verEl) return;
     const full = verBase + (version ? " · mn_MN " + version : "");
-    const wasExpanded = verEl.textContent === verEl.dataset.full;
     verEl.dataset.full = full;
-    if (wasExpanded) verEl.textContent = full;
+    if (expanded) verEl.textContent = full;
   };
 }
 

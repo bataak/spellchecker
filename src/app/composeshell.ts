@@ -68,7 +68,6 @@ export function composeShell(app: Scope<ShellReads, ShellGives>): void {
       editor: els.editor,
       port: app.editor,
       status,
-      statusEl: els.status,
       backdropEl: els.backdrop,
     },
     office: app.office,

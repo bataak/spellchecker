@@ -43,6 +43,7 @@ function setup() {
       set: (html: string) => calls.push("set:" + html),
       hold: (html: string) => calls.push("hold:" + html),
       release: () => calls.push("release"),
+      shown: () => "",
     } as never,
     showSource: (source) =>
       calls.push(
