@@ -2,7 +2,7 @@ import type { Html } from "../core/htmlutil.ts";
 import { flash } from "../ui/clipboard.ts";
 import { deliverFile } from "./export.ts";
 import { escapeHtml, trustedHtml, html, joinHtml } from "../core/htmlutil.ts";
-import type { CompiledPdf } from "../preview/pdfcache.ts";
+import type { CompiledPdf } from "../tex/pdfcache.ts";
 
 const PREPARING = "PDF бэлтгэж байна…";
 

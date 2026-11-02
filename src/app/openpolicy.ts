@@ -3,7 +3,7 @@ import type { Html } from "../core/htmlutil.ts";
 import { askChoice, type AskOptions } from "../ui/ask.ts";
 import { flash } from "../ui/clipboard.ts";
 import type { FileIODeps } from "../files/fileio.ts";
-import { FILE_LIMIT } from "../slots/fileslots.ts";
+import { FILE_LIMIT } from "../core/fileslots.ts";
 import type { MdToolbar } from "../mdbar/mdtoolbar.ts";
 
 const LIMIT_HOLD_MS = 8000;

@@ -18,7 +18,7 @@ import {
   type App,
   answer,
 } from "./harness.ts";
-import { textHash } from "../../src/files/textlink.ts";
+import { textHash } from "../../src/collab/textlink.ts";
 
 let app: App;
 before(async () => {

@@ -1,5 +1,5 @@
 import type { Html } from "../core/htmlutil.ts";
-import { PROJECT_SLOT, type FileSlot } from "./fileslots.ts";
+import { PROJECT_SLOT, type FileSlot } from "../core/fileslots.ts";
 import { escapeAttr, trustedHtml } from "../core/htmlutil.ts";
 import { TEMPLATE_GROUPS, TEMPLATES, findTemplate } from "../doc/templates.ts";
 

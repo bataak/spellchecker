@@ -11,7 +11,7 @@ import {
   failureHtml,
   failureMessage,
   ProjectError,
-} from "../src/project/projecterror.ts";
+} from "../src/core/projecterror.ts";
 
 const files = ["main.tex", "ch/intro.tex", "a/b/intro.tex", "img/fig.png"];
 

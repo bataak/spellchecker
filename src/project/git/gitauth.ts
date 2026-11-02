@@ -1,4 +1,4 @@
-import { AuthError, ProjectError } from "../projecterror.ts";
+import { AuthError, ProjectError } from "../../core/projecterror.ts";
 import type { Fetch, Provider } from "./githost.ts";
 
 export interface OAuthToken {

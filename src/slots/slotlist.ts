@@ -1,4 +1,9 @@
-import { loadSlots, saveSlots, textSum, type FileSlot } from "./fileslots.ts";
+import {
+  loadSlots,
+  saveSlots,
+  textSum,
+  type FileSlot,
+} from "../core/fileslots.ts";
 import { LARGE_DRAFT, loadDraft } from "./slotstore.ts";
 
 export interface SlotList {

@@ -1,5 +1,5 @@
 import { findTemplate } from "../doc/templates.ts";
-import { PROJECT_SLOT } from "../slots/fileslots.ts";
+import { PROJECT_SLOT } from "../core/fileslots.ts";
 
 export type SlotTarget =
   | {

@@ -1,6 +1,6 @@
 import type { Html } from "../core/htmlutil.ts";
 import { escapeAttr, escapeHtml, trustedHtml } from "../core/htmlutil.ts";
-import { splitName } from "../office/filename.ts";
+import { splitName } from "../core/filename.ts";
 import { nf } from "./status.ts";
 
 export interface DocStats {

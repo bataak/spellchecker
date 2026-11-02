@@ -1,4 +1,4 @@
-import { saveTypes, stampName, textName } from "./filetypes.ts";
+import { saveTypes, stampName, textName } from "../core/filetypes.ts";
 import { isDesktopApp } from "./textfile.ts";
 import { flash } from "../ui/clipboard.ts";
 import { attemptAsync } from "../core/attempt.ts";

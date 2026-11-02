@@ -1,6 +1,6 @@
 import { setHtml } from "../core/htmlutil.ts";
 import { onImagesChange, pickImage, putImage } from "../files/images.ts";
-import { downloadBlob } from "../files/download.ts";
+import { downloadBlob } from "../ui/download.ts";
 import type { SaveChain } from "../ui/savechain.ts";
 import { createPrinter } from "./exportprint.ts";
 import {
@@ -16,7 +16,7 @@ import {
   type ExportFormat,
 } from "./exportformats.ts";
 import { findTemplate } from "../doc/templates.ts";
-import type { TexProject } from "../project/projectbuild.ts";
+import type { TexProject } from "../tex/projectbuild.ts";
 import {
   buildExportDialog,
   missingItems,

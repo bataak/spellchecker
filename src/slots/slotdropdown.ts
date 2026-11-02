@@ -1,6 +1,6 @@
 import type { Html } from "../core/htmlutil.ts";
 import { setHtml } from "../core/htmlutil.ts";
-import { PROJECT_SLOT } from "./fileslots.ts";
+import { PROJECT_SLOT } from "../core/fileslots.ts";
 import { onViewportChange, placeBelow } from "../ui/placebelow.ts";
 import { eventElement, eventNode, listStep } from "../ui/dom.ts";
 

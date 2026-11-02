@@ -1,4 +1,4 @@
-import { ProjectError } from "../projecterror.ts";
+import { ProjectError } from "../../core/projecterror.ts";
 
 export interface Field {
   readonly name: string;

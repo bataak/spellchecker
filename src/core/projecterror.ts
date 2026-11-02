@@ -1,6 +1,6 @@
-import type { Html } from "../core/htmlutil.ts";
-import { noteError } from "../core/errorlog.ts";
-import { escapeHtml } from "../core/htmlutil.ts";
+import type { Html } from "./htmlutil.ts";
+import { noteError } from "./errorlog.ts";
+import { escapeHtml } from "./htmlutil.ts";
 
 export class ProjectError extends Error {}
 

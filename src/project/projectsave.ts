@@ -1,7 +1,7 @@
 import { pathRecord } from "../core/pathrecord.ts";
 import { noteError } from "../core/errorlog.ts";
 import { fflate } from "../archive/fflate.ts";
-import { downloadBlob } from "../files/download.ts";
+import { downloadBlob } from "../ui/download.ts";
 import {
   baseName,
   dirName,

@@ -6,7 +6,7 @@ import { commitChanges, loadRepo } from "../src/project/git/gitsync.ts";
 import { FakeGitlab, GITLAB_PROJECT } from "./helpers/fakegitlab.ts";
 import { newState } from "../src/project/projectstate.ts";
 import { moveEntries, putFile } from "../src/project/projectedit.ts";
-import { ProjectError } from "../src/project/projecterror.ts";
+import { ProjectError } from "../src/core/projecterror.ts";
 import { workingCopy } from "../src/project/workingcopy.ts";
 
 const encode = (text: string): Uint8Array => new TextEncoder().encode(text);

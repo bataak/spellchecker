@@ -1,7 +1,7 @@
 import { resetStorage } from "./helpers/mock-storage.ts";
 import { beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
-import { loadSlots, saveSlots, textSum } from "../src/slots/fileslots.ts";
+import { loadSlots, saveSlots, textSum } from "../src/core/fileslots.ts";
 import { createSlotList } from "../src/slots/slotlist.ts";
 import { createDraftStore } from "../src/slots/slotstore.ts";
 

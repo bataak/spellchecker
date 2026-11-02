@@ -11,7 +11,7 @@ import {
   textName,
   OPEN_LABEL,
   OPEN_TYPES,
-} from "../src/files/filetypes.ts";
+} from "../src/core/filetypes.ts";
 
 const file = (name: string, type = "") => ({ name, type });
 

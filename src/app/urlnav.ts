@@ -1,7 +1,7 @@
 import { trustedHtml, html, escapeHtml } from "../core/htmlutil.ts";
 import type { Html } from "../core/htmlutil.ts";
 import { askChoice } from "../ui/ask.ts";
-import { PROJECT_SLOT, isFileSlot } from "../slots/fileslots.ts";
+import { PROJECT_SLOT, isFileSlot } from "../core/fileslots.ts";
 import { isPlain } from "../doc/templates.ts";
 import { copyText } from "../ui/clipboard.ts";
 import { showSnackbar } from "../ui/snackbar.ts";
@@ -11,7 +11,7 @@ import {
   isTextHash,
   readTextHash,
   textHash,
-} from "../files/textlink.ts";
+} from "../collab/textlink.ts";
 import { chosenExample } from "../slots/slotstore.ts";
 import {
   exampleInHash,

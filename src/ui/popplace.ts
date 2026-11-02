@@ -1,4 +1,4 @@
-import { isTouch } from "../editor/input.ts";
+import { isTouch } from "./input.ts";
 import { fitVertically, visibleView } from "./popgeom.ts";
 
 export interface PlacerDeps {

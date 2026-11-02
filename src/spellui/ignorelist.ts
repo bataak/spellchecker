@@ -1,6 +1,6 @@
 import type { Html } from "../core/htmlutil.ts";
 import { requireEl } from "../ui/dom.ts";
-import { downloadBlob } from "../files/download.ts";
+import { downloadBlob } from "../ui/download.ts";
 import { escapeAttr, setHtml, trustedHtml } from "../core/htmlutil.ts";
 import {
   getIgnored,

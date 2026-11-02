@@ -1,7 +1,7 @@
 import { escapeHtml } from "../core/htmlutil.ts";
-import { initDownloadHint } from "./download.ts";
+import { initDownloadHint } from "../ui/download.ts";
 import type { SaveChain } from "../ui/savechain.ts";
-import { restoredName } from "./filetypes.ts";
+import { restoredName } from "../core/filetypes.ts";
 import type { DraftFile } from "../core/storage.ts";
 import { deliverText } from "./textfile.ts";
 import type { EditorPort, StatusPort } from "../core/ports.ts";

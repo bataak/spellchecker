@@ -8,7 +8,7 @@ import {
 } from "../tex/texproject.ts";
 import { unpackedSize } from "../archive/archive.ts";
 import { MAX_BYTES, budget } from "./projectdisk.ts";
-import { PROJECT_TOO_LARGE, ProjectError } from "./projecterror.ts";
+import { PROJECT_TOO_LARGE, ProjectError } from "../core/projecterror.ts";
 
 export interface LoadedFiles {
   readonly name: string;

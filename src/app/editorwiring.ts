@@ -6,7 +6,7 @@ import { initEditorText, type EditorText } from "../editor/editortext.ts";
 import type { MarkLayer } from "../editor/marklayer.ts";
 import { initMarkTap } from "../editor/marktap.ts";
 import { sharedSlot, type MdToolbar } from "../mdbar/mdtoolbar.ts";
-import type { OfficeSession } from "../office/session.ts";
+import type { OfficeSession } from "./officesession.ts";
 import { createFixFlow, type FixFlow } from "../spell/fixflow.ts";
 import type { SpellSession } from "../spell/spellsession.ts";
 import { reveal, type StatusControl } from "../ui/status.ts";

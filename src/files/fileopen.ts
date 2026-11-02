@@ -1,7 +1,7 @@
 import { html, escapeHtml } from "../core/htmlutil.ts";
 import { noteError } from "../core/errorlog.ts";
 import { decodeFileBytes } from "../archive/cp1251.ts";
-import { bytesSum, fileSum } from "../slots/fileslots.ts";
+import { bytesSum, fileSum } from "../core/fileslots.ts";
 import { initFileDrop } from "./filedrop.ts";
 import {
   OPEN_TYPES,
@@ -10,7 +10,7 @@ import {
   looksOffice,
   sizeVerdict,
   toMb,
-} from "./filetypes.ts";
+} from "../core/filetypes.ts";
 import type { DraftFile } from "../core/storage.ts";
 import { flash } from "../ui/clipboard.ts";
 import type { EditorPort, StatusPort } from "../core/ports.ts";

@@ -14,7 +14,7 @@ g.URL = Object.assign(URL, {
 
 const { initExport } = await import("../src/export/export.ts");
 const { createSaveChain } = await import("../src/ui/savechain.ts");
-const { onDownload } = await import("../src/files/download.ts");
+const { onDownload } = await import("../src/ui/download.ts");
 
 test.after(() => dom.close());
 

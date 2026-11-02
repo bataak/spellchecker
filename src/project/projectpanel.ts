@@ -1,7 +1,7 @@
 import type { Html } from "../core/htmlutil.ts";
 import { talkCovers, yieldTalk } from "../ui/talkslot.ts";
 import type { ProjectStore } from "./projectstore.ts";
-import { failureHtml } from "./projecterror.ts";
+import { failureHtml } from "../core/projecterror.ts";
 import { buildPanel, type PanelParts } from "./panelmarkup.ts";
 import type { OpenedFile } from "./panelview.ts";
 import {

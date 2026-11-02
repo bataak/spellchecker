@@ -1,6 +1,6 @@
-import { fromBase64Url, toBase64Url, validName } from "../collab/collabkey.ts";
-import { TEXT_EXT } from "./filetypes.ts";
-import { decodeStrict } from "./safetext.ts";
+import { fromBase64Url, toBase64Url, validName } from "./collabkey.ts";
+import { TEXT_EXT } from "../core/filetypes.ts";
+import { decodeStrict } from "../files/safetext.ts";
 
 export const TEXT_LINK_MAX = 2000;
 export const TEXT_LINK_WARNING =

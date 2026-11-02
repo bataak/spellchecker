@@ -7,7 +7,7 @@ import {
   swapOrigin,
   type EditorText,
 } from "../editor/editortext.ts";
-import { isBulkDelete, isSeparatorInput } from "../editor/input.ts";
+import { isBulkDelete, isSeparatorInput } from "../ui/input.ts";
 import type { MarkLayer } from "../editor/marklayer.ts";
 import type { MarkTap } from "../editor/marktap.ts";
 import type { FixFlow } from "../spell/fixflow.ts";

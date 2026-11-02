@@ -9,7 +9,7 @@ import {
   addSlot,
   fallbackSlot,
   markSlotSaved,
-} from "../slots/fileslots.ts";
+} from "../core/fileslots.ts";
 import { dropCaret, type DraftStore } from "../slots/slotstore.ts";
 import type { SlotList } from "../slots/slotlist.ts";
 

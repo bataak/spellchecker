@@ -2,7 +2,7 @@ import { resetStorage } from "./helpers/mock-storage.ts";
 import { beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { lineArrow, lineOffset, nthWordHit } from "../src/preview/htmlsync.ts";
-import { createPdfPool, type KeptPdf } from "../src/preview/pdfcache.ts";
+import { createPdfPool, type KeptPdf } from "../src/tex/pdfcache.ts";
 import { explainTexError } from "../src/preview/texpreview.ts";
 import {
   canvasDensity,

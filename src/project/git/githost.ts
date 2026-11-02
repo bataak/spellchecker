@@ -1,4 +1,4 @@
-import { AuthError, ProjectError } from "../projecterror.ts";
+import { AuthError, ProjectError } from "../../core/projecterror.ts";
 
 export type Provider = "github" | "gitlab";
 

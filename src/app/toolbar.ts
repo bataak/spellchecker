@@ -4,7 +4,7 @@ import { requireEl } from "../ui/dom.ts";
 import { buildErrorList, type Token } from "../spell/textcheck.ts";
 import { initWipeButton } from "../ui/wipe.ts";
 import { copyText, flash } from "../ui/clipboard.ts";
-import { isTouch } from "../editor/input.ts";
+import { isTouch } from "../ui/input.ts";
 import type { EditorPort, StatusPort } from "../core/ports.ts";
 import { KEYS, read, write } from "../core/store.ts";
 import { standardLetters } from "../lang/letters.ts";

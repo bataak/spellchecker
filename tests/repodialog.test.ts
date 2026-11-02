@@ -7,7 +7,7 @@ const dom = installDom("");
 const g = globalThis as Record<string, unknown>;
 
 const { askRepo } = await import("../src/project/git/repodialog.ts");
-const { ProjectError } = await import("../src/project/projecterror.ts");
+const { ProjectError } = await import("../src/core/projecterror.ts");
 
 test.after(() => dom.close());
 

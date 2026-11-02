@@ -14,7 +14,7 @@ import {
   fallbackSlot,
   markSlotSaved,
   renameSlot,
-} from "../src/slots/fileslots.ts";
+} from "../src/core/fileslots.ts";
 
 test("nextFileId: хаагдсан файлын дугаарыг дахин өгөхгүй", () => {
   const slots = [{ id: "file-1", name: "a.txt", sum: null }];

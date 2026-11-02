@@ -1,9 +1,9 @@
 import type { EditorPort } from "../core/ports.ts";
 import { initKeyboardToolbar } from "../editor/kbtoolbar.ts";
 import type { MarkLayer } from "../editor/marklayer.ts";
-import type { OfficeSession } from "../office/session.ts";
+import type { OfficeSession } from "./officesession.ts";
 import { createButtonCommands } from "../ui/commands.ts";
-import { initShortcuts } from "../ui/shortcuts.ts";
+import { initShortcuts } from "../editor/shortcuts.ts";
 import type { StatusControl } from "../ui/status.ts";
 import { confirmWipe } from "../ui/wipe.ts";
 import type { Fixers } from "./fixers.ts";

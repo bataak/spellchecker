@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { applyEdit } from "../src/office/editsync.ts";
 import { suggestName } from "../src/office/mode.ts";
 import { renderFlat } from "../src/office/textdoc.ts";
-import { splitName } from "../src/office/filename.ts";
+import { splitName } from "../src/core/filename.ts";
 import type { OfficeEdit } from "../src/office/mode.ts";
 
 const SRC = "монгол улс\n\nхоёрдугаар мөр";
