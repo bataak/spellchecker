@@ -20,7 +20,7 @@ import { attempt } from "../core/attempt.ts";
 import { tableLatex } from "./latextable.ts";
 import { tableLook, type TableLook } from "../markdown/tablelook.ts";
 import { LETTER_PAGE, letterTitle } from "./latexletter.ts";
-import { escapeTex } from "./texescape.ts";
+import { escapeTex, guardBreak } from "./texescape.ts";
 
 const BASE_PREAMBLE = `\\documentclass[12pt,a4paper]{article}
 \\usepackage[T2A]{fontenc}
@@ -176,37 +176,58 @@ function listLatex(tree: ListTree, depth: number): string {
   );
 }
 
-function inline(nodes: readonly Inline[]): string {
-  let out = "";
-  for (const n of nodes) {
-    if (n.type === "text")
-      out += withLogos(n.value, (name) => "\\" + name + "{}", escapeTex);
-    else if (n.type === "code") out += "\\texttt{" + escapeTex(n.value) + "}";
-    else if (n.type === "strong") out += "\\textbf{" + inline(n.children) + "}";
-    else if (n.type === "em") out += "\\emph{" + inline(n.children) + "}";
-    else if (n.type === "math") out += mathSource(n.open, textLogos(n.value));
-    else if (n.type === "softbreak") out += "\n";
-    else if (n.type === "break") out += "\\\\\n";
-    else if (n.type === "blank" && n.fit !== undefined)
-      out +=
+const LINE_BREAK = "\\\\\n";
+
+function inlineNode(n: Inline): string {
+  switch (n.type) {
+    case "text":
+      return withLogos(n.value, (name) => "\\" + name + "{}", escapeTex);
+    case "code":
+      return "\\texttt{" + escapeTex(n.value) + "}";
+    case "strong":
+      return "\\textbf{" + inline(n.children) + "}";
+    case "em":
+      return "\\emph{" + inline(n.children) + "}";
+    case "math":
+      return mathSource(n.open, textLogos(n.value));
+    case "softbreak":
+      return "\n";
+    case "break":
+      return LINE_BREAK;
+    case "blank":
+      return (
         "\\rule[-0.3ex]{" +
-        String(Math.round(blankEm(n) * 100) / 100) +
-        "em}{0.4pt}";
-    else if (n.type === "blank")
-      out += "\\rule[-0.3ex]{" + String(n.width / 2) + "em}{0.4pt}";
-    else if (n.type === "del") out += inline(n.children);
-    else if (n.type === "image")
-      out +=
+        String(
+          n.fit === undefined
+            ? n.width / 2
+            : Math.round(blankEm(n) * 100) / 100,
+        ) +
+        "em}{0.4pt}"
+      );
+    case "del":
+      return inline(n.children);
+    case "image":
+      return (
         "\\includegraphics[" +
         (n.rotate ? "angle=" + String(n.rotate) + "," : "") +
         "width=" +
         (n.width === undefined ? "" : String(n.width / 100)) +
         "\\linewidth,height=0.85\\textheight,keepaspectratio]{" +
         texImagePath(n.src) +
-        "}";
-    else if (!safeHref(n.url)) out += inline(n.children);
-    else if (n.auto) out += "\\url{" + escapeUrl(n.url) + "}";
-    else out += "\\href{" + escapeUrl(n.url) + "}{" + inline(n.children) + "}";
+        "}"
+      );
+    default:
+      if (!safeHref(n.url)) return inline(n.children);
+      if (n.auto) return "\\url{" + escapeUrl(n.url) + "}";
+      return "\\href{" + escapeUrl(n.url) + "}{" + inline(n.children) + "}";
+  }
+}
+
+function inline(nodes: readonly Inline[]): string {
+  let out = "";
+  for (const n of nodes) {
+    const text = inlineNode(n);
+    out += out.endsWith(LINE_BREAK) ? guardBreak(text) : text;
   }
   return out;
 }
@@ -449,6 +470,23 @@ const NOTES_SCREEN = `\\usepackage{pgfpages}
 \\setbeameroption{show notes on second screen=right}
 `;
 
+function hasVerbatim(blocks: readonly Block[]): boolean {
+  return blocks.some((b) => {
+    if (b.type === "codeblock") return true;
+    if (b.type === "latex") return b.env === "verbatim";
+    return (b.type === "div" || b.type === "quote") && hasVerbatim(b.children);
+  });
+}
+
+const OVERLAY = /\\pause\b|\\[a-zA-Z]+\s*<[^>\n]*>/;
+
+function hasOverlay(blocks: readonly Block[]): boolean {
+  return blocks.some((b) => {
+    if (b.type === "latex") return OVERLAY.test(b.value);
+    return (b.type === "div" || b.type === "quote") && hasOverlay(b.children);
+  });
+}
+
 function frame(slide: Slide): string {
   if (slide.section)
     return (
@@ -456,10 +494,11 @@ function frame(slide: Slide): string {
       oneLine(slide.title ?? []) +
       "}\n\\begin{frame}\n\\sectionpage\n\\end{frame}"
     );
-  const fragile = slide.blocks.some(
-    (b) =>
-      b.type === "codeblock" || (b.type === "latex" && b.env === "verbatim"),
-  );
+  const fragile = hasVerbatim(slide.blocks)
+    ? hasOverlay(slide.blocks)
+      ? "[fragile]"
+      : "[fragile=singleslide]"
+    : "";
   const body = slide.blocks
     .map((b) =>
       b.type === "heading"
@@ -473,7 +512,7 @@ function frame(slide: Slide): string {
     : "";
   return (
     "\\begin{frame}" +
-    (fragile ? "[fragile]" : "") +
+    fragile +
     (slide.title === null ? "" : "{" + oneLine(slide.title) + "}") +
     "\n" +
     body +

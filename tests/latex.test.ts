@@ -167,7 +167,9 @@ test("toBeamer: эхний # гарчгийн слайд, ## бүр шинэ с�
 
 test("toBeamer: --- гарчиггүй слайд, код fragile", () => {
   const tex = toBeamer(parse("---\n\n```\nx\n```"), "");
-  assert.ok(tex.includes("\\begin{frame}[fragile]\n\\begin{verbatim}"));
+  assert.ok(
+    tex.includes("\\begin{frame}[fragile=singleslide]\n\\begin{verbatim}"),
+  );
   assert.ok(!tex.includes("\\titlepage"));
 });
 
