@@ -109,14 +109,67 @@ function tipBar(
   return { bar, pinBtn };
 }
 
+interface DragState {
+  grab: { dx: number; dy: number } | null;
+  zone: ReturnType<DefDock["zoneAt"]>;
+}
+
+interface DragActions {
+  readonly setPinned: (on: boolean) => void;
+  readonly move: (left: number, top: number) => void;
+  readonly startDrag: (pointerId: number, dx: number, dy: number) => void;
+  readonly savePin: () => void;
+  readonly body: () => HTMLElement | null;
+}
+
+function bindTipDrag(
+  bar: HTMLElement,
+  el: HTMLElement,
+  deps: TipWindowDeps,
+  drag: DragState,
+  actions: DragActions,
+): void {
+  bar.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || e.pointerType === "touch") return;
+    if (closestTarget(e, ".def-tip-btn")) return;
+    e.preventDefault();
+    actions.setPinned(true);
+    const rect = el.getBoundingClientRect();
+    actions.startDrag(e.pointerId, e.clientX - rect.left, e.clientY - rect.top);
+  });
+  bar.addEventListener("pointermove", (e) => {
+    if (!drag.grab) return;
+    actions.move(e.clientX - drag.grab.dx, e.clientY - drag.grab.dy);
+    drag.zone = deps.dock.zoneAt(e.clientX, e.clientY);
+    deps.dock.hint(drag.zone);
+  });
+  const release = (): void => {
+    drag.grab = null;
+    deps.dock.hint(null);
+    actions.savePin();
+  };
+  bar.addEventListener("pointerup", () => {
+    const target = drag.zone;
+    drag.zone = null;
+    release();
+    const body = actions.body();
+    if (!target || !body) return;
+    deps.dock.dock(target, [...body.childNodes]);
+    deps.onClose();
+  });
+  bar.addEventListener("pointercancel", () => {
+    drag.zone = null;
+    release();
+  });
+}
+
 export function createTipWindow(deps: TipWindowDeps): TipWindow {
   let tip: HTMLDivElement | null = null;
   let tipBody: HTMLDivElement | null = null;
   let pinBtn: HTMLButtonElement | null = null;
   let dragBar: HTMLElement | null = null;
   let pinned = false;
-  let grab: { dx: number; dy: number } | null = null;
-  let zone: ReturnType<DefDock["zoneAt"]> = null;
+  const drag: DragState = { grab: null, zone: null };
 
   function savePin(): void {
     if (pinned && tip) write(KEYS.defPin, `${tip.offsetLeft},${tip.offsetTop}`);
@@ -144,7 +197,7 @@ export function createTipWindow(deps: TipWindowDeps): TipWindow {
   }
 
   function startDrag(pointerId: number, dx: number, dy: number): void {
-    grab = { dx, dy };
+    drag.grab = { dx, dy };
     dragBar?.setPointerCapture(pointerId);
   }
 
@@ -154,36 +207,12 @@ export function createTipWindow(deps: TipWindowDeps): TipWindow {
     const bar = made.bar;
     pinBtn = made.pinBtn;
     dragBar = bar;
-    bar.addEventListener("pointerdown", (e) => {
-      if (e.button !== 0 || e.pointerType === "touch") return;
-      if (closestTarget(e, ".def-tip-btn")) return;
-      e.preventDefault();
-      setPinned(true);
-      const rect = el.getBoundingClientRect();
-      startDrag(e.pointerId, e.clientX - rect.left, e.clientY - rect.top);
-    });
-    bar.addEventListener("pointermove", (e) => {
-      if (!grab) return;
-      move(e.clientX - grab.dx, e.clientY - grab.dy);
-      zone = deps.dock.zoneAt(e.clientX, e.clientY);
-      deps.dock.hint(zone);
-    });
-    const release = () => {
-      grab = null;
-      deps.dock.hint(null);
-      savePin();
-    };
-    bar.addEventListener("pointerup", () => {
-      const target = zone;
-      zone = null;
-      release();
-      if (!target || !tipBody) return;
-      deps.dock.dock(target, [...tipBody.childNodes]);
-      deps.onClose();
-    });
-    bar.addEventListener("pointercancel", () => {
-      zone = null;
-      release();
+    bindTipDrag(bar, el, deps, drag, {
+      setPinned,
+      move,
+      startDrag,
+      savePin,
+      body: () => tipBody,
     });
 
     tipBody = document.createElement("div");

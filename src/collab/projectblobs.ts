@@ -124,6 +124,24 @@ function withMissing(
   return out;
 }
 
+async function moveRenamed(
+  port: BlobPort,
+  local: Map<string, string>,
+  ids: ReadonlyMap<string, string>,
+  pathOfId: ReadonlyMap<string, string>,
+): Promise<Set<string>> {
+  const moved = new Set<string>();
+  for (const [path, id] of ids) {
+    const from = pathOfId.get(id);
+    if (!from || from === path || !local.has(from)) continue;
+    moved.add(from);
+    await port.move(from, path);
+    local.set(path, local.get(from)!);
+    local.delete(from);
+  }
+  return moved;
+}
+
 export function createBlobBridge(
   doc: Y.Doc,
   port: BlobPort,
@@ -176,15 +194,7 @@ export function createBlobBridge(
     const before = seen;
     const pathOfId = new Map([...ids].map(([path, id]) => [id, path]));
     remember();
-    const moved = new Set<string>();
-    for (const [path, id] of ids) {
-      const from = pathOfId.get(id);
-      if (!from || from === path || !local.has(from)) continue;
-      moved.add(from);
-      await port.move(from, path);
-      local.set(path, local.get(from)!);
-      local.delete(from);
-    }
+    const moved = await moveRenamed(port, local, ids, pathOfId);
     for (const path of before.keys())
       if (!seen.has(path) && !moved.has(path) && local.has(path)) {
         await port.remove(path);

@@ -66,3 +66,21 @@ test("watchFile: handle эсвэл тэмдэггүй, эсвэл файл ал�
   assert.deepEqual(w.reopened, []);
   w.back();
 });
+
+test("watchFile: файлын нэр дэх HTML тэмдэгтийг мэдэгдэлд escape хийнэ", async () => {
+  const { state, handle } = disk("<b>.txt", 100);
+  const current: CurrentFile = { handle, name: "<b>.txt", stamp: 100 };
+  const notes: string[] = [];
+  const check = watchFile({
+    current,
+    dirty: () => false,
+    reopen: async () => {},
+    notify: (message) => void notes.push(message),
+    onReturn: () => {},
+  });
+  state.modified = 200;
+  await check();
+  assert.deepEqual(notes, [
+    "«&lt;b&gt;.txt» дискэн дээр өөрчлөгдсөн тул шинэчиллээ",
+  ]);
+});

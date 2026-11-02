@@ -63,6 +63,20 @@ function dragWidth(
   handle.addEventListener("pointercancel", up);
 }
 
+function fitFrame(
+  frame: HTMLElement,
+  img: HTMLElement,
+  body: HTMLElement,
+): void {
+  const r = img.getBoundingClientRect();
+  const b = body.getBoundingClientRect();
+  frame.style.left = `${r.left - b.left + body.scrollLeft}px`;
+  frame.style.top = `${r.top - b.top + body.scrollTop}px`;
+  frame.style.width = `${r.width}px`;
+  frame.style.height = `${r.height}px`;
+  frame.hidden = false;
+}
+
 export function initImageEdit(
   body: HTMLElement,
   area: HTMLTextAreaElement,
@@ -87,13 +101,7 @@ export function initImageEdit(
       frame.hidden = true;
       return;
     }
-    const r = img.getBoundingClientRect();
-    const b = body.getBoundingClientRect();
-    frame.style.left = `${r.left - b.left + body.scrollLeft}px`;
-    frame.style.top = `${r.top - b.top + body.scrollTop}px`;
-    frame.style.width = `${r.width}px`;
-    frame.style.height = `${r.height}px`;
-    frame.hidden = false;
+    fitFrame(frame, img, body);
   };
 
   const select = (index: number): void => {

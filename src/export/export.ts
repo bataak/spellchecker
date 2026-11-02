@@ -276,6 +276,18 @@ function bindDialogKeys(
   });
 }
 
+function openRefused(options: ExportOptions): boolean {
+  if (options.blocked?.()) {
+    options.onBlocked?.();
+    return true;
+  }
+  if (!options.editor.value.trim() && !options.texProject?.()) {
+    options.onEmpty?.();
+    return true;
+  }
+  return false;
+}
+
 export function initExport(options: ExportOptions): ExportControl {
   const { editor } = options;
   const texFormats = texFormatsFor(options);
@@ -299,14 +311,7 @@ export function initExport(options: ExportOptions): ExportControl {
   });
 
   function open(): void {
-    if (options.blocked?.()) {
-      options.onBlocked?.();
-      return;
-    }
-    if (!options.editor.value.trim() && !options.texProject?.()) {
-      options.onEmpty?.();
-      return;
-    }
+    if (openRefused(options)) return;
     restoreFocus = document.activeElement as HTMLElement | null;
     resetDialog(parts);
     const offered = available();

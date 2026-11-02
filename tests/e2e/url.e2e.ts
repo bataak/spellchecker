@@ -254,3 +254,14 @@ test("буулгасан талбарын холбоосыг асуугаад н
   await openedAs(page, "Өргөдөл");
   assert.deepEqual(errors(page), []);
 });
+
+test("холбоосын файлын нэр дэх HTML статусын мөрөнд элемент болохгүй", async () => {
+  const page = await openPage(app, await app.context());
+  const name = '<img id="injected">.txt';
+  await visit(page, "#file/" + encodeURIComponent(name));
+  await until(
+    () => status(page),
+    (text) => text.includes(name),
+  );
+  assert.equal(await page.locator("#statusText #injected").count(), 0);
+});

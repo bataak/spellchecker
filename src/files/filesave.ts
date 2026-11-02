@@ -56,6 +56,28 @@ async function saveOffice(
   return true;
 }
 
+async function pickAndWrite(
+  d: FileSaveDeps,
+  text: string,
+  suggestedName: string,
+  saved: (label: string) => void,
+): Promise<boolean> {
+  if (!isDesktopApp() || !("showSaveFilePicker" in window)) return false;
+  try {
+    const handle = await window.showSaveFilePicker!({
+      suggestedName,
+      types: saveTypes(d.defaultExt()),
+    });
+    await writeTo(handle, text);
+    d.current.handle = handle;
+    saved("Хадгаллаа");
+    d.onSaved(true);
+    return true;
+  } catch (e) {
+    return e instanceof DOMException && e.name === "AbortError";
+  }
+}
+
 export function createFileSave(d: FileSaveDeps): SaveFile {
   const { current } = d;
   const saved = (label: string): void => flash(d.button, label);
@@ -125,23 +147,6 @@ export function createFileSave(d: FileSaveDeps): SaveFile {
     return true;
   }
 
-  async function pickAndWrite(text: string): Promise<boolean> {
-    if (!isDesktopApp() || !("showSaveFilePicker" in window)) return false;
-    try {
-      const handle = await window.showSaveFilePicker!({
-        suggestedName: stamp(),
-        types: saveTypes(d.defaultExt()),
-      });
-      await writeTo(handle, text);
-      current.handle = handle;
-      saved("Хадгаллаа");
-      d.onSaved(true);
-      return true;
-    } catch (e) {
-      return e instanceof DOMException && e.name === "AbortError";
-    }
-  }
-
   async function deliverStamped(text: string): Promise<void> {
     try {
       const done = await deliver(text, stamp());
@@ -159,7 +164,7 @@ export function createFileSave(d: FileSaveDeps): SaveFile {
     const text = d.text();
     if (await writeOpenFile(text, source)) return;
     if (await deliverNamed(text, source)) return;
-    if (await pickAndWrite(text)) return;
+    if (await pickAndWrite(d, text, stamp(), saved)) return;
     await deliverStamped(text);
   };
 }
