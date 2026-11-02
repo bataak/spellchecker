@@ -55,8 +55,8 @@ test("expands a selection that partially covers an edit", () => {
   edits = apply(edits, 2, 5, "X");
 
   assert.equal(edits.length, 1);
-  assert.equal(edits[0].start, 0);
-  assert.equal(edits[0].end, 6);
+  assert.equal(edits[0]!.start, 0);
+  assert.equal(edits[0]!.end, 6);
 });
 
 test("names the saved file per format", () => {

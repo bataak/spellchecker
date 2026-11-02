@@ -35,7 +35,7 @@ test("tokenize: үгсийг байрлалаар нь ялгана", () => {
 
 test("tokenize: зураастай үгийг бүтнээр нь авна", () => {
   const tokens = [...tokenize("ТЕГ-аас ирэв")];
-  assert.equal(tokens[0].word, "ТЕГ-аас");
+  assert.equal(tokens[0]!.word, "ТЕГ-аас");
 });
 
 test("tokenize: цэг таслалаар зааглагдана", () => {

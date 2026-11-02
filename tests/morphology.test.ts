@@ -45,7 +45,7 @@ test("тийн ялгалын нөхцөлүүд залгагдана", () => {
     ["хот", "хотод"],
     ["тег", "тег-аас"],
   ]) {
-    assert.equal(sameRoot(a, b), true, a + " ~ " + b);
+    assert.equal(sameRoot(a!, b!), true, a + " ~ " + b);
   }
 });
 
@@ -56,7 +56,7 @@ test("нөхцөл залгахдаа эгшиг гээх язгуурууд", (
     ["түвшинд", "түвшний"],
     ["түвшин", "түвшний"],
   ]) {
-    assert.equal(sameRoot(a, b), true, a + " ~ " + b);
+    assert.equal(sameRoot(a!, b!), true, a + " ~ " + b);
   }
 });
 
@@ -68,7 +68,7 @@ test("өөр язгуурын үгс холбогдохгүй", () => {
     ["шилхинцэг", "шилгэнцэг"],
     ["нэр", "нэгж"],
   ]) {
-    assert.equal(sameRoot(a, b), false, a + " ~ " + b);
+    assert.equal(sameRoot(a!, b!), false, a + " ~ " + b);
   }
 });
 

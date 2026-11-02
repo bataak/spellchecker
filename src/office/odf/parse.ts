@@ -69,7 +69,7 @@ export function parseOdfPart(name: string, xml: string): DocxPart {
   const skipping = (): boolean => skipMarks.length > 0;
   const collecting = (): boolean => paragraphDepth >= 0 && !skipping();
   const currentStyle = (): string =>
-    styleStack.length > 0 ? styleStack[styleStack.length - 1] : "";
+    styleStack.length > 0 ? styleStack[styleStack.length - 1]! : "";
 
   const pushGlyph = (tag: TagInfo, char: string): void => {
     const at = { start: tag.end, end: tag.end };

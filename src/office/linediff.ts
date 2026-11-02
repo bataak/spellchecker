@@ -44,13 +44,13 @@ export function lineDiff(
 
   for (let index = 0; index < before.length; index += 1) {
     if (before[index] !== after[index]) {
-      if (before[index].length === after[index].length) {
-        spans.push(...spanEdits(before[index], after[index], offset));
+      if (before[index]!.length === after[index]!.length) {
+        spans.push(...spanEdits(before[index]!, after[index]!, offset));
       } else {
-        spans.push(narrowEdit(before[index], after[index], offset));
+        spans.push(narrowEdit(before[index]!, after[index]!, offset));
       }
     }
-    offset += before[index].length + 1;
+    offset += before[index]!.length + 1;
   }
 
   return spans;

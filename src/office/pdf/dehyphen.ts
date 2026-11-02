@@ -21,19 +21,19 @@ export function dehyphenateLines(lines: readonly string[]): string[] {
 
   for (let i = 0; i < out.length; i++) {
     for (;;) {
-      const hyphen = trailingHyphen(out[i]);
+      const hyphen = trailingHyphen(out[i]!);
       if (hyphen === null) break;
 
-      const head = out[i].slice(0, -hyphen.length);
+      const head = out[i]!.slice(0, -hyphen.length);
       if (head === "") break;
 
       let j = i + 1;
-      while (j < out.length && out[j].trim() === "") j++;
+      while (j < out.length && out[j]!.trim() === "") j++;
       if (j >= out.length) break;
 
-      if (!isSoftHyphenBreak(head, out[j])) break;
+      if (!isSoftHyphenBreak(head, out[j]!)) break;
 
-      const tail = out[j].replace(/^\s+/u, "");
+      const tail = out[j]!.replace(/^\s+/u, "");
       const word = /^\S+/u.exec(tail);
       if (word === null) break;
 

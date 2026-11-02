@@ -249,7 +249,7 @@ function mkChain(morphs: string[]): (tail: string, prevCh: string) => boolean {
         if (morph === "т" && lastChar === "т") continue;
         const nextRun = morph.length === 1 ? singleRun + 1 : 0;
         if (nextRun > 2) continue;
-        if (matchFrom(pos + morph.length, morph[morph.length - 1], nextRun)) {
+        if (matchFrom(pos + morph.length, morph[morph.length - 1]!, nextRun)) {
           matched = true;
           break;
         }

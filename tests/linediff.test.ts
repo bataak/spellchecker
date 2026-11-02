@@ -33,8 +33,8 @@ test("refuses a diff that changes the line count", () => {
 test("keeps offsets correct when an earlier line grows", () => {
   const spans = lineDiff("аав\nээж", "аавууд\nЭЭЖ");
 
-  assert.equal(spans![0].start, 3);
-  assert.equal(spans![1].start, 4);
+  assert.equal(spans![0]!.start, 3);
+  assert.equal(spans![1]!.start, 4);
 });
 
 test("replace-all across paragraphs lands as separate edits", () => {

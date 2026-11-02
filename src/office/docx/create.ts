@@ -325,7 +325,7 @@ function tableXml(
       const under = headBorder(strokes, head, block.rows.length === 1);
       const cells = widths
         .map((width, i) =>
-          cellXml(block, row[i] ?? [], width, block.align[i], under, body),
+          cellXml(block, row[i] ?? [], width, block.align[i]!, under, body),
         )
         .join("");
       const height =
