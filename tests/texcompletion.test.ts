@@ -222,3 +222,23 @@ test("хэрэглэгчийн команд, орчныг жагсаалтад �
     1,
   );
 });
+
+test("бичигдсэн аргументтай командыг гүйцээхэд хоосон аргумент нэмэхгүй", () => {
+  assert.equal(apply("\\textb|{x}", "textbf"), "\\textbf|{x}");
+  assert.equal(apply("\\textb| x", "textbf"), "\\textbf{|} x");
+});
+
+test("хаагдсан орчны нэрийг гүйцээхэд шинэ \\end нэмэхгүй", () => {
+  assert.equal(
+    apply("\\begin{cent|}\nа\n\\end{center}", "center"),
+    "\\begin{center}|\nа\n\\end{center}",
+  );
+  assert.equal(
+    apply("\\begin{itemize}\n\\begin{cen|}\n\\end{itemize}", "center"),
+    "\\begin{itemize}\n\\begin{center}\n  |\n\\end{center}\n\\end{itemize}",
+  );
+  assert.equal(
+    apply("% \\end{center}\n\\begin{cent|}", "center"),
+    "% \\end{center}\n\\begin{center}\n  |\n\\end{center}",
+  );
+});

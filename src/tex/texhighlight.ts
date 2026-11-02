@@ -168,7 +168,7 @@ function special(scan: Scan, index: number, code: number): number | null {
   return null;
 }
 
-export function texSpans(text: string): TexSpan[] {
+function scanText(text: string): Scan {
   const scan: Scan = { text, out: [], close: null };
   let index = 0;
   while (index < text.length) {
@@ -183,5 +183,13 @@ export function texSpans(text: string): TexSpan[] {
     if (scan.close !== null) push(scan, index, index + 1, "math");
     index++;
   }
-  return scan.out;
+  return scan;
+}
+
+export function texSpans(text: string): TexSpan[] {
+  return scanText(text).out;
+}
+
+export function openMathAt(text: string, at: number): string | null {
+  return scanText(text.slice(0, at)).close;
 }

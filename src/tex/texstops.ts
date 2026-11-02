@@ -1,6 +1,7 @@
 import type { Patch } from "../core/textdiff.ts";
 import { inComment, lineIndent } from "./texcompletion.ts";
 import type { Expansion } from "./texcompletion.ts";
+import { openMathAt } from "./texhighlight.ts";
 import { escapedAt } from "../core/text.ts";
 
 export interface TabStops {
@@ -110,6 +111,7 @@ export function tabStop(
 }
 
 const PAIR_BEFORE = /[\s)\]}.,;:!?]/;
+const CLOSABLE_MATH: ReadonlySet<string> = new Set(["$", "$$"]);
 
 export function typeDollar(
   stack: readonly TabStops[],
@@ -140,6 +142,7 @@ export function typeDollar(
       );
     if (over) return { patch: null, caret: from + 1, stack: live };
     if (from < text.length && !PAIR_BEFORE.test(text[from]!)) return null;
+    if (CLOSABLE_MATH.has(openMathAt(text, from) ?? "")) return null;
   }
   const patch = { from, to: from, insert: "$$" };
   const shifted = shiftStops(live, patch);

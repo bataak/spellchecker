@@ -219,3 +219,24 @@ test("нэг файлд PDF зураг хайрцаг биш, зураг бол�
   assert.match(text, /ДОТОР/);
   assert.doesNotMatch(text, /vec\.pdf/);
 });
+
+test("цэсний теорем, бүлэг, товъёг бүтэн биш баримтад PDF болно", async () => {
+  for (const [tex, want] of [
+    ["\\begin{lemma}\nүг1\n\\end{lemma}", /Лемм 1.*үг1/],
+    ["\\begin{example}\nүг2\n\\end{example}", /Жишээ 1.*үг2/],
+    ["\\begin{remark}\nүг3\n\\end{remark}", /Тайлбар 1.*үг3/],
+    ["\\chapter{Гарчиг}\nүг4", /Гарчиг.*үг4/],
+    ["үг5\\index{нэр}\n\\printindex", /нэр, 1/],
+  ] as const) {
+    assert.match(await pdfText({ tex }), want);
+  }
+});
+
+test("цэсний нэмсэн багц, теоремтой бүтэн баримт PDF болно", async () => {
+  const text = await pdfText({
+    tex: "\\documentclass{article}\n\\usepackage[T2A]{fontenc}\n\\usepackage{amsthm}\n\\theoremstyle{plain}\n\\newtheorem{lemma}{Лемм}\n\\theoremstyle{remark}\n\\newtheorem{remark}{Тайлбар}\n\\usepackage{makeidx}\n\\makeindex\n\\begin{document}\n\\begin{lemma}\nа\n\\end{lemma}\n\\begin{remark}\nб\\index{в}\n\\end{remark}\n\\printindex\n\\end{document}\n",
+  });
+  assert.match(text, /Лемм 1/);
+  assert.match(text, /Тайлбар 1/);
+  assert.match(text, /в, 1/);
+});

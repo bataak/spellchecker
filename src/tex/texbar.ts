@@ -5,6 +5,7 @@ import { TEX_TOOLS, type BarTool } from "./texmenudata.ts";
 import { menuEdit, type Insert } from "./texmenuedit.ts";
 import { createPalette, type Palette } from "./texpalette.ts";
 import { createPopover, type PopContent } from "./texpop.ts";
+import { placeAfter, preambleEdit, sectionsFor } from "./texrequire.ts";
 import { closestTarget } from "../ui/dom.ts";
 
 export interface TexBarDeps {
@@ -29,7 +30,10 @@ export function createTexBar(deps: TexBarDeps): BarTools {
     const { value, selectionStart, selectionEnd } = editor;
     const edit = menuEdit(value, selectionStart, selectionEnd, insert);
     pop.close(true);
-    if (edit) deps.insert(edit);
+    if (!edit) return;
+    const setup = preambleEdit(value, edit.text);
+    if (setup) deps.insert(setup);
+    deps.insert(setup ? placeAfter(edit, setup) : edit);
   }
 
   function palette(tool: Extract<BarTool, { kind: "palette" }>): Palette {
@@ -58,7 +62,7 @@ export function createTexBar(deps: TexBarDeps): BarTools {
     return {
       kind: "list",
       label: tool.title,
-      nodes: listMenu(tool.sections, inserts),
+      nodes: listMenu(sectionsFor(tool.sections, editor.value), inserts),
       focus: () => pop.element.querySelector<HTMLElement>(".tex-item")?.focus(),
     };
   }

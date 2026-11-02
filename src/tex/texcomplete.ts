@@ -2,6 +2,7 @@ import {
   completionContext,
   completions,
   expand,
+  keepsArgument,
   unchanged,
 } from "./texcompletion.ts";
 import type {
@@ -262,7 +263,8 @@ export function initTexComplete(deps: TexCompleteDeps): SnippetInserter {
     const caret = editor.selectionStart;
     const edit = expand(editor.value, caret, context, item);
     const image = context.kind === "cmd" && item.label === "includegraphics";
-    if (unchanged(context, item)) dismissedAt = context.from;
+    if (unchanged(context, item) || keepsArgument(editor.value, caret, item))
+      dismissedAt = context.from;
     close();
     insertSnippet(editor, tabs!, edit);
     if (image) {
