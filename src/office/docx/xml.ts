@@ -162,6 +162,10 @@ export function decodeXmlText(value: string): string {
   );
 }
 
+export function readNodeText(raw: string): string {
+  return decodeXmlText(raw).replace(/\r\n?/g, "\n");
+}
+
 export function encodeXmlText(value: string): string {
   const clean = dropControls(value);
   let result = "";
