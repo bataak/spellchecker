@@ -1,4 +1,4 @@
-import { decodeXmlText, readAttr, scanXml } from "../docx/xml.ts";
+import { readAttr, readNodeText, scanXml } from "../docx/xml.ts";
 import type { TagInfo } from "../docx/xml.ts";
 import type { DocxPart, Paragraph, TextNode } from "../docx/parse.ts";
 
@@ -149,7 +149,7 @@ export function parseOdfPart(name: string, xml: string): DocxPart {
   const onText = (start: number, end: number): void => {
     if (!collecting()) return;
 
-    const text = decodeXmlText(xml.slice(start, end));
+    const text = readNodeText(xml.slice(start, end));
     if (text === "") return;
 
     const tag = { start, end: start };
