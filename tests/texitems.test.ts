@@ -63,3 +63,12 @@ test("itemEdit: % тайлбар доторх жагсаалтын тэмдги�
   );
   assert.equal(apply("\\\\% \\begin{itemize}\nмөр|"), null);
 });
+
+test("itemEdit: verbatim дотор \\item нэмэхгүй, доторх жагсаалтыг тоохгүй", () => {
+  const inside = "\\begin{itemize}\n\\begin{verbatim}\nкод";
+  assert.equal(itemEdit(inside, inside.length, inside.length), null);
+  const after = "\\begin{verbatim}\n\\begin{itemize}\n\\end{verbatim}\nа";
+  assert.equal(itemEdit(after, after.length, after.length), null);
+  const list = "\\begin{itemize}\n\\begin{verbatim}\nа\n\\end{verbatim}\nб";
+  assert.ok(itemEdit(list, list.length, list.length));
+});

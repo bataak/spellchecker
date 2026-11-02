@@ -256,3 +256,60 @@ test("\\url-ын % дараах зураг мөн мөрөнд PDF-д орно",
   assert.match(text, /АА x%20y ББ/);
   assert.doesNotMatch(text, /a\.png/);
 });
+
+test("SVG-ийн foreignObject, windows-1251, UTF-16 бичвэр PDF-д орно", async () => {
+  const context = await app.context();
+  const page = await context.newPage();
+  await page.goto(app.url);
+  const out = await page.evaluate(async () => {
+    const load = (path: string) => import(new URL(path, location.href).href);
+    const { renderSvg } = await load("src/tex/svgpdf.ts");
+    const { extractPdfText } = await load("src/office/pdf/pdftext.ts");
+    const NS = 'xmlns="http://www.w3.org/2000/svg" width="200" height="60"';
+    const ascii = (text: string) => [...text].map((c) => c.charCodeAt(0));
+    const read = async (bytes: Uint8Array): Promise<string> => {
+      const pdf = await renderSvg(bytes);
+      return extractPdfText(
+        new File([pdf], "a.pdf", { type: "application/pdf" }),
+      );
+    };
+    const encode = (text: string) => new TextEncoder().encode(text);
+    return [
+      await read(
+        encode(
+          `<svg ${NS}><foreignObject x="5" y="5" width="190" height="50"><div xmlns="http://www.w3.org/1999/xhtml">Монгол</div></foreignObject></svg>`,
+        ),
+      ),
+      await read(
+        encode(
+          `<svg ${NS}><switch><foreignObject width="9" height="9"><div xmlns="http://www.w3.org/1999/xhtml">Дотор</div></foreignObject><text x="5" y="20">Нөөц</text></switch></svg>`,
+        ),
+      ),
+      await read(
+        Uint8Array.from([
+          ...ascii(
+            `<?xml version="1.0" encoding="windows-1251"?><svg ${NS}><text x="5" y="20">`,
+          ),
+          0xcc,
+          0xee,
+          0xed,
+          ...ascii("</text></svg>"),
+        ]),
+      ),
+      await read(
+        Uint8Array.from([
+          0xff,
+          0xfe,
+          ...[...`<svg ${NS}><text x="5" y="20">Үг</text></svg>`].flatMap(
+            (c) => [c.charCodeAt(0) & 255, c.charCodeAt(0) >> 8],
+          ),
+        ]),
+      ),
+    ];
+  });
+  await context.close();
+  assert.match(out[0]!, /Монгол/);
+  assert.match(out[1]!, /Нөөц/);
+  assert.match(out[2]!, /Мон/);
+  assert.match(out[3]!, /Үг/);
+});

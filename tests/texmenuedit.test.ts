@@ -110,3 +110,14 @@ test("insertCode цэсэнд харагдах товч кодыг өгнө", ()
   assert.equal(insertCode(text("\\[\n#\n\\]")), "\\[ … \\]");
   assert.equal(insertCode({ kind: "close" }), "\\end{…}");
 });
+
+test("openEnvironment: verbatim доторх \\begin-ийг тоохгүй", () => {
+  const code = "\\begin{verbatim}\n\\begin{foo}\n\\end{verbatim}\n";
+  assert.equal(openEnvironment(code), null);
+  assert.equal(openEnvironment("\\begin{center}\n" + code), "center");
+  assert.equal(openEnvironment("% \\begin{foo}\n"), null);
+  assert.equal(
+    openEnvironment("\\begin{center}\n", code + "\\end{center}\n"),
+    null,
+  );
+});
