@@ -20,6 +20,7 @@ const UNREAD_LABELS: Record<UnreadKind, string> = {
   notes: "зүүлт",
   headers: "толгой, хөл",
   boxes: "текст хайрцаг",
+  diagrams: "диаграм",
 };
 
 export interface OfficeSessionDeps {

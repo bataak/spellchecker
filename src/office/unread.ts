@@ -3,11 +3,16 @@ import type { DocxPart } from "./docx/parse.ts";
 import { PARAGRAPHS, SKIPPED_ELEMENTS } from "./odf/parse.ts";
 import type { OdfPackage } from "./odf/index.ts";
 
-export type UnreadKind = "notes" | "headers" | "boxes";
+export type UnreadKind = "notes" | "headers" | "boxes" | "diagrams";
 
 type Path = readonly string[];
 
-const KIND_ORDER: readonly UnreadKind[] = ["notes", "headers", "boxes"];
+const KIND_ORDER: readonly UnreadKind[] = [
+  "notes",
+  "headers",
+  "boxes",
+  "diagrams",
+];
 
 const HAS_WORD = /\p{L}/u;
 
@@ -19,6 +24,9 @@ const ODF_HEADERS = new Set([
   "style:footer-left",
   "style:footer-first",
 ]);
+
+const EMBEDDED_PART =
+  /^(?:ppt|word)\/(?:charts\/chart|diagrams\/data)\d+\.xml$/;
 
 const decoder = new TextDecoder("utf-8");
 
@@ -40,8 +48,32 @@ function ordered(found: ReadonlySet<UnreadKind>): UnreadKind[] {
   return KIND_ORDER.filter((kind) => found.has(kind));
 }
 
-export function docxUnread(parts: readonly DocxPart[]): UnreadKind[] {
-  const found = new Set<UnreadKind>();
+function hasEmbeddedText(
+  entries: Readonly<Record<string, Uint8Array>>,
+): boolean {
+  let found = false;
+  for (const name of Object.keys(entries)) {
+    if (found || !EMBEDDED_PART.test(name)) continue;
+    collectWords(decoder.decode(entries[name]), (path) => {
+      const leaf = path.at(-1);
+      if (leaf === "a:t" || (leaf === "c:v" && path.includes("c:strCache")))
+        found = true;
+    });
+  }
+  return found;
+}
+
+export function pptxUnread(
+  entries: Readonly<Record<string, Uint8Array>>,
+): UnreadKind[] {
+  return hasEmbeddedText(entries) ? ["diagrams"] : [];
+}
+
+export function docxUnread(
+  parts: readonly DocxPart[],
+  entries: Readonly<Record<string, Uint8Array>>,
+): UnreadKind[] {
+  const found = new Set<UnreadKind>(pptxUnread(entries));
   for (const part of parts)
     collectWords(part.xml, (path) => {
       if (path.at(-1) === "w:t" && path.includes("w:txbxContent"))
