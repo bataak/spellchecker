@@ -161,3 +161,13 @@ test("retryDelay: LaTeX-ийн алдааг дахин оролдохгүй", ()
   assert.equal(retryDelay(new Error("Failed to fetch"), 1), 5000);
   assert.equal(retryDelay(new Error("Failed to fetch"), 3), undefined);
 });
+
+test("жагсаалт доторх дугаартай жагсаалт өөрийн тоолуурыг ашиглана", () => {
+  const nested = body("- нэг\n  5. тав\n  6. зургаа\n- хоёр\n");
+  assert.ok(nested.includes("\\setcounter{enumi}{4}"), nested);
+  const ordered = body("3. гурав\n   7. долоо\n");
+  assert.ok(ordered.includes("\\setcounter{enumi}{2}"), ordered);
+  assert.ok(ordered.includes("\\setcounter{enumii}{6}"), ordered);
+  const mixed = body("2. а\n   - б\n     9. в\n");
+  assert.ok(mixed.includes("\\setcounter{enumii}{8}"), mixed);
+});

@@ -142,10 +142,10 @@ export function texImagePath(src: string): string {
 
 const ENUM_COUNTERS = ["enumi", "enumii", "enumiii", "enumiv"];
 
-function listLatex(tree: ListTree, depth: number): string {
+function listLatex(tree: ListTree, depth: number, enums = 0): string {
   const env = tree.ordered ? "enumerate" : "itemize";
   const pad = "  ".repeat(depth);
-  const counter = ENUM_COUNTERS[depth];
+  const counter = ENUM_COUNTERS[enums];
   const start =
     tree.ordered && tree.start !== 1 && counter
       ? pad + "\\setcounter{" + counter + "}{" + String(tree.start - 1) + "}\n"
@@ -158,7 +158,9 @@ function listLatex(tree: ListTree, depth: number): string {
       "  \\item " +
       guard +
       text +
-      (sub ? "\n" + listLatex(sub, depth + 1) : "")
+      (sub
+        ? "\n" + listLatex(sub, depth + 1, enums + (tree.ordered ? 1 : 0))
+        : "")
     );
   });
   return (
