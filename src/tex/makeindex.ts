@@ -21,6 +21,7 @@ interface Node {
 }
 
 const QUOTE = '"';
+const ESCAPE = "\\";
 const LEVEL = "!";
 const ACTUAL = "@";
 const ENCAP = "|";
@@ -42,11 +43,16 @@ function readGroup(text: string, from: number): [string, number] | null {
   return null;
 }
 
+function escapesNext(text: string, at: number): boolean {
+  const next = text[at + 1];
+  return text[at] === ESCAPE && (next === ESCAPE || next === QUOTE);
+}
+
 function splitUnquoted(text: string, mark: string): string[] {
   const parts: string[] = [];
   let start = 0;
   for (let at = 0; at < text.length; at += 1) {
-    if (text[at] === QUOTE) at += 1;
+    if (text[at] === QUOTE || escapesNext(text, at)) at += 1;
     else if (text[at] === mark) {
       parts.push(text.slice(start, at));
       start = at + 1;
@@ -57,7 +63,10 @@ function splitUnquoted(text: string, mark: string): string[] {
 }
 
 function unquote(text: string): string {
-  return text.replace(/"(.)/g, "$1");
+  return text.replace(
+    /\\[\\"]|"(.)/g,
+    (whole, quoted: string | undefined) => quoted ?? whole,
+  );
 }
 
 function readLevel(raw: string): Level {

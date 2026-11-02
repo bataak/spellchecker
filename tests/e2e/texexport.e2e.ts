@@ -107,3 +107,19 @@ test("төсөлд макроны аргументаар өгсөн зураг �
   assert.match(text, /АА ББ/);
   assert.doesNotMatch(text, /a\.png/);
 });
+
+test('индексийн \\" бүхий үг PDF-ийг унагахгүй', async () => {
+  const text = await pdfText({
+    tex: '\\documentclass{article}\n\\usepackage{makeidx}\n\\makeindex\n\\begin{document}\nТекст\\index{M\\"obius}\\index{a"!b}.\n\\printindex\n\\end{document}\n',
+  });
+  assert.match(text, /bius, 1/);
+  assert.match(text, /a!b, 1/);
+});
+
+test("verbatim доторх \\includegraphics бичвэр хэвээр гарна", async () => {
+  const text = await pdfText({
+    tex: "\\documentclass{article}\n\\begin{document}\n\\begin{verbatim}\n\\includegraphics{zz.png}\n\\end{verbatim}\n\\end{document}\n",
+  });
+  assert.match(text, /\\includegraphics\{zz\.png\}/);
+  assert.doesNotMatch(text, /fbox/);
+});
