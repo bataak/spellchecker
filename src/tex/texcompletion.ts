@@ -1,4 +1,5 @@
 import { argContext, type ArgContext } from "./texargs.ts";
+import { liveMatches } from "./texliteral.ts";
 import { COMMANDS, ENVIRONMENTS } from "./texcommands.ts";
 import { NO_SYMBOLS, type TexSymbols } from "./texsymbols.ts";
 
@@ -29,6 +30,8 @@ export interface Expansion {
 const LIMIT = 8;
 const LIST_ENVS = new Set(["itemize", "enumerate", "description"]);
 const ITEM = "\\item ";
+const ENV_BEGIN = /\\begin\s*\{[^{}\n]*\}/g;
+const ENV_END = /\\end\s*\{[^{}\n]*\}/g;
 
 function entry(snippet: string): Completion {
   const cut = snippet.search(/[{[(<#]|\)$|\]$/);
@@ -176,22 +179,42 @@ export function lineIndent(text: string, at: number): string {
   return match ? match[0] : "";
 }
 
+export function keepsArgument(
+  text: string,
+  caret: number,
+  item: Completion,
+): boolean {
+  const rest = item.snippet.slice(item.label.length);
+  return text[caret] === "{" && /^[{[]/.test(rest);
+}
+
+function environmentClosed(text: string): boolean {
+  return (
+    liveMatches(text, ENV_END).length >= liveMatches(text, ENV_BEGIN).length
+  );
+}
+
+function bare(from: number, to: number, inserted: string): Expansion {
+  return {
+    from,
+    to,
+    text: inserted,
+    caret: from + inserted.length,
+    closes: [],
+    body: null,
+  };
+}
+
 export function expand(
   text: string,
   caret: number,
   context: CompletionContext,
   item: Completion,
 ): Expansion {
-  if (context.kind === "arg")
-    return {
-      from: context.from,
-      to: caret,
-      text: item.label,
-      caret: context.from + item.label.length,
-      closes: [],
-      body: null,
-    };
+  if (context.kind === "arg") return bare(context.from, caret, item.label);
   if (context.kind === "cmd") {
+    if (keepsArgument(text, caret, item))
+      return bare(context.from, caret, "\\" + item.label);
     const body = "\\" + item.snippet;
     const mark = body.indexOf("#");
     const inserted =
@@ -212,17 +235,8 @@ export function expand(
   const name = item.label;
   const extra = item.snippet.slice(name.length);
 
-  if (opener.endsWith("\\end{")) {
-    const inserted = name + "}";
-    return {
-      from: context.from,
-      to,
-      text: inserted,
-      caret: context.from + inserted.length,
-      closes: [],
-      body: null,
-    };
-  }
+  if (opener.endsWith("\\end{") || (closing && environmentClosed(text)))
+    return bare(context.from, to, name + "}");
 
   const indent = lineIndent(text, context.from);
   const mark = extra.indexOf("#");
@@ -234,15 +248,7 @@ export function expand(
     mark < 0
       ? context.from + head.length + inner.length
       : context.from + name.length + 1 + mark;
-  if (mark < 0)
-    return {
-      from: context.from,
-      to,
-      text: inserted,
-      caret: caretAt,
-      closes: [],
-      body: null,
-    };
+  if (mark < 0) return { ...bare(context.from, to, inserted), caret: caretAt };
   return {
     from: context.from,
     to,

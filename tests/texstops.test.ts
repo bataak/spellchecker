@@ -306,3 +306,12 @@ test("хоосон \\[|\\]-ийг Backspace устгана", () => {
   assert.deepEqual(p.patch, { from: 1, to: 4, insert: "" });
   assert.equal(p.caret, 1);
 });
+
+test("нээлттэй томьёоны хаах $-д хос нэмэхгүй", () => {
+  assert.equal(typeDollar([], "$x y", 2, 2), null);
+  assert.equal(typeDollar([], "$x", 2, 2), null);
+  assert.equal(typeDollar([], "$$x$", 4, 4), null);
+  assert.equal(typeDollar([], "$x$ y", 3, 3)?.patch?.insert, "$$");
+  assert.equal(typeDollar([], "$x\n\nб", 6, 6)?.patch?.insert, "$$");
+  assert.equal(typeDollar([], "\\$5", 3, 3)?.patch?.insert, "$$");
+});
