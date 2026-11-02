@@ -76,6 +76,22 @@ test("хөтчийн historyUndo оролтыг өөрийн түүхээр гү
   assert.equal(editor.value, "нэг\n");
 });
 
+test("зөвхөн уншихад түгжигдсэн засварлагчид Ctrl+Z, Ctrl+Y юу ч өөрчлөхгүй", () => {
+  const editor = editorWith("");
+  initUndoHistory({ editor, slot: () => "locked" });
+  type(editor, "Бичвэр\n");
+  key(editor, "z");
+  type(editor, "Шинэ\n");
+  editor.readOnly = true;
+  key(editor, "z");
+  assert.equal(editor.value, "Шинэ\n");
+  key(editor, "y");
+  assert.equal(editor.value, "Шинэ\n");
+  editor.readOnly = false;
+  key(editor, "z");
+  assert.equal(editor.value, "");
+});
+
 test("бусдын засвар түүхийг шилжүүлж, өөрийн засвар л буцна", () => {
   const editor = editorWith("");
   initUndoHistory({ editor, slot: () => "remote" });
