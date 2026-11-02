@@ -2,7 +2,12 @@ import { isHeic, jpegIfHeic } from "../files/heic.ts";
 import { databaseOpener } from "../core/idb.ts";
 import { replaceRange } from "../editor/editortext.ts";
 import { pickImage } from "../files/images.ts";
-import { expandMacros, pathMacros, uncommented } from "./texproject.ts";
+import {
+  expandMacros,
+  pathMacros,
+  runtimePath,
+  uncommented,
+} from "./texproject.ts";
 import {
   rewriteSvg,
   svgCandidates,
@@ -51,7 +56,7 @@ export function texImagePaths(text: string): string[] {
   const macros = pathMacros([text]);
   for (const match of uncommented(text).matchAll(INCLUDE)) {
     const path = normalizeTexPath(expandMacros(match[2] ?? "", macros));
-    if (path) out.add(path);
+    if (path && !runtimePath(path)) out.add(path);
   }
   return [...out];
 }

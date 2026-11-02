@@ -17,7 +17,13 @@ test("planPasses: индексийн алхам холбоосын давтал�
   const index = planPasses(["\\makeindex"]);
   assert.equal(index.passes, 2);
   assert.equal(index.steps.length, 1);
-  assert.equal(passes("\\makeindex", "\\tableofcontents"), 3);
+  assert.equal(passes("\\makeindex", "\\tableofcontents"), 4);
   assert.equal(passes("\\makeindex\\addbibresource{a.bib}"), 4);
   assert.deepEqual(planPasses(["\\ref{a}"]).steps, []);
+});
+
+test("planPasses: агуулга хуудас шилжүүлдэг тул гурван удаа хөрвүүлнэ", () => {
+  assert.equal(passes("\\tableofcontents"), 3);
+  assert.equal(passes("\\listoffigures"), 3);
+  assert.equal(passes("\\listoftables", "\\ref{x}"), 3);
 });

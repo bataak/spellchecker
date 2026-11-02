@@ -1,6 +1,7 @@
 import { cellFills, isBlankRow, type Block, type Inline } from "../markdown.ts";
 import { flatten } from "../office/flatten.ts";
 import { columnWidths, shareWidths } from "../office/table.ts";
+import { guardBreak } from "./texescape.ts";
 import {
   tableStrokes,
   type Stroke,
@@ -76,7 +77,8 @@ export function tableLatex(
         const lead = i === 0 && !bold ? strut : "";
         if (cellFills(cell)) return lead + "\\hrulefill";
         const text = inline(cell);
-        return lead + (bold && text ? "\\textbf{" + text + "}" : text);
+        if (bold && text) return lead + "\\textbf{" + text + "}";
+        return lead || i > 0 ? lead + text : guardBreak(text);
       })
       .join(" & ") + " \\\\";
   const titled = place === undefined && header;

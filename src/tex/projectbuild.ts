@@ -14,6 +14,7 @@ import {
   relativePath,
   resolveGraphic,
   rootedPath,
+  runtimePath,
 } from "./texproject.ts";
 import {
   resolveSvg,
@@ -114,6 +115,7 @@ async function collectGraphics(
     for (const raw of graphicRefs(text)) {
       if (resolved.has(raw)) continue;
       const wanted = expandMacros(raw, b.macros);
+      if (runtimePath(wanted)) continue;
       let path = resolveGraphic(wanted, b.root, b.search, b.has);
       if (path !== null && !isPdfGraphic(path) && !converted.has(path)) {
         const name = await convertGraphic(b, path);
@@ -124,6 +126,7 @@ async function collectGraphics(
       if (path === null) b.missing.push(wanted.trim());
     }
   return (raw) => {
+    if (!resolved.has(raw)) return raw;
     const path = resolved.get(raw) ?? null;
     if (path === null) return null;
     const name = converted.get(path);
