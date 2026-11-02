@@ -17,7 +17,7 @@ function affSuffixes() {
     if (!line.startsWith("SFX ")) continue;
     const parts = line.trim().split(/\s+/);
     if (parts.length < 5) continue;
-    const append = parts[3].split("/")[0];
+    const append = parts[3]!.split("/")[0];
     if (append && append !== "0") out.add(append);
   }
   return [...out];

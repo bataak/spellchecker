@@ -106,7 +106,7 @@ test("цаасны хэмжээ заагаагүй баримтыг A4 болг�
       "% \\documentclass{book}\n\\documentclass[a4paper]{article}",
     ],
   ])
-    assert.equal(toPdfLatex(doc(from)), doc(to));
+    assert.equal(toPdfLatex(doc(from!)), doc(to!));
 });
 
 test("цаасны хэмжээ заасан эсвэл өөр классыг өөрчлөхгүй", () => {

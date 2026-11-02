@@ -18,7 +18,7 @@ function slideOrder(names: string[]): string[] {
     name.startsWith("ppt/slides/") ? 0 : 1;
   const num = (name: string): number => {
     const match = /(\d+)\.xml$/.exec(name);
-    return match === null ? 0 : Number.parseInt(match[1], 10);
+    return match === null ? 0 : Number.parseInt(match[1]!, 10);
   };
 
   return [...names].sort((left, right) => {

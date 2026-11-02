@@ -71,7 +71,7 @@ test("гэмтсэн өгөгдлийг хүлээж авахгүй", () => {
   assert.throws(() => unxz(packed.slice(0, packed.length >> 1)), /xz:/);
   for (const at of [40, packed.length >> 1, packed.length - 30]) {
     const broken = packed.slice();
-    broken[at] ^= 0x55;
+    broken[at]! ^= 0x55;
     assert.throws(() => unxz(broken), /xz:/, String(at));
   }
 });

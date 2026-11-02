@@ -113,15 +113,15 @@ export function editDistance(a: string, b: string): number {
     for (let j = 1; j <= y.length; j++) {
       const cost = x[i - 1] === y[j - 1] ? 0 : 1;
       let best = Math.min(
-        rows[i - 1][j] + 1,
-        rows[i][j - 1] + 1,
-        rows[i - 1][j - 1] + cost,
+        rows[i - 1]![j]! + 1,
+        rows[i]![j - 1]! + 1,
+        rows[i - 1]![j - 1]! + cost,
       );
       if (i > 1 && j > 1 && x[i - 1] === y[j - 2] && x[i - 2] === y[j - 1])
-        best = Math.min(best, rows[i - 2][j - 2] + 1);
-      rows[i][j] = best;
+        best = Math.min(best, rows[i - 2]![j - 2]! + 1);
+      rows[i]![j] = best;
     }
-  return rows[x.length][y.length];
+  return rows[x.length]![y.length]!;
 }
 
 export function closeSuggestion(

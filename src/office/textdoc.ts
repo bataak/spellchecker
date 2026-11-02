@@ -61,7 +61,7 @@ function findParagraph(index: TextIndex, offset: number): number {
 
   while (low <= high) {
     const mid = (low + high) >> 1;
-    if (index.starts[mid] <= offset) {
+    if (index.starts[mid]! <= offset) {
       found = mid;
       low = mid + 1;
     } else {
@@ -79,10 +79,10 @@ export function locate(
   const found = findParagraph(index, offset);
   if (found < 0) return null;
 
-  const local = offset - index.starts[found];
-  if (local > index.paragraphs[found].text.length) return null;
+  const local = offset - index.starts[found]!;
+  if (local > index.paragraphs[found]!.text.length) return null;
 
-  return { paragraph: index.paragraphs[found], local };
+  return { paragraph: index.paragraphs[found]!, local };
 }
 
 export function renderFlat(source: string, edits: TextEdit[]): string {
@@ -118,14 +118,14 @@ function bucketEdits(
       continue;
     }
 
-    const base = index.starts[found];
+    const base = index.starts[found]!;
     const local: ParagraphEdit = {
       start: edit.start - base,
       end: edit.end - base,
       text: edit.text,
     };
 
-    if (local.end > index.paragraphs[found].text.length) {
+    if (local.end > index.paragraphs[found]!.text.length) {
       skipped.push({ edit, reason: "crosses-boundary" });
       continue;
     }
@@ -148,7 +148,7 @@ export function planDocument(index: TextIndex, edits: TextEdit[]): EditPlan {
   const applied: TextEdit[] = [];
 
   for (const [found, bucket] of buckets) {
-    const paragraph = index.paragraphs[found];
+    const paragraph = index.paragraphs[found]!;
     const plan = planParagraph(
       paragraph,
       bucket.map((item) => item.local),

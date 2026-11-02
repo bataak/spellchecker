@@ -133,7 +133,7 @@ function compareNodes(a: Node, b: Node): number {
 function renderNode(node: Node, depth: number, lines: string[]): void {
   const pages = pageList(node.refs);
   const text = node.level.text + (pages.length ? ", " + pages.join(", ") : "");
-  lines.push(INDENT[depth] + ITEMS[depth] + text);
+  lines.push(INDENT[depth]! + ITEMS[depth]! + text);
   const children = [...node.children.values()].sort(compareNodes);
   for (const child of children) renderNode(child, depth + 1, lines);
 }

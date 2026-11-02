@@ -68,7 +68,7 @@ test("олон блоктой bzip2-ийг задална", () => {
 
 test("эвдэрсэн bzip2-д алдаа өгнө", () => {
   const packed = decode(MULTIBLOCK_BZ2);
-  packed[40] ^= 0xff;
+  packed[40]! ^= 0xff;
   assert.throws(() => bunzip2(packed));
 });
 
