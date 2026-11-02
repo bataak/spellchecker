@@ -44,6 +44,7 @@ export interface Vocab {
   run: string;
   runProps: string;
   text: string;
+  spaceAttr: boolean;
   skipped: Set<string>;
   separators: Record<string, string>;
   glyphs: Record<string, string>;
@@ -59,6 +60,7 @@ const SKIPPED_ELEMENTS = new Set([
   "w:instrText",
   "w:delInstrText",
   "w:delText",
+  "w:moveFrom",
   "w:sdtPr",
   "w:tabs",
 ]);
@@ -83,6 +85,7 @@ export const WORD_VOCAB: Vocab = {
   run: "w:r",
   runProps: "w:rPr",
   text: "w:t",
+  spaceAttr: true,
   skipped: SKIPPED_ELEMENTS,
   separators: SEPARATORS,
   glyphs: GLYPHS,
@@ -97,6 +100,7 @@ export const SLIDE_VOCAB: Vocab = {
   run: "a:r",
   runProps: "a:rPr",
   text: "a:t",
+  spaceAttr: false,
   skipped: new Set(["a:fld", "p:pic", "a:blip", "mc:Fallback", "a:tabLst"]),
   separators: { "a:br": "\n", "a:tab": "\t" },
   glyphs: {},
@@ -155,7 +159,8 @@ function closeParagraph(p: PartState, tag: TagInfo): void {
 }
 
 function openTextNode(p: PartState, tag: TagInfo): void {
-  const preserve = readAttr(p.xml, tag, "xml:space") === "preserve";
+  const preserve =
+    !p.vocab.spaceAttr || readAttr(p.xml, tag, "xml:space") === "preserve";
   const attrEnd = tag.end - (tag.kind === "self" ? 2 : 1);
   const node: TextNode = {
     tagStart: tag.start,

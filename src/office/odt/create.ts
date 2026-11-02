@@ -32,7 +32,7 @@ import {
   tableStrokes,
   type CellStrokes,
 } from "../../markdown/tablelook.ts";
-import { xmlAttr, xmlText } from "../sanitize.ts";
+import { verbatimText, xmlAttr, xmlText } from "../sanitize.ts";
 import { NS, runKey, runStyle, styleName } from "./props.ts";
 import { stylesXml } from "./styles.ts";
 
@@ -68,19 +68,6 @@ function frameXml(image: IrImage, media: Media): string {
     '" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad"/>' +
     "</draw:frame>"
   );
-}
-
-export function verbatimText(text: string): string {
-  return xmlText(text)
-    .replace(/\t/g, "<text:tab/>")
-    .replace(/^ +| {2,}/g, (spaces, at: number) => {
-      const lead = at === 0 ? 0 : 1;
-      const count = spaces.length - lead;
-      return (
-        " ".repeat(lead) +
-        (count === 1 ? "<text:s/>" : '<text:s text:c="' + count + '"/>')
-      );
-    });
 }
 
 function runsXml(

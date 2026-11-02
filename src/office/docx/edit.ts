@@ -1,3 +1,4 @@
+import { verbatimText } from "../sanitize.ts";
 import { encodeXmlText } from "./xml.ts";
 import type { Paragraph, TextNode } from "./parse.ts";
 
@@ -216,18 +217,27 @@ export function splitEdit(
   return hunks;
 }
 
+const WORD_CHAR = /[\p{L}\p{N}\p{M}]/u;
+
+function insertionHost(paragraph: Paragraph, at: number): TextNode | null {
+  const touching = paragraph.nodes.filter(
+    (node) => node.textStart <= at && at <= node.textStart + node.text.length,
+  );
+  const left = touching.find(
+    (node) => node.text.length > 0 && node.textStart + node.text.length === at,
+  );
+  if (left !== undefined && WORD_CHAR.test(paragraph.text[at - 1]!))
+    return left;
+  return touching[touching.length - 1] ?? null;
+}
+
 function coveredNodes(
   paragraph: Paragraph,
   start: number,
   end: number,
 ): TextNode[] {
   if (start === end) {
-    let host: TextNode | null = null;
-    for (const node of paragraph.nodes) {
-      const nodeEnd = node.textStart + node.text.length;
-      if (node.textStart <= start && start <= nodeEnd) host = node;
-      if (node.textStart > start) break;
-    }
+    const host = insertionHost(paragraph, start);
     return host === null ? [] : [host];
   }
 
@@ -258,7 +268,7 @@ function nodeEdits(node: TextNode, next: string): RawEdit[] {
 
     if (node.wrap === null) {
       return [
-        { start: node.tagStart, end: node.tagEnd, text: encodeXmlText(next) },
+        { start: node.tagStart, end: node.tagEnd, text: verbatimText(next) },
       ];
     }
 
