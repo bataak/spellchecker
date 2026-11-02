@@ -9,6 +9,7 @@ const SPECIAL: Readonly<Record<string, string>> = {
   _: "\\_",
   "~": "\\textasciitilde{}",
   "^": "\\textasciicircum{}",
+  '"': "\\textquotedbl{}",
 };
 
 const SYMBOL: Readonly<Record<string, string>> = {
@@ -119,10 +120,16 @@ const ZERO_WIDTH = /\u200b|\u200c|\u200d|\u2060|\ufe0e|\ufe0f|\ufeff/gu;
 
 const SYMBOL_RE = new RegExp("[" + Object.keys(SYMBOL).join("") + "]", "gu");
 
+const BREAK_ARGUMENT = /^\s*[[*]/;
+
+export function guardBreak(text: string): string {
+  return BREAK_ARGUMENT.test(text) ? "{}" + text : text;
+}
+
 export function escapeTex(s: string): string {
   return s
     .replace(ZERO_WIDTH, "")
-    .replace(/[\\{}$&%#_~^]/g, (c) => SPECIAL[c]!)
+    .replace(/[\\{}$&%#_~^"]/g, (c) => SPECIAL[c]!)
     .replace(SYMBOL_RE, (c) => SYMBOL[c]!)
     .replace(GREEK_RE, (c) => greek(c) ?? c);
 }
