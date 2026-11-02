@@ -68,9 +68,11 @@ test("өргөтгөлгүй замд зургийн өргөтгөлүүдий�
   assert.deepEqual(imageCandidates("img/a.png"), ["img/a.png"]);
   assert.deepEqual(imageCandidates("img.v2/a"), [
     "img.v2/a",
+    "img.v2/a.pdf",
     "img.v2/a.png",
     "img.v2/a.jpg",
     "img.v2/a.jpeg",
+    "img.v2/a.PDF",
     "img.v2/a.PNG",
     "img.v2/a.JPG",
     "img.v2/a.JPEG",
