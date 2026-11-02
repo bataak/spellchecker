@@ -50,14 +50,19 @@ function itemIndent(text: string, start: number, caret: number): string {
   return indent;
 }
 
+function insideVerbatim(before: string): boolean {
+  const probe = before + "\n";
+  const last = texSpans(probe).at(-1);
+  return last?.kind === "verb" && last.end === probe.length;
+}
+
 export function itemEdit(
   text: string,
   from: number,
   to: number,
 ): ItemEdit | null {
   const before = withoutComments(text.slice(0, from));
-  const last = texSpans(before).at(-1);
-  if (last?.kind === "verb" && last.end === from) return null;
+  if (insideVerbatim(before)) return null;
   const start = listStart(before);
   if (start === null) return null;
   const insert = "\n" + itemIndent(before, start, from) + "\\item ";

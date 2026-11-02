@@ -72,3 +72,15 @@ test("itemEdit: verbatim дотор \\item нэмэхгүй, доторх жаг
   const list = "\\begin{itemize}\n\\begin{verbatim}\nа\n\\end{verbatim}\nб";
   assert.ok(itemEdit(list, list.length, list.length));
 });
+
+test("itemEdit: \\begin{verbatim}-ийн яг ард \\item нэмэхгүй", () => {
+  const list = "\\begin{itemize}\n";
+  for (const code of ["\\begin{verbatim}", "\\begin{verbatim}\n"]) {
+    const text = list + code;
+    assert.equal(itemEdit(text, text.length, text.length), null);
+  }
+  const closed = list + "\\begin{verbatim}\nа\n\\end{verbatim}";
+  assert.ok(itemEdit(closed, closed.length, closed.length));
+  const inline = list + "\\item \\verb|а|";
+  assert.ok(itemEdit(inline, inline.length, inline.length));
+});
