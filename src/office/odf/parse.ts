@@ -10,6 +10,8 @@ const SKIPPED_ELEMENTS = new Set([
   "draw:image",
   "draw:object",
   "draw:object-ole",
+  "svg:title",
+  "svg:desc",
   "text:tracked-changes",
   "text:deletion",
   "text:note-citation",

@@ -4,7 +4,8 @@ import assert from "node:assert/strict";
 import { parse } from "../src/markdown.ts";
 import { findTemplate } from "../src/doc/templates.ts";
 import { applyTemplate } from "../src/office/apply.ts";
-import { buildOdt, verbatimText } from "../src/office/odt/create.ts";
+import { buildOdt } from "../src/office/odt/create.ts";
+import { verbatimText } from "../src/office/sanitize.ts";
 import { openOdf } from "../src/office/odf/index.ts";
 
 test("verbatimText: эхний ба олон зай, табыг ODF-д хадгална", () => {
