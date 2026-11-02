@@ -19,13 +19,17 @@ export function replyPdf(reply: EngineReply): ArrayBuffer | null {
     : null;
 }
 
+const TORN_BYTE = /\^{1,2}[0-9a-f]?(?=\.\.\.$)/;
+
 function errorPlace(log: string): string | null {
   const place = /^l\.\d+ (.*)\n(.*)$/m.exec(log);
   if (!place) return null;
   const before = decodeTexBytes(
     place[1]!.replace(/^\.\.\.(?:\^?[0-9a-f]{1,2}(?=\^\^)|\^(?=\^\^))?/, ""),
   ).slice(-40);
-  const after = decodeTexBytes(place[2]!).trim().slice(0, 40);
+  const after = decodeTexBytes(place[2]!.replace(TORN_BYTE, ""))
+    .trim()
+    .slice(0, 40);
   return (before + " " + after).trim();
 }
 

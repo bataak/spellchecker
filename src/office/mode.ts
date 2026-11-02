@@ -6,7 +6,7 @@ import { FileReadError } from "./fileerror.ts";
 import { syncEdits } from "./editsync.ts";
 import { renderFlat } from "./textdoc.ts";
 import type { SaveResult, TextEdit, TextIndex } from "./textdoc.ts";
-import { docxUnread, odfUnread } from "./unread.ts";
+import { docxUnread, odfUnread, pptxUnread } from "./unread.ts";
 import type { UnreadKind } from "./unread.ts";
 import type { SkipReason } from "./docx/edit.ts";
 import { unpackedSize } from "../archive/archive.ts";
@@ -122,8 +122,11 @@ const odfEngine = (bytes: Uint8Array): Engine =>
 
 const ENGINES: Record<OfficeFormat, (bytes: Uint8Array) => Engine> = {
   docx: (bytes) =>
-    engineOf(openDocx(bytes), saveDocx, (doc) => docxUnread(doc.parts)),
-  pptx: (bytes) => engineOf(openPptx(bytes), savePptx),
+    engineOf(openDocx(bytes), saveDocx, (doc) =>
+      docxUnread(doc.parts, doc.pkg.entries),
+    ),
+  pptx: (bytes) =>
+    engineOf(openPptx(bytes), savePptx, (doc) => pptxUnread(doc.pkg.entries)),
   odt: odfEngine,
   odp: odfEngine,
 };

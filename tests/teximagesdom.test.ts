@@ -83,3 +83,35 @@ test("pdflatex эх файлд аюулгүй замтай зургийг нэр
   assert.deepEqual(images.missing, ["gone"]);
   assert.equal(images.rewrite(text), text);
 });
+
+test("сонгосон PDF зургийг дутуу гэж үзэхгүй, өргөтгөлгүй замаар ч олно", async () => {
+  const editor = setup();
+  const pdf = new File([PNG], "vec.pdf", { type: "image/png" });
+  paste(editor, [pdf]);
+  const named = await texImageFiles(editor.value);
+  assert.deepEqual(Object.keys(named.files), ["image1.pdf"]);
+  assert.deepEqual(named.missing, []);
+  const bare = await texImageFiles("\\includegraphics{vec}");
+  assert.deepEqual(Object.keys(bare.files), ["image1.pdf"]);
+  assert.deepEqual(bare.missing, []);
+});
+
+test("макроны аргументаар өгсөн зургийг нэрээр нь бэлтгэж, дутууг хайрцаглана", async () => {
+  const editor = setup();
+  paste(editor, [new File([PNG], "macro.png", { type: "image/png" })]);
+  const text = String.raw`\newcommand{\fig}[1]{\includegraphics[width=2cm]{#1}}
+\fig{macro.png} \fig{gone.png} % \fig{old.png}`;
+  const images = await texImageFiles(text);
+  assert.deepEqual(Object.keys(images.files), ["macro.png"]);
+  assert.deepEqual(images.missing, []);
+  assert.ok(
+    images
+      .rewrite(text)
+      .includes(
+        String.raw`\IfFileExists{#1}{\includegraphics[width=2cm]{#1}}{\fbox{\ttfamily\detokenize{#1}}}`,
+      ),
+  );
+  const sources = await texImageSources(text);
+  assert.deepEqual(Object.keys(sources.files), ["macro.png"]);
+  assert.equal(sources.rewrite(text), text);
+});
