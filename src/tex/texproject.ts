@@ -209,6 +209,10 @@ export function graphicsPaths(text: string): string[] {
   return out;
 }
 
+export function runtimePath(path: string): boolean {
+  return /[#\\]/.test(path);
+}
+
 export function resolveGraphic(
   raw: string,
   base: string,

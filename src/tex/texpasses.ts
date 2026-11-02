@@ -19,12 +19,13 @@ export interface PassPlan {
   readonly steps: readonly AuxStep[];
 }
 
-const CROSS_REF =
-  /\\(?:tableofcontents|listof(?:figures|tables)|ref|eqref|pageref|autoref|cref|Cref|cite|label)\b/;
+const CROSS_REF = /\\(?:ref|eqref|pageref|autoref|cref|Cref|cite|label)\b/;
+const CONTENTS = /\\(?:tableofcontents|listof(?:figures|tables))\b/;
 const BIBLIOGRAPHY = /\\(?:bibliography|addbibresource)\s*\{/;
 
 const RULES: readonly PassRule[] = [
   { wanted: (body) => CROSS_REF.test(body), passes: 1 },
+  { wanted: (body) => CONTENTS.test(body), passes: 2 },
   { wanted: (body) => BIBLIOGRAPHY.test(body), passes: 2 },
 ];
 
