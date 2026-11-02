@@ -1,7 +1,7 @@
 import type { Backdrop } from "../editor/backdrop.ts";
 import { pickDefinitionMarks } from "../define/defmarks.ts";
 import type { DefTip } from "../define/deftip.ts";
-import { escapeHtml } from "../core/htmlutil.ts";
+import { escapeAttr, escapeHtml } from "../core/htmlutil.ts";
 import { syncIgnoreVisibility } from "./ignorelist.ts";
 import type { Popover } from "../ui/popover.ts";
 import { openManualFix } from "./suggestfix.ts";
@@ -69,7 +69,7 @@ function suggestionButton(suggestion: string, marked: boolean): string {
     button +
     '<button class="sg-dot" type="button"' +
     ' aria-expanded="false" aria-controls="defTip" aria-label="' +
-    escapeHtml(suggestion) +
+    escapeAttr(suggestion) +
     ' — тайлбар"></button></div>'
   );
 }

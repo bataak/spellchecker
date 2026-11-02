@@ -14,7 +14,11 @@ const { initSuggestPopover } = await import("../src/spellui/suggestpopover.ts");
 
 test.after(() => dom.close());
 
-function setup(suggestions: string[], readOnly = false) {
+function setup(
+  suggestions: string[],
+  readOnly = false,
+  found: Record<string, string> | null = null,
+) {
   resetStorage();
   const editor = document.querySelector<HTMLTextAreaElement>("#ed")!;
   editor.value = "энэ алдатай үг";
@@ -52,7 +56,7 @@ function setup(suggestions: string[], readOnly = false) {
       checkWords: async (words: string[]) =>
         Object.fromEntries(words.map((w) => [w, false])),
       suggest: async () => suggestions,
-      lookup: async () => null,
+      lookup: async () => found,
     } as never,
     desktopMQ: { matches: true } as MediaQueryList,
     render: async () => {
@@ -67,6 +71,15 @@ function setup(suggestions: string[], readOnly = false) {
   const token = { word: "алдатай", start: 4, end: 11 };
   return { ui, popover, applied, events, token };
 }
+
+test("suggestPopover: хашилттай санал aria-label-аас гарч шинж чанар нэмэхгүй", async () => {
+  const word = 'үг" data-bad="1';
+  const { ui, popover, token } = setup([word], false, { [word]: "тайлбар" });
+  await ui.showFor(token);
+  const dot = popover.querySelector<HTMLElement>(".sg-dot")!;
+  assert.equal(dot.hasAttribute("data-bad"), false);
+  assert.equal(dot.getAttribute("aria-label"), word + " — тайлбар");
+});
 
 test("suggestPopover: саналуудыг жагсааж, дарахад сольж, алгасахад жагсаалтад нэмнэ", async () => {
   const { ui, popover, applied, events, token } = setup(["алдаатай", "алдарт"]);
