@@ -1,6 +1,6 @@
 import { lineIndent, type Expansion } from "./texcompletion.ts";
 import { liveMatches } from "./texliteral.ts";
-import { lineStartAt } from "../core/text.ts";
+import { lineEndAt, lineStartAt } from "../core/text.ts";
 
 export type Insert =
   | { readonly kind: "cmd" | "text"; readonly snippet: string }
@@ -130,13 +130,16 @@ function closeEdit(text: string, start: number): Expansion | null {
   if (name === null) return null;
   const indent = beginIndent(text, name, start);
   const lineStart = lineStartAt(text, start);
-  const blank = !text.slice(lineStart, start).trim();
+  const lead = text.slice(lineStart, start);
+  const blank = !lead.trim();
   const from = blank ? lineStart : start;
   const inserted = (blank ? "" : "\n") + indent + "\\end{" + name + "}";
+  const rest = text.slice(start, lineEndAt(text, start));
+  const tail = rest.trim() ? "\n" + /^[ \t]*/.exec(lead)![0] : "";
   return {
     from,
     to: start,
-    text: inserted,
+    text: inserted + tail,
     caret: from + inserted.length,
     closes: [],
     body: null,
