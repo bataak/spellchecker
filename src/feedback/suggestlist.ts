@@ -1,3 +1,4 @@
+import { setHtml } from "../core/htmlutil.ts";
 import { requireEl } from "../ui/dom.ts";
 import { noteError } from "../core/errorlog.ts";
 import { getSubmitted } from "./submitted.ts";
@@ -55,7 +56,7 @@ export function createWordList(d: WordListDeps): WordList {
       cnt.textContent = words.length ? "(" + words.length + ")" : "";
       cnt.classList.toggle("over", words.length > MAX_WORDS);
     }
-    box.innerHTML = wordChips(words);
+    setHtml(box, wordChips(words));
     box.querySelectorAll<HTMLElement>(".suggest-chip-x").forEach((btn) => {
       btn.addEventListener("click", () => {
         words.splice(Number(btn.dataset.i), 1);

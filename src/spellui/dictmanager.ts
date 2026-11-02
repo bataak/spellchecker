@@ -1,3 +1,5 @@
+import { html, escapeHtml } from "../core/htmlutil.ts";
+import type { Html } from "../core/htmlutil.ts";
 import { askChoice } from "../ui/ask.ts";
 import type { DictInfo } from "../spell/messages.ts";
 import {
@@ -14,7 +16,7 @@ export interface DictManagerDeps {
   reload(): void;
   reorder(): void;
   changed(): void;
-  status(message: string): void;
+  status(markup: Html): void;
 }
 
 interface DictManagerView {
@@ -360,14 +362,14 @@ export function createDictManager(deps: DictManagerDeps): DictManager {
     draw();
     deps.reload();
     deps.changed();
-    deps.status("Толь устгагдлаа: " + dict.name);
+    deps.status(html`Толь устгагдлаа: ${escapeHtml(dict.name)}`);
   }
 
   async function importFiles(files: File[]): Promise<void> {
     if (!files.length) return;
-    deps.status("Толь нэмж байна…");
+    deps.status(html`Толь нэмж байна…`);
     const result = await importDictFiles(files, current);
-    deps.status(importSummary(result));
+    deps.status(escapeHtml(importSummary(result)));
     const { added, updated } = result;
     if (!added.length && !updated.length) return;
     deps.reload();

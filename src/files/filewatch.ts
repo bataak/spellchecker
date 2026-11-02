@@ -1,10 +1,12 @@
+import { html, escapeHtml } from "../core/htmlutil.ts";
+import type { Html } from "../core/htmlutil.ts";
 import type { CurrentFile } from "./fileports.ts";
 
 export interface FileWatchDeps {
   readonly current: CurrentFile;
   readonly dirty: () => boolean;
   readonly reopen: (file: File, handle: FileSystemFileHandle) => Promise<void>;
-  readonly notify: (message: string) => void;
+  readonly notify: (markup: Html) => void;
   readonly onReturn: (listener: () => void) => void;
 }
 
@@ -21,7 +23,9 @@ export function watchFile(d: FileWatchDeps): () => Promise<void> {
       d.current.stamp = file.lastModified;
       await d.reopen(file, handle);
       if (clean)
-        d.notify("«" + file.name + "» дискэн дээр өөрчлөгдсөн тул шинэчиллээ");
+        d.notify(
+          html`«${escapeHtml(file.name)}» дискэн дээр өөрчлөгдсөн тул шинэчиллээ`,
+        );
     } catch {
       return;
     } finally {

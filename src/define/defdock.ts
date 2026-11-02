@@ -1,3 +1,4 @@
+import { setHtml, trustedHtml } from "../core/htmlutil.ts";
 import { parseDock, resolveDock, type DockPlace } from "../ui/layout.ts";
 import { KEYS, read, remove, write } from "../core/store.ts";
 import { closestTarget } from "../ui/dom.ts";
@@ -11,11 +12,12 @@ export function emptyNote(): HTMLElement {
   note.textContent = EMPTY_TEXT;
   return note;
 }
-const CLOSE_ICON =
+const CLOSE_ICON = trustedHtml(
   '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" ' +
-  'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
-  'stroke-linejoin="round" aria-hidden="true">' +
-  '<path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+    'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+    'stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+);
 
 export interface DefDockDeps {
   readonly workspace: HTMLElement;
@@ -65,7 +67,7 @@ function buildDockPane(
   close.className = "error-copy";
   close.title = "Тайлбарын цонхыг хаах";
   close.setAttribute("aria-label", "Тайлбарын цонхыг хаах");
-  close.innerHTML = CLOSE_ICON;
+  setHtml(close, CLOSE_ICON);
   close.addEventListener("click", onClose);
   head.append(title, ...controls, close);
   head.addEventListener("mousedown", (e) => e.preventDefault());

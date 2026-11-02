@@ -1,3 +1,4 @@
+import { setHtml } from "../core/htmlutil.ts";
 import {
   CLOSE_ICON,
   PAUSE_ICON,
@@ -26,7 +27,7 @@ export function createPauseToggle(): PauseToggle {
       button.setAttribute("aria-pressed", String(on));
       button.title = on ? RESUME_LABEL : PAUSE_LABEL;
       button.setAttribute("aria-label", button.title);
-      button.innerHTML = on ? PLAY_ICON : PAUSE_ICON;
+      setHtml(button, on ? PLAY_ICON : PAUSE_ICON);
     }
   };
 

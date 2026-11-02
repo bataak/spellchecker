@@ -1,3 +1,4 @@
+import type { Html } from "../core/htmlutil.ts";
 import type { DictStatus } from "../spellui/dictstatus.ts";
 import type { StatusPort } from "../core/ports.ts";
 import {
@@ -47,7 +48,7 @@ export function createDocStatus(deps: DocStatusDeps): DocStatus {
     };
   };
 
-  const current = (knownLine?: number): string =>
+  const current = (knownLine?: number): Html =>
     statsMessage(
       deps.fileName(),
       statsBody(stats, deps.desktop.matches, linePosition(knownLine)),

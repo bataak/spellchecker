@@ -1,3 +1,4 @@
+import type { Html } from "../core/htmlutil.ts";
 import { stripExt } from "../export/exportformats.ts";
 import type { PdfSave } from "../files/fileio.ts";
 import type { Preview } from "../preview/preview.ts";
@@ -11,7 +12,7 @@ export interface PdfSaveDeps {
   readonly baseName: () => string | null;
   readonly mobileTex: () => boolean;
   readonly saveProject: () => Promise<unknown> | undefined;
-  readonly notify: (html: string, ms: number, animate: boolean) => void;
+  readonly notify: (markup: Html, ms: number, animate: boolean) => void;
 }
 
 export interface PdfSaveControl extends PdfSave {

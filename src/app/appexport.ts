@@ -1,8 +1,9 @@
+import type { Html } from "../core/htmlutil.ts";
 import type { SaveChain } from "../ui/savechain.ts";
 import { flash } from "../ui/clipboard.ts";
 import { initExport, type ExportControl } from "../export/export.ts";
 import { isFileSlot } from "../slots/fileslots.ts";
-import { escapeHtml } from "../core/htmlutil.ts";
+import { escapeHtml, html } from "../core/htmlutil.ts";
 import type { CompiledPdf } from "../preview/pdfcache.ts";
 import type { ProjectLink } from "../project/projectlink.ts";
 import { missingNote, setSaveBusy } from "../export/savepdf.ts";
@@ -21,12 +22,12 @@ export interface AppExportDeps {
   readonly project: () => ProjectLink;
   readonly pdf: () => Promise<CompiledPdf>;
   readonly saveSource: (name: string, inProject: boolean) => Promise<void>;
-  readonly hold: (html: string, ms?: number, animate?: boolean) => void;
+  readonly hold: (markup: Html, ms?: number, animate?: boolean) => void;
   readonly saveChain: SaveChain;
 }
 
 export function initAppExport(deps: AppExportDeps): ExportControl {
-  const note = (prefix: string, missing: readonly string[]): void => {
+  const note = (prefix: Html, missing: readonly string[]): void => {
     if (missing.length) deps.hold(missingNote(prefix, missing), NOTE_MS, false);
   };
   const template = (): string => {
@@ -50,13 +51,13 @@ export function initAppExport(deps: AppExportDeps): ExportControl {
     texZip: async (text, name) => {
       if (deps.project().bound()) return deps.project().zip();
       const { blob, missing } = await zipTexText(text, name);
-      note("Архивт ороогүй зураг: ", missing);
+      note(html`Архивт ороогүй зураг: `, missing);
       return blob;
     },
     texZipped: () => deps.project().zipped(),
     texPdf: async () => {
       const { pdf, missing } = await deps.pdf();
-      note("PDF-д ороогүй зураг: ", missing);
+      note(html`PDF-д ороогүй зураг: `, missing);
       return pdf;
     },
     texSource: (name) => deps.saveSource(name, deps.project().bound()),

@@ -1,4 +1,5 @@
-import { escapeAttr } from "../core/htmlutil.ts";
+import type { Html } from "../core/htmlutil.ts";
+import { escapeAttr, trustedHtml } from "../core/htmlutil.ts";
 import { ICON, svg } from "../ui/baricons.ts";
 import { insertSignature, toggleAlign, type AlignKind } from "./mdalign.ts";
 import {
@@ -74,19 +75,21 @@ export const ALIGN_ROLE: Partial<Record<Role, AlignKind>> = {
   signature: "signature",
 };
 
-export function buildButtons(): string {
-  return BUTTONS.map(
-    (spec) =>
-      '<button type="button" class="tbtn md-btn" data-role="' +
-      spec.role +
-      '" title="' +
-      escapeAttr(spec.title) +
-      '" aria-label="' +
-      escapeAttr(spec.title) +
-      '">' +
-      spec.label +
-      "</button>",
-  ).join("");
+export function buildButtons(): Html {
+  return trustedHtml(
+    BUTTONS.map(
+      (spec) =>
+        '<button type="button" class="tbtn md-btn" data-role="' +
+        spec.role +
+        '" title="' +
+        escapeAttr(spec.title) +
+        '" aria-label="' +
+        escapeAttr(spec.title) +
+        '">' +
+        spec.label +
+        "</button>",
+    ).join(""),
+  );
 }
 
 export function formatEdit(

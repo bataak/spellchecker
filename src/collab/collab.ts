@@ -1,3 +1,4 @@
+import type { Html } from "../core/htmlutil.ts";
 import { KEYS, readJson, writeJson } from "../core/store.ts";
 import { createEmitter, type Emitter } from "../core/emitter.ts";
 import { onSwap, swapOrigin, type SwapOrigin } from "../editor/editortext.ts";
@@ -151,7 +152,7 @@ function stopIf(
 function clearOwned(
   entry: RoomEntry | null,
   registry: Pick<Registry, "open">,
-  notify: (message: string) => void,
+  notify: (markup: Html) => void,
   stop: (entry: RoomEntry) => void,
 ): boolean | Promise<boolean> {
   if (!entry || !isOwner(entry)) return true;
@@ -175,7 +176,7 @@ function endedSet(stop: (entry: RoomEntry) => void): {
 async function endShared(
   entry: RoomEntry,
   registry: Pick<Registry, "open">,
-  notify: (message: string) => void,
+  notify: (markup: Html) => void,
   stop: (entry: RoomEntry) => void,
 ): Promise<boolean> {
   const live = await registry.open(entry, false).catch(() => null);
@@ -203,7 +204,7 @@ function collabAvailable(
 }
 
 function readHash(
-  notify: (message: string) => void,
+  notify: (markup: Html) => void,
   join: (link: InviteLink) => void,
 ): void {
   const short = parseShort(location.hash);

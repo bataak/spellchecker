@@ -1,5 +1,6 @@
+import type { Html } from "../core/htmlutil.ts";
 import { askChoice } from "../ui/ask.ts";
-import { escapeHtml } from "../core/htmlutil.ts";
+import { escapeHtml, html } from "../core/htmlutil.ts";
 import type { ProjectStore } from "./projectstore.ts";
 import {
   baseName,
@@ -41,7 +42,7 @@ export interface TreeControlDeps {
   readonly menu: ProjectMenu;
   readonly render: () => void;
   readonly run: (task: () => Promise<unknown>) => Promise<void>;
-  readonly notify: (message: string) => void;
+  readonly notify: (markup: Html) => void;
   readonly openFile: (path: string) => void;
   readonly view: (path: string | null) => boolean;
   readonly closeDrawer: () => void;
@@ -66,7 +67,7 @@ function activatePath(deps: TreeControlDeps, dir: boolean, path: string): void {
       deps.closeDrawer();
       return;
     }
-    deps.notify(escapeHtml(baseName(path)) + " — нээх боломжгүй файл");
+    deps.notify(html`${escapeHtml(baseName(path))} — нээх боломжгүй файл`);
     return;
   }
   deps.view(null);

@@ -1,3 +1,5 @@
+import { html, trustedHtml } from "../core/htmlutil.ts";
+import type { Html } from "../core/htmlutil.ts";
 import type { Backdrop } from "../editor/backdrop.ts";
 import type { DefDock } from "./defdock.ts";
 import type { DefTip } from "./deftip.ts";
@@ -12,10 +14,12 @@ const WORD_CHAR = /[\p{L}\p{M}\p{N}]/u;
 const LATIN_WORD = /\p{Script=Latin}/u;
 const ENGLISH_REMIND_MS = 60000;
 const LONG_PRESS_MS = 550;
-const NO_DICT_MESSAGE =
-  "Толь нэмэхийн тулд Shift товчийг Үгийн тайлбар харах товчтой хамт дарна уу";
-const NO_DICT_TOUCH_MESSAGE =
-  "Толь нэмэхийн тулд Үгийн тайлбар харах товчийг удаан дарна уу";
+const NO_DICT_MESSAGE = trustedHtml(
+  "Толь нэмэхийн тулд Shift товчийг Үгийн тайлбар харах товчтой хамт дарна уу",
+);
+const NO_DICT_TOUCH_MESSAGE = trustedHtml(
+  "Толь нэмэхийн тулд Үгийн тайлбар харах товчийг удаан дарна уу",
+);
 
 function isDictManagerKey(event: KeyboardEvent): boolean {
   return (
@@ -62,7 +66,7 @@ export interface DefineControlsDeps {
   readonly defTip: DefTip;
   readonly defDock: DefDock;
   readonly pop: Popover;
-  readonly holdStatus: (html: string, ms?: number, animate?: boolean) => void;
+  readonly holdStatus: (markup: Html, ms?: number, animate?: boolean) => void;
   readonly englishEnabled: () => ReadonlySet<string>;
   readonly errorAtCaret: () => Token | null;
   readonly showErrorPopover: (token: Token) => void;
@@ -85,9 +89,8 @@ function englishReminder(
     if (now - remindedAt < ENGLISH_REMIND_MS) return;
     remindedAt = now;
     holdStatus(
-      "Англи үгийн үндсийг танихын тулд англи толийг асаана уу (" +
-        (/mac|iphone|ipad/i.test(navigator.platform) ? "⌘⇧L" : "Ctrl+Shift+L") +
-        ")",
+      html`Англи үгийн үндсийг танихын тулд англи толийг асаана уу
+      (${/mac|iphone|ipad/i.test(navigator.platform) ? html`⌘⇧L` : html`Ctrl+Shift+L`})`,
       6000,
       false,
     );
@@ -241,7 +244,11 @@ export function initDefineControls(deps: DefineControlsDeps): void {
     }
     const span = wordForLookup();
     if (!span) {
-      holdStatus("Тайлбар харах үг дээрээ товшоод дахин дарна уу", 3000, false);
+      holdStatus(
+        html`Тайлбар харах үг дээрээ товшоод дахин дарна уу`,
+        3000,
+        false,
+      );
       return;
     }
     const definition = await defTip.definitionFor(

@@ -1,3 +1,4 @@
+import { setHtml } from "../core/htmlutil.ts";
 import { onImagesChange, pickImage, putImage } from "../files/images.ts";
 import { downloadBlob } from "../files/download.ts";
 import type { SaveChain } from "../ui/savechain.ts";
@@ -222,7 +223,7 @@ function paintMissing(
       ? []
       : missingImages(options.editor.value);
   parts.missingField.hidden = missing.length === 0;
-  parts.missingList.innerHTML = missingItems(missing);
+  setHtml(parts.missingList, missingItems(missing));
 }
 
 function paintFormat(

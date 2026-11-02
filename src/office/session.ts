@@ -1,5 +1,6 @@
+import type { Html } from "../core/htmlutil.ts";
 import { noteError } from "../core/errorlog.ts";
-import { escapeHtml } from "../core/htmlutil.ts";
+import { escapeHtml, html, trustedHtml } from "../core/htmlutil.ts";
 import { readFailureMessage } from "./fileerror.ts";
 import type { PreviewSource } from "../preview/preview.ts";
 import { swapText } from "../editor/editortext.ts";
@@ -44,13 +45,13 @@ function isPdfFile(file: File): boolean {
 
 async function readPdf(file: File, status: StatusPort): Promise<string | null> {
   status.release();
-  status.set("PDF файлыг уншиж байна…");
+  status.set(html`PDF файлыг уншиж байна…`);
   let stallTimer: number | null = null;
   const armStall = (): void => {
     if (stallTimer) clearTimeout(stallTimer);
     stallTimer = window.setTimeout(() => {
       stallTimer = null;
-      status.set("Бичвэрийг бэлдэж байна…", false);
+      status.set(html`Бичвэрийг бэлдэж байна…`, false);
     }, 5000);
   };
   try {
@@ -59,10 +60,12 @@ async function readPdf(file: File, status: StatusPort): Promise<string | null> {
     return await mod.extractPdfText(file, (page, total) => {
       armStall();
       if (total > 1)
-        status.set("PDF уншиж байна — " + page + " / " + total, false);
+        status.set(html`PDF уншиж байна — ${page} / ${total}`, false);
     });
   } catch (e) {
-    status.hold(readFailureMessage(e, "PDF файлыг уншиж чадсангүй"));
+    status.hold(
+      escapeHtml(readFailureMessage(e, "PDF файлыг уншиж чадсангүй")),
+    );
     return null;
   } finally {
     if (stallTimer) clearTimeout(stallTimer);
@@ -78,14 +81,14 @@ async function loadOffice(
     mod = await import("./mode.ts");
   } catch (error) {
     noteError(error);
-    holdStatus("Баримт уншигчийг ачаалж чадсангүй");
+    holdStatus(html`Баримт уншигчийг ачаалж чадсангүй`);
     return "failed";
   }
   if (mod.officeFormat(file) === null) return "unknown";
   try {
     return await mod.openOfficeMode(file);
   } catch (e) {
-    holdStatus(readFailureMessage(e, "Файлыг уншиж чадсангүй"));
+    holdStatus(escapeHtml(readFailureMessage(e, "Файлыг уншиж чадсангүй")));
     return "failed";
   }
 }
@@ -93,16 +96,16 @@ async function loadOffice(
 function skippedNote(out: {
   applied: number;
   skippedWords: readonly { word: string; reason: string }[];
-}): string {
+}): Html {
   const names = out.skippedWords
     .map((item) => '"' + escapeHtml(item.word) + '" (' + item.reason + ")")
     .join(", ");
-  return (
+  return trustedHtml(
     "Засагдсангүй: " +
-    names +
-    " — үлдсэн " +
-    out.applied +
-    " засвар хадгалагдлаа"
+      names +
+      " — үлдсэн " +
+      out.applied +
+      " засвар хадгалагдлаа",
   );
 }
 
@@ -133,7 +136,7 @@ export function createOfficeSession(deps: OfficeSessionDeps): OfficeSession {
   const openPdf = async (file: File): Promise<boolean> => {
     const text = await readPdf(file, deps.status);
     if (text === null) return true;
-    holdStatus("Бичвэрийг бэлдэж байна…", PREPARE_HOLD_MS, false);
+    holdStatus(html`Бичвэрийг бэлдэж байна…`, PREPARE_HOLD_MS, false);
     await new Promise((resolve) =>
       requestAnimationFrame(() => requestAnimationFrame(() => resolve(null))),
     );
@@ -160,7 +163,7 @@ export function createOfficeSession(deps: OfficeSessionDeps): OfficeSession {
     const changed = draftText !== undefined && draftText !== source;
     const restored = changed && opened.sync(source, draftText);
     if (changed && !restored)
-      holdStatus("Өмнөх засваруудыг сэргээж чадсангүй", 8000);
+      holdStatus(html`Өмнөх засваруудыг сэргээж чадсангүй`, 8000);
     swapText(editor, restored ? draftText : source, {
       origin: "office",
       notify: false,

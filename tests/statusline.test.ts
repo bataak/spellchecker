@@ -1,3 +1,4 @@
+import { trustedHtml } from "../src/core/htmlutil.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { caretLine, statsBody, statsMessage } from "../src/ui/statusline.ts";
@@ -26,14 +27,14 @@ test("statsBody: гар утсанд алдаа ба мөрийн байрлал
 });
 
 test("statsMessage: файлын нэрийг escape хийж нэмнэ", () => {
-  assert.equal(statsMessage(null, "body"), "body");
-  const html = statsMessage("<a>.docx", "body");
+  assert.equal(statsMessage(null, trustedHtml("body")), "body");
+  const html = statsMessage("<a>.docx", trustedHtml("body"));
   assert.ok(html.includes('title="&lt;a&gt;.docx"'));
   assert.ok(html.endsWith('<span class="doc-sep">, </span>body</span>'));
 });
 
 test("statsMessage: файлын нэрийн хашилт attribute-аас гарахгүй", () => {
-  const html = statsMessage('a" onclick="x.md', "body");
+  const html = statsMessage('a" onclick="x.md', trustedHtml("body"));
   assert.match(html, /title="a&quot; onclick=&quot;x\.md"/);
   assert.doesNotMatch(html, /title="a" onclick/);
 });

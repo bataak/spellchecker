@@ -1,3 +1,4 @@
+import { setHtml } from "../core/htmlutil.ts";
 import { requireEl } from "../ui/dom.ts";
 import { getSubmitted, addSubmitted } from "./submitted.ts";
 import {
@@ -68,7 +69,7 @@ function buildForm(): FormParts {
   const overlay = document.createElement("div");
   overlay.className = "suggest-overlay";
   overlay.hidden = true;
-  overlay.innerHTML = SUGGEST_HTML;
+  setHtml(overlay, SUGGEST_HTML);
   document.body.appendChild(overlay);
   const find = <T extends HTMLElement>(selector: string): T =>
     requireEl<T>(selector, overlay);
@@ -108,9 +109,11 @@ function bindWordInput(
 
 function renderSubmitted({ overlay, title }: FormParts): void {
   const submitted = [...getSubmitted()].sort((a, b) => a.localeCompare(b));
-  title.innerHTML = submittedTitle(submitted.length);
-  requireEl(".suggest-submitted-chips", overlay).innerHTML =
-    submittedChips(submitted);
+  setHtml(title, submittedTitle(submitted.length));
+  setHtml(
+    requireEl(".suggest-submitted-chips", overlay),
+    submittedChips(submitted),
+  );
 }
 
 function bindFormKeys(

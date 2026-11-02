@@ -1,3 +1,5 @@
+import { html } from "../core/htmlutil.ts";
+import type { Html } from "../core/htmlutil.ts";
 import type { AppUpdate } from "./appupdate.ts";
 import type { DraftText } from "../editor/drafttext.ts";
 import { requestDurableStorage } from "../core/offline.ts";
@@ -21,7 +23,7 @@ export interface BootDeps {
   readonly nudge: () => void;
   readonly appUpdate: AppUpdate;
   readonly dictLife: DictLife;
-  readonly status: (message: string) => void;
+  readonly status: (markup: Html) => void;
 }
 
 async function restoreView(deps: BootDeps): Promise<void> {
@@ -62,7 +64,7 @@ async function start(deps: BootDeps): Promise<void> {
   void requestDurableStorage();
   if (!import.meta.env.DEV) void deps.appUpdate.recoverStale(true);
   deps.dictLife.watchFatal();
-  deps.status("Hunspell ачаалж байна…");
+  deps.status(html`Hunspell ачаалж байна…`);
   await restoreView(deps);
   await deps.dictLife.start();
 }

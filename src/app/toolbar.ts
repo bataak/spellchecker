@@ -1,3 +1,5 @@
+import { html, trustedHtml } from "../core/htmlutil.ts";
+import type { Html } from "../core/htmlutil.ts";
 import { requireEl } from "../ui/dom.ts";
 import { buildErrorList, type Token } from "../spell/textcheck.ts";
 import { initWipeButton } from "../ui/wipe.ts";
@@ -193,12 +195,12 @@ function initCopyButton(
   let timer: ReturnType<typeof setTimeout> | null = null;
   let armed = false;
   let revertTimer: ReturnType<typeof setTimeout> | null = null;
-  const showStatus = (msg: string): void => {
-    const prevStatus = statusEl.innerHTML;
-    setStatus(msg, false);
+  const showStatus = (markup: Html): void => {
+    const prevStatus = trustedHtml(statusEl.innerHTML);
+    setStatus(markup, false);
     if (revertTimer) clearTimeout(revertTimer);
     revertTimer = setTimeout(() => {
-      if (statusEl.innerHTML === msg) setStatus(prevStatus, false);
+      if (statusEl.innerHTML === markup) setStatus(prevStatus, false);
     }, 1600);
   };
   btn.addEventListener("pointerdown", () => {
@@ -224,14 +226,14 @@ function initCopyButton(
       armed = false;
       const words = buildErrorList(badTokens()).map((token) => token.word);
       if (!words.length) {
-        showStatus("Алдаатай үг алга");
+        showStatus(html`Алдаатай үг алга`);
         return;
       }
       try {
         await copyText(words.join("\n"));
-        showStatus("Алдаатай үгс хуулагдлаа");
+        showStatus(html`Алдаатай үгс хуулагдлаа`);
       } catch {
-        showStatus("Хуулах боломжгүй");
+        showStatus(html`Хуулах боломжгүй`);
       }
       return;
     }
@@ -253,7 +255,8 @@ function pasteManually(
   editor.focus();
   if (isTouch()) {
     setStatus(
-      "Талбар дотор удаан дарахад гарах <b>Paste</b> цэсийг ашиглан буулгана уу",
+      html`Талбар дотор удаан дарахад гарах <b>Paste</b> цэсийг ашиглан буулгана
+        уу`,
     );
     return;
   }

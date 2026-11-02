@@ -1,4 +1,4 @@
-import { applyDataStyles } from "../core/htmlutil.ts";
+import { applyDataStyles, setHtml, trustedHtml } from "../core/htmlutil.ts";
 import { fitBlanks, parse, toHtml, type Block } from "../markdown.ts";
 import { resolveImages } from "./mdimages.ts";
 
@@ -31,7 +31,7 @@ export function createMarkdownView(body: HTMLElement): MarkdownView {
       if (html !== shownHtml) {
         shownHtml = html;
         const next = document.createElement("div");
-        next.innerHTML = html;
+        setHtml(next, trustedHtml(html));
         applyDataStyles(next);
         resolveImages(next);
         renderMath(next);

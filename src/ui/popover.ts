@@ -1,3 +1,4 @@
+import { setHtml, trustedHtml } from "../core/htmlutil.ts";
 import type { Backdrop } from "../editor/backdrop.ts";
 import type { DefTip } from "../define/deftip.ts";
 import { isTouch } from "../editor/input.ts";
@@ -72,10 +73,11 @@ function bindDismiss(
   window.addEventListener("resize", a.place);
 }
 
-const POP_LOADING =
+const POP_LOADING = trustedHtml(
   '<div class="pop-scroll">' +
-  '<div class="pop-list"><div class="muted pop-empty">тооцоолж байна…</div></div>' +
-  "</div>";
+    '<div class="pop-list"><div class="muted pop-empty">тооцоолж байна…</div></div>' +
+    "</div>",
+);
 
 const KB_DELAYS = [100, 250, 450, 650];
 
@@ -222,7 +224,7 @@ export function initPopover(deps: PopoverDeps): Popover {
     wordPanelSpan = null;
     delete popover.dataset.view;
     defTip.resetDefinitions();
-    popover.innerHTML = POP_LOADING;
+    setHtml(popover, POP_LOADING);
     activeStart = start;
     popoverScrollTop = editor.scrollTop;
     popover.hidden = false;

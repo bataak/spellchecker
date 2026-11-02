@@ -1,3 +1,5 @@
+import type { Html } from "../core/htmlutil.ts";
+import { setHtml } from "../core/htmlutil.ts";
 import { PROJECT_SLOT } from "./fileslots.ts";
 import { onViewportChange, placeBelow } from "../ui/placebelow.ts";
 import { eventElement, eventNode, listStep } from "../ui/dom.ts";
@@ -13,7 +15,7 @@ export interface SlotDropdownDeps {
 }
 
 export interface SlotDropdown {
-  render(html: string): void;
+  render(markup: Html): void;
   pick(value: string): string | null;
   isOpen(): boolean;
   contains(node: Node): boolean;
@@ -138,7 +140,7 @@ export function createSlotDropdown(deps: SlotDropdownDeps): SlotDropdown {
 
   return {
     render(html) {
-      menu.innerHTML = html;
+      setHtml(menu, html);
       items = [...menu.querySelectorAll<HTMLButtonElement>(".md-menu-item")];
     },
     pick: (value) => checkItems(items, value),

@@ -1,12 +1,13 @@
+import type { Html } from "../core/htmlutil.ts";
 import { PROJECT_SLOT, type FileSlot } from "./fileslots.ts";
-import { escapeAttr } from "../core/htmlutil.ts";
+import { escapeAttr, trustedHtml } from "../core/htmlutil.ts";
 import { TEMPLATE_GROUPS, TEMPLATES, findTemplate } from "../doc/templates.ts";
 
 export function pickerOptions(
   files: readonly FileSlot[],
   dirty: (slot: FileSlot) => boolean,
   project: { readonly name: string; readonly dirty: boolean } | null,
-): string {
+): Html {
   const option = (value: string, label: string): string =>
     '<button type="button" class="md-menu-item" role="menuitemradio" ' +
     'aria-checked="false" data-value="' +
@@ -72,27 +73,27 @@ export function pickerOptions(
   for (const group of TEMPLATE_GROUPS)
     for (const id of group.ids) grouped.add(id);
 
-  return (
+  return trustedHtml(
     fileGroup +
-    TEMPLATE_GROUPS.map(
-      (group) =>
-        '<div class="md-menu-group" role="presentation">' +
-        escapeAttr(group.name) +
-        "</div>" +
-        group.ids.map(slot).join(""),
-    ).join("") +
-    TEMPLATES.filter((item) => !grouped.has(item.id))
-      .map((item) => slot(item.id))
-      .join("")
+      TEMPLATE_GROUPS.map(
+        (group) =>
+          '<div class="md-menu-group" role="presentation">' +
+          escapeAttr(group.name) +
+          "</div>" +
+          group.ids.map(slot).join(""),
+      ).join("") +
+      TEMPLATES.filter((item) => !grouped.has(item.id))
+        .map((item) => slot(item.id))
+        .join(""),
   );
 }
 
-export function buildPicker(): string {
-  return (
+export function buildPicker(): Html {
+  return trustedHtml(
     '<span class="md-select"><button type="button" ' +
-    'class="tbtn tbtn-icon md-template" aria-haspopup="menu" ' +
-    'aria-expanded="false" aria-label="Баримтын загвар"></button></span>' +
-    '<span class="md-file" hidden><span class="md-file-head"></span>' +
-    '<span class="md-file-tail"></span></span>'
+      'class="tbtn tbtn-icon md-template" aria-haspopup="menu" ' +
+      'aria-expanded="false" aria-label="Баримтын загвар"></button></span>' +
+      '<span class="md-file" hidden><span class="md-file-head"></span>' +
+      '<span class="md-file-tail"></span></span>',
   );
 }

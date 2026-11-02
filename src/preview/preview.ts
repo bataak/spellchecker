@@ -1,3 +1,5 @@
+import { escapeHtml } from "../core/htmlutil.ts";
+import type { Html } from "../core/htmlutil.ts";
 import { initImageEdit } from "./imageedit.ts";
 import { onImagesChange } from "../files/images.ts";
 import { createHtmlSync } from "./htmlsync.ts";
@@ -41,7 +43,7 @@ export interface PreviewDeps {
   readonly texProject: () => TexProject | null;
   readonly pdfName: () => string;
   readonly jump: (start: number, end: number) => void;
-  readonly notify: (html: string, ms: number, animate: boolean) => void;
+  readonly notify: (markup: Html, ms: number, animate: boolean) => void;
 }
 
 export interface Preview {
@@ -126,7 +128,7 @@ function wireTex(w: TexWiring) {
     onImagesChanged: w.update,
     onModeChange: (_auto, note) => {
       compileMode.paint();
-      if (note) deps.notify(note, 9000, false);
+      if (note) deps.notify(escapeHtml(note), 9000, false);
     },
   });
   const compileMode = initCompileButton({

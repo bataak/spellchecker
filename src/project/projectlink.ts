@@ -1,3 +1,4 @@
+import type { Html } from "../core/htmlutil.ts";
 import { failureHtml } from "./projecterror.ts";
 import { initProjectPanel, type ProjectPanel } from "./projectpanel.ts";
 import {
@@ -67,7 +68,7 @@ export interface ProjectLinkDeps extends BindDeps {
   readonly host: PanelHost;
   readonly onChange: () => void;
   readonly onProject: (name: string | null) => void;
-  readonly notify: (message: string) => void;
+  readonly notify: (markup: Html) => void;
 }
 
 export interface ProjectLink {

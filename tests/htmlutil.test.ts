@@ -1,6 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { escapeHtml } from "../src/core/htmlutil.ts";
+import {
+  escapeHtml,
+  html,
+  joinHtml,
+  trustedHtml,
+} from "../src/core/htmlutil.ts";
 
 test("escapeHtml тусгай тэмдэгтүүдийг хувиргана", () => {
   assert.equal(
@@ -19,4 +24,16 @@ test("escapeHtml: хоосон мөр", () => {
 
 test("escapeHtml: давтагдсан тэмдэгтүүд", () => {
   assert.equal(escapeHtml("<<&&>>"), "&lt;&lt;&amp;&amp;&gt;&gt;");
+});
+
+test("html: зөвхөн Html болон тоог холбож, бусад бичвэрийг escape-ээр дамжуулна", () => {
+  assert.equal(html`<b>${escapeHtml("<x>")}</b> ${3}`, "<b>&lt;x&gt;</b> 3");
+});
+
+test("joinHtml: Html хэсгүүдийг заасан тусгаарлагчаар нийлүүлнэ", () => {
+  assert.equal(
+    joinHtml([html`a`, trustedHtml("<i>b</i>")], html` · `),
+    "a · <i>b</i>",
+  );
+  assert.equal(joinHtml([html`a`, html`b`]), "ab");
 });
