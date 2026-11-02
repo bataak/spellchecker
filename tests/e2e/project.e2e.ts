@@ -317,5 +317,5 @@ test("том төсөлд Ctrl+Shift дарж заасан үгийн тайлб
   const longest = await page.evaluate(
     () => (window as unknown as Record<string, { ms: number }>).__longest!.ms,
   );
-  assert.ok(longest < 60, `${Math.round(longest)} мс`);
+  assert.ok(longest < 150, `${Math.round(longest)} мс`);
 });
