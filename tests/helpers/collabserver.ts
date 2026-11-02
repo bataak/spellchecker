@@ -9,6 +9,7 @@ export interface CollabServer {
   readonly url: string;
   allow(origin: string): Promise<void>;
   expire(room: string): Promise<void>;
+  storedRoom(room: string): Promise<string | null>;
   close(): Promise<void>;
 }
 
@@ -88,6 +89,13 @@ export async function startCollab(
         sweep(): Promise<void>;
       };
       await stub.sweep();
+    },
+    async storedRoom(room) {
+      const rooms = await mf.getDurableObjectNamespace("ROOMS");
+      const stub = rooms.get(rooms.idFromName(room)) as unknown as {
+        roomId(): Promise<string | null>;
+      };
+      return stub.roomId();
     },
     close: () => mf.dispose(),
   };

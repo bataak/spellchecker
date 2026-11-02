@@ -106,3 +106,13 @@ test("хаагдсан өрөөг хугацаа дууссаны дараа ч 
   await server.expire(room);
   assert.equal(await knock(room, randomId(12), "o=" + newToken()), WIPED);
 });
+
+test("татгалзсан холболт өрөөний нэрийг хадгалахгүй, зөвшөөрсөн нь хадгална", async () => {
+  const room = randomId(16);
+  assert.equal(await knock(room, randomId(12), "m=" + newToken()), DENIED);
+  assert.equal(await knock(room, randomId(12), "x=1"), DENIED);
+  assert.equal(await server.storedRoom(room), null);
+  const client = await connect(room, randomId(12), "o=" + newToken());
+  assert.equal(await server.storedRoom(room), room);
+  client.close();
+});
