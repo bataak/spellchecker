@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.121.2](https://github.com/bataak/spellchecker/compare/v1.121.1...v1.121.2) (2026-11-02)
+
+
+### Bug Fixes
+
+* **office:** accept fixes in text holding carriage returns ([ca80bcb](https://github.com/bataak/spellchecker/commit/ca80bcbf1e60daec3dce6ee46c9bf010cb3a696a))
+* **office:** keep formatting and whitespace when saving fixes ([2b9555a](https://github.com/bataak/spellchecker/commit/2b9555ae0eb139f37a3b74e65daf05541538fac7))
+* **office:** merge overlapping edits and commit only verified text ([4abc2ed](https://github.com/bataak/spellchecker/commit/4abc2ed40f78933915af5c0cbef68d19a07a3fbc))
+* **office:** read CDATA text literally and keep its meaning on save ([5f08131](https://github.com/bataak/spellchecker/commit/5f081313e755fb00a5a8a93d5c7c4179069e67e3))
+* **ui:** type HTML sinks and escape file names from links ([5d89b07](https://github.com/bataak/spellchecker/commit/5d89b07ed998416673a20d9e47a6343d250c59fe))
+* **undo:** ignore undo and redo while the editor is read-only ([b8ec772](https://github.com/bataak/spellchecker/commit/b8ec77289b392f96fc2431c92b4c3a685f1b4fcc))
+* **undo:** rebase each history step in its own coordinates ([2be89cc](https://github.com/bataak/spellchecker/commit/2be89cc9c011c647f2a39497e1010dfd31d9a362))
+
 ## [1.121.1](https://github.com/bataak/spellchecker/compare/v1.121.0...v1.121.1) (2026-11-02)
 
 
