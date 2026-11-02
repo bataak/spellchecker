@@ -150,6 +150,15 @@ function createDefPanel(
   return { close, show };
 }
 
+function popoverList(popover: HTMLElement): HTMLElement | null {
+  return popover.querySelector<HTMLElement>(".pop-list");
+}
+
+function refreshScrollHint(popover: HTMLElement): void {
+  const target = popoverList(popover);
+  if (target) scrollHints(popover, target);
+}
+
 export function initPopover(deps: PopoverDeps): Popover {
   const { editor, backdrop, popover, defTip } = deps;
   let activeStart: number | null = null;
@@ -199,13 +208,8 @@ export function initPopover(deps: PopoverDeps): Popover {
     return true;
   });
 
-  const list = (): HTMLElement | null =>
-    popover.querySelector<HTMLElement>(".pop-list");
-
-  function updateScrollHint(): void {
-    const target = list();
-    if (target) scrollHints(popover, target);
-  }
+  const list = (): HTMLElement | null => popoverList(popover);
+  const updateScrollHint = (): void => refreshScrollHint(popover);
 
   const placer = createPlacer({
     popover,

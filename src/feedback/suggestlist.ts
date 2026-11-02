@@ -40,6 +40,31 @@ export interface WordList {
   copyToClipboard(): Promise<void>;
 }
 
+function paintCount(overlay: HTMLElement, count: number): void {
+  const clear = overlay.querySelector<HTMLElement>(".suggest-clear-all");
+  if (clear) clear.hidden = count < 2;
+  const label = overlay.querySelector<HTMLElement>(".suggest-count");
+  if (!label) return;
+  label.textContent = count ? "(" + count + ")" : "";
+  label.classList.toggle("over", count > MAX_WORDS);
+}
+
+async function copyToClipboard(
+  list: readonly string[],
+  note: WordListDeps["note"],
+): Promise<void> {
+  if (!list.length) {
+    note("Хуулах үг алга");
+    return;
+  }
+  try {
+    await copyText(list.join("\n"));
+    note(copiedNote(list.length), "ok");
+  } catch {
+    note(COPY_FAILED, "err");
+  }
+}
+
 export function createWordList(d: WordListDeps): WordList {
   const { overlay, note } = d;
   const wordEl = requireEl<HTMLInputElement>("#suggestWord", overlay);
@@ -49,13 +74,7 @@ export function createWordList(d: WordListDeps): WordList {
 
   function render(): void {
     const box = requireEl(".suggest-chips", overlay);
-    const clr = overlay.querySelector<HTMLElement>(".suggest-clear-all");
-    if (clr) clr.hidden = words.length < 2;
-    const cnt = overlay.querySelector<HTMLElement>(".suggest-count");
-    if (cnt) {
-      cnt.textContent = words.length ? "(" + words.length + ")" : "";
-      cnt.classList.toggle("over", words.length > MAX_WORDS);
-    }
+    paintCount(overlay, words.length);
     setHtml(box, wordChips(words));
     box.querySelectorAll<HTMLElement>(".suggest-chip-x").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -131,18 +150,6 @@ export function createWordList(d: WordListDeps): WordList {
       return pendingAdd;
     },
     copyWords,
-    async copyToClipboard() {
-      const list = copyWords();
-      if (!list.length) {
-        note("Хуулах үг алга");
-        return;
-      }
-      try {
-        await copyText(list.join("\n"));
-        note(copiedNote(list.length), "ok");
-      } catch {
-        note(COPY_FAILED, "err");
-      }
-    },
+    copyToClipboard: () => copyToClipboard(copyWords(), note),
   };
 }

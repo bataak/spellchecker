@@ -140,16 +140,28 @@ function rowMenu(
   return items;
 }
 
+async function createEntry(
+  deps: TreeControlDeps,
+  path: string,
+  dir: boolean,
+): Promise<void> {
+  await (dir ? deps.store.createDir(path) : deps.store.createFile(path));
+  deps.state.selected = path;
+  if (!dir && isEditablePath(path)) deps.openFile(path);
+}
+
+function canBeMain(
+  main: string | null,
+  path: string,
+  text: string | null,
+): boolean {
+  return (
+    text !== null && isTexSource(path) && main !== path && isLatexDocument(text)
+  );
+}
+
 export function initTreeControl(deps: TreeControlDeps): TreeControl {
-  const {
-    createDir,
-    createFile,
-    project,
-    projectText,
-    removePath,
-    renamePath,
-    setMain,
-  } = deps.store;
+  const { project, projectText, removePath, renamePath, setMain } = deps.store;
   const { state } = deps;
 
   const isDir = (path: string): boolean =>
@@ -181,17 +193,9 @@ export function initTreeControl(deps: TreeControlDeps): TreeControl {
     if (parent) state.collapsed.delete(parent);
     state.shown = "";
     deps.render();
-    editName(nameEditor, insertRow, dir ? "" : "*.tex", async (name) => {
-      const path = joinPath(parent, name);
-      if (dir) {
-        await createDir(path);
-        state.selected = path;
-        return;
-      }
-      await createFile(path);
-      state.selected = path;
-      if (isEditablePath(path)) deps.openFile(path);
-    });
+    editName(nameEditor, insertRow, dir ? "" : "*.tex", (name) =>
+      createEntry(deps, joinPath(parent, name), dir),
+    );
   };
 
   const startRename = (path: string): void => {
@@ -226,12 +230,7 @@ export function initTreeControl(deps: TreeControlDeps): TreeControl {
     state.selected = path;
     const dir = isDir(path);
     const text = dir ? null : projectText(path);
-    const main =
-      text !== null &&
-      isTexSource(path) &&
-      view.main !== path &&
-      isLatexDocument(text);
-    const items = rowMenu(dir, main, {
+    const items = rowMenu(dir, canBeMain(view.main, path, text), {
       main: () => setMain(path),
       create: startCreate,
       rename: () => startRename(path),
