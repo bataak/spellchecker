@@ -227,6 +227,20 @@ export async function typeAtEnd(page: Page, text: string): Promise<void> {
   await page.keyboard.type(text);
 }
 
+export async function pasteText(page: Page, text: string): Promise<void> {
+  await page.evaluate((value) => {
+    const source = document.createElement("textarea");
+    source.id = "paste-source";
+    source.value = value;
+    document.body.appendChild(source);
+    source.select();
+  }, text);
+  await page.keyboard.press("ControlOrMeta+C");
+  await page.evaluate(() => document.querySelector("#paste-source")!.remove());
+  await page.click("#editor");
+  await page.keyboard.press("ControlOrMeta+V");
+}
+
 export async function settle(page: Page): Promise<void> {
   await page.waitForTimeout(700);
 }

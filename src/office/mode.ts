@@ -1,9 +1,9 @@
 import { downloadBlob } from "../files/download.ts";
-import { lineDiff } from "./linediff.ts";
 import { openDocx, saveDocx } from "./docx/index.ts";
 import { openOdf, saveOdf } from "./odf/index.ts";
 import { openPptx, savePptx } from "./pptx/index.ts";
 import { FileReadError } from "./fileerror.ts";
+import { syncEdits } from "./editsync.ts";
 import { renderFlat } from "./textdoc.ts";
 import type { SaveResult, TextEdit, TextIndex } from "./textdoc.ts";
 import type { SkipReason } from "./docx/edit.ts";
@@ -115,22 +115,6 @@ const ENGINES: Record<OfficeFormat, (bytes: Uint8Array) => Engine> = {
   odp: (bytes) => engineOf(openOdf(bytes), saveOdf),
 };
 
-export function mergeEdit(
-  source: string,
-  edits: OfficeEdit[],
-  start: number,
-  end: number,
-  text: string,
-): OfficeEdit[] {
-  const kept = edits.filter((edit) => edit.end <= start || edit.start >= end);
-  const next = [...kept, { start, end, text }].sort(
-    (l, r) => l.start - r.start,
-  );
-  return next.filter(
-    (edit) => source.slice(edit.start, edit.end) !== edit.text,
-  );
-}
-
 export async function deliver(
   bytes: Uint8Array<ArrayBuffer>,
   name: string,
@@ -171,21 +155,10 @@ export async function openOfficeMode(file: File): Promise<OfficeMode> {
   let edits: OfficeEdit[] = [];
 
   const sync = (oldText: string, newText: string): boolean => {
-    const spans = lineDiff(oldText, newText);
-    if (spans === null) return false;
-
-    const before = renderFlat(source, edits);
-    if (before !== oldText) return false;
-
-    let next = edits;
-    for (const span of [...spans].sort((l, r) => r.start - l.start)) {
-      const mapped = mapToSource(source, next, span.start, span.end, span.text);
-      if (mapped === null) return false;
-      next = mergeEdit(source, next, mapped.start, mapped.end, mapped.text);
-    }
-
+    const next = syncEdits(source, edits, oldText, newText);
+    if (next === null) return false;
     edits = next;
-    return renderFlat(source, edits) === newText;
+    return true;
   };
 
   return {
@@ -218,70 +191,4 @@ export async function openOfficeMode(file: File): Promise<OfficeMode> {
       };
     },
   };
-}
-
-export function mapToSource(
-  source: string,
-  edits: OfficeEdit[],
-  start: number,
-  end: number,
-  text: string,
-): OfficeEdit | null {
-  const ordered = [...edits].sort((l, r) => l.start - r.start);
-  const rendered = renderFlat(source, ordered);
-
-  let sourceCursor = 0;
-  let renderCursor = 0;
-
-  let sourceStart = -1;
-  let renderStart = -1;
-  let sourceEnd = -1;
-  let renderEnd = -1;
-
-  const consider = (rs: number, re: number, ss: number, se: number): void => {
-    if (sourceStart < 0 && start >= rs && start <= re) {
-      sourceStart = se === ss ? ss : ss + Math.min(start - rs, se - ss);
-      renderStart = start;
-      if (se - ss !== re - rs) {
-        sourceStart = ss;
-        renderStart = rs;
-      }
-    }
-    if (end >= rs && end <= re) {
-      sourceEnd = se === ss ? ss : ss + Math.min(end - rs, se - ss);
-      renderEnd = end;
-      if (se - ss !== re - rs) {
-        sourceEnd = se;
-        renderEnd = re;
-      }
-    }
-  };
-
-  for (const edit of ordered) {
-    if (edit.start > sourceCursor) {
-      const length = edit.start - sourceCursor;
-      consider(renderCursor, renderCursor + length, sourceCursor, edit.start);
-      renderCursor += length;
-    }
-    consider(
-      renderCursor,
-      renderCursor + edit.text.length,
-      edit.start,
-      edit.end,
-    );
-    renderCursor += edit.text.length;
-    sourceCursor = edit.end;
-  }
-
-  if (sourceCursor <= source.length) {
-    const length = source.length - sourceCursor;
-    consider(renderCursor, renderCursor + length, sourceCursor, source.length);
-  }
-
-  if (sourceStart < 0 || sourceEnd < 0) return null;
-
-  const prefix = rendered.slice(renderStart, start);
-  const suffix = rendered.slice(end, renderEnd);
-
-  return { start: sourceStart, end: sourceEnd, text: prefix + text + suffix };
 }

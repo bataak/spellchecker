@@ -2,30 +2,14 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { lineDiff } from "../src/office/linediff.ts";
-import { mapToSource, mergeEdit } from "../src/office/mode.ts";
+import { syncEdits } from "../src/office/editsync.ts";
 import { renderFlat } from "../src/office/textdoc.ts";
 import type { OfficeEdit } from "../src/office/mode.ts";
 
 function sync(source: string, edits: OfficeEdit[], next: string): OfficeEdit[] {
-  const spans = lineDiff(renderFlat(source, edits), next);
-  assert.notEqual(spans, null);
-
-  let result = edits;
-  for (const span of [...spans!].sort(
-    (left, right) => right.start - left.start,
-  )) {
-    const mapped = mapToSource(source, result, span.start, span.end, span.text);
-    assert.notEqual(mapped, null);
-    result = mergeEdit(
-      source,
-      result,
-      mapped!.start,
-      mapped!.end,
-      mapped!.text,
-    );
-  }
-
-  return result;
+  const result = syncEdits(source, edits, renderFlat(source, edits), next);
+  assert.notEqual(result, null);
+  return result!;
 }
 
 test("returns no spans when nothing changed", () => {
