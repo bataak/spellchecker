@@ -1,4 +1,4 @@
-import { html, trustedHtml } from "../core/htmlutil.ts";
+import { html } from "../core/htmlutil.ts";
 import type { Html } from "../core/htmlutil.ts";
 import { requireEl } from "../ui/dom.ts";
 import { buildErrorList, type Token } from "../spell/textcheck.ts";
@@ -17,7 +17,6 @@ export interface OfficeSwitch {
 export interface ToolbarDeps {
   readonly editor: EditorPort;
   readonly status: StatusPort;
-  readonly statusEl: HTMLElement;
   readonly office: OfficeSwitch;
   readonly forgetFile: () => void;
   readonly afterClear: (cleared: boolean) => void;
@@ -185,8 +184,7 @@ function initClippedReveal(): void {
 
 function initCopyButton(
   editor: HTMLTextAreaElement,
-  setStatus: ToolbarDeps["status"]["set"],
-  statusEl: HTMLElement,
+  status: ToolbarDeps["status"],
   badTokens: ToolbarDeps["badTokens"],
 ): void {
   const btn = document.querySelector<HTMLElement>("#copyBtn");
@@ -196,11 +194,11 @@ function initCopyButton(
   let armed = false;
   let revertTimer: ReturnType<typeof setTimeout> | null = null;
   const showStatus = (markup: Html): void => {
-    const prevStatus = trustedHtml(statusEl.innerHTML);
-    setStatus(markup, false);
+    const previous = status.shown();
+    status.set(markup, false);
     if (revertTimer) clearTimeout(revertTimer);
     revertTimer = setTimeout(() => {
-      if (statusEl.innerHTML === markup) setStatus(prevStatus, false);
+      if (status.shown() === markup) status.set(previous, false);
     }, 1600);
   };
   btn.addEventListener("pointerdown", () => {
@@ -270,7 +268,6 @@ function pasteManually(
 function initButtons({
   editor: port,
   status,
-  statusEl,
   office,
   forgetFile,
   hasOpenFile,
@@ -352,5 +349,5 @@ function initButtons({
     if (fixed !== text) lettersFixed();
   });
 
-  initCopyButton(editor, status.set, statusEl, badTokens);
+  initCopyButton(editor, status, badTokens);
 }

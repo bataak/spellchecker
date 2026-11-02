@@ -12,7 +12,6 @@ import {
 
 export interface DocStatusDeps {
   readonly status: StatusPort;
-  readonly statusEl: HTMLElement;
   readonly editor: HTMLTextAreaElement;
   readonly dicts: DictStatus;
   readonly fileName: () => string | null;
@@ -34,6 +33,7 @@ export function createDocStatus(deps: DocStatusDeps): DocStatus {
   const { status, editor, dicts, narrow } = deps;
   let ready = false;
   let stats: DocStats = NO_STATS;
+  let shownStats: Html | null = null;
 
   const blank = (): boolean => editor.value.trim() === "";
 
@@ -54,13 +54,18 @@ export function createDocStatus(deps: DocStatusDeps): DocStatus {
       statsBody(stats, deps.desktop.matches, linePosition(knownLine)),
     );
 
+  const showStats = (knownLine?: number): void => {
+    shownStats = current(knownLine);
+    status.set(shownStats, false);
+  };
+
   const restore = (): void => {
     if (!ready) return;
     if (blank() && !deps.fileName()) {
       if (dicts.base() && !dicts.indicating()) status.set(dicts.base());
       return;
     }
-    status.set(current(), false);
+    showStats();
   };
 
   return {
@@ -78,8 +83,8 @@ export function createDocStatus(deps: DocStatusDeps): DocStatus {
     },
     refreshLine(knownLine) {
       if (!ready || !narrow.matches) return;
-      if (!deps.statusEl.innerHTML.includes("Үгийн тоо:")) return;
-      status.set(current(knownLine), false);
+      if (status.shown() !== shownStats) return;
+      showStats(knownLine);
     },
   };
 }

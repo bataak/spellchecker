@@ -351,3 +351,14 @@ test("watchTabs: ижил төсөл дахин мэдэгдэхэд sync илг
   peer.close();
   assert.deepEqual(updates, ["p1", "p2", null]);
 });
+
+test("status: shown нь дэлгэцэд харагдаж буй мөрийг буцаана", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  globals.window = globalThis;
+  const status = initStatus(statusEl(), () => {});
+  status.set(trustedHtml("a"), false);
+  assert.equal(status.shown(), "a");
+  status.hold(trustedHtml("<b>b</b>"), 1000, false);
+  status.set(trustedHtml("c"), false);
+  assert.equal(status.shown(), "<b>b</b>");
+});

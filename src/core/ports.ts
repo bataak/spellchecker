@@ -4,6 +4,7 @@ export interface StatusPort {
   readonly set: (markup: Html, animate?: boolean) => void;
   readonly hold: (markup: Html, ms?: number, animate?: boolean) => void;
   readonly release: () => void;
+  readonly shown: () => Html;
 }
 
 export interface EditorPort {
