@@ -26,6 +26,7 @@ export const ALIGN_ENV = new Set([
 const EDGE = /^[ \t]+|[ \t]+$/g;
 const RELATION =
   /^(?:[=<>]|\\(?:le|ge|leq|geq|neq|ne|approx|equiv|sim|simeq|cong|to|mapsto|rightarrow|Rightarrow|leftrightarrow|Leftrightarrow|iff|implies|in|subset|subseteq|supset|supseteq)(?![a-zA-Z]))/;
+const INLINE_CODE = /^(?:verb|lstinline|mintinline)/;
 const MATH_ALIGN = /^(?:align|alignat|flalign|aligned|split)\*?$/;
 
 interface Row {
@@ -49,7 +50,7 @@ function scanRow(line: string): Row | null {
         breaks++;
         lastBreak = i;
       }
-      if (line.startsWith("verb", i + 1)) return null;
+      if (INLINE_CODE.test(line.slice(i + 1))) return null;
       i++;
       continue;
     }
