@@ -27,3 +27,24 @@ test("planPasses: агуулга хуудас шилжүүлдэг тул гур
   assert.equal(passes("\\listoffigures"), 3);
   assert.equal(passes("\\listoftables", "\\ref{x}"), 3);
 });
+
+for (const command of [
+  "\\citep{a}",
+  "\\citet*{a}",
+  "\\parencite{a}",
+  "\\textcite{a}",
+  "\\footcite{a}",
+  "\\nameref{a}",
+  "\\vref{a}",
+  "\\labelcref{a}",
+  "\\cpageref{a}",
+  "\\bibitem{a}",
+]) {
+  test(`planPasses: ${command} холбоос шинэчлэх шат нэмнэ`, () => {
+    assert.equal(passes(command), 2);
+  });
+}
+
+test("planPasses: cite-тэй төстэй бусад команд шат нэмэхгүй", () => {
+  assert.equal(passes("\\excited\\recitetext{a}"), 1);
+});
