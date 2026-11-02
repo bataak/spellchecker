@@ -178,3 +178,45 @@ test("палитрын туслах функцүүд", () => {
   assert.deepEqual(loadRecent().slice(0, 2), ["c5", "c9"]);
   assert.equal(loadRecent().length, 8);
 });
+
+const BODY = "\\begin{document}\n\n\\end{document}\n";
+const ARTICLE = "\\documentclass{article}\n" + BODY;
+
+function chooseFrom(tool: string, code: string): void {
+  button(tool).click();
+  const item = [...pop.querySelectorAll<HTMLElement>(".tex-item")].find(
+    (entry) => entry.querySelector(".tex-code")?.textContent === code,
+  );
+  assert.ok(item, code);
+  item.click();
+}
+
+test("texBar: цэснээс оруулахад дутуу багцыг преамбулд нэмнэ", () => {
+  set(ARTICLE, ARTICLE.indexOf("\\end{document}") - 1);
+  chooseFrom("math", "\\mathbb");
+  assert.equal(
+    marked(),
+    "\\documentclass{article}\n\\usepackage{amssymb}\n\\begin{document}\n\\mathbb{|}\n\\end{document}\n",
+  );
+  const end = editor.value.indexOf("\\end{document}") - 1;
+  editor.setSelectionRange(end, end);
+  chooseFrom("math", "\\mathbb");
+  assert.equal(editor.value.match(/amssymb/g)?.length, 1);
+});
+
+test("texBar: баримтын ангид байхгүй бүлгийг цэсэнд харуулахгүй", () => {
+  const codes = (): string[] => {
+    button("structure").click();
+    const out = [...pop.querySelectorAll(".tex-code")].map(
+      (node) => node.textContent ?? "",
+    );
+    button("structure").click();
+    return out;
+  };
+  set(ARTICLE, 0);
+  assert.ok(!codes().includes("\\chapter"));
+  set("\\documentclass{book}\n" + BODY, 0);
+  assert.ok(codes().includes("\\chapter"));
+  set("хэсэг", 0);
+  assert.ok(codes().includes("\\chapter"));
+});
