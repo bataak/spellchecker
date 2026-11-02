@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { mapToSource, mergeEdit, suggestName } from "../src/office/mode.ts";
+import { applyEdit } from "../src/office/editsync.ts";
+import { suggestName } from "../src/office/mode.ts";
 import { renderFlat } from "../src/office/textdoc.ts";
 import { splitName } from "../src/office/filename.ts";
 import type { OfficeEdit } from "../src/office/mode.ts";
@@ -14,9 +15,7 @@ function apply(
   end: number,
   text: string,
 ): OfficeEdit[] {
-  const mapped = mapToSource(SRC, edits, start, end, text);
-  assert.notEqual(mapped, null);
-  return mergeEdit(SRC, edits, mapped!.start, mapped!.end, mapped!.text);
+  return applyEdit(SRC, edits, start, end, text);
 }
 
 test("renders edits onto the source", () => {
@@ -67,10 +66,6 @@ test("names the saved file per format", () => {
   assert.equal(suggestName("slide.odp", "odp"), "slide-zassan.odp");
 });
 
-test("returns null for an offset outside the document", () => {
-  assert.equal(mapToSource(SRC, [], 500, 505, "x"), null);
-});
-
 test("the output name does not grow when saving twice", () => {
   assert.equal(suggestName("tailan-zassan.docx", "docx"), "tailan-zassan.docx");
   assert.equal(
@@ -96,9 +91,7 @@ test("survives a long chain of corrections", () => {
   let edits: OfficeEdit[] = [];
 
   const step = (start: number, end: number, text: string): void => {
-    const mapped = mapToSource(source, edits, start, end, text);
-    assert.notEqual(mapped, null);
-    edits = mergeEdit(source, edits, mapped!.start, mapped!.end, mapped!.text);
+    edits = applyEdit(source, edits, start, end, text);
   };
 
   step(0, 3, "ААВЫН");
@@ -120,8 +113,7 @@ test("reverts one edit while keeping the others", () => {
   let edits: OfficeEdit[] = [];
 
   const step = (start: number, end: number, text: string): void => {
-    const mapped = mapToSource(source, edits, start, end, text);
-    edits = mergeEdit(source, edits, mapped!.start, mapped!.end, mapped!.text);
+    edits = applyEdit(source, edits, start, end, text);
   };
 
   step(0, 3, "НЭГ");
