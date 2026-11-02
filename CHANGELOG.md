@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.122.0](https://github.com/bataak/spellchecker/compare/v1.121.2...v1.122.0) (2026-11-02)
+
+
+### Features
+
+* **office:** tell users which document parts were not checked ([83af891](https://github.com/bataak/spellchecker/commit/83af89137a28abf0053ec93b7e2a94f2a20756d3))
+
+
+### Bug Fixes
+
+* **tex:** compile exported documents and project macros correctly ([a86802f](https://github.com/bataak/spellchecker/commit/a86802f96d96a04b5cfa01949573ca4ca3965012))
+* **tex:** leave literal text alone and stop retrying LaTeX errors ([670059b](https://github.com/bataak/spellchecker/commit/670059be077dded37f667531163c46a251ca216a))
+* **tex:** number nested lists and resolve bibliography references ([16ec996](https://github.com/bataak/spellchecker/commit/16ec996861af173b80eb194b96aab63275e5e051))
+
 ## [1.121.2](https://github.com/bataak/spellchecker/compare/v1.121.1...v1.121.2) (2026-11-02)
 
 
