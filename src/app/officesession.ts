@@ -11,8 +11,16 @@ import {
   saveOfficeFile,
 } from "../core/storage.ts";
 import type { OfficeMode } from "../office/mode.ts";
+import type { UnreadKind } from "../office/unread.ts";
 
 const PREPARE_HOLD_MS = 3000;
+const UNREAD_HOLD_MS = 12000;
+
+const UNREAD_LABELS: Record<UnreadKind, string> = {
+  notes: "зүүлт",
+  headers: "толгой, хөл",
+  boxes: "текст хайрцаг",
+};
 
 export interface OfficeSessionDeps {
   readonly editor: EditorPort;
@@ -109,6 +117,11 @@ function skippedNote(out: {
   );
 }
 
+function unreadNote(kinds: readonly UnreadKind[]): Html {
+  const names = kinds.map((kind) => UNREAD_LABELS[kind]).join(", ");
+  return trustedHtml("Шалгаж чадаагүй хэсэг: " + names);
+}
+
 export function createOfficeSession(deps: OfficeSessionDeps): OfficeSession {
   const editor = deps.editor.el;
   const { hold: holdStatus } = deps.status;
@@ -170,6 +183,8 @@ export function createOfficeSession(deps: OfficeSessionDeps): OfficeSession {
     });
     deps.baseline();
     if (draftText === undefined) queue(() => saveOfficeFile(file));
+    if (draftText === undefined && opened.unread.length > 0)
+      holdStatus(unreadNote(opened.unread), UNREAD_HOLD_MS);
     deps.showSource({ kind: "office", name: file.name });
     deps.onModeChange(true);
     deps.syncFixButtons();
