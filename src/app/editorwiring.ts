@@ -77,9 +77,9 @@ export function createEditorWiring(deps: EditorWiringDeps): EditorWiring {
     onEdit: () => fixFlow.drop(),
     onReplace: deps.flow.clearSource,
     accept: (old, next) => {
-      const docx = office.active();
-      if (docx && !docx.sync(old, next)) {
-        status.hold(html`Энэ өөрчлөлтийг docx файлд буулгах боломжгүй`);
+      const mode = office.active();
+      if (mode && !mode.sync(old, next)) {
+        status.hold(html`Энэ өөрчлөлтийг файлд буулгах боломжгүй`);
         return false;
       }
       return true;
