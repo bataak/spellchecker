@@ -10,6 +10,15 @@ const ROUTES: Readonly<Record<string, string>> = {
 };
 const UPSTREAM_TIMEOUT_MS = 15000;
 
+async function readInput(
+  request: Request,
+): Promise<Record<string, unknown> | null> {
+  const value: unknown = await request.json().catch(() => null);
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
 function cors(origin: string | null): Headers {
   const headers = new Headers({ Vary: "Origin" });
   if (origin) {
@@ -43,12 +52,8 @@ export default {
     if (!origin) return reply(null, 403, { error: "origin" });
     if (!upstream || request.method !== "POST")
       return reply(origin, 404, { error: "route" });
-    let input: Record<string, unknown>;
-    try {
-      input = await request.json();
-    } catch {
-      return reply(origin, 400, { error: "body" });
-    }
+    const input = await readInput(request);
+    if (!input) return reply(origin, 400, { error: "body" });
     if (!env.GITHUB_CLIENT_ID || input.client_id !== env.GITHUB_CLIENT_ID)
       return reply(origin, 403, { error: "client" });
     const form = new URLSearchParams();
