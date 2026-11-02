@@ -24,6 +24,8 @@ const GLOBALS = [
   "cancelAnimationFrame",
   "ResizeObserver",
   "MutationObserver",
+  "DOMParser",
+  "XMLSerializer",
 ] as const;
 
 export interface Dom {
