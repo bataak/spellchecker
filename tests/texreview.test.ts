@@ -6,6 +6,7 @@ import { retryDelay } from "../src/preview/texjob.ts";
 import { parseEntry } from "../src/tex/makeindex.ts";
 import { buildProject } from "../src/tex/projectbuild.ts";
 import { toBeamer, toLatexBody } from "../src/tex/latex.ts";
+import { singleSlideFrames } from "../src/tex/texbeamer.ts";
 import { PdfError } from "../src/tex/texerrors.ts";
 import { escapeTex } from "../src/tex/texescape.ts";
 import { rewriteIncludes, texImagePaths } from "../src/tex/teximages.ts";
@@ -170,4 +171,59 @@ test("жагсаалт доторх дугаартай жагсаалт өөри
   assert.ok(ordered.includes("\\setcounter{enumii}{6}"), ordered);
   const mixed = body("2. а\n   - б\n     9. в\n");
   assert.ok(mixed.includes("\\setcounter{enumii}{8}"), mixed);
+});
+
+test("кирилл бичвэртэй fragile слайдыг singleslide болгож, бусдыг хөндөхгүй", () => {
+  const frame = (options: string, body: string): string =>
+    "\\begin{frame}[" + options + "]\n" + body + "\n\\end{frame}";
+  const code = "\\begin{verbatim}\nкод\n\\end{verbatim}";
+  assert.equal(
+    singleSlideFrames(frame("t, fragile", code)),
+    frame("t,fragile=singleslide", code),
+  );
+  for (const same of [
+    frame("fragile", "\\begin{verbatim}\ncode\n\\end{verbatim}"),
+    frame("fragile,allowframebreaks", code),
+    frame("<+->,fragile", code),
+    frame("fragile", code + "\n\\pause б"),
+    frame("fragile", code + "\n\\item<2> б"),
+    frame("t", code),
+    "% " + frame("fragile", "код"),
+  ])
+    assert.equal(singleSlideFrames(same), same);
+  const literalPause = "\\begin{verbatim}\n\\pause код\n\\end{verbatim}";
+  assert.equal(
+    singleSlideFrames(frame("fragile", literalPause)),
+    frame("fragile=singleslide", literalPause),
+  );
+});
+
+test("төслийн оруулсан .tex файлын fragile слайд ч singleslide болно", async () => {
+  const included = String.raw`\begin{frame}[fragile]
+код
+\end{frame}`;
+  const build = await buildProject({
+    main: "main.tex",
+    texts: new Map([
+      ["main.tex", String.raw`\input{s}`],
+      ["s.tex", included],
+      ["n.txt", included],
+    ]),
+    binaries: new Map(),
+  });
+  assert.match(String(build.files["s.tex"]), /fragile=singleslide/);
+  assert.equal(build.files["n.txt"], included);
+});
+
+test("beamer: тэмдэглэл доторх код verbatim биш", () => {
+  const md =
+    "## С\n\nбичвэр\n\n::: notes\n```\n  код_1\n```\n\n\\begin{verbatim}\nx\n\\end{verbatim}\n:::\n";
+  const tex = toBeamer(parse(md));
+  const note = tex.slice(tex.indexOf("\\note{"));
+  assert.ok(!note.includes("\\begin{verbatim}"));
+  assert.ok(note.includes("\\texttt{~~код\\_1}"), note);
+  assert.ok(note.includes("\\texttt{x}"), note);
+  assert.ok(tex.includes("\\begin{frame}{С}"));
+  const tilde = toBeamer(parse("## С\n\n::: notes\n```\na~b_c\n```\n:::\n"));
+  assert.ok(tilde.includes("\\texttt{a" + escapeTex("~") + "b\\_c}"), tilde);
 });

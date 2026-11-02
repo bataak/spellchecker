@@ -18,6 +18,7 @@ import {
 import { splitSlides, type Slide } from "../doc/slides.ts";
 import { attempt } from "../core/attempt.ts";
 import { tableLatex } from "./latextable.ts";
+import { usesOverlay } from "./texbeamer.ts";
 import { tableLook, type TableLook } from "../markdown/tablelook.ts";
 import { LETTER_PAGE, letterTitle } from "./latexletter.ts";
 import { escapeTex, guardBreak } from "./texescape.ts";
@@ -252,7 +253,7 @@ function divBlock(b: DivBlock, beamer: boolean): string {
   const body = (blocks: readonly Block[]): string =>
     blocks.map((inner) => block(inner, beamer, place, look)).join("\n\n");
   if (b.classes.includes("notes"))
-    return beamer ? "\\note{" + body(b.children) + "}" : "";
+    return beamer ? "\\note{" + body(noteBlocks(b.children)) + "}" : "";
   if (b.classes.includes("signature"))
     return (
       "\\bigskip\n\\begin{flushright}\n" +
@@ -306,13 +307,40 @@ function divBlock(b: DivBlock, beamer: boolean): string {
   );
 }
 
+function codeLines(value: string): string {
+  return value
+    .split("\n")
+    .map((line) => {
+      const code = line.trimStart();
+      const indent = "~".repeat(line.length - code.length);
+      return "\\texttt{" + indent + escapeTex(code) + "}\\\\";
+    })
+    .join("\n");
+}
+
 function codeLatex(value: string): string {
   if (!value.includes("\\end{verbatim}"))
     return "\\begin{verbatim}\n" + value + "\n\\end{verbatim}";
-  return value
-    .split("\n")
-    .map((line) => "\\texttt{" + escapeTex(line) + "}\\\\")
-    .join("\n");
+  return codeLines(value);
+}
+
+const VERBATIM_EDGES = /^\s*\\begin\{verbatim\}\n?|\n?\\end\{verbatim\}\s*$/g;
+
+function noteBlocks(blocks: readonly Block[]): Block[] {
+  return blocks.map((b): Block => {
+    if (b.type === "codeblock")
+      return {
+        type: "latex",
+        env: "",
+        value: codeLines(b.value),
+        line: b.line,
+      };
+    if (b.type === "latex" && b.env === "verbatim")
+      return { ...b, value: codeLines(b.value.replace(VERBATIM_EDGES, "")) };
+    return b.type === "div" || b.type === "quote"
+      ? { ...b, children: noteBlocks(b.children) }
+      : b;
+  });
 }
 
 function block(
@@ -480,11 +508,9 @@ function hasVerbatim(blocks: readonly Block[]): boolean {
   });
 }
 
-const OVERLAY = /\\pause\b|\\[a-zA-Z]+\s*<[^>\n]*>/;
-
 function hasOverlay(blocks: readonly Block[]): boolean {
   return blocks.some((b) => {
-    if (b.type === "latex") return OVERLAY.test(b.value);
+    if (b.type === "latex") return usesOverlay(b.value);
     return (b.type === "div" || b.type === "quote") && hasOverlay(b.children);
   });
 }
@@ -510,7 +536,11 @@ function frame(slide: Slide): string {
     .filter((text) => text !== "")
     .join("\n\n");
   const notes = slide.notes.length
-    ? "\n\\note{" + slide.notes.map((b) => block(b, true)).join("\n\n") + "}"
+    ? "\n\\note{" +
+      noteBlocks(slide.notes)
+        .map((b) => block(b, true))
+        .join("\n\n") +
+      "}"
     : "";
   return (
     "\\begin{frame}" +

@@ -1,3 +1,5 @@
+import { singleSlideFrames } from "./texbeamer.ts";
+
 const XETEX_PACKAGES = new Set([
   "fontspec",
   "polyglossia",
@@ -350,7 +352,7 @@ export function toPdfLatex(tex: string): string {
   const begin = tex.search(/\\begin\s*\{document\}/);
   if (begin < 0) return tex;
   let preamble = defaultA4(convertXetex(tex.slice(0, begin)));
-  const body = tex.slice(begin);
+  const body = singleSlideFrames(tex.slice(begin));
   if (CYRILLIC.test(tex) && !T2A_FONTENC.test(preamble))
     preamble = addCyrillicEncoding(preamble);
   return preamble + body;

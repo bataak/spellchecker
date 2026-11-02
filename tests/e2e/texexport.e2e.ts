@@ -136,3 +136,86 @@ test("\\bibitem-тэй лавлагаа дугаараа авна", async () => 
   });
   assert.match(text, /Үз \[1\]/);
 });
+
+test("гараар бичсэн fragile слайдын кирилл код зөв гарна", async () => {
+  const text = await pdfText({
+    tex: "\\documentclass{beamer}\n\\begin{document}\n\\begin{frame}[fragile]\n\\begin{verbatim}\nкод\n\\end{verbatim}\n\\end{frame}\n\\end{document}\n",
+  });
+  assert.match(text, /код/);
+  assert.doesNotMatch(text, /\^\^/);
+});
+
+test("тэмдэглэл доторх код блоктой слайд PDF болно", async () => {
+  const text = await pdfText({
+    slides: "## Нэг\n\nбичвэр\n\n::: notes\n```\nкод\n```\n:::\n",
+  });
+  assert.match(text, /бичвэр/);
+});
+
+test("нэг файлд макроны аргументаар өгсөн зураг орж, дутуу нь хайрцаг болно", async () => {
+  const context = await app.context();
+  const page = await context.newPage();
+  await page.goto(app.url);
+  const text = await page.evaluate(async (png) => {
+    const load = (path: string) => import(new URL(path, location.href).href);
+    const { compileTex } = await load("src/tex/texpdf.ts");
+    const { extractPdfText } = await load("src/office/pdf/pdftext.ts");
+    const { initTexImageInput } = await load("src/tex/teximages.ts");
+    const editor = document.createElement("textarea");
+    initTexImageInput({ editor, active: () => true });
+    const file = new File(
+      [Uint8Array.from(atob(png), (c) => c.charCodeAt(0))],
+      "a.png",
+      { type: "image/png" },
+    );
+    const event = new Event("paste", { cancelable: true });
+    Object.defineProperty(event, "clipboardData", { value: { files: [file] } });
+    editor.dispatchEvent(event);
+    const pdf = await compileTex(
+      "\\documentclass{article}\n\\usepackage{graphicx}\n\\newcommand{\\fig}[1]{\\includegraphics{#1}}\n\\begin{document}\nАА \\fig{a.png} ББ \\fig{zz.png} ВВ\n\\end{document}\n",
+    );
+    return extractPdfText(
+      new File([pdf], "a.pdf", { type: "application/pdf" }),
+    );
+  }, PNG);
+  await context.close();
+  const flat = text.replace(/\s+/g, " ");
+  assert.match(flat, /АА ББ zz\.png ВВ/);
+  assert.doesNotMatch(flat, /a\.png/);
+});
+
+test("нэг файлд PDF зураг хайрцаг биш, зураг болж орно", async () => {
+  const context = await app.context();
+  const page = await context.newPage();
+  await page.goto(app.url);
+  const text = await page.evaluate(async () => {
+    const load = (path: string) => import(new URL(path, location.href).href);
+    const { compileTexDocument } = await load("src/tex/texpdf.ts");
+    const { extractPdfText } = await load("src/office/pdf/pdftext.ts");
+    const { initTexImageInput } = await load("src/tex/teximages.ts");
+    const inner = await compileTexDocument(
+      "\\documentclass{article}\n\\begin{document}\nДОТОР\n\\end{document}\n",
+    );
+    const editor = document.createElement("textarea");
+    initTexImageInput({ editor, active: () => true });
+    const file = new File([inner.pdf], "vec.pdf", { type: "image/png" });
+    const event = new Event("paste", { cancelable: true });
+    Object.defineProperty(event, "clipboardData", { value: { files: [file] } });
+    editor.dispatchEvent(event);
+    const outer = await compileTexDocument(
+      "\\documentclass{article}\n\\usepackage{graphicx}\n\\begin{document}\nГАДНА \\includegraphics[width=5cm]{vec.pdf}\n\\end{document}\n",
+    );
+    return (
+      outer.missing.join(",") +
+      "|" +
+      (await extractPdfText(
+        new File([outer.pdf], "a.pdf", { type: "application/pdf" }),
+      ))
+    );
+  });
+  await context.close();
+  assert.match(text, /^\|/);
+  assert.match(text, /ГАДНА/);
+  assert.match(text, /ДОТОР/);
+  assert.doesNotMatch(text, /vec\.pdf/);
+});

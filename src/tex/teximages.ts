@@ -3,7 +3,12 @@ import { databaseOpener } from "../core/idb.ts";
 import { replaceRange } from "../editor/editortext.ts";
 import { pickImage } from "../files/images.ts";
 import { literalTest, liveMatches } from "./texliteral.ts";
-import { expandMacros, pathMacros, runtimePath } from "./texproject.ts";
+import {
+  expandMacros,
+  GRAPHIC_EXTS,
+  pathMacros,
+  runtimePath,
+} from "./texproject.ts";
 import {
   rewriteSvg,
   svgCandidates,
@@ -26,16 +31,9 @@ const DB_NAME = "bichig-tex";
 const DB_STORE = "handles";
 const DIR_KEY = "imageDir";
 const DIRECT_TYPES = new Set(["image/png", "image/jpeg"]);
-const IMAGE_EXTS = [
-  ".png",
-  ".jpg",
-  ".jpeg",
-  ".PNG",
-  ".JPG",
-  ".JPEG",
-  ".svg",
-  ".SVG",
-];
+const UNSAFE_PATH = /^\/|^[a-z]:|(?:^|\/)\.\.(?:\/|$)/i;
+const PDFLATEX_IMAGE = /\.(?:png|jpe?g|pdf)$/i;
+const BRACE_ARGUMENT = /\{([^{}\\#]+)\}/g;
 
 export interface TexImages {
   readonly files: Record<string, Uint8Array>;
@@ -72,7 +70,10 @@ export function rewriteIncludes(
       const name = names.get(path);
       if (name) return "\\includegraphics" + (opts ?? "") + "{" + name + "}";
       if (keep) return match;
-      return "\\fbox{\\ttfamily\\detokenize{" + path + "}}";
+      const box = "\\fbox{\\ttfamily\\detokenize{" + path + "}}";
+      if (!runtimePath(path)) return box;
+      const include = "\\includegraphics" + (opts ?? "") + "{" + path + "}";
+      return "\\IfFileExists{" + path + "}{" + include + "}{" + box + "}";
     },
   );
 }
@@ -159,7 +160,7 @@ async function readableDir(): Promise<FileSystemDirectoryHandle | null> {
 export function imageCandidates(path: string): string[] {
   return /\.[A-Za-z0-9]+$/.test(path.slice(path.lastIndexOf("/") + 1))
     ? [path]
-    : [path, ...IMAGE_EXTS.map((ext) => path + ext)];
+    : [path, ...GRAPHIC_EXTS.map((ext) => path + ext)];
 }
 
 async function resolveImage(
@@ -196,6 +197,8 @@ async function encode(
   blob: Blob,
   path: string,
 ): Promise<{ bytes: Uint8Array; ext: string } | null> {
+  if (blob.type === "application/pdf" || /\.pdf$/i.test(path))
+    return { bytes: new Uint8Array(await blob.arrayBuffer()), ext: "pdf" };
   if (blob.type === "image/svg+xml" || /\.svg$/i.test(path)) {
     const pdf = await svgToPdf(new Uint8Array(await blob.arrayBuffer()));
     return pdf ? { bytes: pdf, ext: "pdf" } : null;
@@ -224,9 +227,39 @@ async function encode(
   }
 }
 
+export function runtimeImagePaths(text: string): string[] {
+  const macros = pathMacros([text]);
+  const dynamic = liveMatches(text, INCLUDE).some((match) =>
+    runtimePath(expandMacros(match[2] ?? "", macros)),
+  );
+  if (!dynamic) return [];
+  const out = new Set<string>();
+  for (const match of liveMatches(text, BRACE_ARGUMENT))
+    for (const part of match[1]!.split(",")) {
+      const path = normalizeTexPath(part);
+      if (PDFLATEX_IMAGE.test(path) && !UNSAFE_PATH.test(path)) out.add(path);
+    }
+  return [...out];
+}
+
+async function addRuntimeImages(
+  paths: readonly string[],
+  dir: FileSystemDirectoryHandle | null,
+  files: Record<string, Uint8Array>,
+): Promise<void> {
+  for (const path of paths) {
+    const blob = await resolveFile(path, dir);
+    if (blob) files[path] = new Uint8Array(await blob.arrayBuffer());
+  }
+}
+
 export async function texImageFiles(text: string): Promise<TexImages> {
   const paths = texImagePaths(text);
-  const dir = paths.length || svgRefs(text).length ? await readableDir() : null;
+  const runtime = runtimeImagePaths(text);
+  const dir =
+    paths.length || runtime.length || svgRefs(text).length
+      ? await readableDir()
+      : null;
   const names = new Map<string, string>();
   const files: Record<string, Uint8Array> = {};
   const missing: string[] = [];
@@ -241,6 +274,7 @@ export async function texImageFiles(text: string): Promise<TexImages> {
     names.set(path, name);
     files[name] = file.bytes;
   }
+  await addRuntimeImages(runtime, dir, files);
   if (!usesSvgPackage([text]))
     return { files, missing, rewrite: (tex) => rewriteIncludes(tex, names) };
   const macros = pathMacros([text]);
@@ -274,9 +308,6 @@ export async function texImageFiles(text: string): Promise<TexImages> {
   };
 }
 
-const UNSAFE_PATH = /^\/|^[a-z]:|(?:^|\/)\.\.(?:\/|$)/i;
-const PDFLATEX_IMAGE = /\.(?:png|jpe?g|pdf)$/i;
-
 export async function texImageSources(text: string): Promise<TexImages> {
   const paths = texImagePaths(text);
   const macros = pathMacros([text]);
@@ -287,7 +318,9 @@ export async function texImageSources(text: string): Promise<TexImages> {
           .filter(Boolean),
       )
     : new Set<string>();
-  const dir = paths.length || svgs.size ? await readableDir() : null;
+  const runtime = runtimeImagePaths(text);
+  const dir =
+    paths.length || runtime.length || svgs.size ? await readableDir() : null;
   const files: Record<string, Uint8Array> = {};
   const missing: string[] = [];
   const names = new Map<string, string>();
@@ -314,6 +347,7 @@ export async function texImageSources(text: string): Promise<TexImages> {
     names.set(path, name);
     files[name] = file.bytes;
   }
+  await addRuntimeImages(runtime, dir, files);
   for (const path of svgs) {
     const found = await resolveSvg(path, dir);
     if (found && !UNSAFE_PATH.test(found.path))

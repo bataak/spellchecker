@@ -49,6 +49,14 @@ test("PDF алдааны мессеж шалтгаан ба байршлыг М�
     "PDF үүсгэж чадсангүй: Bad math environment delimiter. — «ана. $\\displaymath c+1$»",
   );
   assert.equal(new PdfError("").message, "PDF үүсгэж чадсангүй.");
+  const torn = (tail: string): string =>
+    new PdfError(["! Bad.", "", "l.5 [1]", "^^d0^^b4" + tail].join("\n"))
+      .message;
+  assert.equal(torn("^^d..."), "PDF үүсгэж чадсангүй: Bad. — «[1] д...»");
+  assert.equal(torn("^^..."), "PDF үүсгэж чадсангүй: Bad. — «[1] д...»");
+  assert.equal(torn("^..."), "PDF үүсгэж чадсангүй: Bad. — «[1] д...»");
+  assert.equal(torn("^^d0..."), "PDF үүсгэж чадсангүй: Bad. — «[1] д...»");
+  assert.equal(torn("^^d0^^b0..."), "PDF үүсгэж чадсангүй: Bad. — «[1] да...»");
   const fatal = [
     "pdfTeX warning (ext4): destination with the same identifier (name{page.3}) has been already used, duplicate ignored",
     "",
