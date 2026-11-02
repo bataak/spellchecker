@@ -123,3 +123,16 @@ test("verbatim доторх \\includegraphics бичвэр хэвээр гарн
   assert.match(text, /\\includegraphics\{zz\.png\}/);
   assert.doesNotMatch(text, /fbox/);
 });
+
+test("жагсаалт доторх дугаартай жагсаалт өгсөн дугаараас эхэлнэ", async () => {
+  const text = await pdfText({ markdown: "- нэг\n  5. тав\n  6. зургаа\n" });
+  assert.match(text, /5\. тав/);
+  assert.match(text, /6\. зургаа/);
+});
+
+test("\\bibitem-тэй лавлагаа дугаараа авна", async () => {
+  const text = await pdfText({
+    tex: "\\documentclass{article}\n\\begin{document}\n\\nocite{x}Үз \\cite{k}.\n\\begin{thebibliography}{1}\n\\bibitem{k} Ном.\n\\end{thebibliography}\n\\end{document}\n",
+  });
+  assert.match(text, /Үз \[1\]/);
+});
