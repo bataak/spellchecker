@@ -1,3 +1,5 @@
+import { literalTest, liveMatches } from "./texliteral.ts";
+
 const EDITABLE = /\.(tex|ltx|sty|cls|bib|bst|bbl|cfg|def|clo|dtx|ins|txt|md)$/i;
 const TEX_SOURCE = /\.(tex|ltx)$/i;
 const BUILD_OUTPUT =
@@ -235,9 +237,11 @@ export function mapGraphics(
   map: (raw: string) => string | null,
   label: (raw: string) => string = (raw) => raw.trim(),
 ): string {
+  const literal = literalTest(text);
   return text.replace(
     INCLUDE,
-    (whole, opts: string | undefined, raw: string) => {
+    (whole, opts: string | undefined, raw: string, at: number) => {
+      if (literal(at)) return whole;
       const target = map(raw);
       if (target === raw) return whole;
       if (target !== null)
@@ -276,9 +280,7 @@ export function expandMacros(
 }
 
 export function graphicRefs(text: string): string[] {
-  return [...uncommented(text).matchAll(INCLUDE)].map(
-    (match) => match[2] ?? "",
-  );
+  return liveMatches(text, INCLUDE).map((match) => match[2] ?? "");
 }
 
 const FILE_REFERENCE =

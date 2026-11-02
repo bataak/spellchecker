@@ -2,10 +2,15 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { parse } from "../src/markdown.ts";
+import { retryDelay } from "../src/preview/texjob.ts";
+import { parseEntry } from "../src/tex/makeindex.ts";
 import { buildProject } from "../src/tex/projectbuild.ts";
 import { toBeamer, toLatexBody } from "../src/tex/latex.ts";
+import { PdfError } from "../src/tex/texerrors.ts";
 import { escapeTex } from "../src/tex/texescape.ts";
-import { texImagePaths } from "../src/tex/teximages.ts";
+import { rewriteIncludes, texImagePaths } from "../src/tex/teximages.ts";
+import { graphicRefs } from "../src/tex/texproject.ts";
+import { rewriteSvg, svgRefs } from "../src/tex/texsvg.ts";
 
 const body = (md: string): string => toLatexBody(parse(md));
 
@@ -97,4 +102,62 @@ test("texImagePaths: #1 ба задлагдаагүй макро зураг гэ
 \includegraphics{\f}
 \includegraphics{a.png}`;
   assert.deepEqual(texImagePaths(tex), ["a.png"]);
+});
+
+test('makeIndex: \\" ба \\\\ -г makeindex-тэй ижил уншина', () => {
+  const entry = (key: string) => parseEntry(key, "1")!.levels;
+  assert.equal(entry('M\\"obius')[0].text, 'M\\"obius');
+  assert.equal(entry('g"!h')[0].text, "g!h");
+  assert.equal(entry('i""j')[0].text, 'i"j');
+  assert.equal(entry('k\\\\"!l')[0].text, "k\\\\!l");
+  assert.equal(entry('m"\\n')[0].text, "m\\n");
+  assert.deepEqual(
+    entry('p\\"!q').map((level) => level.text),
+    ['p\\"', "q"],
+  );
+  assert.deepEqual(
+    entry("a\\!b").map((level) => level.text),
+    ["a\\", "b"],
+  );
+  assert.equal(entry('Erd\\"os@Erd\\H{o}s')[0].sort, 'Erd\\"os');
+});
+
+const LITERAL = String.raw`\begin{verbatim}
+\includegraphics{a.png}
+\includesvg{b}
+\end{verbatim}
+\verb|\includegraphics{c.png}|
+% \includegraphics{d.png}
+\begin{Verbatim}
+\includegraphics{e.png}
+\end{Verbatim}
+\includegraphics{f.png}`;
+
+test("verbatim, \\verb, тайлбар доторх зургийг бодит зураг гэж үзэхгүй", async () => {
+  assert.deepEqual(graphicRefs(LITERAL), ["f.png"]);
+  assert.deepEqual(texImagePaths(LITERAL), ["f.png"]);
+  assert.deepEqual(svgRefs(LITERAL), []);
+  const build = await project(LITERAL);
+  assert.deepEqual(build.missing, ["f.png"]);
+  assert.ok(build.mainText.includes("\\verb|\\includegraphics{c.png}|"));
+  assert.ok(build.mainText.includes("\\includesvg{b}"));
+  assert.equal(build.mainText.split("\\fbox").length, 2);
+  assert.equal(rewriteIncludes(LITERAL, new Map()).split("\\fbox").length, 2);
+  assert.equal(
+    rewriteSvg("\\usepackage{svg}\n" + LITERAL, () => null).split("\\fbox")
+      .length,
+    1,
+  );
+});
+
+test("verbatim-ийн гаднах зураг бичвэрийн дотор солигдсоор байна", () => {
+  const out = rewriteIncludes(LITERAL, new Map([["f.png", "image1.png"]]));
+  assert.ok(out.endsWith("\\includegraphics{image1.png}"));
+});
+
+test("retryDelay: LaTeX-ийн алдааг дахин оролдохгүй", () => {
+  assert.equal(retryDelay(new PdfError("! Undefined"), 0), undefined);
+  assert.equal(retryDelay(new PdfError("Engine crashed", true), 0), 2000);
+  assert.equal(retryDelay(new Error("Failed to fetch"), 1), 5000);
+  assert.equal(retryDelay(new Error("Failed to fetch"), 3), undefined);
 });
