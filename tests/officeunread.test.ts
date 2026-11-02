@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { parsePart } from "../src/office/docx/parse.ts";
-import { docxUnread, odfUnread } from "../src/office/unread.ts";
+import { docxUnread, odfUnread, pptxUnread } from "../src/office/unread.ts";
 import { installDom } from "./helpers/dom.ts";
 
 const dom = installDom('<textarea id="ed"></textarea>');
@@ -63,10 +63,10 @@ test("docxUnread: зөвхөн үгтэй текст хайрцгийг олно
     "<w:p><w:r><w:drawing><w:txbxContent><w:p><w:r><w:t>" +
     text +
     "</w:t></w:r></w:p></w:txbxContent></w:drawing></w:r></w:p>";
-  assert.deepEqual(docxUnread([wordPart(box("дотор"))]), ["boxes"]);
-  assert.deepEqual(docxUnread([wordPart(box("12"))]), []);
+  assert.deepEqual(docxUnread([wordPart(box("дотор"))], {}), ["boxes"]);
+  assert.deepEqual(docxUnread([wordPart(box("12"))], {}), []);
   assert.deepEqual(
-    docxUnread([wordPart("<w:p><w:r><w:t>гадна</w:t></w:r></w:p>")]),
+    docxUnread([wordPart("<w:p><w:r><w:t>гадна</w:t></w:r></w:p>")], {}),
     [],
   );
 });
@@ -94,6 +94,37 @@ test("odfUnread: шалгагддаг болон бичвэргүй хэсгий
   assert.deepEqual(odfUnread(odfPackage(pageAnchored)), []);
   assert.deepEqual(odfUnread(odfPackage(comment)), []);
   assert.deepEqual(odfUnread(odfPackage("<text:p>а</text:p>", pageNumber)), []);
+});
+
+test("диаграм, графикийн бичвэрийг мэдэгдэж, тоон утгыг мэдэгдэхгүй", () => {
+  const entry = (xml: string) => encoder.encode(xml);
+  assert.deepEqual(
+    pptxUnread({ "ppt/diagrams/data1.xml": entry("<a:t>Нэг</a:t>") }),
+    ["diagrams"],
+  );
+  assert.deepEqual(
+    pptxUnread({
+      "ppt/charts/chart1.xml": entry(
+        "<c:strCache><c:pt><c:v>Ангилал</c:v></c:pt></c:strCache>",
+      ),
+    }),
+    ["diagrams"],
+  );
+  assert.deepEqual(
+    pptxUnread({
+      "ppt/charts/chart1.xml": entry(
+        "<c:numCache><c:pt><c:v>1.5E-2</c:v></c:pt></c:numCache>",
+      ),
+      "ppt/slides/slide1.xml": entry("<a:t>Нэг</a:t>"),
+    }),
+    [],
+  );
+  assert.deepEqual(
+    docxUnread([wordPart("")], {
+      "word/diagrams/data1.xml": entry("<a:t>Нэг</a:t>"),
+    }),
+    ["diagrams"],
+  );
 });
 
 function session() {
