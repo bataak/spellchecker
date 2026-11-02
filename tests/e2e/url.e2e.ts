@@ -8,6 +8,7 @@ import {
   errors,
   openFile,
   openPage,
+  pasteText,
   ready,
   slotLabel,
   startApp,
@@ -234,21 +235,6 @@ test("GitHub файлын холбоосоор файл нээж, хавтасн
   assert.equal(requests.length, 2);
   assert.deepEqual(errors(page), []);
 });
-
-async function pasteText(page: Page, text: string): Promise<void> {
-  await page.click("#editor");
-  await page.evaluate((value) => {
-    const data = new DataTransfer();
-    data.setData("text/plain", value);
-    document.querySelector("#editor")!.dispatchEvent(
-      new ClipboardEvent("paste", {
-        clipboardData: data,
-        bubbles: true,
-        cancelable: true,
-      }),
-    );
-  }, text);
-}
 
 test("буулгасан талбарын холбоосыг асуугаад нээнэ", async () => {
   const page = await openPage(app, await app.context());

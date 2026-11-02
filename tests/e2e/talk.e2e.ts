@@ -6,6 +6,7 @@ import {
   errors,
   FIREFOX,
   openPage,
+  pasteText,
   startApp,
   throttle,
   typeAtEnd,
@@ -446,27 +447,15 @@ test("урилгын холбоосыг бичвэрт буулгахад асу
   await typeAtEnd(owner, "Буулгаж нэгдэх бичвэр.");
   const link = await invite(owner);
   const guest = await openPage(app, await app.context());
-  await guest.click("#editor");
-  const paste = () =>
-    guest.evaluate((text) => {
-      const data = new DataTransfer();
-      data.setData("text/plain", text);
-      return document.querySelector("#editor")!.dispatchEvent(
-        new ClipboardEvent("paste", {
-          clipboardData: data,
-          cancelable: true,
-        }),
-      );
-    }, link);
   const ask = guest.getByText("Бичвэр хамтран засах урилгыг хүлээн авах уу?");
-  assert.equal(await paste(), false);
+  await pasteText(guest, link);
   await ask.waitFor();
   await guest.getByRole("button", { name: "Үгүй", exact: true }).click();
   await until(
     () => editor(guest),
     (value) => value.includes(link),
   );
-  assert.equal(await paste(), false);
+  await pasteText(guest, link);
   await ask.waitFor();
   await guest.keyboard.press("Escape");
   await ask.waitFor({ state: "detached" });
@@ -476,7 +465,7 @@ test("урилгын холбоосыг бичвэрт буулгахад асу
     area.value = "";
     area.dispatchEvent(new Event("input", { bubbles: true }));
   });
-  assert.equal(await paste(), false);
+  await pasteText(guest, link);
   await guest.getByRole("button", { name: "Тэгье", exact: true }).click();
   await joinedText(guest, "Буулгаж нэгдэх бичвэр.");
   assert.deepEqual(errors(guest), []);
