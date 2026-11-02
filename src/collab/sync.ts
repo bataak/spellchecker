@@ -1,4 +1,7 @@
+import { deflateSync } from "fflate";
 import * as Y from "yjs";
+import { noteError } from "../core/errorlog.ts";
+import { MAX_PLAIN_STATE, inflateCapped } from "./inflatecap.ts";
 import {
   BLOB_NONE,
   BLOB_WANT,
@@ -6,6 +9,8 @@ import {
   CHAT_UPDATE,
   CURSOR,
   LINKS,
+  MAX_MESSAGE,
+  SYNC_PACKED,
   SYNC_REQUEST,
   SYNC_UPDATE,
   decodeFrame,
@@ -78,7 +83,17 @@ interface Lane {
 interface LaneKinds {
   readonly request: FrameKind;
   readonly update: FrameKind;
+  readonly packed?: FrameKind;
   readonly limit: number;
+}
+
+function updateFrame(kinds: LaneKinds, update: Uint8Array): Uint8Array | null {
+  const plain = encodeFrame(kinds.update, update);
+  if (!kinds.packed || plain.byteLength <= MAX_MESSAGE) return plain;
+  const packed = encodeFrame(kinds.packed, deflateSync(update));
+  if (packed.byteLength <= MAX_MESSAGE) return packed;
+  noteError(new Error("sync update too large"));
+  return null;
 }
 
 function createLane(
@@ -89,21 +104,25 @@ function createLane(
 ): Lane {
   let pending: Uint8Array[] = [];
   let timer: ReturnType<typeof setTimeout> | null = null;
-  const broadcast = (data: Uint8Array, targets: readonly string[]): void => {
-    for (const peer of targets) deps.send(peer, data);
+  const sendUpdate = (update: Uint8Array, targets: readonly string[]): void => {
+    if (!targets.length) return;
+    const frame = updateFrame(kinds, update);
+    if (frame) for (const peer of targets) deps.send(peer, frame);
+  };
+  const applyFrom = (peer: string, update: Uint8Array | null): void => {
+    if (update) Y.applyUpdate(doc, update, { peer } satisfies PeerOrigin);
   };
   const flush = (): void => {
     timer = null;
     if (!pending.length) return;
     const merged = pending.length === 1 ? pending[0]! : Y.mergeUpdates(pending);
     pending = [];
-    broadcast(encodeFrame(kinds.update, merged), deps.open());
+    sendUpdate(merged, deps.open());
   };
   const onUpdate = (update: Uint8Array, origin: unknown): void => {
     const from = peerOf(origin);
     if (from !== null) {
-      const targets = relayTargets(deps.open(), from, peerLinks.get(from));
-      if (targets.length) broadcast(encodeFrame(kinds.update, update), targets);
+      sendUpdate(update, relayTargets(deps.open(), from, peerLinks.get(from)));
       return;
     }
     pending.push(update);
@@ -116,13 +135,11 @@ function createLane(
     },
     receive(peer, kind, body) {
       if (kind === kinds.request)
-        deps.send(
-          peer,
-          encodeFrame(kinds.update, Y.encodeStateAsUpdate(doc, body)),
-        );
+        sendUpdate(Y.encodeStateAsUpdate(doc, body), [peer]);
+      else if (kind === kinds.packed)
+        applyFrom(peer, inflateCapped(body, MAX_PLAIN_STATE));
       else if (kind !== kinds.update) return false;
-      else if (body.byteLength <= kinds.limit)
-        Y.applyUpdate(doc, body, { peer } satisfies PeerOrigin);
+      else if (body.byteLength <= kinds.limit) applyFrom(peer, body);
       return true;
     },
     close() {
@@ -138,7 +155,12 @@ export function createSync(deps: SyncDeps): Sync {
   const lanes = [
     createLane(
       deps.doc,
-      { request: SYNC_REQUEST, update: SYNC_UPDATE, limit: Infinity },
+      {
+        request: SYNC_REQUEST,
+        update: SYNC_UPDATE,
+        packed: SYNC_PACKED,
+        limit: Infinity,
+      },
       deps,
       peerLinks,
     ),
