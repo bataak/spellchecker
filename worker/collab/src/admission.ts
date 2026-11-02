@@ -4,6 +4,11 @@ import { digest, first, newToken, readMeta } from "./util.ts";
 
 const goneCode = (gone: number): number => (gone === 2 ? PURGED : REMOVED);
 
+export function accessToken(params: URLSearchParams): string | null {
+  const token = params.get("o") ?? params.get("m") ?? params.get("i");
+  return token && TOKEN.test(token) ? token : null;
+}
+
 export async function admit(
   sql: SqlStorage,
   params: URLSearchParams,
@@ -11,8 +16,8 @@ export async function admit(
 ): Promise<Access> {
   const owner = params.get("o");
   const member = params.get("m");
-  const token = owner ?? member ?? params.get("i");
-  if (!token || !TOKEN.test(token)) return { code: DENIED };
+  const token = accessToken(params);
+  if (!token) return { code: DENIED };
   const closed = Number(readMeta(sql, "closed"));
   if (closed) return { code: closed };
   const hash = await digest(token);

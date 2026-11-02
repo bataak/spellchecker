@@ -1,5 +1,4 @@
 import {
-  CLIENT_ID,
   TOKEN,
   MAX_PEERS,
   MAX_INVITES,
@@ -153,16 +152,14 @@ export class Room extends DurableObject<Env> {
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
-    this.remember(url.pathname.split("/")[2]);
     const params = url.searchParams;
     const dev = params.get("d") ?? "";
     const id = params.get("p") ?? "";
-    if (!CLIENT_ID.test(dev) || !CLIENT_ID.test(id))
-      return new Response("client", { status: 400 });
     const early = this.crowd(id, dev);
     if (early.code !== undefined) return refuse(early.code, early.reason);
     const access = await admit(this.ctx.storage.sql, params, dev);
     if (access.code) return refuse(access.code, "denied");
+    this.remember(url.pathname.split("/")[2]);
     await this.touch();
     const crowd = this.crowd(id, dev);
     if (crowd.code !== undefined) return refuse(crowd.code, crowd.reason);
