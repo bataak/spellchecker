@@ -1,3 +1,5 @@
+import { escapeHtml } from "../core/htmlutil.ts";
+import type { Html } from "../core/htmlutil.ts";
 import { askChoice } from "../ui/ask.ts";
 import {
   fetchRemote,
@@ -12,7 +14,7 @@ import { PROVIDER_NAME } from "../project/git/githost.ts";
 
 export interface RemoteOpenDeps {
   readonly openText: (name: string, text: string) => Promise<void>;
-  readonly notify: (message: string) => void;
+  readonly notify: (markup: Html) => void;
   readonly confirm?: (
     title: string,
     text?: string,
@@ -110,7 +112,7 @@ export async function openRemote(
       askChoice({ title, ...(text && { text }), yes: "Тэгье", no: "Үгүй" }));
   const parsed = parseRemote(input);
   if (!parsed.ok) {
-    d.notify(PARSE_ERRORS[parsed.reason]);
+    d.notify(escapeHtml(PARSE_ERRORS[parsed.reason]));
     return false;
   }
   const { source } = parsed;
@@ -120,11 +122,11 @@ export async function openRemote(
   if (!result.ok && result.reason === "missing")
     result = (await privateFetch(source, d, ask)) ?? result;
   if (typeof result === "string") {
-    if (result) d.notify(result);
+    if (result) d.notify(escapeHtml(result));
     return false;
   }
   if (!result.ok) {
-    d.notify(FETCH_ERRORS[result.reason]);
+    d.notify(escapeHtml(FETCH_ERRORS[result.reason]));
     return false;
   }
   await d.openText(source.name, result.text);

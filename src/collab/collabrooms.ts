@@ -1,5 +1,6 @@
 import { slotKey, type RoomSlot } from "./roomslot.ts";
-import { TOKEN, type CollabLink } from "./collabkey.ts";
+import { TOKEN } from "../../worker/shared/protocol.ts";
+import type { CollabLink } from "./collabkey.ts";
 
 export type AccessKind = "o" | "m" | "i";
 

@@ -276,7 +276,7 @@ export function initTexComplete(deps: TexCompleteDeps): SnippetInserter {
   editor.addEventListener("input", update);
 
   const keepTyped = (): boolean => {
-    if (!context || !items[index] || !unchanged(context, items[index]))
+    if (!context || !items[index] || !unchanged(context, items[index]!))
       return false;
     dismissedAt = context.from;
     close();

@@ -1,3 +1,4 @@
+import { html, escapeHtml } from "../core/htmlutil.ts";
 import type { Scope } from "./appparts.ts";
 import { initAppExport } from "./appexport.ts";
 import { bindAppChrome } from "./chromewiring.ts";
@@ -6,7 +7,7 @@ import { watchTabs } from "./tabwatch.ts";
 import { startApp } from "./startup.ts";
 import { offerLink } from "./linkpaste.ts";
 import { fileSlot, slotKey } from "../collab/roomslot.ts";
-import { PROJECT_SLOT } from "../slots/fileslots.ts";
+import { PROJECT_SLOT } from "../core/fileslots.ts";
 import { clearedComments } from "../collab/commentbus.ts";
 import { keepLayoutOnReload } from "../ui/layoutsnapshot.ts";
 
@@ -67,7 +68,6 @@ export function composeShell(app: Scope<ShellReads, ShellGives>): void {
       editor: els.editor,
       port: app.editor,
       status,
-      statusEl: els.status,
       backdropEl: els.backdrop,
     },
     office: app.office,
@@ -84,7 +84,9 @@ export function composeShell(app: Scope<ShellReads, ShellGives>): void {
       const leaving = app.collab.forget(slot);
       clearedComments.emit({ slot: slotKey(slot), leaving });
       if (leaving)
-        status.hold("Хамтын засвараас гарлаа. Бусдын бичвэр хэвээр үлдэнэ.");
+        status.hold(
+          html`Хамтын засвараас гарлаа. Бусдын бичвэр хэвээр үлдэнэ.`,
+        );
     },
     confirmClear: () => {
       const slot = mdBar.slot();
@@ -150,7 +152,7 @@ export function composeSession(app: Scope<SessionReads, SessionGives>): void {
     isTex: app.isTexFile,
     officeActive: app.officeActive,
     undo: () => app.undoCtl,
-    notify: (message) => status.hold(message, 8000, false),
+    notify: (markup) => status.hold(markup, 8000, false),
     pin: status.pin,
     picking: () => app.errorPanel.picking(),
   });
@@ -159,7 +161,7 @@ export function composeSession(app: Scope<SessionReads, SessionGives>): void {
     project: () => projectStore.project()?.uid ?? null,
     onProjectChange: projectStore.onProjectChange,
     warn: (message) => {
-      if (!collab.locked()) status.hold(message, 8000, false);
+      if (!collab.locked()) status.hold(escapeHtml(message), 8000, false);
     },
   });
   app.provide({ collab, tabGuard });

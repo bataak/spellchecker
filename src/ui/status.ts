@@ -1,7 +1,9 @@
+import { setHtml, trustedHtml } from "../core/htmlutil.ts";
+import type { Html } from "../core/htmlutil.ts";
 import type { StatusPort } from "../core/ports.ts";
 
 export interface StatusControl extends StatusPort {
-  pin(html: string | null): void;
+  pin(markup: Html | null): void;
 }
 
 const STATUS_HOLD_MS = 6000;
@@ -20,10 +22,12 @@ export function initStatus(
 ): StatusControl {
   let holdUntil = 0;
   let holdTimer: number | null = null;
-  let pinned: string | null = null;
+  let pinned: Html | null = null;
+  let current = trustedHtml(el.innerHTML);
 
-  const show = (html: string, animate: boolean): void => {
-    el.innerHTML = html;
+  const show = (markup: Html, animate: boolean): void => {
+    current = markup;
+    setHtml(el, markup);
     el.classList.remove("status-reveal");
     if (!animate) return;
     void el.offsetWidth;
@@ -31,14 +35,14 @@ export function initStatus(
   };
   const holding = (): boolean => holdUntil > 0 && Date.now() < holdUntil;
 
-  const set = (html: string, animate = true): void => {
+  const set = (markup: Html, animate = true): void => {
     if (holding() || pinned !== null) return;
-    show(html, animate);
+    show(markup, animate);
   };
 
-  function hold(html: string, ms = STATUS_HOLD_MS, animate = true): void {
+  function hold(markup: Html, ms = STATUS_HOLD_MS, animate = true): void {
     if (holdTimer) clearTimeout(holdTimer);
-    show(html, animate);
+    show(markup, animate);
     holdUntil = Date.now() + ms;
     holdTimer = window.setTimeout(() => {
       holdTimer = null;
@@ -48,11 +52,11 @@ export function initStatus(
     }, ms);
   }
 
-  function pin(html: string | null): void {
-    if (html === pinned) return;
-    pinned = html;
+  function pin(markup: Html | null): void {
+    if (markup === pinned) return;
+    pinned = markup;
     if (holding()) return;
-    if (html !== null) show(html, false);
+    if (markup !== null) show(markup, false);
     else onRelease();
   }
 
@@ -63,5 +67,5 @@ export function initStatus(
     if (pinned !== null) show(pinned, false);
   }
 
-  return { set, hold, release, pin };
+  return { set, hold, release, pin, shown: () => current };
 }

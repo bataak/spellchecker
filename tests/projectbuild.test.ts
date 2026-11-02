@@ -5,8 +5,8 @@ import {
   buildProject,
   type BuildSource,
   type Converters,
-} from "../src/project/projectbuild.ts";
-import { ProjectError } from "../src/project/projecterror.ts";
+} from "../src/tex/projectbuild.ts";
+import { ProjectError } from "../src/core/projecterror.ts";
 
 const enc = (text: string): Uint8Array => new TextEncoder().encode(text);
 const dec = (data: Uint8Array | string | undefined): string =>

@@ -1,4 +1,4 @@
-import { PROJECT_SLOT, isFileSlot } from "../slots/fileslots.ts";
+import { PROJECT_SLOT, isFileSlot } from "../core/fileslots.ts";
 import { databaseOpener } from "../core/idb.ts";
 import { remoteChanges, swapOrigin } from "./editortext.ts";
 import { mapOffset, type TextChange } from "./textdelta.ts";

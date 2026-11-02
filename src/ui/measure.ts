@@ -383,6 +383,22 @@ function watchFonts(refresh: () => void): void {
   void fonts?.load('16px "Bichig Mono"').then(refresh);
 }
 
+function publishPreviewMeasure(
+  active: Layout,
+  metrics: Metrics,
+  viewport: number,
+): void {
+  document.documentElement.style.setProperty(
+    "--preview-measure",
+    String(previewMeasure(active, metrics, viewport)),
+  );
+}
+
+function returnDecodeButtons(wrap: HTMLElement, tools: HTMLElement): void {
+  wrap.append(...tools.querySelectorAll<HTMLElement>(".decode-btn"));
+  tools.remove();
+}
+
 export function initMeasureControl(
   wrap: HTMLElement,
   area: HTMLElement,
@@ -434,17 +450,13 @@ export function initMeasureControl(
     const choose = (fit: Layout[]): LayoutChoice =>
       chooseLayout(fit, desired, previewBlocked, previewMode);
 
-    const root = document.documentElement;
     const { viewport, offered } = settleViewport(wrap, metrics, choose, prev);
     const fit = available(metrics, viewport, prev);
     prev = fit;
     const { avail, active } = choose(fit);
     shown = active;
     viewportW = viewport;
-    root.style.setProperty(
-      "--preview-measure",
-      String(previewMeasure(active, metrics, viewport)),
-    );
+    publishPreviewMeasure(active, metrics, viewport);
     apply(active);
 
     toolbar.sync();
@@ -491,8 +503,7 @@ export function initMeasureControl(
       unwatch();
       toolbar.destroy();
       unbindMenu();
-      wrap.append(...tools.querySelectorAll<HTMLElement>(".decode-btn"));
-      tools.remove();
+      returnDecodeButtons(wrap, tools);
     },
   };
 }

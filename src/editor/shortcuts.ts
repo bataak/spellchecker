@@ -1,5 +1,5 @@
-import type { CommandId, Commands } from "./commands.ts";
-import { lineSelection, type LineDirection } from "../editor/lineselect.ts";
+import type { CommandId, Commands } from "../ui/commands.ts";
+import { lineSelection, type LineDirection } from "./lineselect.ts";
 
 type Action = (e: KeyboardEvent) => void;
 

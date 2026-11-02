@@ -1,4 +1,5 @@
-import { escapeHtml } from "../core/htmlutil.ts";
+import type { Html } from "../core/htmlutil.ts";
+import { escapeHtml, trustedHtml } from "../core/htmlutil.ts";
 import type { Token } from "../spell/textcheck.ts";
 import { spansInRange, type SyntaxSpan } from "./syntaxspans.ts";
 
@@ -46,13 +47,13 @@ export function plainHtml(
   chunkStart = 0,
   spans: readonly SyntaxSpan[] = [],
   blocks = true,
-): string {
+): Html {
   const body = stripChunkNewline(raw);
 
   if (!blocks) {
     const flat =
       paint(body, 0, body.length, chunkStart, spans) + hangingGuard(body);
-    return flat === "" ? "\u200b" : flat;
+    return trustedHtml(flat === "" ? "\u200b" : flat);
   }
 
   let html = "";
@@ -67,7 +68,7 @@ export function plainHtml(
     if (nl === -1) break;
     cursor = nl + 1;
   }
-  return html;
+  return trustedHtml(html);
 }
 
 export function markedHtml(
@@ -76,10 +77,11 @@ export function markedHtml(
   slice: Token[],
   spans: readonly SyntaxSpan[] = [],
   blocks = true,
-): string {
+): Html {
   const body = stripChunkNewline(raw);
 
-  if (!blocks) return flatMarkedHtml(body, chunkStart, slice, spans);
+  if (!blocks)
+    return trustedHtml(flatMarkedHtml(body, chunkStart, slice, spans));
 
   let html = "";
   let lineStart = 0;
@@ -117,7 +119,7 @@ export function markedHtml(
     lineStart = nl + 1;
   }
 
-  return html;
+  return trustedHtml(html);
 }
 
 export function stripChunkNewline(raw: string): string {

@@ -1,5 +1,5 @@
 import { KEYS, readJson, writeJson } from "../../core/store.ts";
-import { AuthError, ProjectError } from "../projecterror.ts";
+import { AuthError, ProjectError } from "../../core/projecterror.ts";
 import type { State } from "../projectstate.ts";
 import { workingCopy } from "../workingcopy.ts";
 import {

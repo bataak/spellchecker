@@ -10,7 +10,7 @@ import {
   savedToken,
 } from "../src/project/git/gitsession.ts";
 import { newState } from "../src/project/projectstate.ts";
-import { AuthError, ProjectError } from "../src/project/projecterror.ts";
+import { AuthError, ProjectError } from "../src/core/projecterror.ts";
 import type { RepoSpec } from "../src/project/git/githost.ts";
 
 const HOST = "https://gitlab.com";

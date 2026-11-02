@@ -1,3 +1,8 @@
+import {
+  DENIED_CODE,
+  FULL_CODE,
+  WIPED_CODE,
+} from "../worker/shared/protocol.ts";
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import NodeSocket from "ws";
@@ -11,9 +16,6 @@ import {
 } from "./helpers/collabclient.ts";
 import { newToken, randomId } from "../src/collab/collabkey.ts";
 
-const DENIED = 4003;
-const FULL = 4009;
-const WIPED = 4006;
 const MAX_PEERS = 8;
 const MAX_INVITES = 32;
 
@@ -64,7 +66,7 @@ test("өөр төхөөрөмж бусдын peer id-гаар холбогдож
   const guestDev = randomId(12);
   const guest = await connect(room, guestDev, "i=" + token);
   const m = guest.member!;
-  assert.equal(await knock(room, guestDev, "m=" + m, client.id), DENIED);
+  assert.equal(await knock(room, guestDev, "m=" + m, client.id), DENIED_CODE);
   await alive(client);
   const again = await connect(room, guestDev, "m=" + m, guest.id);
   await alive(again);
@@ -77,7 +79,7 @@ test("өрөө дүүрсэн үед урилгыг ашигласан гэж т
   const crowd = [client];
   while (crowd.length < MAX_PEERS)
     crowd.push(await connect(room, dev, "o=" + owner));
-  assert.equal(await knock(room, randomId(12), "i=" + token), FULL);
+  assert.equal(await knock(room, randomId(12), "i=" + token), FULL_CODE);
   const last = crowd.pop()!;
   last.send(JSON.stringify({ t: "leave" }));
   await alive(client);
@@ -104,13 +106,13 @@ test("хаагдсан өрөөг хугацаа дууссаны дараа ч 
   client.close();
   await new Promise((resolve) => setTimeout(resolve, 50));
   await server.expire(room);
-  assert.equal(await knock(room, randomId(12), "o=" + newToken()), WIPED);
+  assert.equal(await knock(room, randomId(12), "o=" + newToken()), WIPED_CODE);
 });
 
 test("татгалзсан холболт өрөөний нэрийг хадгалахгүй, зөвшөөрсөн нь хадгална", async () => {
   const room = randomId(16);
-  assert.equal(await knock(room, randomId(12), "m=" + newToken()), DENIED);
-  assert.equal(await knock(room, randomId(12), "x=1"), DENIED);
+  assert.equal(await knock(room, randomId(12), "m=" + newToken()), DENIED_CODE);
+  assert.equal(await knock(room, randomId(12), "x=1"), DENIED_CODE);
   assert.equal(await server.storedRoom(room), null);
   const client = await connect(room, randomId(12), "o=" + newToken());
   assert.equal(await server.storedRoom(room), room);

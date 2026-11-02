@@ -27,6 +27,58 @@ export interface EditorView {
   readonly captureTop: () => void;
 }
 
+const lineCount = (text: string): number => text.split("\n").length;
+
+function revealRange(
+  editor: HTMLTextAreaElement,
+  backdrop: Backdrop,
+  start: number,
+  end: number,
+): void {
+  editor.focus({ preventScroll: true });
+  editor.setSelectionRange(start, end, "forward");
+  const box = editor.getBoundingClientRect();
+  const rect = backdrop.rangeRectAt(start, Math.max(end, start + 1));
+  const top = rect
+    ? rect.top - box.top + editor.scrollTop
+    : ((lineCount(editor.value.slice(0, start)) - 1) /
+        lineCount(editor.value)) *
+      editor.scrollHeight;
+  const view = editor.scrollTop;
+  if (
+    top >= view + REVEAL_PAD &&
+    top <= view + editor.clientHeight - REVEAL_PAD
+  )
+    return;
+  const max = editor.scrollHeight - editor.clientHeight;
+  const lead = Math.min(
+    editor.clientHeight * REVEAL_LEAD_SHARE,
+    REVEAL_LEAD_MAX,
+  );
+  editor.scrollTop = Math.max(0, Math.min(top - lead, max));
+}
+
+function visibleOffset(
+  editor: HTMLTextAreaElement,
+  backdrop: Backdrop,
+): number {
+  const box = editor.getBoundingClientRect();
+  const view = window.visualViewport;
+  const bottom = Math.min(
+    box.bottom,
+    view ? view.offsetTop + view.height : window.innerHeight,
+  );
+  const caret = editor.selectionStart;
+  const rect =
+    backdrop.rangeRectAt(caret, caret + 1) ??
+    backdrop.rangeRectAt(Math.max(0, caret - 1), caret);
+  if (rect && rect.top >= box.top && rect.bottom <= bottom) return caret;
+  return (
+    backdrop.offsetAtY(box.top + (bottom - box.top) * VISIBLE_ANCHOR_SHARE) ??
+    caret
+  );
+}
+
 export function createEditorView(deps: EditorViewDeps): EditorView {
   const { editor, backdrop } = deps;
 
@@ -78,53 +130,14 @@ export function createEditorView(deps: EditorViewDeps): EditorView {
     refreshMarksSoon();
   }).observe(editor);
 
-  const lineCount = (text: string): number => text.split("\n").length;
-
   return {
     syncScroll,
     captureTop: backdrop.captureTopAnchor,
     revealRange(start, end) {
-      editor.focus({ preventScroll: true });
-      editor.setSelectionRange(start, end, "forward");
-      const box = editor.getBoundingClientRect();
-      const rect = backdrop.rangeRectAt(start, Math.max(end, start + 1));
-      const top = rect
-        ? rect.top - box.top + editor.scrollTop
-        : ((lineCount(editor.value.slice(0, start)) - 1) /
-            lineCount(editor.value)) *
-          editor.scrollHeight;
-      const view = editor.scrollTop;
-      if (
-        top < view + REVEAL_PAD ||
-        top > view + editor.clientHeight - REVEAL_PAD
-      ) {
-        const max = editor.scrollHeight - editor.clientHeight;
-        const lead = Math.min(
-          editor.clientHeight * REVEAL_LEAD_SHARE,
-          REVEAL_LEAD_MAX,
-        );
-        editor.scrollTop = Math.max(0, Math.min(top - lead, max));
-      }
+      revealRange(editor, backdrop, start, end);
       syncScroll();
     },
-    visibleOffset() {
-      const box = editor.getBoundingClientRect();
-      const view = window.visualViewport;
-      const bottom = Math.min(
-        box.bottom,
-        view ? view.offsetTop + view.height : window.innerHeight,
-      );
-      const caret = editor.selectionStart;
-      const rect =
-        backdrop.rangeRectAt(caret, caret + 1) ??
-        backdrop.rangeRectAt(Math.max(0, caret - 1), caret);
-      if (rect && rect.top >= box.top && rect.bottom <= bottom) return caret;
-      return (
-        backdrop.offsetAtY(
-          box.top + (bottom - box.top) * VISIBLE_ANCHOR_SHARE,
-        ) ?? caret
-      );
-    },
+    visibleOffset: () => visibleOffset(editor, backdrop),
     tokenAtCaret() {
       const pos = editor.selectionStart;
       for (const token of deps.marks().tokens()) {

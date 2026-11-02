@@ -1,5 +1,5 @@
 import type { OpenFile } from "../files/fileio.ts";
-import { PROJECT_SLOT } from "./fileslots.ts";
+import { PROJECT_SLOT } from "../core/fileslots.ts";
 import {
   dropOfficeFile,
   loadDraftFile,

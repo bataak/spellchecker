@@ -7,7 +7,7 @@ import {
 } from "../tex/texproject.ts";
 import { dirHandleFor, removeEntry, writeEntry } from "./projectdisk.ts";
 import { dropEntries, moveEntries, putDir, putFile } from "./projectedit.ts";
-import { ProjectError } from "./projecterror.ts";
+import { ProjectError } from "../core/projecterror.ts";
 import { moveOnDisk } from "./projectsave.ts";
 import { exists, markDirty, type State } from "./projectstate.ts";
 import type { StoreCore } from "./storecore.ts";

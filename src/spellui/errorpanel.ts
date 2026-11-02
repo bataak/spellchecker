@@ -1,6 +1,7 @@
+import type { Html } from "../core/htmlutil.ts";
 import type { Backdrop } from "../editor/backdrop.ts";
 import { copyText } from "../ui/clipboard.ts";
-import { escapeHtml } from "../core/htmlutil.ts";
+import { escapeHtml, setHtml, trustedHtml } from "../core/htmlutil.ts";
 import { nf, reveal } from "../ui/status.ts";
 import { buildErrorList, nextOccurrence } from "../spell/textcheck.ts";
 import type { Token } from "../spell/textcheck.ts";
@@ -31,24 +32,26 @@ export interface ErrorPanel {
 
 type ErrorItem = ReturnType<typeof buildErrorList>[number];
 
-function errorItemsHtml(items: readonly ErrorItem[]): string {
-  return items
-    .map((item) => {
-      const repeatCountLabel = item.count > 99 ? "99+" : item.count;
-      const badge =
-        item.count >= 2
-          ? '<span class="ew-count">' + repeatCountLabel + "</span>"
-          : "";
-      return (
-        '<button class="ew" type="button" data-start="' +
-        item.start +
-        '">' +
-        escapeHtml(item.word) +
-        badge +
-        "</button>"
-      );
-    })
-    .join("");
+function errorItemsHtml(items: readonly ErrorItem[]): Html {
+  return trustedHtml(
+    items
+      .map((item) => {
+        const repeatCountLabel = item.count > 99 ? "99+" : item.count;
+        const badge =
+          item.count >= 2
+            ? '<span class="ew-count">' + repeatCountLabel + "</span>"
+            : "";
+        return (
+          '<button class="ew" type="button" data-start="' +
+          item.start +
+          '">' +
+          escapeHtml(item.word) +
+          badge +
+          "</button>"
+        );
+      })
+      .join(""),
+  );
 }
 
 function scrollToMark(editor: HTMLTextAreaElement, mark: HTMLElement): boolean {
@@ -81,11 +84,12 @@ function ancestorOf(node: HTMLElement, other: HTMLElement): HTMLElement {
 }
 
 function bindCopy(copy: HTMLButtonElement, badTokens: () => Token[]): void {
-  const copyIcon = copy.innerHTML;
-  const checkIcon =
+  const copyIcon = trustedHtml(copy.innerHTML);
+  const checkIcon = trustedHtml(
     '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" ' +
-    'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
-    'stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+      'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+      'stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+  );
   let copyTimer: ReturnType<typeof setTimeout> | null = null;
   copy.addEventListener("click", async () => {
     const words = buildErrorList(badTokens()).map((token) => token.word);
@@ -96,11 +100,11 @@ function bindCopy(copy: HTMLButtonElement, badTokens: () => Token[]): void {
     );
     if (!copied) return;
     copy.classList.add("copied");
-    copy.innerHTML = checkIcon;
+    setHtml(copy, checkIcon);
     if (copyTimer) clearTimeout(copyTimer);
     copyTimer = setTimeout(() => {
       copy.classList.remove("copied");
-      copy.innerHTML = copyIcon;
+      setHtml(copy, copyIcon);
     }, 1100);
   });
 }
@@ -148,7 +152,7 @@ export function initErrorPanel(deps: ErrorPanelDeps): ErrorPanel {
     setTitle("Нийт алдаатай үг: " + nf(tokens.length), animate);
     if (copy) copy.disabled = false;
     if (animate) reveal(list);
-    list.innerHTML = errorItemsHtml(items);
+    setHtml(list, errorItemsHtml(items));
   }
 
   function clear(calculating: boolean): void {

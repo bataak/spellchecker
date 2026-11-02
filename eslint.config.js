@@ -40,6 +40,25 @@ export default tseslint.config(
     },
   },
   {
+    files: ["src/**/*.ts"],
+    ignores: ["src/core/htmlutil.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "AssignmentExpression[left.property.name='innerHTML'][right.value!='']",
+          message: "innerHTML-д setHtml() ашиглана.",
+        },
+        {
+          selector:
+            "AssignmentExpression[left.property.name='outerHTML'], CallExpression[callee.property.name='insertAdjacentHTML']",
+          message: "HTML-ийг setHtml()-ээр оруулна.",
+        },
+      ],
+    },
+  },
+  {
     files: ["tests/**/*.ts"],
     rules: {
       "@typescript-eslint/no-this-alias": "off",

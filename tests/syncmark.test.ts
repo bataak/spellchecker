@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { markBox } from "../src/preview/syncmark.ts";
-import { textLeft } from "../src/preview/pdftext.ts";
+import { textLeft } from "../src/office/pdf/pdftext.ts";
 
 const page = { top: 100, left: 20, width: 600, height: 800 };
 

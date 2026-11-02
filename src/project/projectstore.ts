@@ -34,8 +34,8 @@ export interface ProjectFiles {
   readonly main: string | null;
 }
 
-export { ProjectError } from "./projecterror.ts";
-export type { ProjectBuild } from "./projectbuild.ts";
+export { ProjectError } from "../core/projecterror.ts";
+export type { ProjectBuild } from "../tex/projectbuild.ts";
 export type { ProjectSnapshot } from "./projectedit.ts";
 export type { ProjectKind } from "./projectstate.ts";
 export type { SaveResult } from "./storesave.ts";

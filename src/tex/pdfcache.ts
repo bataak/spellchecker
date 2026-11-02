@@ -1,4 +1,4 @@
-import type { TexProject } from "../project/projectbuild.ts";
+import type { TexProject } from "./projectbuild.ts";
 import { noteError } from "../core/errorlog.ts";
 
 const PDF_CACHE = "tex-preview";

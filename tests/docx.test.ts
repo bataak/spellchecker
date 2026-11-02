@@ -37,12 +37,12 @@ function edit(start: number, end: number, text: string): ParagraphEdit {
 
 function rewrite(xml: string, edits: ParagraphEdit[], paragraph = 0): string {
   const part = parsePart("word/document.xml", xml);
-  const plan = planParagraph(part.paragraphs[paragraph], edits);
+  const plan = planParagraph(part.paragraphs[paragraph]!, edits);
   return applyRawEdits(xml, plan.raw);
 }
 
 function textOf(xml: string, paragraph = 0): string {
-  return parsePart("word/document.xml", xml).paragraphs[paragraph].text;
+  return parsePart("word/document.xml", xml).paragraphs[paragraph]!.text;
 }
 
 test("reads paragraph text across fragmented runs", () => {
@@ -119,9 +119,9 @@ test("refuses to merge runs whose formatting differs", () => {
     `<w:p>${run("мон", "<w:rPr><w:b/></w:rPr>")}${run("гол", "<w:rPr><w:i/></w:rPr>")}</w:p>`,
   );
   const part = parsePart("word/document.xml", xml);
-  const plan = planParagraph(part.paragraphs[0], [edit(0, 6, "мангал")]);
+  const plan = planParagraph(part.paragraphs[0]!, [edit(0, 6, "мангал")]);
   assert.equal(plan.raw.length, 0);
-  assert.equal(plan.skipped[0].reason, "mixed-format");
+  assert.equal(plan.skipped[0]!.reason, "mixed-format");
 });
 
 test("splits a wide edit into word hunks when runs differ in format", () => {
@@ -190,9 +190,9 @@ test("leaves untouched paragraphs byte identical", () => {
 test("rejects a span that crosses a line break", () => {
   const xml = doc(`<w:p>${run("нэг")}<w:r><w:br/></w:r>${run("хоёр")}</w:p>`);
   const part = parsePart("word/document.xml", xml);
-  const plan = planParagraph(part.paragraphs[0], [edit(0, 8, "нэгхоёр")]);
+  const plan = planParagraph(part.paragraphs[0]!, [edit(0, 8, "нэгхоёр")]);
   assert.equal(plan.raw.length, 0);
-  assert.equal(plan.skipped[0].reason, "crosses-boundary");
+  assert.equal(plan.skipped[0]!.reason, "crosses-boundary");
 });
 
 test("applies several edits in one paragraph without shifting offsets", () => {
@@ -204,11 +204,11 @@ test("applies several edits in one paragraph without shifting offsets", () => {
 test("reports overlapping edits instead of corrupting text", () => {
   const xml = doc(`<w:p>${run("монгол улс")}</w:p>`);
   const part = parsePart("word/document.xml", xml);
-  const plan = planParagraph(part.paragraphs[0], [
+  const plan = planParagraph(part.paragraphs[0]!, [
     edit(0, 6, "Монгол"),
     edit(3, 10, "x"),
   ]);
-  assert.equal(plan.skipped[0].reason, "overlap");
+  assert.equal(plan.skipped[0]!.reason, "overlap");
   assert.equal(plan.applied.length, 1);
 });
 
@@ -218,7 +218,7 @@ test("reads paragraphs inside table cells", () => {
   );
   const part = parsePart("word/document.xml", xml);
   assert.equal(part.paragraphs.length, 1);
-  assert.equal(part.paragraphs[0].text, "нүд");
+  assert.equal(part.paragraphs[0]!.text, "нүд");
 });
 
 test("keeps hyperlink and insertion text in the flow", () => {
@@ -233,7 +233,7 @@ test("records the paragraph style", () => {
     `<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr>${run("Гарчиг")}</w:p>`,
   );
   const part = parsePart("word/document.xml", xml);
-  assert.equal(part.paragraphs[0].styleId, "Heading1");
+  assert.equal(part.paragraphs[0]!.styleId, "Heading1");
 });
 
 test("round trips text with no edits", () => {
@@ -275,7 +275,7 @@ test("routes edits to the part that owns the offset", () => {
 
   assert.equal(plan.applied.length, 1);
   assert.equal(Object.keys(rewritten).length, 1);
-  assert.ok(rewritten["word/header1.xml"].includes("ТОЛГОЙ"));
+  assert.ok(rewritten["word/header1.xml"]!.includes("ТОЛГОЙ"));
 });
 
 test("rejects an edit that spans a paragraph break", () => {
@@ -287,7 +287,7 @@ test("rejects an edit that spans a paragraph break", () => {
   const plan = planDocument(index, [{ start: 0, end: 8, text: "нэгхоёр" }]);
 
   assert.equal(plan.applied.length, 0);
-  assert.equal(plan.skipped[0].reason, "crosses-boundary");
+  assert.equal(plan.skipped[0]!.reason, "crosses-boundary");
 });
 
 test("renders pending edits onto the flat text", () => {
@@ -327,9 +327,9 @@ test("leaves a soft hyphen alone when the edit does not reach it", () => {
 test("still treats a line break as a hard boundary", () => {
   const xml = doc(`<w:p>${run("нэг")}<w:r><w:br/></w:r>${run("хоёр")}</w:p>`);
   const part = parsePart("word/document.xml", xml);
-  const plan = planParagraph(part.paragraphs[0], [edit(0, 8, "нэгхоёр")]);
+  const plan = planParagraph(part.paragraphs[0]!, [edit(0, 8, "нэгхоёр")]);
 
-  assert.equal(plan.skipped[0].reason, "crosses-boundary");
+  assert.equal(plan.skipped[0]!.reason, "crosses-boundary");
 });
 
 test("keeps the visible result of a hyperlink field", () => {

@@ -1,3 +1,4 @@
+import { setHtml } from "../core/htmlutil.ts";
 import {
   onSlotChange,
   setTalkOpen,
@@ -92,7 +93,7 @@ function paintTrigger(trigger: HTMLButtonElement, shared: boolean): void {
   trigger.title = shared
     ? "Хамтрагчидтай хэлэлцэх, өөрчлөлт ба шүүмжийг харах"
     : "Шүүмжийг харах";
-  trigger.innerHTML = icon(shared ? ICONS.chat : ICONS.comments, 14);
+  setHtml(trigger, icon(shared ? ICONS.chat : ICONS.comments, 14));
   trigger.append(document.createTextNode(" " + label));
 }
 

@@ -54,8 +54,8 @@ function fencedRanges(text: string, starts: number[]): SkipRange[] {
   let marker = "";
 
   for (let line = 0; line < starts.length; line += 1) {
-    const from = starts[line];
-    const to = line + 1 < starts.length ? starts[line + 1] - 1 : text.length;
+    const from = starts[line]!;
+    const to = line + 1 < starts.length ? starts[line + 1]! - 1 : text.length;
     const source = text.slice(from, to);
     const match = FENCE.exec(source);
 
@@ -63,15 +63,15 @@ function fencedRanges(text: string, starts: number[]): SkipRange[] {
 
     if (open < 0) {
       open = from;
-      marker = match[1];
+      marker = match[1]!;
       continue;
     }
 
     const close = FENCE_CLOSE.exec(source);
     if (
       close &&
-      close[1][0] === marker[0] &&
-      close[1].length >= marker.length
+      close[1]![0] === marker[0] &&
+      close[1]!.length >= marker.length
     ) {
       ranges.push({ start: open, end: to });
       open = -1;
@@ -184,11 +184,11 @@ export function mergeRanges(ranges: SkipRange[]): SkipRange[] {
   if (ranges.length === 0) return ranges;
 
   const ordered = [...ranges].sort((left, right) => left.start - right.start);
-  const merged: SkipRange[] = [ordered[0]];
+  const merged: SkipRange[] = [ordered[0]!];
 
   for (let index = 1; index < ordered.length; index += 1) {
-    const last = merged[merged.length - 1];
-    const next = ordered[index];
+    const last = merged[merged.length - 1]!;
+    const next = ordered[index]!;
 
     if (next.start <= last.end) last.end = Math.max(last.end, next.end);
     else merged.push({ start: next.start, end: next.end });
@@ -264,7 +264,7 @@ function urlLikeLabels(text: string): SkipRange[] {
     const match = MD_LABEL.exec(text);
     if (match === null) break;
 
-    const label = match[1];
+    const label = match[1]!;
     DOMAIN.lastIndex = 0;
     if (!DOMAIN.test(label) && !/^(?:https?|ftp):/i.test(label)) continue;
 
@@ -427,7 +427,7 @@ export function inRanges(ranges: SkipRange[], offset: number): boolean {
 
   while (low <= high) {
     const mid = (low + high) >> 1;
-    const range = ranges[mid];
+    const range = ranges[mid]!;
 
     if (offset < range.start) high = mid - 1;
     else if (offset >= range.end) low = mid + 1;

@@ -14,7 +14,7 @@ import {
   relativePath,
   resolveGraphic,
   rootedPath,
-} from "../tex/texproject.ts";
+} from "./texproject.ts";
 import {
   resolveSvg,
   rewriteSvg,
@@ -22,8 +22,8 @@ import {
   svgRefs,
   svgToPdf,
   usesSvgPackage,
-} from "../tex/texsvg.ts";
-import { ProjectError } from "./projecterror.ts";
+} from "./texsvg.ts";
+import { ProjectError } from "../core/projecterror.ts";
 
 export interface ProjectBuild {
   readonly workdir: string;

@@ -1,5 +1,6 @@
-import { escapeAttr, escapeHtml } from "../core/htmlutil.ts";
-import { splitName } from "../office/filename.ts";
+import type { Html } from "../core/htmlutil.ts";
+import { escapeAttr, escapeHtml, trustedHtml } from "../core/htmlutil.ts";
+import { splitName } from "../core/filename.ts";
 import { nf } from "./status.ts";
 
 export interface DocStats {
@@ -28,10 +29,10 @@ export function statsBody(
   stats: DocStats,
   desktop: boolean,
   position: LinePosition | null,
-): string {
+): Html {
   if (desktop)
-    return (
-      "Үгийн тоо: " + nf(stats.words) + ", Нийт тэмдэгт: " + nf(stats.chars)
+    return trustedHtml(
+      "Үгийн тоо: " + nf(stats.words) + ", Нийт тэмдэгт: " + nf(stats.chars),
     );
   const line = position
     ? ", Мөр: " +
@@ -39,32 +40,32 @@ export function statsBody(
       " / " +
       nf(Math.max(position.total, position.line))
     : "";
-  return (
+  return trustedHtml(
     "Үгийн тоо: " +
-    nf(stats.words) +
-    ", <b>Алдаатай үг</b>: <b>" +
-    nf(stats.bad) +
-    "</b>, Нийт тэмдэгт: " +
-    nf(stats.chars) +
-    line
+      nf(stats.words) +
+      ", <b>Алдаатай үг</b>: <b>" +
+      nf(stats.bad) +
+      "</b>, Нийт тэмдэгт: " +
+      nf(stats.chars) +
+      line,
   );
 }
 
-export function statsMessage(fileName: string | null, body: string): string {
-  if (!fileName) return body;
+export function statsMessage(fileName: string | null, body: Html): Html {
+  if (!fileName) return trustedHtml(body);
   const parts = splitName(fileName);
-  return (
+  return trustedHtml(
     '<b class="doc-head" title="' +
-    escapeAttr(fileName) +
-    '">' +
-    escapeHtml(parts.head) +
-    "</b>" +
-    '<b class="doc-keep">' +
-    escapeHtml(parts.tail) +
-    "</b>" +
-    '<span class="doc-rest">' +
-    '<span class="doc-sep">, </span>' +
-    body +
-    "</span>"
+      escapeAttr(fileName) +
+      '">' +
+      escapeHtml(parts.head) +
+      "</b>" +
+      '<b class="doc-keep">' +
+      escapeHtml(parts.tail) +
+      "</b>" +
+      '<span class="doc-rest">' +
+      '<span class="doc-sep">, </span>' +
+      body +
+      "</span>",
   );
 }

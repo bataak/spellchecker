@@ -1,11 +1,11 @@
-import { escapeHtml } from "../core/htmlutil.ts";
+import { escapeHtml, html } from "../core/htmlutil.ts";
 import { askFolder } from "./git/gitdialog.ts";
 import { lastRepo, openRepo, savedToken } from "./git/gitsession.ts";
 import { askRepo, type RepoChoice } from "./git/repodialog.ts";
 import type { Busy } from "./git/form.ts";
 import { confirmClose, whenSure } from "./linkfiles.ts";
 import type { PanelParts } from "./panelmarkup.ts";
-import { ProjectError, failureMessage } from "./projecterror.ts";
+import { ProjectError, failureMessage } from "../core/projecterror.ts";
 import type { ProjectPanelDeps } from "./projectpanel.ts";
 import type { TreeControl, TreeState } from "./treecontrol.ts";
 
@@ -28,7 +28,7 @@ function afterOpen(a: ActionDeps): (prefer?: string) => void {
     a.deps.onOpened(true, prefer);
     a.show(true);
     const view = a.deps.store.project();
-    if (view) a.deps.notify("«" + escapeHtml(view.label) + "» төслийг нээлээ");
+    if (view) a.deps.notify(html`«${escapeHtml(view.label)}» төслийг нээлээ`);
   };
 }
 
@@ -110,7 +110,7 @@ function wireProjectButtons(a: ActionDeps): void {
   parts.grantBtn.addEventListener("click", () => {
     void run(async () => {
       if (await store.grantProject()) deps.onOpened(false);
-      else deps.notify("Хавтсанд хандах зөвшөөрөл өгөгдсөнгүй");
+      else deps.notify(html`Хавтсанд хандах зөвшөөрөл өгөгдсөнгүй`);
     });
   });
   parts.forgetBtn.addEventListener("click", () => {
@@ -123,15 +123,15 @@ function wireProjectButtons(a: ActionDeps): void {
     void run(async () => {
       deps.notify(
         (await store.refreshProject())
-          ? "Дискэн дээрх өөрчлөлтийг уншлаа"
-          : "Дискэн дээр өөрчлөлт алга",
+          ? html`Дискэн дээрх өөрчлөлтийг уншлаа`
+          : html`Дискэн дээр өөрчлөлт алга`,
       );
     });
   });
   parts.exportBtn.addEventListener("click", () => {
     void run(async () => {
       await store.exportZip();
-      deps.notify("Төслийг zip архив болгож татлаа");
+      deps.notify(html`Төслийг zip архив болгож татлаа`);
     });
   });
   parts.closeBtn.addEventListener("click", () =>

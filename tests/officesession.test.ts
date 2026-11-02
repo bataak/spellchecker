@@ -5,7 +5,7 @@ import { installDom } from "./helpers/dom.ts";
 
 const dom = installDom('<textarea id="ed"></textarea>');
 
-const { createOfficeSession } = await import("../src/office/session.ts");
+const { createOfficeSession } = await import("../src/app/officesession.ts");
 const { parse } = await import("../src/markdown.ts");
 const { findTemplate } = await import("../src/doc/templates.ts");
 const { applyTemplate } = await import("../src/office/apply.ts");
@@ -43,6 +43,7 @@ function setup() {
       set: (html: string) => calls.push("set:" + html),
       hold: (html: string) => calls.push("hold:" + html),
       release: () => calls.push("release"),
+      shown: () => "",
     } as never,
     showSource: (source) =>
       calls.push(

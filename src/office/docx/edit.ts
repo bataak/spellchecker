@@ -79,8 +79,8 @@ function tableSteps(before: string[], after: string[]): Step[] {
     for (let j = after.length - 1; j >= 0; j -= 1) {
       table[i * cols + j] =
         before[i] === after[j]
-          ? table[(i + 1) * cols + j + 1] + 1
-          : Math.max(table[(i + 1) * cols + j], table[i * cols + j + 1]);
+          ? table[(i + 1) * cols + j + 1]! + 1
+          : Math.max(table[(i + 1) * cols + j]!, table[i * cols + j + 1]!);
     }
   }
 
@@ -95,7 +95,7 @@ function tableSteps(before: string[], after: string[]): Step[] {
     } else if (
       j >= after.length ||
       (i < before.length &&
-        table[(i + 1) * cols + j] >= table[i * cols + j + 1])
+        table[(i + 1) * cols + j]! >= table[i * cols + j + 1]!)
     ) {
       steps.push(DROP);
       i += 1;
@@ -250,7 +250,7 @@ function isContiguous(nodes: TextNode[], start: number, end: number): boolean {
 
 function nodeEdits(node: TextNode, next: string): RawEdit[] {
   const needsPreserve =
-    next.length > 0 && (isSpace(next[0]) || isSpace(next[next.length - 1]));
+    next.length > 0 && (isSpace(next[0]!) || isSpace(next[next.length - 1]!));
 
   if (node.glyph) {
     if (next.length === 0)
@@ -316,7 +316,7 @@ function placePiece(
     return "crosses-boundary";
 
   if (nodes.length > 1) {
-    const signature = normalizeRunProps(nodes[0].runProps);
+    const signature = normalizeRunProps(nodes[0]!.runProps);
     if (nodes.some((node) => normalizeRunProps(node.runProps) !== signature))
       return "mixed-format";
   }

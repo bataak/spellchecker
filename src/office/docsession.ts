@@ -1,5 +1,5 @@
-import type { OfficeMode } from "../office/mode.ts";
-import { isPlain } from "./templates.ts";
+import type { OfficeMode } from "./mode.ts";
+import { isPlain } from "../doc/templates.ts";
 
 const MD_NAME_RE = /\.(md|markdown|mdown)$/i;
 

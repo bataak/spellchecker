@@ -1,5 +1,5 @@
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import type { Line, TextItem } from "./pdftext.ts";
+import type { Line, TextItem } from "../office/pdf/pdftext.ts";
 import type { PdfWord } from "../tex/texsync.ts";
 
 export async function readPdfWords(
@@ -7,7 +7,7 @@ export async function readPdfWords(
   margins: (number | null)[],
 ): Promise<readonly PdfWord[]> {
   const [{ pageLines, textLeft }, { pdfWords }] = await Promise.all([
-    import("./pdftext.ts"),
+    import("../office/pdf/pdftext.ts"),
     import("../tex/texsync.ts"),
   ]);
   const lines: Line[][] = [];

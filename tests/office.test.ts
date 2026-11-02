@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { applyEdit } from "../src/office/editsync.ts";
 import { suggestName } from "../src/office/mode.ts";
 import { renderFlat } from "../src/office/textdoc.ts";
-import { splitName } from "../src/office/filename.ts";
+import { splitName } from "../src/core/filename.ts";
 import type { OfficeEdit } from "../src/office/mode.ts";
 
 const SRC = "монгол улс\n\nхоёрдугаар мөр";
@@ -55,8 +55,8 @@ test("expands a selection that partially covers an edit", () => {
   edits = apply(edits, 2, 5, "X");
 
   assert.equal(edits.length, 1);
-  assert.equal(edits[0].start, 0);
-  assert.equal(edits[0].end, 6);
+  assert.equal(edits[0]!.start, 0);
+  assert.equal(edits[0]!.end, 6);
 });
 
 test("names the saved file per format", () => {

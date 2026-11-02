@@ -1,14 +1,13 @@
+import { ROOM_ID, TOKEN } from "../../worker/shared/protocol.ts";
 import {
   fromBase64Url,
   importKey,
-  TOKEN,
   unseal,
   validName,
   type InviteLink,
   type ShortLink,
 } from "./collabkey.ts";
 
-const ROOM = /^[A-Za-z0-9_-]{22}$/;
 const WAIT_MS = 8000;
 const decoder = new TextDecoder("utf-8", { fatal: true });
 
@@ -35,7 +34,7 @@ async function linkOf(
 ): Promise<InviteLink | null> {
   if (!data || typeof data !== "object") return null;
   const v = data as Record<string, unknown>;
-  if (v.t !== "link" || typeof v.room !== "string" || !ROOM.test(v.room))
+  if (v.t !== "link" || typeof v.room !== "string" || !ROOM_ID.test(v.room))
     return null;
   if (typeof v.invite !== "string" || !TOKEN.test(v.invite)) return null;
   const link = { room: v.room, key: short.key, invite: v.invite };

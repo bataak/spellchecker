@@ -1,7 +1,10 @@
+import type { Html } from "./htmlutil.ts";
+
 export interface StatusPort {
-  readonly set: (html: string, animate?: boolean) => void;
-  readonly hold: (html: string, ms?: number, animate?: boolean) => void;
+  readonly set: (markup: Html, animate?: boolean) => void;
+  readonly hold: (markup: Html, ms?: number, animate?: boolean) => void;
   readonly release: () => void;
+  readonly shown: () => Html;
 }
 
 export interface EditorPort {

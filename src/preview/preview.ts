@@ -1,15 +1,17 @@
+import { escapeHtml } from "../core/htmlutil.ts";
+import type { Html } from "../core/htmlutil.ts";
 import { initImageEdit } from "./imageedit.ts";
 import { onImagesChange } from "../files/images.ts";
 import { createHtmlSync } from "./htmlsync.ts";
 import { handleImageClick } from "./mdimages.ts";
 import { createFileView } from "./previewfile.ts";
 import { createMarkdownView } from "./previewmd.ts";
-import type { CompiledPdf } from "./pdfcache.ts";
+import type { CompiledPdf } from "../tex/pdfcache.ts";
 import { createPdfPane } from "./pdfpane.ts";
 import { buildPreviewHead, HEAD_TEXT } from "./previewhead.ts";
 import { createTexPreview } from "./texpreview.ts";
 import { initCompileButton } from "./compilemode.ts";
-import type { TexProject } from "../project/projectbuild.ts";
+import type { TexProject } from "../tex/projectbuild.ts";
 import { onDoubleTap } from "./previewgesture.ts";
 import { createPreviewSync, previewShown } from "./previewsync.ts";
 import { createTidy } from "./previewtidy.ts";
@@ -41,7 +43,7 @@ export interface PreviewDeps {
   readonly texProject: () => TexProject | null;
   readonly pdfName: () => string;
   readonly jump: (start: number, end: number) => void;
-  readonly notify: (html: string, ms: number, animate: boolean) => void;
+  readonly notify: (markup: Html, ms: number, animate: boolean) => void;
 }
 
 export interface Preview {
@@ -126,7 +128,7 @@ function wireTex(w: TexWiring) {
     onImagesChanged: w.update,
     onModeChange: (_auto, note) => {
       compileMode.paint();
-      if (note) deps.notify(note, 9000, false);
+      if (note) deps.notify(escapeHtml(note), 9000, false);
     },
   });
   const compileMode = initCompileButton({

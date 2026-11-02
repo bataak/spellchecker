@@ -1,5 +1,5 @@
-import { downloadBlob } from "./download.ts";
-import { textMime } from "./filetypes.ts";
+import { downloadBlob } from "../ui/download.ts";
+import { textMime } from "../core/filetypes.ts";
 
 export function isDesktopApp(): boolean {
   if (!window.matchMedia) return false;

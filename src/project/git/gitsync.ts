@@ -7,7 +7,11 @@ import {
 } from "../../tex/texproject.ts";
 import { MAX_BYTES, budget } from "../projectdisk.ts";
 import { ownValue, pathRecord } from "../../core/pathrecord.ts";
-import { Cancelled, PROJECT_TOO_LARGE, ProjectError } from "../projecterror.ts";
+import {
+  Cancelled,
+  PROJECT_TOO_LARGE,
+  ProjectError,
+} from "../../core/projecterror.ts";
 import { readText } from "../projectstate.ts";
 import {
   inBatches,

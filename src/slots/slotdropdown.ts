@@ -1,4 +1,6 @@
-import { PROJECT_SLOT } from "./fileslots.ts";
+import type { Html } from "../core/htmlutil.ts";
+import { setHtml } from "../core/htmlutil.ts";
+import { PROJECT_SLOT } from "../core/fileslots.ts";
 import { onViewportChange, placeBelow } from "../ui/placebelow.ts";
 import { eventElement, eventNode, listStep } from "../ui/dom.ts";
 
@@ -13,7 +15,7 @@ export interface SlotDropdownDeps {
 }
 
 export interface SlotDropdown {
-  render(html: string): void;
+  render(markup: Html): void;
   pick(value: string): string | null;
   isOpen(): boolean;
   contains(node: Node): boolean;
@@ -42,6 +44,34 @@ function checkItems(
     if (on) label = item.textContent ?? "";
   }
   return label;
+}
+
+function menuKey(
+  event: KeyboardEvent,
+  list: () => HTMLButtonElement[],
+  deps: SlotDropdownDeps,
+  close: (refocus: boolean) => void,
+): void {
+  const items = list();
+  const at = items.indexOf(document.activeElement as HTMLButtonElement);
+  if (event.key === "Delete") {
+    const id = items[at]?.dataset.value;
+    if (!id || !deps.canClose(id)) return;
+    event.preventDefault();
+    deps.onCloseSlot(id);
+    const left = list();
+    left[Math.min(at, left.length - 1)]?.focus();
+    return;
+  }
+  if (event.key === "Escape" || event.key === "Tab") {
+    event.preventDefault();
+    close(true);
+    return;
+  }
+  const next = listStep(event.key, at, items.length);
+  if (next < 0) return;
+  event.preventDefault();
+  items[next]?.focus();
 }
 
 export function createSlotDropdown(deps: SlotDropdownDeps): SlotDropdown {
@@ -98,26 +128,8 @@ export function createSlotDropdown(deps: SlotDropdownDeps): SlotDropdown {
     deps.onSelect(item.dataset.value);
   };
 
-  const onKey = (event: KeyboardEvent): void => {
-    const at = items.indexOf(document.activeElement as HTMLButtonElement);
-    const next = listStep(event.key, at, items.length);
-    if (event.key === "Delete") {
-      const id = items[at]?.dataset.value;
-      if (id && deps.canClose(id)) {
-        event.preventDefault();
-        deps.onCloseSlot(id);
-        items[Math.min(at, items.length - 1)]?.focus();
-      }
-      return;
-    } else if (event.key === "Escape" || event.key === "Tab") {
-      event.preventDefault();
-      close(true);
-      return;
-    }
-    if (next < 0) return;
-    event.preventDefault();
-    items[next]?.focus();
-  };
+  const onKey = (event: KeyboardEvent): void =>
+    menuKey(event, () => items, deps, close);
 
   const onPointer = (event: Event): void => {
     const target = eventNode(event);
@@ -138,7 +150,7 @@ export function createSlotDropdown(deps: SlotDropdownDeps): SlotDropdown {
 
   return {
     render(html) {
-      menu.innerHTML = html;
+      setHtml(menu, html);
       items = [...menu.querySelectorAll<HTMLButtonElement>(".md-menu-item")];
     },
     pick: (value) => checkItems(items, value),

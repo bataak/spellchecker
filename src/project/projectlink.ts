@@ -1,4 +1,5 @@
-import { failureHtml } from "./projecterror.ts";
+import type { Html } from "../core/htmlutil.ts";
+import { failureHtml } from "../core/projecterror.ts";
 import { initProjectPanel, type ProjectPanel } from "./projectpanel.ts";
 import {
   confirmClose,
@@ -21,7 +22,7 @@ import {
 } from "../tex/texproject.ts";
 import type { PreviewSource } from "../preview/preview.ts";
 import type { LoadedFiles } from "./projectsources.ts";
-import type { TexProject } from "./projectbuild.ts";
+import type { TexProject } from "../tex/projectbuild.ts";
 import { onSwap, swapOrigin } from "../editor/editortext.ts";
 import {
   createBinding,
@@ -67,7 +68,7 @@ export interface ProjectLinkDeps extends BindDeps {
   readonly host: PanelHost;
   readonly onChange: () => void;
   readonly onProject: (name: string | null) => void;
-  readonly notify: (message: string) => void;
+  readonly notify: (markup: Html) => void;
 }
 
 export interface ProjectLink {

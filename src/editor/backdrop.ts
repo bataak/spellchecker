@@ -1,3 +1,4 @@
+import { setHtml } from "../core/htmlutil.ts";
 import {
   countLines,
   markedHtml,
@@ -131,7 +132,7 @@ function updateChunkText(
   node._spans = spans;
   node._synKey = synKey;
   node._markKey = "";
-  node.innerHTML = plainHtml(raw, bound.start, spans, blocks);
+  setHtml(node, plainHtml(raw, bound.start, spans, blocks));
 }
 
 function applyChunkMarks(
@@ -144,9 +145,12 @@ function applyChunkMarks(
   const key = markKey(slice);
   if (node._markKey === key) return;
   node._markKey = key;
-  node.innerHTML = slice.length
-    ? markedHtml(node._src, start, slice, node._spans, blocks)
-    : plainHtml(node._src, start, node._spans, blocks);
+  setHtml(
+    node,
+    slice.length
+      ? markedHtml(node._src, start, slice, node._spans, blocks)
+      : plainHtml(node._src, start, node._spans, blocks),
+  );
 }
 
 function lineBlockAt(

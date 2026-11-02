@@ -1,3 +1,4 @@
+import type { Html } from "../core/htmlutil.ts";
 import { placeTip, placeTipAtPointer } from "./defmarks.ts";
 import {
   createDefinitionCache,
@@ -22,7 +23,7 @@ export interface DefTipDeps {
   readonly define: (word: string) => Promise<Definition>;
   readonly showPanel: (word: string) => void;
   readonly hidePopover: () => void;
-  readonly holdStatus: (html: string, ms?: number, animate?: boolean) => void;
+  readonly holdStatus: (markup: Html, ms?: number, animate?: boolean) => void;
   readonly dock: DefDock;
   readonly backdrop: Backdrop;
 }
@@ -208,6 +209,28 @@ async function showTip(
   c.position();
 }
 
+function wordTipFor(
+  deps: DefTipDeps,
+  ctx: ShowCtx,
+  isOpen: () => boolean,
+  show: (anchor: HTMLElement, word: string) => Promise<void>,
+): ReturnType<typeof createWordTip> {
+  return createWordTip({
+    editor: deps.editor,
+    backdrop: deps.backdrop,
+    anchor: ctx.words,
+    definitionFor: ctx.definitionFor,
+    isOpen,
+    hide: ctx.hide,
+    position: ctx.position,
+    show,
+    beforeShow: () => {
+      if (!deps.dock.body() && !ctx.win.pinned()) deps.hidePopover();
+    },
+    holdStatus: deps.holdStatus,
+  });
+}
+
 export function initDefTip(deps: DefTipDeps): DefTip {
   const st: TipState = { anchor: null, shownWord: "", dockedWord: "" };
   const words = createWordAnchor();
@@ -278,25 +301,10 @@ export function initDefTip(deps: DefTipDeps): DefTip {
   hideOnOutsidePointer(hide);
 
   const wordTipOpen = (): boolean => !!st.anchor && st.anchor === words.el();
-
-  function hideWordTip(): void {
+  const hideWordTip = (): void => {
     if (wordTipOpen()) hide();
-  }
-
-  const wordTip = createWordTip({
-    editor: deps.editor,
-    backdrop: deps.backdrop,
-    anchor: words,
-    definitionFor,
-    isOpen: wordTipOpen,
-    hide,
-    position,
-    show,
-    beforeShow: () => {
-      if (!deps.dock.body() && !win.pinned()) deps.hidePopover();
-    },
-    holdStatus: deps.holdStatus,
-  });
+  };
+  const wordTip = wordTipFor(deps, ctx, wordTipOpen, show);
 
   return {
     definitionFor,

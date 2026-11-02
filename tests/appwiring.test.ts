@@ -1,3 +1,4 @@
+import { trustedHtml } from "../src/core/htmlutil.ts";
 import { resetStorage } from "./helpers/mock-storage.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -268,13 +269,13 @@ test("status: hold хугацаанд set-ийг хааж, дуусахад rele
   const status = initStatus(el, () => {
     released += 1;
   });
-  status.set("a", false);
-  status.hold("b", 1000, false);
-  status.set("c", false);
+  status.set(trustedHtml("a"), false);
+  status.hold(trustedHtml("b"), 1000, false);
+  status.set(trustedHtml("c"), false);
   assert.equal(el.innerHTML, "b");
   t.mock.timers.tick(1000);
   assert.equal(released, 1);
-  status.set("d", false);
+  status.set(trustedHtml("d"), false);
   assert.equal(el.innerHTML, "d");
 });
 
@@ -286,9 +287,9 @@ test("status: release нь hold-ыг цуцалж onRelease дуудахгүй",
   const status = initStatus(el, () => {
     released += 1;
   });
-  status.hold("b", 1000, false);
+  status.hold(trustedHtml("b"), 1000, false);
   status.release();
-  status.set("c", false);
+  status.set(trustedHtml("c"), false);
   assert.equal(el.innerHTML, "c");
   t.mock.timers.tick(2000);
   assert.equal(released, 0);
@@ -302,18 +303,18 @@ test("status: pin тайлагдах хүртэл бусад мэдэгдлий�
   const status = initStatus(el, () => {
     released += 1;
   });
-  status.pin("түгжээ");
+  status.pin(trustedHtml("түгжээ"));
   assert.equal(el.innerHTML, "түгжээ");
-  status.set("тоолол", false);
+  status.set(trustedHtml("тоолол"), false);
   assert.equal(el.innerHTML, "түгжээ");
-  status.hold("түр", 1000, false);
+  status.hold(trustedHtml("түр"), 1000, false);
   assert.equal(el.innerHTML, "түр");
   t.mock.timers.tick(1000);
   assert.equal(el.innerHTML, "түгжээ");
   assert.equal(released, 0);
   status.pin(null);
   assert.equal(released, 1);
-  status.set("тоолол", false);
+  status.set(trustedHtml("тоолол"), false);
   assert.equal(el.innerHTML, "тоолол");
 });
 
@@ -349,4 +350,15 @@ test("watchTabs: ижил төсөл дахин мэдэгдэхэд sync илг
   guard.close();
   peer.close();
   assert.deepEqual(updates, ["p1", "p2", null]);
+});
+
+test("status: shown нь дэлгэцэд харагдаж буй мөрийг буцаана", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  globals.window = globalThis;
+  const status = initStatus(statusEl(), () => {});
+  status.set(trustedHtml("a"), false);
+  assert.equal(status.shown(), "a");
+  status.hold(trustedHtml("<b>b</b>"), 1000, false);
+  status.set(trustedHtml("c"), false);
+  assert.equal(status.shown(), "<b>b</b>");
 });

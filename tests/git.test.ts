@@ -21,7 +21,7 @@ import {
   moveEntries,
   putFile,
 } from "../src/project/projectedit.ts";
-import { Cancelled, ProjectError } from "../src/project/projecterror.ts";
+import { Cancelled, ProjectError } from "../src/core/projecterror.ts";
 import { hostFor } from "../src/project/git/gitsession.ts";
 import { workingCopy } from "../src/project/workingcopy.ts";
 
