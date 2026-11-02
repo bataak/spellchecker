@@ -6,7 +6,7 @@ import type { Attacher } from "./attacher.ts";
 import { fromBase64Url, seal, toBase64Url, unseal } from "./collabkey.ts";
 import type { Access } from "./collabrooms.ts";
 import type { IceKeeper } from "./ice.ts";
-import { inflateCapped } from "./inflatecap.ts";
+import { inflateCapped, MAX_PLAIN_STATE } from "./inflatecap.ts";
 import type { Mesh, SignalPayload } from "./mesh.ts";
 import type { Uploader } from "./persistence.ts";
 import type { SessionContent, SessionLink } from "./sessiontypes.ts";
@@ -21,7 +21,6 @@ const MOVES: ReadonlySet<SignalEvent["t"]> = new Set([
   "kick",
 ]);
 const READY_MS = 5000;
-const MAX_PLAIN_SNAPSHOT = 128 * 1024 * 1024;
 export const SNAPSHOT = { snapshot: true };
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -122,7 +121,7 @@ async function applySnapshot(
   data: Uint8Array,
 ): Promise<void> {
   const plain = await unseal(key, data);
-  const update = plain && inflateCapped(plain, MAX_PLAIN_SNAPSHOT);
+  const update = plain && inflateCapped(plain, MAX_PLAIN_STATE);
   if (update) Y.applyUpdate(doc, update, SNAPSHOT);
 }
 

@@ -1,6 +1,7 @@
 import { Inflate } from "fflate";
 
 const STEP = 16 * 1024;
+export const MAX_PLAIN_STATE = 128 * 1024 * 1024;
 
 export function inflateCapped(
   data: Uint8Array,

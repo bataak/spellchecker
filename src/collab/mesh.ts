@@ -1,4 +1,4 @@
-import { chunk, createAssembler, type Assembler } from "./wire.ts";
+import { MAX_MESSAGE, chunk, createAssembler, type Assembler } from "./wire.ts";
 
 export interface SignalPayload {
   readonly type: "offer" | "answer";
@@ -47,7 +47,6 @@ interface LinkEvents {
 }
 
 const GATHER_MS = 3000;
-const MAX_MESSAGE = 8 * 1024 * 1024;
 const RETRIES = 3;
 const RETRY_MS = 2000;
 const CONNECT_MS = 10_000;

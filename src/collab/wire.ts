@@ -7,6 +7,7 @@ export const BLOB_PART = 5;
 export const BLOB_NONE = 6;
 export const CHAT_REQUEST = 7;
 export const CHAT_UPDATE = 8;
+export const SYNC_PACKED = 9;
 
 export type BlobKind = typeof BLOB_WANT | typeof BLOB_PART | typeof BLOB_NONE;
 
@@ -17,7 +18,8 @@ export type FrameKind =
   | typeof LINKS
   | BlobKind
   | typeof CHAT_REQUEST
-  | typeof CHAT_UPDATE;
+  | typeof CHAT_UPDATE
+  | typeof SYNC_PACKED;
 
 export interface Frame {
   readonly kind: FrameKind;
@@ -25,6 +27,7 @@ export interface Frame {
 }
 
 export const CHUNK_BYTES = 16 * 1024;
+export const MAX_MESSAGE = 8 * 1024 * 1024;
 const WHOLE = 0;
 const PART = 1;
 const LAST = 2;
@@ -38,7 +41,7 @@ export function encodeFrame(kind: FrameKind, body: Uint8Array): Uint8Array {
 
 export function decodeFrame(data: Uint8Array): Frame | null {
   const kind = data[0];
-  if (kind === undefined || kind > CHAT_UPDATE) return null;
+  if (kind === undefined || kind > SYNC_PACKED) return null;
   return { kind: kind as FrameKind, body: data.subarray(1) };
 }
 
