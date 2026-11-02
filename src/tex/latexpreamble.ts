@@ -17,7 +17,6 @@ function theoremSetup(tex: string): (string | false)[] {
   const needed = used.filter((env) => !theoremDefined(tex, env.name));
   return [
     (used.length > 0 || tex.includes("\\begin{proof}")) &&
-      !/\{amsthm\}/.test(tex) &&
       "\\usepackage{amsthm}",
     ...needed.flatMap(theoremLines),
   ];

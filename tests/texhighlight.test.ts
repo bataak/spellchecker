@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spansInRange } from "../src/editor/syntaxspans.ts";
+import { texImagePaths } from "../src/tex/teximages.ts";
 import { texSpans } from "../src/tex/texhighlight.ts";
+import { literalTest } from "../src/tex/texliteral.ts";
 import type { TexKind } from "../src/tex/texhighlight.ts";
 
 function pieces(text: string): [TexKind, string][] {
@@ -113,4 +115,26 @@ test("spansInRange зөвхөн огтлолцохыг буцаана", () => {
     spansInRange(spans, 0, 1).map((s) => s.start),
     [0],
   );
+});
+
+test("холбоос, мөр доторх кодын % нь тайлбар биш", () => {
+  const comments = (text: string) =>
+    texSpans(text).filter((span) => span.kind === "comment").length;
+  for (const text of [
+    "\\url{a%20b} үг",
+    "\\nolinkurl{a%20b} үг",
+    "\\href{a%20b}{нэр} үг",
+    "\\lstinline|%| үг",
+    "\\lstinline[x]{%} үг",
+    "\\mintinline{c}|%| үг",
+  ])
+    assert.equal(comments(text), 0, text);
+  assert.equal(comments("\\url{a} % үг"), 1);
+  assert.equal(comments("\\url{a%\nб"), 1);
+  assert.equal(comments("\\lstinline %\n"), 1);
+  const text = "\\href{a%20b}{\\includegraphics{в}}";
+  assert.equal(literalTest(text)(text.indexOf("\\includegraphics")), false);
+  assert.deepEqual(texImagePaths("\\url{a%20b} \\includegraphics{в.png}"), [
+    "в.png",
+  ]);
 });

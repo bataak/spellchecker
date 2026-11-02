@@ -31,7 +31,7 @@ export function createTexBar(deps: TexBarDeps): BarTools {
     const edit = menuEdit(value, selectionStart, selectionEnd, insert);
     pop.close(true);
     if (!edit) return;
-    const setup = preambleEdit(value, edit.text);
+    const setup = preambleEdit(value, edit);
     if (setup) deps.insert(setup);
     deps.insert(setup ? placeAfter(edit, setup) : edit);
   }

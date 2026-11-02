@@ -240,3 +240,19 @@ test("цэсний нэмсэн багц, теоремтой бүтэн бари
   assert.match(text, /Тайлбар 1/);
   assert.match(text, /в, 1/);
 });
+
+test("өөрийн amsthm-тэй бүтэн биш баримтын теорем PDF болно", async () => {
+  const text = await pdfText({
+    tex: "\\usepackage{amsthm}\n\\begin{document}\n\\begin{theorem}\nүг\n\\end{theorem}\n",
+  });
+  assert.match(text, /Теорем 1.*үг/);
+});
+
+test("\\url-ын % дараах зураг мөн мөрөнд PDF-д орно", async () => {
+  const text = await pdfText({
+    project:
+      "\\documentclass{article}\n\\usepackage{graphicx,url}\n\\begin{document}\nАА \\url{x%20y} \\includegraphics{a.png} ББ\n\\end{document}\n",
+  });
+  assert.match(text, /АА x%20y ББ/);
+  assert.doesNotMatch(text, /a\.png/);
+});

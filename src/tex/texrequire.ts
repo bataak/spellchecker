@@ -125,15 +125,19 @@ function missingTheorems(
   ).flatMap(theoremLines);
 }
 
-export function preambleEdit(text: string, inserted: string): Expansion | null {
+export function preambleEdit(
+  text: string,
+  edit: Pick<Expansion, "from" | "to" | "text">,
+): Expansion | null {
   const documentType = documentClass(text);
   const at = liveMatches(text, BEGIN_DOCUMENT)[0]?.index;
   if (documentType === null || at === undefined) return null;
+  if (edit.from < at && edit.to > at) return null;
   const preamble = uncommented(text.slice(0, at));
   const beamer = documentType === "beamer";
   const lines = [
-    ...(beamer ? [] : missingPackages(preamble, inserted)),
-    ...missingTheorems(preamble, inserted, beamer),
+    ...(beamer ? [] : missingPackages(preamble, edit.text)),
+    ...missingTheorems(preamble, edit.text, beamer),
   ];
   if (!lines.length) return null;
   const added = lines.join("\n") + "\n";

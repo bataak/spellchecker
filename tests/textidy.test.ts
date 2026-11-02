@@ -170,3 +170,11 @@ test("tidyTex: тасархайгүй зай болон бусад Unicode за�
     "\\begin\u00a0{center}\nа\n",
   );
 });
+
+test("хүснэгт доторх \\lstinline, \\mintinline кодыг өөрчлөхгүй", () => {
+  for (const code of ["\\lstinline|a&b|", "\\mintinline{c}|a&b|"]) {
+    const src =
+      "\\begin{tabular}{cc}\n" + code + " & c\\\\\nd & e\\\\\n\\end{tabular}\n";
+    assert.ok(tidyTex(src).includes(code), code);
+  }
+});
