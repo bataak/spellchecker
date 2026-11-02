@@ -1,7 +1,13 @@
 import { noteError } from "../core/errorlog.ts";
 import { jsPDF } from "jspdf";
 import { svg2pdf } from "svg2pdf.js";
-import { genericCss, genericFamily, svgSize } from "./texsvg.ts";
+import {
+  flattenForeignObjects,
+  genericCss,
+  genericFamily,
+  svgSize,
+  svgText,
+} from "./texsvg.ts";
 
 const FONT_DIR = "fonts/svgpdf/";
 const FAMILIES = [
@@ -80,7 +86,7 @@ function useGenericFamilies(svg: Element): void {
 
 export async function renderSvg(bytes: Uint8Array): Promise<Uint8Array | null> {
   try {
-    const source = new TextDecoder().decode(bytes);
+    const source = svgText(bytes);
     const doc = new DOMParser().parseFromString(source, "image/svg+xml");
     const svg = doc.documentElement;
     if (
@@ -100,6 +106,7 @@ export async function renderSvg(bytes: Uint8Array): Promise<Uint8Array | null> {
       compress: true,
       putOnlyUsedFonts: true,
     });
+    flattenForeignObjects(svg);
     useGenericFamilies(svg);
     if (BEYOND_LATIN1.test(svg.textContent ?? ""))
       await addUnicodeFonts(pdf, new XMLSerializer().serializeToString(svg));

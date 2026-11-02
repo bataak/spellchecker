@@ -136,6 +136,80 @@ function points(value: string | null): number | null {
   return size > 0 ? size : null;
 }
 
+const XML_ENCODING = /^<\?xml[^>]*\bencoding\s*=\s*["']([^"']+)["']/;
+const SVG_NS = "http://www.w3.org/2000/svg";
+const FONT_SIZE = /font-size:\s*([\d.]+)px/;
+const DEFAULT_FONT_SIZE = 12;
+const CHAR_WIDTH = 0.55;
+const LINE_HEIGHT = 1.2;
+
+function svgEncoding(bytes: Uint8Array): string {
+  if (bytes[0] === 0xff && bytes[1] === 0xfe) return "utf-16le";
+  if (bytes[0] === 0xfe && bytes[1] === 0xff) return "utf-16be";
+  const head = String.fromCharCode(...bytes.subarray(0, 200));
+  return XML_ENCODING.exec(head)?.[1] ?? "utf-8";
+}
+
+export function svgText(bytes: Uint8Array): string {
+  try {
+    return new TextDecoder(svgEncoding(bytes)).decode(bytes);
+  } catch {
+    return new TextDecoder().decode(bytes);
+  }
+}
+
+function wrapWords(text: string, limit: number): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const word of text.split(" ")) {
+    if (line && line.length + word.length + 1 > limit) {
+      lines.push(line);
+      line = word;
+    } else line = line ? line + " " + word : word;
+  }
+  return [...lines, line];
+}
+
+function foreignText(object: Element): Element | null {
+  const content = (object.textContent ?? "").replace(/\s+/g, " ").trim();
+  if (!content) return null;
+  const markup = new XMLSerializer().serializeToString(object);
+  const size = Number(FONT_SIZE.exec(markup)?.[1] ?? DEFAULT_FONT_SIZE);
+  const width = Number(object.getAttribute("width"));
+  const x = object.getAttribute("x") ?? "0";
+  const y = Number(object.getAttribute("y") ?? 0);
+  const limit = width > size ? width / (size * CHAR_WIDTH) : Infinity;
+  const doc = object.ownerDocument;
+  const text = doc.createElementNS(SVG_NS, "text");
+  text.setAttribute("font-size", String(size));
+  const transform = object.getAttribute("transform");
+  if (transform) text.setAttribute("transform", transform);
+  wrapWords(content, limit).forEach((line, at) => {
+    const span = doc.createElementNS(SVG_NS, "tspan");
+    span.setAttribute("x", x);
+    span.setAttribute("y", String(y + size + at * size * LINE_HEIGHT));
+    span.textContent = line;
+    text.append(span);
+  });
+  return text;
+}
+
+export function flattenForeignObjects(svg: Element): void {
+  for (const object of [...svg.querySelectorAll("foreignObject")]) {
+    const parent = object.parentElement;
+    const fallback = [...(parent?.children ?? [])].find(
+      (child) => child !== object,
+    );
+    if (parent?.localName === "switch" && fallback)
+      parent.replaceWith(fallback);
+    else {
+      const text = foreignText(object);
+      if (text) object.replaceWith(text);
+      else object.remove();
+    }
+  }
+}
+
 export function svgSize(
   width: string | null,
   height: string | null,

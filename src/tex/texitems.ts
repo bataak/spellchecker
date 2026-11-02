@@ -1,5 +1,7 @@
 import { replaceRange } from "../editor/editortext.ts";
 import { lineAt } from "../core/text.ts";
+import { texSpans } from "./texhighlight.ts";
+import { liveMatches } from "./texliteral.ts";
 
 const LIST = /\\(begin|end)\{(itemize|enumerate|description)\}/g;
 const ITEM = /^([ \t]*)\\item\b/;
@@ -23,7 +25,7 @@ function withoutComments(text: string): string {
 
 function listStart(before: string): number | null {
   const open: number[] = [];
-  for (const match of before.matchAll(LIST)) {
+  for (const match of liveMatches(before, LIST)) {
     if (match[1] === "begin") open.push(match.index + match[0].length);
     else open.pop();
   }
@@ -54,6 +56,8 @@ export function itemEdit(
   to: number,
 ): ItemEdit | null {
   const before = withoutComments(text.slice(0, from));
+  const last = texSpans(before).at(-1);
+  if (last?.kind === "verb" && last.end === from) return null;
   const start = listStart(before);
   if (start === null) return null;
   const insert = "\n" + itemIndent(before, start, from) + "\\item ";
