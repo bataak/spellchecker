@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.123.0](https://github.com/bataak/spellchecker/compare/v1.122.0...v1.123.0) (2026-11-02)
+
+
+### Features
+
+* **office:** report unchecked diagrams and charts ([2262e1c](https://github.com/bataak/spellchecker/commit/2262e1c9897fa382bde7934fe532ef5b10365567))
+
+
+### Bug Fixes
+
+* **tex:** keep inline code intact and stop treating URL percent signs as comments ([c930daf](https://github.com/bataak/spellchecker/commit/c930daf787b88679bf7de18536e068af2b804b7a))
+* **tex:** keep SVG text in PDF, ignore verbatim tags and find uppercase Greek ([bf5635f](https://github.com/bataak/spellchecker/commit/bf5635f3286246dc58d119decbc2b46ec66b3998))
+* **tex:** make menu inserts compile and keep completion from breaking documents ([280e7d4](https://github.com/bataak/spellchecker/commit/280e7d4c943eba7a2598d7fa3591952885f162f4))
+* **tex:** skip items right after verbatim and keep closing tag on its own line ([4ebd46b](https://github.com/bataak/spellchecker/commit/4ebd46bc3c2c7167e92bfe2027919b6288d2c9e1))
+* **tex:** support PDF and macro images, Cyrillic fragile frames and note code ([6debbea](https://github.com/bataak/spellchecker/commit/6debbea93fdf5f505e5d4d8a306950767272ef82))
+
 ## [1.122.0](https://github.com/bataak/spellchecker/compare/v1.121.2...v1.122.0) (2026-11-02)
 
 
