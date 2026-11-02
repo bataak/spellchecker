@@ -6,7 +6,7 @@ const BUILD_OUTPUT =
   /\.(aux|log|out|toc|lof|lot|fls|fdb_latexmk|blg|xdv|nav|snm|vrb|bcf|run\.xml|synctex(?:\.gz)?|synctex\(busy\))$/i;
 const SKIPPED_NAME = /^(?:\.|node_modules$|__MACOSX$|Thumbs\.db$)/;
 const PDF_GRAPHIC = /\.(png|jpe?g|pdf)$/i;
-const GRAPHIC_EXTS = [
+export const GRAPHIC_EXTS = [
   ".pdf",
   ".png",
   ".jpg",

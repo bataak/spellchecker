@@ -24,6 +24,7 @@ import {
   svgToPdf,
   usesSvgPackage,
 } from "./texsvg.ts";
+import { singleSlideFrames } from "./texbeamer.ts";
 import { ProjectError } from "../core/projecterror.ts";
 
 export interface ProjectBuild {
@@ -171,7 +172,7 @@ function writeSources(
       if (svg) body = rewriteSvg(body, svg, label);
     }
     if (path === main) mainText = body;
-    else put(b, path, body);
+    else put(b, path, isTexSource(path) ? singleSlideFrames(body) : body);
   }
   return mainText;
 }
