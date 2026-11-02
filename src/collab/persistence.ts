@@ -1,3 +1,4 @@
+import { MAX_SNAPSHOT } from "../../worker/shared/protocol.ts";
 import * as Y from "yjs";
 import { deflateSync } from "fflate";
 import { seal } from "./collabkey.ts";
@@ -8,7 +9,6 @@ export const LOADED = { load: true };
 const SAVE_MS = 2000;
 const UPLOAD_IDLE_MS = 30_000;
 const UPLOAD_GAP_MS = 5 * 60_000;
-const MAX_UPLOAD = 8 * 1024 * 1024;
 const NEAR_UPLOAD = 6 * 1024 * 1024;
 
 export type UploadNotice = "too-large" | "near-limit";
@@ -72,7 +72,7 @@ export function createUploader(deps: UploaderDeps, dirty: boolean): Uploader {
     deps.encoded?.(full);
     const state = deflateSync(full);
     const sealed = await seal(deps.key, state);
-    if (sealed.byteLength > MAX_UPLOAD) return warn("too-large");
+    if (sealed.byteLength > MAX_SNAPSHOT) return warn("too-large");
     if (sealed.byteLength > NEAR_UPLOAD) warn("near-limit");
     if (!deps.send(sealed)) return;
     last = Date.now();

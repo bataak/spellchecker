@@ -1,9 +1,9 @@
+import { SHORT_CODE } from "../../shared/protocol.ts";
 import { MAX_INVITES } from "./limits.ts";
 import { DurableObject } from "cloudflare:workers";
 import type { Env } from "./types.ts";
 import { first } from "./util.ts";
 
-const CODE = /^[A-Za-z0-9_-]{8}$/;
 const LINK_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 const MAX_NAME = 600;
 
@@ -52,7 +52,7 @@ export class Links extends DurableObject<Env> {
   }
 
   get(code: string): { room: string; invite: string; name: string } | null {
-    if (!CODE.test(code)) return null;
+    if (!SHORT_CODE.test(code)) return null;
     const row = first(
       this.ctx.storage.sql.exec<{
         room: string;
@@ -77,7 +77,7 @@ export async function lookup(
 ): Promise<Response> {
   if (request.headers.get("Upgrade") !== "websocket")
     return new Response("upgrade", { status: 426 });
-  if (!CODE.test(code) || !env.LINKS)
+  if (!SHORT_CODE.test(code) || !env.LINKS)
     return new Response("code", { status: 404 });
   const found = await env.LINKS.get(env.LINKS.idFromName("links")).get(code);
   const [client, server] = Object.values(new WebSocketPair()) as [

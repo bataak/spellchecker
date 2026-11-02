@@ -14,7 +14,7 @@ import {
   PURGED_CODE,
   REMOVED_CODE,
   WIPED_CODE,
-} from "../src/collab/signalwire.ts";
+} from "../worker/shared/protocol.ts";
 import { openSignal } from "../src/collab/signal.ts";
 import {
   createCursors,

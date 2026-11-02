@@ -1,6 +1,6 @@
 import { allowedOrigin } from "../../shared/origin.ts";
 import { accessToken } from "./admission.ts";
-import { CLIENT_ID, DENIED, ROOM_ID } from "./limits.ts";
+import { CLIENT_ID, DENIED_CODE, ROOM_ID } from "../../shared/protocol.ts";
 import { lookup } from "./links.ts";
 import { guardTurn } from "./turn.ts";
 import type { Env } from "./types.ts";
@@ -28,7 +28,7 @@ export default {
       !CLIENT_ID.test(params.get("p") ?? "")
     )
       return new Response("client", { status: 400 });
-    if (!accessToken(params)) return refuse(DENIED, "denied");
+    if (!accessToken(params)) return refuse(DENIED_CODE, "denied");
     const room = env.ROOMS.get(env.ROOMS.idFromName(match[1]!));
     return room.fetch(request);
   },

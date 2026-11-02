@@ -20,11 +20,9 @@ export interface ShortLink {
   readonly key: string;
 }
 
-export const TOKEN = /^[A-Za-z0-9_-]{22}$/;
 const LINK =
   /^#?collab=([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{43}|[A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{22})(?:\.([A-Za-z0-9_-]{1,400}))?$/;
 const SHORT = /^#?j=([A-Za-z0-9_-]{8})\.([A-Za-z0-9_-]{43}|[A-Za-z0-9_-]{22})$/;
-export const SHORT_CODE = /^[A-Za-z0-9_-]{8}$/;
 const SHARED_NAME = /\.(txt|text|md|markdown|mdown|tex|ltx)$/i;
 const MAX_NAME = 120;
 const IV_BYTES = 12;
