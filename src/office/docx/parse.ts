@@ -1,4 +1,4 @@
-import { readAttr, readNodeText, scanXml } from "./xml.ts";
+import { readAttr, scanXml } from "./xml.ts";
 import type { TagInfo } from "./xml.ts";
 
 export interface TextNode {
@@ -329,9 +329,8 @@ export function parsePart(
       else if (tag.kind === "open") onOpen(p, tag);
       else onClose(p, tag);
     },
-    (start, end) => {
-      if (p.pending !== null)
-        p.pending.text += readNodeText(xml.slice(start, end));
+    (_start, _end, text) => {
+      if (p.pending !== null) p.pending.text += text;
     },
   );
   return { name, xml, paragraphs: p.paragraphs };
