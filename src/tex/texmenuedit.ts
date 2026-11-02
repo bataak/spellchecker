@@ -1,5 +1,5 @@
 import { lineIndent, type Expansion } from "./texcompletion.ts";
-import { uncommented } from "./texproject.ts";
+import { liveMatches } from "./texliteral.ts";
 import { lineStartAt } from "../core/text.ts";
 
 export type Insert =
@@ -104,21 +104,16 @@ function envEdit(
   };
 }
 
-function envTags(text: string): [tag: string, name: string][] {
-  return [...uncommented(text).matchAll(ENV_TAG)].map(
-    ([, tag, name]) => [tag!, name!.trim()] as [string, string],
-  );
-}
-
 export function openEnvironment(before: string, after = ""): string | null {
   const open: string[] = [];
-  for (const [tag, name] of envTags(before)) {
-    if (tag === "begin") open.push(name);
-    else if (open.at(-1) === name) open.pop();
-  }
   const nested: string[] = [];
-  for (const [tag, name] of envTags(after)) {
-    if (tag === "begin") nested.push(name);
+  const tags = liveMatches(before + after, ENV_TAG);
+  for (const { 1: tag, 2: raw, index } of tags) {
+    const name = raw!.trim();
+    if (index < before.length) {
+      if (tag === "begin") open.push(name);
+      else if (open.at(-1) === name) open.pop();
+    } else if (tag === "begin") nested.push(name);
     else if (nested.at(-1) === name) nested.pop();
     else if (open.at(-1) === name) open.pop();
   }

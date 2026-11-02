@@ -220,3 +220,10 @@ test("texBar: баримтын ангид байхгүй бүлгийг цэсэ
   set("хэсэг", 0);
   assert.ok(codes().includes("\\chapter"));
 });
+
+test("matchSymbol: том грек үсгээр хайж олно", () => {
+  const omega = { glyph: "Ω", command: "Omega" };
+  assert.equal(matchSymbol(omega, "Ω"), true);
+  assert.equal(matchSymbol(omega, "omega"), true);
+  assert.equal(matchSymbol(omega, "ω"), false);
+});

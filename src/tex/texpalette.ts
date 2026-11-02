@@ -25,10 +25,11 @@ export function rememberRecent(command: string): void {
 }
 
 export function matchSymbol(symbol: MathSymbol, query: string): boolean {
-  const needle = query.trim().replace(/^\\/, "").toLowerCase();
+  const typed = query.trim();
+  const needle = typed.replace(/^\\/, "").toLowerCase();
   return (
     needle !== "" &&
-    (symbol.glyph === needle || symbol.command.toLowerCase().includes(needle))
+    (symbol.glyph === typed || symbol.command.toLowerCase().includes(needle))
   );
 }
 
