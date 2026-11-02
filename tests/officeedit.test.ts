@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 
+import { syncEdits } from "../src/office/editsync.ts";
 import { openDocx, saveDocx } from "../src/office/docx/index.ts";
 import { openOdf, saveOdf } from "../src/office/odf/index.ts";
 import { openPptx, savePptx } from "../src/office/pptx/index.ts";
@@ -159,3 +160,43 @@ test("docx: зөөсөн бичвэр зөвхөн шинэ байрандаа �
     xml,
   );
 });
+
+const textareaValue = (text: string): string => text.replace(/\r\n?/g, "\n");
+
+function assertSurvivesTextarea<D extends TextIndex>(
+  doc: D,
+  save: (doc: D, edits: TextEdit[]) => SaveResult,
+  open: (bytes: Uint8Array) => D,
+): void {
+  const shown = textareaValue(doc.text);
+  assert.equal(doc.text, shown);
+  const fixed = shown.replace("сан", "санаа");
+  const edits = syncEdits(doc.text, [], shown, fixed);
+  assert.ok(edits !== null);
+  const result = save(doc, edits);
+  assert.equal(result.skipped.length, 0);
+  assert.equal(open(result.bytes).text, fixed);
+}
+
+for (const [label, mark] of [
+  ["&#13;", "&#13;"],
+  ["CRLF", "\r\n"],
+  ["CR", "\r"],
+] as const) {
+  const line = `нэг${mark}сан`;
+
+  test(`docx: ${label} бичвэрт засвар татгалзагдахгүй`, () => {
+    const bytes = docx(`<w:p><w:r><w:t>${line}</w:t></w:r></w:p>`);
+    assertSurvivesTextarea(openDocx(bytes), saveDocx, openDocx);
+  });
+
+  test(`pptx: ${label} бичвэрт засвар татгалзагдахгүй`, () => {
+    const bytes = pptx(`<a:p><a:r><a:t>${line}</a:t></a:r></a:p>`);
+    assertSurvivesTextarea(openPptx(bytes), savePptx, openPptx);
+  });
+
+  test(`odt: ${label} бичвэрт засвар татгалзагдахгүй`, () => {
+    const bytes = odt(`<text:p>${line}</text:p>`);
+    assertSurvivesTextarea(openOdf(bytes), saveOdf, openOdf);
+  });
+}
