@@ -19,42 +19,10 @@ import { splitSlides, type Slide } from "../doc/slides.ts";
 import { attempt } from "../core/attempt.ts";
 import { tableLatex } from "./latextable.ts";
 import { usesOverlay } from "./texbeamer.ts";
+import { preambleFor } from "./latexpreamble.ts";
 import { tableLook, type TableLook } from "../markdown/tablelook.ts";
 import { LETTER_PAGE, letterTitle } from "./latexletter.ts";
 import { escapeTex, guardBreak } from "./texescape.ts";
-
-const BASE_PREAMBLE = `\\documentclass[12pt,a4paper]{article}
-\\usepackage[T2A]{fontenc}
-\\usepackage[utf8]{inputenc}
-\\usepackage[mongolian]{babel}
-\\usepackage{paratype}
-`;
-
-const MATH_RE =
-  /(?<!\\)\$|(?<!\\)\\[[(]|\\begin\{(?:math|displaymath|equation|align|gather|multline|flalign)\b/;
-
-export function preambleFor(tex: string): string {
-  const math = MATH_RE.test(tex);
-  const theorem = tex.includes("\\begin{theorem}");
-  const definition = tex.includes("\\begin{definition}");
-  const lines = [
-    math && "\\usepackage{amsmath}",
-    (math || /\\(?:checkmark|mathbb)\b/.test(tex)) && "\\usepackage{amssymb}",
-    tex.includes("\\arraybackslash") && "\\usepackage{array}",
-    tex.includes("\\toprule") && "\\usepackage{booktabs}",
-    tex.includes("\\includegraphics") && "\\usepackage{graphicx}",
-    math && "\\usepackage[OT1]{eulervm}",
-    (theorem || definition || tex.includes("\\begin{proof}")) &&
-      "\\usepackage{amsthm}",
-    /\\(?:href|url)\{/.test(tex) && "\\usepackage{hyperref}",
-    theorem && "\\newtheorem{theorem}{Теорем}",
-    definition && "\\theoremstyle{definition}",
-    definition && "\\newtheorem{definition}{Тодорхойлолт}",
-  ];
-  return (
-    BASE_PREAMBLE + lines.filter((line) => typeof line === "string").join("\n")
-  );
-}
 
 const TUGRIK = `\\DeclareRobustCommand\\texttugrik{\\leavevmode\\hbox{\\ooalign{Т\\cr
   \\hidewidth\\raisebox{0.42ex}{\\rotatebox{-22}{\\rule{0.42em}{0.09ex}}}\\hidewidth\\cr
@@ -97,7 +65,7 @@ export function previewTex(text: string): string {
     body = text.replace(PREAMBLE_LINE, "");
   }
   return (
-    preambleFor(body) +
+    preambleFor(head + "\n" + body) +
     "\n" +
     head.trim() +
     "\n\\begin{document}\n" +

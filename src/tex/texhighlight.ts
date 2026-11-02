@@ -12,6 +12,12 @@ const MATH_ENV =
 const VERB_ENV =
   /^(?:verbatim|Verbatim|BVerbatim|LVerbatim|spverbatim|lstlisting|minted|comment|filecontents|tcblisting)\*?$/;
 const BEGIN_END = /\\(begin|end)(\s*)\{([^}\n]*)\}/y;
+const LINK_COMMANDS: ReadonlySet<string> = new Set([
+  "url",
+  "nolinkurl",
+  "href",
+]);
+const INLINE_CODE: ReadonlySet<string> = new Set(["lstinline", "mintinline"]);
 
 function isLetter(code: number): boolean {
   return (
@@ -115,6 +121,42 @@ function inlineVerb(scan: Scan, end: number): number | null {
   return stop + 1;
 }
 
+function bracedVerb(scan: Scan, open: number): number | null {
+  const { text } = scan;
+  if (text[open] !== "{") return null;
+  let depth = 0;
+  for (let at = open; at < text.length && text[at] !== "\n"; at++) {
+    if (text[at] === "\\") at++;
+    else if (text[at] === "{") depth++;
+    else if (text[at] === "}" && --depth === 0) {
+      push(scan, open, open + 1, "brace");
+      push(scan, open + 1, at, "verb");
+      push(scan, at, at + 1, "brace");
+      return at + 1;
+    }
+  }
+  return null;
+}
+
+function inlineCode(scan: Scan, end: number, minted: boolean): number {
+  const { text } = scan;
+  let at = end;
+  if (text[at] === "[") {
+    const close = text.indexOf("]", at);
+    if (close === -1) return end;
+    at = close + 1;
+  }
+  if (minted) {
+    const language = bracedVerb(scan, at);
+    if (language === null) return end;
+    at = language;
+  }
+  if (at >= text.length) return end;
+  return (
+    (text[at] === "{" ? bracedVerb(scan, at) : inlineVerb(scan, at)) ?? end
+  );
+}
+
 function command(scan: Scan, index: number): number {
   const { text } = scan;
   const end = commandEnd(text, index);
@@ -122,6 +164,9 @@ function command(scan: Scan, index: number): number {
   const name = text.slice(index + 1, end);
   if ((name === "verb" || name === "verb*") && end < text.length)
     return inlineVerb(scan, end) ?? end;
+  if (LINK_COMMANDS.has(name)) return bracedVerb(scan, end) ?? end;
+  if (INLINE_CODE.has(name))
+    return inlineCode(scan, end, name === "mintinline");
   return end;
 }
 
@@ -168,7 +213,7 @@ function special(scan: Scan, index: number, code: number): number | null {
   return null;
 }
 
-export function texSpans(text: string): TexSpan[] {
+function scanText(text: string): Scan {
   const scan: Scan = { text, out: [], close: null };
   let index = 0;
   while (index < text.length) {
@@ -183,5 +228,13 @@ export function texSpans(text: string): TexSpan[] {
     if (scan.close !== null) push(scan, index, index + 1, "math");
     index++;
   }
-  return scan.out;
+  return scan;
+}
+
+export function texSpans(text: string): TexSpan[] {
+  return scanText(text).out;
+}
+
+export function openMathAt(text: string, at: number): string | null {
+  return scanText(text.slice(0, at)).close;
 }
