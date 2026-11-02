@@ -1,10 +1,5 @@
-import {
-  MAX_PART,
-  MAX_PARTS,
-  MAX_SLOTS,
-  MAX_SNAPSHOT,
-  ROOM_BYTES,
-} from "./limits.ts";
+import { MAX_PARTS, MAX_SNAPSHOT } from "../../shared/protocol.ts";
+import { MAX_PART, MAX_SLOTS, ROOM_BYTES } from "./limits.ts";
 import type { PeerMeta } from "./types.ts";
 
 export function snapshots(sql: SqlStorage): ArrayBuffer[][] {

@@ -1,14 +1,16 @@
 import {
   TOKEN,
+  DENIED_CODE,
+  REMOVED_CODE,
+  ENDED_CODE,
+  WIPED_CODE,
+  PURGED_CODE,
+  FULL_CODE,
+} from "../../shared/protocol.ts";
+import {
   MAX_PEERS,
   MAX_INVITES,
   MAX_LABEL,
-  DENIED,
-  REMOVED,
-  ENDED,
-  WIPED,
-  PURGED,
-  FULL,
   DAY_MS,
   ROOM_TTL_MS,
   TURN_TTL_S,
@@ -213,8 +215,8 @@ export class Room extends DurableObject<Env> {
     for (const peer of this.peers())
       (peer.id === id ? replaced : others).push(peer);
     if (replaced.some((peer) => peer.dev !== dev))
-      return { code: DENIED, reason: "denied" };
-    if (others.length >= MAX_PEERS) return { code: FULL, reason: "full" };
+      return { code: DENIED_CODE, reason: "denied" };
+    if (others.length >= MAX_PEERS) return { code: FULL_CODE, reason: "full" };
     return { others, replaced };
   }
 
@@ -356,7 +358,7 @@ export class Room extends DurableObject<Env> {
     const peers = this.peers();
     for (const peer of peers) {
       if (peer.dev !== dev) continue;
-      this.evict(peer.ws, wipe ? PURGED : REMOVED);
+      this.evict(peer.ws, wipe ? PURGED_CODE : REMOVED_CODE);
       for (const other of peers)
         if (other.dev !== dev) this.send(other.ws, { t: "kick", id: peer.id });
     }
@@ -369,12 +371,12 @@ export class Room extends DurableObject<Env> {
       sql.exec("DELETE FROM " + table);
     sql.exec(
       "INSERT OR REPLACE INTO meta (k, v) VALUES ('closed', ?)",
-      String(wipe ? WIPED : ENDED),
+      String(wipe ? WIPED_CODE : ENDED_CODE),
     );
     this.dropLinks();
     this.send(ws, { t: "ended" });
     for (const peer of this.peers()) {
-      if (peer.ws !== ws) this.evict(peer.ws, wipe ? WIPED : ENDED);
+      if (peer.ws !== ws) this.evict(peer.ws, wipe ? WIPED_CODE : ENDED_CODE);
       else {
         peer.ws.serializeAttachment(null);
         peer.ws.close(1000, "ended");

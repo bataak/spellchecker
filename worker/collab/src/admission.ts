@@ -1,8 +1,15 @@
-import { DENIED, MAX_MEMBERS, PURGED, REMOVED, TOKEN } from "./limits.ts";
+import {
+  DENIED_CODE,
+  PURGED_CODE,
+  REMOVED_CODE,
+  TOKEN,
+} from "../../shared/protocol.ts";
+import { MAX_MEMBERS } from "./limits.ts";
 import type { Access } from "./types.ts";
 import { digest, first, newToken, readMeta } from "./util.ts";
 
-const goneCode = (gone: number): number => (gone === 2 ? PURGED : REMOVED);
+const goneCode = (gone: number): number =>
+  gone === 2 ? PURGED_CODE : REMOVED_CODE;
 
 export function accessToken(params: URLSearchParams): string | null {
   const token = params.get("o") ?? params.get("m") ?? params.get("i");
@@ -17,7 +24,7 @@ export async function admit(
   const owner = params.get("o");
   const member = params.get("m");
   const token = accessToken(params);
-  if (!token) return { code: DENIED };
+  if (!token) return { code: DENIED_CODE };
   const closed = Number(readMeta(sql, "closed"));
   if (closed) return { code: closed };
   const hash = await digest(token);
@@ -29,10 +36,10 @@ export async function admit(
 
 function ownerAccess(sql: SqlStorage, hash: string, dev: string): Access {
   const known = readMeta(sql, "owner");
-  if (known && known !== hash) return { code: DENIED };
+  if (known && known !== hash) return { code: DENIED_CODE };
   if (!known) {
     if (first(sql.exec("SELECT 1 AS x FROM members LIMIT 1")))
-      return { code: DENIED };
+      return { code: DENIED_CODE };
     sql.exec("INSERT INTO meta (k, v) VALUES ('owner', ?)", hash);
     sql.exec("INSERT INTO meta (k, v) VALUES ('dev', ?)", dev);
     sql.exec(
@@ -41,7 +48,7 @@ function ownerAccess(sql: SqlStorage, hash: string, dev: string): Access {
       Date.now(),
     );
   }
-  if (readMeta(sql, "dev") !== dev) return { code: DENIED };
+  if (readMeta(sql, "dev") !== dev) return { code: DENIED_CODE };
   return { owner: true };
 }
 
@@ -53,7 +60,7 @@ function memberAccess(sql: SqlStorage, hash: string, dev: string): Access {
     ),
   );
   if (row?.gone) return { code: goneCode(row.gone) };
-  return row && row.h === hash ? {} : { code: DENIED };
+  return row && row.h === hash ? {} : { code: DENIED_CODE };
 }
 
 function inviteAccess(
@@ -69,13 +76,13 @@ function inviteAccess(
       hash,
     ),
   );
-  if (!used || (used.dev && used.dev !== dev)) return { code: DENIED };
+  if (!used || (used.dev && used.dev !== dev)) return { code: DENIED_CODE };
   const known = first(
     sql.exec<{ gone: number }>("SELECT gone FROM members WHERE dev = ?", dev),
   );
   if (known?.gone && used.dev) return { code: goneCode(known.gone) };
   if ((!known || known.gone) && activeMembers(sql) >= MAX_MEMBERS)
-    return { code: DENIED };
+    return { code: DENIED_CODE };
   sql.exec("UPDATE invites SET dev = ? WHERE h = ?", dev, hash);
   sql.exec(
     "INSERT INTO members (dev, h, at) VALUES (?, ?, ?) ON CONFLICT (dev) DO UPDATE SET h = excluded.h, gone = 0, label = '', at = excluded.at",

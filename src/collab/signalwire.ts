@@ -1,4 +1,13 @@
-import { SHORT_CODE } from "./collabkey.ts";
+import {
+  DENIED_CODE,
+  ENDED_CODE,
+  FULL_CODE,
+  MAX_PARTS,
+  PURGED_CODE,
+  REMOVED_CODE,
+  SHORT_CODE,
+  WIPED_CODE,
+} from "../../worker/shared/protocol.ts";
 
 export type SignalEvent =
   | {
@@ -41,12 +50,6 @@ export type SignalState =
   | "wiped"
   | "purged";
 
-export const DENIED_CODE = 4003;
-export const REMOVED_CODE = 4004;
-export const ENDED_CODE = 4005;
-export const WIPED_CODE = 4006;
-export const PURGED_CODE = 4007;
-export const FULL_CODE = 4009;
 const FINAL: Partial<Record<number, SignalState>> = {
   [DENIED_CODE]: "denied",
   [REMOVED_CODE]: "removed",
@@ -60,7 +63,6 @@ export function finalState(code: number): SignalState | undefined {
 }
 
 export const SNAPSHOT_PART = 1000 * 1024;
-const MAX_PARTS = 16;
 export const isText = (value: unknown): value is string =>
   typeof value === "string";
 

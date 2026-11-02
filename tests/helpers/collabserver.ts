@@ -21,6 +21,7 @@ const SOURCES = [
     .filter((name) => name.endsWith(".ts") && name !== "index.ts")
     .map((name) => "collab/src/" + name),
   "shared/origin.ts",
+  "shared/protocol.ts",
 ].map((name) => join(WORKER, name));
 
 const MODULES = SOURCES.map((path) => ({
