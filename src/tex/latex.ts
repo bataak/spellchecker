@@ -23,6 +23,8 @@ import { preambleFor } from "./latexpreamble.ts";
 import { tableLook, type TableLook } from "../markdown/tablelook.ts";
 import { LETTER_PAGE, letterTitle } from "./latexletter.ts";
 import { escapeTex, guardBreak } from "./texescape.ts";
+import { documentStart, literalTest, liveMatches } from "./texliteral.ts";
+import { uncommented } from "./texproject.ts";
 
 const TUGRIK = `\\DeclareRobustCommand\\texttugrik{\\leavevmode\\hbox{\\ooalign{Т\\cr
   \\hidewidth\\raisebox{0.42ex}{\\rotatebox{-22}{\\rule{0.42em}{0.09ex}}}\\hidewidth\\cr
@@ -49,21 +51,32 @@ const FONT_PACKAGE =
   /\\usepackage(?:\[[^\]]*\])?\{(?:paratype|PTSerif|PTSans|cm-super|lmodern|tempora|fontspec)\}/;
 
 const PREAMBLE_LINE = /^[ \t]*\\(?:usepackage|RequirePackage|makeindex)\b.*$/gm;
+const DOCUMENT_CLASS = /\\documentclass\b/g;
+const END_DOCUMENT = /\\end\s*\{document\}/g;
+
+function fragmentParts(text: string): { head: string; body: string } {
+  const begin = documentStart(text);
+  if (begin) {
+    const rest = text.slice(begin.index + begin[0].length);
+    const end = liveMatches(rest, END_DOCUMENT)[0];
+    return {
+      head: text.slice(0, begin.index),
+      body: end ? rest.slice(0, end.index) : rest,
+    };
+  }
+  const literal = literalTest(text);
+  const lines: string[] = [];
+  const body = text.replace(PREAMBLE_LINE, (line: string, at: number) => {
+    if (literal(at)) return line;
+    lines.push(line);
+    return "";
+  });
+  return { head: lines.join("\n"), body };
+}
 
 export function previewTex(text: string): string {
-  if (/\\documentclass\b/.test(text)) return text;
-  const begin = text.search(/\\begin\{document\}/);
-  let head: string;
-  let body: string;
-  if (begin >= 0) {
-    head = text.slice(0, begin);
-    body = text
-      .slice(begin + "\\begin{document}".length)
-      .replace(/\\end\{document\}[\s\S]*$/, "");
-  } else {
-    head = (text.match(PREAMBLE_LINE) ?? []).join("\n");
-    body = text.replace(PREAMBLE_LINE, "");
-  }
+  if (liveMatches(text, DOCUMENT_CLASS).length) return text;
+  const { head, body } = fragmentParts(text);
   return (
     preambleFor(head + "\n" + body) +
     "\n" +
@@ -75,10 +88,11 @@ export function previewTex(text: string): string {
 }
 
 export function withParatype(text: string): string | null {
-  if (FONT_PACKAGE.test(text)) return null;
-  if (!TEXT_FONTENC.test(text) && !CYRILLIC_BABEL.test(text)) return null;
-  const at = text.search(/\\begin\{document\}/);
-  if (at < 0) return null;
+  const live = uncommented(text);
+  if (FONT_PACKAGE.test(live)) return null;
+  if (!TEXT_FONTENC.test(live) && !CYRILLIC_BABEL.test(live)) return null;
+  const at = documentStart(text)?.index;
+  if (at === undefined) return null;
   return text.slice(0, at) + "\\usepackage{paratype}\n" + text.slice(at);
 }
 

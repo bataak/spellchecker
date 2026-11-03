@@ -5,13 +5,21 @@ import { parse } from "../src/markdown.ts";
 import { retryDelay } from "../src/preview/texjob.ts";
 import { parseEntry } from "../src/tex/makeindex.ts";
 import { buildProject } from "../src/tex/projectbuild.ts";
-import { toBeamer, toLatexBody } from "../src/tex/latex.ts";
+import {
+  previewTex,
+  toBeamer,
+  toLatexBody,
+  withParatype,
+} from "../src/tex/latex.ts";
+import { preambleFor } from "../src/tex/latexpreamble.ts";
 import { singleSlideFrames } from "../src/tex/texbeamer.ts";
+import { toPdfLatex } from "../src/tex/texcompat.ts";
 import { PdfError } from "../src/tex/texerrors.ts";
 import { escapeTex } from "../src/tex/texescape.ts";
 import { rewriteIncludes, texImagePaths } from "../src/tex/teximages.ts";
 import { graphicRefs } from "../src/tex/texproject.ts";
 import { rewriteSvg, svgRefs } from "../src/tex/texsvg.ts";
+import { sourceWords } from "../src/tex/texsync.ts";
 
 const body = (md: string): string => toLatexBody(parse(md));
 
@@ -226,4 +234,130 @@ test("beamer: тэмдэглэл доторх код verbatim биш", () => {
   assert.ok(tex.includes("\\begin{frame}{С}"));
   const tilde = toBeamer(parse("## С\n\n::: notes\n```\na~b_c\n```\n:::\n"));
   assert.ok(tilde.includes("\\texttt{a" + escapeTex("~") + "b\\_c}"), tilde);
+});
+
+test("preview: тайлбарласан \\documentclass-тай файлыг хэсэг гэж ороож хөрвүүлнэ", () => {
+  const out = previewTex(
+    "%\\documentclass{article}\n%\\begin{document}\nБичвэр\n%\\end{document}\n",
+  );
+  assert.ok(out.startsWith("\\documentclass[12pt,a4paper]{article}"), out);
+  const begin = out.indexOf("\n\\begin{document}");
+  assert.ok(begin > 0 && begin < out.indexOf("Бичвэр"), out);
+  assert.ok(out.trimEnd().endsWith("\n\\end{document}"), out);
+});
+
+test("preview: тайлбарласан \\begin{document} бичвэрийг преамбул уруу зөөхгүй", () => {
+  const out = previewTex("Эхний\n%\\begin{document}\nХоёр\n");
+  const begin = out.indexOf("\n\\begin{document}");
+  assert.ok(begin < out.indexOf("Эхний"), out);
+  assert.ok(begin < out.indexOf("Хоёр"), out);
+});
+
+test("preview: тайлбар дахь \\end{document} дараах бичвэрийг таслахгүй", () => {
+  const out = previewTex(
+    "\\begin{document}\nНэг\n%\\end{document}\nХоёр\n\\end{document}\nгуч\n",
+  );
+  assert.ok(out.includes("Хоёр"), out);
+  assert.ok(!out.includes("гуч"), out);
+});
+
+test("preview: verbatim доторх \\usepackage мөр байрандаа үлдэнэ", () => {
+  const out = previewTex(
+    "\\usepackage{xcolor}\n\\begin{verbatim}\n\\usepackage{amsmath}\n\\end{verbatim}\n",
+  );
+  const begin = out.indexOf("\n\\begin{document}");
+  assert.ok(out.indexOf("\\usepackage{xcolor}") < begin, out);
+  assert.ok(out.indexOf("\\usepackage{amsmath}") > begin, out);
+});
+
+test("preview: хэрэглэгчийн ачаалсан багцыг сонголтгүй давтахгүй", () => {
+  const link = previewTex("\\usepackage[colorlinks]{hyperref}\n\\href{a}{б}\n");
+  assert.ok(!link.includes("\\usepackage{hyperref}"), link);
+  assert.ok(link.includes("\\usepackage[colorlinks]{hyperref}"), link);
+  const math = previewTex("\\usepackage[fleqn]{amsmath}\n$x$\n");
+  assert.ok(!math.includes("\\usepackage{amsmath}"), math);
+  const language = previewTex("\\usepackage[russian]{babel}\nа\n");
+  assert.ok(!language.includes("[mongolian]{babel}"), language);
+  const listed = previewTex("\\usepackage[fleqn]{amsmath,amssymb}\n$x$\n");
+  assert.ok(!listed.includes("\\usepackage{amsmath}"), listed);
+  assert.ok(!listed.includes("\\usepackage{amssymb}"), listed);
+  const twice = previewTex(
+    "\\usepackage{makeidx}\n\\makeindex\n\\printindex\n",
+  );
+  assert.equal(twice.split("\\usepackage{makeidx}").length, 2, twice);
+  const index = previewTex(
+    "\\usepackage{imakeidx}\n\\makeindex\n\\printindex\n",
+  );
+  assert.ok(!index.includes("{makeidx}"), index);
+});
+
+test("preview: тайлбарласан багц ачаалагдсанд тооцогдохгүй", () => {
+  const head = preambleFor("%\\usepackage{hyperref}\n\\href{a}{б}\n");
+  assert.ok(head.includes("\\usepackage{hyperref}"), head);
+  const shown = preambleFor(
+    "\\begin{verbatim}\n\\usepackage{graphicx}\n\\end{verbatim}\n\\includegraphics{a}",
+  );
+  assert.ok(shown.includes("\\usepackage{graphicx}"), shown);
+  const index = preambleFor("%\\usepackage{makeidx}\n\\printindex");
+  assert.ok(index.includes("\\usepackage{makeidx}\n\\makeindex"), index);
+});
+
+test("preamble: alignat-д amsmath нэмнэ", () => {
+  const head = preambleFor("\\begin{alignat}{2}\nx &= 1\n\\end{alignat}");
+  assert.ok(head.includes("\\usepackage{amsmath}"), head);
+});
+
+test("toPdfLatex: T2A-г тайлбарласан анги биш жинхэнэ ангийн дараа нэмнэ", () => {
+  const out = toPdfLatex(
+    "%\\documentclass{report}\n\\documentclass{article}\n\\begin{document}\nМонгол\n\\end{document}\n",
+  );
+  const live = out.indexOf("\n\\documentclass");
+  assert.ok(live > 0 && live < out.indexOf("\\usepackage[T2A]{fontenc}"), out);
+});
+
+test("toPdfLatex: тайлбарласан T2A-г ачаалагдсанд тооцохгүй", () => {
+  const out = toPdfLatex(
+    "\\documentclass{article}\n%\\usepackage[T2A]{fontenc}\n\\begin{document}\nМонгол\n\\end{document}\n",
+  );
+  assert.ok(/^\\usepackage\[T2A\]\{fontenc\}$/m.test(out), out);
+});
+
+test("toPdfLatex: тайлбарласан \\begin{document}-ийн дараах преамбулыг хөрвүүлнэ", () => {
+  const out = toPdfLatex(
+    "\\documentclass{article}\n%\\begin{document}\n\\usepackage{fontspec}\n\\begin{document}\nМонгол\n\\end{document}\n",
+  );
+  assert.ok(!out.includes("{fontspec}"), out);
+  assert.ok(out.includes("\\usepackage{paratype}"), out);
+});
+
+test("toPdfLatex: тайлбарласан XeLaTeX тохиргоо үсгийн хэвийг солихгүй", () => {
+  const tex =
+    "\\documentclass[a4paper]{article}\n\\usepackage[T2A]{fontenc}\n%\\usepackage{fontspec}\n%\\setmainfont{Arial}\n\\begin{document}\nМонгол\n\\end{document}\n";
+  assert.equal(toPdfLatex(tex), tex);
+});
+
+test("withParatype: тайлбарыг алгасна", () => {
+  const head = "\\documentclass{article}\n\\usepackage[T2A]{fontenc}\n";
+  const font = withParatype(
+    head + "%\\usepackage{lmodern}\n\\begin{document}\nа\n\\end{document}\n",
+  );
+  assert.ok(font?.includes("\n\\usepackage{paratype}\n"), String(font));
+  const begin = withParatype(
+    head + "%\\begin{document}\n\\begin{document}\nа\n\\end{document}\n",
+  );
+  assert.equal(begin?.split("\n\\begin{document}").length, 2, String(begin));
+  assert.ok(begin?.includes("\n\\usepackage{paratype}\n"), String(begin));
+  assert.equal(
+    withParatype("%\\usepackage[T2A]{fontenc}\n\\begin{document}\n"),
+    null,
+  );
+});
+
+test("sync: \\\\%-ийн дараах тайлбарын үгийг тоолохгүй, байрлалыг хадгална", () => {
+  const words = sourceWords("аа\\\\% нууц\nбб 100\\% вв");
+  assert.deepEqual(
+    words.map((word) => word.word),
+    ["аа", "бб", "100", "вв"],
+  );
+  assert.equal(words[1]!.at, "аа\\\\% нууц\n".length);
 });

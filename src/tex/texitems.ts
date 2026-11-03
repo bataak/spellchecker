@@ -2,25 +2,17 @@ import { replaceRange } from "../editor/editortext.ts";
 import { lineAt } from "../core/text.ts";
 import { texSpans } from "./texhighlight.ts";
 import { liveMatches } from "./texliteral.ts";
+import { withoutComments } from "./texproject.ts";
 
 const LIST = /\\(begin|end)\{(itemize|enumerate|description)\}/g;
 const ITEM = /^([ \t]*)\\item\b/;
 const INDENT = "  ";
-const COMMENT = /(^|[^\\])((?:\\\\)*)%.*$/gm;
 
 export interface ItemEdit {
   readonly from: number;
   readonly to: number;
   readonly insert: string;
   readonly caret: number;
-}
-
-function withoutComments(text: string): string {
-  return text.replace(
-    COMMENT,
-    (match, lead: string, slashes: string) =>
-      lead + slashes + " ".repeat(match.length - lead.length - slashes.length),
-  );
 }
 
 function listStart(before: string): number | null {

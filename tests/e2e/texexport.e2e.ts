@@ -313,3 +313,50 @@ test("SVG-ийн foreignObject, windows-1251, UTF-16 бичвэр PDF-д орн�
   assert.match(out[2]!, /Мон/);
   assert.match(out[3]!, /Үг/);
 });
+
+const COMPILES_DESPITE_LITERALS: readonly (readonly [
+  string,
+  string,
+  RegExp,
+])[] = [
+  [
+    "тайлбарласан анги, эхлэлтэй бүлгийн файл",
+    "%\\documentclass{article}\n%\\begin{document}\nБүлгийн бичвэр\n%\\end{document}\n",
+    /Бүлгийн бичвэр/,
+  ],
+  [
+    "хэсэгчилсэн бичвэрийн тайлбарласан эхлэл",
+    "Эхний мөр\n%\\begin{document}\nДараагийн мөр\n",
+    /Эхний мөр Дараагийн мөр/,
+  ],
+  [
+    "жинхэнэ ангийн өмнөх тайлбарласан анги",
+    "%\\documentclass{report}\n\\documentclass{article}\n\\begin{document}\nЖинхэнэ анги\n\\end{document}\n",
+    /Жинхэнэ анги/,
+  ],
+  [
+    "тайлбарласан T2A",
+    "\\documentclass{article}\n%\\usepackage[T2A]{fontenc}\n\\begin{document}\nКирилл бичвэр\n\\end{document}\n",
+    /Кирилл бичвэр/,
+  ],
+  [
+    "сонголттой ачаалсан багц",
+    "\\usepackage[colorlinks]{hyperref}\n\\usepackage[fleqn]{amsmath}\n\\href{https://a.b}{Холбоос} $x$\n",
+    /Холбоос/,
+  ],
+  [
+    "хэсэгчилсэн бичвэрийн alignat",
+    "Томьёо\n\\begin{alignat}{2}\nx &= 1\n\\end{alignat}\n",
+    /Томьёо/,
+  ],
+  [
+    "verbatim доторх \\usepackage",
+    "\\begin{verbatim}\n\\usepackage{amsmath}\n\\end{verbatim}\nТекст\n",
+    /\\usepackage\{amsmath\}/,
+  ],
+];
+
+for (const [name, tex, expected] of COMPILES_DESPITE_LITERALS)
+  test("PDF болно: " + name, async () => {
+    assert.match(await pdfText({ tex }), expected);
+  });

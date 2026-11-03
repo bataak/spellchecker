@@ -1,4 +1,6 @@
 import { singleSlideFrames } from "./texbeamer.ts";
+import { documentStart } from "./texliteral.ts";
+import { uncommented } from "./texproject.ts";
 
 const XETEX_PACKAGES = new Set([
   "fontspec",
@@ -132,6 +134,11 @@ function readCall(
   return { start, end, args, options, control: cs };
 }
 
+function inComment(text: string, at: number): boolean {
+  const prefix = text.slice(text.lastIndexOf("\n", at - 1) + 1, at);
+  return /(?:^|[^\\])(?:\\\\)*%/.test(prefix);
+}
+
 function findCalls(
   text: string,
   name: string,
@@ -141,6 +148,7 @@ function findCalls(
   const calls: Call[] = [];
   const pattern = new RegExp("\\\\" + name + "(?![A-Za-z@])", "g");
   for (const match of text.matchAll(pattern)) {
+    if (inComment(text, match.index!)) continue;
     const call = readCall(text, match.index!, name, mandatory, control);
     if (call) calls.push(call);
   }
@@ -314,11 +322,6 @@ const A4_CLASSES = new Set([
   "extletter",
 ]);
 
-function inComment(text: string, at: number): boolean {
-  const prefix = text.slice(text.lastIndexOf("\n", at - 1) + 1, at);
-  return /(?:^|[^\\])(?:\\\\)*%/.test(prefix);
-}
-
 function defaultA4(preamble: string): string {
   for (const match of preamble.matchAll(/\\documentclass(?![a-zA-Z@])/g)) {
     if (inComment(preamble, match.index)) continue;
@@ -349,11 +352,11 @@ function defaultA4(preamble: string): string {
 }
 
 export function toPdfLatex(tex: string): string {
-  const begin = tex.search(/\\begin\s*\{document\}/);
-  if (begin < 0) return tex;
+  const begin = documentStart(tex)?.index;
+  if (begin === undefined) return tex;
   let preamble = defaultA4(convertXetex(tex.slice(0, begin)));
   const body = singleSlideFrames(tex.slice(begin));
-  if (CYRILLIC.test(tex) && !T2A_FONTENC.test(preamble))
+  if (CYRILLIC.test(tex) && !T2A_FONTENC.test(uncommented(preamble)))
     preamble = addCyrillicEncoding(preamble);
   return preamble + body;
 }
