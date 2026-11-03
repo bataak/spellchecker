@@ -317,6 +317,7 @@ export function createLocalComments(deps: LocalCommentsDeps): LocalComments {
       touch();
     },
     ...shelfActions(shelf, shown),
+    full: () => threads().length >= MAX_COMMENTS,
     unread: () => 0,
     seen: () => {},
     onChange: changed.on,
