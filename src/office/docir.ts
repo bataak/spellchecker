@@ -113,6 +113,7 @@ export type IrBlock =
       readonly kind: "para";
       readonly style: string;
       readonly runs: readonly IrRun[];
+      readonly verbatim?: boolean;
     }
   | {
       readonly kind: "list";

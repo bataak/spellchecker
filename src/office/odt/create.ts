@@ -111,8 +111,9 @@ function paraXml(
   runs: readonly IrRun[],
   level: number,
   media: Media,
+  verbatim = false,
 ): string {
-  const inner = runsXml(runs, media, style === STYLE.code);
+  const inner = runsXml(runs, media, verbatim);
   if (level > 0)
     return (
       '<text:h text:style-name="' +
@@ -377,6 +378,7 @@ function blockXml(
         block.runs,
         outlineLevel(doc, block.style),
         media,
+        block.verbatim === true,
       );
     case "list":
       return listXml(block, media);

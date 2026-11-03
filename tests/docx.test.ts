@@ -212,6 +212,39 @@ test("reports overlapping edits instead of corrupting text", () => {
   assert.equal(plan.applied.length, 1);
 });
 
+test("insert inside a replaced range is reported as overlap", () => {
+  const xml = doc(`<w:p>${run("abcdefgh")}</w:p>`);
+  const part = parsePart("word/document.xml", xml);
+  const plan = planParagraph(part.paragraphs[0]!, [
+    edit(2, 6, "Z"),
+    edit(4, 4, "X"),
+  ]);
+  assert.equal(plan.skipped.length, 1);
+  assert.equal(plan.skipped[0]!.reason, "overlap");
+  assert.equal(plan.skipped[0]!.edit.text, "X");
+  assert.equal(textOf(applyRawEdits(xml, plan.raw)), "abZgh");
+});
+
+test("insert at the start or end of a replaced range is kept", () => {
+  const xml = doc(`<w:p>${run("abcdefgh")}</w:p>`);
+  assert.equal(
+    textOf(rewrite(xml, [edit(2, 6, "Z"), edit(2, 2, "X")])),
+    "abXZgh",
+  );
+  assert.equal(
+    textOf(rewrite(xml, [edit(2, 6, "Z"), edit(6, 6, "X")])),
+    "abZXgh",
+  );
+});
+
+test("inserts at one position keep their source order", () => {
+  const xml = doc(`<w:p>${run("abcdefgh")}</w:p>`);
+  assert.equal(
+    textOf(rewrite(xml, [edit(4, 4, "A"), edit(4, 4, "B")])),
+    "abcdABefgh",
+  );
+});
+
 test("reads paragraphs inside table cells", () => {
   const xml = doc(
     `<w:tbl><w:tr><w:tc><w:p>${run("нүд")}</w:p></w:tc></w:tr></w:tbl>`,

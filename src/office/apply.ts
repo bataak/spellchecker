@@ -47,10 +47,9 @@ function divStyle(classes: readonly string[]): string | null {
 }
 
 function runsOf(children: readonly Inline[]): IrRun[] {
-  return flatten(children).map((run) => ({
-    ...run,
-    text: guillemets(run.text),
-  }));
+  return flatten(children).map((run) =>
+    run.mono ? run : { ...run, text: guillemets(run.text) },
+  );
 }
 
 const RUN_IN_DEPTH = 4;
@@ -289,6 +288,7 @@ function codeBlock(value: string): IrBlock {
   return {
     kind: "para",
     style: STYLE.code,
+    verbatim: true,
     runs: value.split("\n").map((line) => ({ text: line, mono: true })),
   };
 }

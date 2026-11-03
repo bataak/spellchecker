@@ -126,6 +126,17 @@ export function guardBreak(text: string): string {
   return BREAK_ARGUMENT.test(text) ? "{}" + text : text;
 }
 
+const CODE_LIGATURE = /([-<>,'`])(?=\1)|[?!](?=`)/g;
+const PROSE_LIGATURE = /([<>,])(?=\1)/g;
+
+export function escapeCode(s: string): string {
+  return escapeTex(s).replace(CODE_LIGATURE, "$&{}");
+}
+
+export function escapeProse(s: string): string {
+  return escapeTex(s).replace(PROSE_LIGATURE, "$&{}");
+}
+
 export function escapeTex(s: string): string {
   return s
     .replace(ZERO_WIDTH, "")

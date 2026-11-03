@@ -361,7 +361,7 @@ function tableXml(
 function blockXml(block: IrBlock, doc: DocIr, body: Body): string {
   switch (block.kind) {
     case "para": {
-      const inner = runsXml(block.runs, body, block.style === STYLE.code);
+      const inner = runsXml(block.runs, body, block.verbatim === true);
       return paraXml(
         styled(block.style),
         headingBookmark(outlineLevel(doc, block.style), body, inner),
