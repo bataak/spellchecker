@@ -16,7 +16,7 @@ import {
 } from "../markdown.ts";
 import { splitSlides, type Slide } from "../doc/slides.ts";
 import { attempt } from "../core/attempt.ts";
-import { listLatex } from "./latexlist.ts";
+import { listLatex, MAX_NESTED_QUOTES } from "./latexlist.ts";
 import { tableLatex } from "./latextable.ts";
 import { usesOverlay } from "./texbeamer.ts";
 import { preambleFor } from "./latexpreamble.ts";
@@ -185,7 +185,18 @@ function columnWidth(div: DivBlock, count: number): string {
   return String(Math.round(share * 0.96 * 1000) / 1000) + "\\textwidth";
 }
 
-function divBlock(b: DivBlock, beamer: boolean): string {
+interface BlockContext {
+  readonly beamer: boolean;
+  readonly envs: number;
+  readonly place?: string;
+  readonly look?: TableLook;
+}
+
+const ARTICLE_BLOCK: BlockContext = { beamer: false, envs: 0 };
+const BEAMER_BLOCK: BlockContext = { beamer: true, envs: 0 };
+
+function divBlock(b: DivBlock, outer: BlockContext): string {
+  const { beamer } = outer;
   const place = b.classes.includes("left")
     ? "\\raggedright"
     : b.classes.includes("center")
@@ -194,8 +205,9 @@ function divBlock(b: DivBlock, beamer: boolean): string {
         ? "\\raggedleft"
         : undefined;
   const look = tableLook(b.classes, b.keys);
-  const body = (blocks: readonly Block[]): string =>
-    blocks.map((inner) => block(inner, beamer, place, look)).join("\n\n");
+  const inner: BlockContext = { beamer, envs: outer.envs, place, look };
+  const body = (blocks: readonly Block[], context = inner): string =>
+    blocks.map((child) => block(child, context)).join("\n\n");
   if (b.classes.includes("notes"))
     return beamer ? "\\note{" + body(noteBlocks(b.children)) + "}" : "";
   if (b.classes.includes("signature"))
@@ -204,7 +216,7 @@ function divBlock(b: DivBlock, beamer: boolean): string {
       (b.children.some((inner) => inner.type === "paragraph")
         ? "\\linespread{1.25}\\selectfont\n"
         : "") +
-      body(b.children) +
+      body(b.children, { ...inner, envs: outer.envs + 1 }) +
       "\n\\end{flushright}"
     );
   if (place !== undefined)
@@ -287,12 +299,16 @@ function noteBlocks(blocks: readonly Block[]): Block[] {
   });
 }
 
-function block(
-  b: Block,
-  beamer = false,
-  place?: string,
-  look?: TableLook,
-): string {
+function quoteLatex(children: readonly Block[], outer: BlockContext): string {
+  const { beamer, envs } = outer;
+  const fits = envs < MAX_NESTED_QUOTES;
+  const content = children
+    .map((child) => block(child, { beamer, envs: fits ? envs + 1 : envs }))
+    .join("\n\n");
+  return fits ? "\\begin{quote}\n" + content + "\n\\end{quote}" : content;
+}
+
+function block(b: Block, context: BlockContext): string {
   switch (b.type) {
     case "heading": {
       const cmd = SECTION[Math.min(b.depth, SECTION.length) - 1]!;
@@ -302,7 +318,7 @@ function block(
     case "meta":
       return "";
     case "div":
-      return divBlock(b, beamer);
+      return divBlock(b, context);
     case "paragraph":
       return isFigure(b.children)
         ? "\\begin{center}\n" + inline(b.children).trim() + "\n\\end{center}"
@@ -320,15 +336,14 @@ function block(
     case "codeblock":
       return codeLatex(b.value);
     case "quote":
-      return (
-        "\\begin{quote}\n" +
-        b.children.map((inner) => block(inner, beamer)).join("\n\n") +
-        "\n\\end{quote}"
-      );
+      return quoteLatex(b.children, context);
     case "list":
-      return listLatex(listTree(b), inline, beamer);
+      return listLatex(listTree(b), inline, context.beamer, context.envs);
     case "table":
-      return tableLatex(b, inline, { place, look });
+      return tableLatex(b, inline, {
+        place: context.place,
+        look: context.look,
+      });
   }
 }
 
@@ -356,7 +371,7 @@ export function toLatexBody(blocks: readonly Block[]): string {
   const lifted =
     top > 1 && top < Infinity ? liftHeadings(blocks, top - 1) : blocks;
   return fitBlanks(lifted)
-    .map((b) => block(b))
+    .map((b) => block(b, ARTICLE_BLOCK))
     .filter((text) => text !== "")
     .join("\n\n");
 }
@@ -475,14 +490,14 @@ function frame(slide: Slide): string {
     .map((b) =>
       b.type === "heading"
         ? "\\textbf{" + oneLine(b.children) + "}\\par"
-        : block(b, true),
+        : block(b, BEAMER_BLOCK),
     )
     .filter((text) => text !== "")
     .join("\n\n");
   const notes = slide.notes.length
     ? "\n\\note{" +
       noteBlocks(slide.notes)
-        .map((b) => block(b, true))
+        .map((b) => block(b, BEAMER_BLOCK))
         .join("\n\n") +
       "}"
     : "";
