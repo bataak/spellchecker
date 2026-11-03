@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { placeAfter, preambleEdit } from "../src/tex/texrequire.ts";
-import { previewTex } from "../src/tex/latex.ts";
+import { previewTex } from "../src/tex/latexpreview.ts";
 import { preambleFor } from "../src/tex/latexpreamble.ts";
 
 const setupFor = (text: string, inserted: string) =>

@@ -1,16 +1,18 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  checksum,
+  HISTORY_MAX_AGE_MS,
+  keepHistory,
+} from "../src/editor/undostore.ts";
+import {
   MAX_CHARS,
   MAX_STEPS,
-  checksum,
   emptyHistory,
   record,
   redo,
   undo,
-  HISTORY_MAX_AGE_MS,
-  keepHistory,
-} from "../src/editor/undohistory.ts";
+} from "../src/editor/undomodel.ts";
 
 function type(
   text: string,

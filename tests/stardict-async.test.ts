@@ -6,9 +6,9 @@ import {
   defineWord,
   hasEntry,
   findHeadword,
-  openStarDict,
   resolveDefinitions,
 } from "../src/dict/stardict.ts";
+import { openStarDict } from "../src/dict/stardictformat.ts";
 
 const encoder = new TextEncoder();
 

@@ -76,7 +76,8 @@ async function latexFor(
   templateId: string,
   options: BuildOptions,
 ): Promise<string> {
-  const [{ toBeamer, toLatex }, { dropControls }] = await Promise.all([
+  const [{ toBeamer }, { toLatex }, { dropControls }] = await Promise.all([
+    import("../tex/latexbeamer.ts"),
     import("../tex/latex.ts"),
     import("../office/sanitize.ts"),
   ]);
@@ -173,7 +174,7 @@ export const FORMATS: readonly ExportFormat[] = [
       const [source, { compilePdf }, { texImagePath }] = await Promise.all([
         latexFor(text, templateId, options),
         import("../tex/texpdf.ts"),
-        import("../tex/latex.ts"),
+        import("../tex/latexinline.ts"),
       ]);
       const { tex, files } = await pdfImages(text, source, texImagePath);
       return compilePdf(tex, files);

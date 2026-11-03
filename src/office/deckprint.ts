@@ -9,7 +9,8 @@ import {
 } from "./decklayout.ts";
 import { imageKey } from "./docir.ts";
 import type { Align, ImageSet, IrRun } from "./docir.ts";
-import { fontFaces, strokeCss } from "./print.ts";
+import { strokeCss } from "./printtable.ts";
+import { fontFaces } from "./printfonts.ts";
 import { cellStrokes, strokeClasses } from "../markdown/tablelook.ts";
 import { escapeAttr } from "../core/htmlutil.ts";
 import { cm } from "./units.ts";

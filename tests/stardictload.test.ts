@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { memoryBytes } from "../src/dict/dictbytes.ts";
-import { openStarDict } from "../src/dict/stardict.ts";
+import { openStarDict } from "../src/dict/stardictformat.ts";
 import {
   checkCoverage,
   DictReadError,

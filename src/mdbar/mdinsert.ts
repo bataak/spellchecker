@@ -1,6 +1,7 @@
 import { imageAttrs, parseImageAttrs } from "../markdown.ts";
 import type { ImageSize } from "../markdown.ts";
-import { codeRanges, inRanges } from "../spell/codeskip.ts";
+import { inRanges } from "../spell/codeskip.ts";
+import { codeRanges } from "../spell/skipranges.ts";
 import { lineEndAt, lineStartAt } from "../core/text.ts";
 import type { Edit } from "./mdedit.ts";
 

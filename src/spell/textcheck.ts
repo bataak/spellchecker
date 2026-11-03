@@ -1,4 +1,5 @@
-import { inRanges, type SkipRange } from "./codeskip.ts";
+import { inRanges } from "./codeskip.ts";
+import { type SkipRange } from "./skipranges.ts";
 
 export const DASHES = /[-\u2013\u2014]/;
 

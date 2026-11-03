@@ -1,4 +1,4 @@
-import { dollarMath } from "../spell/codeskip.ts";
+import { dollarMath } from "../spell/skipranges.ts";
 import { type Inline } from "./ast.ts";
 import { parseAttrs } from "./attrs.ts";
 import { type MathOpen } from "./texlogo.ts";

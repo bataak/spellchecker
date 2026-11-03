@@ -3,13 +3,9 @@ import assert from "node:assert/strict";
 
 import { parse, todayText } from "../src/markdown.ts";
 import { escapeTex } from "../src/tex/texescape.ts";
-import {
-  previewTex,
-  withParatype,
-  toBeamer,
-  toLatex,
-  toLatexBody,
-} from "../src/tex/latex.ts";
+import { toLatex, toLatexBody } from "../src/tex/latex.ts";
+import { toBeamer } from "../src/tex/latexbeamer.ts";
+import { previewTex, withParatype } from "../src/tex/latexpreview.ts";
 
 const body = (md: string): string => toLatexBody(parse(md));
 

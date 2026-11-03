@@ -1,5 +1,5 @@
-import { narrowEdit } from "./docx/edit.ts";
-import type { ParagraphEdit } from "./docx/edit.ts";
+import { narrowEdit } from "./docx/editdiff.ts";
+import type { ParagraphEdit } from "./docx/editdiff.ts";
 
 function spanEdits(
   before: string,

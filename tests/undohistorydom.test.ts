@@ -4,8 +4,9 @@ import assert from "node:assert/strict";
 import { installDom } from "./helpers/dom.ts";
 
 const dom = installDom();
-const { initUndoHistory, pruneHistories, storedHistoryTexts } =
-  await import("../src/editor/undohistory.ts");
+const { initUndoHistory } = await import("../src/editor/undohistory.ts");
+const { pruneHistories, storedHistoryTexts } =
+  await import("../src/editor/undostore.ts");
 const { applyRemote, swapText, initEditorText } =
   await import("../src/editor/editortext.ts");
 

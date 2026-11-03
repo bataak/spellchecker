@@ -1,6 +1,6 @@
 import stardictList from "virtual:stardict-index";
 import type { DictListEntry } from "./dictindex.ts";
-import { hasLatinHeadwords, type StarDict } from "./stardict.ts";
+import { hasLatinHeadwords, type StarDict } from "./stardictformat.ts";
 import { loadStarDicts } from "./stardictload.ts";
 import {
   idxDigest,
