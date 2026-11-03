@@ -1,4 +1,10 @@
-import { THEOREM_ENVS, theoremDefined, theoremLines } from "./texrequire.ts";
+import {
+  configuredPackages,
+  loadedPackages,
+  THEOREM_ENVS,
+  theoremDefined,
+  theoremLines,
+} from "./texrequire.ts";
 
 const BASE_PREAMBLE = `\\documentclass[12pt,a4paper]{article}
 \\usepackage[T2A]{fontenc}
@@ -8,7 +14,9 @@ const BASE_PREAMBLE = `\\documentclass[12pt,a4paper]{article}
 `;
 
 const MATH_RE =
-  /(?<!\\)\$|(?<!\\)\\[[(]|\\begin\{(?:math|displaymath|equation|align|gather|multline|flalign)\b/;
+  /(?<!\\)\$|(?<!\\)\\[[(]|\\begin\{(?:math|displaymath|equation|align|alignat|gather|multline|flalign)\b/;
+
+const PACKAGE_LINE = /^\\usepackage(?:\[[^\]]*\])?\{([^{}]+)\}/;
 
 function theoremSetup(tex: string): (string | false)[] {
   const used = THEOREM_ENVS.filter((env) =>
@@ -23,6 +31,10 @@ function theoremSetup(tex: string): (string | false)[] {
 }
 
 export function preambleFor(tex: string): string {
+  const loaded = loadedPackages(tex);
+  const configured = configuredPackages(tex);
+  const compatible = (line: string): boolean =>
+    !configured.has(PACKAGE_LINE.exec(line)?.[1] ?? "");
   const math = MATH_RE.test(tex);
   const lines = [
     (math || tex.includes("\\eqref")) && "\\usepackage{amsmath}",
@@ -34,11 +46,18 @@ export function preambleFor(tex: string): string {
     ...theoremSetup(tex),
     /\\(?:href|url)\{/.test(tex) && "\\usepackage{hyperref}",
     tex.includes("\\printindex") &&
-      !/\{makeidx\}/.test(tex) &&
+      !loaded.has("makeidx") &&
+      !loaded.has("imakeidx") &&
       "\\usepackage{makeidx}\n\\makeindex",
   ];
   const base = tex.includes("\\chapter")
     ? BASE_PREAMBLE.replace("{article}", "{report}")
     : BASE_PREAMBLE;
-  return base + lines.filter((line) => typeof line === "string").join("\n");
+  return (
+    base.split("\n").filter(compatible).join("\n") +
+    lines
+      .filter((line) => typeof line === "string")
+      .filter(compatible)
+      .join("\n")
+  );
 }
