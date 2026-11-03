@@ -311,6 +311,17 @@ test("routes edits to the part that owns the offset", () => {
   assert.ok(rewritten["word/header1.xml"]!.includes("ТОЛГОЙ"));
 });
 
+test("reports each insert at one position separately", () => {
+  const body = parsePart("word/document.xml", doc(`<w:p>${run("абвг")}</w:p>`));
+  const index = buildIndex([body]);
+  const first = { start: 2, end: 2, text: "А" };
+  const second = { start: 2, end: 2, text: "Б" };
+  const plan = planDocument(index, [first, second]);
+  assert.deepEqual(plan.applied, [first, second]);
+  const out = rewriteParts([body], plan)["word/document.xml"]!;
+  assert.equal(textOf(out), "абАБвг");
+});
+
 test("rejects an edit that spans a paragraph break", () => {
   const body = parsePart(
     "word/document.xml",

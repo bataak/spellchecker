@@ -1,3 +1,4 @@
+import { hexOf } from "../../core/hex.ts";
 import {
   baseName,
   cleanPath,
@@ -90,9 +91,7 @@ export async function gitBlobSha(bytes: Uint8Array): Promise<string> {
   all.set(head);
   all.set(bytes, head.length);
   const digest = await crypto.subtle.digest("SHA-1", all);
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
+  return hexOf(digest);
 }
 
 function within(spec: { dir: string }, path: string): string | null {

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  cleanText,
+  repairText,
   fixMisletters,
   hasMarkup,
   hasMisletters,
@@ -90,9 +90,9 @@ test("Цэвэр бичвэрт товчлуур хэрэггүй", () => {
   assert.equal(needsCleanup("хvн"), true);
 });
 
-test("cleanText шошго болон үсгийг хамт засна", () => {
+test("repairText шошго болон үсгийг хамт засна", () => {
   assert.equal(
-    cleanText('<div class="x"><span>хvч </span><span>єгнє</span></div>'),
+    repairText('<div class="x"><span>хvч </span><span>єгнє</span></div>'),
     "хүч өгнө",
   );
 });

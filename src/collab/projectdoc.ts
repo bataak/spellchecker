@@ -1,3 +1,4 @@
+import { hexOf } from "../core/hex.ts";
 import * as Y from "yjs";
 import { randomId } from "./collabkey.ts";
 import { minimalDiff } from "../core/textdiff.ts";
@@ -278,9 +279,7 @@ export async function blobHash(bytes: Uint8Array): Promise<string> {
     "SHA-256",
     bytes as Uint8Array<ArrayBuffer>,
   );
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
+  return hexOf(digest);
 }
 
 export async function snapshotOf(

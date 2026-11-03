@@ -1,3 +1,4 @@
+import { isAsciiLetter } from "../core/text.ts";
 import type { SyntaxSpan } from "../editor/syntaxspans.ts";
 
 export type TexKind =
@@ -19,10 +20,10 @@ const LINK_COMMANDS: ReadonlySet<string> = new Set([
 ]);
 const INLINE_CODE: ReadonlySet<string> = new Set(["lstinline", "mintinline"]);
 
+const AT_SIGN = 64;
+
 function isLetter(code: number): boolean {
-  return (
-    (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 64
-  );
+  return isAsciiLetter(code) || code === AT_SIGN;
 }
 
 function blankLineAt(text: string, index: number): boolean {
