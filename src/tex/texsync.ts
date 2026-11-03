@@ -1,5 +1,5 @@
+import { TexSource } from "./texsource.ts";
 import type { Line } from "../office/pdf/pdftext.ts";
-import { withoutComments } from "./texproject.ts";
 
 export interface SourceWord {
   readonly word: string;
@@ -29,7 +29,8 @@ function norm(word: string): string {
 }
 
 export function sourceWords(text: string): SourceWord[] {
-  const plain = withoutComments(text)
+  const plain = TexSource.of(text)
+    .blankedComments()
     .replace(HIDDEN_ARG, blank)
     .replace(COMMAND, blank);
   const out: SourceWord[] = [];

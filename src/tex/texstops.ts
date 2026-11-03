@@ -1,8 +1,8 @@
+import { TexSource } from "./texsource.ts";
 import type { Patch } from "../core/textdiff.ts";
-import { inComment, lineIndent } from "./texcompletion.ts";
+import { lineIndent } from "./texcompletion.ts";
 import type { Expansion } from "./texcompletion.ts";
 import { openMathAt } from "./texhighlight.ts";
-import { insideCode } from "./texliteral.ts";
 import { escapedAt } from "../core/text.ts";
 
 export interface TabStops {
@@ -120,9 +120,13 @@ export function typeDollar(
   from: number,
   to: number,
 ): PairEdit | null {
-  if (from !== to || escapedAt(text, from) || inComment(text, from))
+  if (
+    from !== to ||
+    escapedAt(text, from) ||
+    TexSource.of(text).inComment(from)
+  )
     return null;
-  if (insideCode(text, from)) return null;
+  if (TexSource.of(text).insideCode(from)) return null;
   const live = stack.filter((s) => valid(s, text));
   const empty = live.some(
     (s) =>
@@ -183,10 +187,14 @@ export function typeBracket(
   from: number,
   to: number,
 ): PairEdit | null {
-  if (from !== to || !escapedAt(text, from) || inComment(text, from))
+  if (
+    from !== to ||
+    !escapedAt(text, from) ||
+    TexSource.of(text).inComment(from)
+  )
     return null;
   if (from < text.length && !PAIR_BEFORE.test(text[from]!)) return null;
-  if (insideCode(text, from)) return null;
+  if (TexSource.of(text).insideCode(from)) return null;
   const live = stack.filter((s) => valid(s, text));
   const patch = { from, to: from, insert: "[\\]" };
   return {
@@ -221,7 +229,11 @@ export function breakDisplay(
   from: number,
   to: number,
 ): PairEdit | null {
-  if (from !== to || inComment(text, from) || escapedAt(text, from - 2))
+  if (
+    from !== to ||
+    TexSource.of(text).inComment(from) ||
+    escapedAt(text, from - 2)
+  )
     return null;
   const open = text.slice(from - 2, from);
   const close = text.slice(from, from + 2);
@@ -230,7 +242,7 @@ export function breakDisplay(
     !(open === "\\[" && close === "\\]")
   )
     return null;
-  if (insideCode(text, from)) return null;
+  if (TexSource.of(text).insideCode(from)) return null;
   const indent = lineIndent(text, from);
   const insert = "\n" + indent + "  \n" + indent;
   const patch = { from, to: from, insert };

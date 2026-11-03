@@ -9,21 +9,25 @@ interface ListLimit {
   readonly total: number;
 }
 
-const ARTICLE_LIMIT: ListLimit = { perType: 4, total: 5 };
+const MAX_NESTED_ENVS = 6;
+const ARTICLE_LIMIT: ListLimit = { perType: 4, total: MAX_NESTED_ENVS };
 const BEAMER_LIMIT: ListLimit = { perType: 3, total: 3 };
+
+export const MAX_NESTED_QUOTES = MAX_NESTED_ENVS - 1;
 
 interface ListNest {
   readonly depth: number;
   readonly bullets: number;
   readonly enums: number;
-  readonly limit: ListLimit;
+  readonly perType: number;
+  readonly total: number;
 }
 
 type ListEntry = ListTree["entries"][number];
 
 function listFits(tree: ListTree, nest: ListNest): boolean {
   const used = tree.ordered ? nest.enums : nest.bullets;
-  return used < nest.limit.perType && nest.depth < nest.limit.total;
+  return used < nest.perType && nest.depth < nest.total;
 }
 
 function flatEntries(tree: ListTree): ListEntry[] {
@@ -89,14 +93,17 @@ export function listLatex(
   tree: ListTree,
   inline: InlineRenderer,
   beamer: boolean,
+  outerEnvs: number,
 ): string {
+  const limit = beamer ? BEAMER_LIMIT : ARTICLE_LIMIT;
   return nestedList(
     tree,
     {
       depth: 0,
       bullets: 0,
       enums: 0,
-      limit: beamer ? BEAMER_LIMIT : ARTICLE_LIMIT,
+      perType: limit.perType,
+      total: Math.min(limit.total, MAX_NESTED_ENVS - outerEnvs),
     },
     inline,
   );

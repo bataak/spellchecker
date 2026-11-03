@@ -85,6 +85,32 @@ test("7 түвшний Markdown жагсаалт нийтлэл ба слайд 
   assert.match(slide, /зүйл7/);
 });
 
+test("Олон давхар ишлэл доторх гүн жагсаалт, код PDF болно", async () => {
+  const quoted = (depth: number, md: string): string =>
+    md
+      .split("\n")
+      .map((line) => "> ".repeat(depth) + line)
+      .join("\n") + "\n";
+  const list = Array.from(
+    { length: 7 },
+    (_, level) =>
+      "  ".repeat(level * 2) +
+      (level % 2 ? "1. " : "- ") +
+      "зүйл" +
+      String(level + 1),
+  ).join("\n");
+  for (const depth of [2, 5, 8]) {
+    const body = quoted(depth, list + "\n\n```\nкод\n```");
+    const text = await pdfText({ markdown: body });
+    assert.match(text, /зүйл7/);
+    assert.match(text, /код/);
+  }
+  const slide = await pdfText({
+    slides: "# Г\n\n## Х\n\n" + quoted(4, list),
+  });
+  assert.match(slide, /зүйл7/);
+});
+
 test("Код дахь лигатур PDF-д бичсэнээрээ гарна", async () => {
   const text = await pdfText({
     markdown: "`--flag << x >> y ,,z`\n\nТэмдэг <<а>> ,,б\n",

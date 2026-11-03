@@ -1,3 +1,4 @@
+import { TexSource } from "./texsource.ts";
 import {
   blankEm,
   fitBlanks,
@@ -16,15 +17,13 @@ import {
 } from "../markdown.ts";
 import { splitSlides, type Slide } from "../doc/slides.ts";
 import { attempt } from "../core/attempt.ts";
-import { listLatex } from "./latexlist.ts";
+import { listLatex, MAX_NESTED_QUOTES } from "./latexlist.ts";
 import { tableLatex } from "./latextable.ts";
 import { usesOverlay } from "./texbeamer.ts";
 import { preambleFor } from "./latexpreamble.ts";
 import { tableLook, type TableLook } from "../markdown/tablelook.ts";
 import { LETTER_PAGE, letterTitle } from "./latexletter.ts";
 import { escapeCode, escapeProse, guardBreak } from "./texescape.ts";
-import { documentStart, literalTest, liveMatches } from "./texliteral.ts";
-import { uncommented } from "./texproject.ts";
 
 const TUGRIK = `\\DeclareRobustCommand\\texttugrik{\\leavevmode\\hbox{\\ooalign{Т\\cr
   \\hidewidth\\raisebox{0.42ex}{\\rotatebox{-22}{\\rule{0.42em}{0.09ex}}}\\hidewidth\\cr
@@ -55,19 +54,17 @@ const DOCUMENT_CLASS = /\\documentclass\b/g;
 const END_DOCUMENT = /\\end\s*\{document\}/g;
 
 function fragmentParts(text: string): { head: string; body: string } {
-  const begin = documentStart(text);
+  const begin = TexSource.of(text).documentStart();
   if (begin) {
     const rest = text.slice(begin.index + begin[0].length);
-    const end = liveMatches(rest, END_DOCUMENT)[0];
+    const end = TexSource.of(rest).matches(END_DOCUMENT)[0];
     return {
       head: text.slice(0, begin.index),
       body: end ? rest.slice(0, end.index) : rest,
     };
   }
-  const literal = literalTest(text);
   const lines: string[] = [];
-  const body = text.replace(PREAMBLE_LINE, (line: string, at: number) => {
-    if (literal(at)) return line;
+  const body = TexSource.of(text).replace(PREAMBLE_LINE, (line) => {
     lines.push(line);
     return "";
   });
@@ -75,7 +72,7 @@ function fragmentParts(text: string): { head: string; body: string } {
 }
 
 export function previewTex(text: string): string {
-  if (liveMatches(text, DOCUMENT_CLASS).length) return text;
+  if (TexSource.of(text).matches(DOCUMENT_CLASS).length) return text;
   const { head, body } = fragmentParts(text);
   return (
     preambleFor(head + "\n" + body) +
@@ -88,10 +85,10 @@ export function previewTex(text: string): string {
 }
 
 export function withParatype(text: string): string | null {
-  const live = uncommented(text);
+  const live = TexSource.of(text).live();
   if (FONT_PACKAGE.test(live)) return null;
   if (!TEXT_FONTENC.test(live) && !CYRILLIC_BABEL.test(live)) return null;
-  const at = documentStart(text)?.index;
+  const at = TexSource.of(text).documentStart()?.index;
   if (at === undefined) return null;
   return text.slice(0, at) + "\\usepackage{paratype}\n" + text.slice(at);
 }
@@ -185,7 +182,18 @@ function columnWidth(div: DivBlock, count: number): string {
   return String(Math.round(share * 0.96 * 1000) / 1000) + "\\textwidth";
 }
 
-function divBlock(b: DivBlock, beamer: boolean): string {
+interface BlockContext {
+  readonly beamer: boolean;
+  readonly envs: number;
+  readonly place?: string;
+  readonly look?: TableLook;
+}
+
+const ARTICLE_BLOCK: BlockContext = { beamer: false, envs: 0 };
+const BEAMER_BLOCK: BlockContext = { beamer: true, envs: 0 };
+
+function divBlock(b: DivBlock, outer: BlockContext): string {
+  const { beamer } = outer;
   const place = b.classes.includes("left")
     ? "\\raggedright"
     : b.classes.includes("center")
@@ -194,8 +202,9 @@ function divBlock(b: DivBlock, beamer: boolean): string {
         ? "\\raggedleft"
         : undefined;
   const look = tableLook(b.classes, b.keys);
-  const body = (blocks: readonly Block[]): string =>
-    blocks.map((inner) => block(inner, beamer, place, look)).join("\n\n");
+  const inner: BlockContext = { beamer, envs: outer.envs, place, look };
+  const body = (blocks: readonly Block[], context = inner): string =>
+    blocks.map((child) => block(child, context)).join("\n\n");
   if (b.classes.includes("notes"))
     return beamer ? "\\note{" + body(noteBlocks(b.children)) + "}" : "";
   if (b.classes.includes("signature"))
@@ -204,7 +213,7 @@ function divBlock(b: DivBlock, beamer: boolean): string {
       (b.children.some((inner) => inner.type === "paragraph")
         ? "\\linespread{1.25}\\selectfont\n"
         : "") +
-      body(b.children) +
+      body(b.children, { ...inner, envs: outer.envs + 1 }) +
       "\n\\end{flushright}"
     );
   if (place !== undefined)
@@ -287,12 +296,16 @@ function noteBlocks(blocks: readonly Block[]): Block[] {
   });
 }
 
-function block(
-  b: Block,
-  beamer = false,
-  place?: string,
-  look?: TableLook,
-): string {
+function quoteLatex(children: readonly Block[], outer: BlockContext): string {
+  const { beamer, envs } = outer;
+  const fits = envs < MAX_NESTED_QUOTES;
+  const content = children
+    .map((child) => block(child, { beamer, envs: fits ? envs + 1 : envs }))
+    .join("\n\n");
+  return fits ? "\\begin{quote}\n" + content + "\n\\end{quote}" : content;
+}
+
+function block(b: Block, context: BlockContext): string {
   switch (b.type) {
     case "heading": {
       const cmd = SECTION[Math.min(b.depth, SECTION.length) - 1]!;
@@ -302,7 +315,7 @@ function block(
     case "meta":
       return "";
     case "div":
-      return divBlock(b, beamer);
+      return divBlock(b, context);
     case "paragraph":
       return isFigure(b.children)
         ? "\\begin{center}\n" + inline(b.children).trim() + "\n\\end{center}"
@@ -320,15 +333,14 @@ function block(
     case "codeblock":
       return codeLatex(b.value);
     case "quote":
-      return (
-        "\\begin{quote}\n" +
-        b.children.map((inner) => block(inner, beamer)).join("\n\n") +
-        "\n\\end{quote}"
-      );
+      return quoteLatex(b.children, context);
     case "list":
-      return listLatex(listTree(b), inline, beamer);
+      return listLatex(listTree(b), inline, context.beamer, context.envs);
     case "table":
-      return tableLatex(b, inline, { place, look });
+      return tableLatex(b, inline, {
+        place: context.place,
+        look: context.look,
+      });
   }
 }
 
@@ -356,7 +368,7 @@ export function toLatexBody(blocks: readonly Block[]): string {
   const lifted =
     top > 1 && top < Infinity ? liftHeadings(blocks, top - 1) : blocks;
   return fitBlanks(lifted)
-    .map((b) => block(b))
+    .map((b) => block(b, ARTICLE_BLOCK))
     .filter((text) => text !== "")
     .join("\n\n");
 }
@@ -475,14 +487,14 @@ function frame(slide: Slide): string {
     .map((b) =>
       b.type === "heading"
         ? "\\textbf{" + oneLine(b.children) + "}\\par"
-        : block(b, true),
+        : block(b, BEAMER_BLOCK),
     )
     .filter((text) => text !== "")
     .join("\n\n");
   const notes = slide.notes.length
     ? "\n\\note{" +
       noteBlocks(slide.notes)
-        .map((b) => block(b, true))
+        .map((b) => block(b, BEAMER_BLOCK))
         .join("\n\n") +
       "}"
     : "";

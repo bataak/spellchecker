@@ -1,4 +1,4 @@
-import { uncommented } from "./texproject.ts";
+import { TexSource } from "./texsource.ts";
 
 export interface JobFiles {
   read(ext: string): Promise<string | null>;
@@ -44,7 +44,7 @@ const indexStep: AuxStep = {
 const STEPS: readonly AuxStep[] = [indexStep];
 
 export function planPasses(sources: Iterable<string>): PassPlan {
-  const bodies = [...sources].map(uncommented);
+  const bodies = [...sources].map((source) => TexSource.of(source).live());
   const matching = <Rule extends PassRule>(rules: readonly Rule[]): Rule[] =>
     rules.filter((rule) => bodies.some((body) => rule.wanted(body)));
   const settle = Math.max(0, ...matching(RULES).map((rule) => rule.passes));
