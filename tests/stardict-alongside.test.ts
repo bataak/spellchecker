@@ -1,10 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-  openStarDict,
-  resolveDefinitions,
-  stardictCompare,
-} from "../src/dict/stardict.ts";
+import { resolveDefinitions } from "../src/dict/stardict.ts";
+import { openStarDict, stardictCompare } from "../src/dict/stardictformat.ts";
 import type { DictBytes } from "../src/dict/dictbytes.ts";
 
 const encoder = new TextEncoder();

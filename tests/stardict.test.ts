@@ -8,13 +8,14 @@ import {
   resolveDefinitions,
   resolveTagged,
   findTaggedHeadword,
+} from "../src/dict/stardict.ts";
+import { parseDefinition, stripMarkup } from "../src/dict/stardictmarkup.ts";
+import {
   hasLatinHeadwords,
   openStarDict,
-  parseDefinition,
   parseIfo,
   stardictCompare,
-  stripMarkup,
-} from "../src/dict/stardict.ts";
+} from "../src/dict/stardictformat.ts";
 
 const encoder = new TextEncoder();
 

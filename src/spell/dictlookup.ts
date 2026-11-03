@@ -7,8 +7,8 @@ import {
   resolveTagged,
   type DictEntry,
   type LookupMode,
-  type StarDict,
 } from "../dict/stardict.ts";
+import { type StarDict } from "../dict/stardictformat.ts";
 import { DictReadError } from "../dict/stardictload.ts";
 import type { StarDictStore } from "../dict/stardictstore.ts";
 

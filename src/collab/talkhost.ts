@@ -9,8 +9,8 @@ import {
   createLocalComments,
   type DocRef,
   type LocalComments,
-  type NoteStore,
 } from "./localcomments.ts";
+import { type NoteStore } from "./commentshelf.ts";
 import type { Profile } from "./profile.ts";
 import type { Talk } from "./talk.ts";
 import {

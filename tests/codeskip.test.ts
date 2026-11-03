@@ -1,15 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import {
-  codeRanges,
-  fencedCode,
-  hasTexSyntax,
-  inRanges,
-  looksLatex,
-  mergeRanges,
-  skipRanges,
-} from "../src/spell/codeskip.ts";
+import { fencedCode, inRanges, skipRanges } from "../src/spell/codeskip.ts";
+import { hasTexSyntax, looksLatex } from "../src/spell/texskip.ts";
+import { codeRanges, mergeRanges } from "../src/spell/skipranges.ts";
 
 function skipped(text: string, word: string): boolean {
   return inRanges(codeRanges(text), text.indexOf(word));

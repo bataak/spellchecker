@@ -1,49 +1,20 @@
 import { zipSync } from "fflate";
 import type { Zippable } from "fflate";
 import {
-  STYLE,
   TOC_TITLE,
-  imageKey,
-  imageSizeCm,
   isTocLevel,
   outlineLevel,
   runsText,
-  textWidthCm,
   tocEntries,
   withToc,
 } from "../docir.ts";
-import type {
-  DocIr,
-  ImageFiles,
-  IrBlock,
-  IrImage,
-  IrRun,
-  PageSpec,
-} from "../docir.ts";
+import type { DocIr, ImageFiles, IrBlock, IrRun } from "../docir.ts";
 import { listTree, type ListTree } from "../../markdown.ts";
-import { tabFills } from "../flatten.ts";
-import { columnWidths, shareWidths, officeMetrics } from "../table.ts";
-import {
-  STROKE_PT,
-  tableStrokes,
-  type Stroke,
-  type TableStrokes,
-} from "../../markdown/tablelook.ts";
-import { xmlAttr } from "../sanitize.ts";
-import { REL, XML_HEAD, relsXml, type Rel } from "../ooxml.ts";
-import {
-  JC,
-  LIST_LEVELS,
-  MONO,
-  NS_W,
-  numberingXml,
-  stylesXml,
-  styleId,
-  twips,
-  type NumDef,
-} from "./styles.ts";
-
+import { REL, XML_HEAD, relsXml } from "../ooxml.ts";
+import { LIST_LEVELS, NS_W, numberingXml, stylesXml, twips } from "./styles.ts";
 import { NS_R, coreXml, footerXml, paraXml, settingsXml } from "./parts.ts";
+import { type Body, runsXml, textRun } from "./createruns.ts";
+import { styled, tableXml } from "./createtable.ts";
 
 export interface DocxOptions {
   readonly toc?: boolean;
@@ -52,146 +23,10 @@ export interface DocxOptions {
 
 const encoder = new TextEncoder();
 
-const EMU_CM = 360000;
-
 const NS_WP =
   'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"';
-const DRAWING = "http://schemas.openxmlformats.org/drawingml/2006/main";
-const PICTURE = "http://schemas.openxmlformats.org/drawingml/2006/picture";
 
 const CT = "application/vnd.openxmlformats-officedocument.wordprocessingml.";
-
-interface Body {
-  readonly links: Rel[];
-  readonly nums: NumDef[];
-  bookmark: number;
-  drawing: number;
-  readonly page: PageSpec;
-  readonly images: ImageFiles;
-  readonly media: Map<string, { readonly id: string; readonly name: string }>;
-}
-
-function drawingXml(image: IrImage, body: Body): string {
-  const key = imageKey(image);
-  const file = body.images.get(key);
-  if (!file) return "";
-  let media = body.media.get(key);
-  if (!media) {
-    media = {
-      id: "rId" + String(body.links.length + 10),
-      name: "image" + String(body.media.size + 1) + "." + file.ext,
-    };
-    body.links.push({
-      id: media.id,
-      type: REL + "/image",
-      target: "media/" + media.name,
-    });
-    body.media.set(key, media);
-  }
-  const size = imageSizeCm(image, file, body.page);
-  const extent =
-    'cx="' +
-    String(Math.round(size.widthCm * EMU_CM)) +
-    '" cy="' +
-    String(Math.round(size.heightCm * EMU_CM)) +
-    '"';
-  body.drawing += 1;
-  const id = String(body.drawing);
-  return (
-    '<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0">' +
-    "<wp:extent " +
-    extent +
-    '/><wp:docPr id="' +
-    id +
-    '" name="Picture ' +
-    id +
-    '"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="' +
-    DRAWING +
-    '" noChangeAspect="1"/></wp:cNvGraphicFramePr>' +
-    '<a:graphic xmlns:a="' +
-    DRAWING +
-    '"><a:graphicData uri="' +
-    PICTURE +
-    '"><pic:pic xmlns:pic="' +
-    PICTURE +
-    '"><pic:nvPicPr><pic:cNvPr id="0" name="' +
-    media.name +
-    '"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="' +
-    media.id +
-    '"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>' +
-    '<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext ' +
-    extent +
-    '/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>' +
-    "</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>"
-  );
-}
-
-function textRun(text: string, rPr: string): string {
-  return (
-    "<w:r>" +
-    (rPr ? "<w:rPr>" + rPr + "</w:rPr>" : "") +
-    '<w:t xml:space="preserve">' +
-    xmlAttr(text) +
-    "</w:t></w:r>"
-  );
-}
-
-function runsXml(
-  runs: readonly IrRun[],
-  body: Body,
-  lineBreaks: boolean,
-): string {
-  let out = "";
-  runs.forEach((run, index) => {
-    if (lineBreaks && index > 0) out += "<w:r><w:br/></w:r>";
-    if (run.tab) {
-      out += "<w:r><w:tab/></w:r>";
-      return;
-    }
-    if (run.image) {
-      out += drawingXml(run.image, body);
-      return;
-    }
-    if (!run.text) return;
-    let rPr = run.href ? '<w:rStyle w:val="Hyperlink"/>' : "";
-    if (run.mono)
-      rPr +=
-        '<w:rFonts w:ascii="' +
-        MONO +
-        '" w:hAnsi="' +
-        MONO +
-        '" w:cs="' +
-        MONO +
-        '"/>';
-    if (run.bold) rPr += "<w:b/><w:bCs/>";
-    if (run.italic) rPr += "<w:i/><w:iCs/>";
-    if (run.strike) rPr += "<w:strike/>";
-    const text = run.text
-      .split("\n")
-      .map((part) => textRun(part, rPr))
-      .join("<w:r><w:br/></w:r>");
-    if (run.href) {
-      const id = "rId" + String(body.links.length + 10);
-      body.links.push({
-        id,
-        type: REL + "/hyperlink",
-        target: run.href,
-        external: true,
-      });
-      out +=
-        '<w:hyperlink r:id="' +
-        id +
-        '" w:history="1">' +
-        text +
-        "</w:hyperlink>";
-    } else out += text;
-  });
-  return out;
-}
-
-function styled(style: string, extra = ""): string {
-  return '<w:pStyle w:val="' + styleId(style) + '"/>' + extra;
-}
 
 function headingBookmark(level: number, body: Body, inner: string): string {
   if (!isTocLevel(level)) return inner;
@@ -231,131 +66,6 @@ function listXml(
       .join("");
   };
   return render(listTree(block), 0);
-}
-
-const rule = (side: string, stroke: Stroke): string =>
-  stroke === 0
-    ? ""
-    : "<w:" +
-      side +
-      ' w:val="single" w:sz="' +
-      String(STROKE_PT[stroke] * 8) +
-      '" w:space="0" w:color="000000"/>';
-
-function cellXml(
-  block: Extract<IrBlock, { kind: "table" }>,
-  runs: readonly IrRun[],
-  width: number,
-  align: (typeof block.align)[number],
-  headRule: Stroke | null,
-  body: Body,
-): string {
-  const fill = runs.some((run) => run.fill);
-  return (
-    '<w:tc><w:tcPr><w:tcW w:w="' +
-    String(width) +
-    '" w:type="dxa"/>' +
-    (headRule
-      ? "<w:tcBorders>" + rule("bottom", headRule) + "</w:tcBorders>"
-      : "") +
-    (headRule === null ? "" : '<w:vAlign w:val="center"/>') +
-    "</w:tcPr>" +
-    paraXml(
-      styled(
-        headRule === null
-          ? (block.cellStyle ?? STYLE.tableCell)
-          : STYLE.tableHead,
-        fill
-          ? '<w:tabs><w:tab w:val="right" w:leader="underscore" w:pos="' +
-              String(Math.max(0, width - 216)) +
-              '"/></w:tabs>'
-          : align
-            ? '<w:jc w:val="' + JC[align] + '"/>'
-            : "",
-      ),
-      runsXml(tabFills(runs), body, false),
-    ) +
-    "</w:tc>"
-  );
-}
-
-function tableBorders(strokes: TableStrokes): string {
-  const borders =
-    rule("top", strokes.top) +
-    rule("left", strokes.sides) +
-    rule("bottom", strokes.bottom) +
-    rule("right", strokes.sides) +
-    rule("insideH", strokes.rows) +
-    rule("insideV", strokes.columns);
-  return borders ? "<w:tblBorders>" + borders + "</w:tblBorders>" : "";
-}
-
-function headBorder(
-  strokes: TableStrokes,
-  head: boolean,
-  only: boolean,
-): Stroke | null {
-  if (!head) return null;
-  return only || strokes.head === strokes.rows ? 0 : strokes.head;
-}
-
-function tableXml(
-  block: Extract<IrBlock, { kind: "table" }>,
-  doc: DocIr,
-  body: Body,
-): string {
-  const header = block.header !== false;
-  const widths = shareWidths(
-    columnWidths(
-      block.rows,
-      header,
-      textWidthCm(doc),
-      officeMetrics(
-        doc.styles[block.cellStyle ?? STYLE.tableCell]?.sizePt ??
-          doc.font.sizePt,
-      ),
-    ),
-    block.rule,
-    textWidthCm(doc) * (block.share ?? 0),
-  ).map(twips);
-  const strokes = tableStrokes(block.rules, header);
-  const rows = block.rows
-    .map((row, rowIndex) => {
-      const head = header && rowIndex === 0;
-      const under = headBorder(strokes, head, block.rows.length === 1);
-      const cells = widths
-        .map((width, i) =>
-          cellXml(block, row[i] ?? [], width, block.align[i]!, under, body),
-        )
-        .join("");
-      const height =
-        block.rowCm && !head
-          ? '<w:trHeight w:val="' +
-            String(twips(block.rowCm)) +
-            '" w:hRule="atLeast"/>'
-          : "";
-      const props = (head ? "<w:tblHeader/>" : "") + height;
-      return (
-        "<w:tr>" +
-        (props ? "<w:trPr>" + props + "</w:trPr>" : "") +
-        cells +
-        "</w:tr>"
-      );
-    })
-    .join("");
-  return (
-    '<w:tbl><w:tblPr><w:tblW w:w="' +
-    String(widths.reduce((sum, width) => sum + width, 0)) +
-    '" w:type="dxa"/><w:jc w:val="' +
-    JC[block.placement ?? "center"] +
-    '"/>' +
-    tableBorders(strokes) +
-    '<w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="28" w:type="dxa"/><w:left w:w="57" w:type="dxa"/><w:bottom w:w="28" w:type="dxa"/><w:right w:w="57" w:type="dxa"/></w:tblCellMar><w:tblLook w:val="04A0"/></w:tblPr><w:tblGrid>' +
-    widths.map((width) => '<w:gridCol w:w="' + String(width) + '"/>').join("") +
-    "</w:tblGrid>" +
-    rows +
-    "</w:tbl>"
-  );
 }
 
 function blockXml(block: IrBlock, doc: DocIr, body: Body): string {

@@ -1,5 +1,6 @@
 import { applyRawEdits, planParagraph } from "./docx/edit.ts";
-import type { ParagraphEdit, RawEdit, SkipReason } from "./docx/edit.ts";
+import type { RawEdit, SkipReason } from "./docx/edit.ts";
+import type { ParagraphEdit } from "./docx/editdiff.ts";
 import type { DocxPart, Paragraph } from "./docx/parse.ts";
 import type { ZipPackage } from "./zip.ts";
 

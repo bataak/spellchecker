@@ -5,12 +5,9 @@ import { parse } from "../src/markdown.ts";
 import { retryDelay } from "../src/preview/texjob.ts";
 import { parseEntry } from "../src/tex/makeindex.ts";
 import { buildProject } from "../src/tex/projectbuild.ts";
-import {
-  previewTex,
-  toBeamer,
-  toLatexBody,
-  withParatype,
-} from "../src/tex/latex.ts";
+import { toLatexBody } from "../src/tex/latex.ts";
+import { toBeamer } from "../src/tex/latexbeamer.ts";
+import { previewTex, withParatype } from "../src/tex/latexpreview.ts";
 import { preambleFor } from "../src/tex/latexpreamble.ts";
 import { singleSlideFrames } from "../src/tex/texbeamer.ts";
 import { toPdfLatex } from "../src/tex/texcompat.ts";

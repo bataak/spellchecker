@@ -1,194 +1,21 @@
 import { unzipSync } from "fflate";
 import type { TexProject } from "./projectbuild.ts";
-import {
-  TEX_BUNDLE,
-  TEX_ENGINE,
-  TEX_FONT_FILES,
-  TEX_FONTS,
-} from "./texbundle.ts";
-import { KEYS, at } from "../core/store.ts";
-import { noteError } from "../core/errorlog.ts";
+import { TEX_ENGINE, TEX_FONTS } from "./texbundle.ts";
 import { planPasses, runSteps } from "./texpasses.ts";
 import { workerFiles } from "./texjobfiles.ts";
-import { queryWorker } from "./workerquery.ts";
 import {
   PdfError,
   missingFont,
   replyPdf,
   type EngineReply,
 } from "./texerrors.ts";
+import { session } from "./texsession.ts";
+import { asset, loadBundle, loadCachedFonts } from "./texassets.ts";
+import { engineFiles, reinstallPackages, addPackages } from "./texinstall.ts";
 
 const ENGINE_CRASHED = -254;
 
-interface EngineSession {
-  starting: Promise<Worker> | null;
-  live: Worker | null;
-  queue: Promise<unknown>;
-  running: { stop: (reason: string) => void; since: number } | null;
-  packageNotice: ((message: string | null) => void) | null;
-}
-
-interface AssetLoads {
-  bundle: Promise<ArrayBuffer> | null;
-  warmed: Promise<boolean> | null;
-  fonts: Promise<boolean> | null;
-}
-
-const session: EngineSession = {
-  starting: null,
-  live: null,
-  queue: Promise.resolve(),
-  running: null,
-  packageNotice: null,
-};
-
-const loads: AssetLoads = { bundle: null, warmed: null, fonts: null };
-
-interface EngineFiles {
-  readonly bundled: ReadonlySet<string>;
-  readonly baseMap: Uint8Array | null;
-  readonly installed: Set<string>;
-  readonly maps: Map<string, Uint8Array>;
-}
-
-const engineFiles = new WeakMap<Worker, EngineFiles>();
-const sessionPackages = new Set<string>();
 const PACKAGE_ROUNDS = 8;
-const PACKAGE_ERROR =
-  /File `[^']+' not found|I can't find file|Metric \(TFM\) file not found|cannot open Type 1 font file|cannot open encoding file|Font \S+ at \d+ not found|Package babel Error: Unknown option/;
-
-export function onTexPackage(
-  listener: ((message: string | null) => void) | null,
-): void {
-  session.packageNotice = listener;
-}
-
-const FONT_CACHE = "tex-" + TEX_FONTS.split("/")[1];
-
-function asset(path: string): string {
-  return import.meta.env.BASE_URL + path;
-}
-
-async function fontCache(): Promise<Cache | null> {
-  try {
-    return await caches.open(FONT_CACHE);
-  } catch {
-    return null;
-  }
-}
-
-function sendFont(worker: Worker, name: string, data: ArrayBuffer): void {
-  worker.postMessage({ cmd: "writetex", name, src: new Uint8Array(data) }, [
-    data,
-  ]);
-}
-
-const memoryFonts = new Map<string, ArrayBuffer>();
-function loadBundle(): Promise<ArrayBuffer> {
-  loads.bundle ??= fetch(asset(TEX_BUNDLE))
-    .then((response) => {
-      if (!response.ok) throw new Error("TeX файлууд татагдсангүй");
-      return response.arrayBuffer();
-    })
-    .catch((error: unknown) => {
-      loads.bundle = null;
-      throw error;
-    });
-  return loads.bundle;
-}
-
-async function loadCachedFonts(worker: Worker): Promise<void> {
-  const cache = await fontCache();
-  if (!cache) {
-    for (const [name, data] of memoryFonts)
-      sendFont(worker, name, data.slice(0));
-    return;
-  }
-  for (const name of TEX_FONT_FILES) {
-    const hit = await cache.match(asset(TEX_FONTS + name));
-    if (hit) sendFont(worker, name, await hit.arrayBuffer());
-  }
-}
-
-async function dropOldFontCaches(): Promise<void> {
-  try {
-    for (const key of await caches.keys())
-      if (key.startsWith("tex-fonts-") && key !== FONT_CACHE)
-        await caches.delete(key);
-  } catch (error) {
-    noteError(error);
-  }
-}
-
-function warmEngine(): Promise<boolean> {
-  loads.warmed ??= Promise.all([
-    ...[TEX_ENGINE, TEX_ENGINE.replace(/\.js$/, ".wasm")].map((path) =>
-      fetch(asset(path), { priority: "low" }).then((response) => {
-        if (!response.ok) throw new Error(path);
-      }),
-    ),
-    loadBundle(),
-  ])
-    .then(() => true)
-    .catch(() => {
-      loads.warmed = null;
-      return false;
-    });
-  return loads.warmed;
-}
-
-async function persistStorage(): Promise<void> {
-  try {
-    if (navigator.storage && !(await navigator.storage.persisted()))
-      await navigator.storage.persist();
-  } catch (error) {
-    noteError(error);
-  }
-}
-
-export function prefetchFonts(): Promise<boolean> {
-  const connection = (navigator as { connection?: { saveData?: boolean } })
-    .connection;
-  if (connection?.saveData) return Promise.resolve(false);
-  loads.fonts ??= (async () => {
-    void persistStorage();
-    const engineReady = warmEngine();
-    await dropOldFontCaches();
-    const cache = await fontCache();
-    let complete = true;
-    for (const name of TEX_FONT_FILES) {
-      const url = asset(TEX_FONTS + name);
-      if (cache ? await cache.match(url) : memoryFonts.has(name)) continue;
-      let response: Response;
-      try {
-        response = await fetch(url, { priority: "low" });
-      } catch {
-        complete = false;
-        break;
-      }
-      if (!response.ok) {
-        complete = false;
-        continue;
-      }
-      const data = await response.arrayBuffer();
-      if (!cache) memoryFonts.set(name, data.slice(0));
-      else
-        try {
-          await cache.put(url, new Response(data.slice(0)));
-        } catch {
-          complete = false;
-          break;
-        }
-      if (session.live) sendFont(session.live, name, data);
-    }
-    const ready = complete && (await engineReady);
-    if (!ready) loads.fonts = null;
-    return ready && cache !== null;
-  })();
-  return loads.fonts;
-}
-
-export const OFFLINE_KEY = at(KEYS.texOffline, TEX_BUNDLE + TEX_FONTS);
 
 async function start(): Promise<Worker> {
   const worker = new Worker(asset(TEX_ENGINE));
@@ -320,7 +147,7 @@ async function compileProjectDocument(
   project: TexProject,
 ): Promise<TexDocument> {
   const [{ withParatype }, { toPdfLatex }] = await Promise.all([
-    import("./latex.ts"),
+    import("./latexpreview.ts"),
     import("./texcompat.ts"),
   ]);
   const build = await project.build();
@@ -352,7 +179,7 @@ export async function compileTexDocument(
   if (project) return compileProjectDocument(project);
   const [{ previewTex, withParatype }, { texImageFiles }, { toPdfLatex }] =
     await Promise.all([
-      import("./latex.ts"),
+      import("./latexpreview.ts"),
       import("./teximages.ts"),
       import("./texcompat.ts"),
     ]);
@@ -378,85 +205,6 @@ export async function compileTex(
   project: TexProject | null = null,
 ): Promise<Uint8Array<ArrayBuffer>> {
   return (await compileTexDocument(text, project)).pdf;
-}
-
-const MISSES_TIMEOUT_MS = 2000;
-
-interface MissesReply {
-  readonly cmd?: string;
-  readonly names?: string[];
-}
-
-function askMisses(worker: Worker): Promise<string[]> {
-  return queryWorker<MissesReply, string[]>(
-    worker,
-    { cmd: "misses" },
-    (reply) => (reply.cmd === "misses" ? (reply.names ?? []) : undefined),
-    MISSES_TIMEOUT_MS,
-  ).catch(() => []);
-}
-
-function writeMap(worker: Worker, state: EngineFiles): void {
-  const parts = [state.baseMap ?? new Uint8Array(0), ...state.maps.values()];
-  const newline = new Uint8Array([10]);
-  const chunks = parts.flatMap((part) => [part, newline]);
-  const size = chunks.reduce((sum, part) => sum + part.length, 0);
-  const map = new Uint8Array(size);
-  let at = 0;
-  for (const part of chunks) {
-    map.set(part, at);
-    at += part.length;
-  }
-  worker.postMessage({ cmd: "writetex", name: "pdftex.map", src: map });
-}
-
-async function installPackage(worker: Worker, name: string): Promise<void> {
-  const state = engineFiles.get(worker);
-  if (!state || state.installed.has(name)) return;
-  const { loadPackage } = await import("./texfetch.ts");
-  session.packageNotice?.("«" + name + "» TeX багцыг ачаалж байна…");
-  const pkg = await loadPackage(name);
-  let mapsChanged = false;
-  for (const map of pkg.maps) {
-    const data = pkg.files.get(map);
-    if (data && !state.maps.has(map)) {
-      state.maps.set(map, data.slice());
-      mapsChanged = true;
-    }
-  }
-  for (const [file, data] of pkg.files)
-    if (!state.bundled.has(file))
-      worker.postMessage({ cmd: "writetex", name: file, src: data }, [
-        data.buffer,
-      ]);
-  if (mapsChanged) writeMap(worker, state);
-  state.installed.add(name);
-  sessionPackages.add(name);
-}
-
-async function reinstallPackages(worker: Worker): Promise<void> {
-  for (const name of sessionPackages)
-    try {
-      await installPackage(worker, name);
-    } catch (error) {
-      noteError(error);
-    }
-}
-
-async function addPackages(worker: Worker, log: string): Promise<boolean> {
-  if (!PACKAGE_ERROR.test(log)) return false;
-  const fetcher = await import("./texfetch.ts");
-  if (!fetcher.packagesEnabled()) return false;
-  const state = engineFiles.get(worker);
-  if (!state) return false;
-  const files = fetcher.wantedFiles(log, await askMisses(worker));
-  if (!files.length) return false;
-  const names = await fetcher.packagesFor(files, (name) =>
-    state.installed.has(name),
-  );
-  if (!names.length) return false;
-  for (const name of names) await installPackage(worker, name);
-  return true;
 }
 
 async function compileWithPackages(

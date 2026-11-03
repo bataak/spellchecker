@@ -13,7 +13,7 @@ import { createTalk, type Talk } from "./talk.ts";
 import { createCursors, type CursorView, type Cursors } from "./cursors.ts";
 import { createCommentMarks } from "./commentmarks.ts";
 import { keptComments } from "./commentbus.ts";
-import { authorKey } from "./comments.ts";
+import { authorKey } from "./commentstored.ts";
 import { createRoomColors, type RoomColors } from "./roomcolors.ts";
 import { textOf } from "./projectdoc.ts";
 import type { Profile } from "./profile.ts";
