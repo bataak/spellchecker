@@ -138,9 +138,6 @@ function bucketEdits(
   return buckets;
 }
 
-const spanKey = (edit: { start: number; end: number }): string =>
-  `${String(edit.start)}:${String(edit.end)}`;
-
 export function planDocument(index: TextIndex, edits: TextEdit[]): EditPlan {
   const skipped: SkippedEdit[] = [];
   const buckets = bucketEdits(index, edits, skipped);
@@ -153,17 +150,15 @@ export function planDocument(index: TextIndex, edits: TextEdit[]): EditPlan {
       paragraph,
       bucket.map((item) => item.local),
     );
-    const lookup = new Map(
-      bucket.map((item) => [spanKey(item.local), item.source]),
-    );
+    const sources = new Map(bucket.map((item) => [item.local, item.source]));
 
     for (const item of plan.applied) {
-      const source = lookup.get(spanKey(item));
+      const source = sources.get(item);
       if (source !== undefined) applied.push(source);
     }
 
     for (const item of plan.skipped) {
-      const source = lookup.get(spanKey(item.edit));
+      const source = sources.get(item.edit);
       if (source !== undefined)
         skipped.push({ edit: source, reason: item.reason });
     }

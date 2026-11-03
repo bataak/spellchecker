@@ -344,3 +344,11 @@ test("verbatim-ийн гадна $ ба \\[ хос хэвээр болно", () 
   const bracket = typeBracket([], slash, slash.length, slash.length);
   assert.equal(bracket?.patch?.insert, "[\\]");
 });
+
+test("typeDollar: бичиж буй \\verb дотор $ хослохгүй", () => {
+  const before = "\\verb|ab ";
+  assert.equal(
+    typeDollar([], before + " \n", before.length, before.length),
+    null,
+  );
+});
