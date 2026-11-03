@@ -6,7 +6,7 @@ import { initTexComplete } from "../tex/texcomplete.ts";
 import { initTexImageInput, insertPickedImage } from "../tex/teximages.ts";
 import { initTexItems } from "../tex/texitems.ts";
 import { initTexQuotes } from "../tex/texquotes.ts";
-import { createSymbolIndex, type TexSource } from "../tex/texsymbols.ts";
+import { createSymbolIndex, type TexFileEntry } from "../tex/texsymbols.ts";
 import type { ProjectFiles } from "../project/projectstore.ts";
 
 export interface TexInputDeps {
@@ -22,7 +22,7 @@ function* editorSources(
   text: string,
   files: ProjectFiles | null,
   path: string | null,
-): Generator<TexSource> {
+): Generator<TexFileEntry> {
   if (files)
     for (const [name, body] of files.texts)
       if (name !== path) yield [name, body];

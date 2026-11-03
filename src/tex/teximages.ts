@@ -1,8 +1,8 @@
+import { TexSource } from "./texsource.ts";
 import { isHeic, jpegIfHeic } from "../files/heic.ts";
 import { databaseOpener } from "../core/idb.ts";
 import { replaceRange } from "../editor/editortext.ts";
 import { pickImage } from "../files/images.ts";
-import { literalTest, liveMatches } from "./texliteral.ts";
 import {
   expandMacros,
   GRAPHIC_EXTS,
@@ -48,7 +48,7 @@ export function normalizeTexPath(path: string): string {
 export function texImagePaths(text: string): string[] {
   const out = new Set<string>();
   const macros = pathMacros([text]);
-  for (const match of liveMatches(text, INCLUDE)) {
+  for (const match of TexSource.of(text).matches(INCLUDE)) {
     const path = normalizeTexPath(expandMacros(match[2] ?? "", macros));
     if (path && !runtimePath(path)) out.add(path);
   }
@@ -61,21 +61,16 @@ export function rewriteIncludes(
   keep = false,
 ): string {
   const macros = pathMacros([text]);
-  const literal = literalTest(text);
-  return text.replace(
-    INCLUDE,
-    (match: string, opts: string | undefined, raw: string, at: number) => {
-      if (literal(at)) return match;
-      const path = normalizeTexPath(expandMacros(raw, macros));
-      const name = names.get(path);
-      if (name) return "\\includegraphics" + (opts ?? "") + "{" + name + "}";
-      if (keep) return match;
-      const box = "\\fbox{\\ttfamily\\detokenize{" + path + "}}";
-      if (!runtimePath(path)) return box;
-      const include = "\\includegraphics" + (opts ?? "") + "{" + path + "}";
-      return "\\IfFileExists{" + path + "}{" + include + "}{" + box + "}";
-    },
-  );
+  return TexSource.of(text).replace(INCLUDE, (match, opts, raw = "") => {
+    const path = normalizeTexPath(expandMacros(raw, macros));
+    const name = names.get(path);
+    if (name) return "\\includegraphics" + (opts ?? "") + "{" + name + "}";
+    if (keep) return match;
+    const box = "\\fbox{\\ttfamily\\detokenize{" + path + "}}";
+    if (!runtimePath(path)) return box;
+    const include = "\\includegraphics" + (opts ?? "") + "{" + path + "}";
+    return "\\IfFileExists{" + path + "}{" + include + "}{" + box + "}";
+  });
 }
 
 const local = new Map<string, Blob>();
@@ -229,12 +224,12 @@ async function encode(
 
 export function runtimeImagePaths(text: string): string[] {
   const macros = pathMacros([text]);
-  const dynamic = liveMatches(text, INCLUDE).some((match) =>
-    runtimePath(expandMacros(match[2] ?? "", macros)),
-  );
+  const dynamic = TexSource.of(text)
+    .matches(INCLUDE)
+    .some((match) => runtimePath(expandMacros(match[2] ?? "", macros)));
   if (!dynamic) return [];
   const out = new Set<string>();
-  for (const match of liveMatches(text, BRACE_ARGUMENT))
+  for (const match of TexSource.of(text).matches(BRACE_ARGUMENT))
     for (const part of match[1]!.split(",")) {
       const path = normalizeTexPath(part);
       if (PDFLATEX_IMAGE.test(path) && !UNSAFE_PATH.test(path)) out.add(path);

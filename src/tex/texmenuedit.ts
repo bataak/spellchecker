@@ -1,5 +1,5 @@
+import { TexSource } from "./texsource.ts";
 import { lineIndent, type Expansion } from "./texcompletion.ts";
-import { liveMatches } from "./texliteral.ts";
 import { lineEndAt, lineStartAt } from "../core/text.ts";
 
 export type Insert =
@@ -107,7 +107,7 @@ function envEdit(
 export function openEnvironment(before: string, after = ""): string | null {
   const open: string[] = [];
   const nested: string[] = [];
-  const tags = liveMatches(before + after, ENV_TAG);
+  const tags = TexSource.of(before + after).matches(ENV_TAG);
   for (const { 1: tag, 2: raw, index } of tags) {
     const name = raw!.trim();
     if (index < before.length) {

@@ -1,4 +1,4 @@
-import { literalTest, liveMatches } from "./texliteral.ts";
+import { TexSource } from "./texsource.ts";
 
 const OVERLAY =
   /\\pause\b|\\[a-zA-Z]+\*?\s*<[^>\n]*>|\\begin\s*\{[^}]*\}\s*<|\[\s*<[^\]\n]*>\s*\]/g;
@@ -7,18 +7,16 @@ const FRAGILE_FRAME =
 const NON_ASCII = /\P{ASCII}/u;
 
 export function usesOverlay(text: string): boolean {
-  return liveMatches(text, OVERLAY).length > 0;
+  return TexSource.of(text).matches(OVERLAY).length > 0;
 }
 
 export function singleSlideFrames(text: string): string {
   if (!text.includes("fragile")) return text;
-  const literal = literalTest(text);
-  return text.replace(
+  return TexSource.of(text).replace(
     FRAGILE_FRAME,
-    (whole: string, options: string, body: string, at: number) => {
+    (whole, options = "", body = "") => {
       const items = options.split(",").map((item) => item.trim());
       const eligible =
-        !literal(at) &&
         items.includes("fragile") &&
         !items.includes("allowframebreaks") &&
         !options.includes("<") &&

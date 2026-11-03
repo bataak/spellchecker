@@ -1,4 +1,4 @@
-import { uncommented } from "./texproject.ts";
+import { TexSource } from "./texsource.ts";
 
 export type ArgSource = "label" | "cite" | "index";
 
@@ -10,7 +10,7 @@ export interface TexSymbols {
   readonly environments: readonly string[];
 }
 
-export type TexSource = readonly [path: string, text: string];
+export type TexFileEntry = readonly [path: string, text: string];
 
 export const NO_SYMBOLS: TexSymbols = {
   label: [],
@@ -51,7 +51,7 @@ function bibKeys(text: string): string[] {
 }
 
 function scanTex(text: string): TexSymbols {
-  const body = uncommented(text);
+  const body = TexSource.of(text).live();
   return {
     label: captures(body, LABEL),
     cite: captures(body, BIBITEM),
@@ -93,7 +93,7 @@ export function mergeSymbols(parts: readonly TexSymbols[]): TexSymbols {
 }
 
 export interface SymbolIndex {
-  collect(sources: Iterable<TexSource>): TexSymbols;
+  collect(sources: Iterable<TexFileEntry>): TexSymbols;
 }
 
 interface Scanned {
