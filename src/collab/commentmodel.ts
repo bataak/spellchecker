@@ -50,6 +50,7 @@ export interface Comments {
   remove(id: string): boolean;
   resolve(id: string, on: boolean): boolean;
   resolveAll(ids: readonly string[]): void;
+  full(): boolean;
   unread(): number;
   seen(): void;
   onChange(listener: () => void): () => void;

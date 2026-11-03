@@ -7,7 +7,10 @@ import {
   createLocalComments,
   type DocRef,
 } from "../src/collab/localcomments.ts";
-import type { PortableThread } from "../src/collab/commentmodel.ts";
+import {
+  MAX_COMMENTS,
+  type PortableThread,
+} from "../src/collab/commentmodel.ts";
 import { swapText } from "../src/editor/editortext.ts";
 import {
   diffChange,
@@ -329,5 +332,18 @@ test("бичвэр солигдсоны дараа илгээсэн шүүмж �
   assert.equal(saved[0]!.id, id);
   assert.deepEqual([saved[0]!.from, saved[0]!.to], [start, start + 9]);
   assert.equal(store.data.has("slot2"), false);
+  local.destroy();
+});
+
+test("хамтралгүй шүүмж хязгаарт хүрэхэд full үнэн болно", async () => {
+  const { local } = setup("Сайн байна уу");
+  local.sync();
+  await tick();
+  assert.equal(local.full(), false);
+  const draft = local.draft(0, 4, "Сайн")!;
+  for (let index = 0; index < MAX_COMMENTS; index++)
+    assert.ok(local.add(draft, "шүүмж " + index));
+  assert.equal(local.full(), true);
+  assert.equal(local.add(draft, "илүү"), null);
   local.destroy();
 });

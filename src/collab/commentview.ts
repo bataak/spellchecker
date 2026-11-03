@@ -26,6 +26,8 @@ export interface CommentsView extends TalkView {
 const EMPTY = "Шүүмжлэхийг хүссэн бичвэрээ сонгоод Шүүмж товчийг дарна уу.";
 const GONE = "Шүүмж бичсэн хэсэг устсан";
 const EDITED = " · засварласан";
+const LIMIT =
+  "Шүүмжийн дээд хязгаарт хүрсэн тул шинээр нэмэх боломжгүй. Хуучин шүүмжээ устгаад дахин оролдоно уу.";
 
 export function commentsCount(open: number): string {
   return open === 0 ? "Шүүмжлэл алга" : open + " нээлттэй шүүмж";
@@ -312,6 +314,9 @@ export function commentsView(
   bar.append(count, resolveAll, toggle);
   const list = element("ol", "talk-change-list talk-thread-list");
   const empty = element("p", "talk-empty", EMPTY);
+  const limit = element("p", "talk-limit", LIMIT);
+  limit.setAttribute("role", "status");
+  limit.hidden = true;
   const state: State = {
     showResolved: false,
     active: null,
@@ -329,12 +334,13 @@ export function commentsView(
     if (reply) row?.querySelector<HTMLElement>(".talk-reply-input")?.focus();
   };
   const draft = composer(comments, (id) => focusRow(id));
-  el.append(bar, draft.form, list, empty);
+  el.append(bar, limit, draft.form, list, empty);
   const actions: RowActions = { comments, reveal, state, render };
 
   function render(): void {
     if (!visible) return;
     comments.seen();
+    limit.hidden = !comments.full();
     const threads = comments.list();
     const resolved = threads.filter((thread) => thread.resolved).length;
     count.textContent = commentsCount(threads.length - resolved);

@@ -546,6 +546,17 @@
   display: none;
 }
 
+.talk-limit {
+  margin: 0;
+  padding: 6px 14px;
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+.talk-limit[hidden] {
+  display: none;
+}
+
 .talk-form {
   display: flex;
   align-items: flex-end;

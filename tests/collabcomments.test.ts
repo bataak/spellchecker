@@ -377,3 +377,27 @@ test("бүгдийг шийдэх нэг шинэчлэлтээр хамтраг
   assert.equal(changes, 1);
   assert.ok(theirs.list().every((thread) => thread.resolved));
 });
+
+test("шүүмжийн хязгаарт хүрэхэд самбар шалтгааныг харуулж, устгахад нуугдана", () => {
+  const doc = new Y.Doc();
+  doc.getText("t").insert(0, "Сайн байна уу");
+  const comments = open(doc, "aaa", "Бат");
+  const view = commentsView(comments, () => {});
+  document.body.append(view.el);
+  view.shown(true);
+  const limit = view.el.querySelector<HTMLElement>(".talk-limit")!;
+  assert.equal(limit.hidden, true);
+  const stamp = { n: "Ч", c: 1, t: "x", u: "aaa", f: "AA", h: "AA", q: "" };
+  const map = doc.getMap("comments");
+  doc.transact(() => {
+    for (let index = 0; index < MAX_COMMENTS; index++) {
+      const key = "s" + String(index).padStart(5, "0");
+      map.set(key, { ...stamp, i: key, a: index });
+    }
+  });
+  assert.equal(limit.hidden, false);
+  assert.equal(comments.add(draftOf(comments, doc, "байна"), "шинэ"), null);
+  assert.ok(comments.remove("s00000"));
+  assert.equal(limit.hidden, true);
+  view.el.remove();
+});
