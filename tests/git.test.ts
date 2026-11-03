@@ -549,3 +549,36 @@ test("commitChanges: constructor, __proto__ нэртэй файлыг шинэ �
     null,
   );
 });
+
+test("repo дээр файлыг ижил нэртэй хавтсаар сольсон бол шинэ файлыг устгахгүй", async () => {
+  const repo = await FakeRepo.create({ "main.tex": MAIN, a: "файл\n" });
+  const { s, remote } = await open(repo);
+  await repo.push({ a: null, "a/b.tex": "дотор\n" });
+  s.texts.set("main.tex", MAIN + "% засвар\n");
+  const out = await commitChanges(
+    githubHost(repo),
+    workingCopy(s),
+    remote,
+    "засвар",
+  );
+  assert.equal(out?.committed, true);
+  assert.equal(s.texts.get("a/b.tex"), "дотор\n");
+  assert.equal(repo.text("a/b.tex"), "дотор\n");
+  assert.equal(repo.text("a"), undefined);
+  assert.ok(s.dirs.has("a"));
+});
+
+test("repo дээр хавтсыг ижил нэртэй файлаар сольсон бол хоосон хавтас үлдэхгүй", async () => {
+  const repo = await FakeRepo.create({
+    "main.tex": MAIN,
+    "a/b.tex": "дотор\n",
+  });
+  const { s, remote } = await open(repo);
+  await repo.push({ "a/b.tex": null, a: "файл\n" });
+  s.texts.set("main.tex", MAIN + "% засвар\n");
+  await commitChanges(githubHost(repo), workingCopy(s), remote, "засвар");
+  assert.equal(repo.text("a"), "файл\n");
+  assert.equal(repo.text("a/b.tex"), undefined);
+  assert.ok(s.binaries.has("a"));
+  assert.ok(!s.dirs.has("a"));
+});
