@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.123.1](https://github.com/bataak/spellchecker/compare/v1.123.0...v1.123.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **tex:** ignore commented preamble lines and avoid package option clashes ([86d1d80](https://github.com/bataak/spellchecker/commit/86d1d80f78b5786aae3dded1ee9634f28a88f2e8))
+* **tex:** keep verbatim literal in the editor and SVG rewrite, and detect replaced images ([b7d1566](https://github.com/bataak/spellchecker/commit/b7d1566136a8b5945e045c434b10e017f5453325))
+
 ## [1.123.0](https://github.com/bataak/spellchecker/compare/v1.122.0...v1.123.0) (2026-11-02)
 
 
