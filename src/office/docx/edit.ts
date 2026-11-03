@@ -371,9 +371,9 @@ function queuePiece(
 }
 
 function rewriteNode(node: TextNode, operations: ParagraphEdit[]): RawEdit[] {
-  const sequence = [...operations].sort(
-    (left, right) => right.start - left.start || right.end - left.end,
-  );
+  const sequence = [...operations]
+    .reverse()
+    .sort((left, right) => right.start - left.start || right.end - left.end);
   let next = node.text;
   for (const operation of sequence)
     next =
@@ -387,8 +387,11 @@ function rejectReason(
   paragraph: Paragraph,
   edit: ParagraphEdit,
   guard: number,
+  guardStart: number,
 ): SkipReason | null {
-  if (edit.start < guard && edit.start !== edit.end) return "overlap";
+  const insertion = edit.start === edit.end;
+  if (edit.start < guard && (!insertion || edit.start > guardStart))
+    return "overlap";
   if (
     edit.start < 0 ||
     edit.end > paragraph.text.length ||
@@ -409,9 +412,10 @@ export function planParagraph(
   const skipped: SkippedEdit[] = [];
   const pending = new Map<TextNode, ParagraphEdit[]>();
   let guard = -1;
+  let guardStart = -1;
 
   for (const edit of ordered) {
-    const rejected = rejectReason(paragraph, edit, guard);
+    const rejected = rejectReason(paragraph, edit, guard, guardStart);
     if (rejected !== null) {
       skipped.push({ edit, reason: rejected });
       continue;
@@ -426,7 +430,10 @@ export function planParagraph(
       }
       for (const piece of placed) queuePiece(paragraph, piece, pending);
     }
-    guard = Math.max(guard, edit.end);
+    if (edit.end > guard) {
+      guard = edit.end;
+      guardStart = edit.start;
+    }
     applied.push(edit);
   }
 

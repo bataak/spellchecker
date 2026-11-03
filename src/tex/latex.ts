@@ -13,16 +13,16 @@ import {
   type Block,
   type DivBlock,
   type Inline,
-  type ListTree,
 } from "../markdown.ts";
 import { splitSlides, type Slide } from "../doc/slides.ts";
 import { attempt } from "../core/attempt.ts";
+import { listLatex } from "./latexlist.ts";
 import { tableLatex } from "./latextable.ts";
 import { usesOverlay } from "./texbeamer.ts";
 import { preambleFor } from "./latexpreamble.ts";
 import { tableLook, type TableLook } from "../markdown/tablelook.ts";
 import { LETTER_PAGE, letterTitle } from "./latexletter.ts";
-import { escapeTex, guardBreak } from "./texescape.ts";
+import { escapeCode, escapeProse, guardBreak } from "./texescape.ts";
 import { documentStart, literalTest, liveMatches } from "./texliteral.ts";
 import { uncommented } from "./texproject.ts";
 
@@ -123,52 +123,14 @@ export function texImagePath(src: string): string {
   return attempt(() => decodeURIComponent(src), src).replace(/[{}%#\\]/g, "_");
 }
 
-const ENUM_COUNTERS = ["enumi", "enumii", "enumiii", "enumiv"];
-
-function listLatex(tree: ListTree, depth: number, enums = 0): string {
-  const env = tree.ordered ? "enumerate" : "itemize";
-  const pad = "  ".repeat(depth);
-  const counter = ENUM_COUNTERS[enums];
-  const start =
-    tree.ordered && tree.start !== 1 && counter
-      ? pad + "\\setcounter{" + counter + "}{" + String(tree.start - 1) + "}\n"
-      : "";
-  const items = tree.entries.map(({ item, sub }) => {
-    const text = inline(item);
-    const guard = text.startsWith("[") ? "{}" : "";
-    return (
-      pad +
-      "  \\item " +
-      guard +
-      text +
-      (sub
-        ? "\n" + listLatex(sub, depth + 1, enums + (tree.ordered ? 1 : 0))
-        : "")
-    );
-  });
-  return (
-    pad +
-    "\\begin{" +
-    env +
-    "}\n" +
-    start +
-    items.join("\n") +
-    "\n" +
-    pad +
-    "\\end{" +
-    env +
-    "}"
-  );
-}
-
 const LINE_BREAK = "\\\\\n";
 
 function inlineNode(n: Inline): string {
   switch (n.type) {
     case "text":
-      return withLogos(n.value, (name) => "\\" + name + "{}", escapeTex);
+      return withLogos(n.value, (name) => "\\" + name + "{}", escapeProse);
     case "code":
-      return "\\texttt{" + escapeTex(n.value) + "}";
+      return "\\texttt{" + escapeCode(n.value) + "}";
     case "strong":
       return "\\textbf{" + inline(n.children) + "}";
     case "em":
@@ -295,7 +257,7 @@ function codeLines(value: string): string {
     .map((line) => {
       const code = line.trimStart();
       const indent = "~".repeat(line.length - code.length);
-      return "\\texttt{" + indent + escapeTex(code) + "}\\\\";
+      return "\\texttt{" + indent + escapeCode(code) + "}\\\\";
     })
     .join("\n");
 }
@@ -364,7 +326,7 @@ function block(
         "\n\\end{quote}"
       );
     case "list":
-      return listLatex(listTree(b), 0);
+      return listLatex(listTree(b), inline, beamer);
     case "table":
       return tableLatex(b, inline, { place, look });
   }

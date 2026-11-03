@@ -67,6 +67,32 @@ test('Markdown-ын " тэмдэгтийн дараах зай, зураас а�
   assert.match(text, /"-x/);
 });
 
+test("7 түвшний Markdown жагсаалт нийтлэл ба слайд болж PDF гарна", async () => {
+  const levels = Array.from(
+    { length: 7 },
+    (_, level) => "  ".repeat(level * 2) + "- зүйл" + String(level + 1),
+  ).join("\n");
+  const numbered = levels.replace(/- /g, "1. ");
+  const mixed = levels
+    .split("\n")
+    .map((line, level) => (level % 2 ? line.replace("- ", "1. ") : line))
+    .join("\n");
+  for (const markdown of [levels, numbered, mixed]) {
+    const text = await pdfText({ markdown: markdown + "\n" });
+    assert.match(text, /зүйл7/);
+  }
+  const slide = await pdfText({ slides: "# Г\n\n## Х\n\n" + mixed + "\n" });
+  assert.match(slide, /зүйл7/);
+});
+
+test("Код дахь лигатур PDF-д бичсэнээрээ гарна", async () => {
+  const text = await pdfText({
+    markdown: "`--flag << x >> y ,,z`\n\nТэмдэг <<а>> ,,б\n",
+  });
+  assert.match(text, /--flag << x >> y ,,z/);
+  assert.match(text, /<<а>> ,,б/);
+});
+
 test("[ -ээр эхэлсэн мөр, хүснэгтийн нүдтэй Markdown PDF болно", async () => {
   const text = await pdfText({
     markdown:
