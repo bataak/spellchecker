@@ -50,6 +50,17 @@ test("insideCode: хаагдаагүй код ба хил дээрх байрл�
   assert.equal(TexSource.of(closed).insideCode(closed.length), false);
 });
 
+test("insideCode: бичиж буй \\verb-ийг код гэж таньж, дууссаныг нь үгүйсгэнэ", () => {
+  const inside = (text: string): boolean =>
+    TexSource.of(text).insideCode(text.length);
+  assert.equal(inside("\\verb|ab "), true);
+  assert.equal(inside("\\verb*+ab "), true);
+  assert.equal(inside("\\verb|a| \\verb|b "), true);
+  assert.equal(inside("\\verb|a| "), false);
+  assert.equal(inside("\\\\verb|a "), false);
+  assert.equal(inside("\\verb|a\nb "), false);
+});
+
 test("matches, replace: тайлбар, verbatim-ийг алгасна", () => {
   const text =
     "\\a{1} % \\a{2}\n" + "\\begin{verbatim}\n\\a{3}\n\\end{verbatim}\n\\a{4}";
