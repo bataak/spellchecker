@@ -1,5 +1,5 @@
-import { isEditablePath, parentDirs } from "../tex/texproject.ts";
-import type { CopyChange, WorkingCopy } from "./git/gitsync.ts";
+import { isEditablePath, parentDirs, within } from "../tex/texproject.ts";
+import type { CopyChange, Plan, WorkingCopy } from "./git/gitsync.ts";
 import { dropEntries } from "./projectedit.ts";
 import { conflictsOf, merge3, resolveChunks } from "./git/merge3.ts";
 import {
@@ -10,15 +10,8 @@ import {
   type State,
 } from "./projectstate.ts";
 
-function applyRemoteFile(
-  s: State,
-  path: string,
-  bytes: Uint8Array | null,
-): void {
-  if (bytes === null) {
-    dropEntries(s, path);
-    return;
-  }
+function placeRemoteFile(s: State, path: string, bytes: Uint8Array): void {
+  for (const dir of [...s.dirs]) if (within(dir, path)) s.dirs.delete(dir);
   if (isEditablePath(path)) {
     const { text, crlf } = readText(bytes);
     noteEol(s, path, crlf);
@@ -36,35 +29,51 @@ function rebase(seen: string, current: string, incoming: string): string {
   );
 }
 
-function applyChange(s: State, change: CopyChange): void {
-  const before = new Map(
-    [...(change.seen?.keys() ?? [])].map((path) => [path, s.texts.get(path)]),
-  );
-  for (const [path, bytes] of change.pulled ?? [])
-    applyRemoteFile(s, path, bytes);
-  for (const [path, text] of change.merged ?? []) s.texts.set(path, text);
+function applyPulled(
+  s: State,
+  pulled: ReadonlyMap<string, Uint8Array | null>,
+): void {
+  for (const [path, bytes] of pulled) if (bytes === null) dropEntries(s, path);
+  for (const [path, bytes] of pulled)
+    if (bytes !== null) placeRemoteFile(s, path, bytes);
+}
+
+function rebaseTyped(
+  s: State,
+  before: ReadonlyMap<string, string | undefined>,
+  seen: ReadonlyMap<string, string | undefined>,
+): void {
   for (const [path, current] of before) {
-    const seen = change.seen?.get(path);
+    const base = seen.get(path);
     const incoming = s.texts.get(path);
     if (
       current !== undefined &&
-      seen !== undefined &&
+      base !== undefined &&
       incoming !== undefined &&
-      current !== seen
+      current !== base
     )
-      s.texts.set(path, rebase(seen, current, incoming));
+      s.texts.set(path, rebase(base, current, incoming));
   }
+}
+
+function settleCommit(s: State, plan: Plan): void {
+  for (const [path, text] of plan.texts) {
+    s.saved.set(path, text);
+    s.added.delete(path);
+  }
+  for (const [path] of plan.writes) s.fresh.delete(path);
+  for (const path of plan.deletes) s.saved.delete(path);
+  s.unsynced = false;
+}
+
+function applyChange(s: State, change: CopyChange): void {
+  const seen = change.seen ?? new Map<string, string | undefined>();
+  const before = new Map([...seen.keys()].map((p) => [p, s.texts.get(p)]));
+  applyPulled(s, change.pulled ?? new Map());
+  for (const [path, text] of change.merged ?? []) s.texts.set(path, text);
+  rebaseTyped(s, before, seen);
   for (const dir of change.dirs ?? []) s.dirs.add(dir);
-  const plan = change.committed;
-  if (plan) {
-    for (const [path, text] of plan.texts) {
-      s.saved.set(path, text);
-      s.added.delete(path);
-    }
-    for (const [path] of plan.writes) s.fresh.delete(path);
-    for (const path of plan.deletes) s.saved.delete(path);
-    s.unsynced = false;
-  }
+  if (change.committed) settleCommit(s, change.committed);
   s.remote = change.remote;
   recountDirty(s);
 }

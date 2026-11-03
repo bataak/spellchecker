@@ -50,8 +50,10 @@ function device(texts: Record<string, string>, main: string | null): Device {
     },
     async remove(path) {
       log.push("remove " + path);
-      state.texts.delete(path);
-      state.dirs.delete(path);
+      for (const key of [...state.texts.keys()])
+        if (key === path || key.startsWith(path + "/")) state.texts.delete(key);
+      for (const dir of [...state.dirs])
+        if (dir === path || dir.startsWith(path + "/")) state.dirs.delete(dir);
     },
     setMain(path) {
       log.push("main " + path);
@@ -237,4 +239,37 @@ test("нуугдмал тэмдэгттэй хавтас, үндсэн файл 
   const snap = projectOf(owner.doc);
   assert.deepEqual([...snap.dirs], []);
   assert.equal(snap.main, null);
+});
+
+test("хавтас устгах үед зэрэг нэмсэн файл хоёр талд үлдэнэ", async () => {
+  const [owner, guest, wire] = await pair();
+  wire.hold = true;
+  owner.texts.delete("ch/one.tex");
+  owner.dirs.delete("ch");
+  owner.bridge.pushLocal();
+  guest.texts.set("ch/two.tex", "Хоёр");
+  guest.bridge.pushLocal();
+  wire.hold = false;
+  wire.flush();
+  await settle();
+  await settle();
+  assert.equal(guest.texts.get("ch/two.tex"), "Хоёр");
+  assert.equal(owner.texts.get("ch/two.tex"), "Хоёр");
+  assert.equal(projectOf(owner.doc).texts.get("ch/two.tex"), "Хоёр");
+  assert.ok(!guest.texts.has("ch/one.tex"));
+  assert.ok(guest.dirs.has("ch"));
+  assert.ok(owner.dirs.has("ch"));
+  assert.ok(projectOf(guest.doc).dirs.has("ch"));
+});
+
+test("хавтас хоосон бол хамтрагчийн устгалт хэвээр ажиллана", async () => {
+  const [owner, guest] = await pair();
+  owner.dirs.add("empty");
+  owner.bridge.pushLocal();
+  await settle();
+  assert.ok(guest.dirs.has("empty"));
+  owner.dirs.delete("empty");
+  owner.bridge.pushLocal();
+  await settle();
+  assert.ok(!guest.dirs.has("empty"));
 });
