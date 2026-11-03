@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.123.3](https://github.com/bataak/spellchecker/compare/v1.123.2...v1.123.3) (2026-11-03)
+
+
+### Bug Fixes
+
+* **collab:** explain why no comment can be added at the limit ([1d48617](https://github.com/bataak/spellchecker/commit/1d486177971fcffbd1fba11559d1f478a4df2b6c))
+* keep whitespace in ODT edits and files lost during sync ([67dd520](https://github.com/bataak/spellchecker/commit/67dd5206c9d772257588ea626c19dbb2513d2333))
+
 ## [1.123.2](https://github.com/bataak/spellchecker/compare/v1.123.1...v1.123.2) (2026-11-03)
 
 
