@@ -155,6 +155,17 @@ function para(style: string, runs: readonly IrRun[], images: ImageSet): string {
   );
 }
 
+function verbatimPara(
+  style: string,
+  runs: readonly IrRun[],
+  images: ImageSet,
+): string {
+  const lines = runs.map((run) => runsHtml([run], images)).join("<br>");
+  return (
+    '<p class="' + className(style) + ' verbatim">' + (lines || "<br>") + "</p>"
+  );
+}
+
 export function strokeCss(
   widths: Readonly<Record<Stroke, number>> = STROKE_PT,
 ): string {
@@ -260,7 +271,9 @@ function tableHtml(
 function blockHtml(block: IrBlock, doc: DocIr, images: ImageSet): string {
   switch (block.kind) {
     case "para":
-      return para(block.style, block.runs, images);
+      return block.verbatim
+        ? verbatimPara(block.style, block.runs, images)
+        : para(block.style, block.runs, images);
 
     case "list": {
       const render = (tree: ListTree<readonly IrRun[]>): string => {
@@ -404,6 +417,7 @@ const BLOCK_CSS =
   ".mono{font-family:" +
   MONO_STACK +
   "}" +
+  ".verbatim{white-space:pre-wrap}" +
   "a{color:#000080}" +
   "ul,ol{margin:0;padding-left:1.2cm}" +
   "table{border-collapse:separate;border-spacing:0;table-layout:fixed;break-inside:auto}" +
