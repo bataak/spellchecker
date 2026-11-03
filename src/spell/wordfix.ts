@@ -14,7 +14,8 @@ import {
   rankToPattern,
 } from "./caseform.ts";
 import type { CasePattern } from "./caseform.ts";
-import { inRanges, type SkipRange } from "./codeskip.ts";
+import { inRanges } from "./codeskip.ts";
+import { type SkipRange } from "./skipranges.ts";
 
 export type CheckWords = (words: string[]) => Promise<Record<string, boolean>>;
 

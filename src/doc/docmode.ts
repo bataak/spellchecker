@@ -1,5 +1,5 @@
 import { PROJECT_SLOT } from "../core/fileslots.ts";
-import { looksLatex } from "../spell/codeskip.ts";
+import { looksLatex } from "../spell/texskip.ts";
 import { PLAIN } from "./templates.ts";
 
 const TEX_TEMPLATE = "article";

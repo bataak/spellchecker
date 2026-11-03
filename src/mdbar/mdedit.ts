@@ -1,7 +1,7 @@
-import { codeRanges, fencedCode, inRanges } from "../spell/codeskip.ts";
 import { replaceRange } from "../editor/editortext.ts";
 import { minimalDiff } from "../core/textdiff.ts";
-import { lineAt, lineEndAt, lineStartAt } from "../core/text.ts";
+import { lineEndAt, lineStartAt } from "../core/text.ts";
+import { inTable, inFence, inMath } from "./mdcontext.ts";
 
 export interface Edit {
   readonly text: string;
@@ -10,13 +10,16 @@ export interface Edit {
 }
 
 const HEADING = /^(#{1,6})[ \t]+/;
+
 const BULLET = /^([-*+])[ \t]+/;
+
 const ORDERED = /^(\d+)[.)][ \t]+/;
 
 const ANY_BULLET = /^\s*[-*+]\s+/;
+
 const ANY_ORDERED = /^\s*\d+[.)]\s+/;
+
 const ANY_QUOTE = /^\s*>/;
-const DIVIDER = /^[\s|:-]*-[\s|:-]*$/;
 
 interface Bounds {
   readonly from: number;
@@ -300,68 +303,6 @@ export function toggleList(
     n += 1;
     return { drop, add: ordered ? `${String(n)}. ` : "- " };
   });
-}
-
-function inTable(
-  text: string,
-  from: number,
-  to: number,
-  line: string,
-): boolean {
-  if (!line.includes("|")) return false;
-  if (/^\s*\|/.test(line)) return true;
-  const prev = from > 0 ? lineAt(text, from - 1) : "";
-  const next = to < text.length ? lineAt(text, to + 1) : "";
-  return (
-    (prev.includes("|") && DIVIDER.test(prev)) ||
-    (next.includes("|") && DIVIDER.test(next))
-  );
-}
-
-export function caretInTable(text: string, caret: number): boolean {
-  const from = lineStartAt(text, caret);
-  const to = lineEndAt(text, caret);
-  return inTable(text, from, to, text.slice(from, to));
-}
-
-function inFence(text: string, caret: number): boolean {
-  if (!text.includes("```") && !text.includes("~~~")) return false;
-  return inRanges(codeRanges(text), caret);
-}
-
-const MATH_OPEN: Record<string, string> = { $$: "$$", "\\[": "\\]" };
-
-function mathClose(
-  close: string | null,
-  line: string,
-  blank: boolean,
-): string | null {
-  if (close) return blank || line.includes(close) ? null : close;
-  const opener = line.startsWith("$$")
-    ? "$$"
-    : line.startsWith("\\[")
-      ? "\\["
-      : "";
-  if (!opener) return null;
-  const shut = MATH_OPEN[opener]!;
-  return line.slice(opener.length).includes(shut) ? null : shut;
-}
-
-function inMath(text: string, caret: number): boolean {
-  if (!text.includes("$$") && !text.includes("\\[")) return false;
-  const code = fencedCode(text);
-  let close: string | null = null;
-  let at = 0;
-  while (at <= caret) {
-    const end = Math.min(lineEndAt(text, at), caret);
-    if (!inRanges(code, at)) {
-      const line = text.slice(at, end).trim();
-      const blank = !text.slice(at, lineEndAt(text, at)).trim();
-      close = mathClose(close, line, blank);
-    }
-    at = end + 1;
-  }
-  return close !== null;
 }
 
 export function enterInsert(text: string, caret: number): "\n" | "\n\n" {

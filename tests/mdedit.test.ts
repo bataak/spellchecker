@@ -9,8 +9,8 @@ import {
   toggleWrap,
   enterInsert,
   toggleQuote,
-  caretInTable,
 } from "../src/mdbar/mdedit.ts";
+import { caretInTable } from "../src/mdbar/mdcontext.ts";
 import { minimalDiff } from "../src/core/textdiff.ts";
 import {
   imageSizeAt,

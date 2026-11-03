@@ -5,7 +5,7 @@ import {
   propagateFix,
   type PendingFix,
 } from "./applyfix.ts";
-import { mergeRanges } from "./codeskip.ts";
+import { mergeRanges } from "./skipranges.ts";
 import type { SpellSession } from "./spellsession.ts";
 import type { Token } from "./textcheck.ts";
 

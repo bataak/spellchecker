@@ -29,7 +29,8 @@ async function pdfText(probe: Probe): Promise<string> {
       const load = (path: string) => import(new URL(path, location.href).href);
       const { compileTex } = await load("src/tex/texpdf.ts");
       const { extractPdfText } = await load("src/office/pdf/pdftext.ts");
-      const { toLatex, toBeamer } = await load("src/tex/latex.ts");
+      const { toLatex } = await load("src/tex/latex.ts");
+      const { toBeamer } = await load("src/tex/latexbeamer.ts");
       const { parse } = await load("src/markdown.ts");
       const { buildProject } = await load("src/tex/projectbuild.ts");
       const source = probe.markdown
@@ -212,7 +213,7 @@ test("нэг файлд макроны аргументаар өгсөн зур�
     const load = (path: string) => import(new URL(path, location.href).href);
     const { compileTex } = await load("src/tex/texpdf.ts");
     const { extractPdfText } = await load("src/office/pdf/pdftext.ts");
-    const { initTexImageInput } = await load("src/tex/teximages.ts");
+    const { initTexImageInput } = await load("src/tex/teximageinput.ts");
     const editor = document.createElement("textarea");
     initTexImageInput({ editor, active: () => true });
     const file = new File(
@@ -244,7 +245,7 @@ test("нэг файлд PDF зураг хайрцаг биш, зураг бол�
     const load = (path: string) => import(new URL(path, location.href).href);
     const { compileTexDocument } = await load("src/tex/texpdf.ts");
     const { extractPdfText } = await load("src/office/pdf/pdftext.ts");
-    const { initTexImageInput } = await load("src/tex/teximages.ts");
+    const { initTexImageInput } = await load("src/tex/teximageinput.ts");
     const inner = await compileTexDocument(
       "\\documentclass{article}\n\\begin{document}\nДОТОР\n\\end{document}\n",
     );

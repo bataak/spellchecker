@@ -1,4 +1,4 @@
-import { caretInTable } from "./mdedit.ts";
+import { caretInTable } from "./mdcontext.ts";
 import type { Backdrop } from "../editor/backdrop.ts";
 
 const NARROW = "(max-width: 700px)";

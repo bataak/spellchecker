@@ -7,7 +7,7 @@ import {
   record,
   redo,
   undo,
-} from "../src/editor/undohistory.ts";
+} from "../src/editor/undomodel.ts";
 
 test("буцаах түүхийг бусдын засвараар шилжүүлнэ", () => {
   const history = {

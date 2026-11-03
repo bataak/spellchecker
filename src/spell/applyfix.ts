@@ -1,5 +1,6 @@
 import { casePattern, type CasePattern } from "./caseform.ts";
-import { inRanges, mergeRanges, type SkipRange } from "./codeskip.ts";
+import { inRanges } from "./codeskip.ts";
+import { mergeRanges, type SkipRange } from "./skipranges.ts";
 import { dashNormalizeApply, isDashSuffix, type Token } from "./textcheck.ts";
 import {
   periodSplitDots,

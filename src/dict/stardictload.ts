@@ -14,7 +14,7 @@ import {
   openStarDict,
   parseIfo,
   type StarDict,
-} from "./stardict.ts";
+} from "./stardictformat.ts";
 
 export const RETRY_DELAYS = [400, 1500];
 
