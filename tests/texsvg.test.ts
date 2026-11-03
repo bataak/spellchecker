@@ -99,3 +99,63 @@ test("svg-ийн фонтын нэрийг serif, sans-serif, monospace болг
     ".t{font-family: serif} .s{font-family:sans-serif}",
   );
 });
+
+test("rewriteSvg: verbatim ба тайлбарын бичвэрт хүрэхгүй", () => {
+  const shown =
+    "\\begin{verbatim}\n\\usepackage{svg}\n\\svgpath{{a/}}\n\\svgsetup{x=1}\n\\includesvg{z}\n\\end{verbatim}\n";
+  const note = "%\\svgsetup{y}\n";
+  const out = rewriteSvg(
+    "\\usepackage{svg}\n\\svgpath{{b/}}\n\\svgsetup{k=2}\n\\begin{document}\n" +
+      shown +
+      note +
+      "\\includesvg{z}\n\\end{document}\n",
+    () => "z.pdf",
+  );
+  assert.ok(out.includes(shown), out);
+  assert.ok(out.includes(note), out);
+  assert.ok(
+    out.startsWith("\\usepackage{graphicx}\n\n\n\\begin{document}"),
+    out,
+  );
+  assert.ok(out.includes("\n\\includegraphics{z.pdf}\n"), out);
+});
+
+test("\\RequirePackage{svg}-ийг таньж командыг нь хадгална", () => {
+  const source = "\\RequirePackage{svg}\n\\documentclass{article}\n";
+  assert.equal(usesSvgPackage([source]), true);
+  assert.equal(
+    rewriteSvg(source, () => null),
+    "\\RequirePackage{graphicx}\n\\documentclass{article}\n",
+  );
+});
+
+test("usesSvgPackage: verbatim дахь багцыг тоолохгүй", () => {
+  assert.equal(
+    usesSvgPackage(["\\begin{verbatim}\n\\usepackage{svg}\n\\end{verbatim}\n"]),
+    false,
+  );
+});
+
+test("buildProject: .sty дахь \\RequirePackage{svg}-ийг graphicx болгоно", async () => {
+  const { buildProject } = await import("../src/tex/projectbuild.ts");
+  const main =
+    "\\documentclass{article}\n\\usepackage{mine}\n\\begin{document}\n\\includesvg{a}\n\\end{document}\n";
+  const build = await buildProject(
+    {
+      main: "main.tex",
+      texts: new Map([
+        ["main.tex", main],
+        ["mine.sty", "\\RequirePackage{svg}\n"],
+        ["note.txt", "\\usepackage{svg}\n"],
+      ]),
+      binaries: new Map([["a.svg", new Uint8Array(1)]]),
+    },
+    {
+      raster: () => Promise.resolve(new Uint8Array(1)),
+      svg: () => Promise.resolve(new Uint8Array(1)),
+    },
+  );
+  assert.equal(build.files["mine.sty"], "\\RequirePackage{graphicx}\n");
+  assert.equal(build.files["note.txt"], "\\usepackage{svg}\n");
+  assert.ok(build.mainText.includes("\\includegraphics{a.converted.pdf}"));
+});

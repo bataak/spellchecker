@@ -1,5 +1,5 @@
 import { argContext, type ArgContext } from "./texargs.ts";
-import { liveMatches } from "./texliteral.ts";
+import { insideCode, liveMatches } from "./texliteral.ts";
 import { COMMANDS, ENVIRONMENTS } from "./texcommands.ts";
 import { NO_SYMBOLS, type TexSymbols } from "./texsymbols.ts";
 
@@ -78,6 +78,14 @@ export function completionContext(
   text: string,
   caret: number,
 ): CompletionContext | null {
+  const found = typedContext(text, caret);
+  if (!found) return null;
+  const closesEnv =
+    found.kind === "env" && text.slice(found.from - 5, found.from) === "\\end{";
+  return closesEnv || !insideCode(text, caret) ? found : null;
+}
+
+function typedContext(text: string, caret: number): CompletionContext | null {
   if (caret < 1 || caret > text.length) return null;
   if (caret < text.length && isLetter(text.charCodeAt(caret))) return null;
 
