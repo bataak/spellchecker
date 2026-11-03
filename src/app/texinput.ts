@@ -3,7 +3,7 @@ import "../tex/texbar.css";
 import type { BarTools } from "../mdbar/toolhost.ts";
 import { createTexBar } from "../tex/texbar.ts";
 import { initTexComplete } from "../tex/texcomplete.ts";
-import { initTexImageInput, insertPickedImage } from "../tex/teximages.ts";
+import { initTexImageInput, insertPickedImage } from "../tex/teximageinput.ts";
 import { initTexItems } from "../tex/texitems.ts";
 import { initTexQuotes } from "../tex/texquotes.ts";
 import { createSymbolIndex, type TexFileEntry } from "../tex/texsymbols.ts";

@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 
 import { parse } from "../src/markdown.ts";
 import { escapeCode, escapeProse } from "../src/tex/texescape.ts";
-import { toBeamer, toLatex, toLatexBody } from "../src/tex/latex.ts";
+import { toLatex, toLatexBody } from "../src/tex/latex.ts";
+import { toBeamer } from "../src/tex/latexbeamer.ts";
 
 const nested = (depth: number, marker: (level: number) => string): string =>
   Array.from(

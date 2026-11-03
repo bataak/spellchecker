@@ -1,57 +1,34 @@
 import { afterBoot } from "./layoutsnapshot.ts";
-import { initScrollHint } from "./scrollhint.ts";
 import {
   DEFAULT_LAYOUT,
   DEFAULT_METRICS,
   MEASURES,
   available,
   dockColumnFits,
-  pageWidth,
   previewMeasure,
   parseLayout,
   serializeLayout,
   showsControl,
   chooseLayout,
-  HYSTERESIS,
-  has,
-  PREVIEW_MIN_MEASURE,
-  projectViewport,
-  talkPlan,
   type Layout,
   type LayoutChoice,
-  type TalkPlan,
   type Metrics,
 } from "./layout.ts";
 import { KEYS, read, remove, write, writeJson } from "../core/store.ts";
-import {
-  onSlotChange,
-  placeTalkSlot,
-  talkFloats,
-  talkOpen,
-  talkYielded,
-} from "./talkslot.ts";
+import { onSlotChange, placeTalkSlot, talkFloats } from "./talkslot.ts";
 import { bindMenu, buildControl, paintMenu } from "./measuremenu.ts";
+import { createToolbarFit } from "./measuretoolbar.ts";
+import {
+  px,
+  measureVar,
+  type ViewportPlan,
+  planViewport,
+} from "./measureviewport.ts";
 
 const SAMPLE =
   "Монгол хэлний үг залгамал бүтэцтэй тул нэлээд урт болдог, " +
   "үүнээс шалтгаалж мөрийн төгсгөлийн үлдэгдэл зай ихэсдэг тул " +
   "нэг тэмдэгтийн дундаж өргөнийг бодит бичвэрээр хэмжинэ.";
-
-function px(cs: CSSStyleDeclaration, prop: string, fallback: number): number {
-  const v = Number.parseFloat(cs.getPropertyValue(prop));
-  return Number.isFinite(v) ? v : fallback;
-}
-
-function measureVar(host: HTMLElement, name: string, fallback: number): number {
-  const probe = document.createElement("div");
-  probe.style.cssText =
-    `position:absolute;visibility:hidden;pointer-events:none;` +
-    `height:0;padding:0;border:0;width:var(${name})`;
-  host.append(probe);
-  const w = probe.getBoundingClientRect().width;
-  probe.remove();
-  return Number.isFinite(w) && w >= 0 ? w : fallback;
-}
 
 function sampleWidth(
   ctx: CanvasRenderingContext2D,
@@ -102,43 +79,6 @@ function measurePer(el: HTMLElement): number | null {
 
 function normalizePer(raw: number, scale: number): number {
   return scale > 0 ? raw / scale : raw;
-}
-
-function toolbarNeed(bar: HTMLElement): number {
-  const cs = getComputedStyle(bar);
-  const gap = Number.parseFloat(cs.columnGap) || 0;
-  let w =
-    (Number.parseFloat(cs.paddingLeft) || 0) +
-    (Number.parseFloat(cs.paddingRight) || 0);
-  let count = 0;
-  for (const el of bar.children) {
-    const e = el as HTMLElement;
-    if (e.hidden || e.offsetParent === null) continue;
-    w += e.getBoundingClientRect().width;
-    count += 1;
-  }
-  return w + Math.max(count - 1, 0) * gap;
-}
-
-function syncToolbar(bar: HTMLElement | null): void {
-  const host = bar?.parentElement;
-  if (!bar || !host) return;
-  const room = host.getBoundingClientRect().width;
-  const wide = toolbarNeed(bar) > room + 0.5;
-  if (wide) document.documentElement.dataset.toolbar = "wide";
-  else delete document.documentElement.dataset.toolbar;
-}
-
-function createToolbarFit(): { sync(): void; destroy(): void } {
-  const bar = document.querySelector<HTMLElement>(".toolbar");
-  const hint = bar ? initScrollHint(bar) : null;
-  return {
-    sync() {
-      syncToolbar(bar);
-      hint?.sync();
-    },
-    destroy: () => hint?.destroy(),
-  };
 }
 
 let scrollbarWidth: number | null = null;
@@ -202,15 +142,6 @@ function readMetrics(
   };
 }
 
-const wideQuery = window.matchMedia("(min-width: 1024px)");
-const PROJECT_W = 236;
-
-function projectRoom(wrap: HTMLElement, x: Metrics): number {
-  if (document.documentElement.dataset.project !== "on" || !wideQuery.matches)
-    return 0;
-  return measureVar(wrap, "--project-w", PROJECT_W) + x.panelGap + x.gutterW;
-}
-
 function setProjectFloat(on: boolean): void {
   const data = document.documentElement.dataset;
   if (on === "projectFloat" in data) return;
@@ -249,65 +180,6 @@ function applyLayout(l: Layout): void {
 
 function publishMetrics(metrics: Metrics): void {
   afterBoot("metrics", () => setRootMetrics(metrics));
-}
-
-interface ViewportPlan {
-  readonly viewport: number;
-  readonly offered: Layout[] | null;
-  readonly projectFloat: boolean;
-  readonly talk: TalkPlan | null;
-}
-
-function planTalk(
-  wrap: HTMLElement,
-  metrics: Metrics,
-  full: number,
-  page: { readonly loose: number; readonly tight: number },
-  projectColumn: number,
-): TalkPlan | null {
-  if (!talkOpen() || !wideQuery.matches) return null;
-  const projectW = measureVar(wrap, "--project-w", PROJECT_W);
-  return talkPlan(metrics, full, page, projectColumn, projectW);
-}
-
-function planViewport(
-  wrap: HTMLElement,
-  metrics: Metrics,
-  choose: (fit: Layout[]) => LayoutChoice,
-  prev: Layout[],
-): ViewportPlan {
-  const full = document.documentElement.clientWidth;
-  const room = projectRoom(wrap, metrics);
-  if (room <= 0 && !(talkOpen() && wideQuery.matches))
-    return { viewport: full, offered: null, projectFloat: false, talk: null };
-  const wide = choose(available(metrics, full, prev));
-  const loose = pageWidth(
-    wide.active,
-    metrics,
-    previewMeasure(wide.active, metrics, full),
-  );
-  const tight = wide.active.preview
-    ? pageWidth(wide.active, metrics, PREVIEW_MIN_MEASURE) +
-      (has(prev, wide.active) ? 0 : HYSTERESIS)
-    : loose;
-  const project =
-    room > 0 ? projectViewport(full, room, tight) : { viewport: full };
-  const docked = room > 0 && project.viewport !== full;
-  const talk = planTalk(
-    wrap,
-    metrics,
-    full,
-    { loose, tight },
-    docked ? room : 0,
-  );
-  const aside = talk?.mode === "swap" && talkYielded();
-  const ownColumn = talk !== null && talk.mode !== "float" && !aside;
-  return {
-    viewport: ownColumn ? talk.viewport : project.viewport,
-    offered: wide.avail,
-    projectFloat: room > 0 && !docked,
-    talk,
-  };
 }
 
 function applyViewport(plan: ViewportPlan): void {

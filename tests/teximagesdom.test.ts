@@ -4,8 +4,9 @@ import assert from "node:assert/strict";
 import { installDom } from "./helpers/dom.ts";
 
 const dom = installDom();
-const { initTexImageInput, onTexImagesChange, texImageFiles, texImageSources } =
+const { onTexImagesChange, texImageFiles, texImageSources } =
   await import("../src/tex/teximages.ts");
+const { initTexImageInput } = await import("../src/tex/teximageinput.ts");
 
 test.after(() => dom.close());
 

@@ -1,7 +1,7 @@
 import { databaseOpener } from "../core/idb.ts";
 import { persistImages, restoreImages } from "./images.ts";
 import { storedTexts } from "../core/storage.ts";
-import { storedHistoryTexts } from "../editor/undohistory.ts";
+import { storedHistoryTexts } from "../editor/undostore.ts";
 import { noteError } from "../core/errorlog.ts";
 
 interface StoredImage {

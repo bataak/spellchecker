@@ -1,45 +1,13 @@
-import { STYLE, imageKey, textWidthCm } from "./docir.ts";
-import type {
-  DocIr,
-  ImageSet,
-  IrBlock,
-  IrImage,
-  IrRun,
-  ParaStyle,
-  PreparedImage,
-} from "./docir.ts";
+import type { DocIr, ImageSet, IrBlock, IrRun, ParaStyle } from "./docir.ts";
 import { listTree, type ListTree } from "../markdown.ts";
 import { odfFont } from "./fonts.ts";
-import { columnWidths, shareWidths, officeMetrics } from "./table.ts";
-import {
-  STROKE_PT,
-  cellStrokes,
-  strokeClasses,
-  tableStrokes,
-  type Stroke,
-} from "../markdown/tablelook.ts";
 import { escapeAttr } from "../core/htmlutil.ts";
 import { cm } from "./units.ts";
+import { family, fontFaces } from "./printfonts.ts";
+import { TEXT_ALIGN, className, verbatimPara, para } from "./printruns.ts";
+import { tableHtml, strokeCss } from "./printtable.ts";
 
 const LINE_RATIO = 1.15;
-
-const TEXT_ALIGN: Readonly<Record<string, string>> = {
-  start: "left",
-  center: "center",
-  end: "right",
-  justify: "justify",
-};
-
-const TABLE_MARGIN: Readonly<Record<string, string>> = {
-  start: "0 auto 0 0",
-  center: "0 auto",
-  end: "0 0 0 auto",
-  justify: "0 auto",
-};
-
-function family(name: string): string {
-  return '"' + name + '"';
-}
 
 const PRINT_FAMILY: Readonly<Record<string, string>> = {
   "Times New Roman": "Bichig Print Serif",
@@ -64,10 +32,6 @@ const MONO_STACK = [
   .map(family)
   .concat("monospace")
   .join(", ");
-
-function className(name: string): string {
-  return "s-" + name.replace(/[^A-Za-z0-9_-]/g, "_");
-}
 
 function styleCss(style: ParaStyle): string {
   const parts: string[] = [];
@@ -98,174 +62,6 @@ function styleCss(style: ParaStyle): string {
   if (style.mono) parts.push("font-family:" + MONO_STACK);
   if (style.noHyphenation) parts.push("hyphens:manual");
   return parts.join(";");
-}
-
-function imageHtml(image: IrImage, prepared: PreparedImage): string {
-  const width =
-    image.widthPercent !== undefined
-      ? "width:" + String(image.widthPercent) + "%"
-      : prepared.widthPx > 0
-        ? "width:" + String(prepared.widthPx) + "px"
-        : "";
-  return (
-    '<img class="image" src="' +
-    escapeAttr(prepared.url) +
-    '" alt=""' +
-    (width ? ' data-style="' + width + '"' : "") +
-    ">"
-  );
-}
-
-function runsHtml(runs: readonly IrRun[], images: ImageSet): string {
-  let out = "";
-  for (const run of runs) {
-    if (run.image) {
-      const prepared = images.get(imageKey(run.image));
-      if (prepared) out += imageHtml(run.image, prepared);
-      continue;
-    }
-    if (run.tab) {
-      out += '<span class="tab"></span>';
-      continue;
-    }
-    if (run.fill) {
-      out += '<span class="fill"></span>';
-      continue;
-    }
-    if (!run.text) continue;
-    let body = escapeAttr(run.text).replace(/\n/g, "<br>");
-    if (run.mono) body = '<span class="mono">' + body + "</span>";
-    if (run.strike) body = "<s>" + body + "</s>";
-    if (run.italic) body = "<i>" + body + "</i>";
-    if (run.bold) body = "<b>" + body + "</b>";
-    if (run.href)
-      body = '<a href="' + escapeAttr(run.href) + '">' + body + "</a>";
-    out += body;
-  }
-  return out;
-}
-
-function para(style: string, runs: readonly IrRun[], images: ImageSet): string {
-  return (
-    '<p class="' +
-    className(style) +
-    '">' +
-    (runsHtml(runs, images) || "<br>") +
-    "</p>"
-  );
-}
-
-function verbatimPara(
-  style: string,
-  runs: readonly IrRun[],
-  images: ImageSet,
-): string {
-  const lines = runs.map((run) => runsHtml([run], images)).join("<br>");
-  return (
-    '<p class="' + className(style) + ' verbatim">' + (lines || "<br>") + "</p>"
-  );
-}
-
-export function strokeCss(
-  widths: Readonly<Record<Stroke, number>> = STROKE_PT,
-): string {
-  const sides = { t: "top", b: "bottom", l: "left", r: "right" } as const;
-  return Object.entries(sides)
-    .flatMap(([key, side]) =>
-      ([1, 2] as const).map(
-        (stroke) =>
-          "td.e-" +
-          key +
-          String(stroke) +
-          "{border-" +
-          side +
-          ":" +
-          String(widths[stroke]) +
-          "pt solid #000}",
-      ),
-    )
-    .join("");
-}
-
-function tableHtml(
-  block: Extract<IrBlock, { kind: "table" }>,
-  doc: DocIr,
-  images: ImageSet,
-): string {
-  const header = block.header !== false;
-  const widths = shareWidths(
-    columnWidths(
-      block.rows,
-      header,
-      textWidthCm(doc),
-      officeMetrics(
-        doc.styles[block.cellStyle ?? STYLE.tableCell]?.sizePt ??
-          doc.font.sizePt,
-      ),
-    ),
-    block.rule,
-    textWidthCm(doc) * (block.share ?? 0),
-  );
-  const strokes = tableStrokes(block.rules, header);
-  const rows = block.rows.map((row, rowIndex) => {
-    const head = header && rowIndex === 0;
-    const base = head ? STYLE.tableHead : (block.cellStyle ?? STYLE.tableCell);
-    const cells = widths
-      .map((_, i) => {
-        const align = block.align[i];
-        const style = align
-          ? ' data-style="text-align:' + TEXT_ALIGN[align] + '"'
-          : "";
-        const place = {
-          row: rowIndex,
-          rows: block.rows.length,
-          column: i,
-          columns: widths.length,
-        };
-        const classes = [
-          head ? "c-head" : "",
-          strokeClasses(cellStrokes(strokes, place)),
-        ]
-          .filter(Boolean)
-          .join(" ");
-        return (
-          "<td" +
-          (classes ? ' class="' + classes + '"' : "") +
-          '><p class="' +
-          className(base) +
-          '"' +
-          style +
-          ">" +
-          (runsHtml(row[i] ?? [], images) || "<br>") +
-          "</p></td>"
-        );
-      })
-      .join("");
-    return (
-      (block.rowCm && !head
-        ? '<tr data-style="height:' + cm(block.rowCm) + '">'
-        : "<tr>") +
-      cells +
-      "</tr>"
-    );
-  });
-  const [first, ...rest] = rows;
-  const body = header
-    ? "<thead>" + (first ?? "") + "</thead><tbody>" + rest.join("") + "</tbody>"
-    : "<tbody>" + rows.join("") + "</tbody>";
-  return (
-    '<table data-style="width:' +
-    cm(widths.reduce((sum, width) => sum + width, 0)) +
-    ";margin:" +
-    TABLE_MARGIN[block.placement ?? "center"] +
-    '"><colgroup>' +
-    widths
-      .map((width) => '<col data-style="width:' + cm(width) + '">')
-      .join("") +
-    "</colgroup>" +
-    body +
-    "</table>"
-  );
 }
 
 function blockHtml(block: IrBlock, doc: DocIr, images: ImageSet): string {
@@ -313,102 +109,6 @@ function blockHtml(block: IrBlock, doc: DocIr, images: ImageSet): string {
     case "break":
       return '<p class="page-break"></p>';
   }
-}
-
-export function fontFaces(fontBase: string): string {
-  const url = (file: string): string => fontBase + file;
-  const face = (name: string, file: string, weight: number, style: string) =>
-    "@font-face{font-family:" +
-    family(name) +
-    ';src:url("' +
-    url(file) +
-    '") format("woff2");font-weight:' +
-    String(weight) +
-    ";font-style:" +
-    style +
-    "}";
-  return (
-    face("Bichig Serif", "pt-serif-mn-400-v1.woff2", 400, "normal") +
-    face("Bichig Serif", "pt-serif-mn-700-v1.woff2", 700, "normal") +
-    face("Bichig Serif", "pt-serif-mn-italic-v2.woff2", 400, "italic") +
-    face("Bichig Mono", "dejavu-mono-mn-400-v1.woff2", 400, "normal") +
-    face(
-      "Bichig Print Serif",
-      "bichig-print-serif-mn-400-v1.woff2",
-      400,
-      "normal",
-    ) +
-    face(
-      "Bichig Print Serif",
-      "bichig-print-serif-mn-700-v1.woff2",
-      700,
-      "normal",
-    ) +
-    face(
-      "Bichig Print Serif",
-      "bichig-print-serif-mn-400i-v1.woff2",
-      400,
-      "italic",
-    ) +
-    face(
-      "Bichig Print Serif",
-      "bichig-print-serif-mn-700i-v1.woff2",
-      700,
-      "italic",
-    ) +
-    face(
-      "Bichig Print Sans",
-      "bichig-print-sans-mn-400-v1.woff2",
-      400,
-      "normal",
-    ) +
-    face(
-      "Bichig Print Sans",
-      "bichig-print-sans-mn-700-v1.woff2",
-      700,
-      "normal",
-    ) +
-    face(
-      "Bichig Print Sans",
-      "bichig-print-sans-mn-400i-v1.woff2",
-      400,
-      "italic",
-    ) +
-    face(
-      "Bichig Print Sans",
-      "bichig-print-sans-mn-700i-v1.woff2",
-      700,
-      "italic",
-    ) +
-    face(
-      "Bichig Print Mono",
-      "bichig-print-mono-mn-400-v1.woff2",
-      400,
-      "normal",
-    ) +
-    face(
-      "Bichig Print Mono",
-      "bichig-print-mono-mn-700-v1.woff2",
-      700,
-      "normal",
-    ) +
-    face(
-      "Bichig Print Mono",
-      "bichig-print-mono-mn-400i-v1.woff2",
-      400,
-      "italic",
-    ) +
-    face(
-      "Bichig Print Mono",
-      "bichig-print-mono-mn-700i-v1.woff2",
-      700,
-      "italic",
-    )
-  );
-}
-
-export function printFontBase(): string {
-  return new URL(import.meta.env.BASE_URL + "fonts/", location.href).href;
 }
 
 const BLOCK_CSS =

@@ -275,8 +275,10 @@ async function compileJob(
   const { seq, key, text, project } = job;
   st.compiling = key;
   try {
-    const { compileTexDocument, onTexPackage } =
-      await import("../tex/texpdf.ts");
+    const [{ compileTexDocument }, { onTexPackage }] = await Promise.all([
+      import("../tex/texpdf.ts"),
+      import("../tex/texsession.ts"),
+    ]);
     watchImages(c);
     let fetched = false;
     onTexPackage((message) => {

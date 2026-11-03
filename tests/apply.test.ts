@@ -2,7 +2,7 @@ import { strict as assert } from "node:assert";
 import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { looksLatex } from "../src/spell/codeskip.ts";
+import { looksLatex } from "../src/spell/texskip.ts";
 import { format, parse } from "../src/markdown.ts";
 import { TEMPLATES, findTemplate } from "../src/doc/templates.ts";
 import { applyTemplate, guillemets } from "../src/office/apply.ts";

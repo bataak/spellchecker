@@ -1,12 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import {
-  applyRawEdits,
-  narrowEdit,
-  planParagraph,
-  splitEdit,
-} from "../src/office/docx/edit.ts";
+import { applyRawEdits, planParagraph } from "../src/office/docx/edit.ts";
+import { narrowEdit, splitEdit } from "../src/office/docx/editdiff.ts";
 import {
   buildIndex,
   locate,
@@ -16,7 +12,7 @@ import {
 } from "../src/office/textdoc.ts";
 import { parsePart } from "../src/office/docx/parse.ts";
 import { decodeXmlText, encodeXmlText } from "../src/office/docx/xml.ts";
-import type { ParagraphEdit } from "../src/office/docx/edit.ts";
+import type { ParagraphEdit } from "../src/office/docx/editdiff.ts";
 
 const HEAD =
   '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +

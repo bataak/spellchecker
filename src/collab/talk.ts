@@ -3,7 +3,8 @@ import { createChat, type Chat } from "./chat.ts";
 import type { ChatDoc } from "./chatdoc.ts";
 import { registerAuthor } from "./changes.ts";
 import { createChangeTracker, type ChangeTracker } from "./changetracker.ts";
-import { authorKey, createComments, type CollabComments } from "./comments.ts";
+import { createComments, type CollabComments } from "./comments.ts";
+import { authorKey } from "./commentstored.ts";
 import { textsOf } from "./projectdoc.ts";
 import type { Profile } from "./profile.ts";
 

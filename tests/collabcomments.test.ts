@@ -3,13 +3,12 @@ import assert from "node:assert/strict";
 import * as Y from "yjs";
 import { installDom } from "./helpers/dom.ts";
 import {
-  authorKey,
   createComments,
   MAX_COMMENTS,
   MAX_QUOTE,
-  validComment,
   type Comments,
 } from "../src/collab/comments.ts";
+import { authorKey, validComment } from "../src/collab/commentstored.ts";
 import {
   commentsCount,
   commentsView,

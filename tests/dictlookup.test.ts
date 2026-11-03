@@ -5,7 +5,7 @@ import {
   openStarDict,
   stardictCompare,
   type StarDict,
-} from "../src/dict/stardict.ts";
+} from "../src/dict/stardictformat.ts";
 import type { DictBytes } from "../src/dict/dictbytes.ts";
 
 const encoder = new TextEncoder();

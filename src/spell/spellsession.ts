@@ -3,12 +3,8 @@ import {
   tokenize,
   type SpellChecker,
 } from "./spellchecker.ts";
-import {
-  fencedCode,
-  inRanges,
-  skipRanges,
-  type SkipRange,
-} from "./codeskip.ts";
+import { fencedCode, inRanges, skipRanges } from "./codeskip.ts";
+import { type SkipRange } from "./skipranges.ts";
 import { isIgnored } from "./ignore.ts";
 import { checkable, dashCompound, dashSpan, type Token } from "./textcheck.ts";
 

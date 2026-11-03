@@ -2,7 +2,7 @@ import { hexOf } from "../core/hex.ts";
 import { noteError } from "../core/errorlog.ts";
 import { databaseOpener, requestResult } from "../core/idb.ts";
 import { gunzipped } from "../archive/fflate.ts";
-import { IFO_MAGIC, parseIfo, type StarDict } from "./stardict.ts";
+import { IFO_MAGIC, parseIfo, type StarDict } from "./stardictformat.ts";
 import { buildStarDict } from "./stardictload.ts";
 import {
   baseName,
