@@ -1,5 +1,6 @@
 import type * as Y from "yjs";
 import { noteError } from "../core/errorlog.ts";
+import { within } from "../tex/texproject.ts";
 import {
   addDir,
   addText,
@@ -97,6 +98,10 @@ async function attempt(run: () => Promise<void> | void): Promise<void> {
   }
 }
 
+function holdsFiles(known: Known, dir: string): boolean {
+  return [...known.ids.keys()].some((path) => within(path, dir));
+}
+
 async function applyRemote(
   port: ProjectPort,
   before: Known,
@@ -124,7 +129,8 @@ async function applyRemote(
       await attempt(() => port.setText(path, text));
   }
   for (const dir of before.dirs)
-    if (!after.dirs.has(dir)) await attempt(() => port.remove(dir));
+    if (!after.dirs.has(dir) && !holdsFiles(after, dir))
+      await attempt(() => port.remove(dir));
   if (after.main && after.main !== before.main)
     await attempt(() => port.setMain(after.main!));
 }

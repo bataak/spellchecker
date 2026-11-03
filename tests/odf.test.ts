@@ -149,3 +149,17 @@ test("writes multi-word replacements with markup characters as plain text", () =
   const out = rewrite(xml, 5, 13, fix);
   assert.equal(partOf(out).paragraphs[0]!.text, "өмнө " + fix + " хойно");
 });
+
+test("ODF-д нэгдэж алга болох хоосон зайг тусгай элементээр бичнэ", () => {
+  const cases: readonly (readonly [string, string, string])[] = [
+    ["а б", "а   б", 'а <text:s text:c="2"/>б'],
+    ["аб", " аб", "<text:s/>аб"],
+    ["аб", "а\tб", "а<text:tab/>б"],
+  ];
+  for (const [before, after, written] of cases) {
+    const xml = doc("<text:p>" + before + "</text:p>");
+    const out = rewrite(xml, 0, before.length, after);
+    assert.ok(out.includes("<text:p>" + written + "</text:p>"), out);
+    assert.equal(partOf(out).paragraphs[0]!.text, after);
+  }
+});

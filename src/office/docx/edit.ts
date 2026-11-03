@@ -118,7 +118,7 @@ function nodeEdits(node: TextNode, next: string): RawEdit[] {
     {
       start: node.contentStart,
       end: node.contentEnd,
-      text: encodeXmlText(next),
+      text: node.wrap === null ? verbatimText(next) : encodeXmlText(next),
     },
   ];
 
