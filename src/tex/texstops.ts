@@ -2,6 +2,7 @@ import type { Patch } from "../core/textdiff.ts";
 import { inComment, lineIndent } from "./texcompletion.ts";
 import type { Expansion } from "./texcompletion.ts";
 import { openMathAt } from "./texhighlight.ts";
+import { insideCode } from "./texliteral.ts";
 import { escapedAt } from "../core/text.ts";
 
 export interface TabStops {
@@ -121,6 +122,7 @@ export function typeDollar(
 ): PairEdit | null {
   if (from !== to || escapedAt(text, from) || inComment(text, from))
     return null;
+  if (insideCode(text, from)) return null;
   const live = stack.filter((s) => valid(s, text));
   const empty = live.some(
     (s) =>
@@ -184,6 +186,7 @@ export function typeBracket(
   if (from !== to || !escapedAt(text, from) || inComment(text, from))
     return null;
   if (from < text.length && !PAIR_BEFORE.test(text[from]!)) return null;
+  if (insideCode(text, from)) return null;
   const live = stack.filter((s) => valid(s, text));
   const patch = { from, to: from, insert: "[\\]" };
   return {
@@ -227,6 +230,7 @@ export function breakDisplay(
     !(open === "\\[" && close === "\\]")
   )
     return null;
+  if (insideCode(text, from)) return null;
   const indent = lineIndent(text, from);
   const insert = "\n" + indent + "  \n" + indent;
   const patch = { from, to: from, insert };

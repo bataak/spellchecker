@@ -1,7 +1,8 @@
-import { literalTest, liveMatches } from "./texliteral.ts";
+import { liveMatches, replaceLive } from "./texliteral.ts";
 import { cleanPath, joinPath, uncommented } from "./texproject.ts";
 
-const USEPACKAGE = /\\usepackage\s*(\[[^\]]*\]\s*)?\{([^}]*)\}/g;
+const USEPACKAGE =
+  /\\(usepackage|RequirePackage)\s*(\[[^\]]*\]\s*)?\{([^}]*)\}/g;
 const INCLUDE_SVG =
   /\\includesvg\s*((?:\[[^\]]*\]\s*)*)\{((?:[^{}]|\{[^{}]*\})*)\}/g;
 const SVG_PATH = /\\svgpath\s*\{((?:\s*\{[^}]*\})*)\s*\}/g;
@@ -43,8 +44,8 @@ function packageNames(list: string): string[] {
 
 export function usesSvgPackage(texts: Iterable<string>): boolean {
   for (const text of texts)
-    for (const match of uncommented(text).matchAll(USEPACKAGE))
-      if (packageNames(match[2] ?? "").includes("svg")) return true;
+    for (const match of liveMatches(text, USEPACKAGE))
+      if (packageNames(match[3] ?? "").includes("svg")) return true;
   return false;
 }
 
@@ -95,35 +96,32 @@ export function rewriteSvg(
   map: (raw: string) => string | null,
   label: (raw: string) => string = (raw) => raw.trim(),
 ): string {
-  const setup = text
-    .replace(USEPACKAGE, (whole, options: string | undefined, list: string) => {
-      const names = packageNames(list);
+  const packages = replaceLive(
+    text,
+    USEPACKAGE,
+    (whole, command, options, list) => {
+      const names = packageNames(list ?? "");
       if (!names.includes("svg")) return whole;
       const kept = [
         ...new Set(names.map((name) => (name === "svg" ? "graphicx" : name))),
       ];
       const prefix = kept.length > 1 && options ? options.trim() : "";
-      return "\\usepackage" + prefix + "{" + kept.join(",") + "}";
-    })
-    .replace(SVG_PATH, "")
-    .replace(SVG_SETUP, "");
-  const literal = literalTest(setup);
-  return setup.replace(
-    INCLUDE_SVG,
-    (whole, options: string | undefined, raw: string, at: number) => {
-      if (literal(at)) return whole;
-      const target = map(raw);
-      if (target !== null)
-        return (
-          "\\includegraphics" +
-          graphicOptions(options ?? "") +
-          "{" +
-          target +
-          "}"
-        );
-      return "\\fbox{\\ttfamily\\detokenize{" + label(raw) + "}}";
+      return "\\" + command + prefix + "{" + kept.join(",") + "}";
     },
   );
+  const setup = replaceLive(
+    replaceLive(packages, SVG_PATH, () => ""),
+    SVG_SETUP,
+    () => "",
+  );
+  return replaceLive(setup, INCLUDE_SVG, (_, options, raw) => {
+    const target = map(raw ?? "");
+    if (target !== null)
+      return (
+        "\\includegraphics" + graphicOptions(options ?? "") + "{" + target + "}"
+      );
+    return "\\fbox{\\ttfamily\\detokenize{" + label(raw ?? "") + "}}";
+  });
 }
 
 function points(value: string | null): number | null {

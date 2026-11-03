@@ -315,3 +315,32 @@ test("нээлттэй томьёоны хаах $-д хос нэмэхгүй", 
   assert.equal(typeDollar([], "$x\n\nб", 6, 6)?.patch?.insert, "$$");
   assert.equal(typeDollar([], "\\$5", 3, 3)?.patch?.insert, "$$");
 });
+
+const CODE = "\\begin{verbatim}\n\n\\end{verbatim}\n";
+const IN_CODE = CODE.indexOf("\n\\end");
+
+test("verbatim дотор $ болон \\[ хос болохгүй", () => {
+  assert.equal(typeDollar([], CODE, IN_CODE, IN_CODE), null);
+  const slash = "\\begin{lstlisting}\n\\\n\\end{lstlisting}\n";
+  const at = slash.indexOf("\n\\end");
+  assert.equal(typeBracket([], slash, at, at), null);
+  const inline = "\\verb|a b|";
+  assert.equal(typeDollar([], inline, 8, 8), null);
+  const open = "\\begin{verbatim}\n";
+  assert.equal(typeDollar([], open, open.length, open.length), null);
+});
+
+test("verbatim дотор $$ хооронд Enter дарахад задрахгүй", () => {
+  const text = "\\begin{verbatim}\n$$$$\n\\end{verbatim}\n";
+  const at = text.indexOf("$$") + 2;
+  assert.equal(breakDisplay([], text, at, at), null);
+});
+
+test("verbatim-ийн гадна $ ба \\[ хос хэвээр болно", () => {
+  const after = CODE + "\n";
+  const plan = typeDollar([], after, after.length, after.length);
+  assert.equal(plan?.patch?.insert, "$$");
+  const slash = CODE + "\\";
+  const bracket = typeBracket([], slash, slash.length, slash.length);
+  assert.equal(bracket?.patch?.insert, "[\\]");
+});
