@@ -131,6 +131,7 @@ export function createComments(deps: CommentsDeps): CollabComments {
     resolveAll(ids) {
       doc.transact(() => ids.forEach((id) => resolve(id, true)));
     },
+    full: () => map.size >= MAX_COMMENTS,
     onChange: changed.on,
     destroy() {
       map.unobserve(observer);
