@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import { installDom } from "./helpers/dom.ts";
+import { until } from "./helpers/collabpeer.ts";
 
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const body = html.slice(html.indexOf("<body"), html.lastIndexOf("</body>"));
@@ -142,9 +143,8 @@ test("compose: аппыг main.ts-ийн дарааллаар угсарч, бү
   editor.dispatchEvent(new Event("input", { bubbles: true }));
   await app.loop.render();
   assert.equal(app.isTexFile(), false);
-  await new Promise((resolve) => setTimeout(resolve, 100));
-  assert.ok(
-    posted.some((m) => (m as { type?: string }).type === "init"),
+  await until(
+    () => posted.some((m) => (m as { type?: string }).type === "init"),
     "spell worker init",
   );
 });

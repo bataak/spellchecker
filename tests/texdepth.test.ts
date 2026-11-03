@@ -62,9 +62,9 @@ test("жагсаалт: 5-аас дээш ижил түвшин агуулгаа
   }
 });
 
-test("жагсаалт: холимог үүрлэлт 5 түвшнээс хэтрэхгүй", () => {
+test("жагсаалт: холимог үүрлэлт 6 түвшнээс хэтрэхгүй", () => {
   const tex = toLatexBody(parse(mixed(9)));
-  assert.ok(allDepth(tex) <= 5, String(allDepth(tex)));
+  assert.equal(allDepth(tex), 6);
   assert.ok(maxDepth(tex, "itemize") <= 4);
   assert.ok(maxDepth(tex, "enumerate") <= 4);
   assert.deepEqual(items(tex), levels(9));
@@ -101,6 +101,39 @@ test("жагсаалт: эхлэх дугаар гүнд хэвээр", () => {
   const tex = toLatexBody(parse(md));
   assert.match(tex, /\\setcounter\{enumi\}\{2\}/);
   assert.match(tex, /\\setcounter\{enumii\}\{4\}/);
+});
+
+const quoted = (depth: number, md: string): string =>
+  md
+    .split("\n")
+    .map((line) => "> ".repeat(depth) + line)
+    .join("\n") + "\n";
+
+const quotes = (tex: string): number =>
+  [...tex.matchAll(/\\begin\{quote\}/g)].length;
+
+test("ишлэл: 5-аас дээш давхарт бичвэр алдагдахгүй", () => {
+  const tex = toLatexBody(parse(quoted(8, "гүн бичвэр")));
+  assert.equal(quotes(tex), 5);
+  assert.equal(quotes(tex), [...tex.matchAll(/\\end\{quote\}/g)].length);
+  assert.ok(tex.includes("гүн бичвэр"));
+});
+
+test("ишлэл: дотор нь орсон жагсаалт нийт 6 орчноос хэтрэхгүй", () => {
+  for (const depth of [1, 2, 3, 4, 5, 8]) {
+    const tex = toLatexBody(parse(quoted(depth, mixed(7))));
+    assert.equal(quotes(tex) + allDepth(tex), 6, String(depth));
+    assert.deepEqual(items(tex), levels(7));
+  }
+});
+
+test("ишлэл: Beamer-т ишлэл, жагсаалт нийлээд 6 орчноос хэтрэхгүй", () => {
+  for (const depth of [1, 3, 4, 5, 8]) {
+    const tex = toBeamer(parse("# Г\n\n## Х\n\n" + quoted(depth, mixed(7))));
+    assert.ok(allDepth(tex) <= 3);
+    assert.ok(quotes(tex) + allDepth(tex) <= 6, String(depth));
+    for (const level of levels(7)) assert.ok(tex.includes(level), level);
+  }
 });
 
 test("escapeCode: кодын лигатурыг бүгдийг таслана", () => {
