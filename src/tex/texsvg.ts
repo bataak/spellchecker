@@ -1,5 +1,5 @@
-import { liveMatches, replaceLive } from "./texliteral.ts";
-import { cleanPath, joinPath, uncommented } from "./texproject.ts";
+import { TexSource } from "./texsource.ts";
+import { cleanPath, joinPath } from "./texproject.ts";
 
 const USEPACKAGE =
   /\\(usepackage|RequirePackage)\s*(\[[^\]]*\]\s*)?\{([^}]*)\}/g;
@@ -44,18 +44,19 @@ function packageNames(list: string): string[] {
 
 export function usesSvgPackage(texts: Iterable<string>): boolean {
   for (const text of texts)
-    for (const match of liveMatches(text, USEPACKAGE))
-      if (packageNames(match[3] ?? "").includes("svg")) return true;
+    if (TexSource.of(text).packages().has("svg")) return true;
   return false;
 }
 
 export function svgRefs(text: string): string[] {
-  return liveMatches(text, INCLUDE_SVG).map((match) => match[2] ?? "");
+  return TexSource.of(text)
+    .matches(INCLUDE_SVG)
+    .map((match) => match[2] ?? "");
 }
 
 export function svgPaths(text: string): string[] {
   const out: string[] = [];
-  for (const match of uncommented(text).matchAll(SVG_PATH))
+  for (const match of TexSource.of(text).live().matchAll(SVG_PATH))
     for (const dir of (match[1] ?? "").matchAll(/\{([^}]*)\}/g))
       out.push((dir[1] ?? "").trim());
   return out;
@@ -96,8 +97,7 @@ export function rewriteSvg(
   map: (raw: string) => string | null,
   label: (raw: string) => string = (raw) => raw.trim(),
 ): string {
-  const packages = replaceLive(
-    text,
+  const packages = TexSource.of(text).replace(
     USEPACKAGE,
     (whole, command, options, list) => {
       const names = packageNames(list ?? "");
@@ -109,12 +109,10 @@ export function rewriteSvg(
       return "\\" + command + prefix + "{" + kept.join(",") + "}";
     },
   );
-  const setup = replaceLive(
-    replaceLive(packages, SVG_PATH, () => ""),
-    SVG_SETUP,
-    () => "",
-  );
-  return replaceLive(setup, INCLUDE_SVG, (_, options, raw) => {
+  const setup = TexSource.of(
+    TexSource.of(packages).replace(SVG_PATH, () => ""),
+  ).replace(SVG_SETUP, () => "");
+  return TexSource.of(setup).replace(INCLUDE_SVG, (_, options, raw) => {
     const target = map(raw ?? "");
     if (target !== null)
       return (

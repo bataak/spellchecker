@@ -1,5 +1,5 @@
+import { TexSource } from "./texsource.ts";
 import { argContext, type ArgContext } from "./texargs.ts";
-import { insideCode, liveMatches } from "./texliteral.ts";
 import { COMMANDS, ENVIRONMENTS } from "./texcommands.ts";
 import { NO_SYMBOLS, type TexSymbols } from "./texsymbols.ts";
 
@@ -64,16 +64,6 @@ function isLetter(code: number): boolean {
   return (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
 }
 
-export function inComment(text: string, caret: number): boolean {
-  const lineStart = text.lastIndexOf("\n", caret - 1) + 1;
-  for (let i = lineStart; i < caret; i++) {
-    const code = text.charCodeAt(i);
-    if (code === 92) i++;
-    else if (code === 37) return true;
-  }
-  return false;
-}
-
 export function completionContext(
   text: string,
   caret: number,
@@ -82,7 +72,7 @@ export function completionContext(
   if (!found) return null;
   const closesEnv =
     found.kind === "env" && text.slice(found.from - 5, found.from) === "\\end{";
-  return closesEnv || !insideCode(text, caret) ? found : null;
+  return closesEnv || !TexSource.of(text).insideCode(caret) ? found : null;
 }
 
 function typedContext(text: string, caret: number): CompletionContext | null {
@@ -97,14 +87,14 @@ function typedContext(text: string, caret: number): CompletionContext | null {
   );
   if (env && text.charCodeAt(caret - 1) !== 42) {
     const from = caret - env[1]!.length;
-    if (inComment(text, from)) return null;
+    if (TexSource.of(text).inComment(from)) return null;
     return { kind: "env", from, prefix: env[1]! };
   }
 
   const command = commandContext(text, start, caret);
   if (command) return command;
   const arg = argContext(text, caret);
-  return arg && !inComment(text, arg.from) ? arg : null;
+  return arg && !TexSource.of(text).inComment(arg.from) ? arg : null;
 }
 
 function commandContext(
@@ -117,7 +107,7 @@ function commandContext(
   let slashes = 0;
   for (let i = start - 1; i >= 0 && text.charCodeAt(i) === 92; i--) slashes++;
   if (slashes % 2 === 0) return null;
-  if (inComment(text, start - 1)) return null;
+  if (TexSource.of(text).inComment(start - 1)) return null;
   return { kind: "cmd", from: start - 1, prefix: text.slice(start, caret) };
 }
 
@@ -198,7 +188,8 @@ export function keepsArgument(
 
 function environmentClosed(text: string): boolean {
   return (
-    liveMatches(text, ENV_END).length >= liveMatches(text, ENV_BEGIN).length
+    TexSource.of(text).matches(ENV_END).length >=
+    TexSource.of(text).matches(ENV_BEGIN).length
   );
 }
 

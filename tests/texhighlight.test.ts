@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { spansInRange } from "../src/editor/syntaxspans.ts";
 import { texImagePaths } from "../src/tex/teximages.ts";
 import { texSpans } from "../src/tex/texhighlight.ts";
-import { literalTest } from "../src/tex/texliteral.ts";
+import { TexSource } from "../src/tex/texsource.ts";
 import type { TexKind } from "../src/tex/texhighlight.ts";
 
 function pieces(text: string): [TexKind, string][] {
@@ -133,7 +133,10 @@ test("холбоос, мөр доторх кодын % нь тайлбар би�
   assert.equal(comments("\\url{a%\nб"), 1);
   assert.equal(comments("\\lstinline %\n"), 1);
   const text = "\\href{a%20b}{\\includegraphics{в}}";
-  assert.equal(literalTest(text)(text.indexOf("\\includegraphics")), false);
+  assert.equal(
+    TexSource.of(text).isLiteral(text.indexOf("\\includegraphics")),
+    false,
+  );
   assert.deepEqual(texImagePaths("\\url{a%20b} \\includegraphics{в.png}"), [
     "в.png",
   ]);

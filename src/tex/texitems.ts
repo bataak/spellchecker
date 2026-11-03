@@ -1,7 +1,6 @@
+import { TexSource } from "./texsource.ts";
 import { replaceRange } from "../editor/editortext.ts";
 import { lineAt } from "../core/text.ts";
-import { insideCode, liveMatches } from "./texliteral.ts";
-import { withoutComments } from "./texproject.ts";
 
 const LIST = /\\(begin|end)\{(itemize|enumerate|description)\}/g;
 const ITEM = /^([ \t]*)\\item\b/;
@@ -16,7 +15,7 @@ export interface ItemEdit {
 
 function listStart(before: string): number | null {
   const open: number[] = [];
-  for (const match of liveMatches(before, LIST)) {
+  for (const match of TexSource.of(before).matches(LIST)) {
     if (match[1] === "begin") open.push(match.index + match[0].length);
     else open.pop();
   }
@@ -46,8 +45,8 @@ export function itemEdit(
   from: number,
   to: number,
 ): ItemEdit | null {
-  const before = withoutComments(text.slice(0, from));
-  if (insideCode(before, before.length)) return null;
+  const before = TexSource.of(text.slice(0, from)).blankedComments();
+  if (TexSource.of(before).insideCode(before.length)) return null;
   const start = listStart(before);
   if (start === null) return null;
   const insert = "\n" + itemIndent(before, start, from) + "\\item ";
