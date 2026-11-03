@@ -91,6 +91,8 @@ function put(b: Build, path: string, data: Uint8Array | string): void {
   for (const dir of parentDirs(path)) b.dirs.add(dir);
 }
 
+const STYLE_SOURCE = /\.(?:sty|cls)$/i;
+
 const convertedName = (path: string, ext: string): string =>
   path.replace(/\.[^./]*$/, "") + ".converted." + ext;
 
@@ -167,10 +169,9 @@ function writeSources(
   let mainText = "";
   for (const [path, text] of b.s.texts) {
     let body = text;
-    if (isTexSource(path)) {
-      body = mapGraphics(text, graphic, label);
-      if (svg) body = rewriteSvg(body, svg, label);
-    }
+    if (isTexSource(path)) body = mapGraphics(text, graphic, label);
+    if (svg && (isTexSource(path) || STYLE_SOURCE.test(path)))
+      body = rewriteSvg(body, svg, label);
     if (path === main) mainText = body;
     else put(b, path, isTexSource(path) ? singleSlideFrames(body) : body);
   }

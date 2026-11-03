@@ -124,6 +124,32 @@ test("LaTeX горимд $-ийг хос болгож, \\$-ийг ганцаар
   assert.ok(!(await editor(page)).endsWith("\\$5"));
 });
 
+test("verbatim дотор $, \\[ хос болохгүй, команд санал болгохгүй", async () => {
+  const page = await openPage(app, await app.context());
+  await openFile(page, app.files.project);
+  await projectFile(page, "main.tex");
+  await page.evaluate(() => {
+    const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
+    area.value = "\\begin{verbatim}\n\n\\end{verbatim}\n\n";
+    area.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    area.focus();
+    area.setSelectionRange(17, 17);
+  });
+  await page.waitForTimeout(400);
+  await page.keyboard.type("echo $HOME \\[ \\sec");
+  const shown = await page.evaluate(
+    () =>
+      document.querySelector<HTMLElement>("#texCompleteList")?.hidden === false,
+  );
+  assert.equal(shown, false);
+  assert.equal(
+    await editor(page),
+    "\\begin{verbatim}\necho $HOME \\[ \\sec\n\\end{verbatim}\n\n",
+  );
+  await typeAtEnd(page, "$y");
+  assert.ok((await editor(page)).endsWith("$y$"), await editor(page));
+});
+
 test("хоосон $$ болон \\[ дээр Enter томьёог тусдаа мөрөнд задална", async () => {
   const page = await openPage(app, await app.context());
   await openFile(page, app.files.project);

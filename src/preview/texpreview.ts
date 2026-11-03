@@ -2,7 +2,7 @@ import { isEditOf } from "../editor/samedoc.ts";
 import {
   cachedPdf,
   createPdfPool,
-  digestOf,
+  pdfIdOf,
   type CompiledPdf,
 } from "../tex/pdfcache.ts";
 import type { PdfPane } from "./pdfpane.ts";
@@ -107,17 +107,14 @@ async function exportPdf(c: TexCtx): Promise<CompiledPdf> {
       const result = await running.catch(() => null);
       if (result) return result;
     }
-    const digest = await digestOf(
-      text,
-      project === null ? null : deps.texProject(),
-    );
-    const cached = digest === null ? null : await cachedPdf(digest);
+    const id = await pdfIdOf(text, project === null ? null : deps.texProject());
+    const cached = id === null ? null : await cachedPdf(id);
     if (cached) return { pdf: cached, missing: [] };
     const { compileTexDocument } = await import("../tex/texpdf.ts");
     const { pdf, missing } = await pool.compile(key, () =>
       compileTexDocument(text, deps.texProject()),
     );
-    pool.keep(key, { text, pdf, missing }, digest, project);
+    pool.keep(key, { text, pdf, missing }, id, project);
     return { pdf, missing };
   } finally {
     st.savingPdf--;

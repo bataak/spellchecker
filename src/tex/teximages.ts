@@ -308,16 +308,19 @@ export async function texImageFiles(text: string): Promise<TexImages> {
   };
 }
 
+function svgImagePaths(text: string): Set<string> {
+  if (!usesSvgPackage([text])) return new Set();
+  const macros = pathMacros([text]);
+  return new Set(
+    svgRefs(text)
+      .map((raw) => normalizeTexPath(expandMacros(raw, macros)))
+      .filter(Boolean),
+  );
+}
+
 export async function texImageSources(text: string): Promise<TexImages> {
   const paths = texImagePaths(text);
-  const macros = pathMacros([text]);
-  const svgs = usesSvgPackage([text])
-    ? new Set(
-        svgRefs(text)
-          .map((raw) => normalizeTexPath(expandMacros(raw, macros)))
-          .filter(Boolean),
-      )
-    : new Set<string>();
+  const svgs = svgImagePaths(text);
   const runtime = runtimeImagePaths(text);
   const dir =
     paths.length || runtime.length || svgs.size ? await readableDir() : null;
@@ -370,6 +373,30 @@ async function resolveSvg(
     if (blob) return { blob, path: candidate };
   }
   return null;
+}
+
+function blobStamp(path: string, blob: Blob): string {
+  const changed = blob instanceof File ? blob.lastModified : 0;
+  return [path, blob.size, changed].join("\u0000");
+}
+
+export async function imageStamp(text: string): Promise<string | null> {
+  const paths = texImagePaths(text);
+  const svgs = svgImagePaths(text);
+  if (!paths.length && !svgs.size) return "";
+  const dir = await readableDir();
+  const parts: string[] = [];
+  for (const path of paths) {
+    const found = await resolveImage(path, dir);
+    if (!found) return null;
+    parts.push(blobStamp(found.path, found.blob));
+  }
+  for (const path of svgs) {
+    const found = await resolveSvg(path, dir);
+    if (!found) return null;
+    parts.push(blobStamp(found.path, found.blob));
+  }
+  return parts.join("\n");
 }
 
 export async function chooseImageFolder(): Promise<void> {

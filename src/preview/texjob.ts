@@ -3,9 +3,10 @@ import { tidyTex } from "../tex/textidy.ts";
 import { onTexImagesChange } from "../tex/teximages.ts";
 import {
   cachedPdf,
-  digestOf,
+  pdfIdOf,
   lastTex,
   type createPdfPool,
+  type PdfId,
 } from "../tex/pdfcache.ts";
 import { PdfError } from "../tex/texerrors.ts";
 import { tooSlowForAuto } from "./compilemode.ts";
@@ -117,7 +118,7 @@ async function restoreTex(c: TexCtx, text: string, seq: number): Promise<void> {
   c.st.texRestored = true;
   const last = await lastTex();
   if (!last || !current(c, seq) || !isEditOf(text, last.text)) return;
-  const bytes = await cachedPdf(last.digest);
+  const bytes = await cachedPdf({ digest: last.digest, stamp: null });
   if (!bytes || !current(c, seq)) return;
   if (await showBytes(c, bytes, seq).catch(() => false)) {
     c.st.pdfText = last.text;
@@ -212,9 +213,9 @@ async function showPooled(
 async function showCached(
   c: TexCtx,
   job: Job,
-  digest: string | null,
+  id: PdfId | null,
 ): Promise<boolean> {
-  const cached = digest === null || job.force ? null : await cachedPdf(digest);
+  const cached = id === null || job.force ? null : await cachedPdf(id);
   if (!cached || !(await showBytes(c, cached, job.seq).catch(() => false)))
     return false;
   c.pool.put(job.key, { text: job.text, pdf: cached, missing: [] });
@@ -268,7 +269,7 @@ function failed(c: TexCtx, job: Job, error: unknown): void {
 async function compileJob(
   c: TexCtx,
   job: Job,
-  digest: string | null,
+  id: PdfId | null,
 ): Promise<void> {
   const { st, deps } = c;
   const { seq, key, text, project } = job;
@@ -291,7 +292,7 @@ async function compileJob(
     if (!fetched) st.lastCompileMs = took;
     if (st.auto && tooSlowForAuto(took, fetched))
       c.setAuto(false, AUTO_OFF_NOTE);
-    c.pool.keep(key, { text, pdf, missing }, digest, project);
+    c.pool.keep(key, { text, pdf, missing }, id, project);
     if (!(await showBytes(c, pdf, seq))) return;
     st.retries = 0;
     showCompiled(c, key, text, project, missing);
@@ -307,12 +308,12 @@ export async function render(c: TexCtx): Promise<void> {
   const job = begin(c);
   if (!job) return;
   if ((await showPooled(c, job)) !== "miss") return;
-  const digest = await digestOf(
+  const id = await pdfIdOf(
     job.text,
     job.project === null ? null : c.deps.texProject(),
   );
   if (!current(c, job.seq)) return;
-  if (await showCached(c, job, digest)) return;
+  if (await showCached(c, job, id)) return;
   if (!(await prepareCompile(c, job))) return;
-  await compileJob(c, job, digest);
+  await compileJob(c, job, id);
 }
