@@ -1,5 +1,5 @@
 import type { Expansion } from "./texcompletion.ts";
-import { liveMatches } from "./texliteral.ts";
+import { documentStart, liveMatches } from "./texliteral.ts";
 import type { MenuSection } from "./texmenudata.ts";
 import { uncommented } from "./texproject.ts";
 
@@ -77,12 +77,27 @@ export const THEOREM_ENVS: readonly TheoremEnv[] = [
 ];
 
 const DOCUMENT_CLASS = /\\documentclass\s*(?:\[[^\]]*\]\s*)?\{([^{}]+)\}/;
-const BEGIN_DOCUMENT = /\\begin\s*\{document\}/g;
 const USED_PACKAGES =
-  /\\(?:usepackage|RequirePackage)\s*(?:\[[^\]]*\]\s*)?\{([^{}]*)\}/g;
+  /\\(?:usepackage|RequirePackage)\s*(\[[^\]]*\]\s*)?\{([^{}]*)\}/g;
 const NO_CHAPTERS =
   /^(?:article|scrartcl|beamer|letter|scrlttr2|amsart|minimal|standalone|proc)$/;
 const CHAPTER_SNIPPET = /^chapter\b/;
+
+function packageNames(calls: readonly RegExpExecArray[]): Set<string> {
+  return new Set(
+    calls.flatMap((call) => call[2]!.split(",").map((name) => name.trim())),
+  );
+}
+
+export function loadedPackages(text: string): Set<string> {
+  return packageNames(liveMatches(text, USED_PACKAGES));
+}
+
+export function configuredPackages(text: string): Set<string> {
+  return packageNames(
+    liveMatches(text, USED_PACKAGES).filter((call) => call[1]),
+  );
+}
 
 function documentClass(text: string): string | null {
   return DOCUMENT_CLASS.exec(uncommented(text))?.[1]?.trim() ?? null;
@@ -101,7 +116,7 @@ export function theoremLines(env: TheoremEnv): string[] {
 
 function missingPackages(preamble: string, inserted: string): string[] {
   const loaded = [...preamble.matchAll(USED_PACKAGES)]
-    .map((match) => match[1]!)
+    .map((match) => match[2]!)
     .join(",");
   const lines = PACKAGES.filter(
     (rule) => rule.uses.test(inserted) && !rule.loaded.test(loaded),
@@ -130,7 +145,7 @@ export function preambleEdit(
   edit: Pick<Expansion, "from" | "to" | "text">,
 ): Expansion | null {
   const documentType = documentClass(text);
-  const at = liveMatches(text, BEGIN_DOCUMENT)[0]?.index;
+  const at = documentStart(text)?.index;
   if (documentType === null || at === undefined) return null;
   if (edit.from < at && edit.to > at) return null;
   const preamble = uncommented(text.slice(0, at));

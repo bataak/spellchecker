@@ -135,6 +135,16 @@ export function uncommented(text: string): string {
   return text.replace(/(?<=(?:^|[^\\])(?:\\\\)*)%.*$/gm, "");
 }
 
+const COMMENT = /(^|[^\\])((?:\\\\)*)%.*$/gm;
+
+export function withoutComments(text: string): string {
+  return text.replace(
+    COMMENT,
+    (match, lead: string, slashes: string) =>
+      lead + slashes + " ".repeat(match.length - lead.length - slashes.length),
+  );
+}
+
 export function isLatexDocument(text: string): boolean {
   const body = uncommented(text);
   return /\\documentclass\b/.test(body) && /\\begin\s*\{document\}/.test(body);

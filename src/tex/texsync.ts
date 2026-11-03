@@ -1,4 +1,5 @@
 import type { Line } from "../office/pdf/pdftext.ts";
+import { withoutComments } from "./texproject.ts";
 
 export interface SourceWord {
   readonly word: string;
@@ -15,7 +16,6 @@ export interface PdfWord {
 const HIDDEN_ARG =
   /\\(?:label|ref|eqref|pageref|autoref|cref|cite[a-z]*|begin|end|includegraphics|usepackage|RequirePackage|documentclass|input|include|bibliography|bibliographystyle|addbibresource|vspace|hspace|setlength|newcommand|renewcommand|newenvironment|graphicspath|pagestyle|thispagestyle)\*?(?:\s*\[[^\]\n]*\])*(?:\s*\{[^{}\n]*\}(?:\s*\[[^\]\n]*\])*)?/g;
 const COMMAND = /\\(?:[A-Za-z@]+|.)/g;
-const COMMENT = /(^|[^\\])%.*$/gm;
 const WORD = /[\p{L}\p{N}]+/gu;
 const WINDOW = 4;
 const SLACK = 2;
@@ -29,11 +29,7 @@ function norm(word: string): string {
 }
 
 export function sourceWords(text: string): SourceWord[] {
-  const plain = text
-    .replace(
-      COMMENT,
-      (match, lead: string) => lead + blank(match.slice(lead.length)),
-    )
+  const plain = withoutComments(text)
     .replace(HIDDEN_ARG, blank)
     .replace(COMMAND, blank);
   const out: SourceWord[] = [];
