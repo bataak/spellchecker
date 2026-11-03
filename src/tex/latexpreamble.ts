@@ -1,10 +1,5 @@
-import {
-  configuredPackages,
-  loadedPackages,
-  THEOREM_ENVS,
-  theoremDefined,
-  theoremLines,
-} from "./texrequire.ts";
+import { TexSource } from "./texsource.ts";
+import { THEOREM_ENVS, theoremDefined, theoremLines } from "./texrequire.ts";
 
 const BASE_PREAMBLE = `\\documentclass[12pt,a4paper]{article}
 \\usepackage[T2A]{fontenc}
@@ -31,8 +26,9 @@ function theoremSetup(tex: string): (string | false)[] {
 }
 
 export function preambleFor(tex: string): string {
-  const loaded = loadedPackages(tex);
-  const configured = configuredPackages(tex);
+  const source = TexSource.of(tex);
+  const loaded = source.packages();
+  const configured = source.configuredPackages();
   const compatible = (line: string): boolean =>
     !configured.has(PACKAGE_LINE.exec(line)?.[1] ?? "");
   const math = MATH_RE.test(tex);

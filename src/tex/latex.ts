@@ -1,3 +1,4 @@
+import { TexSource } from "./texsource.ts";
 import {
   blankEm,
   fitBlanks,
@@ -23,8 +24,6 @@ import { preambleFor } from "./latexpreamble.ts";
 import { tableLook, type TableLook } from "../markdown/tablelook.ts";
 import { LETTER_PAGE, letterTitle } from "./latexletter.ts";
 import { escapeCode, escapeProse, guardBreak } from "./texescape.ts";
-import { documentStart, literalTest, liveMatches } from "./texliteral.ts";
-import { uncommented } from "./texproject.ts";
 
 const TUGRIK = `\\DeclareRobustCommand\\texttugrik{\\leavevmode\\hbox{\\ooalign{Т\\cr
   \\hidewidth\\raisebox{0.42ex}{\\rotatebox{-22}{\\rule{0.42em}{0.09ex}}}\\hidewidth\\cr
@@ -55,19 +54,17 @@ const DOCUMENT_CLASS = /\\documentclass\b/g;
 const END_DOCUMENT = /\\end\s*\{document\}/g;
 
 function fragmentParts(text: string): { head: string; body: string } {
-  const begin = documentStart(text);
+  const begin = TexSource.of(text).documentStart();
   if (begin) {
     const rest = text.slice(begin.index + begin[0].length);
-    const end = liveMatches(rest, END_DOCUMENT)[0];
+    const end = TexSource.of(rest).matches(END_DOCUMENT)[0];
     return {
       head: text.slice(0, begin.index),
       body: end ? rest.slice(0, end.index) : rest,
     };
   }
-  const literal = literalTest(text);
   const lines: string[] = [];
-  const body = text.replace(PREAMBLE_LINE, (line: string, at: number) => {
-    if (literal(at)) return line;
+  const body = TexSource.of(text).replace(PREAMBLE_LINE, (line) => {
     lines.push(line);
     return "";
   });
@@ -75,7 +72,7 @@ function fragmentParts(text: string): { head: string; body: string } {
 }
 
 export function previewTex(text: string): string {
-  if (liveMatches(text, DOCUMENT_CLASS).length) return text;
+  if (TexSource.of(text).matches(DOCUMENT_CLASS).length) return text;
   const { head, body } = fragmentParts(text);
   return (
     preambleFor(head + "\n" + body) +
@@ -88,10 +85,10 @@ export function previewTex(text: string): string {
 }
 
 export function withParatype(text: string): string | null {
-  const live = uncommented(text);
+  const live = TexSource.of(text).live();
   if (FONT_PACKAGE.test(live)) return null;
   if (!TEXT_FONTENC.test(live) && !CYRILLIC_BABEL.test(live)) return null;
-  const at = documentStart(text)?.index;
+  const at = TexSource.of(text).documentStart()?.index;
   if (at === undefined) return null;
   return text.slice(0, at) + "\\usepackage{paratype}\n" + text.slice(at);
 }

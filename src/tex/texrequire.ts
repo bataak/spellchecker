@@ -1,7 +1,6 @@
+import { TexSource } from "./texsource.ts";
 import type { Expansion } from "./texcompletion.ts";
-import { documentStart, liveMatches } from "./texliteral.ts";
 import type { MenuSection } from "./texmenudata.ts";
-import { uncommented } from "./texproject.ts";
 
 interface PackageRule {
   readonly name: string;
@@ -76,32 +75,9 @@ export const THEOREM_ENVS: readonly TheoremEnv[] = [
   { name: "remark", title: "Тайлбар", style: "remark", inBeamer: false },
 ];
 
-const DOCUMENT_CLASS = /\\documentclass\s*(?:\[[^\]]*\]\s*)?\{([^{}]+)\}/;
-const USED_PACKAGES =
-  /\\(?:usepackage|RequirePackage)\s*(\[[^\]]*\]\s*)?\{([^{}]*)\}/g;
 const NO_CHAPTERS =
   /^(?:article|scrartcl|beamer|letter|scrlttr2|amsart|minimal|standalone|proc)$/;
 const CHAPTER_SNIPPET = /^chapter\b/;
-
-function packageNames(calls: readonly RegExpExecArray[]): Set<string> {
-  return new Set(
-    calls.flatMap((call) => call[2]!.split(",").map((name) => name.trim())),
-  );
-}
-
-export function loadedPackages(text: string): Set<string> {
-  return packageNames(liveMatches(text, USED_PACKAGES));
-}
-
-export function configuredPackages(text: string): Set<string> {
-  return packageNames(
-    liveMatches(text, USED_PACKAGES).filter((call) => call[1]),
-  );
-}
-
-function documentClass(text: string): string | null {
-  return DOCUMENT_CLASS.exec(uncommented(text))?.[1]?.trim() ?? null;
-}
 
 export function theoremDefined(text: string, name: string): boolean {
   return new RegExp("\\\\newtheorem\\*?\\s*\\{" + name + "\\}").test(text);
@@ -115,9 +91,7 @@ export function theoremLines(env: TheoremEnv): string[] {
 }
 
 function missingPackages(preamble: string, inserted: string): string[] {
-  const loaded = [...preamble.matchAll(USED_PACKAGES)]
-    .map((match) => match[2]!)
-    .join(",");
+  const loaded = [...TexSource.of(preamble).packages()].join(",");
   const lines = PACKAGES.filter(
     (rule) => rule.uses.test(inserted) && !rule.loaded.test(loaded),
   ).flatMap((rule) => [
@@ -144,11 +118,12 @@ export function preambleEdit(
   text: string,
   edit: Pick<Expansion, "from" | "to" | "text">,
 ): Expansion | null {
-  const documentType = documentClass(text);
-  const at = documentStart(text)?.index;
+  const source = TexSource.of(text);
+  const documentType = source.documentClass();
+  const at = source.documentStart()?.index;
   if (documentType === null || at === undefined) return null;
   if (edit.from < at && edit.to > at) return null;
-  const preamble = uncommented(text.slice(0, at));
+  const preamble = text.slice(0, at);
   const beamer = documentType === "beamer";
   const lines = [
     ...(beamer ? [] : missingPackages(preamble, edit.text)),
@@ -183,7 +158,7 @@ export function sectionsFor(
   sections: readonly MenuSection[],
   text: string,
 ): readonly MenuSection[] {
-  const type = documentClass(text);
+  const type = TexSource.of(text).documentClass();
   if (type === null || !NO_CHAPTERS.test(type)) return sections;
   return sections.map((section) => ({
     ...section,

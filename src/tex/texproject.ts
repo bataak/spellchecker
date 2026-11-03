@@ -1,4 +1,4 @@
-import { literalTest, liveMatches } from "./texliteral.ts";
+import { TexSource } from "./texsource.ts";
 
 const EDITABLE = /\.(tex|ltx|sty|cls|bib|bst|bbl|cfg|def|clo|dtx|ins|txt|md)$/i;
 const TEX_SOURCE = /\.(tex|ltx)$/i;
@@ -131,22 +131,8 @@ export function commonRoot(paths: readonly string[]): string {
   return first;
 }
 
-export function uncommented(text: string): string {
-  return text.replace(/(?<=(?:^|[^\\])(?:\\\\)*)%.*$/gm, "");
-}
-
-const COMMENT = /(^|[^\\])((?:\\\\)*)%.*$/gm;
-
-export function withoutComments(text: string): string {
-  return text.replace(
-    COMMENT,
-    (match, lead: string, slashes: string) =>
-      lead + slashes + " ".repeat(match.length - lead.length - slashes.length),
-  );
-}
-
 export function isLatexDocument(text: string): boolean {
-  const body = uncommented(text);
+  const body = TexSource.of(text).live();
   return /\\documentclass\b/.test(body) && /\\begin\s*\{document\}/.test(body);
 }
 
@@ -215,7 +201,7 @@ export function documentFolders(
 
 export function graphicsPaths(text: string): string[] {
   const out: string[] = [];
-  for (const match of uncommented(text).matchAll(GRAPHICSPATH))
+  for (const match of TexSource.of(text).live().matchAll(GRAPHICSPATH))
     for (const dir of (match[1] ?? "").matchAll(/\{([^}]*)\}/g))
       out.push((dir[1] ?? "").trim());
   return out;
@@ -247,18 +233,13 @@ export function mapGraphics(
   map: (raw: string) => string | null,
   label: (raw: string) => string = (raw) => raw.trim(),
 ): string {
-  const literal = literalTest(text);
-  return text.replace(
-    INCLUDE,
-    (whole, opts: string | undefined, raw: string, at: number) => {
-      if (literal(at)) return whole;
-      const target = map(raw);
-      if (target === raw) return whole;
-      if (target !== null)
-        return "\\includegraphics" + (opts ?? "") + "{" + target + "}";
-      return "\\fbox{\\ttfamily\\detokenize{" + label(raw) + "}}";
-    },
-  );
+  return TexSource.of(text).replace(INCLUDE, (whole, opts, raw = "") => {
+    const target = map(raw);
+    if (target === raw) return whole;
+    if (target !== null)
+      return "\\includegraphics" + (opts ?? "") + "{" + target + "}";
+    return "\\fbox{\\ttfamily\\detokenize{" + label(raw) + "}}";
+  });
 }
 
 const PATH_MACRO =
@@ -268,7 +249,7 @@ const MACRO_USE = /\\([A-Za-z@]+)\s*(?:\{\})?/g;
 export function pathMacros(texts: Iterable<string>): Map<string, string> {
   const out = new Map<string, string>();
   for (const text of texts)
-    for (const match of uncommented(text).matchAll(PATH_MACRO))
+    for (const match of TexSource.of(text).live().matchAll(PATH_MACRO))
       out.set(match[1]!, match[2]!.trim());
   return out;
 }
@@ -290,14 +271,16 @@ export function expandMacros(
 }
 
 export function graphicRefs(text: string): string[] {
-  return liveMatches(text, INCLUDE).map((match) => match[2] ?? "");
+  return TexSource.of(text)
+    .matches(INCLUDE)
+    .map((match) => match[2] ?? "");
 }
 
 const FILE_REFERENCE =
   /\\(?:input|include|subfile|import|subimport|includegraphics|bibliography|addbibresource|lstinputlisting|verbatiminput)\b\*?\s*(?:\[[^\]]*\]\s*)*\{/;
 
 export function referencesFiles(text: string): boolean {
-  return FILE_REFERENCE.test(uncommented(text));
+  return FILE_REFERENCE.test(TexSource.of(text).live());
 }
 
 export function relativePath(path: string, from: string): string {
