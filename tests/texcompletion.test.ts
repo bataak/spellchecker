@@ -242,3 +242,24 @@ test("хаагдсан орчны нэрийг гүйцээхэд шинэ \\end
     "% \\end{center}\n\\begin{center}\n  |\n\\end{center}",
   );
 });
+
+test("verbatim ба \\verb дотор команд санал болгохгүй", () => {
+  const code = "\\begin{verbatim}\n\\sec\n\\end{verbatim}\n";
+  assert.equal(completionContext(code, code.indexOf("\n\\end")), null);
+  const env = "\\begin{verbatim}\n\\begin{it\n\\end{verbatim}\n";
+  assert.equal(completionContext(env, env.indexOf("\n\\end")), null);
+  const inline = "\\verb|\\sec|";
+  assert.equal(completionContext(inline, inline.length - 1), null);
+});
+
+test("хаагдаагүй verbatim-ийн \\end{ санал хэвээр гарна", () => {
+  const open = "\\begin{verbatim}\nкод\n\\end{verb";
+  const context = completionContext(open, open.length);
+  assert.equal(context?.kind, "env");
+  assert.equal(context?.prefix, "verb");
+});
+
+test("verbatim-ийн дараа команд санал хэвээр гарна", () => {
+  const text = "\\begin{verbatim}\nx\n\\end{verbatim}\n\\sec";
+  assert.equal(completionContext(text, text.length)?.kind, "cmd");
+});

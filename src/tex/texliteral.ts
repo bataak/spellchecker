@@ -18,3 +18,22 @@ export function liveMatches(text: string, pattern: RegExp): RegExpExecArray[] {
 export function documentStart(text: string): RegExpExecArray | undefined {
   return liveMatches(text, BEGIN_DOCUMENT)[0];
 }
+
+export function insideCode(text: string, at: number): boolean {
+  return texSpans(text + "\n").some(
+    (span) => span.kind === "verb" && span.start <= at && at <= span.end,
+  );
+}
+
+export function replaceLive(
+  text: string,
+  pattern: RegExp,
+  replace: (whole: string, ...groups: (string | undefined)[]) => string,
+): string {
+  const literal = literalTest(text);
+  return text.replace(pattern, (whole: string, ...rest: unknown[]) =>
+    literal(rest.at(-2) as number)
+      ? whole
+      : replace(whole, ...(rest.slice(0, -2) as (string | undefined)[])),
+  );
+}
