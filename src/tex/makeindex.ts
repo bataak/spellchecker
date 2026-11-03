@@ -1,3 +1,4 @@
+import { groupEnd } from "./texgroup.ts";
 import { pageList, type PageRef, type RangeMark } from "./indexpages.ts";
 import { compareMongolian, letterGroup } from "./mncollate.ts";
 import { decodeTexBytes } from "./texbytes.ts";
@@ -32,15 +33,8 @@ const INDENT = ["  ", "    ", "      "];
 
 function readGroup(text: string, from: number): [string, number] | null {
   if (text[from] !== "{") return null;
-  let depth = 0;
-  for (let at = from; at < text.length; at += 1) {
-    const char = text[at];
-    if (char === "\\") at += 1;
-    else if (char === "{") depth += 1;
-    else if (char === "}" && --depth === 0)
-      return [text.slice(from + 1, at), at + 1];
-  }
-  return null;
+  const end = groupEnd(text, from);
+  return end < 0 ? null : [text.slice(from + 1, end - 1), end];
 }
 
 function escapesNext(text: string, at: number): boolean {

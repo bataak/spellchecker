@@ -1,4 +1,4 @@
-import { cleanText, decodeStrict } from "./safetext.ts";
+import { stripHidden, decodeStrict } from "./safetext.ts";
 
 export type RemoteProvider = "github" | "gitlab";
 
@@ -86,7 +86,7 @@ function gitlabApi(project: readonly string[], [ref, path]: Split): string {
 
 function shownUrl(url: URL): string {
   try {
-    return cleanText(decodeURI(url.href));
+    return stripHidden(decodeURI(url.href));
   } catch {
     return url.href;
   }

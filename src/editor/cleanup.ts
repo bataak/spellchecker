@@ -265,6 +265,6 @@ export function needsCleanup(text: string): boolean {
   return hasMarkup(text) || hasMisletters(text);
 }
 
-export function cleanText(text: string): string {
+export function repairText(text: string): string {
   return fixMisletters(hasMarkup(text) ? stripMarkup(text) : text);
 }

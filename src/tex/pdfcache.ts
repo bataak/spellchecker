@@ -1,3 +1,4 @@
+import { hexOf } from "../core/hex.ts";
 import type { TexProject } from "./projectbuild.ts";
 import { noteError } from "../core/errorlog.ts";
 import { imageStamp } from "./teximages.ts";
@@ -41,9 +42,7 @@ export async function textKey(text: string): Promise<string | null> {
       "SHA-256",
       new TextEncoder().encode(text),
     );
-    return [...new Uint8Array(digest)]
-      .map((byte) => byte.toString(16).padStart(2, "0"))
-      .join("");
+    return hexOf(digest);
   } catch {
     return null;
   }

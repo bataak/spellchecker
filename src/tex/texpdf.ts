@@ -20,9 +20,29 @@ import {
 
 const ENGINE_CRASHED = -254;
 
-let engine: Promise<Worker> | null = null;
-let live: Worker | null = null;
-let queue: Promise<unknown> = Promise.resolve();
+interface EngineSession {
+  starting: Promise<Worker> | null;
+  live: Worker | null;
+  queue: Promise<unknown>;
+  running: { stop: (reason: string) => void; since: number } | null;
+  packageNotice: ((message: string | null) => void) | null;
+}
+
+interface AssetLoads {
+  bundle: Promise<ArrayBuffer> | null;
+  warmed: Promise<boolean> | null;
+  fonts: Promise<boolean> | null;
+}
+
+const session: EngineSession = {
+  starting: null,
+  live: null,
+  queue: Promise.resolve(),
+  running: null,
+  packageNotice: null,
+};
+
+const loads: AssetLoads = { bundle: null, warmed: null, fonts: null };
 
 interface EngineFiles {
   readonly bundled: ReadonlySet<string>;
@@ -37,12 +57,10 @@ const PACKAGE_ROUNDS = 8;
 const PACKAGE_ERROR =
   /File `[^']+' not found|I can't find file|Metric \(TFM\) file not found|cannot open Type 1 font file|cannot open encoding file|Font \S+ at \d+ not found|Package babel Error: Unknown option/;
 
-let packageNotice: ((message: string | null) => void) | null = null;
-
 export function onTexPackage(
   listener: ((message: string | null) => void) | null,
 ): void {
-  packageNotice = listener;
+  session.packageNotice = listener;
 }
 
 const FONT_CACHE = "tex-" + TEX_FONTS.split("/")[1];
@@ -66,19 +84,17 @@ function sendFont(worker: Worker, name: string, data: ArrayBuffer): void {
 }
 
 const memoryFonts = new Map<string, ArrayBuffer>();
-let bundleBytes: Promise<ArrayBuffer> | null = null;
-
 function loadBundle(): Promise<ArrayBuffer> {
-  bundleBytes ??= fetch(asset(TEX_BUNDLE))
+  loads.bundle ??= fetch(asset(TEX_BUNDLE))
     .then((response) => {
       if (!response.ok) throw new Error("TeX файлууд татагдсангүй");
       return response.arrayBuffer();
     })
     .catch((error: unknown) => {
-      bundleBytes = null;
+      loads.bundle = null;
       throw error;
     });
-  return bundleBytes;
+  return loads.bundle;
 }
 
 async function loadCachedFonts(worker: Worker): Promise<void> {
@@ -104,10 +120,8 @@ async function dropOldFontCaches(): Promise<void> {
   }
 }
 
-let warmed: Promise<boolean> | null = null;
-
 function warmEngine(): Promise<boolean> {
-  warmed ??= Promise.all([
+  loads.warmed ??= Promise.all([
     ...[TEX_ENGINE, TEX_ENGINE.replace(/\.js$/, ".wasm")].map((path) =>
       fetch(asset(path), { priority: "low" }).then((response) => {
         if (!response.ok) throw new Error(path);
@@ -117,10 +131,10 @@ function warmEngine(): Promise<boolean> {
   ])
     .then(() => true)
     .catch(() => {
-      warmed = null;
+      loads.warmed = null;
       return false;
     });
-  return warmed;
+  return loads.warmed;
 }
 
 async function persistStorage(): Promise<void> {
@@ -132,13 +146,11 @@ async function persistStorage(): Promise<void> {
   }
 }
 
-let prefetching: Promise<boolean> | null = null;
-
 export function prefetchFonts(): Promise<boolean> {
   const connection = (navigator as { connection?: { saveData?: boolean } })
     .connection;
   if (connection?.saveData) return Promise.resolve(false);
-  prefetching ??= (async () => {
+  loads.fonts ??= (async () => {
     void persistStorage();
     const engineReady = warmEngine();
     await dropOldFontCaches();
@@ -167,13 +179,13 @@ export function prefetchFonts(): Promise<boolean> {
           complete = false;
           break;
         }
-      if (live) sendFont(live, name, data);
+      if (session.live) sendFont(session.live, name, data);
     }
     const ready = complete && (await engineReady);
-    if (!ready) prefetching = null;
+    if (!ready) loads.fonts = null;
     return ready && cache !== null;
   })();
-  return prefetching;
+  return loads.fonts;
 }
 
 export const OFFLINE_KEY = at(KEYS.texOffline, TEX_BUNDLE + TEX_FONTS);
@@ -204,7 +216,7 @@ async function start(): Promise<Worker> {
     });
     await loadCachedFonts(worker);
     await reinstallPackages(worker);
-    live = worker;
+    session.live = worker;
     return worker;
   } catch (error) {
     worker.terminate();
@@ -216,25 +228,23 @@ const COMPILE_TIMEOUT_MS = 30000;
 
 function dropEngine(worker: Worker): void {
   worker.terminate();
-  engine = null;
-  if (live === worker) live = null;
+  session.starting = null;
+  if (session.live === worker) session.live = null;
 }
 
-let running: { stop: (reason: string) => void; since: number } | null = null;
-
 export function cancelCompile(): void {
-  running?.stop("TeX хөрвүүлэлтийг зогсоолоо");
+  session.running?.stop("TeX хөрвүүлэлтийг зогсоолоо");
 }
 
 export function compileRunningFor(): number {
-  return running ? performance.now() - running.since : 0;
+  return session.running ? performance.now() - session.running.since : 0;
 }
 
 function runOnce(worker: Worker): Promise<Uint8Array<ArrayBuffer>> {
   return new Promise((resolve, reject) => {
     const stop = (reason: string): void => {
       clearTimeout(timer);
-      running = null;
+      session.running = null;
       dropEngine(worker);
       reject(new Error(reason));
     };
@@ -242,12 +252,12 @@ function runOnce(worker: Worker): Promise<Uint8Array<ArrayBuffer>> {
       () => stop("TeX хөрвүүлэлт хэт удаан үргэлжилсэн тул зогсоолоо"),
       COMPILE_TIMEOUT_MS,
     );
-    running = { stop, since: performance.now() };
+    session.running = { stop, since: performance.now() };
     worker.onmessage = (event: MessageEvent<EngineReply>) => {
       const reply = event.data;
       if (reply.cmd !== "compile") return;
       clearTimeout(timer);
-      running = null;
+      session.running = null;
       const pdf = replyPdf(reply);
       if (pdf) {
         resolve(new Uint8Array(pdf));
@@ -404,7 +414,7 @@ async function installPackage(worker: Worker, name: string): Promise<void> {
   const state = engineFiles.get(worker);
   if (!state || state.installed.has(name)) return;
   const { loadPackage } = await import("./texfetch.ts");
-  packageNotice?.("«" + name + "» TeX багцыг ачаалж байна…");
+  session.packageNotice?.("«" + name + "» TeX багцыг ачаалж байна…");
   const pkg = await loadPackage(name);
   let mapsChanged = false;
   for (const map of pkg.maps) {
@@ -456,25 +466,25 @@ async function compileWithPackages(
 ): Promise<Uint8Array<ArrayBuffer>> {
   try {
     for (let round = 0; ; round += 1) {
-      engine ??= start().catch((error: unknown) => {
-        engine = null;
+      session.starting ??= start().catch((error: unknown) => {
+        session.starting = null;
         throw error;
       });
-      const worker = await engine;
+      const worker = await session.starting;
       try {
         return await compileOn(worker, tex, files, layout);
       } catch (error) {
         if (
           !(error instanceof PdfError) ||
           round >= PACKAGE_ROUNDS ||
-          live !== worker
+          session.live !== worker
         )
           throw error;
         if (!(await addPackages(worker, error.log))) throw error;
       }
     }
   } finally {
-    packageNotice?.(null);
+    session.packageNotice?.(null);
   }
 }
 
@@ -483,7 +493,7 @@ export function compilePdf(
   files: SourceFiles = {},
   layout: CompileLayout = SINGLE,
 ): Promise<Uint8Array<ArrayBuffer>> {
-  const job = queue.then(() => compileWithPackages(tex, files, layout));
-  queue = job.catch(() => undefined);
+  const job = session.queue.then(() => compileWithPackages(tex, files, layout));
+  session.queue = job.catch(() => undefined);
   return job;
 }

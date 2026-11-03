@@ -18,7 +18,7 @@ export const GRAPHIC_EXTS = [
   ".svg",
   ".SVG",
 ];
-const INCLUDE =
+export const INCLUDE_GRAPHICS =
   /\\includegraphics\s*((?:\*\s*)?(?:\[[^\]]*\]\s*)*)\{((?:[^{}]|\{[^{}]*\})*)\}/g;
 const GRAPHICSPATH = /\\graphicspath\s*\{((?:\s*\{[^}]*\})*)\s*\}/g;
 
@@ -233,13 +233,16 @@ export function mapGraphics(
   map: (raw: string) => string | null,
   label: (raw: string) => string = (raw) => raw.trim(),
 ): string {
-  return TexSource.of(text).replace(INCLUDE, (whole, opts, raw = "") => {
-    const target = map(raw);
-    if (target === raw) return whole;
-    if (target !== null)
-      return "\\includegraphics" + (opts ?? "") + "{" + target + "}";
-    return "\\fbox{\\ttfamily\\detokenize{" + label(raw) + "}}";
-  });
+  return TexSource.of(text).replace(
+    INCLUDE_GRAPHICS,
+    (whole, opts, raw = "") => {
+      const target = map(raw);
+      if (target === raw) return whole;
+      if (target !== null)
+        return "\\includegraphics" + (opts ?? "") + "{" + target + "}";
+      return "\\fbox{\\ttfamily\\detokenize{" + label(raw) + "}}";
+    },
+  );
 }
 
 const PATH_MACRO =
@@ -272,7 +275,7 @@ export function expandMacros(
 
 export function graphicRefs(text: string): string[] {
   return TexSource.of(text)
-    .matches(INCLUDE)
+    .matches(INCLUDE_GRAPHICS)
     .map((match) => match[2] ?? "");
 }
 
