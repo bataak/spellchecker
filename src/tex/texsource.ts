@@ -6,12 +6,19 @@ const DOCUMENT_CLASS = /\\documentclass\s*(?:\[[^\]]*\]\s*)?\{([^{}]+)\}/;
 const USED_PACKAGES =
   /\\(?:usepackage|RequirePackage)\s*(\[[^\]]*\]\s*)?\{([^{}]*)\}/g;
 
+const OPEN_VERB = /(?<!\\)\\verb\*?([^A-Za-z\s*])(?:(?!\1).)*$/;
+
 type Replacer = (whole: string, ...groups: (string | undefined)[]) => string;
 
+export function packageList(list: string): string[] {
+  return list
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+}
+
 function packageNames(calls: readonly RegExpExecArray[]): Set<string> {
-  return new Set(
-    calls.flatMap((call) => call[2]!.split(",").map((name) => name.trim())),
-  );
+  return new Set(calls.flatMap((call) => packageList(call[2]!)));
 }
 
 export class TexSource {
@@ -55,7 +62,11 @@ export class TexSource {
   }
 
   insideCode(at: number): boolean {
-    return this.code.some((span) => span.start <= at && at <= span.end);
+    const line = this.text.slice(this.text.lastIndexOf("\n", at - 1) + 1, at);
+    return (
+      OPEN_VERB.test(line) ||
+      this.code.some((span) => span.start <= at && at <= span.end)
+    );
   }
 
   matches(pattern: RegExp): RegExpExecArray[] {

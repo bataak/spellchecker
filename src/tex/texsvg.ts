@@ -1,4 +1,4 @@
-import { TexSource } from "./texsource.ts";
+import { packageList, TexSource } from "./texsource.ts";
 import { cleanPath, joinPath } from "./texproject.ts";
 
 const USEPACKAGE =
@@ -34,13 +34,6 @@ const MONO_FAMILY = /mono|courier|consol|fixed|terminal|menlo/i;
 const SANS_FAMILY =
   /sans|arial|helvetica|verdana|tahoma|calibri|segoe|roboto|inter\b|lato|ubuntu/i;
 const CSS_FONT_FAMILY = /(font-family\s*:\s*)([^;}]+)/g;
-
-function packageNames(list: string): string[] {
-  return list
-    .split(",")
-    .map((name) => name.trim())
-    .filter(Boolean);
-}
 
 export function usesSvgPackage(texts: Iterable<string>): boolean {
   for (const text of texts)
@@ -100,7 +93,7 @@ export function rewriteSvg(
   const packages = TexSource.of(text).replace(
     USEPACKAGE,
     (whole, command, options, list) => {
-      const names = packageNames(list ?? "");
+      const names = packageList(list ?? "");
       if (!names.includes("svg")) return whole;
       const kept = [
         ...new Set(names.map((name) => (name === "svg" ? "graphicx" : name))),

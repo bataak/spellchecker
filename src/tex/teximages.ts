@@ -4,6 +4,7 @@ import { databaseOpener } from "../core/idb.ts";
 import { replaceRange } from "../editor/editortext.ts";
 import { pickImage } from "../files/images.ts";
 import {
+  INCLUDE_GRAPHICS,
   expandMacros,
   GRAPHIC_EXTS,
   pathMacros,
@@ -19,8 +20,6 @@ import {
 import { noteError } from "../core/errorlog.ts";
 import { attemptAsync } from "../core/attempt.ts";
 
-const INCLUDE =
-  /\\includegraphics\s*((?:\*\s*)?(?:\[[^\]]*\]\s*)*)\{((?:[^{}]|\{[^{}]*\})*)\}/g;
 const EXAMPLE_BASE = "examples/";
 const EXAMPLE_IMAGES: ReadonlySet<string> = new Set([
   "img/transformer-model-architecture.png",
@@ -48,7 +47,7 @@ export function normalizeTexPath(path: string): string {
 export function texImagePaths(text: string): string[] {
   const out = new Set<string>();
   const macros = pathMacros([text]);
-  for (const match of TexSource.of(text).matches(INCLUDE)) {
+  for (const match of TexSource.of(text).matches(INCLUDE_GRAPHICS)) {
     const path = normalizeTexPath(expandMacros(match[2] ?? "", macros));
     if (path && !runtimePath(path)) out.add(path);
   }
@@ -61,16 +60,19 @@ export function rewriteIncludes(
   keep = false,
 ): string {
   const macros = pathMacros([text]);
-  return TexSource.of(text).replace(INCLUDE, (match, opts, raw = "") => {
-    const path = normalizeTexPath(expandMacros(raw, macros));
-    const name = names.get(path);
-    if (name) return "\\includegraphics" + (opts ?? "") + "{" + name + "}";
-    if (keep) return match;
-    const box = "\\fbox{\\ttfamily\\detokenize{" + path + "}}";
-    if (!runtimePath(path)) return box;
-    const include = "\\includegraphics" + (opts ?? "") + "{" + path + "}";
-    return "\\IfFileExists{" + path + "}{" + include + "}{" + box + "}";
-  });
+  return TexSource.of(text).replace(
+    INCLUDE_GRAPHICS,
+    (match, opts, raw = "") => {
+      const path = normalizeTexPath(expandMacros(raw, macros));
+      const name = names.get(path);
+      if (name) return "\\includegraphics" + (opts ?? "") + "{" + name + "}";
+      if (keep) return match;
+      const box = "\\fbox{\\ttfamily\\detokenize{" + path + "}}";
+      if (!runtimePath(path)) return box;
+      const include = "\\includegraphics" + (opts ?? "") + "{" + path + "}";
+      return "\\IfFileExists{" + path + "}{" + include + "}{" + box + "}";
+    },
+  );
 }
 
 const local = new Map<string, Blob>();
@@ -225,7 +227,7 @@ async function encode(
 export function runtimeImagePaths(text: string): string[] {
   const macros = pathMacros([text]);
   const dynamic = TexSource.of(text)
-    .matches(INCLUDE)
+    .matches(INCLUDE_GRAPHICS)
     .some((match) => runtimePath(expandMacros(match[2] ?? "", macros)));
   if (!dynamic) return [];
   const out = new Set<string>();

@@ -23,3 +23,7 @@ export function lineAt(text: string, index: number): string {
   if (index < 0 || index > text.length) return "";
   return text.slice(lineStartAt(text, index), lineEndAt(text, index));
 }
+
+export function isAsciiLetter(code: number): boolean {
+  return (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+}

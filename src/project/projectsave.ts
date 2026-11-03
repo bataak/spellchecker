@@ -1,3 +1,4 @@
+import { hexOf } from "../core/hex.ts";
 import { pathRecord } from "../core/pathrecord.ts";
 import { noteError } from "../core/errorlog.ts";
 import { fflate } from "../archive/fflate.ts";
@@ -90,9 +91,7 @@ export async function digestOf(s: State): Promise<string | null> {
   try {
     const bytes = await new Blob(parts as BlobPart[]).arrayBuffer();
     const digest = await crypto.subtle.digest("SHA-256", bytes);
-    return [...new Uint8Array(digest)]
-      .map((byte) => byte.toString(16).padStart(2, "0"))
-      .join("");
+    return hexOf(digest);
   } catch (error) {
     noteError(error);
     return null;

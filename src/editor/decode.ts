@@ -3,7 +3,7 @@ import {
   hasMojibake,
   repairCyrillicDetailed,
 } from "../archive/cp1251.ts";
-import { cleanText, needsCleanup } from "./cleanup.ts";
+import { repairText, needsCleanup } from "./cleanup.ts";
 import { editKind, isSeparatorInput } from "../ui/input.ts";
 import type { EditorPort } from "../core/ports.ts";
 
@@ -56,7 +56,7 @@ export function initClean(deps: DecodeDeps): DecodeControl {
     label: "Цэвэрлэх",
     detect: needsCleanup,
     fix: (target) => {
-      const text = cleanText(target);
+      const text = repairText(target);
       return text === target ? null : { text, message: "Цэвэрлэв" };
     },
     emptyMessage: "Цэвэрлэх зүйл олдсонгүй",

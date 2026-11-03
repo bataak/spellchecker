@@ -1,3 +1,4 @@
+import { groupEnd } from "./texgroup.ts";
 import { TexSource } from "./texsource.ts";
 import { singleSlideFrames } from "./texbeamer.ts";
 
@@ -60,28 +61,6 @@ function skipSpace(text: string, at: number): number {
   return at;
 }
 
-function readGroup(
-  text: string,
-  at: number,
-  open: string,
-  close: string,
-): number {
-  let depth = 0;
-  for (let i = at; i < text.length; i++) {
-    const char = text[i];
-    if (char === "\\") {
-      i++;
-      continue;
-    }
-    if (char === open) depth++;
-    else if (char === close) {
-      depth--;
-      if (depth === 0) return i + 1;
-    }
-  }
-  return -1;
-}
-
 interface Call {
   start: number;
   end: number;
@@ -118,12 +97,12 @@ function readCall(
   for (;;) {
     const next = skipSpace(text, end);
     if (text[next] === "[") {
-      const close = readGroup(text, next, "[", "]");
+      const close = groupEnd(text, next, "[", "]");
       if (close < 0) return null;
       options.push(text.slice(next + 1, close - 1));
       end = close;
     } else if (text[next] === "{" && args.length < mandatory) {
-      const close = readGroup(text, next, "{", "}");
+      const close = groupEnd(text, next, "{", "}");
       if (close < 0) return null;
       args.push(text.slice(next + 1, close - 1));
       end = close;
@@ -322,13 +301,13 @@ function defaultA4(preamble: string): string {
     let at = skipSpace(preamble, name);
     let options: { start: number; end: number } | null = null;
     if (preamble[at] === "[") {
-      const end = readGroup(preamble, at, "[", "]");
+      const end = groupEnd(preamble, at, "[", "]");
       if (end < 0) return preamble;
       options = { start: at + 1, end: end - 1 };
       at = skipSpace(preamble, end);
     }
     if (preamble[at] !== "{") return preamble;
-    const close = readGroup(preamble, at, "{", "}");
+    const close = groupEnd(preamble, at, "{", "}");
     if (close < 0) return preamble;
     const cls = preamble.slice(at + 1, close - 1).trim();
     if (!A4_CLASSES.has(cls)) return preamble;

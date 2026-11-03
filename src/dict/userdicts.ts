@@ -1,3 +1,4 @@
+import { hexOf } from "../core/hex.ts";
 import { noteError } from "../core/errorlog.ts";
 import { databaseOpener, requestResult } from "../core/idb.ts";
 import { gunzipped } from "../archive/fflate.ts";
@@ -72,9 +73,7 @@ export type ImportAction = "add" | "update" | "same" | "bundled";
 
 export async function idxDigest(idx: Uint8Array): Promise<string> {
   const hash = await crypto.subtle.digest("SHA-256", idx.slice());
-  return Array.from(new Uint8Array(hash), (byte) =>
-    byte.toString(16).padStart(2, "0"),
-  ).join("");
+  return hexOf(hash);
 }
 
 export function classifyImport(
