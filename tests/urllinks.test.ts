@@ -6,7 +6,7 @@ import {
   readTextHash,
   textHash,
 } from "../src/collab/textlink.ts";
-import { cleanText, decodeStrict } from "../src/files/safetext.ts";
+import { stripHidden, decodeStrict } from "../src/files/safetext.ts";
 import { toBase64Url } from "../src/collab/collabkey.ts";
 
 test("талбарын хэш англи нэрээр бичигдэж, буцаж уншигдана", () => {
@@ -101,7 +101,7 @@ test("хуурамч, хэт урт эсвэл хортой холбоосыг �
 
 test("нуугдмал болон bidi тэмдэгтийг цэвэрлэж, binary-г татгалзана", () => {
   assert.equal(
-    cleanText("а\u202Eб\u200Bв\u2066г\uFEFF\u0007д\tе\r\nё"),
+    stripHidden("а\u202Eб\u200Bв\u2066г\uFEFF\u0007д\tе\r\nё"),
     "абвгд\tе\r\nё",
   );
   assert.equal(decodeStrict(new Uint8Array([0x41, 0x00])), null);

@@ -1,3 +1,4 @@
+import { isAsciiLetter } from "../core/text.ts";
 import { TexSource } from "./texsource.ts";
 import { argContext, type ArgContext } from "./texargs.ts";
 import { COMMANDS, ENVIRONMENTS } from "./texcommands.ts";
@@ -60,10 +61,6 @@ function dedupe(list: Completion[]): Completion[] {
   return out;
 }
 
-function isLetter(code: number): boolean {
-  return (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
-}
-
 export function completionContext(
   text: string,
   caret: number,
@@ -77,10 +74,10 @@ export function completionContext(
 
 function typedContext(text: string, caret: number): CompletionContext | null {
   if (caret < 1 || caret > text.length) return null;
-  if (caret < text.length && isLetter(text.charCodeAt(caret))) return null;
+  if (caret < text.length && isAsciiLetter(text.charCodeAt(caret))) return null;
 
   let start = caret;
-  while (start > 0 && isLetter(text.charCodeAt(start - 1))) start--;
+  while (start > 0 && isAsciiLetter(text.charCodeAt(start - 1))) start--;
 
   const env = /\\(?:begin|end)\{([A-Za-z]*\*?)$/.exec(
     text.slice(Math.max(0, start - 8), caret),

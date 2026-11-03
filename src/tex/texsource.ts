@@ -10,10 +10,15 @@ const OPEN_VERB = /(?<!\\)\\verb\*?([^A-Za-z\s*])(?:(?!\1).)*$/;
 
 type Replacer = (whole: string, ...groups: (string | undefined)[]) => string;
 
+export function packageList(list: string): string[] {
+  return list
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+}
+
 function packageNames(calls: readonly RegExpExecArray[]): Set<string> {
-  return new Set(
-    calls.flatMap((call) => call[2]!.split(",").map((name) => name.trim())),
-  );
+  return new Set(calls.flatMap((call) => packageList(call[2]!)));
 }
 
 export class TexSource {
