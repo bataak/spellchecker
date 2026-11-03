@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.123.2](https://github.com/bataak/spellchecker/compare/v1.123.1...v1.123.2) (2026-11-03)
+
+
+### Bug Fixes
+
+* **export:** flatten over-deep lists, keep code literal, and reject inserts inside replacements ([350bf1b](https://github.com/bataak/spellchecker/commit/350bf1b6de840d3f1d0c43e91bbb20e6cffc04f1))
+* **tex:** count quotes toward list nesting and wait for the worker in the boot test ([37e5186](https://github.com/bataak/spellchecker/commit/37e51864c1360cde922d7eea2e276317e1a052a9))
+* **tex:** treat an unfinished \verb as code and report same-position edits separately ([c57ab8a](https://github.com/bataak/spellchecker/commit/c57ab8afb06104d3e3460e688d1efa4e168655c2))
+
 ## [1.123.1](https://github.com/bataak/spellchecker/compare/v1.123.0...v1.123.1) (2026-11-03)
 
 
