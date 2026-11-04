@@ -120,3 +120,30 @@ test("цаасны хэмжээ заасан эсвэл өөр классыг ө
   ])
     assert.equal(toPdfLatex(doc(head)), doc(head));
 });
+
+const LISTING = (code: string, setup = ""): string =>
+  "\\documentclass{article}\n\\usepackage{listings}\n" +
+  setup +
+  "\\begin{document}\n\\begin{lstlisting}\n" +
+  code +
+  "\n\\end{lstlisting}\n\\end{document}\n";
+
+test("lstlisting доторх ASCII бус тэмдэгтийг literate болгоно", () => {
+  const out = toPdfLatex(LISTING("# Өө «а»"));
+  for (const c of ["Ө", "ө", "«", "а", "»"])
+    assert.ok(
+      out.includes(
+        "{" + c + "}{{\\csname u8:\\detokenize{" + c + "}\\endcsname}}1",
+      ),
+      c,
+    );
+  assert.ok(out.includes("\\AtBeginDocument{\\lstset{literate="));
+});
+
+test("ASCII код, өөрийн literate, listings-гүй баримтад хүрэхгүй", () => {
+  assert.ok(!toPdfLatex(LISTING("x = 1")).includes("literate"));
+  const own = "\\lstset{literate={ө}{{o}}1}\n";
+  assert.ok(!toPdfLatex(LISTING("ө", own)).includes("AtBeginDocument"));
+  const plain = LISTING("ө").replace("\\usepackage{listings}\n", "");
+  assert.ok(!toPdfLatex(plain).includes("literate"));
+});

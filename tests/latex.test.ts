@@ -27,8 +27,15 @@ test("гарчиг ба догол", () => {
 test("бичвэрийн хэлбэр", () => {
   assert.equal(
     body("**тод** *налуу* ~~зураас~~ `код`"),
-    "\\textbf{тод} \\emph{налуу} зураас \\texttt{код}",
+    "\\textbf{тод} \\emph{налуу} \\sout{зураас} \\texttt{код}",
   );
+});
+
+test("зураастай текст ulem багцыг нэмнэ", () => {
+  const ulem = "\\usepackage[normalem]{ulem}";
+  assert.ok(toLatex(parse("Энэ ~~устсан~~ үг.")).includes(ulem));
+  assert.ok(toBeamer(parse("# Г\n\n## Х\n\n~~а~~")).includes(ulem));
+  assert.ok(!toLatex(parse("Энгийн үг.")).includes(ulem));
 });
 
 test("томьёо", () => {

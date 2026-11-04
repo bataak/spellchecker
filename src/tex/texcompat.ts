@@ -323,6 +323,26 @@ function defaultA4(preamble: string): string {
   return preamble;
 }
 
+const LISTING_CODE =
+  /\\begin\{lstlisting\}[\s\S]*?\\end\{lstlisting\}|\\lstinline[^\n]*/g;
+const LITERATE_KEY = /\bliterate\s*=/;
+const NON_ASCII = /[^\0-\x7f]/gu;
+
+function listingCharacters(preamble: string, body: string): string {
+  const source = TexSource.of(preamble);
+  if (!source.packages().has("listings")) return "";
+  if (LITERATE_KEY.test(source.live() + body)) return "";
+  const code = body.match(LISTING_CODE)?.join("") ?? "";
+  const chars = new Set(code.match(NON_ASCII));
+  if (!chars.size) return "";
+  const pairs = [...chars]
+    .map(
+      (c) => "{" + c + "}{{\\csname u8:\\detokenize{" + c + "}\\endcsname}}1",
+    )
+    .join("");
+  return "\\AtBeginDocument{\\lstset{literate=" + pairs + "}}";
+}
+
 export function toPdfLatex(tex: string): string {
   const begin = TexSource.of(tex).documentStart()?.index;
   if (begin === undefined) return tex;
@@ -330,5 +350,5 @@ export function toPdfLatex(tex: string): string {
   const body = singleSlideFrames(tex.slice(begin));
   if (CYRILLIC.test(tex) && !T2A_FONTENC.test(TexSource.of(preamble).live()))
     preamble = addCyrillicEncoding(preamble);
-  return preamble + body;
+  return preamble + listingCharacters(preamble, body) + body;
 }

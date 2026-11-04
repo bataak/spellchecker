@@ -54,7 +54,7 @@ function inlineNode(n: Inline): string {
         "em}{0.4pt}"
       );
     case "del":
-      return inline(n.children);
+      return "\\sout{" + inline(n.children) + "}";
     case "image":
       return (
         "\\includegraphics[" +
