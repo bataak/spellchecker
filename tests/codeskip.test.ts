@@ -403,6 +403,16 @@ test("latex: skips key arguments but keeps prose arguments", () => {
   assert.ok(!texSkipped(text, "Холбоос"));
 });
 
+test("latex: skips both arguments of length and rule commands", () => {
+  const text =
+    "\\setlength{\\parindent}{0pt} \\setlength\\parskip{6pt} \\addtolength{\\textwidth}{2cm} \\rule{5cm}{0.4pt} \\rule[-1ex]{3mm}{7mm} \\textbf{Энгийн}{бичвэр}";
+
+  for (const word of ["0pt", "6pt", "2cm", "5cm", "0.4pt", "3mm", "7mm"])
+    assert.ok(texSkipped(text, word), word);
+  assert.ok(!texSkipped(text, "Энгийн"));
+  assert.ok(!texSkipped(text, "бичвэр"));
+});
+
 test("latex: skips verbatim-like environments and \\verb", () => {
   const text =
     "Код:\n\\begin{lstlisting}\nбуруу_нэр = 1\n\\end{lstlisting}\nМөн \\verb|алдаа| гэж.";

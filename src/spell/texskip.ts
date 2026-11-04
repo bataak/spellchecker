@@ -24,6 +24,14 @@ const TEX_KEY_ARG = new RegExp(
   "g",
 );
 
+const TEX_TWO_ARGS = new RegExp(
+  String.raw`\\(?:setlength|addtolength|setcounter|addtocounter|rule)\*?(?:\s*\[[^\]\n]*\])*\s*(?:` +
+    TEX_ARG +
+    String.raw`|\\[A-Za-z@]+)\s*` +
+    TEX_ARG,
+  "g",
+);
+
 const TEX_BREAK = /\\\\\*?\[[^\]\n]*\]/g;
 
 const TEX_BEGIN_DOC = /\\begin\{document\}/;
@@ -79,6 +87,7 @@ export function latexRanges(text: string): SkipRange[] {
     ...collect(text, TEX_VERBATIM),
     ...collect(text, TEX_VERB),
     ...collect(text, TEX_KEY_ARG),
+    ...collect(text, TEX_TWO_ARGS),
     ...collect(text, TEX_BREAK),
   ]);
 }
