@@ -428,3 +428,12 @@ test("listings хэлний тодорхойлолт багцад орсон: Py
   assert.match(text.replace(/\s/g, ""), /return/);
   assert.match(text.replace(/\s/g, ""), /Хоёр.?эрэмбэ/u);
 });
+
+test("Markdown-ын зураастай текст LaTeX-ээр PDF болно", async () => {
+  const markdown =
+    "# Гарчиг ~~устсан~~\n\nЭнэ ~~устсан **тод** үг~~ байна.\n\n" +
+    "| А |\n| - |\n| ~~нүд~~ |\n";
+  assert.match(await pdfText({ markdown }), /нүд/);
+  const slide = await pdfText({ slides: "# Г\n\n## Х\n\n~~устсан~~\n" });
+  assert.match(slide, /устсан/);
+});

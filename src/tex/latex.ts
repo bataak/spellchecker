@@ -16,9 +16,11 @@ const UNICODE_FALLBACK = `\\makeatletter
 
 export function exportExtras(tex: string, graphicx: boolean): string {
   return (
+    (tex.includes("\\sout{") ? "\\usepackage[normalem]{ulem}\n" : "") +
     (tex.includes("\\texttugrik")
       ? (graphicx ? "" : "\\usepackage{graphicx}\n") + TUGRIK
-      : "") + UNICODE_FALLBACK
+      : "") +
+    UNICODE_FALLBACK
   );
 }
 
