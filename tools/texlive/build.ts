@@ -14,12 +14,9 @@ import { execFileSync } from "node:child_process";
 import { unzipSync, zipSync } from "fflate";
 
 import { parse, type Block } from "../../src/markdown.ts";
-import {
-  BEAMER_PREAMBLE,
-  previewTex,
-  toBeamer,
-  toLatex,
-} from "../../src/tex/latex.ts";
+import { BEAMER_PREAMBLE, toLatex } from "../../src/tex/latex.ts";
+import { toBeamer } from "../../src/tex/latexbeamer.ts";
+import { previewTex } from "../../src/tex/latexpreview.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "../..");
@@ -591,6 +588,7 @@ const MAP_ENCODINGS = [
   "cm-super-t2a.enc",
   "cm-super-ts1.enc",
 ];
+const LISTINGS_LANGUAGES = ["lstlang1.sty", "lstlang2.sty", "lstlang3.sty"];
 
 const KERNEL_DIRS = [
   "tex/latex/base",
@@ -677,7 +675,7 @@ async function main(): Promise<void> {
   }
   for (const [name, path] of kernelFiles())
     if (!files.has(name)) files.set(name, path);
-  for (const name of MAP_ENCODINGS)
+  for (const name of [...MAP_ENCODINGS, ...LISTINGS_LANGUAGES])
     if (!files.has(name))
       files.set(name, execFileSync("kpsewhich", [name]).toString().trim());
 

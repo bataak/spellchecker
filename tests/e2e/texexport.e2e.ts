@@ -413,3 +413,18 @@ for (const [name, tex, expected] of COMPILES_DESPITE_LITERALS)
   test("PDF болно: " + name, async () => {
     assert.match(await pdfText({ tex }), expected);
   });
+
+test("listings хэлний тодорхойлолт багцад орсон: Python код PDF болно", async () => {
+  const text = await pdfText({
+    tex:
+      "\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n" +
+      "\\usepackage{listings}\n\\usepackage{xcolor}\n" +
+      "\\lstset{language=Python,keywordstyle=\\color{blue}}\n" +
+      "\\begin{document}\n\\section*{Функц}\n" +
+      "\\begin{lstlisting}{language=python}\ndef f(a):\n" +
+      '    """Хоёр эрэмбэ."""\n    return a\n' +
+      "\\end{lstlisting}\n\\end{document}\n",
+  });
+  assert.match(text.replace(/\s/g, ""), /return/);
+  assert.match(text.replace(/\s/g, ""), /Хоёр.?эрэмбэ/u);
+});
