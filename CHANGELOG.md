@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.123.4](https://github.com/bataak/spellchecker/compare/v1.123.3...v1.123.4) (2026-11-04)
+
+
+### Bug Fixes
+
+* **export:** keep Markdown strikethrough in LaTeX ([7beac24](https://github.com/bataak/spellchecker/commit/7beac243931b4658fca3d28e9ee94d671f9b81e4)), closes [#321](https://github.com/bataak/spellchecker/issues/321)
+* **spell:** skip the value argument of length and rule commands ([61a54d7](https://github.com/bataak/spellchecker/commit/61a54d7157640d057132d8438c6a592a72c0bb09)), closes [#320](https://github.com/bataak/spellchecker/issues/320)
+* **tex:** compile listings with a language and with non-ASCII code ([4b4393d](https://github.com/bataak/spellchecker/commit/4b4393d2fd5e3a3751919ad353d74d15faacbb1a)), closes [#318](https://github.com/bataak/spellchecker/issues/318)
+
 ## [1.123.3](https://github.com/bataak/spellchecker/compare/v1.123.2...v1.123.3) (2026-11-03)
 
 
