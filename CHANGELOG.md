@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.124.0](https://github.com/bataak/spellchecker/compare/v1.123.4...v1.124.0) (2026-11-05)
+
+
+### Features
+
+* **dict:** enable CMAP suggestions and sync mn_MN.aff with dict-mn 2026.11.05 ([10e9071](https://github.com/bataak/spellchecker/commit/10e907158478802c4074798c8286b4d4e5cb4093))
+
 ## [1.123.4](https://github.com/bataak/spellchecker/compare/v1.123.3...v1.123.4) (2026-11-04)
 
 
