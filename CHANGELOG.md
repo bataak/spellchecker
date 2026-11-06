@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.124.1](https://github.com/bataak/spellchecker/compare/v1.124.0...v1.124.1) (2026-11-06)
+
+
+### Bug Fixes
+
+* **editor:** show only the comment button on double-click over a misspelled word ([ad27d95](https://github.com/bataak/spellchecker/commit/ad27d95b81abb5186087b8c94b870e0ddc1d14b1))
+
 ## [1.124.0](https://github.com/bataak/spellchecker/compare/v1.123.4...v1.124.0) (2026-11-05)
 
 
