@@ -121,9 +121,13 @@ export function bindEditorInput(deps: EditorInputDeps): void {
     });
   });
 
-  editor.addEventListener("click", () => {
+  editor.addEventListener("click", (e) => {
     fixFlow.drop();
     if (deps.markTap.consumeClick()) return;
+    if (e.detail > 1 || editor.selectionStart !== editor.selectionEnd) {
+      deps.hidePopover();
+      return;
+    }
     deps.suggest.atCaret();
   });
 
