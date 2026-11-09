@@ -23,8 +23,14 @@ const CRC_TABLE = (() => {
 class ByteSink {
   private buffer = new Uint8Array(1 << 16);
   length = 0;
+  private readonly limit: number;
+
+  constructor(limit: number) {
+    this.limit = limit;
+  }
 
   push(byte: number): void {
+    if (this.length >= this.limit) throw new Error("bzip2: хэт том өгөгдөл");
     if (this.length === this.buffer.length) {
       const grown = new Uint8Array(this.buffer.length * 2);
       grown.set(this.buffer);
@@ -312,9 +318,9 @@ export function isBzip2(bytes: Uint8Array): boolean {
   return isStreamHeader(bytes, 0);
 }
 
-export function bunzip2(bytes: Uint8Array): Uint8Array {
+export function bunzip2(bytes: Uint8Array, limit = Infinity): Uint8Array {
   if (!isBzip2(bytes)) throw new Error("bzip2 файл биш");
-  const out = new ByteSink();
+  const out = new ByteSink(limit);
   const reader = new BitReader(bytes);
   for (;;) {
     reader.read(24);
