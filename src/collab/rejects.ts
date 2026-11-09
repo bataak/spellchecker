@@ -1,6 +1,7 @@
 import * as Y from "yjs";
 import { fromBase64Url, randomId, toBase64Url } from "./collabkey.ts";
 import type { Change, ChangeAuthor } from "./changes.ts";
+import { MAX_SNAPSHOT } from "../../worker/shared/protocol.ts";
 
 export interface RejectedChange {
   readonly id: string;
@@ -16,7 +17,7 @@ export interface RejectedChange {
 }
 
 export const MAX_REJECTED = 50;
-const MAX_TEXT = 20_000;
+const MAX_TEXT = MAX_SNAPSHOT;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
