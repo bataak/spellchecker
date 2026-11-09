@@ -33,6 +33,8 @@ export interface RepoFields {
 
 type Where = Pick<RepoSpec, "provider" | "host">;
 
+const TOKEN_LOCK = "bichig-git-token:";
+
 const tokenKey = (where: Where): string => where.provider + " " + where.host;
 
 function tokens(): Record<string, StoredToken> {
@@ -80,15 +82,43 @@ async function withToken<T>(
   }
 }
 
+function sameLogin(
+  saved: StoredToken | null,
+  token: StoredToken,
+): saved is OAuthToken {
+  return (
+    saved !== null &&
+    typeof saved !== "string" &&
+    typeof token !== "string" &&
+    (saved.verifier ?? "") === (token.verifier ?? "")
+  );
+}
+
+function oneRefreshAtATime<T>(
+  where: Where,
+  task: () => Promise<T>,
+): Promise<T> {
+  const locks = navigator.locks;
+  return locks ? locks.request(TOKEN_LOCK + tokenKey(where), task) : task();
+}
+
+function renewed(where: Where, token: OAuthToken): Promise<OAuthToken> {
+  if (where.provider !== "gitlab") return Promise.resolve(token);
+  return oneRefreshAtATime(where, async () => {
+    const saved = stored(where);
+    const current = sameLogin(saved, token) ? saved : token;
+    const next = await refreshed(where.host, current);
+    if (next !== current) rememberToken(where, next);
+    return next;
+  });
+}
+
 async function freshToken(where: Where): Promise<string> {
   const token = stored(where);
   if (!token)
     throw new ProjectError("Нэвтрэлт олдсонгүй — repo-г дахин нээнэ үү");
   if (typeof token === "string") return token;
-  const next: OAuthToken =
-    where.provider === "gitlab" ? await refreshed(where.host, token) : token;
-  if (next !== token) rememberToken(where, next);
-  return next.access;
+  return (await renewed(where, token)).access;
 }
 
 export function hasToken(provider: Provider): boolean {
@@ -134,13 +164,11 @@ export async function openRepo(
 ): Promise<LoadedRepo> {
   const { fresh, loaded } = await withToken(spec, token, async () => {
     const fresh =
-      typeof token !== "string" && spec.provider === "gitlab"
-        ? await refreshed(spec.host, token)
-        : token;
+      typeof token === "string" ? token : await renewed(spec, token);
     const loaded = await loadRepo(hostFor(spec, accessOf(fresh)), spec, watch);
     return { fresh, loaded };
   });
-  rememberToken(spec, fresh);
+  if (!sameLogin(stored(spec), fresh)) rememberToken(spec, fresh);
   writeJson(KEYS.gitRepo, {
     provider: spec.provider,
     repo: spec.project,

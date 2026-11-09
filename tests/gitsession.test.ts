@@ -7,6 +7,7 @@ import {
   hostFor,
   lastRepo,
   openRepo,
+  providerToken,
   savedToken,
 } from "../src/project/git/gitsession.ts";
 import { newState } from "../src/project/projectstate.ts";
@@ -124,4 +125,60 @@ test("commitState: шинэчлэх боломжгүй болсон OAuth token-
     Date.now = realNow;
   }
   assert.equal(savedToken(where), null);
+});
+
+function queuedLocks(): LockManager {
+  let tail: Promise<unknown> = Promise.resolve();
+  return {
+    request: (_name: string, run: () => Promise<unknown>) => {
+      const result = tail.then(run);
+      tail = result.catch(() => undefined);
+      return result;
+    },
+  } as unknown as LockManager;
+}
+
+test("providerToken: зэрэг дуудахад GitLab token-ийг нэг л удаа шинэчилнэ", async () => {
+  resetStorage();
+  const repo = new FakeGitlab({ "main.tex": MAIN }, HOST);
+  serve(repo, "old");
+  await openRepo(spec, {
+    access: "old",
+    refresh: "r1",
+    verifier: "v",
+    expires: Date.now() + 120_000,
+  });
+  let refreshes = 0;
+  globalThis.fetch = ((url: string, init?: RequestInit) => {
+    assert.ok(url.endsWith("/oauth/token"));
+    refreshes++;
+    const used = (init?.body as URLSearchParams).get("refresh_token");
+    return Promise.resolve(
+      used === "r1" && refreshes === 1
+        ? Response.json({
+            access_token: "new",
+            refresh_token: "r2",
+            expires_in: 86_400,
+          })
+        : new Response("{}", { status: 400 }),
+    );
+  }) as typeof fetch;
+  const realNow = Date.now;
+  const realLocks = Object.getOwnPropertyDescriptor(navigator, "locks");
+  Object.defineProperty(navigator, "locks", {
+    configurable: true,
+    value: queuedLocks(),
+  });
+  Date.now = () => realNow() + 3_600_000;
+  try {
+    assert.deepEqual(
+      await Promise.all([providerToken("gitlab"), providerToken("gitlab")]),
+      ["new", "new"],
+    );
+  } finally {
+    Date.now = realNow;
+    if (realLocks) Object.defineProperty(navigator, "locks", realLocks);
+    else delete (navigator as { locks?: LockManager }).locks;
+  }
+  assert.equal(refreshes, 1);
 });
