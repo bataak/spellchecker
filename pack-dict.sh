@@ -28,7 +28,17 @@ for id in mn_MN en_GB en_US; do
   gzip -9 -c "$src/$id.dic" > "$out/$dic_out"
   rm -f "$out/$id.aff" "$out/$id.dic"
 
-  entry="{\"id\":\"$id\",\"version\":\"$(json_escape "$ver")\",\"aff\":\"$aff_out\",\"dic\":\"$dic_out\"}"
+  freq_json=""
+  if [ -f "$src/$id.freq" ]; then
+    fsum=$(sha256sum < "$src/$id.freq" | cut -c1-10)
+    freq_out="$id.$slug.$fsum.freq.gz"
+    gzip -9 -c "$src/$id.freq" > "$out/$freq_out"
+    rm -f "$out/$id.freq"
+    freq_json=",\"freq\":\"$freq_out\""
+    echo "Үүсгэв: $out/$freq_out"
+  fi
+
+  entry="{\"id\":\"$id\",\"version\":\"$(json_escape "$ver")\",\"aff\":\"$aff_out\",\"dic\":\"$dic_out\"$freq_json}"
   entries="$entries${entries:+,}$entry"
   echo "Үүсгэв: $out/$aff_out, $out/$dic_out (v$ver)"
 done

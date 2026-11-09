@@ -55,7 +55,7 @@ function stripRawDicts(): Plugin {
       const files = attempt(() => readdirSync(dir), null);
       if (!files) return;
       for (const f of files) {
-        if (/\.(aff|dic)$/.test(f))
+        if (/\.(aff|dic|freq)$/.test(f))
           attempt(() => rmSync(dir + "/" + f), undefined);
       }
     },
@@ -123,7 +123,7 @@ export default defineConfig({
         ],
         cleanupOutdatedCaches: true,
         dontCacheBustURLsMatching:
-          /^(?:assets\/|dict\/[\w.-]+\.[0-9a-f]{10}\.(?:aff|dic)\.gz$)/,
+          /^(?:assets\/|dict\/[\w.-]+\.[0-9a-f]{10}\.(?:aff|dic|freq)\.gz$)/,
         clientsClaim: true,
         skipWaiting: true,
         maximumFileSizeToCacheInBytes: 20 * 1024 * 1024,

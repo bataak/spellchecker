@@ -17,6 +17,8 @@ export declare class Hunspell {
     addWordWithFlags(newWord: string, flags: string, description: string): void;
     addWordWithAffix(newWord: string, example: string): void;
     removeWord(wordToRemove: string): void;
+    loadFrequenciesFromFile(frequencyFilePath: string): Promise<number>;
+    loadFrequenciesFromString(frequencies: string | Uint8Array): number;
     addDictionaryFromFile(dictionaryFilePath: string): Promise<void>;
     addDictionaryFromString(dictionary: string): void;
     getDictionaryEncoding(): string;

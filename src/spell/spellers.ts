@@ -24,6 +24,7 @@ interface ManifestEntry {
   version: string | null;
   aff: string;
   dic: string;
+  freq?: string;
 }
 
 export interface SpellersDeps {
@@ -71,6 +72,7 @@ async function loadManifest(
         version: null,
         aff: dict.id + ".aff",
         dic: dict.id + ".dic",
+        ...(dict.id === PRIMARY ? { freq: dict.id + ".freq" } : {}),
       };
     }
     return out;
@@ -90,6 +92,22 @@ function affVersion(aff: Uint8Array): string | null {
       .match(/^#?\s*Version:\s*(.+)$/m)?.[1]!
       .trim() || null
   );
+}
+
+async function loadFreq(
+  file: string | undefined,
+  asset: SpellersDeps["asset"],
+  fetchers: (typeof fetch)[] = [fetch],
+): Promise<Uint8Array | undefined> {
+  if (!file) return undefined;
+  for (const fetcher of fetchers) {
+    try {
+      return await fetchGzBytes(asset("dict/" + file), fetcher);
+    } catch {
+      continue;
+    }
+  }
+  return undefined;
 }
 
 export function createSpellers(deps: SpellersDeps): Spellers {
@@ -116,11 +134,12 @@ export function createSpellers(deps: SpellersDeps): Spellers {
   async function load(id: string): Promise<string> {
     const entry = manifest![id];
     if (!entry) throw new Error(id + " manifest-д алга");
-    const [aff, dic] = await Promise.all([
+    const [aff, dic, freq] = await Promise.all([
       fetchGzBytes(asset("dict/" + entry.aff)),
       fetchGzBytes(asset("dict/" + entry.dic)),
+      loadFreq(entry.freq, asset),
     ]);
-    const inst = await backend!.build(aff, dic, id);
+    const inst = await backend!.build(aff, dic, id, freq);
     if (id === PRIMARY) {
       mnVersion = entry.version || affVersion(aff);
     }
@@ -147,7 +166,11 @@ export function createSpellers(deps: SpellersDeps): Spellers {
         [cacheOnlyFetch, deps.netFetch],
       );
       if (!files) return;
-      const inst = await backend.build(files[0], files[1], PRIMARY);
+      const freq = await loadFreq(entry.freq, asset, [
+        cacheOnlyFetch,
+        deps.netFetch,
+      ]);
+      const inst = await backend.build(files[0], files[1], PRIMARY, freq);
       if (
         typeof inst.spell !== "function" ||
         typeof inst.suggest !== "function"

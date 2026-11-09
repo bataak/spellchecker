@@ -1,3 +1,6 @@
+import { attempt } from "../core/attempt.ts";
+import { noteError } from "../core/errorlog.ts";
+
 export interface SpellerInstance {
   spell: (word: string) => boolean;
   suggest: (word: string) => string[];
@@ -13,6 +16,7 @@ export interface SpellBackend {
     aff: Uint8Array,
     dic: Uint8Array,
     id?: string,
+    freq?: Uint8Array,
   ) => Promise<SpellerInstance>;
 }
 
@@ -29,8 +33,17 @@ async function loadHunspellWasm(): Promise<SpellBackend> {
   if (probe.dispose) probe.dispose();
   return {
     label: "hunspell-wasm",
-    build: async (aff, dic) => {
+    build: async (aff, dic, _id, freq) => {
       const hunspellInstance = await create(aff, dic);
+      if (
+        freq &&
+        typeof hunspellInstance.loadFrequenciesFromString === "function"
+      )
+        attempt(
+          () => hunspellInstance.loadFrequenciesFromString(freq),
+          0,
+          noteError,
+        );
       const canStem = typeof hunspellInstance.stemWord === "function";
       const canAnalyze = typeof hunspellInstance.analyzeWord === "function";
       return {

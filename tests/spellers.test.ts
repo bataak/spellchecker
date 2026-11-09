@@ -86,3 +86,44 @@ test("spellers: шинэ хувилбар гарвал үндсэн толийг
   await spellers.refresh();
   assert.deepEqual(updates, ["mn_MN@2"]);
 });
+
+test("spellers: давтамжийн файл байвал build-д дамжуулж, алга бол үргэлжилнэ", async () => {
+  const manifest = {
+    dicts: [
+      {
+        id: "mn_MN",
+        version: "1",
+        aff: "mn.aff",
+        dic: "mn.dic",
+        freq: "mn.freq",
+      },
+      { id: "en_US", version: null, aff: "en.aff", dic: "en.dic" },
+    ],
+  };
+  const seen: Record<string, string | undefined> = {};
+  Object.assign(globalThis, {
+    fetch: async (url: string) => {
+      if (url.endsWith(".json")) return respond(manifest);
+      if (url.endsWith(".freq")) return respond("мөртөө\t318\n");
+      return respond("# Version: 9\n");
+    },
+    caches: { match: async () => undefined },
+  });
+  const spellers = createSpellers({
+    asset: (path) => "/" + path,
+    netFetch: (async () => respond(manifest)) as typeof fetch,
+    onUpdated: () => {},
+    backend: async () => ({
+      label: "fake",
+      build: async (_aff, _dic, id, freq) => {
+        seen[id!] = freq ? new TextDecoder().decode(freq) : undefined;
+        return { spell: () => true, suggest: () => [] };
+      },
+    }),
+  });
+  await spellers.start();
+  await spellers.load(PRIMARY);
+  await spellers.load("en_US");
+  assert.equal(seen[PRIMARY], "мөртөө\t318\n");
+  assert.equal(seen["en_US"], undefined);
+});
