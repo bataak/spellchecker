@@ -1,4 +1,4 @@
-import { fflate } from "./fflate.ts";
+import { fflate, gunzipped, MAX_UNPACKED, TOO_LARGE } from "./fflate.ts";
 import { untar, type ArchiveEntry } from "./tar.ts";
 
 const ZIP = /\.zip$/i;
@@ -35,15 +35,18 @@ export async function unpackedSize(bytes: Uint8Array): Promise<number> {
 export async function extractArchive(
   name: string,
   bytes: Uint8Array,
+  limit = MAX_UNPACKED,
 ): Promise<ArchiveEntry[]> {
-  if (ZIP.test(name))
+  if (ZIP.test(name)) {
+    if ((await unpackedSize(bytes)) > limit) throw new Error(TOO_LARGE);
     return Object.entries((await fflate()).unzipSync(bytes))
       .filter(([path]) => !path.endsWith("/"))
       .map(([path, data]) => ({ name: path, data }));
-  if (TAR_GZ.test(name)) return untar((await fflate()).gunzipSync(bytes));
+  }
+  if (TAR_GZ.test(name)) return untar(await gunzipped(bytes, limit));
   if (TAR_BZ2.test(name)) {
     const { bunzip2 } = await import("./bzip2.ts");
-    return untar(bunzip2(bytes));
+    return untar(bunzip2(bytes, limit));
   }
   if (TAR.test(name)) return untar(bytes);
   throw new Error("Архивын төрөл танигдсангүй: " + name);

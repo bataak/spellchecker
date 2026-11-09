@@ -128,3 +128,26 @@ test("unpackedSize: zip-ийг задлахгүйгээр зарласан ни�
   });
   assert.equal(await unpackedSize(zip), 8000);
 });
+
+test("gunzipped: хязгаараас том задрах gzip-ийг хүлээж авахгүй", async () => {
+  const { gzipSync } = await import("fflate");
+  const { gunzipped } = await import("../src/archive/fflate.ts");
+  const plain = new Uint8Array(200_000).map((_, i) => (i * 31) % 251);
+  assert.deepEqual(await gunzipped(gzipSync(plain), 200_000), plain);
+  await assert.rejects(gunzipped(gzipSync(new Uint8Array(20_000_000)), 1e6));
+  await assert.rejects(gunzipped(gzipSync(plain).subarray(0, 100), 1e6));
+});
+
+test("extractArchive: архив бүрийн задлах хэмжээг хязгаарлана", async () => {
+  const { gzipSync, zipSync } = await import("fflate");
+  const data = new Uint8Array(4096);
+  const tar = tarOf([["a.dict", "x".repeat(4096)]]);
+  await assert.rejects(extractArchive("a.tar.gz", gzipSync(tar), 1000));
+  await assert.rejects(extractArchive("a.zip", zipSync({ a: data }), 1000));
+  await assert.rejects(extractArchive("a.tar.bz2", decode(TAR_BZ2), 10));
+  assert.equal(
+    (await extractArchive("a.zip", zipSync({ a: data }), 4096)).length,
+    1,
+  );
+  assert.equal((await extractArchive("a.tar.gz", gzipSync(tar))).length, 1);
+});
