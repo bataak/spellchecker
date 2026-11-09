@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.124.1](https://github.com/bataak/spellchecker/compare/v1.124.0...v1.124.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **archive:** cap decompressed size when importing dictionaries ([c68aa44](https://github.com/bataak/spellchecker/commit/c68aa449081628a917eba76aaeb88bfc1c6a6464))
+* **collab:** clear unfinished snapshot upload when a connection is replaced ([8b873c4](https://github.com/bataak/spellchecker/commit/8b873c4df9cd12c798282b109495414038204f58))
+* **collab:** keep large rejected changes after reload ([a353bbb](https://github.com/bataak/spellchecker/commit/a353bbb521548d2514e4c2edba1a2e9f126ae9f2))
+* **editor:** show only the comment button on double-click over a misspelled word ([ad27d95](https://github.com/bataak/spellchecker/commit/ad27d95b81abb5186087b8c94b870e0ddc1d14b1))
+* **git:** refresh GitLab tokens one at a time across tabs ([96f2b14](https://github.com/bataak/spellchecker/commit/96f2b14e9fb93dd9329c24ef0a06d192f15ae053))
+
 ## [1.124.0](https://github.com/bataak/spellchecker/compare/v1.123.4...v1.124.0) (2026-11-05)
 
 
