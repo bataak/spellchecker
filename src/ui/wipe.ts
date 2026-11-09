@@ -83,4 +83,8 @@ export function requestWipe(): void {
   location.reload();
 }
 
-if (read(KEYS.wipe)) wipeNow();
+export function finishRequestedWipe(): void {
+  if (read(KEYS.wipe)) wipeNow();
+}
+
+finishRequestedWipe();
