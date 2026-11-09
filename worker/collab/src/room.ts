@@ -80,7 +80,7 @@ export class Room extends DurableObject<Env> implements RoomHost {
     const crowd = this.crowd(id, dev);
     if (crowd.code !== undefined) return refuse(crowd.code, crowd.reason);
     for (const peer of crowd.replaced) {
-      peer.ws.serializeAttachment(null);
+      this.detach(peer.ws);
       peer.ws.close(1000, "replaced");
     }
     return this.join(id, dev, access, crowd.others);
@@ -246,11 +246,16 @@ export class Room extends DurableObject<Env> implements RoomHost {
     this.leave(ws);
   }
 
-  leave(ws: WebSocket): void {
+  private detach(ws: WebSocket): PeerMeta | null {
     const meta = ws.deserializeAttachment() as PeerMeta | null;
     ws.serializeAttachment(null);
+    if (meta?.up) this.sql.exec("DELETE FROM stage WHERE dev = ?", meta.dev);
+    return meta;
+  }
+
+  leave(ws: WebSocket): void {
+    const meta = this.detach(ws);
     if (!meta) return;
-    if (meta.up) this.sql.exec("DELETE FROM stage WHERE dev = ?", meta.dev);
     for (const peer of this.peers())
       if (peer.ws !== ws) this.send(peer.ws, { t: "bye", id: meta.id });
   }
