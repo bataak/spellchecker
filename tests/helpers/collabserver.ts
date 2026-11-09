@@ -10,6 +10,7 @@ export interface CollabServer {
   allow(origin: string): Promise<void>;
   expire(room: string): Promise<void>;
   storedRoom(room: string): Promise<string | null>;
+  stagedParts(room: string): Promise<number>;
   close(): Promise<void>;
 }
 
@@ -24,15 +25,23 @@ const SOURCES = [
   "shared/protocol.ts",
 ].map((name) => join(WORKER, name));
 
-const MODULES = SOURCES.map((path) => ({
-  type: "ESModule" as const,
-  path,
-  contents: ts.transpileModule(readFileSync(path, "utf8"), {
+const ROOM_PROBE =
+  '\nRoom.prototype.stagedParts = function () { return this.sql.exec("SELECT COUNT(*) AS n FROM stage").one().n; };\n';
+
+function compiled(path: string): string {
+  const output = ts.transpileModule(readFileSync(path, "utf8"), {
     compilerOptions: {
       target: ts.ScriptTarget.ES2022,
       module: ts.ModuleKind.ESNext,
     },
-  }).outputText,
+  }).outputText;
+  return path.endsWith("/room.ts") ? output + ROOM_PROBE : output;
+}
+
+const MODULES = SOURCES.map((path) => ({
+  type: "ESModule" as const,
+  path,
+  contents: compiled(path),
 }));
 
 function freePort(): Promise<number> {
@@ -97,6 +106,13 @@ export async function startCollab(
         roomId(): Promise<string | null>;
       };
       return stub.roomId();
+    },
+    async stagedParts(room) {
+      const rooms = await mf.getDurableObjectNamespace("ROOMS");
+      const stub = rooms.get(rooms.idFromName(room)) as unknown as {
+        stagedParts(): Promise<number>;
+      };
+      return stub.stagedParts();
     },
     close: () => mf.dispose(),
   };

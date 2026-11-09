@@ -114,6 +114,22 @@ test("хэтэрхий том эсвэл тасарсан илгээлт өмн�
   assert.deepEqual(digest(await stored(room, dev, owner)), digest([first]));
 });
 
+test("дахин холбогдоход дуусаагүй илгээлтийн хэсгүүдийг цэвэрлэнэ", async () => {
+  const room = randomId(16);
+  const dev = randomId(12);
+  const owner = newToken();
+  const id = randomId(12);
+  const first = await open(server.url, room, dev, "o=" + owner, id);
+  first.send(JSON.stringify({ t: "snap", n: 3 }));
+  first.send(noise(1000));
+  await settled(first);
+  assert.equal(await server.stagedParts(room), 1);
+  const second = await open(server.url, room, dev, "o=" + owner, id);
+  assert.equal(await server.stagedParts(room), 0);
+  first.close();
+  second.close();
+});
+
 test("өрөөний нийт хэмжээ хэтэрвэл хамгийн хуучин snapshot-ыг хасна", async () => {
   const { room, dev, owner, client } = await sharedRoom();
   await upload(client, noise(7 * 1024 * 1024));
