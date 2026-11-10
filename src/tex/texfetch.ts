@@ -4,7 +4,7 @@ import { KEYS, readJson, writeJson } from "../core/store.ts";
 import { noteError } from "../core/errorlog.ts";
 import { workerJobs } from "../core/workerjobs.ts";
 
-export { wantedFiles } from "./texmissing.ts";
+export { requestedFiles, wantedFiles } from "./texmissing.ts";
 
 const CACHE_NAME = "tex-packages";
 const CACHE_LIMIT_BYTES = 32 * 1024 * 1024;

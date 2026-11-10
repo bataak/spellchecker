@@ -1,6 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { unwrapLog, wantedFiles } from "../src/tex/texmissing.ts";
+import {
+  requestedFiles,
+  unwrapLog,
+  wantedFiles,
+} from "../src/tex/texmissing.ts";
 
 test("дутуу .sty файлыг LaTeX-ийн алдаанаас олно", () => {
   const log =
@@ -62,4 +66,26 @@ test("79 тэмдэгтээр тасарсан фонтын алдааг тан�
     "! Font OT1/PTSans-TLF/m/it/9=PTSans-Italic-tlf-ot1 at 9.0pt not loadable: Metric (TFM) file not found.\n<to be read again>",
   );
   assert.ok(wantedFiles(log, []).includes("PTSans-Italic-tlf-ot1.tfm"));
+});
+
+test("преамбулын \\usepackage, \\documentclass-аас файлын нэрийг гаргана", () => {
+  const tex = String.raw`\documentclass[10pt]{article}
+\usepackage[T1,T2A]{fontenc}
+\usepackage{multicol, adjustbox,fvextra,xurl}
+% \usepackage{tikz}
+\usepackage{a}% \usepackage{b}
+\RequirePackage{c}
+\begin{document}
+\usepackage{late}
+\end{document}`;
+  assert.deepEqual(requestedFiles(tex), [
+    "article.cls",
+    "fontenc.sty",
+    "multicol.sty",
+    "adjustbox.sty",
+    "fvextra.sty",
+    "xurl.sty",
+    "a.sty",
+    "c.sty",
+  ]);
 });
