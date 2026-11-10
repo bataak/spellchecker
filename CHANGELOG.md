@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.125.0](https://github.com/bataak/spellchecker/compare/v1.124.1...v1.125.0) (2026-11-10)
+
+
+### Features
+
+* **dict:** update mn_MN to 2026.11.10 ([47cf612](https://github.com/bataak/spellchecker/commit/47cf6126ffe75fad50470c8e3ce3d0adea68f3c7))
+* **spell:** rerank suggestions by edit distance and word frequency ([0ae40fe](https://github.com/bataak/spellchecker/commit/0ae40fe4488040a6b33ead354016491dd6a974c9))
+
 ## [1.124.1](https://github.com/bataak/spellchecker/compare/v1.124.0...v1.124.1) (2026-11-09)
 
 
