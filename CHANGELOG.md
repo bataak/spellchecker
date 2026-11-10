@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.125.1](https://github.com/bataak/spellchecker/compare/v1.125.0...v1.125.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **tex:** fetch preamble packages up front and retry while installs progress ([2d09ac1](https://github.com/bataak/spellchecker/commit/2d09ac1eb5a32c470cfa77589823e088d6802072))
+
 ## [1.125.0](https://github.com/bataak/spellchecker/compare/v1.124.1...v1.125.0) (2026-11-10)
 
 
