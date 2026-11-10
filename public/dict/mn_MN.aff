@@ -1,5 +1,5 @@
 # mn_MN.aff
-# Version: 2026.11.05
+# Version: 2026.11.10
 # Copyright 2020-2026, Batmunkh Dorjgotov <bataak at gmail tseg com>
 #   https://zuv.bichig.dev
 #
@@ -41,7 +41,7 @@ COMPOUNDRULE (nn)*%?
 COMPOUNDRULE (nn)*.(nn)*%?
 IGNORE ­
 
-REP 4223
+REP 4224
 REP a а
 REP c с
 REP e е
@@ -1410,6 +1410,7 @@ REP эгнүүр гэр
 REP эгт гэд
 REP эгт гэнд
 REP эгтийн гийн
+REP эгчи гэч
 REP эгхэн үүхэн
 REP эгэн г
 REP эгээ ээ
