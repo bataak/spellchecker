@@ -79,6 +79,33 @@ export async function reinstallPackages(worker: Worker): Promise<void> {
     }
 }
 
+export async function preinstallPackages(
+  worker: Worker,
+  tex: string,
+): Promise<void> {
+  const fetcher = await import("./texfetch.ts");
+  if (!fetcher.packagesEnabled()) return;
+  const state = engineFiles.get(worker);
+  if (!state) return;
+  const files = fetcher
+    .requestedFiles(tex)
+    .filter((file) => !state.bundled.has(file));
+  if (!files.length) return;
+  try {
+    const names = await fetcher.packagesFor(files, (name) =>
+      state.installed.has(name),
+    );
+    for (const name of names)
+      try {
+        await installPackage(worker, name);
+      } catch (error) {
+        noteError(error);
+      }
+  } catch (error) {
+    noteError(error);
+  }
+}
+
 export async function addPackages(
   worker: Worker,
   log: string,

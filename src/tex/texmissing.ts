@@ -19,6 +19,12 @@ const GUESS_EXTENSIONS = [
   ".fd",
 ];
 
+const PACKAGE_LOAD =
+  /\\(usepackage|RequirePackage|documentclass)\s*(?:\[[^\]]*\]\s*)?\{([^}]*)\}/g;
+const LOAD_EXTENSION: Readonly<Record<string, string>> = {
+  documentclass: ".cls",
+};
+
 const stem = (name: string): string => name.replace(/\.[^.]*$/, "");
 
 const LOG_WIDTH = 79;
@@ -50,4 +56,17 @@ export function wantedFiles(log: string, misses: readonly string[]): string[] {
       for (const ext of GUESS_EXTENSIONS) wanted.add(name + ext);
   }
   return [...wanted];
+}
+
+export function requestedFiles(tex: string): string[] {
+  const preamble = tex
+    .split(/\\begin\s*\{document\}/)[0]!
+    .replace(/(^|[^\\])%.*$/gm, "$1");
+  const files = new Set<string>();
+  for (const match of preamble.matchAll(PACKAGE_LOAD)) {
+    const extension = LOAD_EXTENSION[match[1]!] ?? ".sty";
+    for (const name of match[2]!.split(","))
+      if (name.trim()) files.add(name.trim() + extension);
+  }
+  return [...files];
 }

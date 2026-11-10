@@ -11,11 +11,14 @@ import {
 } from "./texerrors.ts";
 import { session } from "./texsession.ts";
 import { asset, loadBundle, loadCachedFonts } from "./texassets.ts";
-import { engineFiles, reinstallPackages, addPackages } from "./texinstall.ts";
+import {
+  engineFiles,
+  reinstallPackages,
+  addPackages,
+  preinstallPackages,
+} from "./texinstall.ts";
 
 const ENGINE_CRASHED = -254;
-
-const PACKAGE_ROUNDS = 8;
 
 async function start(): Promise<Worker> {
   const worker = new Worker(asset(TEX_ENGINE));
@@ -213,20 +216,17 @@ async function compileWithPackages(
   layout: CompileLayout,
 ): Promise<Uint8Array<ArrayBuffer>> {
   try {
-    for (let round = 0; ; round += 1) {
+    for (let first = true; ; first = false) {
       session.starting ??= start().catch((error: unknown) => {
         session.starting = null;
         throw error;
       });
       const worker = await session.starting;
+      if (first) await preinstallPackages(worker, tex);
       try {
         return await compileOn(worker, tex, files, layout);
       } catch (error) {
-        if (
-          !(error instanceof PdfError) ||
-          round >= PACKAGE_ROUNDS ||
-          session.live !== worker
-        )
+        if (!(error instanceof PdfError) || session.live !== worker)
           throw error;
         if (!(await addPackages(worker, error.log))) throw error;
       }
