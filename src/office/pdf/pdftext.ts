@@ -1,3 +1,4 @@
+import { noteError } from "../../core/errorlog.ts";
 import { FileReadError } from "../fileerror.ts";
 import { repairCyrillic } from "../../archive/cp1251.ts";
 import { isSoftHyphenBreak } from "./dehyphen.ts";
@@ -230,11 +231,44 @@ async function readTextItems(page: TextPage): Promise<TextItem[]> {
   return content.items as TextItem[];
 }
 
-function stageError(stage: string, cause: unknown): Error {
-  const detail =
-    cause instanceof Error ? cause.name + ": " + cause.message : String(cause);
-  return new Error(stage + " — " + detail);
+const STALL_MS = 45000;
+
+export class PdfStageError extends Error {
+  readonly code: string;
+
+  constructor(stage: string, cause: unknown) {
+    super("pdf " + stage, { cause });
+    this.name = "PdfStageError";
+    this.code = "PDF_" + stage.toUpperCase();
+  }
 }
+
+export function inStage<T>(
+  stage: string,
+  run: () => Promise<T>,
+  limit = 0,
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const fail = (cause: unknown): void => {
+      clearTimeout(timer);
+      reject(new PdfStageError(stage, cause));
+    };
+    const timer = limit
+      ? setTimeout(
+          () => fail(new DOMException("stalled", "TimeoutError")),
+          limit,
+        )
+      : undefined;
+    Promise.resolve()
+      .then(run)
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      }, fail);
+  });
+}
+
+type PdfPage = TextPage & { cleanup: () => void };
 
 export async function extractPdfText(
   file: File,
@@ -242,57 +276,38 @@ export async function extractPdfText(
 ): Promise<string> {
   if (file.size > MAX_PDF_MB * 1024 * 1024)
     throw new FileReadError({ kind: "too-large", limitMb: MAX_PDF_MB });
-  let pdfjs: typeof import("pdfjs-dist");
-  try {
-    pdfjs = await import("pdfjs-dist");
-  } catch (e) {
-    throw stageError("import", e);
-  }
-  try {
+  const pdfjs = await inStage(
+    "import",
+    () => import("pdfjs-dist/legacy/build/pdf.mjs"),
+  );
+  await inStage("worker", async () => {
     pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-      "pdfjs-dist/build/pdf.worker.min.mjs",
+      "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
       import.meta.url,
     ).toString();
-  } catch (e) {
-    throw stageError("workerSrc", e);
-  }
-  let data: Uint8Array;
-  try {
-    data = new Uint8Array(await file.arrayBuffer());
-  } catch (e) {
-    throw stageError("arrayBuffer", e);
-  }
+  });
+  const data = await inStage(
+    "bytes",
+    async () => new Uint8Array(await file.arrayBuffer()),
+  );
   const loadingTask = pdfjs.getDocument({ data });
   const pages: string[] = [];
   try {
-    let doc: Awaited<typeof loadingTask.promise>;
-    try {
-      doc = await loadingTask.promise;
-    } catch (e) {
-      throw stageError("getDocument", e);
-    }
+    const doc = await inStage("document", () => loadingTask.promise, STALL_MS);
     for (let index = 1; index <= doc.numPages; index++) {
       if (onProgress) onProgress(index, doc.numPages);
-      let page: TextPage & { cleanup: () => void };
-      try {
-        page = (await doc.getPage(index)) as unknown as TextPage & {
-          cleanup: () => void;
-        };
-      } catch (e) {
-        throw stageError("getPage " + index, e);
-      }
-      let items: TextItem[];
-      try {
-        items = await readTextItems(page);
-      } catch (e) {
-        throw stageError("readText " + index, e);
-      }
+      const page = await inStage(
+        "page",
+        async () => (await doc.getPage(index)) as unknown as PdfPage,
+        STALL_MS,
+      );
+      const items = await inStage("text", () => readTextItems(page), STALL_MS);
       const blocks = mergeParagraphs(pageLines(items));
       if (blocks.length) pages.push(assemble(blocks));
       page.cleanup();
     }
   } finally {
-    await loadingTask.destroy();
+    void loadingTask.destroy().catch(noteError);
   }
   const text = repairCyrillic(tidy(pages.join("\n\n")));
   if (!text) throw new FileReadError({ kind: "no-text" });

@@ -6,9 +6,9 @@ let pdfjsPromise: Promise<typeof import("pdfjs-dist")> | null = null;
 
 function loadPdfjs(): Promise<typeof import("pdfjs-dist")> {
   pdfjsPromise ??= (async () => {
-    const pdfjs = await import("pdfjs-dist");
+    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
     pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-      "pdfjs-dist/build/pdf.worker.min.mjs",
+      "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
       import.meta.url,
     ).toString();
     return pdfjs;
