@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.125.2](https://github.com/bataak/spellchecker/compare/v1.125.1...v1.125.2) (2026-11-12)
+
+
+### Bug Fixes
+
+* **collab:** keep a short link answer that is still being unsealed ([327a489](https://github.com/bataak/spellchecker/commit/327a489f0f73ce079685daeae0d423ba09095a3a))
+* **collab:** write a deferred local change to the shared text once ([56873e9](https://github.com/bataak/spellchecker/commit/56873e9f484859695265f0c14edde7115d4968da))
+* **core:** fail only the job whose postMessage throws ([f57267b](https://github.com/bataak/spellchecker/commit/f57267b64f5edeb7795b849cde7205749c140d3e))
+* **core:** reject a blocked IndexedDB open instead of waiting forever ([f160a0f](https://github.com/bataak/spellchecker/commit/f160a0fc51e5d0686bf774cd657386451a9331ce))
+* **files:** abort the writable and report the error when a save fails ([f2cc494](https://github.com/bataak/spellchecker/commit/f2cc4942440173ece01569a299fac1fb81145482))
+* **markdown:** parse unclosed emphasis markers in linear time ([0ad6484](https://github.com/bataak/spellchecker/commit/0ad6484d6a07e921c8e73849cf8773801bdf7280))
+* **markdown:** scan unclosed math and dead link brackets in linear time ([d5ac6f4](https://github.com/bataak/spellchecker/commit/d5ac6f4cc31d94b89df64570b3712eeae0c6f53b))
+* **pdf:** read PDFs on older browsers and stop waiting on a dead worker ([dda49a1](https://github.com/bataak/spellchecker/commit/dda49a119aec822166b7da36a6295c2e9d2bb8fe))
+* **project:** mark edits persisted only after the write succeeds ([2d88dbd](https://github.com/bataak/spellchecker/commit/2d88dbdf027dc9b2123ca3be8090bd42a9e2e31a))
+
 ## [1.125.1](https://github.com/bataak/spellchecker/compare/v1.125.0...v1.125.1) (2026-11-10)
 
 
