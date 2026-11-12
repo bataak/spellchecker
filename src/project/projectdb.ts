@@ -18,7 +18,9 @@ export async function dbGet<T>(key: string): Promise<T | null> {
   }
 }
 
-export async function dbPut(entries: Record<string, unknown>): Promise<void> {
+export async function dbPut(
+  entries: Record<string, unknown>,
+): Promise<boolean> {
   try {
     const db = await openDb();
     const tx = db.transaction(DB_STORE, "readwrite");
@@ -27,7 +29,9 @@ export async function dbPut(entries: Record<string, unknown>): Promise<void> {
       if (value === undefined) store.delete(key);
       else store.put(value, key);
     await transactionDone(tx);
+    return true;
   } catch (error) {
     noteError(error);
+    return false;
   }
 }

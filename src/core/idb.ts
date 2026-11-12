@@ -22,8 +22,16 @@ function openDatabase(
 ): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(name, version);
+    let blocked = false;
     request.onupgradeneeded = () => create(request.result);
-    request.onsuccess = () => resolve(request.result);
+    request.onblocked = () => {
+      blocked = true;
+      reject(new Error("IndexedDB open blocked"));
+    };
+    request.onsuccess = () => {
+      if (blocked) request.result.close();
+      else resolve(request.result);
+    };
     request.onerror = () => reject(failure(request.error));
   });
 }

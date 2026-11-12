@@ -25,13 +25,15 @@ export function storedFiles(): Promise<Record<string, Uint8Array> | null> {
   return dbGet<Record<string, Uint8Array>>(FILES_KEY);
 }
 
-async function mergedEdits(s: State): Promise<Record<string, string>> {
+interface Merged {
+  readonly mine: Record<string, string>;
+  readonly edits: Record<string, string>;
+}
+
+async function mergedEdits(s: State): Promise<Merged> {
   const mine = editsOf(s);
   const stored = await storedMeta();
-  if (stored?.uid !== s.uid) {
-    s.persisted = mine;
-    return mine;
-  }
+  if (stored?.uid !== s.uid) return { mine, edits: mine };
   const out = pathRecord(await storedEdits());
   for (const path of new Set([
     ...Object.keys(mine),
@@ -42,8 +44,7 @@ async function mergedEdits(s: State): Promise<Record<string, string>> {
     if (next !== undefined) out[path] = next;
     else delete out[path];
   }
-  s.persisted = mine;
-  return out;
+  return { mine, edits: out };
 }
 
 export interface Persist {
@@ -61,14 +62,14 @@ export function createPersist(current: () => State | null): Persist {
     const run = async (): Promise<void> => {
       const s = current();
       if (!s) return;
-      const edits = await mergedEdits(s);
+      const { mine, edits } = await mergedEdits(s);
       if (current() !== s) return;
       const entries: Record<string, unknown> = {
         [META_KEY]: metaOf(s),
         [EDITS_KEY]: edits,
       };
       if (withFiles && s.kind !== "dir") entries[FILES_KEY] = savedFilesOf(s);
-      await dbPut(entries);
+      if (await dbPut(entries)) s.persisted = mine;
     };
     writing = writing.then(run, run);
     return writing;
@@ -101,7 +102,9 @@ export function createPersist(current: () => State | null): Persist {
         void write(false);
       }, EDITS_DELAY_MS);
     },
-    dropFiles: () => dbPut({ [FILES_KEY]: undefined }),
+    dropFiles: async () => {
+      await dbPut({ [FILES_KEY]: undefined });
+    },
     clear() {
       cancel();
       void dbPut({

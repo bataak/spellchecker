@@ -64,3 +64,16 @@ test("databaseOpener: нээж чадаагүй бол дараагийн уда
   assert.ok(db.objectStoreNames.contains("kv"));
   db.close();
 });
+
+test("databaseOpener: хуучин холболт хаагдахгүй бол хүлээлгүй татгалзаж, дараа нь дахин нээнэ", async () => {
+  const name = "opener-blocked-" + Math.random();
+  const old = await requestResult(indexedDB.open(name, 1));
+  const open = databaseOpener(name, (db) => db.createObjectStore("kv"), 2);
+  await assert.rejects(open(), /IndexedDB open blocked/);
+  old.close();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const db = await open();
+  assert.equal(db.version, 2);
+  assert.ok(db.objectStoreNames.contains("kv"));
+  db.close();
+});

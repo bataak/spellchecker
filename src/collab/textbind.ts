@@ -51,6 +51,7 @@ export function bindText(
   let on = false;
   let composing = false;
   let stale = false;
+  let pending: TextChange | null = null;
 
   const write = (change: TextChange): void => writeChange(text, change, origin);
 
@@ -60,23 +61,28 @@ export function bindText(
     if (patch) write(patch);
   };
 
+  const commit = (): void => {
+    const local = pending;
+    pending = null;
+    if (!local) return;
+    write(local);
+    shadow = editor.value;
+  };
+
   const reconcile = (defer: boolean): void => {
     const target = minimalDiff(shadow, text.toString());
     const rebased = rebaseLocal(shadow, editor.value, target ? [target] : []);
     const patch = minimalDiff(editor.value, rebased.text);
     if (patch) applyRemote(editor, [patch]);
-    const local = rebased.local;
-    if (!local) {
+    if (!rebased.local) {
       shadow = editor.value;
       return;
     }
     shadow = text.toString();
-    const commit = (): void => {
-      write(local);
-      shadow = editor.value;
-    };
-    if (defer) queueMicrotask(commit);
-    else commit();
+    const queued = pending !== null;
+    pending = rebased.local;
+    if (!defer) commit();
+    else if (!queued) queueMicrotask(commit);
   };
 
   const settle = (): void => {
