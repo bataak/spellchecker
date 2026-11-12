@@ -1,7 +1,7 @@
 import type { Html } from "../core/htmlutil.ts";
 import { noteError } from "../core/errorlog.ts";
 import { escapeHtml, html, trustedHtml } from "../core/htmlutil.ts";
-import { readFailureMessage } from "../office/fileerror.ts";
+import { fileErrorReason, readFailureMessage } from "../office/fileerror.ts";
 import type { PreviewSource } from "../preview/preview.ts";
 import { swapText } from "../editor/editortext.ts";
 import type { EditorPort, StatusPort } from "../core/ports.ts";
@@ -72,6 +72,7 @@ async function readPdf(file: File, status: StatusPort): Promise<string | null> {
         status.set(html`PDF уншиж байна — ${page} / ${total}`, false);
     });
   } catch (e) {
+    if (fileErrorReason(e) === null) noteError(e);
     status.hold(
       escapeHtml(readFailureMessage(e, "PDF файлыг уншиж чадсангүй")),
     );
