@@ -41,8 +41,9 @@ export function workerJobs<Request extends object, Value>(
     made.onmessage = (event: MessageEvent<WorkerReply<Value>>) => {
       const job = settle(event.data.id);
       if (!job) return;
-      if (event.data.value !== undefined) job.resolve(event.data.value);
-      else job.reject(new Error(event.data.error ?? label));
+      if (event.data.error === undefined)
+        job.resolve(event.data.value as Value);
+      else job.reject(new Error(event.data.error));
     };
     made.onerror = () => {
       if (worker === made) reset(new Error(label));
@@ -58,6 +59,11 @@ export function workerJobs<Request extends object, Value>(
         timeoutMs,
       );
       jobs.set(id, { resolve, reject, timer });
-      started().postMessage({ ...request, id }, transfer);
+      try {
+        started().postMessage({ ...request, id }, transfer);
+      } catch (error) {
+        settle(id);
+        throw error;
+      }
     });
 }

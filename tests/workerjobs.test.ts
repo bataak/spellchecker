@@ -67,3 +67,24 @@ test("workerJobs: хугацаа хэтэрвэл worker-ийг зогсоож, 
   made[1]!.reply({ id: made[1]!.sent[0]!.id, value: 7 });
   assert.equal(await fresh, 7);
 });
+
+test("workerJobs: илгээж чадаагүй ажил бусдыг унагахгүй", async () => {
+  const { made, run } = setup(30);
+  const kept = run({ n: 1 });
+  made[0]!.postMessage = () => {
+    throw new Error("clone");
+  };
+  await assert.rejects(run({ n: 2 }), /clone/);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  made[0]!.reply({ id: made[0]!.sent[0]!.id, value: 7 });
+  assert.equal(await kept, 7);
+  await new Promise((resolve) => setTimeout(resolve, 40));
+  assert.equal(made[0]!.terminated, false);
+});
+
+test("workerJobs: утгагүй хариуг алдаа гэж үзэхгүй", async () => {
+  const { made, run } = setup();
+  const pending = run({ n: 1 });
+  made[0]!.reply({ id: made[0]!.sent[0]!.id });
+  assert.equal(await pending, undefined);
+});
