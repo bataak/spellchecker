@@ -30,8 +30,13 @@ async function writeTo(
   text: string,
 ): Promise<void> {
   const writableStream = await handle.createWritable();
-  await writableStream.write(text);
-  await writableStream.close();
+  try {
+    await writableStream.write(text);
+    await writableStream.close();
+  } catch (error) {
+    await writableStream.abort().catch(() => undefined);
+    throw error;
+  }
 }
 
 export function stampFor(ext: string): string {
@@ -74,7 +79,9 @@ async function pickAndWrite(
     d.onSaved(true);
     return true;
   } catch (e) {
-    return e instanceof DOMException && e.name === "AbortError";
+    if (e instanceof DOMException && e.name === "AbortError") return true;
+    noteError(e);
+    return false;
   }
 }
 
