@@ -49,6 +49,7 @@ export function resolveShort(
 ): Promise<InviteLink | null> {
   return new Promise((resolve) => {
     let done = false;
+    let answered = false;
     const socket = open(shortUrl(endpoint, short.code));
     const finish = (link: InviteLink | null): void => {
       if (done) return;
@@ -59,6 +60,7 @@ export function resolveShort(
     };
     const timer = setTimeout(() => finish(null), WAIT_MS);
     socket.onmessage = (event) => {
+      answered = true;
       let data: unknown;
       try {
         data = JSON.parse(String(event.data));
@@ -68,6 +70,8 @@ export function resolveShort(
       void linkOf(short, data).then(finish);
     };
     socket.onerror = () => finish(null);
-    socket.onclose = () => setTimeout(() => finish(null), 50);
+    socket.onclose = () => {
+      if (!answered) setTimeout(() => finish(null), 50);
+    };
   });
 }
