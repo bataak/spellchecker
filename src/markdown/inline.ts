@@ -9,15 +9,52 @@ const MATH_HOLD = "\u0002";
 
 export const HARD = "\u0003";
 
-const MATH_SPAN =
-  /(`+)[\s\S]*?\1|\\begin\{math\}([\s\S]*?)\\end\{math\}|\\\(([\s\S]*?)\\\)|\\[\s\S]|\$\$((?:[^$\\]|\\.)+?)\$\$|(?<![$\d])\$(?![\s$])((?:[^$\\]|\\.)*?[^\s$\\]|[^\s$\\])\$(?![\d$])|(?<![\p{L}\p{N}_])(_{3,})(?![\p{L}\p{N}_])/gu;
+const BRACKET = "\u0004";
 
-const CELL_PIPE = new RegExp(MATH_SPAN.source + "|\\|", "gu");
+const MATH_AT =
+  /(`+)[\s\S]*?\1|\\begin\{math\}([\s\S]*?)\\end\{math\}|\\\(([\s\S]*?)\\\)|\\[\s\S]|\$\$((?:[^$\\]|\\.)+?)\$\$|(?<![$\d])\$(?![\s$])((?:[^$\\]|\\.)*?[^\s$\\]|[^\s$\\])\$(?![\d$])|(?<![\p{L}\p{N}_])(_{3,})(?![\p{L}\p{N}_])/uy;
+
+interface Scan {
+  readonly at: RegExp;
+  readonly start: RegExp;
+}
+
+const MATH: Scan = { at: MATH_AT, start: /[`\\$_]/g };
+const CELL: Scan = {
+  at: new RegExp(MATH_AT.source + "|\\|", "uy"),
+  start: /[`\\$_|]/g,
+};
+const PAREN_OPEN = "\\(";
+const ENV_OPEN = "\\begin{math}";
+
+function spansOf(src: string, scan: Scan): RegExpExecArray[] {
+  const found: RegExpExecArray[] = [];
+  const paren = src.lastIndexOf("\\)");
+  const env = src.lastIndexOf("\\end{math}");
+  let at = 0;
+  for (;;) {
+    scan.start.lastIndex = at;
+    const next = scan.start.exec(src);
+    if (!next) return found;
+    at = next.index;
+    const unclosed =
+      (src.startsWith(PAREN_OPEN, at) && paren < at + PAREN_OPEN.length) ||
+      (src.startsWith(ENV_OPEN, at) && env < at + ENV_OPEN.length);
+    if (unclosed) {
+      at += 2;
+      continue;
+    }
+    scan.at.lastIndex = at;
+    const match = scan.at.exec(src);
+    if (match) found.push(match);
+    at += match ? match[0].length : 1;
+  }
+}
 
 export function splitPipes(line: string): string[] {
   const parts: string[] = [];
   let from = 0;
-  for (const match of line.matchAll(CELL_PIPE)) {
+  for (const match of spansOf(line, CELL)) {
     if (match[0] !== "|") continue;
     parts.push(line.slice(from, match.index));
     from = match.index + 1;
@@ -65,13 +102,35 @@ function mask(src: string, held: string[]): string {
   return out;
 }
 
-function unmask(src: string, held: string[], raw = false): string {
-  return src.replace(new RegExp(HOLD + "(\\d+)" + HOLD, "g"), (_, i: string) =>
-    held[Number(i)] === undefined ? "" : (raw ? "\\" : "") + held[Number(i)],
-  );
+const LINK_TAIL = /\]\((?:[^()\s]|\([^()\s]*\))*\)/y;
+
+function maskBrackets(src: string): string {
+  if (!src.includes("[")) return src;
+  const parts: string[] = [];
+  let end = src.length;
+  let opens = false;
+  for (let i = src.length - 1; i >= 0; i--) {
+    if (src[i] === "]") {
+      LINK_TAIL.lastIndex = i;
+      opens = LINK_TAIL.test(src);
+    } else if (src[i] === "[" && !opens) {
+      parts.push(src.slice(i + 1, end));
+      end = i;
+    }
+  }
+  parts.push(src.slice(0, end));
+  return parts.reverse().join(BRACKET);
 }
 
-const PUNCT = "\\p{P}\\p{S}\\u0001\\u0002";
+function unmask(src: string, held: string[], raw = false): string {
+  return src
+    .replace(new RegExp(HOLD + "(\\d+)" + HOLD, "g"), (_, i: string) =>
+      held[Number(i)] === undefined ? "" : (raw ? "\\" : "") + held[Number(i)],
+    )
+    .replaceAll(BRACKET, "[");
+}
+
+const PUNCT = "\\p{P}\\p{S}\\u0001\\u0002\\u0004";
 const WORD = "\\p{L}\\p{N}";
 
 const opening = (ch: string, n: number): string => {
@@ -336,62 +395,61 @@ export function parseInline(src: string): Inline[] {
   return inlineOf(src, false);
 }
 
+function liftSpan(match: RegExpExecArray, lifted: Inline[]): string {
+  const [whole, , env, paren, double, single, blank] = match;
+  if (blank !== undefined) {
+    lifted.push({ type: "blank", width: blank.length });
+    return MATH_HOLD + (lifted.length - 1) + MATH_HOLD;
+  }
+  const open: MathOpen | null =
+    env !== undefined
+      ? "\\begin{math}"
+      : paren !== undefined
+        ? "\\("
+        : double !== undefined
+          ? "$$"
+          : single !== undefined
+            ? "$"
+            : null;
+  if (open === null) return whole;
+  if (open === "$" && !dollarMath(single ?? "")) return whole;
+  lifted.push({
+    type: "math",
+    open,
+    value: env ?? paren ?? double ?? single ?? "",
+  });
+  return MATH_HOLD + (lifted.length - 1) + MATH_HOLD;
+}
+
+function liftSpans(src: string, lifted: Inline[]): string {
+  let out = "";
+  let from = 0;
+  for (const match of spansOf(src, MATH)) {
+    out += src.slice(from, match.index) + liftSpan(match, lifted);
+    from = match.index + match[0].length;
+  }
+  return out + src.slice(from);
+}
+
+function hardBreaks(masked: string): string {
+  return masked.replace(
+    INLINE_BREAK,
+    (whole, ticks: string | undefined, at: number, all: string) =>
+      ticks !== undefined
+        ? whole
+        : at + whole.length === all.length
+          ? ""
+          : HARD + "\n",
+  );
+}
+
 export function inlineOf(src: string, breaks: boolean): Inline[] {
   const held: string[] = [];
   const lifted: Inline[] = [];
-  const source = src
-    .split(HOLD)
-    .join("")
-    .split(MATH_HOLD)
-    .join("")
-    .replace(
-      MATH_SPAN,
-      (
-        whole,
-        _ticks: string | undefined,
-        env: string | undefined,
-        paren: string | undefined,
-        double: string | undefined,
-        single: string | undefined,
-        blank: string | undefined,
-      ) => {
-        if (blank !== undefined) {
-          lifted.push({ type: "blank", width: blank.length });
-          return MATH_HOLD + (lifted.length - 1) + MATH_HOLD;
-        }
-        const open: MathOpen | null =
-          env !== undefined
-            ? "\\begin{math}"
-            : paren !== undefined
-              ? "\\("
-              : double !== undefined
-                ? "$$"
-                : single !== undefined
-                  ? "$"
-                  : null;
-        if (open === null) return whole;
-        if (open === "$" && !dollarMath(single ?? "")) return whole;
-        lifted.push({
-          type: "math",
-          open,
-          value: env ?? paren ?? double ?? single ?? "",
-        });
-        return MATH_HOLD + (lifted.length - 1) + MATH_HOLD;
-      },
-    );
-  const masked = mask(source, held);
+  const clean = src.replace(/[\u0001\u0002\u0004]/g, "");
+  const masked = mask(liftSpans(clean, lifted), held);
   return parseInlineMasked(
-    breaks
-      ? masked.replace(
-          INLINE_BREAK,
-          (whole, ticks: string | undefined, at: number, all: string) =>
-            ticks !== undefined
-              ? whole
-              : at + whole.length === all.length
-                ? ""
-                : HARD + "\n",
-        )
-      : masked,
+    maskBrackets(breaks ? hardBreaks(masked) : masked),
     held,
     lifted,
   );
