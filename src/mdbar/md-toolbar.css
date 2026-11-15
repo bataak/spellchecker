@@ -200,7 +200,7 @@
 .md-menu-group {
   padding: 8px 10px 4px;
   color: var(--muted);
-  font-size: 0.85em;
+  font-size: 0.72em;
   font-weight: 600;
 }
 
@@ -214,6 +214,7 @@
   background: none;
   color: inherit;
   font: inherit;
+  font-size: 0.8em;
   text-align: start;
   white-space: nowrap;
   cursor: pointer;

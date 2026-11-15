@@ -648,7 +648,7 @@ a.tbtn {
   background: none;
   color: var(--ink);
   font: inherit;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   cursor: pointer;
 }
 
@@ -668,7 +668,7 @@ a.tbtn {
 
 .measure-write > kbd {
   font: inherit;
-  font-size: 0.75rem;
+  font-size: 0.9em;
   color: var(--muted);
 }
 
