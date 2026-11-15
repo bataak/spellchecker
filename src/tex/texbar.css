@@ -157,6 +157,14 @@
   padding-bottom: 4px;
 }
 
+.tex-pop .md-menu-group {
+  font-size: 0.72em;
+}
+
+.tex-pop .md-menu-item {
+  font-size: 0.85em;
+}
+
 .tex-item {
   display: flex;
   align-items: baseline;
@@ -304,6 +312,14 @@
 
   .tex-search {
     font-size: 16px;
+  }
+
+  .tex-pop .md-menu-group {
+    font-size: 0.85em;
+  }
+
+  .tex-pop .md-menu-item {
+    font-size: inherit;
   }
 
   .tex-code {
