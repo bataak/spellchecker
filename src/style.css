@@ -369,6 +369,14 @@ a.tbtn {
 .tbtn:active {
   transform: translateY(1px);
 }
+.tbtn:disabled,
+.tbtn:disabled:hover {
+  cursor: default;
+  opacity: 0.5;
+}
+.tbtn:disabled:hover:not(.suggest-send) {
+  border-color: var(--line);
+}
 .openctl {
   display: inline-flex;
   align-items: center;
