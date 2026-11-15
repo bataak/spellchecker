@@ -214,7 +214,7 @@
   background: none;
   color: inherit;
   font: inherit;
-  font-size: 0.8em;
+  font-size: 0.85em;
   text-align: start;
   white-space: nowrap;
   cursor: pointer;
@@ -236,8 +236,13 @@
 }
 
 @media (pointer: coarse) {
+  .md-menu-group {
+    font-size: 0.85em;
+  }
+
   .md-menu-item {
     min-height: 44px;
+    font-size: inherit;
   }
 }
 
