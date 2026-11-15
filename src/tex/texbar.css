@@ -47,18 +47,23 @@
 .md-bar .tex-group .tex-btn[data-tool="bold"] {
   font-family: var(--sans);
   font-size: calc(var(--tex-text) * 1.4);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .md-bar .tex-group .tex-btn[data-tool="italic"] {
+  padding-top: 11px;
   font-size: calc(var(--tex-text) * 1.53);
   font-style: italic;
+}
+
+.md-bar .tex-group .tex-btn:is([data-tool="structure"], [data-tool="italic"]) {
+  -webkit-text-stroke: 0.4px currentColor;
 }
 
 .md-bar .tex-group .tex-btn[data-tool="font"] {
   font-family: var(--sans);
   font-size: calc(var(--tex-text) * 1.4);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .tex-glyph {
@@ -192,6 +197,7 @@
   background: var(--paper);
   color: var(--ink);
   font: inherit;
+  font-size: 0.8em;
 }
 
 .tex-search:focus-visible {
@@ -228,7 +234,7 @@
   background: none;
   color: var(--muted);
   font: inherit;
-  font-size: 0.85em;
+  font-size: 0.8em;
   cursor: pointer;
 }
 
@@ -293,6 +299,10 @@
 
   .tex-tab {
     padding-block: 9px;
+  }
+
+  .tex-search {
+    font-size: 16px;
   }
 }
 
