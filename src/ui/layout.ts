@@ -246,6 +246,10 @@ export function chooseLayout(
   };
 }
 
+export function writeLayout(l: Layout): Layout {
+  return { ...l, panel: false, preview: false };
+}
+
 export function projectViewport(
   full: number,
   room: number,

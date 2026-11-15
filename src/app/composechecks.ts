@@ -6,6 +6,8 @@ import { createPopovers } from "./popovers.ts";
 import { createEditorWiring } from "./editorwiring.ts";
 import { initAppearance } from "../ui/appearance.ts";
 import { initMeasureControl } from "../ui/measure.ts";
+import { createWriteMode, writeTools } from "../ui/writemode.ts";
+import { detectPlatform } from "../editor/shortcuts.ts";
 
 type ChecksReads =
   | "controls"
@@ -148,11 +150,23 @@ export function composeEditing(app: Scope<EditingReads, EditingGives>): void {
   app.provide({ editorText, fixFlow, fixers, draft });
 
   initAppearance(app.controls.appearance);
+  const writeMode = createWriteMode();
+  const writeKey = detectPlatform().mac ? "⌘⇧F" : "Ctrl+Shift+F";
   const measureCtl = initMeasureControl(
     els.editorWrap,
     els.editor,
     app.layoutChanged.emit,
+    { mode: writeMode, shortcut: writeKey },
   );
+  writeMode.onChange(() => measureCtl.refresh());
+  const tools = els.editorWrap.querySelector<HTMLElement>(".editor-tools");
+  if (tools)
+    writeTools(
+      tools,
+      writeMode,
+      document.querySelector<HTMLButtonElement>("#defineBtn"),
+      writeKey,
+    );
   app.provide({ measureCtl });
   defDock.sync(measureCtl.layout().panel);
   app.layoutChanged.on((l) => defDock.sync(l.panel));

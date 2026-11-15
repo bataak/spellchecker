@@ -633,6 +633,87 @@ a.tbtn {
   display: contents;
 }
 
+.measure-write {
+  grid-column: 1 / -1;
+  justify-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 3px;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-top-color: var(--line);
+  border-radius: 7px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.measure-write:hover {
+  border-color: var(--line);
+}
+
+.measure-write:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.measure-write[aria-checked="true"] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.measure-write > kbd {
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+:root[data-write="on"] .topbar,
+:root[data-write="on"] .toolbar {
+  display: none;
+}
+
+.write-tool {
+  display: none;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--editor-bg) 72%, transparent);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  opacity: 0;
+  backdrop-filter: blur(12px) saturate(125%);
+  -webkit-backdrop-filter: blur(12px) saturate(125%);
+  transition: opacity 0.15s ease;
+}
+
+.editor-tools:hover .write-tool,
+.write-tool:focus-visible {
+  opacity: 1;
+}
+
+.write-tool:hover,
+.write-tool:focus-visible {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+@media (hover: none) {
+  .write-tool {
+    opacity: 1;
+  }
+}
+
+:root[data-write="on"] .write-tool {
+  display: inline-flex;
+}
+
 .measure-thumb {
   display: block;
   height: 30px;

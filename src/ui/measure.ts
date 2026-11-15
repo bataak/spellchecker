@@ -10,6 +10,7 @@ import {
   serializeLayout,
   showsControl,
   chooseLayout,
+  writeLayout,
   type Layout,
   type LayoutChoice,
   type Metrics,
@@ -18,6 +19,7 @@ import { KEYS, read, remove, write, writeJson } from "../core/store.ts";
 import { onSlotChange, placeTalkSlot, talkFloats } from "./talkslot.ts";
 import { bindMenu, buildControl, paintMenu } from "./measuremenu.ts";
 import { createToolbarFit } from "./measuretoolbar.ts";
+import type { WriteMode } from "./writemode.ts";
 import {
   px,
   measureVar,
@@ -266,6 +268,17 @@ function publishPreviewMeasure(
   );
 }
 
+function chooser(
+  desired: Layout,
+  previewBlocked: boolean,
+  previewMode: boolean,
+  writeOn: boolean,
+): (fit: Layout[]) => LayoutChoice {
+  const want = writeOn ? writeLayout(desired) : desired;
+  return (fit) =>
+    chooseLayout(fit, want, previewBlocked, previewMode && !writeOn);
+}
+
 function returnDecodeButtons(wrap: HTMLElement, tools: HTMLElement): void {
   wrap.append(...tools.querySelectorAll<HTMLElement>(".decode-btn"));
   tools.remove();
@@ -275,6 +288,7 @@ export function initMeasureControl(
   wrap: HTMLElement,
   area: HTMLElement,
   onChange?: (l: Layout) => void,
+  writing?: { readonly mode: WriteMode; readonly shortcut: string },
 ): MeasureControl {
   const control = buildControl(wrap);
   const { ctl, btn, menu, tools } = control;
@@ -303,6 +317,7 @@ export function initMeasureControl(
   };
 
   const pick = (l: Layout): void => {
+    if (l.panel || l.preview) writing?.mode.set(false);
     desired = l;
     previewMode = false;
     if (mdMode && l.preview !== mdPreview) {
@@ -319,8 +334,12 @@ export function initMeasureControl(
     metrics = readMetrics(area, wrap, persistMetrics);
     publishMetrics(metrics);
 
-    const choose = (fit: Layout[]): LayoutChoice =>
-      chooseLayout(fit, desired, previewBlocked, previewMode);
+    const choose = chooser(
+      desired,
+      previewBlocked,
+      previewMode,
+      writing?.mode.on() ?? false,
+    );
 
     const { viewport, offered } = settleViewport(wrap, metrics, choose, prev);
     const fit = available(metrics, viewport, prev);
@@ -336,7 +355,7 @@ export function initMeasureControl(
     const menuAvail = offered ?? avail;
     ctl.hidden = !showsControl(menuAvail);
     if (ctl.hidden) close();
-    else paintMenu(control, menuAvail, active, metrics, pick);
+    else paintMenu(control, menuAvail, active, metrics, pick, writing);
   }
 
   const unbindMenu = bindMenu(control, close);

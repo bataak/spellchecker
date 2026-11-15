@@ -12,6 +12,7 @@ import {
   type Metrics,
 } from "./layout.ts";
 import { eventNode } from "./dom.ts";
+import type { WriteMode } from "./writemode.ts";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -141,12 +142,29 @@ function layoutOption(
   return opt;
 }
 
+function writeOption(mode: WriteMode, shortcut: string): HTMLButtonElement {
+  const opt = document.createElement("button");
+  opt.type = "button";
+  opt.className = "measure-write";
+  opt.setAttribute("role", "menuitemcheckbox");
+  opt.setAttribute("aria-checked", String(mode.on()));
+  opt.title = `Зөвхөн бичвэрийг үлдээж, бусдыг нууна (${shortcut})`;
+  const label = document.createElement("span");
+  label.textContent = "Бичих горим";
+  const keys = document.createElement("kbd");
+  keys.textContent = shortcut;
+  opt.append(label, keys);
+  opt.addEventListener("click", () => mode.set(!mode.on()));
+  return opt;
+}
+
 export function paintMenu(
   { btn, menu }: Control,
   avail: readonly Layout[],
   active: Layout,
   metrics: Metrics,
   pick: (l: Layout) => void,
+  writing?: { readonly mode: WriteMode; readonly shortcut: string },
 ): void {
   const widest = Math.max(
     ...ALL_LAYOUTS.map((l) => contentWidth(l, metrics)),
@@ -164,6 +182,7 @@ export function paintMenu(
       );
     menu.append(line);
   }
+  if (writing) menu.append(writeOption(writing.mode, writing.shortcut));
 }
 
 export function bindMenu(control: Control, close: () => void): () => void {

@@ -87,6 +87,10 @@ export const KEYMAP: readonly ShortcutGroup[] = [
       { keys: [["Mod", "-"]], action: "Үсэг жижгэрүүлэх" },
       { keys: [["Mod", "0"]], action: "Үсгийн анхны хэмжээг сэргээх" },
       { keys: [["Mod", "Shift", "D"]], action: "Гэрэлтэй / бараан горим" },
+      {
+        keys: [["Mod", "Shift", "F"]],
+        action: "Бичих горим: зөвхөн бичвэрийг үлдээх",
+      },
     ],
   },
   {
