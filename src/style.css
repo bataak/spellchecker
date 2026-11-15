@@ -2296,6 +2296,21 @@ html.booting .empty-state {
   transform: scaleX(-1);
 }
 
+@media (min-width: 701px) and (pointer: fine) {
+  :root:not([data-pane="preview"]) .pane-toggle {
+    right: auto;
+    left: calc(100% + 1px);
+    width: calc(var(--panel-gap) - 2px);
+    border-radius: 6px;
+    transform: translateY(-50%);
+  }
+
+  :root:not([data-pane="preview"]) .pane-toggle-glyph {
+    width: 10px;
+    height: 10px;
+  }
+}
+
 @media (max-width: 700px) {
   .pane-toggle {
     right: calc(-1 * max(14px, env(safe-area-inset-right)));
