@@ -62,33 +62,18 @@ export function createWriteMode(): WriteMode {
   };
 }
 
-function toolButton(label: string, title: string): HTMLButtonElement {
-  const node = document.createElement("button");
-  node.type = "button";
-  node.className = "write-tool";
-  node.textContent = label;
-  node.title = title;
-  node.addEventListener("mousedown", (e) => e.preventDefault());
-  return node;
-}
-
 export function writeTools(
   tools: HTMLElement,
   mode: WriteMode,
-  define: HTMLButtonElement | null,
   shortcut: string,
 ): () => void {
-  const nodes: HTMLButtonElement[] = [];
-  if (define) {
-    const word = toolButton("Тайлбар", define.title);
-    word.addEventListener("click", () => define.click());
-    nodes.push(word);
-  }
-  const exit = toolButton("Гарах", `Бичих горимоос гарах (${shortcut})`);
+  const exit = document.createElement("button");
+  exit.type = "button";
+  exit.className = "write-tool";
+  exit.textContent = "Гарах";
+  exit.title = `Бичих горимоос гарах (${shortcut})`;
+  exit.addEventListener("mousedown", (e) => e.preventDefault());
   exit.addEventListener("click", () => mode.set(false));
-  nodes.push(exit);
-  tools.prepend(...nodes);
-  return () => {
-    for (const node of nodes) node.remove();
-  };
+  tools.prepend(exit);
+  return () => exit.remove();
 }

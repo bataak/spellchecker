@@ -68,20 +68,14 @@ test("createWriteMode: товчлолоор асааж унтрааж, төлө�
   assert.equal(createWriteMode().on(), false);
 });
 
-test("writeTools: тайлбарын товч defineBtn-ийг дарж, Гарах товч горимоос гаргана", () => {
+test("writeTools: Гарах товч горимоос гаргана", () => {
   resetStorage();
   const mode = createWriteMode();
   mode.set(true);
   const tools = document.createElement("div");
-  const define = document.createElement("button");
-  define.title = "Үгийн тайлбар харах";
-  let defined = 0;
-  define.addEventListener("click", () => defined++);
 
-  const remove = writeTools(tools, mode, define, "Ctrl+Shift+F");
-  const [word, exit] = tools.querySelectorAll<HTMLButtonElement>(".write-tool");
-  word!.click();
-  assert.equal(defined, 1);
+  const remove = writeTools(tools, mode, "Ctrl+Shift+F");
+  const exit = tools.querySelector<HTMLButtonElement>(".write-tool");
   assert.match(exit!.title, /Ctrl\+Shift\+F/);
   exit!.click();
   assert.equal(mode.on(), false);

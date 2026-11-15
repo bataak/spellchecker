@@ -160,13 +160,7 @@ export function composeEditing(app: Scope<EditingReads, EditingGives>): void {
   );
   writeMode.onChange(() => measureCtl.refresh());
   const tools = els.editorWrap.querySelector<HTMLElement>(".editor-tools");
-  if (tools)
-    writeTools(
-      tools,
-      writeMode,
-      document.querySelector<HTMLButtonElement>("#defineBtn"),
-      writeKey,
-    );
+  if (tools) writeTools(tools, writeMode, writeKey);
   app.provide({ measureCtl });
   defDock.sync(measureCtl.layout().panel);
   app.layoutChanged.on((l) => defDock.sync(l.panel));
