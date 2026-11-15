@@ -44,9 +44,9 @@ export const ICON = {
     '<path d="M5.5 2.5c-1.6 0-1.6 1.2-1.6 2.7S3.8 8 2.3 8c1.5 0 1.6 1.3 1.6 2.8s0 2.7 1.6 2.7"/>' +
     '<path d="M8 5.3h6M8 10.7h6"/>',
   fraction:
-    '<rect x="5" y="1.8" width="6" height="4.6" rx="1"/>' +
+    '<rect x="5" y="2" width="6" height="3.4" rx="1"/>' +
     '<path d="M2.5 8h11"/>' +
-    '<rect x="5" y="9.6" width="6" height="4.6" rx="1"/>',
+    '<rect x="5" y="10.6" width="6" height="3.4" rx="1"/>',
   enter:
     '<path d="M13.5 3v4.8a2.2 2.2 0 0 1-2.2 2.2H3"/>' +
     '<path d="M6.2 6.8L3 10l3.2 3.2"/>',
@@ -69,7 +69,7 @@ const INK: Record<IconName, string> = {
   environment: "0.8 1.8 14.4 12.4",
   matrix: "2.1 1.8 11.7 12.4",
   system: "1.6 1.8 13.1 12.4",
-  fraction: "1.8 1.1 12.4 13.8",
+  fraction: "1.8 1.3 12.4 13.4",
   enter: "2.3 2.3 11.9 11.6",
 };
 

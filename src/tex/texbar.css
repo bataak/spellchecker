@@ -157,14 +157,6 @@
   padding-bottom: 4px;
 }
 
-.tex-pop .md-menu-group {
-  font-size: 0.72em;
-}
-
-.tex-pop .md-menu-item {
-  font-size: 0.85em;
-}
-
 .tex-item {
   display: flex;
   align-items: baseline;
@@ -183,7 +175,7 @@
   flex: none;
   color: var(--muted);
   font-family: var(--mono);
-  font-size: 0.9em;
+  font-size: 0.78em;
 }
 
 .tex-pop.is-palette {
@@ -312,18 +304,6 @@
 
   .tex-search {
     font-size: 16px;
-  }
-
-  .tex-pop .md-menu-group {
-    font-size: 0.85em;
-  }
-
-  .tex-pop .md-menu-item {
-    font-size: inherit;
-  }
-
-  .tex-code {
-    font-size: 0.78em;
   }
 
   .tex-label {
