@@ -1,5 +1,5 @@
 # mn_MN.aff
-# Version: 2026.11.10
+# Version: 2026.11.15
 # Copyright 2020-2026, Batmunkh Dorjgotov <bataak at gmail tseg com>
 #   https://zuv.bichig.dev
 #
@@ -4289,10 +4289,10 @@ MAP їүЇҮ
 MAP ѳөѲӨ
 
 CMAP 4
-CMAP а у ы
-CMAP э ү ий
-CMAP о у ы
-CMAP ө ү ий
+CMAP а у ы ё
+CMAP э ү ий е
+CMAP о у ы ё
+CMAP ө ү ий е
 
 KEY ещ|фцужэнгшүзкъ|йыбөахролдп|ячёсмитьвю|фйц|ыйн|цыу|быч|ын|
 убж|өбё|бч|жөэ|аөс|өё|эая|хам|ас|яхг|рхи|хм|грш|орт|ри|шоү|лот
