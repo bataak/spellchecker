@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.126.0](https://github.com/bataak/spellchecker/compare/v1.125.2...v1.126.0) (2026-11-15)
+
+
+### Features
+
+* **dict:** update mn_MN to 2026.11.15 ([e623f2c](https://github.com/bataak/spellchecker/commit/e623f2c035c37c495f8aff6c9230dfbcec9d942f))
+* **ui:** add a write mode that hides everything but the text ([2ff65bb](https://github.com/bataak/spellchecker/commit/2ff65bbdd8b76f0be5573c095b88c20fe583a532))
+
+
+### Bug Fixes
+
+* **tex:** even out toolbar icon weights and palette text sizes ([4c67364](https://github.com/bataak/spellchecker/commit/4c67364a1fd5a3eac731f450dbea82727eb85d6e))
+* **tex:** space out the fraction icon and restore LaTeX menu text size ([daa709d](https://github.com/bataak/spellchecker/commit/daa709d97dd50ff7e726fc235e77868c76ea9dfe))
+* **ui:** dim disabled buttons so a pending invite looks inactive ([026edc3](https://github.com/bataak/spellchecker/commit/026edc3126e218283539acc025f3d471a7de8755))
+* **ui:** keep the preview toggle clear of the editor scrollbar on desktop ([6651965](https://github.com/bataak/spellchecker/commit/66519656cfa9be34332ff8764c5558413dc6ab74))
+* **ui:** restore the main and open menus to their original text size ([069d7ef](https://github.com/bataak/spellchecker/commit/069d7ef5c122e3d703dea2897acdf7fceaca1d20))
+* **ui:** size menu text like group labels on desktop, keep phones as before ([aeb1968](https://github.com/bataak/spellchecker/commit/aeb196824bda919b42444ada3320180d80169c66))
+* **ui:** use one smaller text size across dropdown menus ([7a5c0db](https://github.com/bataak/spellchecker/commit/7a5c0db2a805557e062ba8eaa30e126addf6c15e))
+
 ## [1.125.2](https://github.com/bataak/spellchecker/compare/v1.125.1...v1.125.2) (2026-11-12)
 
 
