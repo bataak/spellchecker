@@ -90,14 +90,6 @@ const EN: KeyMap = {
 const MAPS: Readonly<Record<Layout, KeyMap>> = { mn: MN, en: EN };
 const LETTER = /\p{L}/u;
 const BADGE_MS = 1100;
-const MODIFIER_KEYS = new Set([
-  "Control",
-  "Shift",
-  "Alt",
-  "Meta",
-  "AltGraph",
-  "CapsLock",
-]);
 
 export function mapKey(
   layout: Layout,
@@ -251,13 +243,17 @@ function createBadge() {
   badge.hidden = true;
   document.body.append(badge);
   let timer = 0;
+  let frame = 0;
+  const place = (field: Field): void => {
+    const caret = anchorPoint(field);
+    badge.style.left = caret.x + 4 + "px";
+    badge.style.top = caret.y + caret.height + 2 + "px";
+  };
   return {
     show(layout: Layout, field: Field): void {
-      const caret = anchorPoint(field);
       badge.textContent = label(layout);
       badge.dataset.layout = layout;
-      badge.style.left = caret.x + 4 + "px";
-      badge.style.top = caret.y + caret.height + 2 + "px";
+      place(field);
       badge.hidden = false;
       badge.classList.remove("layout-badge-out");
       clearTimeout(timer);
@@ -268,8 +264,16 @@ function createBadge() {
         }, 200);
       }, BADGE_MS);
     },
+    follow(field: Field): void {
+      if (badge.hidden) return;
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (!badge.hidden) place(field);
+      });
+    },
     hide(): void {
       clearTimeout(timer);
+      cancelAnimationFrame(frame);
       badge.hidden = true;
     },
   };
@@ -359,7 +363,7 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): KeyboardLayout {
           toggle(event, field);
           return;
         }
-        if (!MODIFIER_KEYS.has(event.key)) badge.hide();
+        badge.follow(field);
         if (!forced) learnSystem(event);
         else typeMapped(event, field, forced);
       },
