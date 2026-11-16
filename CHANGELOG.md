@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.127.1](https://github.com/bataak/spellchecker/compare/v1.127.0...v1.127.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* **editor:** hide layout badge on typing, widen plain-mode placeholder margins ([0e106ba](https://github.com/bataak/spellchecker/commit/0e106ba5f20479d77c14c727f9fce8b01fa8318f))
+* **editor:** keep layout badge following the caret until it fades ([6219603](https://github.com/bataak/spellchecker/commit/6219603188a1e81261accb243441f467e29ad62a))
+
 ## [1.127.0](https://github.com/bataak/spellchecker/compare/v1.126.2...v1.127.0) (2026-11-16)
 
 
