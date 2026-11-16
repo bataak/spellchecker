@@ -15,6 +15,8 @@ const BULLET = /^([-*+])[ \t]+/;
 
 const ORDERED = /^(\d+)[.)][ \t]+/;
 
+const INDENT = /^[ \t]*/;
+
 const ANY_BULLET = /^\s*[-*+]\s+/;
 
 const ANY_ORDERED = /^\s*\d+[.)]\s+/;
@@ -112,6 +114,16 @@ function trimSpan(text: string, start: number, end: number): [number, number] {
   return [s, e];
 }
 
+function markerPattern(marker: string): RegExp {
+  if (marker === "*") return /(?<!\*)\*(?!\*)/g;
+  return new RegExp(marker.replace(/[*`]/g, "\\$&"), "g");
+}
+
+function pairedInside(content: string, marker: string): boolean {
+  const n = content.match(markerPattern(marker))?.length ?? 0;
+  return n > 0 && n % 2 === 0;
+}
+
 function spanWrapped(
   text: string,
   s: number,
@@ -119,9 +131,9 @@ function spanWrapped(
   marker: string,
 ): boolean {
   const ch = marker[0]!;
-  return wrapped(
-    Math.min(runBefore(text, s, ch), runAfter(text, e, ch)),
-    marker,
+  return (
+    wrapped(Math.min(runBefore(text, s, ch), runAfter(text, e, ch)), marker) &&
+    !pairedInside(text.slice(s, e), marker)
   );
 }
 
@@ -192,8 +204,10 @@ export function toggleWrap(
     };
   }
 
+  const inside = text.slice(s, e);
+  const paired = pairedInside(inside, marker);
   const outer = Math.min(runBefore(text, s, ch), runAfter(text, e, ch));
-  if (wrapped(outer, marker)) {
+  if (wrapped(outer, marker) && !paired) {
     return {
       text: text.slice(0, s - m) + text.slice(s, e) + text.slice(e + m),
       start: s - m,
@@ -202,11 +216,31 @@ export function toggleWrap(
   }
 
   const inner = Math.min(runAfter(text, s, ch), runBefore(text, e, ch));
-  if (e - s >= 2 * m && inner > 0 && wrapped(inner, marker)) {
+  if (
+    e - s >= 2 * m &&
+    inner > 0 &&
+    wrapped(inner, marker) &&
+    !pairedInside(text.slice(s + m, e - m), marker)
+  ) {
     return {
       text: text.slice(0, s) + text.slice(s + m, e - m) + text.slice(e),
       start: s,
       end: e - 2 * m,
+    };
+  }
+
+  if (paired) {
+    const plain = inside.replace(markerPattern(marker), "");
+    if (wrapped(outer, marker))
+      return {
+        text: text.slice(0, s) + plain + text.slice(e),
+        start: s,
+        end: s + plain.length,
+      };
+    return {
+      text: text.slice(0, s) + marker + plain + marker + text.slice(e),
+      start: s + m,
+      end: s + m + plain.length,
     };
   }
 
@@ -268,7 +302,7 @@ export function cycleCase(text: string, start: number, end: number): Edit {
   const next =
     part === lower && part !== upper
       ? upper
-      : part === upper && part !== lower
+      : part === upper && part !== lower && title !== part
         ? title
         : lower;
   return {
@@ -286,22 +320,28 @@ export function toggleList(
 ): Edit {
   const { lines } = blockLines(text, start, end);
   const kind = ordered ? ORDERED : BULLET;
+  const indentOf = (line: string): string => INDENT.exec(line)![0];
   const filled = lines.filter((l) => l.trim());
-  const off = filled.length > 0 && filled.every((l) => kind.test(l));
+  const off =
+    filled.length > 0 &&
+    filled.every((l) => kind.test(l.slice(indentOf(l).length)));
 
-  let n = 0;
+  const counts = new Map<number, number>();
   return mapPrefix(text, start, end, (line) => {
     if (!line.trim()) return null;
-    const head = HEADING.exec(line);
-    const rest = line.slice(head?.[0].length ?? 0);
+    const indent = indentOf(line);
+    const body = line.slice(indent.length);
+    const head = HEADING.exec(body);
+    const rest = body.slice(head?.[0].length ?? 0);
     const marker = BULLET.exec(rest) ?? ORDERED.exec(rest);
-    const drop = (head?.[0].length ?? 0) + (marker?.[0].length ?? 0);
-    if (off) {
-      if (drop === 0) return null;
-      return { drop, add: "" };
-    }
-    n += 1;
-    return { drop, add: ordered ? `${String(n)}. ` : "- " };
+    const drop =
+      indent.length + (head?.[0].length ?? 0) + (marker?.[0].length ?? 0);
+    if (off) return { drop, add: indent };
+    for (const depth of counts.keys())
+      if (depth > indent.length) counts.delete(depth);
+    const n = (counts.get(indent.length) ?? 0) + 1;
+    counts.set(indent.length, n);
+    return { drop, add: indent + (ordered ? `${String(n)}. ` : "- ") };
   });
 }
 

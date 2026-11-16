@@ -179,3 +179,25 @@ test("их хэмжээний бичвэрийг execCommand-гүй оруулж
   key(editor, "z");
   assert.equal(editor.value, "эхлэл\n");
 });
+
+test("execCommand ажиллахгүй үед цэвэрлэсэн бичвэрийг Ctrl+Z-оор сэргээнэ", () => {
+  const editor = editorWith("бичвэр\nнэмсэн үгс");
+  initUndoHistory({ editor, slot: () => "hidden-clear" });
+  const text = initEditorText({
+    editor,
+    onEdit: () => {},
+    onReplace: () => {},
+    accept: () => true,
+    onReplaced: () => {},
+  });
+  const saved = document.execCommand;
+  document.execCommand = () => false;
+  try {
+    text.set("", 0);
+  } finally {
+    document.execCommand = saved;
+  }
+  assert.equal(editor.value, "");
+  key(editor, "z");
+  assert.equal(editor.value, "бичвэр\nнэмсэн үгс");
+});

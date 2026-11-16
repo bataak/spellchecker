@@ -506,6 +506,10 @@ a.tbtn {
   display: flex;
 }
 
+.measure-ctl[hidden] {
+  display: none;
+}
+
 .measure-btn {
   display: inline-flex;
   align-items: center;
