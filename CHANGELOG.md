@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.126.1](https://github.com/bataak/spellchecker/compare/v1.126.0...v1.126.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* **editor:** keep clearing undoable while the preview hides the editor ([#329](https://github.com/bataak/spellchecker/issues/329)) ([afe82bf](https://github.com/bataak/spellchecker/commit/afe82bfba87af99e005fb1908d60b5d8be0f8ce9))
+* **md:** case cycling on one letter, bold over mixed spans, indented list toggling ([#331](https://github.com/bataak/spellchecker/issues/331), [#332](https://github.com/bataak/spellchecker/issues/332), [#333](https://github.com/bataak/spellchecker/issues/333)) ([042e4cf](https://github.com/bataak/spellchecker/commit/042e4cfcb0fc450f4268386831d46e8dc5135885))
+* **ui:** hide the layout control when only one layout fits ([#330](https://github.com/bataak/spellchecker/issues/330)) ([799e664](https://github.com/bataak/spellchecker/commit/799e664cd923d39660aa5cafe9eeb5f4d9f5fb0a))
+
 ## [1.126.0](https://github.com/bataak/spellchecker/compare/v1.125.2...v1.126.0) (2026-11-15)
 
 
