@@ -52,5 +52,17 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
+      - id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          head=$(gh api "repos/${{ github.repository }}/commits/main" --jq .sha)
+          if [ "$head" = "${{ github.sha }}" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "current=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::${{ github.sha }} is not main HEAD ($head); skipping deploy"
+          fi
       - id: deploy
+        if: steps.latest.outputs.current == 'true'
         uses: actions/deploy-pages@v5
