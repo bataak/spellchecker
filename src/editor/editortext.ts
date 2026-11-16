@@ -233,6 +233,29 @@ export function initEditorText(deps: EditorTextDeps): EditorText {
   const { editor } = deps;
   let programmaticEdit = false;
 
+  function programmatic(edit: () => void): void {
+    const before = editor.value;
+    let announced = false;
+    const heard = (): void => {
+      announced = true;
+    };
+    editor.addEventListener("input", heard);
+    programmaticEdit = true;
+    try {
+      edit();
+      if (!announced && editor.value !== before)
+        editor.dispatchEvent(
+          new InputEvent("input", {
+            bubbles: true,
+            inputType: "insertReplacementText",
+          }),
+        );
+    } finally {
+      programmaticEdit = false;
+      editor.removeEventListener("input", heard);
+    }
+  }
+
   function set(newText: string, caret: number | null): TextEdit | null {
     deps.onEdit();
     deps.onReplace();
@@ -264,14 +287,11 @@ export function initEditorText(deps: EditorTextDeps): EditorText {
       commonPrefixLen,
       newText.length - commonSuffixLen,
     );
-    programmaticEdit = true;
-    try {
+    programmatic(() => {
       if (isBulk(slice)) replaceBulk(editor, commonPrefixLen, oldEnd, slice);
       else replaceRange(editor, commonPrefixLen, oldEnd, slice);
-    } finally {
-      programmaticEdit = false;
-    }
-    if (editor.value !== newText) editor.value = newText;
+      if (editor.value !== newText) editor.value = newText;
+    });
     if (caret != null) {
       editor.setSelectionRange(caret, caret);
     }
@@ -286,13 +306,10 @@ export function initEditorText(deps: EditorTextDeps): EditorText {
   function insert(text: string, start: number, end: number): void {
     deps.onEdit();
     editor.focus({ preventScroll: true });
-    programmaticEdit = true;
-    try {
+    programmatic(() => {
       if (isBulk(text)) replaceBulk(editor, start, end, text);
       else replaceRange(editor, start, end, text);
-    } finally {
-      programmaticEdit = false;
-    }
+    });
     deps.onReplaced();
   }
 
