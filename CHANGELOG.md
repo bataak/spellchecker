@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.127.0](https://github.com/bataak/spellchecker/compare/v1.126.2...v1.127.0) (2026-11-16)
+
+
+### Features
+
+* **suggest:** store and resend the server-issued pass ([7585dd5](https://github.com/bataak/spellchecker/commit/7585dd57e78e77497c41e584bb69425ac631cbc4))
+
 ## [1.126.2](https://github.com/bataak/spellchecker/compare/v1.126.1...v1.126.2) (2026-11-16)
 
 
