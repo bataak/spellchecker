@@ -90,6 +90,14 @@ const EN: KeyMap = {
 const MAPS: Readonly<Record<Layout, KeyMap>> = { mn: MN, en: EN };
 const LETTER = /\p{L}/u;
 const BADGE_MS = 1100;
+const MODIFIER_KEYS = new Set([
+  "Control",
+  "Shift",
+  "Alt",
+  "Meta",
+  "AltGraph",
+  "CapsLock",
+]);
 
 export function mapKey(
   layout: Layout,
@@ -347,8 +355,12 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): KeyboardLayout {
       "keydown",
       (event) => {
         if (event.isComposing) return;
-        if (isToggle(event)) toggle(event, field);
-        else if (!forced) learnSystem(event);
+        if (isToggle(event)) {
+          toggle(event, field);
+          return;
+        }
+        if (!MODIFIER_KEYS.has(event.key)) badge.hide();
+        if (!forced) learnSystem(event);
         else typeMapped(event, field, forced);
       },
       true,
