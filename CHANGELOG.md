@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.126.2](https://github.com/bataak/spellchecker/compare/v1.126.1...v1.126.2) (2026-11-16)
+
+
+### Bug Fixes
+
+* **suggest:** suggest corrections that fix a stem vowel and vowel harmony ([ef6c80f](https://github.com/bataak/spellchecker/commit/ef6c80ff83bba92574905631954ed863cb1d4a7a))
+
 ## [1.126.1](https://github.com/bataak/spellchecker/compare/v1.126.0...v1.126.1) (2026-11-16)
 
 
