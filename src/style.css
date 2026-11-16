@@ -2143,6 +2143,9 @@ html.booting .empty-state {
   content: "";
   flex: 0 0 21%;
 }
+body:not(.preview-mode) .empty-state {
+  padding-inline: clamp(36px, 9%, 112px);
+}
 .empty-state .empty-title {
   margin: 0;
   font-family: var(--serif);
