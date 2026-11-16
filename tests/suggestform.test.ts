@@ -97,6 +97,7 @@ test("suggestForm: хоосон бол илгээхгүй, үгтэй бол и�
       note: "тайлбар",
       turnstileToken: "tok",
       device: posted[0]!.device,
+      pass: "",
     },
   ]);
   assert.equal(note.textContent, "Илгээгдлээ, баярлалаа!");
@@ -132,6 +133,7 @@ test("suggestForm: алдаатай байж магадгүй үгийг эхн�
       note: "",
       turnstileToken: "tok",
       device: posted[0]!.device,
+      pass: "",
     },
   ]);
   await wait(1500);

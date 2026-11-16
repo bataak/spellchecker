@@ -7,6 +7,7 @@ import {
   postSuggestion,
   sendBlock,
   sendFailure,
+  suggestPass,
 } from "../src/feedback/suggestsend.ts";
 
 test("sendBlock илгээх боломжгүй шалтгааныг дарааллаар нь буцаана", () => {
@@ -35,6 +36,7 @@ test("postSuggestion JSON илгээж төлөвийг буцаана, сүлж
     note: "",
     turnstileToken: "t",
     device: "",
+    pass: "",
   };
   assert.equal(await postSuggestion(payload, ok), 201);
   assert.equal(seen[0]!.method, "POST");
@@ -43,6 +45,29 @@ test("postSuggestion JSON илгээж төлөвийг буцаана, сүлж
     throw new TypeError("offline");
   }) as typeof fetch;
   assert.equal(await postSuggestion(payload, down), null);
+});
+
+test("postSuggestion хариунд ирсэн pass-ыг хадгалж, эвдэрсэнийг үл тооно", async () => {
+  resetStorage();
+  const pass = "mwj73iac." + "0a".repeat(16);
+  const reply = (body: string) =>
+    (async () => new Response(body, { status: 201 })) as typeof fetch;
+  const payload = {
+    words: ["үг"],
+    insisted: [],
+    note: "",
+    turnstileToken: "t",
+    device: "",
+    pass: "",
+  };
+  assert.equal(suggestPass(), "");
+  await postSuggestion(payload, reply(JSON.stringify({ ok: true, pass })));
+  assert.equal(suggestPass(), pass);
+  await postSuggestion(payload, reply('{"ok":true,"pass":"<script>"}'));
+  await postSuggestion(payload, reply("эвдэрсэн"));
+  assert.equal(suggestPass(), pass);
+  localStorage.setItem("mn-spell:suggest-pass", "эвдэрсэн");
+  assert.equal(suggestPass(), "");
 });
 
 test("deviceId: нэг удаа үүсгэж хадгалаад, эвдэрсэн утгыг солино", () => {
