@@ -53,6 +53,7 @@ export const KEYS = {
   tipInfo: shared("mn-spell:tip-info"),
   tipAction: shared("mn-spell:tip-action"),
   deviceId: shared("mn-spell:device-id"),
+  suggestPass: shared("mn-spell:suggest-pass"),
   texMeta: shared("tex-packages:meta"),
   texOffline: shared("tex-offline:"),
   texRecent: shared("tex-recent"),

@@ -7,6 +7,7 @@ import {
   SENT,
   sendBlock,
   sendFailure,
+  suggestPass,
 } from "./suggestsend.ts";
 import type { Token } from "../spell/textcheck.ts";
 import { createTurnstileWidget, loadTurnstile } from "./turnstile.ts";
@@ -356,6 +357,7 @@ export function initSuggest(deps: SuggestDeps): void {
       note: noteInput.value.trim(),
       turnstileToken: token,
       device: deviceId(),
+      pass: suggestPass(),
     });
     if (status === 201) {
       addSubmitted([...words]);

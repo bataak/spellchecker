@@ -7,6 +7,7 @@ export const SENT = "Илгээгдлээ, баярлалаа!";
 
 const ENDPOINT = "https://api.bichig.dev/suggest";
 const DEVICE_RE = /^[0-9a-f-]{36}$/;
+const PASS_RE = /^[0-9a-z]{1,12}\.[0-9a-f]{32}$/;
 
 export interface SuggestPayload {
   readonly words: readonly string[];
@@ -14,6 +15,7 @@ export interface SuggestPayload {
   readonly note: string;
   readonly turnstileToken: string;
   readonly device: string;
+  readonly pass: string;
 }
 
 function randomUuid(): string {
@@ -37,6 +39,22 @@ export function deviceId(): string {
   const fresh = randomUuid();
   write(KEYS.deviceId, fresh);
   return fresh;
+}
+
+export function suggestPass(): string {
+  const saved = read(KEYS.suggestPass);
+  return saved && PASS_RE.test(saved) ? saved : "";
+}
+
+async function keepPass(response: Response): Promise<void> {
+  try {
+    const body: unknown = await response.json();
+    const pass = (body as { pass?: unknown } | null)?.pass;
+    if (typeof pass === "string" && PASS_RE.test(pass))
+      write(KEYS.suggestPass, pass);
+  } catch {
+    return;
+  }
 }
 
 export function sendBlock(
@@ -69,6 +87,7 @@ export async function postSuggestion(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+    await keepPass(response);
     return response.status;
   } catch {
     return null;
