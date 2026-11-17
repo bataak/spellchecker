@@ -203,3 +203,24 @@ test("давтагдсан хэллэгийг PDF-ээс эх уруу буца�
     assert.ok(hit.at > nth(page - 1) && hit.at < nth(page - 1) + PHRASE.length);
   }
 });
+
+test("2 баганатай хуудсанд үг өөрийн баганын зүүн захыг авна", () => {
+  const pages = [
+    [
+      { text: "гарчиг толгой", y: 760, left: 200, right: 400 },
+      { text: "зүүн мөр", y: 700, left: 50, right: 240 },
+      { text: "догол зүүн", y: 680, left: 65, right: 240 },
+      { text: "баруун мөр", y: 700, left: 260, right: 450 },
+      { text: "догол баруун", y: 680, left: 275, right: 450 },
+      { text: "3", y: 30, left: 248, right: 252 },
+    ],
+  ];
+  const words = pdfWords(pages, [800], [500]);
+  const left = (word: string) => words.find((w) => w.word === word)!.left;
+  assert.equal(left("гарчиг"), 0.1);
+  assert.equal(left("зүүн"), 0.1);
+  assert.equal(left("догол"), 0.1);
+  assert.equal(left("баруун"), 0.52);
+  assert.equal(words.filter((w) => w.word === "баруун")[1]!.left, 0.52);
+  assert.equal(pdfWords(pages, [800])[0]!.left, undefined);
+});

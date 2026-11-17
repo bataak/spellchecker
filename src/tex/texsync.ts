@@ -11,6 +11,7 @@ export interface PdfWord {
   readonly page: number;
   readonly x: number;
   readonly y: number;
+  readonly left?: number;
 }
 
 const HIDDEN_ARG =
@@ -41,6 +42,19 @@ export function sourceWords(text: string): SourceWord[] {
   return out;
 }
 
+function columnLeft(lines: readonly Line[], line: Line): number | undefined {
+  if (line.left === undefined) return undefined;
+  let gutter = -Infinity;
+  for (const other of lines)
+    if (other.right !== undefined && other.right <= line.left)
+      gutter = Math.max(gutter, other.right);
+  let left = line.left;
+  for (const other of lines)
+    if (other.left !== undefined && other.left >= gutter)
+      left = Math.min(left, other.left);
+  return left;
+}
+
 export function pdfWords(
   pages: readonly (readonly Line[])[],
   heights: readonly number[],
@@ -56,6 +70,11 @@ export function pdfWords(
       const y = Math.min(Math.max(1 - line.y / height, 0), 1);
       const left = line.left ?? 0;
       const span = (line.right ?? left) - left;
+      const edge = columnLeft(lines, line);
+      const column =
+        width && edge !== undefined
+          ? { left: Math.min(Math.max(edge / width, 0), 1) }
+          : {};
       const xAt = (at: number, length: number): number =>
         width && span > 0
           ? Math.min(
@@ -77,6 +96,7 @@ export function pdfWords(
           page,
           x: carry.x,
           y,
+          ...column,
         });
       }
       carry = null;
@@ -85,7 +105,7 @@ export function pdfWords(
         if (last) carry = { head: last.word, x: last.x };
       }
       for (const word of words)
-        out.push({ word: norm(word.word), page, x: word.x, y });
+        out.push({ word: norm(word.word), page, x: word.x, y, ...column });
     }
   });
   if (carry) {
