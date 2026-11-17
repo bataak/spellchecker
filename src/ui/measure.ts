@@ -2,10 +2,12 @@ import { afterBoot } from "./layoutsnapshot.ts";
 import {
   DEFAULT_LAYOUT,
   DEFAULT_METRICS,
+  ALL_LAYOUTS,
   MEASURES,
+  TEX_LAYOUTS,
   available,
   dockColumnFits,
-  previewMeasure,
+  previewChars,
   parseLayout,
   serializeLayout,
   showsControl,
@@ -219,8 +221,9 @@ function settleViewport(
   metrics: Metrics,
   choose: (fit: Layout[]) => LayoutChoice,
   prev: Layout[],
+  layouts: readonly Layout[],
 ): ViewportPlan {
-  const plan = planViewport(wrap, metrics, choose, prev);
+  const plan = planViewport(wrap, metrics, choose, prev, layouts);
   applyViewport(plan);
   requestAnimationFrame(() => placeTalk(wrap));
   return plan;
@@ -264,7 +267,7 @@ function publishPreviewMeasure(
 ): void {
   document.documentElement.style.setProperty(
     "--preview-measure",
-    String(previewMeasure(active, metrics, viewport)),
+    String(previewChars(active, metrics, viewport)),
   );
 }
 
@@ -272,8 +275,9 @@ function chooser(
   desired: Layout,
   previewBlocked: boolean,
   previewMode: boolean,
-  writeOn: boolean,
+  writing?: { readonly mode: WriteMode },
 ): (fit: Layout[]) => LayoutChoice {
+  const writeOn = writing?.mode.on() ?? false;
   const want = writeOn ? writeLayout(desired) : desired;
   return (fit) =>
     chooseLayout(fit, want, previewBlocked, previewMode && !writeOn);
@@ -334,28 +338,24 @@ export function initMeasureControl(
     metrics = readMetrics(area, wrap, persistMetrics);
     publishMetrics(metrics);
 
-    const choose = chooser(
-      desired,
-      previewBlocked,
-      previewMode,
-      writing?.mode.on() ?? false,
-    );
+    const choose = chooser(desired, previewBlocked, previewMode, writing);
 
-    const { viewport, offered } = settleViewport(wrap, metrics, choose, prev);
-    const fit = available(metrics, viewport, prev);
+    const pool = texMode ? TEX_LAYOUTS : ALL_LAYOUTS;
+    const plan = settleViewport(wrap, metrics, choose, prev, pool);
+    const fit = available(metrics, plan.viewport, prev, pool);
     prev = fit;
     const { avail, active } = choose(fit);
     shown = active;
-    viewportW = viewport;
-    publishPreviewMeasure(active, metrics, viewport);
+    viewportW = plan.viewport;
+    publishPreviewMeasure(active, metrics, plan.viewport);
     apply(active);
 
     toolbar.sync();
 
-    const menuAvail = offered ?? avail;
+    const menuAvail = plan.offered ?? avail;
     ctl.hidden = !showsControl(menuAvail);
     if (ctl.hidden) close();
-    else paintMenu(control, menuAvail, active, metrics, pick, writing);
+    else paintMenu(control, pool, menuAvail, active, metrics, pick, writing);
   }
 
   const unbindMenu = bindMenu(control, close);

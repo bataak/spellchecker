@@ -15,6 +15,7 @@ export interface Layout {
   measure: Measure;
   panel: boolean;
   preview: boolean;
+  wide?: boolean;
 }
 
 export const DEFAULT_LAYOUT: Readonly<Layout> = {
@@ -41,6 +42,19 @@ export const ALL_LAYOUTS: readonly Layout[] = ROW_ORDER.flatMap(
     MEASURE_ORDER.map((measure) => ({ measure, panel, preview })),
 );
 
+export const WIDE_LAYOUTS: readonly Layout[] = MEASURE_ORDER.map((measure) => ({
+  measure,
+  panel: false,
+  preview: true,
+  wide: true,
+}));
+
+export const TEX_LAYOUTS: readonly Layout[] = [
+  ...ALL_LAYOUTS.filter((l) => !(l.panel && l.preview)),
+  ...WIDE_LAYOUTS,
+  ...ALL_LAYOUTS.filter((l) => l.panel && l.preview),
+];
+
 export const HYSTERESIS = 40;
 
 export interface Metrics {
@@ -65,13 +79,21 @@ export const DEFAULT_METRICS: Readonly<Metrics> = {
   pagePad: 20,
 };
 
+function previewChar(l: Layout): string {
+  if (!l.preview) return "-";
+  return l.wide ? "w" : "v";
+}
+
 export function key(l: Layout): string {
-  return `${l.measure}${l.panel ? "p" : "-"}${l.preview ? "v" : "-"}`;
+  return `${l.measure}${l.panel ? "p" : "-"}${previewChar(l)}`;
 }
 
 export function same(a: Layout, b: Layout): boolean {
   return (
-    a.measure === b.measure && a.panel === b.panel && a.preview === b.preview
+    a.measure === b.measure &&
+    a.panel === b.panel &&
+    a.preview === b.preview &&
+    !!a.wide === !!b.wide
   );
 }
 
@@ -83,13 +105,19 @@ export function editorWidth(m: Measure, x: Metrics): number {
   return MEASURES[m] * x.per + 2 * x.padX + x.gutterW;
 }
 
+export function wideExtra(l: Layout): number {
+  if (!l.preview || !l.wide) return 0;
+  const fill = MEASURES.c - MEASURES[l.measure];
+  return fill > 0 ? fill : MEASURES.c - MEASURES.a;
+}
+
 export function previewWidth(
   l: Layout,
   x: Metrics,
   measure = PREVIEW_MEASURE,
 ): number {
   if (!l.preview) return 0;
-  return measure * x.per + 2 * x.previewPad;
+  return (measure + wideExtra(l)) * x.per + 2 * x.previewPad;
 }
 
 export function contentWidth(
@@ -122,8 +150,12 @@ export function previewMeasure(
   return Math.min(PREVIEW_MEASURE, PREVIEW_MIN_MEASURE + extra);
 }
 
+export function previewChars(l: Layout, x: Metrics, viewport: number): number {
+  return previewMeasure(l, x, viewport) + wideExtra(l);
+}
+
 export function rowKey(l: Layout): string {
-  return `${l.panel ? "p" : "-"}${l.preview ? "v" : "-"}`;
+  return `${l.panel ? "p" : "-"}${previewChar(l)}`;
 }
 
 export function fits(
@@ -141,15 +173,17 @@ export function available(
   x: Metrics,
   viewport: number,
   prev: readonly Layout[] = [],
+  layouts: readonly Layout[] = ALL_LAYOUTS,
 ): Layout[] {
   const at = (l: Layout, measure: number): boolean =>
     fits(l, x, viewport, has(prev, l), measure);
-  const full = ALL_LAYOUTS.filter((l) => at(l, PREVIEW_MEASURE));
-  if (!full.some((l) => l.preview))
-    return ALL_LAYOUTS.filter((l) => at(l, PREVIEW_MIN_MEASURE));
-  return ALL_LAYOUTS.filter(
+  const full = layouts.filter((l) => at(l, PREVIEW_MEASURE));
+  if (!full.some((l) => l.preview && !l.wide))
+    return layouts.filter((l) => !l.wide && at(l, PREVIEW_MIN_MEASURE));
+  return layouts.filter(
     (l) =>
-      has(full, l) || (l.preview && !l.panel && at(l, PREVIEW_MIN_MEASURE)),
+      has(full, l) ||
+      (l.preview && !l.panel && !l.wide && at(l, PREVIEW_MIN_MEASURE)),
   );
 }
 
@@ -161,8 +195,9 @@ export function previewLayout(
   current: Layout,
   avail: readonly Layout[],
 ): Layout | null {
+  if (current.wide && has(avail, current)) return current;
   for (const panel of [true, false]) {
-    const row = avail.filter((l) => l.preview && l.panel === panel);
+    const row = avail.filter((l) => l.preview && !l.wide && l.panel === panel);
     if (row.length === 0) continue;
     return (
       row.find((l) => l.measure === current.measure) ?? row[row.length - 1]!
@@ -185,7 +220,11 @@ export function parseLayout(v: unknown): Layout {
   const [m, p, r] = v;
   if (!isMeasure(m)) return { ...DEFAULT_LAYOUT };
   if (p !== "p" && p !== "-") return { ...DEFAULT_LAYOUT };
-  if (r !== "v" && r !== "-") return { ...DEFAULT_LAYOUT };
+  if (r !== "v" && r !== "w" && r !== "-") return { ...DEFAULT_LAYOUT };
+  if (r === "w") {
+    const wide = { measure: m, panel: p === "p", preview: true, wide: true };
+    return has(WIDE_LAYOUTS, wide) ? wide : { ...DEFAULT_LAYOUT };
+  }
   return { measure: m, panel: p === "p", preview: r === "v" };
 }
 
@@ -237,7 +276,9 @@ export function chooseLayout(
 ): LayoutChoice {
   const avail = previewBlocked ? fit.filter((l) => !l.preview) : fit;
   const base = clamp(
-    previewBlocked ? { ...desired, preview: false } : desired,
+    previewBlocked
+      ? { measure: desired.measure, panel: desired.panel, preview: false }
+      : desired,
     avail,
   );
   return {
@@ -247,7 +288,7 @@ export function chooseLayout(
 }
 
 export function writeLayout(l: Layout): Layout {
-  return { ...l, panel: false, preview: false };
+  return { measure: l.measure, panel: false, preview: false };
 }
 
 export function projectViewport(
@@ -325,7 +366,7 @@ export function thumbSpans(
 export function describeLayout(l: Layout): string {
   const n = Math.round(MEASURES[l.measure]);
   const parts = [`бичвэрийн талбар (${n} тэмдэгт)`];
-  if (l.preview) parts.push("харагдац");
+  if (l.preview) parts.push(l.wide ? "өргөн харагдац" : "харагдац");
   if (l.panel) parts.push("алдааны талбар");
   return parts.join(" + ");
 }

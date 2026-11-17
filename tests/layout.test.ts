@@ -35,6 +35,10 @@ import {
   thumbSpans,
   PREVIEW_MIN_MEASURE,
   previewMeasure,
+  previewChars,
+  TEX_LAYOUTS,
+  WIDE_LAYOUTS,
+  writeLayout,
 } from "../src/ui/layout.ts";
 
 const x: Metrics = { ...DEFAULT_METRICS };
@@ -433,4 +437,71 @@ test("available: preview нарийсч багтах байрлалуудыг ч
   assert.equal(fits(wider, x, w), false);
   assert.ok(has(available(x, w, []), wider));
   assert.ok(has(available(x, w - 60, [wider]), wider));
+});
+
+const wd = (measure: M): Layout => ({
+  measure,
+  panel: false,
+  preview: true,
+  wide: true,
+});
+
+test("өргөн харагдац: 75, 80 үед 100-ийн өргөн хүртэл гүйцээнэ", () => {
+  assert.deepEqual(WIDE_LAYOUTS.map(key), ["a-w", "b-w", "c-w"]);
+  for (const m of ["a", "b"] as const) {
+    near(pageWidth(wd(m), x), pageWidth(pv("c", false), x), m);
+    near(
+      previewWidth(wd(m), x) - previewWidth(pv(m, false), x),
+      (MEASURES.c - MEASURES[m]) * x.per,
+      m,
+    );
+  }
+});
+
+test("өргөн харагдац зөвхөн TeX-ийн жагсаалтад, бүтэн өргөнөөр багтвал", () => {
+  const roomy = available(x, 4000, [], TEX_LAYOUTS).map(key);
+  assert.ok(roomy.includes("a-w") && roomy.includes("b-w"), `${roomy}`);
+  assert.ok(!available(x, 4000).some((l) => l.wide));
+  const edge = pageWidth(pv("c", false), x) + HYSTERESIS;
+  assert.ok(available(x, edge, [], TEX_LAYOUTS).some((l) => l.wide));
+  const tight = available(x, edge - 1, [], TEX_LAYOUTS);
+  assert.ok(!tight.some((l) => l.wide));
+  assert.ok(tight.some((l) => l.preview));
+});
+
+test("TeX-ийн цэсэнд өргөн харагдацын мөр алдааны талбартай харагдацын дээр", () => {
+  const rows = [...new Set(TEX_LAYOUTS.map((l) => key(l).slice(1)))];
+  assert.deepEqual(rows, ["p-", "--", "-v", "-w", "pv"]);
+});
+
+test("өргөн харагдацын тэмдэгтийн тоо нэмэгдэнэ", () => {
+  const vw = pageWidth(wd("a"), x) + 100;
+  assert.equal(previewChars(wd("a"), x, vw), PREVIEW_MEASURE + 25);
+  assert.equal(previewChars(wd("b"), x, vw), PREVIEW_MEASURE + 20);
+  assert.equal(previewChars(pv("a", false), x, vw), PREVIEW_MEASURE);
+});
+
+test("өргөн харагдац 100 үед 75-ынхтай адил өргөн, илүү зай шаардана", () => {
+  const vw = pageWidth(wd("c"), x) + 100;
+  assert.equal(previewChars(wd("c"), x, vw), PREVIEW_MEASURE + 25);
+  near(pageWidth(wd("c"), x) - pageWidth(wd("a"), x), 25 * x.per);
+  const edge = pageWidth(wd("a"), x) + HYSTERESIS;
+  const fit = available(x, edge, [], TEX_LAYOUTS).map(key);
+  assert.ok(fit.includes("a-w") && !fit.includes("c-w"), `${fit}`);
+});
+
+test("өргөн харагдац хадгалагдаж, буцаж уншигдана", () => {
+  assert.deepEqual(parseLayout(serializeLayout(wd("b"))), wd("b"));
+  assert.deepEqual(parseLayout("c-w"), wd("c"));
+  assert.deepEqual(parseLayout("apw"), DEFAULT_LAYOUT);
+  assert.ok(!same(wd("a"), pv("a", false)));
+  assert.equal(describeLayout(wd("a")).includes("өргөн харагдац"), true);
+});
+
+test("өргөн харагдацыг preview горим солихгүй, хориглогдвол хэмжээ хадгална", () => {
+  const fit = available(x, 4000, [], TEX_LAYOUTS);
+  assert.deepEqual(chooseLayout(fit, wd("a"), false, true).active, wd("a"));
+  assert.deepEqual(previewLayout(on("a"), fit), pv("a", true));
+  assert.deepEqual(chooseLayout(fit, wd("b"), true, false).active, off("b"));
+  assert.deepEqual(writeLayout(wd("a")), off("a"));
 });
