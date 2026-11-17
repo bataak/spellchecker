@@ -222,5 +222,9 @@ test("2 баганатай хуудсанд үг өөрийн баганын з�
   assert.equal(left("догол"), 0.1);
   assert.equal(left("баруун"), 0.52);
   assert.equal(words.filter((w) => w.word === "баруун")[1]!.left, 0.52);
+  const right = (word: string) => words.find((w) => w.word === word)!.right;
+  assert.equal(right("зүүн"), undefined);
+  assert.equal(right("гарчиг"), undefined);
+  assert.equal(right("баруун"), 0.9);
   assert.equal(pdfWords(pages, [800])[0]!.left, undefined);
 });

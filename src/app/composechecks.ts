@@ -1,3 +1,4 @@
+import { createFindBar } from "../editor/findbar.ts";
 import type { Scope } from "./appparts.ts";
 import { createEmptyTips } from "../ui/emptytips.ts";
 import { createEmptyState } from "./emptystate.ts";
@@ -161,6 +162,18 @@ export function composeEditing(app: Scope<EditingReads, EditingGives>): void {
   writeMode.onChange(() => measureCtl.refresh());
   const tools = els.editorWrap.querySelector<HTMLElement>(".editor-tools");
   if (tools) writeTools(tools, writeMode, writeKey);
+  createFindBar({
+    editor: els.editor,
+    host: els.editorWrap,
+    tools: () => els.editorWrap.querySelector<HTMLElement>(".editor-tools"),
+    rangeRects: app.backdrop.rangeRects,
+    offsetAtY: app.backdrop.offsetAtY,
+    onRender: app.backdrop.onRender,
+    insert: editorText.insert,
+    set: (text, caret) => void editorText.set(text, caret),
+    attachKeyboard: (input) => app.kbLayout.attach(input),
+    mac: detectPlatform().mac,
+  });
   app.provide({ measureCtl });
   defDock.sync(measureCtl.layout().panel);
   app.layoutChanged.on((l) => defDock.sync(l.panel));

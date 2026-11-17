@@ -31,7 +31,7 @@ export interface PdfView {
   ): void;
   goTo(page: number): void;
   words(): Promise<readonly PdfWord[]>;
-  reveal(page: number, y: number, left?: number): void;
+  reveal(page: number, y: number, left?: number, right?: number): void;
   pointAt(
     clientX: number,
     clientY: number,
@@ -318,7 +318,7 @@ export async function renderPdfInto(
       return found;
     },
     pointAt: (clientX, clientY) => pointOnPage(pages, clientX, clientY),
-    reveal(page, y, left) {
+    reveal(page, y, left, right) {
       const el = pages[page - 1];
       if (!el) return;
       const box = el.getBoundingClientRect();
@@ -326,7 +326,7 @@ export async function renderPdfInto(
       const bottom = host.getBoundingClientRect().bottom;
       const delta = revealShift(at, viewTop(), bottom);
       if (delta) host.scrollTop += delta;
-      syncMark.show(el, y, left ?? margins[page - 1] ?? null);
+      syncMark.show(el, y, left ?? margins[page - 1] ?? null, right);
     },
     setZoom(next, origin) {
       if (next === zoom) return;

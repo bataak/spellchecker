@@ -12,6 +12,7 @@ export interface PdfWord {
   readonly x: number;
   readonly y: number;
   readonly left?: number;
+  readonly right?: number;
 }
 
 const HIDDEN_ARG =
@@ -42,17 +43,23 @@ export function sourceWords(text: string): SourceWord[] {
   return out;
 }
 
-function columnLeft(lines: readonly Line[], line: Line): number | undefined {
+function columnEdges(
+  lines: readonly Line[],
+  line: Line,
+): { left: number; right?: number } | undefined {
   if (line.left === undefined) return undefined;
   let gutter = -Infinity;
   for (const other of lines)
     if (other.right !== undefined && other.right <= line.left)
       gutter = Math.max(gutter, other.right);
   let left = line.left;
-  for (const other of lines)
-    if (other.left !== undefined && other.left >= gutter)
-      left = Math.min(left, other.left);
-  return left;
+  let right = line.right ?? line.left;
+  for (const other of lines) {
+    if (other.left === undefined || other.left < gutter) continue;
+    left = Math.min(left, other.left);
+    if (other.right !== undefined) right = Math.max(right, other.right);
+  }
+  return Number.isFinite(gutter) ? { left, right } : { left };
 }
 
 export function pdfWords(
@@ -70,10 +77,17 @@ export function pdfWords(
       const y = Math.min(Math.max(1 - line.y / height, 0), 1);
       const left = line.left ?? 0;
       const span = (line.right ?? left) - left;
-      const edge = columnLeft(lines, line);
+      const edges = columnEdges(lines, line);
+      const share = (at: number): number =>
+        Math.min(Math.max(at / width, 0), 1);
       const column =
-        width && edge !== undefined
-          ? { left: Math.min(Math.max(edge / width, 0), 1) }
+        width && edges
+          ? {
+              left: share(edges.left),
+              ...(edges.right === undefined
+                ? {}
+                : { right: share(edges.right) }),
+            }
           : {};
       const xAt = (at: number, length: number): number =>
         width && span > 0

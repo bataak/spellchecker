@@ -1,6 +1,6 @@
 import * as Y from "yjs";
 import { createEmitter } from "../core/emitter.ts";
-import { move, place, watchLayout } from "./overlay.ts";
+import { move, place, watchLayout } from "../ui/overlay.ts";
 import { fromBase64Url, toBase64Url } from "./collabkey.ts";
 import { CURSOR_COLORS } from "./peercolors.ts";
 import { MAX_NAME, type Profile } from "./profile.ts";

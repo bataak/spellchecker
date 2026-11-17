@@ -41,3 +41,13 @@ test("markBox: жижиг хуудсан дээр сум 6px-ээс багаса
   assert.equal(box.size, 6);
   assert.ok(Math.abs(box.top + box.size / 2 - (100 - 200 * 0.0045)) < 1e-9);
 });
+
+test("markBox: баруун захтай бол сумыг баганын баруун талд эргүүлж тавина", () => {
+  const box = markBox(page, 0.5, 0.52, 0.9);
+  assert.equal(box.flipped, true);
+  assert.ok(box.left > page.left + 0.9 * page.width);
+  assert.ok(box.left + box.size < page.left + page.width);
+  assert.equal(markBox(page, 0.5, 0.2).flipped, false);
+  const edge = markBox(page, 0.5, 0.52, 1);
+  assert.equal(edge.left, page.left + page.width - edge.size - 2);
+});

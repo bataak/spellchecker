@@ -697,6 +697,106 @@ a.tbtn {
   transition: opacity 0.15s ease;
 }
 
+.find-bar {
+  display: grid;
+  gap: 5px;
+  max-width: calc(100vw - 2 * var(--page-pad));
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+  font-size: 0.85rem;
+}
+
+.find-bar[hidden] {
+  display: none;
+}
+
+.find-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.find-input {
+  flex: 1 1 auto;
+  width: 14rem;
+  min-width: 0;
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--editor-bg);
+  color: inherit;
+  font: inherit;
+}
+
+.find-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.find-count {
+  min-width: 3.5rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.find-count.is-empty {
+  color: var(--proof);
+}
+
+.find-btn {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.find-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--muted) 12%, transparent);
+}
+
+.find-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.find-one,
+.find-all {
+  white-space: nowrap;
+}
+
+.find-marks {
+  position: absolute;
+  inset: 1px;
+  z-index: 2;
+  overflow: hidden;
+  border-radius: 11px;
+  pointer-events: none;
+}
+
+.find-marks[hidden] {
+  display: none;
+}
+
+.find-mark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 2px;
+  background: color-mix(in srgb, #f5a623 32%, transparent);
+}
+
+.find-mark.is-current {
+  background: color-mix(in srgb, #f5a623 60%, transparent);
+  outline: 1px solid #d4870f;
+}
+
 .editor-tools:hover .write-tool,
 .write-tool:focus-visible {
   opacity: 1;
@@ -1477,6 +1577,10 @@ a.tbtn {
   clip-path: polygon(10% 4%, 100% 50%, 10% 96%, 28% 50%);
   pointer-events: none;
   transition: opacity 0.6s ease;
+}
+
+.sync-mark.is-flipped {
+  clip-path: polygon(90% 4%, 0% 50%, 90% 96%, 72% 50%);
 }
 
 .preview-body[data-layout="en"] .sync-mark {
