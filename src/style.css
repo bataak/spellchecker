@@ -1479,6 +1479,10 @@ a.tbtn {
   transition: opacity 0.6s ease;
 }
 
+.sync-mark.is-flipped {
+  clip-path: polygon(90% 4%, 0% 50%, 90% 96%, 72% 50%);
+}
+
 .preview-body[data-layout="en"] .sync-mark {
   background: var(--layout-accent-en);
 }
