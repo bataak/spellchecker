@@ -1,6 +1,6 @@
 import type { Comments } from "./commentmodel.ts";
 import type { CursorView } from "./cursors.ts";
-import { place, watchLayout } from "./overlay.ts";
+import { place, watchLayout } from "../ui/overlay.ts";
 
 export interface CommentMarksDeps {
   readonly comments: Pick<Comments, "spans" | "onChange">;
