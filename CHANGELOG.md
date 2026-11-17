@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.128.0](https://github.com/bataak/spellchecker/compare/v1.127.1...v1.128.0) (2026-11-17)
+
+
+### Features
+
+* **editor:** add a wide-preview row to the LaTeX layout menu ([709e739](https://github.com/bataak/spellchecker/commit/709e739bde73fc90731588b468c7acae01c2d668))
+
 ## [1.127.1](https://github.com/bataak/spellchecker/compare/v1.127.0...v1.127.1) (2026-11-16)
 
 
