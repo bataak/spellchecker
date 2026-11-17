@@ -86,7 +86,7 @@ export function createPreviewSync(deps: SyncDeps): PreviewSync {
     const pdf = await view.words();
     if (view !== deps.view()) return false;
     const hit = locate(words, offset, pdf);
-    if (hit) view.reveal(hit.page, hit.y);
+    if (hit) view.reveal(hit.page, hit.y, hit.left);
     return true;
   };
 
