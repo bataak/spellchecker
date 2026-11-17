@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.129.0](https://github.com/bataak/spellchecker/compare/v1.128.0...v1.129.0) (2026-11-17)
+
+
+### Features
+
+* **editor:** add find and replace to the editor ([fd3002d](https://github.com/bataak/spellchecker/commit/fd3002d1b1c01b08c3c411bea0bb53c5db2a6d1e))
+
+
+### Bug Fixes
+
+* **preview:** place the PDF sync mark at the caret's own column ([28210ad](https://github.com/bataak/spellchecker/commit/28210ad7ad76bd05112dafe32742db5633e89e61))
+* **preview:** point at second-column lines from the column's right edge ([0e0177e](https://github.com/bataak/spellchecker/commit/0e0177e43cb5259ee4fa296b2817a5d3a8aa230b))
+
 ## [1.128.0](https://github.com/bataak/spellchecker/compare/v1.127.1...v1.128.0) (2026-11-17)
 
 
