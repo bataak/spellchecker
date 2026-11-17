@@ -72,21 +72,23 @@ export function planViewport(
   metrics: Metrics,
   choose: (fit: Layout[]) => LayoutChoice,
   prev: Layout[],
+  layouts: readonly Layout[],
 ): ViewportPlan {
   const full = document.documentElement.clientWidth;
   const room = projectRoom(wrap, metrics);
   if (room <= 0 && !(talkOpen() && wideQuery.matches))
     return { viewport: full, offered: null, projectFloat: false, talk: null };
-  const wide = choose(available(metrics, full, prev));
+  const wide = choose(available(metrics, full, prev, layouts));
   const loose = pageWidth(
     wide.active,
     metrics,
     previewMeasure(wide.active, metrics, full),
   );
-  const tight = wide.active.preview
-    ? pageWidth(wide.active, metrics, PREVIEW_MIN_MEASURE) +
-      (has(prev, wide.active) ? 0 : HYSTERESIS)
-    : loose;
+  const tight =
+    wide.active.preview && !wide.active.wide
+      ? pageWidth(wide.active, metrics, PREVIEW_MIN_MEASURE) +
+        (has(prev, wide.active) ? 0 : HYSTERESIS)
+      : loose;
   const project =
     room > 0 ? projectViewport(full, room, tight) : { viewport: full };
   const docked = room > 0 && project.viewport !== full;

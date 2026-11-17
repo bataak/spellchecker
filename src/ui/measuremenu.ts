@@ -109,9 +109,9 @@ export function buildControl(wrap: HTMLElement): Control {
   return { ctl, btn, menu, tools };
 }
 
-function layoutRows(): Layout[][] {
+function layoutRows(layouts: readonly Layout[]): Layout[][] {
   const rows = new Map<string, Layout[]>();
-  for (const l of ALL_LAYOUTS) {
+  for (const l of layouts) {
     const k = rowKey(l);
     const row = rows.get(k);
     if (row) row.push(l);
@@ -160,6 +160,7 @@ function writeOption(mode: WriteMode, shortcut: string): HTMLButtonElement {
 
 export function paintMenu(
   { btn, menu }: Control,
+  layouts: readonly Layout[],
   avail: readonly Layout[],
   active: Layout,
   metrics: Metrics,
@@ -173,7 +174,7 @@ export function paintMenu(
   btn.setAttribute("aria-label", `Байрлал: ${describeLayout(active)}`);
   btn.title = describeLayout(active);
   menu.replaceChildren();
-  for (const row of layoutRows()) {
+  for (const row of layoutRows(layouts)) {
     const line = document.createElement("div");
     line.className = "measure-row";
     for (const l of row)
