@@ -1,11 +1,16 @@
+import { KEYS, read, write } from "../core/store.ts";
 import { place, watchLayout } from "../ui/overlay.ts";
+import { makeFindDrag, type Corner } from "./finddrag.ts";
 import {
   findAll,
   matchAfter,
+  matchAt,
   matchBefore,
   matchesIn,
   MATCH_LIMIT,
-  replaceAll,
+  replaceEdits,
+  shiftOffset,
+  type Edit,
   type Match,
 } from "./findmodel.ts";
 
@@ -19,8 +24,7 @@ export interface FindBarDeps {
   readonly rangeRects: (start: number, end: number) => DOMRect[];
   readonly offsetAtY: (y: number) => number | null;
   readonly onRender: (listener: () => void) => () => void;
-  readonly insert: (text: string, start: number, end: number) => void;
-  readonly set: (text: string, caret: number | null) => void;
+  readonly commit: (text: string, caret: number) => void;
   readonly attachKeyboard: (input: HTMLInputElement) => void;
   readonly mac: boolean;
 }
@@ -51,6 +55,29 @@ function button(label: string, title: string, cls: string): HTMLButtonElement {
   return el;
 }
 
+const TOGGLES = {
+  "find-word": KEYS.findWord,
+  "find-exact": KEYS.findExact,
+} as const;
+
+type ToggleName = keyof typeof TOGGLES;
+
+function toggle(label: string, title: string, cls: ToggleName) {
+  const el = button(label, title, "find-toggle " + cls);
+  el.setAttribute("aria-pressed", String(read(TOGGLES[cls]) === "1"));
+  return el;
+}
+
+function pressed(el: HTMLElement): boolean {
+  return el.getAttribute("aria-pressed") === "true";
+}
+
+function flip(el: HTMLElement, name: ToggleName): void {
+  const on = !pressed(el);
+  el.setAttribute("aria-pressed", String(on));
+  write(TOGGLES[name], on ? "1" : "0");
+}
+
 function field(label: string): HTMLInputElement {
   const el = document.createElement("input");
   el.type = "text";
@@ -62,30 +89,50 @@ function field(label: string): HTMLInputElement {
   return el;
 }
 
-function buildBar(mod: string) {
+function buildBar(mod: string, deps: FindBarDeps) {
   const bar = document.createElement("div");
   bar.className = "find-bar";
   bar.setAttribute("role", "search");
   bar.hidden = true;
+  const grip = document.createElement("span");
+  grip.className = "find-grip";
+  grip.title = "Чирж зөөх (давхар товшвол анхны байрлалдаа)";
+  grip.setAttribute("aria-hidden", "true");
   const query = field("Хайх");
   const count = document.createElement("span");
   count.className = "find-count";
   count.setAttribute("aria-live", "polite");
+  const word = toggle("Үг", "Бүтэн үгээр хайх (Alt+W)", "find-word");
   const prev = button("↑", "Өмнөх (Shift+Enter)", "find-prev");
   const next = button("↓", "Дараах (Enter)", "find-next");
   const close = button("×", "Хаах (Esc)", "find-close");
   const replacement = field("Солих");
   const one = button("Солих", "Энэ олдцыг солих (Enter)", "find-one");
   const all = button("Бүгдийг", "Бүгдийг солих (" + mod + "Enter)", "find-all");
-  const findRow = document.createElement("div");
-  findRow.className = "find-row";
-  findRow.append(query, count, prev, next, close);
-  const replaceRow = document.createElement("div");
-  replaceRow.className = "find-row";
-  replaceRow.append(replacement, one, all);
-  bar.append(findRow, replaceRow);
+  const exact = toggle(
+    "Яг",
+    "Том жижиг үсгийг ялгаж хайх, бичсэнээр нь солих (Alt+C)",
+    "find-exact",
+  );
+  const findActions = document.createElement("div");
+  findActions.className = "find-actions";
+  findActions.append(count, word, prev, next, close);
+  const replaceActions = document.createElement("div");
+  replaceActions.className = "find-actions";
+  replaceActions.append(exact, one, all);
+  bar.append(grip, query, findActions, replacement, replaceActions);
 
-  return { bar, query, count, prev, next, close, replacement, one, all };
+  const drag = makeFindDrag(
+    bar,
+    grip,
+    () => homeCorner(deps),
+    () => [deps.host, ...[deps.tools()].filter((el) => !!el)],
+  );
+
+  return {
+    ...{ bar, drag, query, count, word, prev, next, close },
+    ...{ replacement, exact, one, all },
+  };
 }
 
 type Parts = ReturnType<typeof buildBar>;
@@ -177,11 +224,17 @@ function paintCount(
 
 interface Actions {
   readonly search: () => void;
+  readonly toggle: (name: ToggleName) => void;
   readonly step: (forward: boolean) => void;
   readonly replaceOne: () => void;
   readonly replaceEvery: () => void;
   readonly hide: () => void;
 }
+
+const TOGGLE_KEYS: Record<string, ToggleName> = {
+  KeyW: "find-word",
+  KeyC: "find-exact",
+};
 
 function bindParts(parts: Parts, actions: Actions, mac: boolean): void {
   const { query, replacement, bar } = parts;
@@ -198,11 +251,18 @@ function bindParts(parts: Parts, actions: Actions, mac: boolean): void {
     else actions.replaceOne();
   });
   bar.addEventListener("keydown", (e) => {
+    const name = e.altKey && !e.ctrlKey && !e.metaKey && TOGGLE_KEYS[e.code];
+    if (name) {
+      e.preventDefault();
+      return actions.toggle(name);
+    }
     if (e.key !== "Escape") return;
     e.preventDefault();
     e.stopPropagation();
     actions.hide();
   });
+  parts.word.addEventListener("click", () => actions.toggle("find-word"));
+  parts.exact.addEventListener("click", () => actions.toggle("find-exact"));
   parts.prev.addEventListener("click", () => actions.step(false));
   parts.next.addEventListener("click", () => actions.step(true));
   parts.close.addEventListener("click", actions.hide);
@@ -246,23 +306,82 @@ function selectedLine(editor: HTMLTextAreaElement): string {
   return text.includes("\n") ? "" : text;
 }
 
-function mount(deps: FindBarDeps, bar: HTMLElement): void {
-  const tools = deps.tools();
-  if (tools && bar.parentElement !== tools) tools.prepend(bar);
-  else if (!bar.parentElement) deps.host.append(bar);
+const TOOL_GAP = 8;
+
+function show({ bar, drag }: Parts): void {
+  if (!bar.isConnected) document.body.append(bar);
+  bar.hidden = false;
+  drag.fit();
 }
 
-export function createFindBar(deps: FindBarDeps): FindBar {
+function homeCorner(deps: FindBarDeps): Corner {
+  const tools = deps.tools();
+  const box = (tools ?? deps.host).getBoundingClientRect();
+  if (!tools) return { right: box.right - PAD, top: box.top + PAD };
+  const style = getComputedStyle(tools);
+  const lefts = [...tools.children]
+    .map((el) => el.getBoundingClientRect())
+    .filter((rect) => rect.width > 0)
+    .map((rect) => rect.left - TOOL_GAP);
+  return {
+    right: Math.min(box.right - parseFloat(style.paddingRight), ...lefts),
+    top: box.top + parseFloat(style.paddingTop),
+  };
+}
+
+interface Origin {
+  readonly start: number;
+  readonly end: number;
+  readonly scroll: number;
+}
+
+function shiftOrigin(origin: Origin | null, edits: readonly Edit[]) {
+  if (!origin) return null;
+  const start = shiftOffset(origin.start, edits);
+  const end = Math.max(start, shiftOffset(origin.end, edits));
+  return { start, end, scroll: origin.scroll };
+}
+
+function swap(
+  deps: FindBarDeps,
+  parts: Parts,
+  matches: readonly Match[],
+  caret: (edits: readonly Edit[]) => number,
+): Edit[] {
+  const { query, replacement } = parts;
+  const value = deps.editor.value;
+  const done = replaceEdits(
+    value,
+    matches,
+    query.value,
+    replacement.value,
+    pressed(parts.exact),
+  );
+  deps.commit(done.text, caret(done.edits));
+  replacement.focus({ preventScroll: true });
+  return done.edits;
+}
+
+function finish(
+  editor: HTMLTextAreaElement,
+  origin: Origin | null,
+  match?: Match,
+) {
+  editor.focus({ preventScroll: true });
+  if (origin) {
+    editor.setSelectionRange(origin.start, origin.end);
+    editor.scrollTop = origin.scroll;
+  } else if (match) editor.setSelectionRange(match.from, match.to, "forward");
+}
+
+function createFindCore(deps: FindBarDeps, parts: Parts) {
   const { editor } = deps;
-  const parts = buildBar(deps.mac ? "⌘" : "Ctrl+");
-  const { bar, query, replacement } = parts;
-  const attach = once(() => {
-    deps.attachKeyboard(query);
-    deps.attachKeyboard(replacement);
-  });
+  const { bar, query } = parts;
   let matches: Match[] = [];
   let current = -1;
   let searched = "";
+  let origin: Origin | null = null;
+  let loose = false;
   const marks = createFindMarks(deps, () =>
     bar.hidden ? null : { matches, current },
   );
@@ -274,69 +393,120 @@ export function createFindBar(deps: FindBarDeps): FindBar {
   };
   const search = (from: number, reveal = true): void => {
     searched = editor.value;
-    matches = findAll(searched, query.value);
+    const { word, exact } = parts;
+    matches = findAll(searched, query.value, pressed(word), pressed(exact));
     current = matchAfter(matches, from);
     paint(reveal);
   };
   const anchor = (): number => matches[current]?.from ?? editor.selectionStart;
+  const home = (): number => origin?.start ?? anchor();
   const fresh = (): void => {
-    if (searched !== editor.value) search(editor.selectionStart);
+    if (searched !== editor.value) search(home());
+  };
+  const realign = (forward: boolean): boolean => {
+    if (!loose) return false;
+    loose = false;
+    const at = editor.selectionStart;
+    current = forward ? matchAt(matches, at) : matchBefore(matches, at);
+    return true;
   };
 
-  const step = (forward: boolean): void => {
-    fresh();
-    if (!matches.length) return;
-    current = forward
-      ? matchAfter(matches, anchor() + 1)
-      : matchBefore(matches, anchor());
-    paint(true);
+  return {
+    marks,
+    home,
+    search,
+    research: () => search(home()),
+    follow: () => search(anchor(), false),
+    step(forward: boolean): void {
+      fresh();
+      if (!matches.length) return;
+      if (!realign(forward))
+        current = forward
+          ? matchAfter(matches, anchor() + 1)
+          : matchBefore(matches, anchor());
+      paint(true);
+    },
+    replaceOne(): void {
+      if (editor.readOnly) return;
+      if (searched !== editor.value) return search(home());
+      realign(true);
+      const match = matches[current];
+      if (!match) return;
+      const edits = swap(
+        deps,
+        parts,
+        [match],
+        (all) => match.from + all[0]!.size,
+      );
+      origin = shiftOrigin(origin, edits);
+      search(match.from + edits[0]!.size);
+    },
+    replaceEvery(): void {
+      if (editor.readOnly) return;
+      fresh();
+      if (!matches.length) return;
+      const at = editor.selectionStart;
+      const edits = swap(deps, parts, matches, (all) => shiftOffset(at, all));
+      origin = shiftOrigin(origin, edits);
+      search(home());
+    },
+    remember(): void {
+      loose = false;
+      const { selectionStart: start, selectionEnd: end, scrollTop } = editor;
+      origin = { start, end, scroll: scrollTop };
+    },
+    forget(): void {
+      origin = null;
+      loose = true;
+    },
+    finish(): void {
+      marks.paint();
+      finish(editor, origin, matches[current]);
+      origin = null;
+    },
   };
+}
 
-  const replaceOne = (): void => {
-    if (editor.readOnly) return;
-    if (searched !== editor.value) return search(editor.selectionStart);
-    const match = matches[current];
-    if (!match) return;
-    const text = replacement.value;
-    deps.insert(text, match.from, match.to);
-    replacement.focus({ preventScroll: true });
-    search(match.from + text.length);
-  };
-
-  const replaceEvery = (): void => {
-    if (editor.readOnly) return;
-    fresh();
-    if (!matches.length) return;
-    const top = editor.scrollTop;
-    deps.set(replaceAll(editor.value, matches, replacement.value), null);
-    editor.scrollTop = top;
-    replacement.focus({ preventScroll: true });
-    search(editor.selectionStart);
-  };
+export function createFindBar(deps: FindBarDeps): FindBar {
+  const { editor } = deps;
+  const parts = buildBar(deps.mac ? "⌘" : "Ctrl+", deps);
+  const { bar, query, replacement } = parts;
+  const attach = once(() => {
+    deps.attachKeyboard(query);
+    deps.attachKeyboard(replacement);
+  });
+  const core = createFindCore(deps, parts);
 
   const open = (): void => {
     attach();
+    if (bar.hidden) core.remember();
     const picked = selectedLine(editor);
     if (picked) query.value = picked;
-    mount(deps, bar);
-    bar.hidden = false;
+    show(parts);
     query.focus();
     query.select();
-    search(editor.selectionStart);
+    core.research();
   };
-
   const hide = (): void => {
     if (bar.hidden) return;
     bar.hidden = true;
-    marks.paint();
-    const match = matches[current];
-    editor.focus({ preventScroll: true });
-    if (match) editor.setSelectionRange(match.from, match.to, "forward");
+    core.finish();
+  };
+  const toggle = (name: ToggleName): void => {
+    flip(name === "find-word" ? parts.word : parts.exact, name);
+    core.research();
   };
 
   bindParts(
     parts,
-    { search: () => search(anchor()), step, replaceOne, replaceEvery, hide },
+    {
+      search: core.research,
+      toggle,
+      step: core.step,
+      replaceOne: core.replaceOne,
+      replaceEvery: core.replaceEvery,
+      hide,
+    },
     deps.mac,
   );
 
@@ -346,16 +516,21 @@ export function createFindBar(deps: FindBarDeps): FindBar {
     query.select();
   });
   const onEdit = (): void => {
-    if (!bar.hidden) search(anchor(), false);
+    if (!bar.hidden) core.follow();
   };
   editor.addEventListener("input", onEdit);
+  editor.addEventListener("pointerdown", core.forget);
+  editor.addEventListener("keydown", core.forget);
 
   return {
     open,
     destroy() {
       offKey();
       editor.removeEventListener("input", onEdit);
-      marks.destroy();
+      editor.removeEventListener("pointerdown", core.forget);
+      editor.removeEventListener("keydown", core.forget);
+      core.marks.destroy();
+      parts.drag.destroy();
       bar.remove();
     },
   };

@@ -38,3 +38,15 @@ export function caseRank(pattern: CasePattern): number {
 export function rankToPattern(rank: number): CasePattern {
   return rank === 2 ? "upper" : rank === 1 ? "capital" : "lower";
 }
+
+export function fitCase(
+  found: string,
+  replacement: string,
+  primary: CasePattern,
+): string {
+  if (irregularCase(replacement)) return replacement;
+  const own = caseRank(casePattern(replacement));
+  const floor = own > caseRank(primary) ? own : 0;
+  const rank = Math.max(caseRank(casePattern(found)), floor);
+  return applyCase(rankToPattern(rank), replacement);
+}
