@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.130.0](https://github.com/bataak/spellchecker/compare/v1.129.0...v1.130.0) (2026-11-18)
+
+
+### Features
+
+* **editor:** movable find bar with whole-word and exact options ([8924df1](https://github.com/bataak/spellchecker/commit/8924df1720bc3d237bcfdffd1328aa3c8fc2a413))
+
 ## [1.129.0](https://github.com/bataak/spellchecker/compare/v1.128.0...v1.129.0) (2026-11-17)
 
 
