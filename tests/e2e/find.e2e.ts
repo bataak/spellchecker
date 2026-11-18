@@ -49,6 +49,7 @@ test("⌘/Ctrl+F хайж, олдцоор гүйлгэж, нэгийг ба бү
   );
   assert.equal(widths.length, 2);
   assert.equal(widths[0], widths[1]);
+  await page.waitForFunction(() => document.querySelector(".find-mark"));
   let state = await read();
   assert.equal(state.count, "1/120");
   assert.equal(state.selected, "Өвөл");
