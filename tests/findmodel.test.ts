@@ -3,10 +3,13 @@ import assert from "node:assert/strict";
 import {
   findAll,
   matchAfter,
+  matchAt,
   matchBefore,
   matchesIn,
   MATCH_LIMIT,
   replaceAll,
+  replaceEdits,
+  shiftOffset,
 } from "../src/editor/findmodel.ts";
 
 const TEXT = "Өвөл болж, өвөл ирлээ. ӨВӨЛ (a+b) өвөл.";
@@ -48,10 +51,71 @@ test("matchesIn: мужид хүрсэн олдцуудыг өгнө", () => {
   assert.deepEqual(matchesIn(found, TEXT.length, TEXT.length), []);
 });
 
-test("replaceAll: бүх олдцыг солино", () => {
+test("replaceAll: олдцын том жижиг үсгийг хадгалж солино", () => {
   assert.equal(
-    replaceAll(TEXT, findAll(TEXT, "өвөл"), "зун"),
-    "зун болж, зун ирлээ. зун (a+b) зун.",
+    replaceAll(TEXT, findAll(TEXT, "өвөл"), "өвөл", "зун"),
+    "Зун болж, зун ирлээ. ЗУН (a+b) зун.",
   );
-  assert.equal(replaceAll(TEXT, [], "x"), TEXT);
+  assert.equal(replaceAll(TEXT, [], "өвөл", "x"), TEXT);
+});
+
+test("replaceAll: алдаа шалгагчийн адил дүрмээр солино", () => {
+  const text = "баих Баих БАИХ";
+  const found = findAll(text, "баих");
+  assert.equal(replaceAll(text, found, "баих", "байх"), "байх Байх БАЙХ");
+  assert.equal(replaceAll(text, found, "баих", "Байх"), "Байх Байх БАЙХ");
+  assert.equal(replaceAll(text, found, "Баих", "Байх"), "байх Байх БАЙХ");
+  assert.equal(
+    replaceAll(text, found, "баих", "iPhone"),
+    "iPhone iPhone iPhone",
+  );
+});
+
+test("findAll: бүтэн үгээр хайхад үгийн хэсгийг алгасна", () => {
+  const text = "өвөл өвлийн Өвөлжөө (өвөл) өвөл-зун 2өвөл ӨВӨЛ.";
+  const found = findAll(text, "өвөл", true);
+  assert.deepEqual(
+    found.map((m) => text.slice(m.from, m.to)),
+    ["өвөл", "өвөл", "өвөл", "ӨВӨЛ"],
+  );
+  assert.equal(findAll(text, "өвөл").length, 6);
+  assert.equal(findAll("a.b a b", "a.b", true).length, 1);
+});
+
+test("shiftOffset: засварын дараа байрлалыг шилжүүлнэ", () => {
+  const edits = [
+    { from: 2, to: 6, size: 2 },
+    { from: 10, to: 14, size: 6 },
+  ];
+  assert.equal(shiftOffset(0, edits), 0);
+  assert.equal(shiftOffset(2, edits), 2);
+  assert.equal(shiftOffset(4, edits), 2);
+  assert.equal(shiftOffset(6, edits), 4);
+  assert.equal(shiftOffset(8, edits), 6);
+  assert.equal(shiftOffset(12, edits), 8);
+  assert.equal(shiftOffset(20, edits), 20);
+  assert.equal(shiftOffset(5, []), 5);
+});
+
+test("matchAt: курсор байгаа эсвэл түүний дараах олдцыг сонгоно", () => {
+  const found = findAll(TEXT, "өвөл");
+  assert.equal(matchAt(found, 0), 0);
+  assert.equal(matchAt(found, 2), 0);
+  assert.equal(matchAt(found, 4), 1);
+  assert.equal(matchAt(found, found[3]!.to), 0);
+  assert.equal(matchAt([], 3), -1);
+});
+
+test("findAll ба replaceEdits: яг горимд том жижиг үсгийг ялгаж, бичсэнээр нь солино", () => {
+  const text = "баих Баих БАИХ баих";
+  const found = findAll(text, "баих", false, true);
+  assert.deepEqual(
+    found.map((m) => m.from),
+    [0, 15],
+  );
+  assert.equal(findAll(text, "Баих", false, true).length, 1);
+  assert.equal(
+    replaceEdits(text, findAll(text, "баих"), "баих", "байх", true).text,
+    "байх байх байх байх",
+  );
 });

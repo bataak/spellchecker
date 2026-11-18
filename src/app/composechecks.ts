@@ -169,8 +169,7 @@ export function composeEditing(app: Scope<EditingReads, EditingGives>): void {
     rangeRects: app.backdrop.rangeRects,
     offsetAtY: app.backdrop.offsetAtY,
     onRender: app.backdrop.onRender,
-    insert: editorText.insert,
-    set: (text, caret) => void editorText.set(text, caret),
+    commit: (text, caret) => void app.loop.commit(text, caret),
     attachKeyboard: (input) => app.kbLayout.attach(input),
     mac: detectPlatform().mac,
   });

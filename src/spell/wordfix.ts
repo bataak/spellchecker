@@ -6,13 +6,7 @@ import {
   dashNormalized,
 } from "./textcheck.ts";
 import type { Token } from "./textcheck.ts";
-import {
-  applyCase,
-  caseRank,
-  casePattern,
-  irregularCase,
-  rankToPattern,
-} from "./caseform.ts";
+import { fitCase } from "./caseform.ts";
 import type { CasePattern } from "./caseform.ts";
 import { inRanges } from "./codeskip.ts";
 import { type SkipRange } from "./skipranges.ts";
@@ -29,10 +23,6 @@ export function replaceAllWord(
   skip: SkipRange[] = [],
 ): { text: string; caret: number } {
   baseRepl = baseRepl.replace(/\s+$/, "");
-  const verbatim = irregularCase(baseRepl);
-  const corrRank = caseRank(casePattern(baseRepl));
-  const primRank = caseRank(primaryPattern || "lower");
-  const floor = corrRank > primRank ? corrRank : 0;
   const targetLower = originalLower.replace(/\s+$/, "");
   let result = "";
   let cursor = 0;
@@ -46,13 +36,7 @@ export function replaceAllWord(
       !inRanges(skip, index)
     ) {
       result += text.slice(cursor, index);
-      let rep;
-      if (verbatim) {
-        rep = baseRepl;
-      } else {
-        const resolvedRank = Math.max(caseRank(casePattern(core)), floor);
-        rep = applyCase(rankToPattern(resolvedRank), baseRepl);
-      }
+      const rep = fitCase(core, baseRepl, primaryPattern || "lower");
       if (caretOffset != null && index + word.length <= caretOffset) {
         caret += rep.length - core.length;
       }
