@@ -32,6 +32,18 @@ test("аравтын бутархайг танина", () => {
   });
 });
 
+test("зураастай нөхцөлтэй нэгжийг салгана", () => {
+  assert.deepEqual(splitNumberBoundary("5м-ээс"), {
+    word: "м-ээс",
+    split: "5 м-ээс",
+  });
+  assert.deepEqual(splitNumberBoundary("10км-ийн"), {
+    word: "км-ийн",
+    split: "10 км-ийн",
+  });
+  assert.equal(splitNumberBoundary("5м-"), null);
+});
+
 test("латин нэгжийг мөн танина", () => {
   assert.deepEqual(splitNumberBoundary("10mg"), {
     word: "mg",
