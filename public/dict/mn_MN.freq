@@ -4,6 +4,10 @@
 # Forms seen fewer than 3 times are omitted.
 VOWELS аэоөуүиыеёюя
 LAMBDA 0.5
+CAP 4
+FLOOR 20
+TRANS 0.75
+PAIRS 0.5 дт зс гх бп жш вф гк
 нь	1430148
 байна	973332
 энэ	648809

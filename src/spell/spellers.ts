@@ -72,6 +72,7 @@ async function loadManifest(
         version: null,
         aff: dict.id + ".aff",
         dic: dict.id + ".dic",
+        ...(dict.id === PRIMARY ? { freq: dict.id + ".freq" } : {}),
       };
     }
     return out;
