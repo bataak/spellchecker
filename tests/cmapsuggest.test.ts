@@ -11,17 +11,10 @@ const dict = join(
   "dict",
   "mn_MN",
 );
-const freq = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "tools",
-  "freq",
-  "mn_MN.freq",
-);
 
 test("CMAP: эгшиг зохицол болон үндсийн эгшгийн алдааг засна", async () => {
   const hunspell = await createHunspellFromFiles(dict + ".aff", dict + ".dic");
-  await hunspell.loadFrequenciesFromFile(freq);
+  await hunspell.loadFrequenciesFromFile(dict + ".freq");
   try {
     assert.ok(hunspell.testSpelling("түвдэхдээ"));
     assert.ok(
