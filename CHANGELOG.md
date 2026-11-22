@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.130.1](https://github.com/bataak/spellchecker/compare/v1.130.0...v1.130.1) (2026-11-22)
+
+
+### Bug Fixes
+
+* **spell:** stop reranking suggestions by word frequency ([5a1e4a9](https://github.com/bataak/spellchecker/commit/5a1e4a9517b9a5e3180d98fa9913e45c7f4d265b))
+* **spell:** suggest number split before dashed suffix (5м-ээс → 5 м-ээс) ([88bb1d8](https://github.com/bataak/spellchecker/commit/88bb1d886df699a76161093d6dddb476f0dacbde))
+
 ## [1.130.0](https://github.com/bataak/spellchecker/compare/v1.129.0...v1.130.0) (2026-11-18)
 
 
