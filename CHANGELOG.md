@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.130.2](https://github.com/bataak/spellchecker/compare/v1.130.1...v1.130.2) (2026-11-22)
+
+
+### Bug Fixes
+
+* **spell:** re-enable frequency reranking with capped scoring ([3c74be7](https://github.com/bataak/spellchecker/commit/3c74be746f64524df5b164b888da37c4066029a1))
+
 ## [1.130.1](https://github.com/bataak/spellchecker/compare/v1.130.0...v1.130.1) (2026-11-22)
 
 
