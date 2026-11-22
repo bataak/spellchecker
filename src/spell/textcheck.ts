@@ -37,7 +37,7 @@ export function isDashSuffix(
 }
 
 const NUMBER = String.raw`\p{N}+(?:[.,]\p{N}+)*`;
-const LETTERS = String.raw`\p{L}[\p{L}\p{M}]*`;
+const LETTERS = String.raw`\p{L}[\p{L}\p{M}]*(?:-\p{L}[\p{L}\p{M}]*)*`;
 const CYRILLIC = String.raw`[\u0400-\u04FF][\u0400-\u04FF\p{M}]*`;
 const NUMBER_FIRST = new RegExp(`^(${NUMBER})(${LETTERS})$`, "u");
 const WORD_FIRST = new RegExp(`^(${CYRILLIC})(${NUMBER})$`, "u");
