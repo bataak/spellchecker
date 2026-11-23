@@ -8,6 +8,8 @@ CAP 4
 FLOOR 20
 TRANS 0.75
 PAIRS 0.5 дт зс гх бп жш вф гк
+REPCOST 0.4
+REPMIN 3
 нь	1430148
 байна	973332
 энэ	648809
