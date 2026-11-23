@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.131.0](https://github.com/bataak/spellchecker/compare/v1.130.3...v1.131.0) (2026-11-23)
+
+
+### Features
+
+* **editor:** turn the forced layout off with three consecutive Ctrl+\ ([a5025d9](https://github.com/bataak/spellchecker/commit/a5025d9d9f53cc83e5c4de8c5048888e9a253402))
+
 ## [1.130.3](https://github.com/bataak/spellchecker/compare/v1.130.2...v1.130.3) (2026-11-23)
 
 
