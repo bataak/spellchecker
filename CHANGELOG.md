@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.130.3](https://github.com/bataak/spellchecker/compare/v1.130.2...v1.130.3) (2026-11-23)
+
+
+### Bug Fixes
+
+* **spell:** keep REP corrections in front when ranking by frequency ([13125bc](https://github.com/bataak/spellchecker/commit/13125bc71c9696c68335acbbf6ae6a4fff489b8b))
+* **spell:** prefer the more frequent form when capped scores tie ([6b33e2b](https://github.com/bataak/spellchecker/commit/6b33e2bb03d8d5f6643fef2ee24416beac492ded))
+
 ## [1.130.2](https://github.com/bataak/spellchecker/compare/v1.130.1...v1.130.2) (2026-11-22)
 
 
