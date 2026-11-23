@@ -112,6 +112,18 @@ export function otherLayout(system: Layout | null): Layout {
   return system === "mn" ? "en" : "mn";
 }
 
+export function toggleStep(
+  forced: Layout | null,
+  system: Layout | null,
+  streak: number,
+): { layout: Layout | null; streak: number } {
+  if (streak >= 2) return { layout: null, streak: 0 };
+  const layout = forced ? (forced === "mn" ? "en" : "mn") : otherLayout(system);
+  return { layout, streak: streak + 1 };
+}
+
+const MODIFIERS = new Set(["Control", "Shift", "Alt", "Meta", "AltGraph"]);
+
 function loadForced(): Layout | null {
   const value = read(KEYS.keyboardLayout);
   return value === "mn" || value === "en" ? value : null;
@@ -287,6 +299,7 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): KeyboardLayout {
 
   let forced = loadForced();
   let system: Layout | null = null;
+  let streak = 0;
 
   const navKeyboard = (
     navigator as {
@@ -305,7 +318,10 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): KeyboardLayout {
   chip.type = "button";
   chip.className = "layout-chip";
   chip.addEventListener("mousedown", (event) => event.preventDefault());
-  chip.addEventListener("click", () => setForced(null));
+  chip.addEventListener("click", () => {
+    streak = 0;
+    setForced(null);
+  });
   deps.status.after(chip);
 
   const badge = createBadge();
@@ -342,10 +358,10 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): KeyboardLayout {
   const toggle = (event: KeyboardEvent, field: Field): void => {
     event.preventDefault();
     event.stopPropagation();
-    setForced(
-      forced ? (forced === "mn" ? "en" : "mn") : otherLayout(system),
-      field,
-    );
+    if (event.repeat) return;
+    const step = toggleStep(forced, system, streak);
+    streak = step.streak;
+    setForced(step.layout, field);
   };
 
   const learnSystem = (event: KeyboardEvent): void => {
@@ -363,6 +379,7 @@ export function initKeyboardLayout(deps: KeyboardLayoutDeps): KeyboardLayout {
           toggle(event, field);
           return;
         }
+        if (!MODIFIERS.has(event.key)) streak = 0;
         badge.follow(field);
         if (!forced) learnSystem(event);
         else typeMapped(event, field, forced);

@@ -1,6 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mapKey, otherLayout, systemLayout } from "../src/editor/kblayout.ts";
+import {
+  mapKey,
+  otherLayout,
+  systemLayout,
+  toggleStep,
+} from "../src/editor/kblayout.ts";
 
 test("монгол layout стандарт байрлалаар үсэг гаргана", () => {
   const word = ["KeyG", "KeyD", "KeyO", "KeyF"].map((code) =>
@@ -44,4 +49,23 @@ test("зөвхөн монгол гарыг монгол гэж таньж, бу�
   assert.equal(otherLayout(systemLayout("й")), "mn");
   assert.equal(otherLayout(systemLayout("q")), "mn");
   assert.equal(otherLayout(systemLayout("ф")), "en");
+});
+
+test("Ctrl+\\ хоёр удаа ээлжилж, гурав дахь дараалсан дараалтаар идэвхгүй болно", () => {
+  const first = toggleStep("mn", "en", 0);
+  assert.deepEqual(first, { layout: "en", streak: 1 });
+  const second = toggleStep(first.layout, "en", first.streak);
+  assert.deepEqual(second, { layout: "mn", streak: 2 });
+  assert.deepEqual(toggleStep(second.layout, "en", second.streak), {
+    layout: null,
+    streak: 0,
+  });
+  assert.deepEqual(toggleStep(null, "en", 0), { layout: "mn", streak: 1 });
+});
+
+test("хооронд нь бичвэл Ctrl+\\ идэвхгүй болгохгүй ээлжилсээр байна", () => {
+  let layout = toggleStep("mn", "en", 0).layout;
+  layout = toggleStep(layout, "en", 0).layout;
+  layout = toggleStep(layout, "en", 0).layout;
+  assert.equal(layout, "en");
 });
