@@ -22,6 +22,7 @@ export function findAll(
   query: string,
   whole = false,
   exact = false,
+  limit = MATCH_LIMIT,
 ): Match[] {
   if (!query) return [];
   const body = query.replace(SPECIAL, "\\$&");
@@ -30,7 +31,7 @@ export function findAll(
   const out: Match[] = [];
   for (const match of text.matchAll(pattern)) {
     out.push({ from: match.index, to: match.index + match[0].length });
-    if (out.length >= MATCH_LIMIT) break;
+    if (out.length >= limit) break;
   }
   return out;
 }

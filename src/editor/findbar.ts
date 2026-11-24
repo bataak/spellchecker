@@ -446,7 +446,14 @@ function createFindCore(deps: FindBarDeps, parts: Parts) {
       fresh();
       if (!matches.length) return;
       const at = editor.selectionStart;
-      const edits = swap(deps, parts, matches, (all) => shiftOffset(at, all));
+      const every = findAll(
+        editor.value,
+        query.value,
+        pressed(parts.word),
+        pressed(parts.exact),
+        Infinity,
+      );
+      const edits = swap(deps, parts, every, (all) => shiftOffset(at, all));
       origin = shiftOrigin(origin, edits);
       search(home());
     },
