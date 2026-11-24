@@ -2,6 +2,7 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 
 const TO_PREVIEW = "Харагдац уруу шилжих";
 const TO_EDITOR = "Бичвэр уруу буцах";
+const OUT_ROOM = 28;
 
 export interface PaneToggle {
   setAvailable(on: boolean): void;
@@ -57,18 +58,29 @@ export function initPaneToggle(
     } else delete root.dataset.pane;
     (preview ? workspace : editorWrap).append(button);
     paint();
+    place();
     onChange(preview);
     if (!focused) return;
     if (preview) button.focus();
     else area.focus();
   };
 
+  const place = (): void => {
+    const host = button.parentElement;
+    if (button.hidden || !host) return;
+    const box = host.getBoundingClientRect();
+    const room = preview ? box.left : window.innerWidth - box.right;
+    button.classList.toggle("is-out", room >= OUT_ROOM);
+  };
+
   const sync = (): void => {
     button.hidden = !available || sideBySide();
     if (button.hidden) set(false);
+    requestAnimationFrame(place);
   };
 
   button.addEventListener("click", () => set(!preview));
+  window.addEventListener("resize", () => requestAnimationFrame(place));
   paint();
 
   return {

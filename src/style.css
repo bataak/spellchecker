@@ -2448,17 +2448,22 @@ body:not(.preview-mode) .empty-state {
     right: auto;
     left: calc(100% + 1px);
   }
-}
 
-@media (min-width: 701px) and (max-width: 1023px) and (pointer: fine) {
-  :root:not([data-pane="preview"]) .pane-toggle {
+  :root:not([data-pane="preview"]) .pane-toggle:not(.is-out) {
     width: calc(var(--panel-gap) - 2px);
     border-radius: 6px;
   }
 
-  :root:not([data-pane="preview"]) .pane-toggle-glyph {
+  :root:not([data-pane="preview"])
+    .pane-toggle:not(.is-out)
+    .pane-toggle-glyph {
     width: 10px;
     height: 10px;
+  }
+
+  :root[data-pane="preview"] .pane-toggle.is-out {
+    left: auto;
+    right: calc(100% + 1px);
   }
 }
 
