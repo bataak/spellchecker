@@ -35,10 +35,11 @@ export function initPaneToggle(
   button.append(chevron());
   button.addEventListener("mousedown", (event) => event.preventDefault());
   const editorWrap = area.closest<HTMLElement>(".editor-wrap") ?? workspace;
-  editorWrap.append(button);
 
   let available = false;
-  let preview = false;
+  let preview = root.dataset.pane === "preview";
+  (preview ? workspace : editorWrap).append(button);
+  const booting = (): boolean => root.classList.contains("booting");
 
   const paint = (): void => {
     const label = preview ? TO_EDITOR : TO_PREVIEW;
@@ -75,9 +76,18 @@ export function initPaneToggle(
 
   const sync = (): void => {
     button.hidden = !available || sideBySide();
-    if (button.hidden) set(false);
+    if (button.hidden && !booting()) set(false);
     requestAnimationFrame(place);
   };
+
+  if (booting()) {
+    const watch = new MutationObserver(() => {
+      if (booting()) return;
+      watch.disconnect();
+      sync();
+    });
+    watch.observe(root, { attributes: true, attributeFilter: ["class"] });
+  }
 
   button.addEventListener("click", () => set(!preview));
   window.addEventListener("resize", () => requestAnimationFrame(place));

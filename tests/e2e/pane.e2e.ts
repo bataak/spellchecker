@@ -412,3 +412,27 @@ test("үсгийг томруулсан ч харагдацад # гарчиг #
   assert.ok(sizes[0]! > sizes[1]! && sizes[1]! > sizes[2]!, String(sizes));
   assert.deepEqual(errors(page), []);
 });
+
+test("харагдац дээр байхад дахин ачаалахад буцах товч харагдана", async () => {
+  const page = await openPage(app, await app.context());
+  await chooseSlot(page, "Тайлан");
+  await typeAtEnd(page, "# Гарчиг\n\nЭнэ бол **тод** үг.\n");
+  await resize(page, 1280);
+  await page.click(".pane-toggle");
+  assert.equal(await shown(page, ".preview-panel"), true);
+
+  await reload(page);
+  await until(
+    () => shown(page, ".pane-toggle"),
+    (on) => on,
+  );
+  assert.equal(await shown(page, ".preview-panel"), true);
+  assert.equal(
+    await page.getAttribute(".pane-toggle", "aria-label"),
+    "Бичвэр уруу буцах",
+  );
+  await page.click(".pane-toggle");
+  assert.equal(await shown(page, ".editor-wrap"), true);
+  assert.equal(await shown(page, ".preview-panel"), false);
+  assert.deepEqual(errors(page), []);
+});
