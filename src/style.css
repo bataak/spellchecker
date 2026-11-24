@@ -656,6 +656,11 @@ a.tbtn {
   cursor: pointer;
 }
 
+.measure-write + .measure-write {
+  margin-top: 2px;
+  border-top-color: transparent;
+}
+
 .measure-write:hover {
   border-color: var(--line);
 }
@@ -2442,14 +2447,23 @@ body:not(.preview-mode) .empty-state {
   :root:not([data-pane="preview"]) .pane-toggle {
     right: auto;
     left: calc(100% + 1px);
-    width: calc(var(--panel-gap) - 2px);
-    border-radius: 6px;
-    transform: translateY(-50%);
   }
 
-  :root:not([data-pane="preview"]) .pane-toggle-glyph {
+  :root:not([data-pane="preview"]) .pane-toggle:not(.is-out) {
+    width: calc(var(--panel-gap) - 2px);
+    border-radius: 6px;
+  }
+
+  :root:not([data-pane="preview"])
+    .pane-toggle:not(.is-out)
+    .pane-toggle-glyph {
     width: 10px;
     height: 10px;
+  }
+
+  :root[data-pane="preview"] .pane-toggle.is-out {
+    left: auto;
+    right: calc(100% + 1px);
   }
 }
 

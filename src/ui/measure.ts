@@ -12,7 +12,7 @@ import {
   serializeLayout,
   showsControl,
   chooseLayout,
-  writeLayout,
+  writeChoice,
   type Layout,
   type LayoutChoice,
   type Metrics,
@@ -271,16 +271,22 @@ function publishPreviewMeasure(
   );
 }
 
+function keepsPdf(tex: boolean, mode?: WriteMode): boolean {
+  return tex && mode?.kind() === "pdf";
+}
+
 function chooser(
   desired: Layout,
   previewBlocked: boolean,
   previewMode: boolean,
-  writing?: { readonly mode: WriteMode },
+  writing?: { readonly mode: WriteMode; readonly tex: boolean },
 ): (fit: Layout[]) => LayoutChoice {
-  const writeOn = writing?.mode.on() ?? false;
-  const want = writeOn ? writeLayout(desired) : desired;
-  return (fit) =>
-    chooseLayout(fit, want, previewBlocked, previewMode && !writeOn);
+  if (writing?.mode.on()) {
+    const keep =
+      keepsPdf(writing.tex, writing.mode) && (previewMode || desired.preview);
+    return (fit) => writeChoice(fit, desired, previewBlocked, keep);
+  }
+  return (fit) => chooseLayout(fit, desired, previewBlocked, previewMode);
 }
 
 function returnDecodeButtons(wrap: HTMLElement, tools: HTMLElement): void {
@@ -321,7 +327,8 @@ export function initMeasureControl(
   };
 
   const pick = (l: Layout): void => {
-    if (l.panel || l.preview) writing?.mode.set(false);
+    if (l.panel || (l.preview && !keepsPdf(texMode, writing?.mode)))
+      writing?.mode.set(false);
     desired = l;
     previewMode = false;
     if (mdMode && l.preview !== mdPreview) {
@@ -338,7 +345,8 @@ export function initMeasureControl(
     metrics = readMetrics(area, wrap, persistMetrics);
     publishMetrics(metrics);
 
-    const choose = chooser(desired, previewBlocked, previewMode, writing);
+    const write = writing && { ...writing, tex: texMode };
+    const choose = chooser(desired, previewBlocked, previewMode, write);
 
     const pool = texMode ? TEX_LAYOUTS : ALL_LAYOUTS;
     const plan = settleViewport(wrap, metrics, choose, prev, pool);
@@ -355,7 +363,7 @@ export function initMeasureControl(
     const menuAvail = plan.offered ?? avail;
     ctl.hidden = !showsControl(menuAvail);
     if (ctl.hidden) close();
-    else paintMenu(control, pool, menuAvail, active, metrics, pick, writing);
+    else paintMenu(control, pool, menuAvail, active, metrics, pick, write);
   }
 
   const unbindMenu = bindMenu(control, close);

@@ -1,9 +1,13 @@
 import { createEmitter } from "../core/emitter.ts";
 import { KEYS, read, remove, write } from "../core/store.ts";
 
+export type WriteKind = "pdf" | "text";
+
 export interface WriteMode {
   on(): boolean;
   set(on: boolean): void;
+  kind(): WriteKind;
+  setKind(kind: WriteKind): void;
   onChange(listener: (on: boolean) => void): () => void;
   destroy(): void;
 }
@@ -24,6 +28,10 @@ export function isWriteKey(e: {
   );
 }
 
+export function writing(): boolean {
+  return document.documentElement.dataset.write === "on";
+}
+
 function paint(on: boolean): void {
   const data = document.documentElement.dataset;
   if (on) data.write = "on";
@@ -32,6 +40,7 @@ function paint(on: boolean): void {
 
 export function createWriteMode(): WriteMode {
   let on = read(KEYS.writeMode) === "on";
+  let kind: WriteKind = read(KEYS.writeKind) === "text" ? "text" : "pdf";
   const changed = createEmitter<boolean>();
   paint(on);
 
@@ -51,9 +60,19 @@ export function createWriteMode(): WriteMode {
   };
   document.addEventListener("keydown", onKey);
 
+  const setKind = (next: WriteKind): void => {
+    if (next === kind) return;
+    kind = next;
+    if (kind === "text") write(KEYS.writeKind, kind);
+    else remove(KEYS.writeKind);
+    if (on) changed.emit(on);
+  };
+
   return {
     on: () => on,
     set,
+    kind: () => kind,
+    setKind,
     onChange: changed.on,
     destroy() {
       document.removeEventListener("keydown", onKey);

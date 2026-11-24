@@ -89,7 +89,7 @@ export const KEYMAP: readonly ShortcutGroup[] = [
       { keys: [["Mod", "Shift", "D"]], action: "Гэрэлтэй / бараан горим" },
       {
         keys: [["Mod", "Shift", "F"]],
-        action: "Бичих горим: зөвхөн бичвэрийг үлдээх",
+        action: "Бичих горим: бичвэр (LaTeX-д PDF-тэй) үлдээх",
       },
     ],
   },

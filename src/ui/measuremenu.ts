@@ -12,7 +12,7 @@ import {
   type Metrics,
 } from "./layout.ts";
 import { eventNode } from "./dom.ts";
-import type { WriteMode } from "./writemode.ts";
+import type { WriteKind, WriteMode } from "./writemode.ts";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -142,20 +142,58 @@ function layoutOption(
   return opt;
 }
 
-function writeOption(mode: WriteMode, shortcut: string): HTMLButtonElement {
+const WRITE_TEXT = {
+  label: "Бичих горим",
+  title: "Зөвхөн бичвэрийг үлдээж, бусдыг нууна",
+};
+
+const TEX_WRITE: Readonly<
+  Record<WriteKind, { readonly label: string; readonly title: string }>
+> = {
+  pdf: {
+    label: "Бичих горим: бичвэр + PDF",
+    title: "Бичвэр ба PDF-ийг үлдээж, бусдыг нууна",
+  },
+  text: {
+    label: "Бичих горим: зөвхөн бичвэр",
+    title: "Зөвхөн бичвэрийг үлдээнэ. PDF нуугдаж, хөрвүүлэлт түр зогсоно",
+  },
+};
+
+function writeOption(
+  mode: WriteMode,
+  shortcut: string,
+  kind: WriteKind | null,
+): HTMLButtonElement {
+  const text = kind === null ? WRITE_TEXT : TEX_WRITE[kind];
+  const checked = mode.on() && (kind === null || mode.kind() === kind);
   const opt = document.createElement("button");
   opt.type = "button";
   opt.className = "measure-write";
+  if (kind !== null) opt.dataset.kind = kind;
   opt.setAttribute("role", "menuitemcheckbox");
-  opt.setAttribute("aria-checked", String(mode.on()));
-  opt.title = `Зөвхөн бичвэрийг үлдээж, бусдыг нууна (${shortcut})`;
+  opt.setAttribute("aria-checked", String(checked));
+  opt.title = `${text.title} (${shortcut})`;
   const label = document.createElement("span");
-  label.textContent = "Бичих горим";
-  const keys = document.createElement("kbd");
-  keys.textContent = shortcut;
-  opt.append(label, keys);
-  opt.addEventListener("click", () => mode.set(!mode.on()));
+  label.textContent = text.label;
+  opt.append(label);
+  if (kind === null || mode.kind() === kind) {
+    const keys = document.createElement("kbd");
+    keys.textContent = shortcut;
+    opt.append(keys);
+  }
+  opt.addEventListener("click", () => {
+    if (checked) return mode.set(false);
+    if (kind !== null) mode.setKind(kind);
+    mode.set(true);
+  });
   return opt;
+}
+
+export interface MenuWriting {
+  readonly mode: WriteMode;
+  readonly shortcut: string;
+  readonly tex: boolean;
 }
 
 export function paintMenu(
@@ -165,7 +203,7 @@ export function paintMenu(
   active: Layout,
   metrics: Metrics,
   pick: (l: Layout) => void,
-  writing?: { readonly mode: WriteMode; readonly shortcut: string },
+  writing?: MenuWriting,
 ): void {
   const widest = Math.max(
     ...ALL_LAYOUTS.map((l) => contentWidth(l, metrics)),
@@ -183,7 +221,12 @@ export function paintMenu(
       );
     menu.append(line);
   }
-  if (writing) menu.append(writeOption(writing.mode, writing.shortcut));
+  if (!writing) return;
+  const kinds: readonly (WriteKind | null)[] = writing.tex
+    ? ["pdf", "text"]
+    : [null];
+  for (const kind of kinds)
+    menu.append(writeOption(writing.mode, writing.shortcut, kind));
 }
 
 export function bindMenu(control: Control, close: () => void): () => void {
