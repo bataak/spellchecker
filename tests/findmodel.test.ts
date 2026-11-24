@@ -119,3 +119,11 @@ test("findAll ба replaceEdits: яг горимд том жижиг үсгий�
     "байх байх байх байх",
   );
 });
+
+test("findAll: хязгааргүй үед 10 000-аас олон олдоцыг бүгдийг олно (#347)", () => {
+  const text = "ном ".repeat(MATCH_LIMIT + 5);
+  assert.equal(findAll(text, "ном").length, MATCH_LIMIT);
+  const every = findAll(text, "ном", false, false, Infinity);
+  assert.equal(every.length, MATCH_LIMIT + 5);
+  assert.equal(replaceAll(text, every, "ном", "дэвтэр").includes("ном"), false);
+});

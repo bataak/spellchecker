@@ -27,3 +27,13 @@ export function lineAt(text: string, index: number): string {
 export function isAsciiLetter(code: number): boolean {
   return (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
 }
+
+const CLUSTERED = /\p{M}|\p{Regional_Indicator}|\u200d|[\u{10000}-\u{10ffff}]/u;
+
+let graphemes: Intl.Segmenter | null = null;
+
+export function charCount(text: string): number {
+  if (!CLUSTERED.test(text)) return text.length;
+  graphemes ??= new Intl.Segmenter(undefined, { granularity: "grapheme" });
+  return Array.from(graphemes.segment(text)).length;
+}

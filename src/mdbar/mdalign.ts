@@ -103,6 +103,55 @@ function applyChanges(
   return { text: out, start: s, end: e };
 }
 
+const HEADING_LINE = /^\s{0,3}#{1,6}(?:\s|$)/;
+const CODE_FENCE = /^\s{0,3}(`{3,}|~{3,})/;
+
+function codeBlocks(lines: readonly string[]): [number, number][] {
+  const out: [number, number][] = [];
+  let open = -1;
+  let fence = "";
+  lines.forEach((line, i) => {
+    const mark = CODE_FENCE.exec(line)?.[1];
+    if (open < 0) {
+      if (!mark) return;
+      open = i;
+      fence = mark;
+    } else if (
+      mark !== undefined &&
+      mark[0] === fence[0] &&
+      mark.length >= fence.length &&
+      !line.trim().slice(mark.length).trim()
+    ) {
+      out.push([open, i]);
+      open = -1;
+    }
+  });
+  if (open >= 0) out.push([open, lines.length - 1]);
+  return out;
+}
+
+function blockAt(lines: readonly string[], row: number): [number, number] {
+  const code = codeBlocks(lines);
+  const inside = code.find(([a, b]) => row >= a && row <= b);
+  if (inside) return inside;
+  const edge = (i: number): boolean => {
+    const l = lines[i]!;
+    return (
+      !l.trim() ||
+      FENCE_OPEN.test(l) ||
+      FENCE_CLOSE.test(l) ||
+      HEADING_LINE.test(l) ||
+      code.some(([a, b]) => i >= a && i <= b)
+    );
+  };
+  if (edge(row)) return [row, row];
+  let top = row;
+  let bottom = row;
+  while (top > 0 && !edge(top - 1)) top -= 1;
+  while (bottom < lines.length - 1 && !edge(bottom + 1)) bottom += 1;
+  return [top, bottom];
+}
+
 export function toggleAlign(
   text: string,
   start: number,
@@ -154,13 +203,8 @@ export function toggleAlign(
     ]);
   }
 
-  const edge = (line: string): boolean =>
-    !line.trim() || FENCE_OPEN.test(line) || FENCE_CLOSE.test(line);
-  let top = first;
-  let bottom = last;
-  if (!edge(lines[top]!)) while (top > 0 && !edge(lines[top - 1]!)) top -= 1;
-  if (!edge(lines[bottom]!))
-    while (bottom < lines.length - 1 && !edge(lines[bottom + 1]!)) bottom += 1;
+  const top = blockAt(lines, first)[0];
+  const bottom = blockAt(lines, last)[1];
   return applyChanges(text, start, end, [
     {
       from: offsets[top]!,

@@ -1,7 +1,13 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 
-import { escapedAt, lineAt, lineEndAt, lineStartAt } from "../src/core/text.ts";
+import {
+  charCount,
+  escapedAt,
+  lineAt,
+  lineEndAt,
+  lineStartAt,
+} from "../src/core/text.ts";
 
 test("escapedAt: сондгой тооны \\ өмнө байвал escape гэж үзнэ", () => {
   assert.equal(escapedAt("\\$", 1), true);
@@ -17,4 +23,12 @@ test("lineAt: байрлалын мөрийг хил хязгаартай нь �
   assert.equal(lineAt(text, 6), "хоёр");
   assert.equal(lineAt(text, text.length), "гурав");
   assert.equal(lineAt(text, text.length + 1), "");
+});
+
+test("charCount: эможи, нийлмэл эможиг нэг тэмдэгт гэж тоолно (#348)", () => {
+  assert.equal(charCount("😀👍"), 2);
+  assert.equal(charCount("👨‍👩‍👧"), 1);
+  assert.equal(charCount("🇲🇳"), 1);
+  assert.equal(charCount("ном дэвтэр"), 10);
+  assert.equal(charCount(""), 0);
 });

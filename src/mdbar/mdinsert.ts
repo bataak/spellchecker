@@ -2,7 +2,8 @@ import { imageAttrs, parseImageAttrs } from "../markdown.ts";
 import type { ImageSize } from "../markdown.ts";
 import { inRanges } from "../spell/codeskip.ts";
 import { codeRanges } from "../spell/skipranges.ts";
-import { lineEndAt, lineStartAt } from "../core/text.ts";
+import { lineAt, lineEndAt, lineStartAt } from "../core/text.ts";
+import { inTable } from "./mdcontext.ts";
 import type { Edit } from "./mdedit.ts";
 
 const URLISH = /^(?:[a-z][a-z0-9+.-]*:\/\/|www\.|mailto:)\S*$/i;
@@ -44,14 +45,40 @@ export function wrapLink(text: string, start: number, end: number): Edit {
 
 const TABLE_FENCE = '::: {width="100%" .grid}';
 
+const DIV_OPEN = /^\s{0,3}:{3,}\s*\S/;
+const DIV_CLOSE = /^\s{0,3}:{3,}\s*$/;
+
+function tableLine(text: string, from: number): boolean {
+  const to = lineEndAt(text, from);
+  return inTable(text, from, to, text.slice(from, to));
+}
+
+function tableEnd(text: string, caret: number): number {
+  let from = lineStartAt(text, caret);
+  if (!tableLine(text, from)) return lineEndAt(text, caret);
+  let top = from;
+  while (top > 0 && tableLine(text, lineStartAt(text, top - 1)))
+    top = lineStartAt(text, top - 1);
+  let to = lineEndAt(text, from);
+  while (to < text.length && tableLine(text, to + 1)) {
+    from = to + 1;
+    to = lineEndAt(text, from);
+  }
+  const opener = top > 0 ? lineAt(text, top - 1) : "";
+  const next = to < text.length ? lineAt(text, to + 1) : "";
+  if (DIV_OPEN.test(opener) && DIV_CLOSE.test(next))
+    return lineEndAt(text, to + 1);
+  return to;
+}
+
 export function insertTable(
   text: string,
   caret: number,
   cols = 2,
   rows = 1,
 ): Edit {
-  const to = lineEndAt(text, caret);
-  const line = text.slice(lineStartAt(text, caret), to);
+  const to = tableEnd(text, caret);
+  const line = text.slice(lineStartAt(text, to), to);
 
   const names = Array.from(
     { length: cols },

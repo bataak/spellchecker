@@ -23,6 +23,8 @@ const ANY_ORDERED = /^\s*\d+[.)]\s+/;
 
 const ANY_QUOTE = /^\s*>/;
 
+const QUOTE_PREFIX = /^(?:[ \t]{0,3}>[ \t]?)*/;
+
 interface Bounds {
   readonly from: number;
   readonly to: number;
@@ -254,7 +256,8 @@ export function toggleWrap(
 export function headingDepthAt(text: string, pos: number): number {
   const from = lineStartAt(text, pos);
   const line = text.slice(from, lineEndAt(text, pos));
-  return HEADING.exec(line)?.[1]?.length ?? 0;
+  const body = line.slice(QUOTE_PREFIX.exec(line)![0].length);
+  return HEADING.exec(body)?.[1]?.length ?? 0;
 }
 
 export function toggleHeading(
@@ -264,20 +267,24 @@ export function toggleHeading(
   depth: 1 | 2 | 3 | 4 | 5 | 6,
 ): Edit {
   const { lines } = blockLines(text, start, end);
-  const filled = lines.filter((l) => l.trim());
+  const quote = (line: string): string => QUOTE_PREFIX.exec(line)![0];
+  const bodies = lines.map((l) => l.slice(quote(l).length));
+  const filled = bodies.filter((l) => l.trim());
   const already =
     filled.length > 0 &&
     filled.every((l) => (HEADING.exec(l)?.[1]?.length ?? 0) === depth);
   const target = already ? 0 : depth;
 
-  return mapPrefix(text, start, end, (line) => {
-    if (!line.trim()) return null;
-    const head = HEADING.exec(line);
-    const list = head ? null : (BULLET.exec(line) ?? ORDERED.exec(line));
+  return mapPrefix(text, start, end, (line, index) => {
+    const body = bodies[index]!;
+    if (!body.trim()) return null;
+    const lead = quote(line);
+    const head = HEADING.exec(body);
+    const list = head ? null : (BULLET.exec(body) ?? ORDERED.exec(body));
     const drop = (head ?? list)?.[0].length ?? 0;
     const add = target ? "#".repeat(target) + " " : "";
     if (drop === 0 && add === "") return null;
-    return { drop, add };
+    return { drop: lead.length + drop, add: lead + add };
   });
 }
 
