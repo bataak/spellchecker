@@ -661,3 +661,42 @@ test("доголтой мөрийг жагсаалт болгоход тэмдг
     "|1. нэг\n  1. хоёр\n  2. гурав\n2. дөрөв|",
   );
 });
+
+test("toggleHeading: ишлэл мөрөнд «>» тэмдгийг хадгалж гарчиг болгоно (#349)", () => {
+  const e = toggleHeading("> Ишлэл мөр", 3, 3, 1);
+  assert.equal(e.text, "> # Ишлэл мөр");
+  assert.equal(headingDepthAt(e.text, 5), 1);
+  assert.equal(toggleHeading(e.text, 5, 5, 1).text, "> Ишлэл мөр");
+});
+
+test("toggleAlign: гарчгийг доорх догол мөрөөс тусад нь голлуулна (#350)", () => {
+  const text = "## Шалтгаан\nЭнгийн догол мөр.";
+  assert.equal(
+    toggleAlign(text, 3, 3, "center").text,
+    "::: {.center}\n## Шалтгаан\n:::\nЭнгийн догол мөр.",
+  );
+  assert.equal(
+    toggleAlign(text, 15, 15, "center").text,
+    "## Шалтгаан\n::: {.center}\nЭнгийн догол мөр.\n:::",
+  );
+});
+
+test("toggleAlign: кодын блок доторх мөрөнд зөвхөн блокийг голлуулна (#350)", () => {
+  const text = "Өмнөх\n```\nкод\n```\nДараах";
+  assert.equal(
+    toggleAlign(text, 11, 11, "center").text,
+    "Өмнөх\n::: {.center}\n```\nкод\n```\n:::\nДараах",
+  );
+});
+
+test("insertTable: байгаа хүснэгт дотор шинэ хүснэгтийг доор нь оруулна (#351)", () => {
+  const table = "| Нэр | Нас |\n| --- | --- |\n| Бат | 20 |";
+  for (const caret of [2, 16, 30]) {
+    const e = insertTable(table, caret);
+    assert.ok(e.text.startsWith(table + "\n\n::: {"), String(caret));
+  }
+  const grid = '::: {width="100%" .grid}\n' + table + "\n:::\nДараа";
+  const e = insertTable(grid, 30);
+  assert.ok(e.text.startsWith(grid.slice(0, -6) + "\n\n::: {"));
+  assert.ok(e.text.endsWith("\n:::\n\nДараа"));
+});
