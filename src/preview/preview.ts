@@ -20,6 +20,30 @@ import { deliverFile } from "../export/export.ts";
 import { eventElement } from "../ui/dom.ts";
 import { noticeIn, createMdRender } from "./previewmdrender.ts";
 
+const booting = (): boolean =>
+  document.documentElement.classList.contains("booting");
+
+let bootQueue: (() => void)[] | null = null;
+
+function afterBooting(run: () => void): void {
+  if (bootQueue) {
+    if (!bootQueue.includes(run)) bootQueue.push(run);
+    return;
+  }
+  const queue = [run];
+  bootQueue = queue;
+  const watch = new MutationObserver(() => {
+    if (booting()) return;
+    watch.disconnect();
+    bootQueue = null;
+    for (const later of queue) later();
+  });
+  watch.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["class"],
+  });
+}
+
 function isSameDocument(next: string, ref: string): boolean {
   if (next === ref) return true;
   const n = Math.min(200, ref.length);
@@ -289,6 +313,7 @@ export function initPreview(deps: PreviewDeps): Preview {
   };
 
   const update = (): void => {
+    if (booting()) return afterBooting(update);
     if (source) {
       if (!isSameDocument(area.value, sourceText)) setSource(null);
       return;
