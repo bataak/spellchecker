@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.132.0](https://github.com/bataak/spellchecker/compare/v1.131.0...v1.132.0) (2026-11-24)
+
+
+### Features
+
+* **editor:** LaTeX write mode keeps the PDF, with a text-only choice ([22a8718](https://github.com/bataak/spellchecker/commit/22a8718d00d1e5d8252e061c8d85dc42fa950df2))
+
+
+### Bug Fixes
+
+* **find:** replace every match, not just the first 10,000 ([#347](https://github.com/bataak/spellchecker/issues/347)) ([f1533ca](https://github.com/bataak/spellchecker/commit/f1533cac29fd942fa08fb052a689188a72a11f10))
+* **mdbar:** keep quotes, blocks and tables intact ([#349](https://github.com/bataak/spellchecker/issues/349), [#350](https://github.com/bataak/spellchecker/issues/350), [#351](https://github.com/bataak/spellchecker/issues/351)) ([4eb3efe](https://github.com/bataak/spellchecker/commit/4eb3efef01a7ba9941dc705163d58320969e5761))
+* **preview:** wait for boot before rendering the preview ([856453a](https://github.com/bataak/spellchecker/commit/856453a3bbb5082967ce6b3099302b30e82c1c0b))
+* **status:** count emoji as one character ([#348](https://github.com/bataak/spellchecker/issues/348)) ([58f1af0](https://github.com/bataak/spellchecker/commit/58f1af0b72c3645535711bab48109b90ee4ab6d5))
+* **ui:** keep the pane toggle on the preview after a reload ([24ac582](https://github.com/bataak/spellchecker/commit/24ac58250f906e9285e346323fdee5688b3a15c5))
+
 ## [1.131.0](https://github.com/bataak/spellchecker/compare/v1.130.3...v1.131.0) (2026-11-23)
 
 
