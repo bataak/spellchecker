@@ -36,6 +36,7 @@ export const KEYS = {
   layout: shared("layout"),
   layoutTex: shared("layout-tex"),
   writeMode: shared("write-mode"),
+  writeKind: shared("write-kind"),
   mdPreview: shared("md-preview"),
   mdPreviewTex: shared("md-preview-tex"),
   pdfInvert: shared("pdfInvert"),

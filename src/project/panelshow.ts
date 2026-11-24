@@ -1,5 +1,6 @@
 import { KEYS, read, remove, write } from "../core/store.ts";
 import { onSlotChange, talkCovers, yieldTalk } from "../ui/talkslot.ts";
+import { writing } from "../ui/writemode.ts";
 
 const PEEK_MS = 5000;
 
@@ -57,7 +58,7 @@ export function createPanelShow(deps: ShowDeps): PanelShow {
   const floating = (): boolean =>
     !wide.matches || "projectFloat" in document.documentElement.dataset;
   const visible = (): boolean => {
-    if (!deps.texActive()) return false;
+    if (!deps.texActive() || writing()) return false;
     const away = deps.away();
     if (away !== null) return awayOpen === away;
     awayOpen = null;
@@ -88,7 +89,7 @@ export function createPanelShow(deps: ShowDeps): PanelShow {
     if (tools && toggle.parentElement !== tools) tools.prepend(toggle);
     const shown = visible();
     const seen = shown && !talkCovers();
-    const hide = !deps.texActive() || seen;
+    const hide = !deps.texActive() || writing() || seen;
     if (toggle.hidden && !hide) flashToggle();
     toggle.hidden = hide;
     toggle.setAttribute("aria-pressed", String(seen));

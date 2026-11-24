@@ -656,6 +656,11 @@ a.tbtn {
   cursor: pointer;
 }
 
+.measure-write + .measure-write {
+  margin-top: 2px;
+  border-top-color: transparent;
+}
+
 .measure-write:hover {
   border-color: var(--line);
 }

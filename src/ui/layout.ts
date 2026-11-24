@@ -291,6 +291,22 @@ export function writeLayout(l: Layout): Layout {
   return { measure: l.measure, panel: false, preview: false };
 }
 
+export function writeChoice(
+  fit: Layout[],
+  desired: Layout,
+  previewBlocked: boolean,
+  keepPreview: boolean,
+): LayoutChoice {
+  const avail = previewBlocked ? fit.filter((l) => !l.preview) : fit;
+  const bare = avail.filter((l) => !l.panel && !l.preview);
+  const want = writeLayout(desired);
+  const base = has(bare, want) ? want : (bare.at(-1) ?? clamp(want, avail));
+  if (!keepPreview) return { avail, active: base };
+  const lone = avail.filter((l) => !l.panel);
+  const from = desired.wide ? desired : base;
+  return { avail, active: previewLayout(from, lone) ?? base };
+}
+
 export function projectViewport(
   full: number,
   room: number,
