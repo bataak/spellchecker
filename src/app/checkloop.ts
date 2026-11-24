@@ -3,6 +3,7 @@ import { tokenizeAll, type SpellSession } from "../spell/spellsession.ts";
 import type { Token } from "../spell/textcheck.ts";
 import type { TextEdit } from "../editor/tokenshift.ts";
 import type { DocStatus } from "./docstatus.ts";
+import { charCount } from "../core/text.ts";
 
 const DEFERRED_CHECK_MS = 1500;
 const LARGE_TEXT = 50_000;
@@ -72,7 +73,7 @@ export function createCheckLoop(deps: CheckLoopDeps): CheckLoop {
     marks.show(text, bad);
     marks.follow();
     deps.painted(text, bad);
-    docStatus.update({ words: total, bad: bad.length, chars: text.length });
+    docStatus.update({ words: total, bad: bad.length, chars: charCount(text) });
   }
 
   async function recheck(): Promise<void> {
