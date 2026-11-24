@@ -2447,9 +2447,13 @@ body:not(.preview-mode) .empty-state {
   :root:not([data-pane="preview"]) .pane-toggle {
     right: auto;
     left: calc(100% + 1px);
+  }
+}
+
+@media (min-width: 701px) and (max-width: 1023px) and (pointer: fine) {
+  :root:not([data-pane="preview"]) .pane-toggle {
     width: calc(var(--panel-gap) - 2px);
     border-radius: 6px;
-    transform: translateY(-50%);
   }
 
   :root:not([data-pane="preview"]) .pane-toggle-glyph {
