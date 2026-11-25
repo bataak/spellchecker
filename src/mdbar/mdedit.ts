@@ -46,9 +46,16 @@ function tableRow(text: string, from: number): boolean {
   return inTable(text, from, to, text.slice(from, to));
 }
 
+const DIV_FENCE = /^\s{0,3}:{3,}/;
+
+function divFence(text: string, from: number): boolean {
+  return DIV_FENCE.test(text.slice(from, lineEndAt(text, from)));
+}
+
 function blockRows(text: string): (from: number) => boolean {
   const code = fencedCode(text);
-  return (from) => inRanges(code, from) || tableRow(text, from);
+  return (from) =>
+    inRanges(code, from) || tableRow(text, from) || divFence(text, from);
 }
 
 function lineStarts(bounds: Bounds): number[] {
@@ -574,15 +581,16 @@ export function enterInsert(text: string, caret: number): "\n" | "\n\n" {
 
 export function toggleQuote(text: string, start: number, end: number): Edit {
   const bounds = wholeBlocks(text, blockLines(text, start, end));
-  const filled = bounds.lines.filter((l) => l.trim());
+  const fence = lineStarts(bounds).map((from) => divFence(text, from));
+  const filled = bounds.lines.filter((l, i) => l.trim() && !fence[i]);
   const off = filled.length > 0 && filled.every((l) => ANY_QUOTE.test(l));
 
   return mapPrefix(
     text,
     start,
     end,
-    (line) => {
-      if (!line.trim()) return null;
+    (line, i) => {
+      if (!line.trim() || fence[i]) return null;
       const marker = /^\s*>[ \t]?/.exec(line);
       if (off) return marker ? { drop: marker[0].length, add: "" } : null;
       return marker ? null : { drop: 0, add: "> " };

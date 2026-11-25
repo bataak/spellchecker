@@ -132,3 +132,18 @@ test("grid хүснэгтийг гаднаас нь голлуулна (#364)", 
     "::: {.left}\n" + text + "\n:::",
   );
 });
+
+test("зэрэгцүүлэлтийн ::: мөрийг товчнууд өөрчлөхгүй (#365)", () => {
+  const text = "::: {.center}\nГолд байх мөр\n:::";
+  assert.equal(toggleHeading(text, 3, 3, 2).text, text);
+  assert.equal(toggleList(text, 3, 3, false).text, text);
+  assert.equal(toggleQuote(text, 3, 3).text, text);
+  assert.equal(
+    toggleHeading(text, 0, text.length, 2).text,
+    "::: {.center}\n## Голд байх мөр\n:::",
+  );
+  assert.equal(
+    toggleQuote(text, 0, text.length).text,
+    "::: {.center}\n> Голд байх мөр\n:::",
+  );
+});
