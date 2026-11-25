@@ -14,6 +14,11 @@
     /iP(hone|od|ad)/.test(navigator.userAgent) ||
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   if (!ios) return;
+  var safari = /Version\/(\d+)/.exec(navigator.userAgent);
+  if (safari && Number(safari[1]) < 26)
+    document.documentElement.setAttribute("data-edge", "clear");
+  else if (navigator.standalone === true)
+    document.documentElement.setAttribute("data-edge", "blur");
   var meta = document.querySelector('meta[name="viewport"]');
   if (meta)
     meta.setAttribute(

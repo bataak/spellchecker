@@ -186,7 +186,7 @@ html {
 body {
   margin: 0;
   height: 100vh;
-  height: var(--app-height, 100dvh);
+  height: var(--app-height, min(100lvh, 100dvh + env(safe-area-inset-top)));
   overflow: hidden;
   overscroll-behavior: none;
   background: radial-gradient(
@@ -211,7 +211,7 @@ main {
     calc(14px + env(safe-area-inset-bottom))
     max(20px, env(safe-area-inset-left));
   height: 100vh;
-  height: var(--app-height, 100dvh);
+  height: var(--app-height, min(100lvh, 100dvh + env(safe-area-inset-top)));
   display: flex;
   flex-direction: column;
 }
@@ -2152,6 +2152,17 @@ a.tbtn {
     padding-left: max(14px, env(safe-area-inset-left));
     padding-right: max(14px, env(safe-area-inset-right));
     padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+
+  :root[data-edge="clear"] main {
+    padding-top: max(
+      clamp(12px, 2.5vw, 24px),
+      env(safe-area-inset-top) + min(env(safe-area-inset-top) * 100, 4px)
+    );
+  }
+
+  :root[data-edge="blur"] main {
+    padding-top: max(24px, env(safe-area-inset-top) + 24px);
   }
 
   :root {
