@@ -26,7 +26,8 @@ export function wrapLink(text: string, start: number, end: number): Edit {
   }
 
   if (URLISH.test(picked)) {
-    const inserted = "[](" + picked + ")";
+    const href = /^www\./i.test(picked) ? "https://" + picked : picked;
+    const inserted = "[](" + href + ")";
     return {
       text: text.slice(0, s) + inserted + text.slice(e),
       start: s + 1,
@@ -105,8 +106,8 @@ export function insertTable(
 }
 
 function insertBlock(text: string, caret: number, block: string): Edit {
-  const to = lineEndAt(text, caret);
-  const line = text.slice(lineStartAt(text, caret), to);
+  const to = tableEnd(text, caret);
+  const line = text.slice(lineStartAt(text, to), to);
   const head = text.slice(0, to) + (line.trim() ? "\n\n" : "") + block + "\n\n";
   return {
     text: head + text.slice(to).replace(/^\n+/, ""),

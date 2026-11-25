@@ -1,7 +1,8 @@
 import { replaceRange } from "../editor/editortext.ts";
 import { minimalDiff } from "../core/textdiff.ts";
 import { lineEndAt, lineStartAt } from "../core/text.ts";
-import { inTable, inFence, inMath } from "./mdcontext.ts";
+import { fencedCode, inRanges, linkRanges } from "../spell/codeskip.ts";
+import { DIVIDER, inTable, inFence, inMath, unquote } from "./mdcontext.ts";
 
 export interface Edit {
   readonly text: string;
@@ -31,11 +32,50 @@ interface Bounds {
   readonly lines: string[];
 }
 
+function boundsOf(text: string, from: number, to: number): Bounds {
+  return { from, to, lines: text.slice(from, to).split("\n") };
+}
+
 function blockLines(text: string, start: number, end: number): Bounds {
   const e = end > start && text[end - 1] === "\n" ? end - 1 : end;
-  const from = lineStartAt(text, start);
-  const to = lineEndAt(text, e);
-  return { from, to, lines: text.slice(from, to).split("\n") };
+  return boundsOf(text, lineStartAt(text, start), lineEndAt(text, e));
+}
+
+function tableRow(text: string, from: number): boolean {
+  const to = lineEndAt(text, from);
+  return inTable(text, from, to, text.slice(from, to));
+}
+
+function blockRows(text: string): (from: number) => boolean {
+  const code = fencedCode(text);
+  return (from) => inRanges(code, from) || tableRow(text, from);
+}
+
+function lineStarts(bounds: Bounds): number[] {
+  const out: number[] = [];
+  let pos = bounds.from;
+  for (const line of bounds.lines) {
+    out.push(pos);
+    pos += line.length + 1;
+  }
+  return out;
+}
+
+function wholeBlocks(text: string, bounds: Bounds): Bounds {
+  const code = fencedCode(text);
+  let { from, to } = bounds;
+  const block = code.find((r) => from >= r.start && from < r.end);
+  if (block) from = block.start;
+  else if (tableRow(text, from))
+    while (from > 0 && tableRow(text, lineStartAt(text, from - 1)))
+      from = lineStartAt(text, from - 1);
+  const last = lineStartAt(text, to);
+  const tail = code.find((r) => last >= r.start && last < r.end);
+  if (tail) to = tail.end;
+  else if (tableRow(text, last))
+    while (to < text.length && tableRow(text, to + 1))
+      to = lineEndAt(text, to + 1);
+  return boundsOf(text, from, to);
 }
 
 interface PrefixSpec {
@@ -48,8 +88,9 @@ function mapPrefix(
   start: number,
   end: number,
   fn: (line: string, index: number) => PrefixSpec | null,
+  bounds: Bounds = blockLines(text, start, end),
 ): Edit {
-  const { from, to, lines } = blockLines(text, start, end);
+  const { from, to, lines } = bounds;
   const out: string[] = [];
 
   let pos = from;
@@ -139,6 +180,39 @@ function spanWrapped(
   );
 }
 
+function lineSpans(
+  text: string,
+  from: number,
+  span: readonly [number, number],
+  marker: string,
+): [number, number][] {
+  const to = lineEndAt(text, from);
+  const line = text.slice(from, to);
+  const out: [number, number][] = [];
+  const add = (x: number, y: number): void => {
+    let [a, b] = trimSpan(text, Math.max(x, span[0]), Math.min(y, span[1]));
+    const edges = text[a] === marker[0] && text[b - 1] === marker[0];
+    if (marker !== "`" || edges) {
+      while (a < b && text[a] === marker[0]) a += 1;
+      while (b > a && text[b - 1] === marker[0]) b -= 1;
+    }
+    if (a < b) out.push([a, b]);
+  };
+  if (!inTable(text, from, to, line)) {
+    add(from + LINE_PREFIX.exec(line)![0].length, to);
+    return out;
+  }
+  const bare = unquote(line);
+  if (DIVIDER.test(bare)) return out;
+  let cell = to - bare.length;
+  for (let i = cell; i <= to; i += 1) {
+    if (i < to && (text[i] !== "|" || text[i - 1] === "\\")) continue;
+    add(cell, i);
+    cell = i + 1;
+  }
+  return out;
+}
+
 function toggleWrapLines(
   text: string,
   s: number,
@@ -147,13 +221,8 @@ function toggleWrapLines(
 ): Edit {
   const spans: [number, number][] = [];
   for (let from = lineStartAt(text, s); from <= e;) {
-    const to = lineEndAt(text, from);
-    const body = from + LINE_PREFIX.exec(text.slice(from, to))![0].length;
-    let [a, b] = trimSpan(text, Math.max(body, s), Math.min(to, e));
-    while (a < b && text[a] === marker[0]) a += 1;
-    while (b > a && text[b - 1] === marker[0]) b -= 1;
-    if (a < b) spans.push([a, b]);
-    from = to + 1;
+    spans.push(...lineSpans(text, from, [s, e], marker));
+    from = lineEndAt(text, from) + 1;
   }
   if (!spans.length) return { text, start: s, end: e };
   const all = spans.every(([a, b]) => spanWrapped(text, a, b, marker));
@@ -185,7 +254,11 @@ export function toggleWrap(
   const ch = marker[0]!;
 
   const [s, e] = trimSpan(text, start, end);
-  if (text.slice(s, e).includes("\n"))
+  const picked = text.slice(s, e);
+  if (
+    picked.includes("\n") ||
+    (picked.includes("|") && tableRow(text, lineStartAt(text, s)))
+  )
     return toggleWrapLines(text, s, e, marker);
 
   if (s === e) {
@@ -205,6 +278,8 @@ export function toggleWrap(
       end: at,
     };
   }
+
+  if (marker === "`" && picked.includes("`")) return toggleCode(text, s, e);
 
   const inside = text.slice(s, e);
   const paired = pairedInside(inside, marker);
@@ -253,6 +328,49 @@ export function toggleWrap(
   };
 }
 
+function hasRun(text: string, n: number): boolean {
+  return (text.match(/`+/g) ?? []).some((run) => run.length === n);
+}
+
+function toggleCode(text: string, s: number, e: number): Edit {
+  const inside = text.slice(s, e);
+  const open = /^`*/.exec(inside)![0].length;
+  const close = /`*$/.exec(inside)![0].length;
+  if (open > 0 && open === close && open * 2 < inside.length) {
+    let body = inside.slice(open, -close);
+    if (!hasRun(body, open)) {
+      if (/^ .*\S.* $/s.test(body)) body = body.slice(1, -1);
+      return {
+        text: text.slice(0, s) + body + text.slice(e),
+        start: s,
+        end: s + body.length,
+      };
+    }
+  }
+  const pad = text[s - 1] === " " && text[e] === " " ? 1 : 0;
+  const left = runBefore(text, s - pad, "`");
+  if (
+    left > 0 &&
+    left === runAfter(text, e + pad, "`") &&
+    !hasRun(inside, left)
+  )
+    return {
+      text: text.slice(0, s - pad - left) + inside + text.slice(e + pad + left),
+      start: s - pad - left,
+      end: e - pad - left,
+    };
+  const longest = Math.max(
+    ...(inside.match(/`+/g) ?? [""]).map((r) => r.length),
+  );
+  const fence = "`".repeat(longest + 1);
+  const at = s + fence.length + 1;
+  return {
+    text: text.slice(0, s) + fence + " " + inside + " " + fence + text.slice(e),
+    start: at,
+    end: at + inside.length,
+  };
+}
+
 export function headingDepthAt(text: string, pos: number): number {
   const from = lineStartAt(text, pos);
   const line = text.slice(from, lineEndAt(text, pos));
@@ -266,31 +384,65 @@ export function toggleHeading(
   end: number,
   depth: 1 | 2 | 3 | 4 | 5 | 6,
 ): Edit {
-  const { lines } = blockLines(text, start, end);
+  const bounds = blockLines(text, start, end);
+  const starts = lineStarts(bounds);
+  const isBlock = blockRows(text);
   const quote = (line: string): string => QUOTE_PREFIX.exec(line)![0];
-  const bodies = lines.map((l) => l.slice(quote(l).length));
+  const bodies = bounds.lines.map((l, i) =>
+    isBlock(starts[i]!) ? "" : l.slice(quote(l).length),
+  );
   const filled = bodies.filter((l) => l.trim());
   const already =
     filled.length > 0 &&
     filled.every((l) => (HEADING.exec(l)?.[1]?.length ?? 0) === depth);
   const target = already ? 0 : depth;
 
-  return mapPrefix(text, start, end, (line, index) => {
-    const body = bodies[index]!;
-    if (!body.trim()) return null;
-    const lead = quote(line);
-    const head = HEADING.exec(body);
-    const list = head ? null : (BULLET.exec(body) ?? ORDERED.exec(body));
-    const drop = (head ?? list)?.[0].length ?? 0;
-    const add = target ? "#".repeat(target) + " " : "";
-    if (drop === 0 && add === "") return null;
-    return { drop: lead.length + drop, add: lead + add };
-  });
+  return mapPrefix(
+    text,
+    start,
+    end,
+    (line, index) => {
+      const body = bodies[index]!;
+      if (!body.trim()) return null;
+      const lead = quote(line);
+      const head = HEADING.exec(body);
+      const list = head ? null : (BULLET.exec(body) ?? ORDERED.exec(body));
+      const drop = (head ?? list)?.[0].length ?? 0;
+      const add = target ? "#".repeat(target) + " " : "";
+      if (drop === 0 && add === "") return null;
+      return { drop: lead.length + drop, add: lead + add };
+    },
+    bounds,
+  );
 }
 
 const WORD_CHAR = /[\p{L}\p{N}'’]/u;
 
 const TITLE_START = /(^|[\s\-–—(«"„/])(\p{L})/gu;
+
+type CaseForm = "upper" | "title" | "lower";
+
+function caseForm(part: string, form: CaseForm): string {
+  if (form === "upper") return part.toLocaleUpperCase("mn");
+  const lower = part.toLocaleLowerCase("mn");
+  if (form === "lower") return lower;
+  return lower.replace(
+    TITLE_START,
+    (_, lead: string, letter: string) => lead + letter.toLocaleUpperCase("mn"),
+  );
+}
+
+function plainPieces(text: string, s: number, e: number): [number, number][] {
+  const out: [number, number][] = [];
+  let at = s;
+  for (const link of linkRanges(text)) {
+    if (link.end <= at || link.start >= e) continue;
+    if (link.start > at) out.push([at, link.start]);
+    at = link.end;
+  }
+  if (at < e) out.push([at, e]);
+  return out;
+}
 
 export function cycleCase(text: string, start: number, end: number): Edit {
   let s = start;
@@ -299,24 +451,27 @@ export function cycleCase(text: string, start: number, end: number): Edit {
     while (s > 0 && WORD_CHAR.test(text[s - 1]!)) s -= 1;
     while (e < text.length && WORD_CHAR.test(text[e]!)) e += 1;
   }
-  const part = text.slice(s, e);
-  const upper = part.toLocaleUpperCase("mn");
-  const lower = part.toLocaleLowerCase("mn");
-  const title = lower.replace(
-    TITLE_START,
-    (_, lead: string, letter: string) => lead + letter.toLocaleUpperCase("mn"),
-  );
-  const next =
+  const pieces = plainPieces(text, s, e);
+  const part = pieces.map(([a, b]) => text.slice(a, b)).join("");
+  const upper = caseForm(part, "upper");
+  const lower = caseForm(part, "lower");
+  const title = caseForm(part, "title");
+  const form: CaseForm =
     part === lower && part !== upper
-      ? upper
+      ? "upper"
       : part === upper && part !== lower && title !== part
-        ? title
-        : lower;
-  return {
-    text: text.slice(0, s) + next + text.slice(e),
-    start: s,
-    end: s + next.length,
-  };
+        ? "title"
+        : "lower";
+  let out = text.slice(0, e);
+  for (const [a, b] of [...pieces].reverse())
+    out = out.slice(0, a) + caseForm(text.slice(a, b), form) + out.slice(b);
+  return { text: out + text.slice(e), start: s, end: out.length };
+}
+
+interface ListOwner {
+  readonly indent: number;
+  readonly width: number;
+  shift: number;
 }
 
 export function toggleList(
@@ -325,31 +480,81 @@ export function toggleList(
   end: number,
   ordered: boolean,
 ): Edit {
-  const { lines } = blockLines(text, start, end);
+  const bounds = blockLines(text, start, end);
+  const starts = lineStarts(bounds);
+  const isBlock = blockRows(text);
   const kind = ordered ? ORDERED : BULLET;
-  const indentOf = (line: string): string => INDENT.exec(line)![0];
-  const filled = lines.filter((l) => l.trim());
-  const off =
-    filled.length > 0 &&
-    filled.every((l) => kind.test(l.slice(indentOf(l).length)));
+  const rows = bounds.lines.map((line, i) => {
+    const lead = QUOTE_PREFIX.exec(line)![0];
+    const body = line.slice(lead.length);
+    const indent = INDENT.exec(body)![0];
+    const rest = body.slice(indent.length);
+    const marker = BULLET.exec(rest) ?? ORDERED.exec(rest);
+    return { lead, body, indent, rest, marker, skip: isBlock(starts[i]!) };
+  });
+
+  const heads: (ListOwner | null)[] = [];
+  const owners: (ListOwner | null)[] = [];
+  let owner: ListOwner | null = null;
+  for (const row of rows) {
+    const mine: ListOwner | null =
+      row.marker && !row.skip
+        ? { indent: row.indent.length, width: row.marker[0].length, shift: 0 }
+        : null;
+    heads.push(mine);
+    if (mine) owner = mine;
+    else if (
+      !row.skip &&
+      row.body.trim() &&
+      owner &&
+      row.indent.length < owner.indent + owner.width
+    )
+      owner = null;
+    owners.push(!mine && !row.skip && row.body.trim() ? owner : null);
+  }
+  const items = rows.filter((r, i) => !r.skip && r.body.trim() && !owners[i]);
+  const off = items.length > 0 && items.every((r) => kind.test(r.rest));
 
   const counts = new Map<number, number>();
-  return mapPrefix(text, start, end, (line) => {
-    if (!line.trim()) return null;
-    const indent = indentOf(line);
-    const body = line.slice(indent.length);
-    const head = HEADING.exec(body);
-    const rest = body.slice(head?.[0].length ?? 0);
-    const marker = BULLET.exec(rest) ?? ORDERED.exec(rest);
-    const drop =
-      indent.length + (head?.[0].length ?? 0) + (marker?.[0].length ?? 0);
-    if (off) return { drop, add: indent };
-    for (const depth of counts.keys())
-      if (depth > indent.length) counts.delete(depth);
-    const n = (counts.get(indent.length) ?? 0) + 1;
-    counts.set(indent.length, n);
-    return { drop, add: indent + (ordered ? `${String(n)}. ` : "- ") };
-  });
+  return mapPrefix(
+    text,
+    start,
+    end,
+    (_line, i) => {
+      const row = rows[i]!;
+      if (row.skip || !row.body.trim()) return null;
+      const { lead, indent, rest } = row;
+      const cont = owners[i];
+      if (cont) {
+        const shift = off ? -cont.width : cont.shift;
+        if (shift === 0) return null;
+        if (shift > 0)
+          return { drop: lead.length, add: lead + " ".repeat(shift) };
+        return {
+          drop: lead.length + Math.min(-shift, indent.length),
+          add: lead,
+        };
+      }
+      const head = HEADING.exec(rest);
+      const tail = rest.slice(head?.[0].length ?? 0);
+      const marker = BULLET.exec(tail) ?? ORDERED.exec(tail);
+      const drop =
+        lead.length +
+        indent.length +
+        (head?.[0].length ?? 0) +
+        (marker?.[0].length ?? 0);
+      if (off) return { drop, add: lead + indent };
+      for (const depth of counts.keys())
+        if (depth > indent.length) counts.delete(depth);
+      const n = (counts.get(indent.length) ?? 0) + 1;
+      counts.set(indent.length, n);
+      const add = ordered ? `${String(n)}. ` : "- ";
+      const mine = heads[i];
+      if (mine) mine.shift = add.length - mine.width;
+      return { drop, add: lead + indent + add };
+    },
+    bounds,
+  );
 }
 
 export function enterInsert(text: string, caret: number): "\n" | "\n\n" {
@@ -368,16 +573,22 @@ export function enterInsert(text: string, caret: number): "\n" | "\n\n" {
 }
 
 export function toggleQuote(text: string, start: number, end: number): Edit {
-  const { lines } = blockLines(text, start, end);
-  const filled = lines.filter((l) => l.trim());
+  const bounds = wholeBlocks(text, blockLines(text, start, end));
+  const filled = bounds.lines.filter((l) => l.trim());
   const off = filled.length > 0 && filled.every((l) => ANY_QUOTE.test(l));
 
-  return mapPrefix(text, start, end, (line) => {
-    if (!line.trim()) return null;
-    const marker = /^\s*>[ \t]?/.exec(line);
-    if (off) return marker ? { drop: marker[0].length, add: "" } : null;
-    return marker ? null : { drop: 0, add: "> " };
-  });
+  return mapPrefix(
+    text,
+    start,
+    end,
+    (line) => {
+      if (!line.trim()) return null;
+      const marker = /^\s*>[ \t]?/.exec(line);
+      if (off) return marker ? { drop: marker[0].length, add: "" } : null;
+      return marker ? null : { drop: 0, add: "> " };
+    },
+    bounds,
+  );
 }
 
 export function applyEdit(
