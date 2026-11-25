@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.132.2](https://github.com/bataak/spellchecker/compare/v1.132.1...v1.132.2) (2026-11-25)
+
+
+### Bug Fixes
+
+* **markdown:** render bold inside italic and italic runs ending in *** ([#369](https://github.com/bataak/spellchecker/issues/369)) ([3913255](https://github.com/bataak/spellchecker/commit/391325548867c709107fe83df64a5d1efd682258))
+* **mobile:** fill the iOS web app viewport and keep the title clear of the edge blur ([e230e43](https://github.com/bataak/spellchecker/commit/e230e43f428126f9cb7dd3ad70ae431366c606ec))
+
 ## [1.132.1](https://github.com/bataak/spellchecker/compare/v1.132.0...v1.132.1) (2026-11-25)
 
 
