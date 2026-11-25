@@ -133,10 +133,33 @@ function unmask(src: string, held: string[], raw = false): string {
 const PUNCT = "\\p{P}\\p{S}\\u0001\\u0002\\u0004";
 const WORD = "\\p{L}\\p{N}";
 
+const nested = (ch: string, n: number): string => {
+  const inner = ch.repeat(3 - n);
+  return (
+    "|(?<!" +
+    ch +
+    ")(?<![^\\s" +
+    PUNCT +
+    "])" +
+    ch.repeat(n) +
+    "(?=" +
+    inner +
+    "(?![\\s" +
+    ch +
+    "])[^" +
+    ch +
+    "]+?(?<!\\s)" +
+    inner +
+    "(?!" +
+    ch +
+    "))"
+  );
+};
+
 const opening = (ch: string, n: number): string => {
   const run = ch.repeat(n);
   return (
-    "(?<!" +
+    "(?:(?<!" +
     ch +
     ")" +
     run +
@@ -148,11 +171,16 @@ const opening = (ch: string, n: number): string => {
     PUNCT +
     "]" +
     run +
-    "))"
+    "))" +
+    (ch === "\\*" && n < 3 ? nested(ch, n) : "") +
+    ")"
   );
 };
 
-const closing = (ch: string, n: number): string => "(?<!\\s)" + ch.repeat(n);
+const closing = (ch: string, n: number): string =>
+  "(?<!\\s)" +
+  ch.repeat(n) +
+  (ch === "\\*" && n < 3 ? "(?!" + ch.repeat(3 - n) + "(?!\\*))" : "");
 
 const emphasis = (ch: string, n: number, body: string): string =>
   opening(ch, n) + "(" + body + ")" + closing(ch, n);
@@ -202,7 +230,7 @@ const tokenPattern = (link: string, image: string, live: number): RegExp =>
     [
       "(`+)([\\s\\S]*?)\\1",
       ...SPANS.map((each, i) => (live & (1 << i) ? each.pattern : DEAD_SPAN)),
-      emphasis("\\*", 1, "[^*]+?"),
+      emphasis("\\*", 1, "(?:[^*]|\\*\\*(?![\\s*])[^*]+?(?<!\\s)\\*\\*)+?"),
       wordBound(emphasis("_", 1, "[^_]+?")),
       link,
       "<((?:[a-z][a-z0-9+.-]*:|[^\\s<>@]+@)[^\\s<>]+)>",
