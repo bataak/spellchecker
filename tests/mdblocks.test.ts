@@ -147,3 +147,11 @@ test("зэрэгцүүлэлтийн ::: мөрийг товчнууд өөрч�
     "::: {.center}\n> Голд байх мөр\n:::",
   );
 });
+
+test("холбоосны бичвэр доторх дөрвөлжин хаалтыг escape хийнэ (#366)", () => {
+  const text = "Дэлгэрэнгүйг [1]-с үзнэ";
+  const e = wrapLink(text, 0, text.length);
+  assert.equal(e.text, "[Дэлгэрэнгүйг \\[1\\]-с үзнэ]()");
+  assert.equal(e.start, e.text.length - 1);
+  assert.equal(wrapLink("a \\[b\\]", 0, 7).text, "[a \\[b\\]]()");
+});

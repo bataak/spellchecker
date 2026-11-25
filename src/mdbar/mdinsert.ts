@@ -35,8 +35,9 @@ export function wrapLink(text: string, start: number, end: number): Edit {
     };
   }
 
-  const inserted = "[" + picked + "]()";
-  const at = s + picked.length + 3;
+  const label = picked.replace(/(?<!\\)[[\]]/g, "\\$&");
+  const inserted = "[" + label + "]()";
+  const at = s + label.length + 3;
   return {
     text: text.slice(0, s) + inserted + text.slice(e),
     start: at,
