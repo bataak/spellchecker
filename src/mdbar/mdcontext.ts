@@ -2,7 +2,13 @@ import { lineAt, lineStartAt, lineEndAt } from "../core/text.ts";
 import { inRanges, fencedCode } from "../spell/codeskip.ts";
 import { codeRanges } from "../spell/skipranges.ts";
 
-const DIVIDER = /^[\s|:-]*-[\s|:-]*$/;
+export const DIVIDER = /^[\s|:-]*-[\s|:-]*$/;
+
+const QUOTED = /^(?:[ \t]{0,3}>[ \t]?)+/;
+
+export function unquote(line: string): string {
+  return line.replace(QUOTED, "");
+}
 
 export function inTable(
   text: string,
@@ -10,10 +16,11 @@ export function inTable(
   to: number,
   line: string,
 ): boolean {
-  if (!line.includes("|")) return false;
-  if (/^\s*\|/.test(line)) return true;
-  const prev = from > 0 ? lineAt(text, from - 1) : "";
-  const next = to < text.length ? lineAt(text, to + 1) : "";
+  const bare = unquote(line);
+  if (!bare.includes("|")) return false;
+  if (/^\s*\|/.test(bare)) return true;
+  const prev = from > 0 ? unquote(lineAt(text, from - 1)) : "";
+  const next = to < text.length ? unquote(lineAt(text, to + 1)) : "";
   return (
     (prev.includes("|") && DIVIDER.test(prev)) ||
     (next.includes("|") && DIVIDER.test(next))

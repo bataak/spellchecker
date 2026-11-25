@@ -4,6 +4,7 @@ import {
   applyCase,
   caseRank,
   casePattern,
+  fitCase,
   irregularCase,
   rankToPattern,
 } from "../src/spell/caseform.ts";
@@ -98,4 +99,10 @@ test("caseRank → rankToPattern round-trip", () => {
 test("rankToPattern: танихгүй утгад lower", () => {
   assert.equal(rankToPattern(9), "lower");
   assert.equal(rankToPattern(-1), "lower");
+});
+
+test("fitCase: нэг том үсэгтэй олдцыг эхний том гэж үзнэ (#363)", () => {
+  assert.equal(fitCase("А", "Альфа", casePattern("А")), "Альфа");
+  assert.equal(fitCase("АБ", "альфа", casePattern("АБ")), "АЛЬФА");
+  assert.equal(fitCase("а", "Альфа", casePattern("а")), "Альфа");
 });

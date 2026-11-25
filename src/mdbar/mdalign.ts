@@ -26,41 +26,46 @@ function rowAt(text: string, pos: number): number {
   return row;
 }
 
+function closeOf(lines: readonly string[], open: number): number {
+  let depth = 0;
+  for (let i = open + 1; i < lines.length; i += 1) {
+    const line = lines[i]!;
+    if (FENCE_OPEN.test(line)) depth += 1;
+    else if (FENCE_CLOSE.test(line)) {
+      if (depth === 0) return i;
+      depth -= 1;
+    }
+  }
+  return -1;
+}
+
 function enclosingAlign(
   lines: readonly string[],
   first: number,
   last: number,
 ): AlignDiv | null {
   let depth = 0;
-  let open = -1;
   for (let i = first; i >= 0; i -= 1) {
     const line = lines[i]!;
     if (FENCE_CLOSE.test(line)) {
       if (i !== first) depth += 1;
-    } else if (FENCE_OPEN.test(line)) {
-      if (depth === 0) {
-        open = i;
-        break;
-      }
-      depth -= 1;
+      continue;
     }
-  }
-  const match = open < 0 ? null : ALIGN_OPEN.exec(lines[open]!);
-  if (match === null) return null;
-  depth = 0;
-  for (let i = Math.max(last, open + 1); i < lines.length; i += 1) {
-    const line = lines[i]!;
-    if (FENCE_OPEN.test(line)) depth += 1;
-    else if (FENCE_CLOSE.test(line)) {
-      if (depth === 0)
-        return {
-          kind: (match[2] ?? match[3]) as AlignKind,
-          fence: match[1]!,
-          open,
-          close: i,
-        };
+    if (!FENCE_OPEN.test(line)) continue;
+    if (depth > 0) {
       depth -= 1;
+      continue;
     }
+    const close = closeOf(lines, i);
+    if (close < 0) return null;
+    const match = ALIGN_OPEN.exec(line);
+    if (match !== null && close >= last)
+      return {
+        kind: (match[2] ?? match[3]) as AlignKind,
+        fence: match[1]!,
+        open: i,
+        close,
+      };
   }
   return null;
 }
@@ -203,8 +208,17 @@ export function toggleAlign(
     ]);
   }
 
-  const top = blockAt(lines, first)[0];
-  const bottom = blockAt(lines, last)[1];
+  let top = blockAt(lines, first)[0];
+  let bottom = blockAt(lines, last)[1];
+  while (
+    top > 0 &&
+    /^\s*\|/.test(lines[top]!) &&
+    FENCE_OPEN.test(lines[top - 1]!) &&
+    closeOf(lines, top - 1) === bottom + 1
+  ) {
+    top -= 1;
+    bottom += 1;
+  }
   return applyChanges(text, start, end, [
     {
       from: offsets[top]!,

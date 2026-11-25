@@ -47,6 +47,13 @@ export function fitCase(
   if (irregularCase(replacement)) return replacement;
   const own = caseRank(casePattern(replacement));
   const floor = own > caseRank(primary) ? own : 0;
-  const rank = Math.max(caseRank(casePattern(found)), floor);
+  const seen = casePattern(found);
+  const single =
+    [...found].filter((ch) => ch.toUpperCase() !== ch.toLowerCase()).length ===
+    1;
+  const rank = Math.max(
+    caseRank(single && seen === "upper" ? "capital" : seen),
+    floor,
+  );
   return applyCase(rankToPattern(rank), replacement);
 }
