@@ -11,6 +11,7 @@ import {
 import {
   insertImage,
   insertPageBreak,
+  insertTable,
   wrapLink,
 } from "../src/mdbar/mdinsert.ts";
 import { alignAt, toggleAlign } from "../src/mdbar/mdalign.ts";
@@ -154,4 +155,10 @@ test("холбоосны бичвэр доторх дөрвөлжин хаалт
   assert.equal(e.text, "[Дэлгэрэнгүйг \\[1\\]-с үзнэ]()");
   assert.equal(e.start, e.text.length - 1);
   assert.equal(wrapLink("a \\[b\\]", 0, 7).text, "[a \\[b\\]]()");
+});
+
+test("код блок дотор хуудас таслах, хүснэгт блокийн доор орно (#368)", () => {
+  const text = "```\nнэг\nхоёр\n```";
+  assert.equal(insertPageBreak(text, 5).text, text + "\n\n\\newpage\n\n");
+  assert.ok(insertTable(text, 5).text.startsWith(text + "\n\n::: {"));
 });

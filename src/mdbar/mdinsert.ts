@@ -1,6 +1,6 @@
 import { imageAttrs, parseImageAttrs } from "../markdown.ts";
 import type { ImageSize } from "../markdown.ts";
-import { inRanges } from "../spell/codeskip.ts";
+import { fencedCode, inRanges } from "../spell/codeskip.ts";
 import { codeRanges } from "../spell/skipranges.ts";
 import { lineAt, lineEndAt, lineStartAt } from "../core/text.ts";
 import { inTable } from "./mdcontext.ts";
@@ -55,7 +55,9 @@ function tableLine(text: string, from: number): boolean {
   return inTable(text, from, to, text.slice(from, to));
 }
 
-function tableEnd(text: string, caret: number): number {
+function blockEnd(text: string, caret: number): number {
+  const code = fencedCode(text).find((r) => caret >= r.start && caret < r.end);
+  if (code) return code.end;
   let from = lineStartAt(text, caret);
   if (!tableLine(text, from)) return lineEndAt(text, caret);
   let top = from;
@@ -79,7 +81,7 @@ export function insertTable(
   cols = 2,
   rows = 1,
 ): Edit {
-  const to = tableEnd(text, caret);
+  const to = blockEnd(text, caret);
   const line = text.slice(lineStartAt(text, to), to);
 
   const names = Array.from(
@@ -107,7 +109,7 @@ export function insertTable(
 }
 
 function insertBlock(text: string, caret: number, block: string): Edit {
-  const to = tableEnd(text, caret);
+  const to = blockEnd(text, caret);
   const line = text.slice(lineStartAt(text, to), to);
   const head = text.slice(0, to) + (line.trim() ? "\n\n" : "") + block + "\n\n";
   return {
