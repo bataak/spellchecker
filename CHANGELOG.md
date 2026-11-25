@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.132.1](https://github.com/bataak/spellchecker/compare/v1.132.0...v1.132.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* **find:** keep capital case for one-letter matches ([#363](https://github.com/bataak/spellchecker/issues/363)) ([9e6191b](https://github.com/bataak/spellchecker/commit/9e6191bb988c858b4cf20a12181b0ef915e49bb7))
+* **mdbar:** escape brackets in link text ([#366](https://github.com/bataak/spellchecker/issues/366)) ([4c36c8b](https://github.com/bataak/spellchecker/commit/4c36c8b213d7fb0ade78154c65b6cafe96704bb2))
+* **mdbar:** insert page breaks, tables and images after code blocks ([#368](https://github.com/bataak/spellchecker/issues/368)) ([0e7a912](https://github.com/bataak/spellchecker/commit/0e7a912550315dac3cda4cfd01ffe76397be9c41))
+* **mdbar:** keep tables, code, quotes and links intact ([#353](https://github.com/bataak/spellchecker/issues/353)-[#362](https://github.com/bataak/spellchecker/issues/362), [#364](https://github.com/bataak/spellchecker/issues/364)) ([e0ad50a](https://github.com/bataak/spellchecker/commit/e0ad50adae20ea5d75e57d7ea833aef2db35d39d))
+* **mdbar:** leave ::: div fences alone ([#365](https://github.com/bataak/spellchecker/issues/365)) ([7230db6](https://github.com/bataak/spellchecker/commit/7230db6d2a5e0926e2bc7988e21711b82aaa2610))
+
 ## [1.132.0](https://github.com/bataak/spellchecker/compare/v1.131.0...v1.132.0) (2026-11-24)
 
 
