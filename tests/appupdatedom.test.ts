@@ -44,16 +44,22 @@ const statuses: string[] = [];
 const reloadBtn = () => document.querySelector<HTMLElement>("#appReloadBtn")!;
 const wait = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const versionFetches: (RequestCache | undefined)[] = [];
+
 function serveEntry(entry: string, during?: () => void): void {
-  (globalThis as Record<string, unknown>).fetch = async (url: string) => {
+  (globalThis as Record<string, unknown>).fetch = async (
+    url: string,
+    init?: RequestInit,
+  ) => {
     if (during) {
       await wait(2);
       during();
     }
+    const version = url === "http://localhost/version.txt";
+    if (version) versionFetches.push(init?.cache);
     return {
       ok: true,
-      text: async () =>
-        url.includes("sw.js") ? 'precache("assets/' + entry + '")' : entry,
+      text: async () => (version ? "assets/" + entry + "\n" : entry),
     };
   };
 }
@@ -73,7 +79,9 @@ function fresh(entry = "index-old.js") {
 
 test("appUpdate: шинэ хувилбар гарвал ↻ товчийг харуулна, ижил бол нууна", async () => {
   serveEntry("index-old.js");
+  versionFetches.length = 0;
   await fresh().checkFreshness();
+  assert.deepEqual(versionFetches, ["no-cache"]);
   assert.equal(reloadBtn().hidden, true);
   serveEntry("index-new.js");
   await fresh().checkFreshness();
