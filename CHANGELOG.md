@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.132.3](https://github.com/bataak/spellchecker/compare/v1.132.2...v1.132.3) (2026-11-26)
+
+
+### Bug Fixes
+
+* **update:** check a 25-byte version file every 12 hours ([f56683f](https://github.com/bataak/spellchecker/commit/f56683fd521f47dd8b02ab5ed19b89f8636a1b8f))
+* **update:** check for a new app version hourly instead of daily ([4d2a616](https://github.com/bataak/spellchecker/commit/4d2a6167a417aabf05b1e6a53ecc8874583cd7e0))
+
 ## [1.132.2](https://github.com/bataak/spellchecker/compare/v1.132.1...v1.132.2) (2026-11-25)
 
 
