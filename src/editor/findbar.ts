@@ -13,6 +13,7 @@ import {
   type Edit,
   type Match,
 } from "./findmodel.ts";
+import { coarse, replaceShown, toolButton } from "./findtool.ts";
 
 const LEAD_SHARE = 0.3;
 const PAD = 24;
@@ -31,6 +32,7 @@ export interface FindBarDeps {
 
 export interface FindBar {
   open(): void;
+  toggle(): void;
   destroy(): void;
 }
 
@@ -106,7 +108,9 @@ function buildBar(mod: string, deps: FindBarDeps) {
   const prev = button("↑", "Өмнөх (Shift+Enter)", "find-prev");
   const next = button("↓", "Дараах (Enter)", "find-next");
   const close = button("×", "Хаах (Esc)", "find-close");
+  const more = button("⌄", "Солих мөр", "find-more");
   const replacement = field("Солих");
+  replacement.classList.add("find-swap");
   const one = button("Солих", "Энэ олдцыг солих (Enter)", "find-one");
   const all = button("Бүгдийг", "Бүгдийг солих (" + mod + "Enter)", "find-all");
   const exact = toggle(
@@ -116,9 +120,9 @@ function buildBar(mod: string, deps: FindBarDeps) {
   );
   const findActions = document.createElement("div");
   findActions.className = "find-actions";
-  findActions.append(count, word, prev, next, close);
+  findActions.append(count, word, prev, next, more, close);
   const replaceActions = document.createElement("div");
-  replaceActions.className = "find-actions";
+  replaceActions.className = "find-actions find-swap";
   replaceActions.append(exact, one, all);
   bar.append(grip, query, findActions, replacement, replaceActions);
 
@@ -127,10 +131,11 @@ function buildBar(mod: string, deps: FindBarDeps) {
     grip,
     () => homeCorner(deps),
     () => [deps.host, ...[deps.tools()].filter((el) => !!el)],
+    coarse,
   );
 
   return {
-    ...{ bar, drag, query, count, word, prev, next, close },
+    ...{ bar, drag, query, count, word, prev, next, more, close },
     ...{ replacement, exact, one, all },
   };
 }
@@ -191,15 +196,24 @@ function createFindMarks(deps: FindBarDeps, state: () => MarkState | null) {
   };
 }
 
-function revealMatch(deps: FindBarDeps, match: Match | undefined): void {
+function revealMatch(
+  deps: FindBarDeps,
+  match: Match | undefined,
+  cover: number,
+): void {
   const { editor } = deps;
   if (!match) return;
   editor.setSelectionRange(match.from, match.to, "forward");
   const rect = deps.rangeRects(match.from, match.to)[0];
   if (!rect) return;
   const box = editor.getBoundingClientRect();
-  if (rect.top >= box.top + PAD && rect.bottom <= box.bottom - PAD) return;
-  editor.scrollTop += rect.top - box.top - box.height * LEAD_SHARE;
+  const top = Math.min(Math.max(box.top, cover), box.bottom);
+  if (rect.top >= top + PAD && rect.bottom <= box.bottom - PAD) return;
+  editor.scrollTop += rect.top - top - (box.bottom - top) * LEAD_SHARE;
+}
+
+function coverBottom(bar: HTMLElement): number {
+  return !bar.hidden && coarse() ? bar.getBoundingClientRect().bottom : 0;
 }
 
 function paintCount(
@@ -228,6 +242,7 @@ interface Actions {
   readonly step: (forward: boolean) => void;
   readonly replaceOne: () => void;
   readonly replaceEvery: () => void;
+  readonly expand: () => void;
   readonly hide: () => void;
 }
 
@@ -265,6 +280,7 @@ function bindParts(parts: Parts, actions: Actions, mac: boolean): void {
   parts.exact.addEventListener("click", () => actions.toggle("find-exact"));
   parts.prev.addEventListener("click", () => actions.step(false));
   parts.next.addEventListener("click", () => actions.step(true));
+  parts.more.addEventListener("click", actions.expand);
   parts.close.addEventListener("click", actions.hide);
   parts.one.addEventListener("click", actions.replaceOne);
   parts.all.addEventListener("click", actions.replaceEvery);
@@ -308,6 +324,14 @@ function selectedLine(editor: HTMLTextAreaElement): string {
 
 const TOOL_GAP = 8;
 
+function showReplace(parts: Parts, on: boolean): void {
+  parts.bar.classList.toggle("is-short", !on);
+  parts.more.setAttribute("aria-expanded", String(on));
+  parts.more.title = on ? "Солих мөрийг нуух" : "Солих мөрийг харуулах";
+  parts.more.setAttribute("aria-label", parts.more.title);
+  parts.drag.fit();
+}
+
 function show({ bar, drag }: Parts): void {
   if (!bar.isConnected) document.body.append(bar);
   bar.hidden = false;
@@ -319,13 +343,21 @@ function homeCorner(deps: FindBarDeps): Corner {
   const box = (tools ?? deps.host).getBoundingClientRect();
   if (!tools) return { right: box.right - PAD, top: box.top + PAD };
   const style = getComputedStyle(tools);
-  const lefts = [...tools.children]
+  const rects = [...tools.children]
     .map((el) => el.getBoundingClientRect())
-    .filter((rect) => rect.width > 0)
-    .map((rect) => rect.left - TOOL_GAP);
+    .filter((rect) => rect.width > 0);
+  const top = box.top + parseFloat(style.paddingTop);
+  if (coarse())
+    return {
+      right: box.right,
+      top: Math.max(top, ...rects.map((rect) => rect.bottom + TOOL_GAP)),
+    };
   return {
-    right: Math.min(box.right - parseFloat(style.paddingRight), ...lefts),
-    top: box.top + parseFloat(style.paddingTop),
+    right: Math.min(
+      box.right - parseFloat(style.paddingRight),
+      ...rects.map((rect) => rect.left - TOOL_GAP),
+    ),
+    top,
   };
 }
 
@@ -388,7 +420,7 @@ function createFindCore(deps: FindBarDeps, parts: Parts) {
 
   const paint = (reveal: boolean): void => {
     paintCount(parts, matches, current, editor.readOnly);
-    if (reveal) revealMatch(deps, matches[current]);
+    if (reveal) revealMatch(deps, matches[current], coverBottom(bar));
     marks.soon();
   };
   const search = (from: number, reveal = true): void => {
@@ -483,6 +515,7 @@ export function createFindBar(deps: FindBarDeps): FindBar {
     deps.attachKeyboard(replacement);
   });
   const core = createFindCore(deps, parts);
+  showReplace(parts, replaceShown(read(KEYS.findReplace), coarse()));
 
   const open = (): void => {
     attach();
@@ -503,6 +536,18 @@ export function createFindBar(deps: FindBarDeps): FindBar {
     flip(name === "find-word" ? parts.word : parts.exact, name);
     core.research();
   };
+  const expand = (): void => {
+    const on = parts.bar.classList.contains("is-short");
+    write(KEYS.findReplace, on ? "1" : "0");
+    if (
+      !on &&
+      document.activeElement &&
+      parts.bar.contains(document.activeElement)
+    )
+      query.focus({ preventScroll: true });
+    showReplace(parts, on);
+    if (on) replacement.focus({ preventScroll: true });
+  };
 
   bindParts(
     parts,
@@ -512,6 +557,7 @@ export function createFindBar(deps: FindBarDeps): FindBar {
       step: core.step,
       replaceOne: core.replaceOne,
       replaceEvery: core.replaceEvery,
+      expand,
       hide,
     },
     deps.mac,
@@ -529,9 +575,13 @@ export function createFindBar(deps: FindBarDeps): FindBar {
   editor.addEventListener("pointerdown", core.forget);
   editor.addEventListener("keydown", core.forget);
 
+  const tool = toolButton(deps, () => (bar.hidden ? open() : hide()));
+
   return {
     open,
+    toggle: () => (bar.hidden ? open() : hide()),
     destroy() {
+      tool?.remove();
       offKey();
       editor.removeEventListener("input", onEdit);
       editor.removeEventListener("pointerdown", core.forget);
