@@ -26,9 +26,9 @@ function swSettled(worker: ServiceWorker): Promise<void> {
 
 async function fetchFreshEntry(base: string): Promise<string | null> {
   try {
-    const swUrl = new URL(base + "sw.js", location.href);
-    swUrl.searchParams.set("fresh", String(Date.now()));
-    const res = await fetch(swUrl.href, { cache: "no-store" });
+    const res = await fetch(new URL(base + "version.txt", location.href).href, {
+      cache: "no-cache",
+    });
     if (!res.ok) return null;
     const m = (await res.text()).match(/assets\/index-[\w-]+\.js/);
     return m ? m[0] : null;

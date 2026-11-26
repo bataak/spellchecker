@@ -62,6 +62,27 @@ function stripRawDicts(): Plugin {
   };
 }
 
+function versionFile(): Plugin {
+  return {
+    name: "version-file",
+    apply: "build",
+    generateBundle(_options, bundle) {
+      const entry = Object.values(bundle).find(
+        (file) =>
+          file.type === "chunk" &&
+          file.isEntry &&
+          /^assets\/index-[\w-]+\.js$/.test(file.fileName),
+      );
+      if (!entry) return;
+      this.emitFile({
+        type: "asset",
+        fileName: "version.txt",
+        source: entry.fileName + "\n",
+      });
+    },
+  };
+}
+
 export default defineConfig({
   base,
   worker: {
@@ -162,6 +183,7 @@ export default defineConfig({
         ],
       },
     }),
+    versionFile(),
     stripRawDicts(),
   ],
 });

@@ -9,7 +9,7 @@ import type { DocStatus } from "./docstatus.ts";
 
 const DICT_REFRESH_GAP_MS = 24 * 60 * 60 * 1000;
 const DICT_REFRESH_POLL_MS = 3 * 60 * 60 * 1000;
-const APP_UPDATE_GAP_MS = 60 * 60 * 1000;
+const APP_UPDATE_GAP_MS = 12 * 60 * 60 * 1000;
 
 export interface DictLifeDeps {
   readonly checker: SpellChecker;
