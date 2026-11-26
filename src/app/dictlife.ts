@@ -9,6 +9,7 @@ import type { DocStatus } from "./docstatus.ts";
 
 const DICT_REFRESH_GAP_MS = 24 * 60 * 60 * 1000;
 const DICT_REFRESH_POLL_MS = 3 * 60 * 60 * 1000;
+const APP_UPDATE_GAP_MS = 60 * 60 * 1000;
 
 export interface DictLifeDeps {
   readonly checker: SpellChecker;
@@ -35,13 +36,14 @@ function failureText(error: unknown): Html {
 export function createDictLife(deps: DictLifeDeps): DictLife {
   const { checker, dicts, docStatus, status, appUpdate } = deps;
   const refreshDue = createRefreshGate(DICT_REFRESH_GAP_MS);
+  const updateDue = createRefreshGate(APP_UPDATE_GAP_MS);
 
   const maybeRefresh = (): void => {
     if (import.meta.env.DEV) return;
     if (!docStatus.ready() || !navigator.onLine) return;
-    if (!refreshDue(Date.now())) return;
-    checker.refresh();
-    void appUpdate.checkFreshness();
+    const now = Date.now();
+    if (updateDue(now)) void appUpdate.checkFreshness();
+    if (refreshDue(now)) checker.refresh();
   };
 
   const watchRefresh = (): void => {

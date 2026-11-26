@@ -119,6 +119,39 @@ test("dictlife: толь ачаалж, бүрэн болоход дахин ша
   }
 });
 
+test("dictlife: шинэ хувилбарыг цаг тутам, толийг өдөрт нэг шалгана", async () => {
+  mock.timers.enable({
+    apis: ["setInterval", "Date"],
+    now: Date.UTC(2026, 10, 26),
+  });
+  try {
+    const { life, calls, complete } = setup();
+    await life.start();
+    complete([]);
+    await settle();
+    const count = (name: string): number =>
+      calls.filter((c) => c === name).length;
+    assert.equal(count("fresh"), 1);
+    assert.equal(count("refresh"), 1);
+    const visible = (): void => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    };
+    mock.timers.tick(59 * 60 * 1000);
+    visible();
+    assert.equal(count("fresh"), 1);
+    mock.timers.tick(60 * 1000);
+    visible();
+    assert.equal(count("fresh"), 2);
+    assert.equal(count("refresh"), 1);
+    mock.timers.tick(3 * 60 * 60 * 1000);
+    assert.equal(count("fresh"), 3);
+    mock.timers.tick(21 * 60 * 60 * 1000);
+    assert.equal(count("refresh"), 2);
+  } finally {
+    mock.timers.reset();
+  }
+});
+
 test("dictlife: толь олдохгүй, ачаалалт унах, хуучирсан хувилбар бүрийг мэдэгдэнэ", async () => {
   mock.timers.enable({ apis: ["setInterval"] });
   try {
