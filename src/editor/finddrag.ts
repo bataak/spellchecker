@@ -63,12 +63,13 @@ export function placeBar(
   );
 }
 
+const DOUBLE_TAP_MS = 350;
+
 export function makeFindDrag(
   bar: HTMLElement,
   grip: HTMLElement,
   home: () => Corner,
   watched: () => readonly Element[],
-  docked: () => boolean,
 ): FindDrag {
   let spot = parseOffset(read(KEYS.findPos));
   let at: Offset = { x: 0, y: 0 };
@@ -87,11 +88,6 @@ export function makeFindDrag(
     if (bar.hidden || grab) return;
     for (const el of watched()) sized.observe(el);
     const room = viewport();
-    if (docked()) {
-      at = { x: 0, y: Math.max(0, home().top) };
-      bar.style.transform = "translateY(" + at.y + "px)";
-      return;
-    }
     const corner = spot ? { right: room.right + spot.x, top: spot.y } : home();
     at = placeBar(corner, bar.offsetWidth, bar.offsetHeight, room);
     bar.style.transform = "translate(" + at.x + "px," + at.y + "px)";
@@ -102,7 +98,7 @@ export function makeFindDrag(
   };
 
   grip.addEventListener("pointerdown", (e) => {
-    if (e.button !== 0 || docked()) return;
+    if (e.button !== 0) return;
     e.preventDefault();
     grab = { x: e.clientX, y: e.clientY, from: at };
     grip.setPointerCapture(e.pointerId);
@@ -119,13 +115,22 @@ export function makeFindDrag(
     grab = null;
     save();
   };
-  grip.addEventListener("pointerup", drop);
-  grip.addEventListener("pointercancel", drop);
-  grip.addEventListener("dblclick", () => {
+  const reset = (): void => {
     spot = null;
     remove(KEYS.findPos);
     fit();
+  };
+  let tapped = 0;
+  grip.addEventListener("pointerup", (e) => {
+    const still = !!grab && at.x === grab.from.x && at.y === grab.from.y;
+    drop();
+    if (e.pointerType !== "touch" || !still) return void (tapped = 0);
+    if (e.timeStamp - tapped < DOUBLE_TAP_MS)
+      return void ((tapped = 0), reset());
+    tapped = e.timeStamp;
   });
+  grip.addEventListener("pointercancel", drop);
+  grip.addEventListener("dblclick", reset);
   const sized: ResizeObserver = new ResizeObserver(() => fit());
   sized.observe(bar);
   sized.observe(document.documentElement);

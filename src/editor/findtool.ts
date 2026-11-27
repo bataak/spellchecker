@@ -1,34 +1,42 @@
-import { setHtml, trustedHtml } from "../core/htmlutil.ts";
-import { svg } from "../ui/baricons.ts";
-import type { FindBarDeps } from "./findbar.ts";
-
-const COARSE = "(pointer: coarse)";
-
-export function coarse(): boolean {
-  return !!globalThis.matchMedia?.(COARSE).matches;
+export function replaceShown(saved: string | null): boolean {
+  return saved !== "0";
 }
 
-export function replaceShown(saved: string | null, touch: boolean): boolean {
-  return saved === null ? !touch : saved === "1";
+export interface Band {
+  readonly top: number;
+  readonly bottom: number;
 }
 
-const SEARCH_ICON = '<circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4l4 4"/>';
+export function visibleBand(box: DOMRect, cover: DOMRect | null): Band {
+  const band = { top: box.top, bottom: box.bottom };
+  if (!cover) return band;
+  const wide =
+    Math.min(cover.right, box.right) - Math.max(cover.left, box.left);
+  if (wide < box.width / 2) return band;
+  if (cover.top + cover.bottom < box.top + box.bottom)
+    return {
+      ...band,
+      top: Math.min(Math.max(box.top, cover.bottom), box.bottom),
+    };
+  return {
+    ...band,
+    bottom: Math.max(Math.min(box.bottom, cover.top), box.top),
+  };
+}
 
-export function toolButton(
-  deps: Pick<FindBarDeps, "tools" | "mac">,
+export function bindFindButton(
+  button: HTMLElement | null,
+  mac: boolean,
   run: () => void,
-): HTMLButtonElement | null {
-  const tools = deps.tools();
-  if (!tools) return null;
-  const mod = deps.mac ? "⌘F" : "Ctrl+F";
-  const el = document.createElement("button");
-  el.type = "button";
-  el.className = "find-tool";
-  el.title = "Хайх, солих (" + mod + ")";
-  el.setAttribute("aria-label", "Хайх, солих");
-  setHtml(el, trustedHtml(svg(SEARCH_ICON)));
-  el.addEventListener("mousedown", (e) => e.preventDefault());
-  el.addEventListener("click", run);
-  tools.insertBefore(el, tools.querySelector(".measure-ctl"));
-  return el;
+): () => void {
+  if (!button) return () => {};
+  const label = "Хайх, солих (" + (mac ? "⌘F" : "Ctrl+F") + ")";
+  button.title = label;
+  const keep = (e: Event): void => e.preventDefault();
+  button.addEventListener("mousedown", keep);
+  button.addEventListener("click", run);
+  return () => {
+    button.removeEventListener("mousedown", keep);
+    button.removeEventListener("click", run);
+  };
 }
