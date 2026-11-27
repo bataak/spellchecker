@@ -395,16 +395,6 @@ a.tbtn {
 .tbtn-icon > svg {
   display: block;
 }
-.emoji-icon {
-  display: block;
-  width: 16px;
-  height: 16px;
-  font-family:
-    "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
-  font-size: 15px;
-  line-height: 16px;
-  text-align: center;
-}
 #themeBtn .icon-sun,
 :root[data-theme="dark"] #themeBtn .icon-moon {
   display: none;
