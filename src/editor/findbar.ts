@@ -343,20 +343,19 @@ function homeCorner(deps: FindBarDeps): Corner {
   const box = (tools ?? deps.host).getBoundingClientRect();
   if (!tools) return { right: box.right - PAD, top: box.top + PAD };
   const style = getComputedStyle(tools);
-  const rects = [...tools.children]
-    .map((el) => el.getBoundingClientRect())
-    .filter((rect) => rect.width > 0);
+  const shown = [...tools.children].filter((el) => el.clientWidth > 0);
+  const rects = shown.map((el) => el.getBoundingClientRect());
   const top = box.top + parseFloat(style.paddingTop);
   if (coarse())
     return {
       right: box.right,
       top: Math.max(top, ...rects.map((rect) => rect.bottom + TOOL_GAP)),
     };
+  const lefts = shown
+    .filter((el) => !el.classList.contains("find-tool"))
+    .map((el) => el.getBoundingClientRect().left - TOOL_GAP);
   return {
-    right: Math.min(
-      box.right - parseFloat(style.paddingRight),
-      ...rects.map((rect) => rect.left - TOOL_GAP),
-    ),
+    right: Math.min(box.right - parseFloat(style.paddingRight), ...lefts),
     top,
   };
 }
