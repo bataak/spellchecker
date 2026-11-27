@@ -146,7 +146,7 @@ export default defineConfig({
         dontCacheBustURLsMatching:
           /^(?:assets\/|dict\/[\w.-]+\.[0-9a-f]{10}\.(?:aff|dic|freq)\.gz$)/,
         clientsClaim: true,
-        skipWaiting: true,
+        skipWaiting: false,
         maximumFileSizeToCacheInBytes: 20 * 1024 * 1024,
         runtimeCaching: [
           {
