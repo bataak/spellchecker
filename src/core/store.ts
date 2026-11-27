@@ -53,6 +53,7 @@ export const KEYS = {
   findPos: shared("find-pos"),
   findWord: shared("find-whole-word"),
   findExact: shared("find-exact"),
+  findReplace: shared("find-replace"),
   hintSeen: shared("hintSeen:"),
   tipInfo: shared("mn-spell:tip-info"),
   tipAction: shared("mn-spell:tip-action"),

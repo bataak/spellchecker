@@ -1,6 +1,6 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
-import { chooseSlot, ready, startApp, type App } from "./harness.ts";
+import { chooseSlot, FIREFOX, ready, startApp, type App } from "./harness.ts";
 
 let app: App;
 before(async () => {
@@ -226,3 +226,58 @@ test("курсорыг зөөсний дараа солих нь курсоры�
   assert.equal(await text(), "байх нэг. Баих хоёр. БАЙХ гурав.");
   await context.close();
 });
+
+test(
+  "утсан дээр хайх товчоор нээж, солих мөрийг дэлгэж солино",
+  { skip: FIREFOX && "isMobile-ийг Firefox дэмжихгүй" },
+  async () => {
+    const context = await app.browser.newContext({
+      viewport: { width: 390, height: 800 },
+      isMobile: true,
+      hasTouch: true,
+    });
+    const page = await context.newPage();
+    await page.goto(app.url);
+    await ready(page);
+    await chooseSlot(page, "Судалгаа");
+    await page.evaluate(() => {
+      const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
+      area.value = "Өвөл болж байна. Энэ өвөл хүйтэн.";
+      area.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    });
+    await page.tap(".find-tool");
+    assert.equal(await page.isVisible(".find-bar"), true);
+    assert.equal(await page.isHidden(".find-input[placeholder='Солих']"), true);
+    assert.equal(await page.isHidden(".find-grip"), true);
+    const bar = (await page.locator(".find-bar").boundingBox())!;
+    assert.ok(Math.abs(bar.x - 8) < 2);
+    assert.ok(Math.abs(bar.width - (390 - 16)) < 2);
+    const size = await page.$eval(".find-input", (el) =>
+      parseFloat(getComputedStyle(el).fontSize),
+    );
+    assert.equal(size, 16);
+
+    await page.fill(".find-input[placeholder='Хайх']", "өвөл");
+    assert.equal(await page.textContent(".find-count"), "1/2");
+    await page.tap(".find-more");
+    assert.equal(
+      await page.isVisible(".find-input[placeholder='Солих']"),
+      true,
+    );
+    await page.fill(".find-input[placeholder='Солих']", "зун");
+    await page.tap(".find-all");
+    assert.equal(
+      await page.inputValue("#editor"),
+      "Зун болж байна. Энэ зун хүйтэн.",
+    );
+    await page.tap(".find-tool");
+    assert.equal(await page.isHidden(".find-bar"), true);
+
+    await page.tap(".find-tool");
+    assert.equal(
+      await page.isVisible(".find-input[placeholder='Солих']"),
+      true,
+    );
+    await context.close();
+  },
+);

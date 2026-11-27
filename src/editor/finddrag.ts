@@ -68,6 +68,7 @@ export function makeFindDrag(
   grip: HTMLElement,
   home: () => Corner,
   watched: () => readonly Element[],
+  docked: () => boolean,
 ): FindDrag {
   let spot = parseOffset(read(KEYS.findPos));
   let at: Offset = { x: 0, y: 0 };
@@ -86,6 +87,11 @@ export function makeFindDrag(
     if (bar.hidden || grab) return;
     for (const el of watched()) sized.observe(el);
     const room = viewport();
+    if (docked()) {
+      at = { x: 0, y: Math.max(0, home().top) };
+      bar.style.transform = "translateY(" + at.y + "px)";
+      return;
+    }
     const corner = spot ? { right: room.right + spot.x, top: spot.y } : home();
     at = placeBar(corner, bar.offsetWidth, bar.offsetHeight, room);
     bar.style.transform = "translate(" + at.x + "px," + at.y + "px)";
@@ -96,7 +102,7 @@ export function makeFindDrag(
   };
 
   grip.addEventListener("pointerdown", (e) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || docked()) return;
     e.preventDefault();
     grab = { x: e.clientX, y: e.clientY, from: at };
     grip.setPointerCapture(e.pointerId);
