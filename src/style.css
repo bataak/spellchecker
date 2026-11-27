@@ -823,63 +823,13 @@ a.tbtn {
   grid-row: 1;
 }
 
-.find-tool {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  height: 32px;
-  padding: 0 7px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--editor-bg) 72%, transparent);
-  color: var(--muted);
-  cursor: pointer;
-  opacity: 0;
-  backdrop-filter: blur(12px) saturate(125%);
-  -webkit-backdrop-filter: blur(12px) saturate(125%);
-  transition:
-    opacity 0.15s ease,
-    background 0.15s ease;
-}
-
-.find-tool svg {
-  width: 17px;
-  height: 17px;
-}
-
-.editor-tools:hover .find-tool,
-.find-tool:focus-visible {
-  opacity: 1;
-}
-
-.find-tool:hover,
-.find-tool:focus-visible {
-  background: var(--editor-bg);
-  color: var(--ink);
-}
-
-.find-tool:active {
-  transform: translateY(1px);
-}
-
-@media (hover: none) {
-  .find-tool {
-    opacity: 0.62;
-  }
-}
-
 @media (pointer: coarse) {
   .find-bar {
-    right: 8px;
-    left: 8px;
-    max-width: none;
-    grid-template-columns: minmax(0, 1fr) auto;
     font-size: 0.9rem;
   }
 
   .find-grip {
-    display: none;
+    width: 18px;
   }
 
   .find-input {
@@ -899,7 +849,22 @@ a.tbtn {
 
 @media (pointer: coarse) and (max-width: 560px) {
   .find-bar {
-    grid-template-columns: minmax(0, 1fr);
+    width: calc(100vw - 16px);
+    max-width: none;
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .find-grip {
+    grid-row: 1 / span 4;
+  }
+
+  .find-bar.is-short .find-grip {
+    grid-row: 1 / span 2;
+  }
+
+  .find-input,
+  .find-actions {
+    grid-column: 2;
   }
 }
 

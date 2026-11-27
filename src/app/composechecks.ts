@@ -171,6 +171,7 @@ export function composeEditing(app: Scope<EditingReads, EditingGives>): void {
     onRender: app.backdrop.onRender,
     commit: (text, caret) => void app.loop.commit(text, caret),
     attachKeyboard: (input) => app.kbLayout.attach(input),
+    button: document.querySelector<HTMLElement>("#findBtn"),
     mac: detectPlatform().mac,
   });
   app.provide({ measureCtl });
