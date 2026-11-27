@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.133.0](https://github.com/bataak/spellchecker/compare/v1.132.3...v1.133.0) (2026-11-27)
+
+
+### Features
+
+* **define:** monochrome open-book icon for the word definition button ([0207e49](https://github.com/bataak/spellchecker/commit/0207e49f4c9e6d886ca9832fc280483ff64795c8))
+* **define:** simple single open-book icon for the word definition button ([194649f](https://github.com/bataak/spellchecker/commit/194649f733480acfb897912a970a9b23b712c49d))
+* **define:** spread open-book icon for the word definition button ([680e1e8](https://github.com/bataak/spellchecker/commit/680e1e808db0fb2a8a444132c6d90a589cb6f1d0))
+* **define:** use the 📖 emoji for the word definition button ([5ec8446](https://github.com/bataak/spellchecker/commit/5ec8446cec4f1938b97104b55ec1412f5d15fa92))
+* **find:** clear buttons inside the find and replace fields ([81a7e65](https://github.com/bataak/spellchecker/commit/81a7e653c801c118b5349133fe9699a3673d42da))
+* **find:** open find and replace from a toolbar button, dock it on touch screens ([348b045](https://github.com/bataak/spellchecker/commit/348b0456a6ade5f3dafc46a50fbf0ac414907eca))
+* **find:** toolbar find button beside define, draggable bar on touch, exact toggle in the find row ([6447cf2](https://github.com/bataak/spellchecker/commit/6447cf2df61acc376f3dca23c165cb4df4a19842))
+
+
+### Bug Fixes
+
+* **find:** keep the desktop find bar at its old spot beside the tools ([daf5026](https://github.com/bataak/spellchecker/commit/daf5026dd954d0db20c945783343af5bb9631584))
+* **theme:** shrink the moon icon to match the other top bar icons ([02f1e47](https://github.com/bataak/spellchecker/commit/02f1e47c463dfad90759bc2a72070d385b8d7481))
+* **update:** let a new service worker wait until the page reloads ([b91517c](https://github.com/bataak/spellchecker/commit/b91517c9883a6ad0f13f72bd998185ebcc500ad9))
+
 ## [1.132.3](https://github.com/bataak/spellchecker/compare/v1.132.2...v1.132.3) (2026-11-26)
 
 
