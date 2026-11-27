@@ -40,3 +40,22 @@ export function bindFindButton(
     button.removeEventListener("click", run);
   };
 }
+
+export function clearable(input: HTMLInputElement): HTMLElement {
+  const wrap = document.createElement("span");
+  wrap.className = "find-field";
+  const clear = document.createElement("button");
+  clear.type = "button";
+  clear.className = "find-clear";
+  clear.textContent = "×";
+  clear.title = "Арилгах";
+  clear.setAttribute("aria-label", input.placeholder + " талбарыг арилгах");
+  clear.addEventListener("mousedown", (e) => e.preventDefault());
+  clear.addEventListener("click", () => {
+    input.value = "";
+    input.focus({ preventScroll: true });
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  wrap.append(input, clear);
+  return wrap;
+}

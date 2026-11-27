@@ -13,7 +13,12 @@ import {
   type Edit,
   type Match,
 } from "./findmodel.ts";
-import { bindFindButton, replaceShown, visibleBand } from "./findtool.ts";
+import {
+  bindFindButton,
+  clearable,
+  replaceShown,
+  visibleBand,
+} from "./findtool.ts";
 
 const LEAD_SHARE = 0.3;
 const PAD = 24;
@@ -111,7 +116,8 @@ function buildBar(mod: string, deps: FindBarDeps) {
   const close = button("×", "Хаах (Esc)", "find-close");
   const more = button("⌄", "Солих мөр", "find-more");
   const replacement = field("Солих");
-  replacement.classList.add("find-swap");
+  const swapField = clearable(replacement);
+  swapField.classList.add("find-swap");
   const one = button("Солих", "Энэ олдцыг солих (Enter)", "find-one");
   const all = button("Бүгдийг", "Бүгдийг солих (" + mod + "Enter)", "find-all");
   const exact = toggle(
@@ -125,7 +131,7 @@ function buildBar(mod: string, deps: FindBarDeps) {
   const replaceActions = document.createElement("div");
   replaceActions.className = "find-actions find-swap";
   replaceActions.append(one, all);
-  bar.append(grip, query, findActions, replacement, replaceActions);
+  bar.append(grip, clearable(query), findActions, swapField, replaceActions);
 
   const drag = makeFindDrag(
     bar,
