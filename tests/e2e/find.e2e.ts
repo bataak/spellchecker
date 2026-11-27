@@ -270,8 +270,21 @@ test(
     const moved = (await page.locator(".find-bar").boundingBox())!;
     assert.ok(Math.abs(moved.y - bar.y - 200) < 2);
 
+    const clearQuery = ".find-field:has([placeholder='Хайх']) .find-clear";
+    assert.equal(await page.isHidden(clearQuery), true);
     await page.fill(".find-input[placeholder='Хайх']", "өвөл");
     assert.equal(await page.textContent(".find-count"), "1/2");
+    await page.tap(clearQuery);
+    assert.equal(await page.inputValue(".find-input[placeholder='Хайх']"), "");
+    assert.equal(await page.textContent(".find-count"), "");
+    assert.equal(await page.isHidden(clearQuery), true);
+    assert.equal(
+      await page.evaluate(() =>
+        document.activeElement?.getAttribute("placeholder"),
+      ),
+      "Хайх",
+    );
+    await page.fill(".find-input[placeholder='Хайх']", "өвөл");
     await page.tap(".find-exact");
     assert.equal(await page.textContent(".find-count"), "1/1");
     await page.fill(".find-input[placeholder='Солих']", "зун");

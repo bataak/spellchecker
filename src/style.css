@@ -750,16 +750,51 @@ a.tbtn {
   gap: 4px;
 }
 
+.find-field {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+
 .find-input {
   flex: 1 1 auto;
   width: 14rem;
   min-width: 0;
-  padding: 4px 7px;
+  padding: 4px 26px 4px 7px;
   border: 1px solid var(--line);
   border-radius: 7px;
   background: var(--editor-bg);
   color: inherit;
   font: inherit;
+}
+
+.find-clear {
+  position: absolute;
+  top: 50%;
+  right: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--muted) 22%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.find-clear:hover {
+  background: color-mix(in srgb, var(--muted) 38%, transparent);
+}
+
+.find-input:placeholder-shown + .find-clear {
+  display: none;
 }
 
 .find-input:focus-visible {
@@ -834,7 +869,16 @@ a.tbtn {
 
   .find-input {
     width: auto;
+    min-height: 38px;
+    padding-right: 40px;
     font-size: 16px;
+  }
+
+  .find-clear {
+    right: 4px;
+    width: 32px;
+    height: 32px;
+    font-size: 1.1rem;
   }
 
   .find-btn {
@@ -862,7 +906,7 @@ a.tbtn {
     grid-row: 1 / span 2;
   }
 
-  .find-input,
+  .find-field,
   .find-actions {
     grid-column: 2;
   }
