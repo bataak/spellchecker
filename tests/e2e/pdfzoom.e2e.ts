@@ -29,7 +29,7 @@ const openPhone = async (deviceScaleFactor = 1) => {
     deviceScaleFactor,
   });
   const page = await context.newPage();
-  await page.goto(app.url);
+  await page.goto(app.url, { waitUntil: "domcontentloaded" });
   await ready(page);
   await chooseSlot(page, "Судалгаа");
   await page.evaluate((text) => {
@@ -149,7 +149,7 @@ test("томруулсан PDF-ийн хэвтээ байрлалыг refresh б
     viewport: { width: 1600, height: 950 },
   });
   const page = await context.newPage();
-  await page.goto(app.url);
+  await page.goto(app.url, { waitUntil: "domcontentloaded" });
   await ready(page);
   await page.evaluate(() => localStorage.setItem("pdfZoom", "1.5"));
   await chooseSlot(page, "Судалгаа");
@@ -175,7 +175,7 @@ test("томруулсан PDF-ийн хэвтээ байрлалыг refresh б
       return range > 0 ? el.scrollLeft / range : -1;
     }, body);
   assert.equal(await canvas(), true);
-  await page.reload();
+  await page.reload({ waitUntil: "domcontentloaded" });
   await ready(page);
   assert.equal(await canvas(), true);
   await page.waitForTimeout(500);
@@ -188,7 +188,7 @@ test("томруулсан PDF-ийн хэвтээ байрлалыг refresh б
   const centered = await ratio();
   assert.ok(Math.abs(centered - 0.5) < 0.02, String(centered));
 
-  await page.reload();
+  await page.reload({ waitUntil: "domcontentloaded" });
   await ready(page);
   assert.equal(await canvas(), true);
   await page.waitForTimeout(500);

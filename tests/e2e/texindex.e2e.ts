@@ -30,7 +30,7 @@ const FRAGMENT = SOURCE.split("\n")
 async function indexText(source: string): Promise<string> {
   const context = await app.context();
   const page = await context.newPage();
-  await page.goto(app.url);
+  await page.goto(app.url, { waitUntil: "domcontentloaded" });
   const text = await page.evaluate(async (source) => {
     const load = (path: string) => import(new URL(path, location.href).href);
     const { compileTex } = await load("src/tex/texpdf.ts");

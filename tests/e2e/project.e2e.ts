@@ -15,6 +15,7 @@ import {
   until,
   type App,
   answer,
+  ready,
 } from "./harness.ts";
 
 const HAS_DEFINITIONS = existsSync(
@@ -267,8 +268,9 @@ test("төслийн самбар багтах хилийн орчимд preview
   for (let width = 1690; width <= 1790; width += 10) {
     const page = await openPage(app, context);
     await page.setViewportSize({ width, height: 900 });
-    await page.reload();
+    await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForSelector("#editor");
+    await ready(page);
     await page.waitForTimeout(1500);
     const state = await page.evaluate(() => {
       const preview = document.querySelector<HTMLElement>(".preview-panel");

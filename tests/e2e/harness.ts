@@ -135,6 +135,8 @@ export async function startApp(): Promise<App> {
           ? { permissions: ["clipboard-read", "clipboard-write"] }
           : {}),
       });
+      context.setDefaultTimeout(60_000);
+      context.setDefaultNavigationTimeout(BOOT_TIMEOUT_MS);
       await context.addInitScript(() => {
         const win = window as unknown as Record<string, unknown>;
         delete (Window.prototype as unknown as Record<string, unknown>)
@@ -179,7 +181,7 @@ export async function openPage(
   const seen: string[] = [];
   pageErrors.set(page, seen);
   page.on("pageerror", (error) => seen.push(error.message));
-  await page.goto(app.url);
+  await page.goto(app.url, { waitUntil: "domcontentloaded" });
   await ready(page);
   return page;
 }
@@ -201,7 +203,7 @@ export async function ready(page: Page): Promise<void> {
 }
 
 export async function reload(page: Page): Promise<void> {
-  await page.reload();
+  await page.reload({ waitUntil: "domcontentloaded" });
   await ready(page);
 }
 

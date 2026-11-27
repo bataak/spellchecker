@@ -32,7 +32,7 @@ const hashOf = (page: Page): Promise<string> =>
   page.evaluate(() => decodeURIComponent(location.hash));
 
 async function visit(page: Page, hash: string): Promise<void> {
-  await page.goto(app.url + hash);
+  await page.goto(app.url + hash, { waitUntil: "domcontentloaded" });
   await ready(page);
 }
 
