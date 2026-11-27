@@ -3,25 +3,11 @@ import type { Html } from "../core/htmlutil.ts";
 import { reveal } from "../ui/status.ts";
 import { KEYS, at, read, write } from "../core/store.ts";
 import { noteError } from "../core/errorlog.ts";
+import { activateWaiting, wait, waitingReady } from "./swupdate.ts";
 export interface AppUpdate {
   readonly setDictVersion: (version: string | null) => void;
   readonly checkFreshness: () => Promise<void>;
   readonly recoverStale: (deferIfActive?: boolean) => Promise<boolean>;
-}
-
-function swSettled(worker: ServiceWorker): Promise<void> {
-  return new Promise<void>((resolve) => {
-    const check = (): void => {
-      if (worker.state === "installed")
-        worker.postMessage({ type: "SKIP_WAITING" });
-      if (worker.state === "activated" || worker.state === "redundant") {
-        worker.removeEventListener("statechange", check);
-        resolve();
-      }
-    };
-    worker.addEventListener("statechange", check);
-    check();
-  });
 }
 
 async function fetchFreshEntry(base: string): Promise<string | null> {
@@ -51,11 +37,13 @@ async function servesEntry(entry: string, base: string): Promise<boolean> {
 const IDLE_RELOAD_MS = 10 * 60 * 1000;
 
 function reloadForUpdate(): void {
-  location.reload();
-}
-
-function waitMs(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)));
+  const sw = navigator.serviceWorker;
+  if (!sw) return location.reload();
+  void sw
+    .getRegistration()
+    .then((reg) => activateWaiting(reg, sw))
+    .catch(noteError)
+    .finally(() => location.reload());
 }
 
 function isNewer(entry: string | null, entryUrl: string): entry is string {
@@ -74,22 +62,8 @@ async function prepareLatest(
       : null;
     const entry = freshEntry ?? (await fetchFreshEntry(base));
     if (!reg) return true;
-    if (entry) {
-      while (Date.now() < deadline) {
-        const pending = reg.installing || reg.waiting;
-        if (pending && pending.state !== "redundant") {
-          await Promise.race([
-            swSettled(pending),
-            waitMs(deadline - Date.now()),
-          ]);
-          continue;
-        }
-        if (await servesEntry(entry, base)) return true;
-        await reg.update().catch(() => undefined);
-        const next = reg.installing || reg.waiting;
-        if (!next || next.state === "redundant") await waitMs(5000);
-      }
-    }
+    if (entry)
+      return await waitingReady(reg, () => servesEntry(entry, base), deadline);
   } catch (error) {
     noteError(error);
   }
@@ -201,7 +175,7 @@ export function initAppUpdate(
     if (!isNewer(entry, entryUrl)) return;
     freshEntry = entry;
     if (reloadEl) reloadEl.hidden = false;
-    await waitMs(0);
+    await wait(0);
     setStatus(
       html`Шинэ хувилбар суусан тул энэ үйлдлийг хийхийн тулд ↻ товчийг дарж
       хуудсыг дахин ачаална уу`,
