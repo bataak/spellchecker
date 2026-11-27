@@ -207,7 +207,10 @@ test("курсорыг зөөсний дараа солих нь курсоры�
   const count = () => page.textContent(".find-count");
   assert.equal(await count(), "3/3");
 
-  await page.locator("#editor").click({ position: { x: 60, y: 30 } });
+  const area = (await page.locator("#editor").boundingBox())!;
+  await page
+    .locator("#editor")
+    .click({ position: { x: 60, y: area.height - 30 } });
   await page.evaluate(() => {
     const area = document.querySelector<HTMLTextAreaElement>("#editor")!;
     area.setSelectionRange(2, 2);
