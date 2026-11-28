@@ -12,6 +12,7 @@ import {
   typeAtEnd,
   until,
   type App,
+  ready,
 } from "./harness.ts";
 import { startCollab, type CollabServer } from "../helpers/collabserver.ts";
 
@@ -200,7 +201,7 @@ test("хамтралгүй бичсэн шүүмж хадгалагдаж, ха�
   assert.equal(await owner.locator(".talk-tab:not([hidden])").count(), 1);
 
   await owner.waitForTimeout(800);
-  await owner.reload();
+  await owner.reload({ waitUntil: "domcontentloaded" });
   await owner.locator(".collab-comment-mark").first().waitFor({
     timeout: 20000,
   });
@@ -312,8 +313,9 @@ test("Ctrl+Shift+Backspace бичвэртэй хамт шүүмж ба Шүүм�
     state: "detached",
   });
   await page.waitForTimeout(800);
-  await page.reload();
+  await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForSelector("#editor");
+  await ready(page);
   await page.waitForTimeout(1500);
   assert.equal(await trigger.isVisible(), false);
   assert.deepEqual(errors(page), []);
@@ -330,8 +332,7 @@ test("хамтарч байхдаа цэвэрлэхэд шүүмж локалд
   await owner.locator(".talk-thread", { hasText: "Хамтын шүүмж" }).waitFor();
   await owner.click("#editor");
   await owner.keyboard.press("Control+Shift+Backspace");
-  await owner.waitForTimeout(2000);
-  assert.equal(await owner.locator(".talk-trigger").isVisible(), false);
+  await owner.locator(".talk-trigger").waitFor({ state: "hidden" });
   assert.equal(await owner.locator(".collab-comment-mark").count(), 0);
   assert.deepEqual(errors(owner), []);
 });

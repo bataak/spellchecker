@@ -15,6 +15,7 @@ import {
   until,
   type App,
   answer,
+  reload,
 } from "./harness.ts";
 
 const HAS_DEFINITIONS = existsSync(
@@ -260,15 +261,12 @@ test("төсөлд байхад Цэвэрлэх товч төслийг асу�
 
 test("төслийн самбар багтах хилийн орчимд preview алга болохгүй", async () => {
   const context = await app.context();
-  const seed = await openPage(app, context);
-  await openFile(seed, app.files.project);
-  await projectFile(seed, "main.tex");
-  await seed.close();
+  const page = await openPage(app, context);
+  await openFile(page, app.files.project);
+  await projectFile(page, "main.tex");
   for (let width = 1690; width <= 1790; width += 10) {
-    const page = await openPage(app, context);
     await page.setViewportSize({ width, height: 900 });
-    await page.reload();
-    await page.waitForSelector("#editor");
+    await reload(page);
     await page.waitForTimeout(1500);
     const state = await page.evaluate(() => {
       const preview = document.querySelector<HTMLElement>(".preview-panel");
@@ -280,8 +278,8 @@ test("төслийн самбар багтах хилийн орчимд preview
     });
     if (state.project && state.docked)
       assert.equal(state.preview, true, String(width));
-    await page.close();
   }
+  await page.close();
 });
 
 test("том төсөлд Ctrl+Shift дарж заасан үгийн тайлбар гацалтгүй гарна", async () => {

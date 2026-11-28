@@ -16,7 +16,7 @@ const TEXT = Array.from(
 test("⌘/Ctrl+F хайж, олдцоор гүйлгэж, нэгийг ба бүгдийг солино", async () => {
   const context = await app.context();
   const page = await context.newPage();
-  await page.goto(app.url);
+  await page.goto(app.url, { waitUntil: "domcontentloaded" });
   await ready(page);
   await chooseSlot(page, "Судалгаа");
   await page.evaluate((text) => {
@@ -109,7 +109,7 @@ test("⌘/Ctrl+F хайж, олдцоор гүйлгэж, нэгийг ба бү
       outside.x < editor.x,
   );
 
-  await page.reload();
+  await page.reload({ waitUntil: "domcontentloaded" });
   await ready(page);
   await chooseSlot(page, "Судалгаа");
   await page.locator("#editor").focus();
@@ -123,7 +123,7 @@ test("⌘/Ctrl+F хайж, олдцоор гүйлгэж, нэгийг ба бү
 test("курсороос хайж, бүтэн үгээр ялгаж, хаахад анхны байрлалдаа буцна", async () => {
   const context = await app.context();
   const page = await context.newPage();
-  await page.goto(app.url);
+  await page.goto(app.url, { waitUntil: "domcontentloaded" });
   await ready(page);
   await chooseSlot(page, "Судалгаа");
   const lines = Array.from(
@@ -189,7 +189,7 @@ test("курсороос хайж, бүтэн үгээр ялгаж, хааха�
 test("курсорыг зөөсний дараа солих нь курсорын үгээс үргэлжилж, яг горим ажиллана", async () => {
   const context = await app.context();
   const page = await context.newPage();
-  await page.goto(app.url);
+  await page.goto(app.url, { waitUntil: "domcontentloaded" });
   await ready(page);
   await chooseSlot(page, "Судалгаа");
   await page.evaluate(() => {
@@ -240,7 +240,7 @@ test(
       hasTouch: true,
     });
     const page = await context.newPage();
-    await page.goto(app.url);
+    await page.goto(app.url, { waitUntil: "domcontentloaded" });
     await ready(page);
     await chooseSlot(page, "Судалгаа");
     await page.evaluate(() => {

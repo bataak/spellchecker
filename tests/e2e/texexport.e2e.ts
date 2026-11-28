@@ -23,7 +23,7 @@ interface Probe {
 async function pdfText(probe: Probe): Promise<string> {
   const context = await app.context();
   const page = await context.newPage();
-  await page.goto(app.url);
+  await page.goto(app.url, { waitUntil: "domcontentloaded" });
   const text = await page.evaluate(
     async ({ probe, png }) => {
       const load = (path: string) => import(new URL(path, location.href).href);
@@ -208,7 +208,7 @@ test("тэмдэглэл доторх код блоктой слайд PDF бо�
 test("нэг файлд макроны аргументаар өгсөн зураг орж, дутуу нь хайрцаг болно", async () => {
   const context = await app.context();
   const page = await context.newPage();
-  await page.goto(app.url);
+  await page.goto(app.url, { waitUntil: "domcontentloaded" });
   const text = await page.evaluate(async (png) => {
     const load = (path: string) => import(new URL(path, location.href).href);
     const { compileTex } = await load("src/tex/texpdf.ts");
@@ -240,7 +240,7 @@ test("нэг файлд макроны аргументаар өгсөн зур�
 test("нэг файлд PDF зураг хайрцаг биш, зураг болж орно", async () => {
   const context = await app.context();
   const page = await context.newPage();
-  await page.goto(app.url);
+  await page.goto(app.url, { waitUntil: "domcontentloaded" });
   const text = await page.evaluate(async () => {
     const load = (path: string) => import(new URL(path, location.href).href);
     const { compileTexDocument } = await load("src/tex/texpdf.ts");
@@ -313,7 +313,7 @@ test("\\url-ын % дараах зураг мөн мөрөнд PDF-д орно",
 test("SVG-ийн foreignObject, windows-1251, UTF-16 бичвэр PDF-д орно", async () => {
   const context = await app.context();
   const page = await context.newPage();
-  await page.goto(app.url);
+  await page.goto(app.url, { waitUntil: "domcontentloaded" });
   const out = await page.evaluate(async () => {
     const load = (path: string) => import(new URL(path, location.href).href);
     const { renderSvg } = await load("src/tex/svgpdf.ts");

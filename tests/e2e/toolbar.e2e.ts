@@ -1,6 +1,6 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
-import { errors, openPage, startApp, type App } from "./harness.ts";
+import { errors, openPage, ready, startApp, type App } from "./harness.ts";
 
 let app: App;
 before(async () => {
@@ -14,8 +14,9 @@ test("нарийн дэлгэцэд доод цэс төгсгөл хүртэл 
   const context = await app.context();
   const page = await openPage(app, context);
   await page.setViewportSize({ width: 900, height: 700 });
-  await page.reload();
+  await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForSelector("#editor");
+  await ready(page);
   const max = await page.evaluate(() => {
     const bar = document.querySelector<HTMLElement>(".toolbar")!;
     return bar.scrollWidth - bar.clientWidth;

@@ -232,7 +232,7 @@ test("утсан дээр toolbar-ыг төгсгөл уруу гүйлгэхэ�
     viewport: { width: 390, height: 800 },
   });
   const page = await context.newPage();
-  await page.goto(app.url);
+  await page.goto(app.url, { waitUntil: "domcontentloaded" });
   await ready(page);
   await page.evaluate(() => {
     const bar = document.querySelector<HTMLElement>(".toolbar")!;
